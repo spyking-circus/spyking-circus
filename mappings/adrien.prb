@@ -1,0 +1,25 @@
+total_nb_channels = 24
+radius            = 100
+channel_groups    = {}
+
+def get_geometry(i):
+    if i == 1: 
+        return {0: [0, 0], 1: [20, 10], 2: [0, 20], 3: [20, 30], 4: [0, 40], 5: [20, 50], 6: [0, 60], 7: [20, 70]}
+    elif i == 2:
+        return {8: [0, 0], 9: [20, 10], 10: [0, 20], 11: [20, 30], 12: [0, 40], 13: [20, 50], 14: [0, 60], 15: [20, 70]}
+    else:
+        return {16: [0, 0], 17: [20, 10], 18: [0, 20], 19: [20, 30], 20: [0, 40], 21: [20, 50], 22: [0, 60], 23: [20, 70]}
+
+def get_channels(i):
+    if i == 1: 
+        return range(8)
+    elif i == 2:
+        return range(8, 16)
+    else:
+        return range(16, 24)
+
+for i in xrange(1, 4):
+    channel_groups[i]             = {}
+    channel_groups[i]["channels"] = get_channels(i) 
+    channel_groups[i]["geometry"] = get_geometry(i)
+    channel_groups[i]["graph"]    = []
