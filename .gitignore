@@ -2,3 +2,12 @@
 dist
 build
 /docs
+
+# PyCharms
+.idea
+
+# Build-related directories
+/.eggs
+/circus.egg-info
+/dist
+/build
