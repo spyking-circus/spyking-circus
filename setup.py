@@ -14,5 +14,6 @@ setup(name='circus',
       dependency_links=['http://github.com/cudamat/cudamat/tarball/master#egg=cudamat'],
       scripts=[pjoin('bin', 'spyking-circus'),
                pjoin('bin', 'spyking-circus-subtask.py')],
+      package_data={'circus': ['circus/config.params']},
       classifiers=['Development Status :: 3 - Alpha'],
       zip_safe=False)

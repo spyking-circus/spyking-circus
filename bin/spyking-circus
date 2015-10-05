@@ -5,6 +5,7 @@ import socket
 import getopt
 import shutil
 import subprocess
+import pkg_resources
 
 from termcolor import colored
 
@@ -88,7 +89,9 @@ if __name__ == '__main__':
                 if key == 'y':
                     print "Generating template file", file_params
                     print "Please fill it properly before launching the code! (see documentation)"
-                    shutil.copy2('circus/config.params', file_params)
+                    config_file = pkg_resources.resource_stream('circus', 'config.params')
+                    with open(file_params, 'wb') as output_file:
+                        shutil.copyfileobj(config_file, output_file)
                 sys.exit()
             opts, args  = getopt.getopt(sys.argv[2:], "hvm:H:c:g:", ["help", "method=", "hostfile=", "cpu=", "gpu="])
 
