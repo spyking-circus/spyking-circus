@@ -195,13 +195,14 @@ class Converter(object):
         nodes            = []
         for key in self.probe['channel_groups'].keys():
           nodes += self.probe['channel_groups'][key]['channels']
-        nodes    = np.sort(np.array(nodes, dtype=np.int32))
+        
         self._wl = WaveformLoader(traces=self.traces_f,
                                   n_samples=self.n_samples_w,
                                   dc_offset=offset,
                                   scale_factor=gain,
                                   channels=nodes
                                   )
+
         # A virtual (n_spikes, n_samples, n_channels) array that is
         # memmapped to the filtered data file.
         self.waveforms = SpikeLoader(self._wl, self.spike_samples)
@@ -389,10 +390,6 @@ c = Converter(basename, filename, N_t,
               dtype=dtype,
               gain=gain
               )
-
-# Uncomment to have a look at the templates or waveforms.
-#c.template_explorer('waveforms')  # 'waveforms' or 'templates'
-#exit()
 
 if not os.path.exists(basename + '.kwik'):
     # Conversion.

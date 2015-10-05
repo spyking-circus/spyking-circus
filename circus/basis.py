@@ -92,13 +92,7 @@ for gcount, gidx in enumerate(chunks_to_load):
 
             n_times         = len(local_peaktimes)
             argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
-            best_electrode  = []
-            for idx in argmax_peak:
-                peak            = local_peaktimes[idx]
-                subset          = all_minimas[all_peaktimes == peak]
-                elec            = subset[numpy.argmin(local_chunk[peak, subset])]
-                best_electrode += [elec]
-            best_electrode  = numpy.array(best_electrode, dtype=numpy.int32)
+            best_electrode  = numpy.argmin(local_chunk[local_peaktimes[argmax_peak]], 1)
 
             #print "Selection of the peaks with spatio-temporal masks..."
             for idx, elec in zip(argmax_peak, best_electrode):
@@ -107,7 +101,8 @@ for gcount, gidx in enumerate(chunks_to_load):
                 indices = inv_nodes[edges[nodes[elec]]]
                 myslice = all_times[indices, min_times[idx]:max_times[idx]]
                 peak    = local_peaktimes[idx]
-                if not myslice.any():
+                is_local_min = elec in all_minimas[all_peaktimes == peak]
+                if is_local_min and not myslice.any():
                     if groups[elec] < max_elts_elec: 
                         elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
                         groups[elec]       += 1
@@ -128,7 +123,7 @@ gdata = gather_array(elts[:, :elt_count], comm, 0)
 
 if comm.rank == 0:
     #DO PCA on elts and store the basis obtained. 
-    print "We found", gdata.shape[1], "elements over", int(nb_elts*comm.size), "requested" 
+    print "We found", gdata.shape[1], "spikes over", int(nb_elts*comm.size), "requested" 
     pca      = mdp.nodes.PCANode(output_dim=output_dim)
     res_pca  = pca(elts.astype(numpy.double).T)
     numpy.savez(file_out + '.basis', proj=pca.get_projmatrix().astype(numpy.float32), rec=pca.get_recmatrix().astype(numpy.float32))

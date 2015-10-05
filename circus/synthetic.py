@@ -1,34 +1,35 @@
 from utils import *
 numpy.random.seed(451235)
-#56, 850
 
 params    = io.load_parameters(sys.argv[-1])
-benchmark = 'clustering'
+benchmark = 'fitting'
 
 if benchmark == 'fitting':
-    n_cells         = 20*[212]
-    file_name       = 'synthetic/fake_1'
-    rate            = 20*[10]
-    amplitude       = numpy.linspace(0.5, 5, 20) 
+    nb_insert       = 25
+    n_cells         = nb_insert*[5]
+    file_name       = 'synthetic/rfake_1'
+    rate            = nb_insert*[10]
+    amplitude       = numpy.linspace(0.5, 5, nb_insert) 
     noise           = 0
-    sim_same_elec   = 0.7
+    sim_same_elec   = 0.8
 if benchmark == 'clustering':
-    n_point         = 8
-    n_cells         = n_point**2*[212]
-    file_name       = 'synthetic/fake_2'
+    n_point         = 5
+    n_cells         = n_point**2*[55]
+    file_name       = 'synthetic/rfake_2'
     x, y            = numpy.mgrid[0:n_point,0:n_point]
-    rate            = numpy.linspace(1, 25, n_point)[x.flatten()]
+    rate            = numpy.linspace(0.5, 20, n_point)[x.flatten()]
     amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
-    sim_same_elec   = 0.7
+    sim_same_elec   = 0.8
     noise           = 0
 if benchmark == 'synchrony':
-    n_cells         = 20*[212, 721]
+    nb_insert       = 5
+    corrcoef        = 0.2
+    n_cells         = nb_insert*[55]
     file_name       = 'synthetic/fake_3'
-    rate            = 20*[10, 10]
-    synchrony       = numpy.arange()
-    amplitude       = numpy.linspace(0.5, 5, 20) 
+    rate            = 10./corrcoef
+    amplitude       = 2*numpy.ones(nb_insert) 
     noise           = 0
-    sim_same_elec   = 0.7
+    sim_same_elec   = 0.8
 
 N_e             = params.getint('data', 'N_e')
 sampling_rate   = params.getint('data', 'sampling_rate')
@@ -47,8 +48,11 @@ do_spatial_whitening  = params.getboolean('whitening', 'spatial')
 N_tm_init             = templates.shape[2]/2
 thresholds            = io.load_data(params, 'thresholds')
 
-if not os.path.exists(file_name):
-    os.makedirs(file_name)
+if comm.rank == 0:
+    if not os.path.exists(file_name):
+        os.makedirs(file_name)
+
+comm.Barrier()
 
 if do_spatial_whitening or do_temporal_whitening:
     spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -106,15 +110,25 @@ for gcount, cell_id in enumerate(cells):
         else:
             n_elec = all_elecs[count]
             best_elecs[-1] = n_elec
-            if n_elec != best_elec:
+            if benchmark is not 'synchrony':
+                local_test = n_elec != best_elec
+            else:
+                local_test = n_elec == best_elec
+
+            if local_test:
                 new_indices = inv_nodes[edges[nodes[n_elec]]]
+                idx = numpy.where(new_indices != best_elec)[0]
+                new_indices[idx] = numpy.random.permutation(new_indices[idx])
+
                 if len(new_indices) == len(indices):
                     new_temp                 = templates[:, :, cell_id].copy()
                     new_temp[indices, :]     = 0
                     new_temp[new_indices, :] = templates[indices, :, cell_id]
-                    scaling = thresholds[n_elec]/numpy.max(numpy.abs(templates[:, :, cell_id]))
+                    gmin = templates[:, :, cell_id].min()
+                    data = numpy.where(new_temp == gmin)
+                    scaling = -thresholds[data[0][0]]/gmin
                     for i in xrange(templates.shape[2]/2):
-                        d = numpy.corrcoef(templates[:, :, i].flatten(), scaling*new_temp[:,:].flatten())[0, 1]
+                        d = numpy.corrcoef(templates[:, :, i].flatten(), scaling*new_temp.flatten())[0, 1]
                         if d > similarity:
                             similarity = d
             else:
@@ -153,6 +167,14 @@ numpy.random.seed(comm.rank)
 if comm.rank == 0:
     pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=loc_nb_chunks).start()
 
+file_name_noext     = file_name.split('/')[-1]
+spiketimes_file     = open(file_name +'/'+file_name_noext+ '.spiketimes-%d.data' %comm.rank, 'w')
+amplitudes_file     = open(file_name +'/'+file_name_noext+ '.amplitudes-%d.data' %comm.rank, 'w')
+templates_file      = open(file_name +'/'+file_name_noext+ '.templates-%d.data' %comm.rank, 'w')
+real_amps_file      = open(file_name +'/'+file_name_noext+ '.real_amps-%d.data' %comm.rank, 'w')
+voltages_file       = open(file_name +'/'+file_name_noext+ '.voltages-%d.data' %comm.rank, 'w')
+
+print file_name +'/'+file_name_noext+ '.spiketimes-%d.data' %comm.rank
 
 for count, gidx in enumerate(to_process):
 
@@ -170,8 +192,16 @@ for count, gidx in enumerate(to_process):
         for i in xrange(N_e):
             local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
    
+    if benchmark is 'synchrony':
+        mips = numpy.random.rand(chunk_size) < rate[0]/float(sampling_rate)
+
     for idx in xrange(len(cells)):
-        spikes         = numpy.random.rand(chunk_size) < rate[idx]/float(sampling_rate)
+        if benchmark is 'synchrony':
+            sidx       = numpy.where(mips == True)[0]
+            spikes     = numpy.zeros(chunk_size, dtype=numpy.bool)
+            spikes[sidx[numpy.random.rand(len(sidx)) < corrcoef]] = True
+        else:
+            spikes     = numpy.random.rand(chunk_size) < rate[idx]/float(sampling_rate)
         spikes[:N_t]   = False
         spikes[-N_t:]  = False
         spikes         = numpy.where(spikes == True)[0]
@@ -189,30 +219,17 @@ for count, gidx in enumerate(to_process):
             result['templates']  += [n_template]
             result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
 
-
-    spiketimes_file     = open(file_out + '.spiketimes-%d.data' %comm.rank, 'ab')
-    amplitudes_file     = open(file_out + '.amplitudes-%d.data' %comm.rank, 'ab')
-    templates_file      = open(file_out + '.templates-%d.data' %comm.rank, 'ab')
-    real_amps_file      = open(file_out + '.real_amps-%d.data' %comm.rank, 'ab')
-    voltages_file       = open(file_out + '.voltages-%d.data' %comm.rank, 'ab')
-
     spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
     amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
     templates_to_write  = numpy.array(result['templates'], dtype=numpy.int32)
     real_amps_to_write  = numpy.array(result['real_amps'], dtype=numpy.float32)
     voltages_to_write   = numpy.array(result['voltages'], dtype=numpy.float32)
 
-    spikes_to_write.tofile(spiketimes_file)
-    amplitudes_to_write.tofile(amplitudes_file)
-    templates_to_write.tofile(templates_file)
-    real_amps_to_write.tofile(real_amps_file)
-    voltages_to_write.tofile(voltages_file)
-
-    spiketimes_file.close()
-    amplitudes_file.close()
-    templates_file.close()
-    real_amps_file.close()
-    voltages_file.close()
+    spiketimes_file.write(spikes_to_write.tostring())
+    amplitudes_file.write(amplitudes_to_write.tostring())
+    templates_file.write(templates_to_write.tostring())
+    real_amps_file.write(real_amps_to_write.tostring())
+    voltages_file.write(voltages_to_write.tostring())
 
     #print count, 'spikes inserted...'
     local_chunk /= gain
@@ -227,8 +244,15 @@ for count, gidx in enumerate(to_process):
     if comm.rank == 0:
         pbar.update(count)
 
+spiketimes_file.close()
+amplitudes_file.close()
+templates_file.close()
+real_amps_file.close()
+voltages_file.close()
+
 if comm.rank == 0:
     pbar.finish()
+
 
 g.Close()
 
@@ -264,3 +288,12 @@ if comm.rank == 0:
     hdf5storage.savemat(file_name+'/injected/'+file_name.split('/')[-1]+'.limits.mat', {'limits' : data})
     numpy.save(file_name+'/injected/'+file_name.split('/')[-1]+'.scalings', scalings)
     numpy.save(file_name+'/injected/elecs', best_elecs)
+
+    file_name_noext = file_name.split('/')[-1]
+    
+    for name in ['.basis.npz', '.thresholds.npy', '.limits.mat', '.whitening.mat']:
+        shutil.copy2(file_name+'/injected/'+file_name.split('/')[-1]+name, file_name+'/'+file_name_noext+ name)
+
+    if benchmark in ['fitting', 'synchrony']:
+        os.system('cp %s %s' %(file_name+'/injected/templates.mat', file_name+'/'+file_name_noext+'.templates.mat'))
+    

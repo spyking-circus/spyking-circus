@@ -207,7 +207,8 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
         pylab.plot([center, center], [ymin, ymax], 'k--')
         pylab.title('Cluster %d' %i)
 
-    pylab.tight_layout()
+    if nb_templates > 0:
+        pylab.tight_layout()
     if save:
         pylab.savefig('%s/waveforms_%s.pdf' %(save[0], save[1]))
         pylab.close()

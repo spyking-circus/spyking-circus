@@ -160,17 +160,24 @@ for gcount, gidx in enumerate(xrange(comm.rank, nb_chunks, comm.size)):
         if USE_CUDA:
             sub_mat  = cmt.empty((N_e, n_t))
 
-        for itime in xrange(temp_2_shift+1):
-            if USE_CUDA:
-                cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
-                cloc.select_columns(cu_slice, sub_mat)
-                sub_mat_transpose = sub_mat.transpose()
-                sub_templates     = cmt.CUDAMatrix(templates[:, itime, :])
-                b.add_dot(sub_mat_transpose, sub_templates)
-                del sub_templates, sub_mat_transpose
-            else:
-                sub_mat = local_chunk[local_peaktimes+itime-template_shift, :]
-                b      += numpy.dot(sub_mat, templates[:, itime, :])
+        try:
+            for itime in xrange(temp_2_shift+1):
+                if USE_CUDA:                    
+                    cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
+                    cloc.select_columns(cu_slice, sub_mat)
+                    sub_mat_transpose = sub_mat.transpose()
+                    sub_templates     = cmt.CUDAMatrix(templates[:, itime, :])
+                    b.add_dot(sub_mat_transpose, sub_templates)
+                    del sub_templates, sub_mat_transpose
+                else:
+                    sub_mat = local_chunk[local_peaktimes+itime-template_shift, :]
+                    b      += numpy.dot(sub_mat, templates[:, itime, :])
+        except Exception:
+            if comm.rank == 0:
+                lines = ["There may be a GPU memory error: -set gpu_only to False", 
+                         "                                 -reduce N_t",
+                         "                                 -increase mergings"]
+                io.print_info(lines)
 
         if USE_CUDA:
             del sub_mat, cloc

@@ -30,7 +30,7 @@ nclus_min      = params.getfloat('clustering', 'nclus_min')
 max_clusters   = params.getint('clustering', 'max_clusters')
 make_plots     = params.getboolean('clustering', 'make_plots')
 sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
-smart_search   = params.getfloat('clustering', 'smart_search')
+smart_search   = numpy.ones(N_e, dtype=numpy.float32)*params.getfloat('clustering', 'smart_search')
 test_clusters  = params.getboolean('clustering', 'test_clusters')
 tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
 amp_limits     = map(float, tmp_limits)
@@ -69,16 +69,30 @@ nb_elts       /= comm.size
 few_elts       = False
 borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
 
+if numpy.all(smart_search == 0):
+    gpass = 1
+else:
+    gpass = 0
+
 ## We will perform several passes to enhance the quality of the clustering
-for gpass in xrange(nb_repeats + 1):
+while gpass < (nb_repeats + 1):
 
     comm.Barrier()
 
+    if gpass == 1:
+        sdata = all_gather_array(smart_search[numpy.arange(comm.rank, N_e, comm.size)], comm, 0)
+
     if comm.rank == 0:
         if gpass == 0:
-            print "Searching random spikes to first estimate distances..."
+            print "Searching random spikes to estimate distances..."
         elif gpass == 1:
-            print "Smart Search of good spikes to perform the clustering (%d/%d)..." %(gpass, nb_repeats)
+            if not numpy.all(sdata > 0):
+                lines = ["Smart Search disabled on %d electrodes: too few spikes" %(numpy.sum(sdata == 0))] 
+                io.print_info(lines)
+            if numpy.any(smart_search > 0):
+                print "Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)
+            else:
+                print "Searching random spikes for the clustering (%d/%d) (no smart search)..." %(gpass, nb_repeats)
         else:              
             print "Searching random spikes to refine the clustering (%d/%d)..." %(gpass, nb_repeats)
 
@@ -90,8 +104,8 @@ for gpass in xrange(nb_repeats + 1):
         if gpass == 1:
             result['dc_'   + str(i)] = comm.bcast(result['dc_' + str(i)], root=numpy.mod(i, comm.size))
             result['pca_'  + str(i)] = comm.bcast(result['pca_' + str(i)], root=numpy.mod(i, comm.size))
-            result['data_' + str(i)] = numpy.zeros((0, basis_proj.shape[1] * n_neighb), dtype=numpy.float32)
-            if smart_search > 0:
+            result['data_' + str(i)]  = numpy.zeros((0, basis_proj.shape[1] * n_neighb), dtype=numpy.float32)
+            if numpy.any(smart_search > 0):
                 result['sub_' + str(i)] = numpy.zeros((0, result['pca_' + str(i)].shape[1]), dtype=numpy.float32)
 
     # I guess this is more relevant, to take signals from all over the recordings
@@ -148,7 +162,7 @@ for gpass in xrange(nb_repeats + 1):
 
             local_peaktimes = numpy.lib.arraysetops.unique(all_peaktimes)
             local_offset    = gidx*chunk_size
-            
+
             if len(local_peaktimes) > 0:
                 
                 diff_times      = local_peaktimes[-1]-local_peaktimes[0]
@@ -158,20 +172,7 @@ for gpass in xrange(nb_repeats + 1):
 
                 n_times         = len(local_peaktimes)
                 argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
-                #best_electrode  = []
-                #for idx in argmax_peak:
-                #    peak            = local_peaktimes[idx]
-                #    subset          = all_minimas[all_peaktimes == peak]
-                #    elec            = subset[numpy.argmin(local_chunk[peak, subset])]
-                #    best_electrode += [elec]
-
-                best_electrode  = []
-                for idx in argmax_peak:
-                    peak            = local_peaktimes[idx]  
-                    elec            = numpy.argmin(local_chunk[peak])
-                    best_electrode += [elec]
-
-                best_electrode  = numpy.array(best_electrode, dtype=numpy.int32)
+                best_electrode  = numpy.argmin(local_chunk[local_peaktimes[argmax_peak]], 1)
 
                 if gpass == 1:
                     myslice        = numpy.mod(best_electrode, comm.size) == comm.rank
@@ -225,13 +226,13 @@ for gpass in xrange(nb_repeats + 1):
                                 to_accept  = True  
                                 result['tmp_' + str(elec)] = numpy.vstack((result['tmp_' + str(elec)], sub_mat))
                             elif gpass == 1:
-                                if smart_search > 0:          
+                                if smart_search[elec] > 0:          
                                     sub_sub_mat = numpy.dot(sub_mat, result['pca_' + str(elec)])
                                     if len(result['data_' + str(elec)]) == 0:
                                         to_accept = True
                                     else:                              
                                         dist = numpy.mean((sub_sub_mat - result['sub_' + str(elec)])**2, 1)
-                                        if numpy.min(dist) >= smart_search*result['dc_' + str(elec)]:
+                                        if numpy.min(dist) >= smart_search[elec]*result['dc_' + str(elec)]:
                                             to_accept = True
                                         else:
                                             rejected += 1
@@ -239,7 +240,7 @@ for gpass in xrange(nb_repeats + 1):
                                     to_accept = True       
                                 if to_accept:
                                     result['data_' + str(elec)] = numpy.vstack((result['data_' + str(elec)], sub_mat))  
-                                    if smart_search > 0:
+                                    if smart_search[elec] > 0:
                                         result['sub_' + str(elec)] = numpy.vstack((result['sub_' + str(elec)], sub_sub_mat))                                 
                             else:
                                 to_accept  = True
@@ -267,22 +268,22 @@ for gpass in xrange(nb_repeats + 1):
 
     comm.Barrier()
 
-    gdata       = gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
-    gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
+    gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
+    gdata2      = all_gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
     nb_elements = int(numpy.sum(gdata))
     nb_rejected = int(numpy.sum(gdata2))
     nb_total    = int(nb_elts*comm.size)
 
+    if nb_elements == 0:
+        gpass = nb_repeats
+
     if comm.rank == 0:      
         if gpass != 1:
-            print "We found", nb_elements, "elements over", nb_total, "requested" 
-            if (gpass == 0) and (nb_elements < nb_total) and (smart_search > 0):
-                print "-----------------------  Informations  -----------------------"
-                print "| -> Not enough spikes: smart_search should be set to 0"
-                print "--------------------------------------------------------------"
-
+            print "We found", nb_elements, "spikes over", nb_total, "requested" 
+            if nb_elements == 0:
+                io.print_info(["No more isolated spikes in the recording, stop searching"])
         else:
-            print "We found", nb_elements, "elements over", nb_total, "requested (%d rejected)" %nb_rejected
+            print "We found", nb_elements, "spikes over", nb_total, "requested (%d rejected)" %nb_rejected
             if nb_elements < 0.2*nb_total:
                 few_elts = True
     
@@ -299,7 +300,8 @@ for gpass in xrange(nb_repeats + 1):
     elif gpass == 1:
         for ielec in xrange(comm.rank, N_e, comm.size):
             result['times_' + str(ielec)] = numpy.copy(result['loc_times_' + str(ielec)])
-            result.pop('sub_' + str(ielec))
+            if numpy.any(smart_search > 0):
+                result.pop('sub_' + str(ielec))
 
     result['limits'] = numpy.zeros((N_e, 3))
 
@@ -309,7 +311,7 @@ for gpass in xrange(nb_repeats + 1):
         elif gpass == 1:
             print "Computing density estimations..."
         else:
-            print "Updating density estimations..."
+            print "Refining density estimations..."
         if not os.path.exists(plot_path):
             os.makedirs(plot_path)
         else:
@@ -327,6 +329,7 @@ for gpass in xrange(nb_repeats + 1):
                 result['tmp_' + str(ielec)]  = data  
                 rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=None, compute_rho=False)
                 result['dc_' + str(ielec)]   = dc
+            smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= 0.9*max_elts_elec*comm.size) 
         elif gpass == 1:
             if len(result['data_' + str(ielec)]) > 1:
                 pca  = mdp.nodes.PCANode(output_dim=sub_output_dim)
@@ -368,7 +371,7 @@ for gpass in xrange(nb_repeats + 1):
 
                 cluster_results[ielec]['groups'], r, d, c = algo.clustering(result['rho_' + str(ielec)], dist, 
                                                                           result['dc_' + str(ielec)],
-                                                                          smart_search=smart_search,
+                                                                          smart_search=smart_search[ielec],
                                                                           n_min=n_min, 
                                                                           max_clusters=max_clusters)
 
@@ -413,7 +416,7 @@ for gpass in xrange(nb_repeats + 1):
                 for i in numpy.unique(cluster_results[ielec]['groups'][mask]):
                     n_clusters += [numpy.sum(cluster_results[ielec]['groups'][mask] == i)]
                 print "Node", comm.rank, ":", '%d-%d' %(merged[0], merged[1]), "templates on electrode", ielec, "with", n_data, "spikes:", n_clusters
-                if merged[0] == max_clusters:
+                if (merged[0]-merged[1]) == max_clusters:
                     local_hits += 1
                 local_mergings += merged[1]
             else:
@@ -425,6 +428,8 @@ for gpass in xrange(nb_repeats + 1):
             
             local_nb_clusters += cluster_results[ielec]['n_clus']
 
+    gpass += 1
+
 comm.Barrier()
 
 gdata      = gather_array(numpy.array([local_hits], dtype=numpy.float32), comm, 0)
@@ -435,15 +440,16 @@ if comm.rank == 0:
     total_hits        = int(numpy.sum(gdata))
     total_mergings    = int(numpy.sum(gdata2))
     total_nb_clusters = int(numpy.sum(gdata3))
-    print "-----------------------  Informations  -----------------------"
-    print "| Number of clusters found :", total_nb_clusters
-    print "| Number of mergings       :", total_mergings
+    lines = ["Number of clusters found : %d" %total_nb_clusters,
+             "Number of mergings       : %d" %total_mergings]
     if few_elts:
-        print "| -> Not enough spikes gathered: -decrease smart_search?"
-        print "|                                -put safety_space=False?"
+        lines += ["Not enough spikes gathered: -decrease smart_search?"]
+        lines += ["                            -put safety_space=False?"]
     if total_hits > 0:
-        print "| -> %d electrodes has %d clusters: increase max_clusters?" %(total_hits, max_clusters)
-    print "--------------------------------------------------------------"
+        lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
+        lines += ["                               -increase sim_same_elec?"]
+    io.print_info(lines)
+
     print "Extracting the templates..."
 
 templates       = numpy.zeros((N_e, N_t, 2*local_nb_clusters), dtype=numpy.float32)
@@ -471,8 +477,8 @@ for ielec in range(comm.rank, N_e, comm.size):
         first_component  = numpy.median(sub_data, axis=0)
 
         tmp_templates    = numpy.dot(first_component.T, basis_rec)
-        tmpidx           = numpy.where(tmp_templates == tmp_templates.min())[1]
-        temporal_shift   = 0 #template_shift - tmpidx[0]
+        tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
+        temporal_shift   = template_shift - tmpidx[1][0]
         if temporal_shift > 0:
             templates[indices, temporal_shift:, count_templates] = tmp_templates[:, :-temporal_shift]
         elif temporal_shift < 0:
@@ -486,8 +492,9 @@ for ielec in range(comm.rank, N_e, comm.size):
         amplitudes       = numpy.dot(sub_data_flat, first_flat)
         amplitudes      /= numpy.sum(first_flat**2)
 
-        variations       = 6*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes))) 
-        amp_min          = max(amp_limits[0], numpy.median(amplitudes) - variations)
+        variations       = 6*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+        physical_limit   = 0.8*(-thresholds[tmpidx[0][0]])/tmp_templates.min()
+        amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
         amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
         amps_lims       += [[amp_min, amp_max]]
         

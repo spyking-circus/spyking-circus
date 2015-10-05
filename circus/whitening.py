@@ -31,9 +31,7 @@ borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
 
 if nb_chunks < comm.size:
     if comm.rank == 0:
-        print "-----------------------  Informations  -----------------------"
-        print "| -> More nodes than 1 min chunks to load: decrease n_cpu"
-        print "--------------------------------------------------------------"
+        io.print_info(["More nodes than 1 min chunks to load: decrease n_cpu"])
     sys.exit(0)
 
 

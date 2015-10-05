@@ -27,7 +27,7 @@ function varargout = SortingGUI(varargin)
 
 % Edit the above text to modify the response to help SortingGUI
 
-% Last Modified by GUIDE v2.5 26-Sep-2015 19:47:42
+% Last Modified by GUIDE v2.5 03-Oct-2015 08:32:11
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -78,7 +78,7 @@ else
     handles.Xmin = min(Positions(:,1));
     handles.Xmax = max(Positions(:,1));
     handles.Ymin = min(Positions(:,2));
-    handles.Ymax = max(Positions(:,2));
+    handles.Ymax = max(Positions(:,2))+1;
 
 end
 
@@ -1088,7 +1088,73 @@ guidata(hObject, handles);
 
 PlotData(handles)
 
-
+% % % template = squeeze(handles.templates(:,:,CellNb));
+% % % 
+% % % m = max(abs(template),[],2);
+% % % 
+% % % [mm,LargestElec] = max(m);
+% % % 
+% % % a = handles.Amplitudes{CellNb};
+% % % t = handles.SpikeTimes{CellNb};
+% % % V=[];
+% % % P=[];
+% % % 
+% % % duration = size(handles.templates,2);
+% % % 
+% % % if duration/2 == round(duration/2)
+% % %     duration = duration + 1;
+% % % end
+% % % 
+% % % for ispike=1:length(t)
+% % %     tstart = double(handles.SpikeTimes{CellNb}(ispike)*(handles.SamplingRate/1000))  - (duration+1)/2 + 1 ;
+% % % 
+% % %     NbElec = handles.NelecTot;
+% % % 
+% % %     FileStart = handles.HeaderSize + 2*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
+% % % 
+% % % 
+% % %     FullStart  = FileStart - size(handles.templates,2)*NbElec*2;
+% % %     FullLength = (duration + 2*size(handles.templates,2))*NbElec;
+% % % 
+% % %     fseek(handles.DataFid,FullStart,'bof');
+% % % 
+% % %     data = double(fread(handles.DataFid,FullLength,handles.DataFormat));
+% % % 
+% % %     if strcmp(handles.DataFormat,'uint16')
+% % %         data = data - 32767;
+% % %     end
+% % % 
+% % %     data = data*handles.Gain;
+% % % 
+% % %     data = reshape(data,[NbElec (duration + 2*size(handles.templates,2))]);
+% % % 
+% % %     %% Filtering
+% % % 
+% % %     data = data(handles.ElecPermut + 1,:);
+% % % 
+% % %     data = handles.WhiteSpatial*data;
+% % %     for i=1:size(data,1)
+% % %         data(i,:) = conv(data(i,:),handles.WhiteTemporal,'same');
+% % %     end
+% % % 
+% % %     %% Reduce the data to the portion of interest - remove also the unnecessary
+% % %     %electrodes
+% % %     RawData = data(:,(size(handles.templates,2)+1):(end-size(handles.templates,2)));
+% % % 
+% % %     %% Compare voltage value and the one from the template
+% % % 
+% % %     V(ispike) = RawData(LargestElec,(size(handles.templates,2)-1)/2+1);
+% % %     P(ispike) = a(ispike)* template(LargestElec,(size(handles.templates,2)-1)/2+1);
+% % % 
+% % % end
+% % % 
+% % % figure;
+% % % plot(V,P,'.')
+% % % 
+% % % figure;
+% % % plot((V-P)./V,a,'.')
+% % % 
+% % % V
 
 % --- Executes on button press in SetAmpMax.
 function SetAmpMax_Callback(hObject, eventdata, handles)
@@ -1150,7 +1216,7 @@ set(handles.CellGrade,'String',GradeStr{handles.Tagged(CellNb)+1});
 
 if ViewMode == 1
     
-    if ~isfield(handles,'RawData')%Classical display with just the template
+    if get(handles.EnableWaveforms,'Value')==0%Classical display with just the template
     
         if get(handles.NormalizeTempl,'Value')==0
             PlotWaveform(handles,template);
@@ -1762,6 +1828,7 @@ function ForwardNavigate_Callback(hObject, eventdata, handles)
 CellNb = str2num(get(handles.TemplateNb,'String'));
 t = handles.SpikeTimes{CellNb}*(handles.SamplingRate/1000);
 
+set(handles.EnableWaveforms,'Value', 1);
 
 duration = round(str2double(get(handles.Xscale,'String')));
 
@@ -1798,6 +1865,7 @@ function BackwardNavigate_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+set(handles.EnableWaveforms,'Value', 1);
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 t = handles.SpikeTimes{CellNb}*(handles.SamplingRate/1000);
@@ -1905,53 +1973,66 @@ DisplayRawData(hObject, eventdata, handles);
 function DisplayRawData(hObject, eventdata, handles)
 %Extract the raw data and prepare it for display
 
-tstart = handles.DataStartPt;
+if get(handles.EnableWaveforms,'Value')==1
 
-NbElec = handles.NelecTot;
+    tstart = handles.DataStartPt;
+
+    NbElec = handles.NelecTot;
+
+    FileStart = handles.HeaderSize + 2*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
 
 
+    duration = round(str2double(get(handles.Xscale,'String')));
 
-FileStart = handles.HeaderSize + 2*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
+    if duration <size(handles.templates,2)
+        duration = size(handles.templates,2);
+    end
 
+    if duration/2 == round(duration/2)
+        duration = duration + 1;
+    end
 
-duration = round(str2double(get(handles.Xscale,'String')));
+    FullStart  = FileStart - size(handles.templates,2)*NbElec*2;
+    FullLength = (duration + 2*size(handles.templates,2))*NbElec;
 
-if duration <size(handles.templates,2)
-    duration = size(handles.templates,2);
+    fseek(handles.DataFid,FullStart,'bof');
+
+    data = double(fread(handles.DataFid,FullLength,handles.DataFormat));
+
+    if strcmp(handles.DataFormat,'uint16')
+        data = data - 32767;
+    end
+
+    data = data*handles.Gain;
+
+    data = reshape(data,[NbElec (duration + 2*size(handles.templates,2))]);
+
+    %% Filtering
+
+    data = data(handles.ElecPermut + 1,:);
+
+    data = handles.WhiteSpatial*data;
+    for i=1:size(data,1)
+        data(i,:) = conv(data(i,:),handles.WhiteTemporal,'same');
+    end
+
+    %% Reduce the data to the portion of interest - remove also the unnecessary
+    %electrodes
+    handles.RawData = data(:,(size(handles.templates,2)+1):(end-size(handles.templates,2)));
+    guidata(hObject, handles);
+else
+    rmfield(handles, 'RawData');
+    guidata(hObject, handles);
 end
 
-if duration/2 == round(duration/2)
-    duration = duration + 1;
-end
+PlotData(handles)
 
-FullStart  = FileStart - size(handles.templates,2)*NbElec*2;
-FullLength = (duration + 2*size(handles.templates,2))*NbElec;
 
-fseek(handles.DataFid,FullStart,'bof');
+% --- Executes on button press in EnableWaveforms.
+function EnableWaveforms_Callback(hObject, eventdata, handles)
+% hObject    handle to EnableWaveforms (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 
-data = double(fread(handles.DataFid,FullLength,handles.DataFormat));
-
-if strcmp(handles.DataFormat,'uint16')
-    data = data - 32767;
-end
-
-data = data*handles.Gain;
-
-data = reshape(data,[NbElec (duration + 2*size(handles.templates,2))]);
-
-%% Filtering
-
-data = data(handles.ElecPermut + 1,:);
-
-data = handles.WhiteSpatial*data;
-for i=1:size(data,1)
-    data(i,:) = conv(data(i,:),handles.WhiteTemporal,'same');
-end
-
-%% Reduce the data to the portion of interest - remove also the unnecessary
-%electrodes
-handles.RawData = data(:,(size(handles.templates,2)+1):(end-size(handles.templates,2)));
-
-guidata(hObject, handles);
-
+% Hint: get(hObject,'Value') returns toggle state of EnableWaveforms
 PlotData(handles)

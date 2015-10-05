@@ -18,7 +18,7 @@ cut_off        = params.getint('filtering', 'cut_off')
 
 if filter_done:
     if comm.rank == 0:
-        print "Filtering has already been done..."
+        io.print_info(["Filtering has already been done with cut off at %dHz" %cut_off])
 
 elif do_filter:
 

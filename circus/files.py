@@ -1,5 +1,5 @@
 import numpy, ConfigParser, hdf5storage, h5py, os, progressbar
-
+from termcolor import colored
 
 def purge(file, pattern):
     dir = "/".join(file.split("/")[:-1])
@@ -110,6 +110,15 @@ def load_parameters(file_name):
     parser.set('fitting', 'space_explo', '0.75')
     parser.set('fitting', 'nb_chances', '3')
 
+    try: 
+        parser.get('data', 'radius')
+    except Exception:
+        parser.set('data', 'radius', 'auto')
+    try:
+        parser.getint('data', 'radius')
+    except Exception:
+        parser.set('data', 'radius', str(int(probe['radius'])))
+
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
                   ['fitting', 'spike_range', 'float', '0'],
                   ['data', 'spikedetekt', 'bool', 'False'],
@@ -134,6 +143,8 @@ def load_parameters(file_name):
         except Exception:
             parser.set(section, name, value)
 
+
+
     return parser
 
 
@@ -149,14 +160,24 @@ def data_stats(params):
     chunk_len      = N_total * (60 * sampling_rate)
     nb_chunks      = N / chunk_len
     last_chunk_len = (N - nb_chunks * chunk_len)/(N_total*sampling_rate)
-    print "-----------------------  Informations  -----------------------"
-    print "| Number of recorded channels :", N_total
-    print "| Number of analyzed channels :", N_e
-    print "| Data type                   :", str(data_dtype)
-    print "| Header offset for the data  :", data_offset
-    print "| Duration of the recording   :", nb_chunks, "min", last_chunk_len, 's'
-    print "--------------------------------------------------------------"
-    print ""
+
+    N_t             = params.getint('data', 'N_t')
+    N_t             = numpy.round(1000.*N_t/sampling_rate, 1)
+
+    lines = ["Number of recorded channels : %d" %N_total,
+             "Number of analyzed channels : %d" %N_e,
+             "Data type                   : %s" %str(data_dtype),
+             "Header offset for the data  : %d" %data_offset,
+             "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
+             "Width of the templates      : %d ms" %N_t,
+             "Spatial radius considered   : %d um" %params.getint('data', 'radius')]
+    print_info(lines)
+
+def print_info(lines):
+    print colored("-----------------------  Informations  -----------------------", 'yellow')
+    for line in lines:
+        print colored("| " + line, 'yellow')
+    print colored("--------------------------------------------------------------", 'yellow')
 
 
 
@@ -212,7 +233,7 @@ def get_nodes_and_edges(parameters):
         print "Something wrong with the probe file!"
     probetext.close()
 
-    radius = probe['radius']
+    radius = parameters.getint('data', 'radius')
 
     def get_edges(i, channel_groups):
         edges = []
@@ -418,9 +439,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
-    print "-----------------------  Informations  -----------------------"
-    print "| Number of spikes fitted :", count
-    print "--------------------------------------------------------------"
+    print_info(["Number of spikes fitted : %d" %count])
 
     if erase:
         purge(file_out_suff, '.data')

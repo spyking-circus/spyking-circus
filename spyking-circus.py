@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os, sys, socket, getopt, shutil
+from termcolor import colored
 hostname    = socket.gethostname()
 
 if hostname == 'spikesorter':
@@ -17,7 +18,7 @@ except Exception:
     HAVE_CUDA = False
     nb_gpu    = 0
 
-all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting']
+all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking']
 steps     = ['filtering', 'whitening', 'clustering', 'fitting']
 hostfile  = '%s.hosts' %hostname
 
@@ -44,6 +45,7 @@ Options are:
                     - (extra) gathering
                     - (extra) extracting
                     - (extra) converting
+                    - (extra) benchmarking
                   Three extra steps are also available, but only
                   for custom needs (see documentation)
                   Note that you can give a sequence of steps, 
@@ -58,18 +60,18 @@ You must have a file named %s, properly configured,
 in the same folder, with the data file.'''
 
 if len(sys.argv) < 2:
-    print header, message
+    print colored(header, 'green'), message
     sys.exit()
 else:
     filename   = sys.argv[1]
     if not os.path.exists(filename):
-        print header, "The data file %s can not be found!" %filename
+        print colored(header, 'green'), "The data file %s can not be found!" %filename
         sys.exit()
     else:
         extension       = '.' + filename.split('.')[-1]
         file_params     = filename.replace(extension, '.params')
         if not os.path.exists(file_params):
-            print header, noparams %file_params
+            print colored(header, 'green'), noparams %file_params
             key = ''
             while key not in ['y', 'n']:
                 key = raw_input("Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
@@ -82,7 +84,7 @@ else:
 
 for opt, arg in opts:
     if opt in ('-h', '--help'):        
-        print header, message
+        print colored(header, 'green'), message
         sys.exit()
     elif opt == '-d':
         verbose = True
@@ -101,13 +103,13 @@ for opt, arg in opts:
     elif opt in ('-H', '--hostfile'):
         hostfile = arg
 
-print header
-print "Steps         :", ", ".join(steps)
-print "GPU detected  :", HAVE_CUDA
-print "Number of CPU :", nb_cpu
+print colored(header, 'green')
+print "Steps         :", colored(", ".join(steps), 'cyan')
+print "GPU detected  :", colored(HAVE_CUDA, 'cyan')
+print "Number of CPU :", colored(nb_cpu, 'cyan')
 if HAVE_CUDA:
-    print "Number of GPU :", nb_gpu
-print "Hostfile      :", hostfile
+    print "Number of GPU :", colored(nb_gpu, 'cyan')
+print "Hostfile      :", colored(hostfile, 'cyan')
 print ""
 print "##############################################################"
 print ""
@@ -137,3 +139,6 @@ if 'gathering' in steps:
     os.system('python circus/gathering.py %s %s' %(nb_cpu, filename))
 if 'converting' in steps:
     os.system('python circus/export_phy.py %s' %(filename))
+if 'benchmarking' in steps:
+    os.system('mpirun %s -np %d python circus/synthetic.py %s' %(host_string, nb_cpu, filename))
+
