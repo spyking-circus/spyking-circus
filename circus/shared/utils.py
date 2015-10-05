@@ -7,8 +7,9 @@ import numpy, pylab, os, mpi4py, hdf5storage, mdp, progressbar, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, ConfigParser, tempfile, shutil
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
-import algorithms as algo
-import files as io
+
+from . import algorithms as algo
+from . import files as io
 
 def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     # gather 1D or 2D numpy arrays

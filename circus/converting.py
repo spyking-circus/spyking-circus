@@ -7,7 +7,6 @@ There are several improvements:
 
 """
 
-from utils import *
 import os
 import os.path as op
 
@@ -20,6 +19,7 @@ from phy.io.kwik import create_kwik, KwikCreator, KwikModel
 from phy.utils.event import ProgressReporter
 from phy.traces.waveform import WaveformLoader, SpikeLoader
 from phy.utils.logging import info
+
 
 def _read_spikes(basename):
     with open_h5(basename + '/' + basename.split('/')[-1] + '.spiketimes.mat', 'r') as f:

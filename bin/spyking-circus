@@ -1,6 +1,13 @@
 #!/usr/bin/env python
-import os, sys, socket, getopt, shutil, subprocess
+import os
+import sys
+import socket
+import getopt
+import shutil
+import subprocess
+
 from termcolor import colored
+
 import circus
 
 if __name__ == '__main__':
@@ -118,8 +125,8 @@ if __name__ == '__main__':
     print ""
 
     # Print info
-    params = circus.utils.io.load_parameters(filename)
-    circus.utils.io.data_stats(params)
+    params = circus.shared.utils.io.load_parameters(filename)
+    circus.shared.utils.io.data_stats(params)
 
     # Launch the subtasks
     subtasks = [('filtering', 'mpirun'),

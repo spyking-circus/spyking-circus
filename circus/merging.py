@@ -1,4 +1,4 @@
-from utils import *
+from .shared.utils import *
 
 def main(filename, params, nb_cpu, use_gpu):
     #################################################################

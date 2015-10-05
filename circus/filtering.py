@@ -1,5 +1,7 @@
-from utils import *
 from scipy import signal
+
+from .shared.utils import *
+
 
 def main(filename, params, nb_cpu, use_gpu):
 

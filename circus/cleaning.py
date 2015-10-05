@@ -1,5 +1,5 @@
-from utils import *
-import plot
+from .shared.utils import *
+
 
 def main(filename, params, nb_cpu, use_gpu):
 

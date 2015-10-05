@@ -1,6 +1,6 @@
 import importlib
 
-from .utils import io
+from .shared.utils import io
 
 
 def launch(task, filename, nb_cpu, use_gpu):
