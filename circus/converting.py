@@ -10,7 +10,6 @@ There are several improvements:
 from utils import *
 import os
 import os.path as op
-import shutil
 
 import numpy as np
 
@@ -21,11 +20,6 @@ from phy.io.kwik import create_kwik, KwikCreator, KwikModel
 from phy.utils.event import ProgressReporter
 from phy.traces.waveform import WaveformLoader, SpikeLoader
 from phy.utils.logging import info
-
-
-filename  = sys.argv[-1]
-params    = io.load_parameters(filename)
-
 
 def _read_spikes(basename):
     with open_h5(basename + '/' + basename.split('/')[-1] + '.spiketimes.mat', 'r') as f:
@@ -369,32 +363,32 @@ class Converter(object):
                                )
         run()
 
+def main(filename, params, nb_cpu, use_gpu):
 
+    basename         = params.get('data', 'data_file_noext')
+    prb_file         = params.get('data', 'mapping')
+    n_channels       = params.getint('data', 'N_e')
+    N_t              = params.getint('data', 'N_t')
+    n_total_channels = params.getint('data', 'N_total')
+    sample_rate      = params.getint('data', 'sampling_rate')
+    dtype            = params.get('data', 'data_dtype')
+    offset           = params.getint('data', 'data_offset')
+    gain             = params.getfloat('data', 'gain')
 
-basename         = params.get('data', 'data_file_noext')
-prb_file         = params.get('data', 'mapping')
-n_channels       = params.getint('data', 'N_e')
-N_t              = params.getint('data', 'N_t')
-n_total_channels = params.getint('data', 'N_total')
-sample_rate      = params.getint('data', 'sampling_rate')
-dtype            = params.get('data', 'data_dtype')
-offset           = params.getint('data', 'data_offset')
-gain             = params.getfloat('data', 'gain')
+    c = Converter(basename, filename, N_t,
+                  n_channels=n_channels,
+                  n_total_channels=n_total_channels,
+                  offset=offset,
+                  prb_file=prb_file,
+                  sample_rate=sample_rate,
+                  dtype=dtype,
+                  gain=gain
+                  )
 
-c = Converter(basename, filename, N_t,
-              n_channels=n_channels,
-              n_total_channels=n_total_channels,
-              offset=offset,
-              prb_file=prb_file,
-              sample_rate=sample_rate,
-              dtype=dtype,
-              gain=gain
-              )
+    if not os.path.exists(basename + '.kwik'):
+        # Conversion.
+        c.create_kwik()
 
-if not os.path.exists(basename + '.kwik'):
-    # Conversion.
-    c.create_kwik()
-
-# Try to open the kwik file after the conversion.
-model = KwikModel(c.kwik_path)
-model.describe()
+    # Try to open the kwik file after the conversion.
+    model = KwikModel(c.kwik_path)
+    model.describe()
