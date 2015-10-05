@@ -1,0 +1,4 @@
+# generated directories
+dist
+build
+/docs
