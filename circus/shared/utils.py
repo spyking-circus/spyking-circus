@@ -8,8 +8,8 @@ import scipy.linalg, scipy.optimize, cPickle, socket, ConfigParser, tempfile, sh
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 
-from . import algorithms as algo
-from . import files as io
+from circus.shared import algorithms as algo
+from circus.shared import files as io
 
 def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     # gather 1D or 2D numpy arrays

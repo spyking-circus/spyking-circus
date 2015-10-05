@@ -1,7 +1,7 @@
 import importlib
 
-from .shared.utils import io
 
+from circus.shared.utils import io
 
 def launch(task, filename, nb_cpu, use_gpu):
     params = io.load_parameters(filename)

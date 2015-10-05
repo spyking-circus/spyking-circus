@@ -1,9 +1,9 @@
 import numpy
 import pylab
 
-from .files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results
+from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results
 import numpy, pylab
-from . import algorithms as algo
+from circus.shared import algorithms as algo
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, xzoom=None, yzoom=None, square=True, templates=None):
     

@@ -1,0 +1,5 @@
+# Include Matlab files (but not all of them)
+recursive-include circus/matlab_GUI SortingGUI.*
+recursive-include circus/matlab_GUI str*.m
+
+
