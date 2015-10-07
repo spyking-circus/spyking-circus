@@ -31,6 +31,7 @@ def main(filename, params, nb_cpu, use_gpu):
     max_clusters   = params.getint('clustering', 'max_clusters')
     make_plots     = params.getboolean('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
+    noise_thr      = params.getfloat('clustering', 'noise_thr')
     smart_search   = numpy.ones(N_e, dtype=numpy.float32)*params.getfloat('clustering', 'smart_search')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
@@ -494,7 +495,7 @@ def main(filename, params, nb_cpu, use_gpu):
             amplitudes      /= numpy.sum(first_flat**2)
 
             variations       = 6*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-            physical_limit   = 0.8*(-thresholds[tmpidx[0][0]])/tmp_templates.min()
+            physical_limit   = noise_thr*(-thresholds[tmpidx[0][0]])/tmp_templates.min()
             amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
             amps_lims       += [[amp_min, amp_max]]

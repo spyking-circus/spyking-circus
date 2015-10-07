@@ -129,7 +129,8 @@ def load_parameters(file_name):
                   ['clustering', 'test_clusters', 'bool', 'False'],
                   ['clustering', 'sim_same_elec', 'float', '3'],
                   ['clustering', 'smart_search', 'float', '3'],
-                  ['clustering', 'safety_space', 'bool', 'True']]
+                  ['clustering', 'safety_space', 'bool', 'True'],
+                  ['clustering', 'noise_thr', 'float', '0.8']]
 
     for item in new_values:
         section, name, val_type, value = item

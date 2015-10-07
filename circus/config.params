@@ -38,6 +38,7 @@ make_plots     = True      # Generate sanity plots of the clustering
 sim_same_elec  = 3         # Distance within clusters under which they are re-merged
 smart_search   = 3         # Parameter for the smart search. The higher, the more strict
 test_clusters  = False     # Should be False. Only to plot injection of synthetic clusters
+noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
 [fitting]
 chunk          = 0.5       # Size of chunks used during fitting [in second]

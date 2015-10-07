@@ -3,6 +3,44 @@ import os
 import sys
 import subprocess
 import pkg_resources
+import circus
+import tempfile
+import hdf5storage
+import numpy
+
+filename = sys.argv[1]
+params   = circus.shared.utils.io.load_parameters(filename)
+circus.shared.utils.io.data_stats(params)
+
+sampling_rate  = params.getint('data', 'sampling_rate')
+data_dtype     = params.get('data', 'data_dtype')
+gain           = params.getfloat('data', 'gain')
+file_out_suff  = params.get('data', 'file_out_suff')
+data_offset    = params.getint('data', 'data_offset')
+
+probe     = {}
+probetext = file(params.get('data', 'mapping'), 'r')
+try:
+    exec probetext in probe
+except Exception:
+    print "Something wrong with the probe file!"
+probetext.close()
+
+def generate_matlab_mapping(probe):
+    p         = {}
+    positions = []
+    nodes     = []
+    for key in probe['channel_groups'].keys():
+        p.update(probe['channel_groups'][key]['geometry'])
+        nodes     +=  probe['channel_groups'][key]['channels']
+        positions += [p[channel] for channel in probe['channel_groups'][key]['channels']]
+    
+    t = tempfile.NamedTemporaryFile().name + '.mat'
+    hdf5storage.savemat(t, {'Positions' : numpy.array(positions)/10.})
+    return t
+
+mapping    = generate_matlab_mapping(probe)
+gui_params = [sampling_rate, os.path.abspath(file_out_suff), '.mat', mapping, 2, data_dtype, data_offset, gain]
 
 gui_file = pkg_resources.resource_filename('circus', 'matlab_GUI/SortingGUI.m')
 # Change to the directory of the matlab file
@@ -11,7 +49,7 @@ os.chdir(os.path.abspath(os.path.dirname(gui_file)))
 # Use quotation marks for string arguments
 is_string = [False, True, True, True, False, True, False, False]
 arguments = ', '.join(["'%s'" % arg if s else "%s" % arg
-                       for arg, s in zip(sys.argv[1:], is_string)])
+                       for arg, s in zip(gui_params, is_string)])
 matlab_command = 'SortingGUI(%s)' % arguments
 
 sys.exit(subprocess.call(['matlab',
