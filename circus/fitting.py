@@ -91,7 +91,7 @@ def main(filename, params, nb_cpu, use_gpu):
             del c_overlap
         except Exception:
             if comm.rank == 0:
-                print "Not enough memory on GPUs: GPUs are used for projection only"
+                io.print_info(["Not enough memory on GPUs: GPUs are used for projection only"])
             for i in xrange(N_over):
                 if c_overs.has_key(i):
                     del c_overs[i]
