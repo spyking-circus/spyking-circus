@@ -70,8 +70,12 @@ def main(filename, params, nb_cpu, use_gpu):
     scalings       = []
     best_elecs     = []
     data_mpi       = get_mpi_type(data_dtype)
-    file           = open(file_name + '.raw', 'w')
-    file.close()
+    if comm.rank == 0:
+        file           = open(file_name + '.raw', 'w')
+        for i in xrange(data_offset):
+            f.write('1')
+        file.close()
+    comm.Barrier()
     g              = myfile.Open(comm, file_name + '.raw', MPI.MODE_RDWR)
     g.Set_view(data_offset, data_mpi, data_mpi)
 

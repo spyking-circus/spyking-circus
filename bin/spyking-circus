@@ -35,28 +35,26 @@ if __name__ == '__main__':
 '''
 
     message = '''
-    Syntax is spyking-circus file [options]
+Syntax is spyking-circus file [options]
 
-    Options are:
-    -h or --help     : display the help
-    -m or --method   : by default, first 4 steps of the algorithm are
-                      performed, but if specified, only one can be
-                      done. This has to be among
-                        - filtering
-                        - whitening
-                        - clustering
-                        - fitting
-                        - (extra) gathering
-                        - (extra) extracting
-                        - (extra) converting
-                        - (extra) benchmarking
-                      Three extra steps are also available, but only
-                      for custom needs (see documentation)
-                      Note that you can give a sequence of steps,
-                      separated by a comma (i.e. -m clustering,fitting)
-    -c or --cpu      : number of CPU (default 1)
-    -g or --gpu      : number of GPU (default 1 if CUDA available)
-    -H or --hostfile : hostfile for MPI (default is hostname.hosts)'''
+ Options are:
+-h or --help     : display the help
+-m or --method   : by default, all 4 steps of the algorithm are
+                   performed, but if specified, only a sublist [x,y] can be
+                   done, using the syntax -m x,y,z 
+                   Available steps are
+                     - filtering
+                     - whitening
+                     - clustering
+                     - fitting
+                     - (extra) gathering [to collect results]
+                     - (extra) extracting [to get templates from spike times]
+                     - (extra) converting [to export to phy format]
+                     - (extra) benchmarking [internal use only]
+                      The extra steps are only for custom needs (see documentation)
+-c or --cpu      : number of CPU (default 1)
+-g or --gpu      : number of GPU (default 1 if CUDA available)
+-H or --hostfile : hostfile for MPI (default is hostname.hosts)'''
 
     noparams='''
     The parameter file is not present!
@@ -68,7 +66,10 @@ if __name__ == '__main__':
         sys.exit()
     else:
         filename   = sys.argv[1]
-        if not os.path.exists(filename):
+        if filename in ['-h', '--help']:
+            print colored(header, 'green'), message
+            sys.exit()
+        elif not os.path.exists(filename):
             print colored(header, 'green'), "The data file %s can not be found!" %filename
             sys.exit()
         else:
