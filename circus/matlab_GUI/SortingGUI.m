@@ -27,7 +27,7 @@ function varargout = SortingGUI(varargin)
 
 % Edit the above text to modify the response to help SortingGUI
 
-% Last Modified by GUIDE v2.5 03-Oct-2015 08:32:11
+% Last Modified by GUIDE v2.5 07-Oct-2015 11:31:44
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -2035,4 +2035,18 @@ function EnableWaveforms_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of EnableWaveforms
+PlotData(handles)
+
+
+% --- Executes on button press in ResetBtn.
+function ResetBtn_Callback(hObject, eventdata, handles)
+% hObject    handle to ResetBtn (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+handles.Xmin = min(handles.Positions(:,1));
+handles.Xmax = max(handles.Positions(:,1));
+handles.Ymin = min(handles.Positions(:,2));
+handles.Ymax = max(handles.Positions(:,2))+1;
+
 PlotData(handles)
