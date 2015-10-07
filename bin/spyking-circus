@@ -27,12 +27,12 @@ if __name__ == '__main__':
     hostfile  = '%s.hosts' %hostname
 
     header = '''
-    ##############################################################
-    #####          Welcome to the SpyKING CIRCUS             #####
-    #####                                                    #####
-    #####          Written by P.Yger and O.Marre             #####
-    ##############################################################
-    '''
+##############################################################
+#####          Welcome to the SpyKING CIRCUS             #####
+#####                                                    #####
+#####          Written by P.Yger and O.Marre             #####
+##############################################################
+'''
 
     message = '''
     Syntax is spyking-circus file [options]
@@ -110,14 +110,14 @@ if __name__ == '__main__':
             hostfile = arg
 
     print colored(header, 'green')
-    print "Steps         :", colored(", ".join(steps), 'cyan')
-    print "GPU detected  :", colored(HAVE_CUDA, 'cyan')
-    print "Number of CPU :", colored(nb_cpu, 'cyan')
+    print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
+    print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
+    print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
     if HAVE_CUDA:
-        print "Number of GPU :", colored(nb_gpu, 'cyan')
-    print "Hostfile      :", colored(hostfile, 'cyan')
+        print colored("Number of GPU :", 'green'), colored(nb_gpu, 'cyan')
+    print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
     print ""
-    print "##############################################################"
+    print colored("##############################################################", 'green')
     print ""
 
     # Print info

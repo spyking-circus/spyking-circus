@@ -27,7 +27,7 @@ def main(filename, params, nb_cpu, use_gpu):
     #################################################################
 
     if use_gpu:
-        ## Need to properly handle multi GPU per MPI nodes...
+        ## Need to properly handle multi GPU per MPI nodes?
         cmt.cuda_set_device(0)
         cmt.init()
         cmt.cuda_sync_threads()
