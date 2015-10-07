@@ -8,9 +8,8 @@ import tempfile
 import hdf5storage
 import numpy
 
-filename = sys.argv[1]
-params   = circus.shared.utils.io.load_parameters(filename)
-circus.shared.utils.io.data_stats(params)
+filename       = sys.argv[1]
+params         = circus.shared.utils.io.load_parameters(filename)
 
 sampling_rate  = params.getint('data', 'sampling_rate')
 data_dtype     = params.get('data', 'data_dtype')
