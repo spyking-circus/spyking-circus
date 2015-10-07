@@ -27,11 +27,8 @@ def main(filename, params, nb_cpu, use_gpu):
     #################################################################
 
     if use_gpu:
-        import cudamat as cmt
-        if socket.gethostname() == 'spikesorter' and comm.rank > 4:
-            cmt.cuda_set_device(1)
-        else:
-            cmt.cuda_set_device(0)
+        ## Need to properly handle multi GPU per MPI nodes...
+        cmt.cuda_set_device(0)
         cmt.init()
         cmt.cuda_sync_threads()
 

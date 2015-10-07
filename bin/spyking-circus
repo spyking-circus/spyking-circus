@@ -14,13 +14,6 @@ import circus
 if __name__ == '__main__':
     hostname    = socket.gethostname()
 
-    if hostname == 'spikesorter':
-        nb_cpu = 14
-        nb_gpu = 7
-    else:
-        nb_cpu = 1
-        nb_gpu = 1
-
     try:
         import cudamat as cmt
         cmt.init()
