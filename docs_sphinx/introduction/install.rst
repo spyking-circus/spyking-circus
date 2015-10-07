@@ -11,9 +11,15 @@ Installation from source
 You can install the SpyKING CIRCUS from the Python package index: https://pypi.python.org/pypi/spyking-circus
 
 To do so, use the ``pip`` utility. Newer versions of ``pip`` require you to use
-the ``--pre`` option to install Brian 2 since it is not yet a final release::
+the ``--pre`` option to install SpyKING CIRCUS since it is not yet a final release::
 
-    pip install --pre spyking-circus
+    pip install circus-0.1.tar.gz
+
+By default, the pacakge is installed without the CUDA dependencies. To install the code with the GPU support::
+
+    pip install circus-0.1.tar.gz[cuda]
+
+Note that you must have a valid CUDA installation, and **nvcc** installed.
 
 You might want to add the ``--user`` flag, to install SpyKING CIRCUS for the local user
 only, which means that you don't need administrator privileges for the
@@ -50,9 +56,8 @@ Requirements for CUDA
 ---------------------
 
 Using CUDA is highly recommended since it can drastically increase the
-speed of algorithm (see :doc:`../user/computation` for details). To use it,
-you need to have a working CUDA environment installed onto the machine.
-
+speed of algorithm. To use it, you need to have a working CUDA environment installed onto the machine, and install the 
+package as explained above.
 
 Dependencies for the SpyKING CIRCUS
 -----------------------------------
@@ -64,6 +69,7 @@ them, simply do::
     pip install matplotlib
 
 
+.. _CUDA: https://developer.nvidia.com/cuda-downloads
 .. _matplotlib: http://matplotlib.org/
 .. _ipython: http://ipython.org/
 .. _travis: https://travis-ci.org/brian-team/brian2
