@@ -82,7 +82,7 @@ if __name__ == '__main__':
             extension       = '.' + filename.split('.')[-1]
             file_params     = filename.replace(extension, '.params')
             if not os.path.exists(file_params):
-                print colored(header, 'green'), noparams %file_params
+                print colored(header, 'green'), colored(noparams %file_params, 'red')
                 key = ''
                 while key not in ['y', 'n']:
                     key = raw_input("Do you want SpyKING CIRCUS to create a parameter file? [y/n]")

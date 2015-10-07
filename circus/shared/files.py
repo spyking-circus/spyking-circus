@@ -24,7 +24,7 @@ def detect_header(filename, value='MCS'):
                     stop = True
         fid.close()
         if stop is False:
-            print 'Could not find "EOH" in the file, so this is not a file exported with MCRack. Header is zero'
+            print_info(['File is not exported with MCRack: header is set to 0'])
             header  = 0 
         else:
             header += 2
@@ -79,7 +79,7 @@ def load_parameters(file_name):
     try:
         exec probetext in probe
     except Exception:
-        print "Something wrong with the probe file!"
+        print colored("Something wrong with the probe file!", 'red')
     probetext.close()
     #mapping_elec = hdf5storage.loadmat(parser.get('data', 'mapping'))['Mapping']
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
@@ -90,10 +90,10 @@ def load_parameters(file_name):
 
     for section in ['extracting', 'basis', 'clustering']:
         test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
-        assert test, "nb_elts in %s should be in [0,1]" %section
+        assert test, colored("nb_elts in %s should be in [0,1]" %section, 'red')
 
     test = (parser.getfloat('clustering', 'nclus_min') > 0) and (parser.getfloat(section, 'nclus_min') <= 1)
-    assert test, "nclus_min in clustering should be in [0,1]"
+    assert test, colored("nclus_min in clustering should be in [0,1]", 'red')
 
     try:
         os.makedirs(file_name)
@@ -231,7 +231,7 @@ def get_nodes_and_edges(parameters):
     try:
         exec probetext in probe
     except Exception:
-        print "Something wrong with the probe file!"
+        print colored("Something wrong with the probe file!", 'red')
     probetext.close()
 
     radius = parameters.getint('data', 'radius')
