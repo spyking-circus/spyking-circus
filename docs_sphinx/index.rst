@@ -10,13 +10,9 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
+   :titlesonly:
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
+   introduction/index
+   code/index
+   GUI/index
+   advanced/index
