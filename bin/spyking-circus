@@ -93,7 +93,7 @@ in the same folder, with the data file.'''
                 if key == 'y':
                     print "Generating template file", file_params
                     print "Please fill it properly before launching the code! (see documentation)"
-                    shutil.copyfileobj(config_file, file_params)
+                    shutil.copyfile(config_file, file_params)
                 sys.exit()
             opts, args  = getopt.getopt(argv[2:], "hvm:H:c:g:", ["help", "method=", "hostfile=", "cpu=", "gpu="])
 
