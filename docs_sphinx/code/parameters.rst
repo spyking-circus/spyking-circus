@@ -52,4 +52,6 @@ To know more about the host file, see the MPI section :doc:`documentation on MPI
 Configuration File
 ------------------
 
-The code, when launched for the first time, generates a parameter file. To know more about it, :doc:`documentation on the configuration <../code/config>`
+The code, when launched for the first time, generates a parameter file. The default template used for the parameter files is the one located in ``/home/user/spyking-circus/config.parmas``. You can edit it in advance if you are always using the same setup.
+
+To know more about what is in the configuration file, :doc:`documentation on the configuration <../code/config>`

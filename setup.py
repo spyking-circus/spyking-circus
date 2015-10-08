@@ -1,4 +1,5 @@
 from setuptools import setup
+import os
 from os.path import join as pjoin
 
 setup(name='circus',
@@ -10,8 +11,8 @@ setup(name='circus',
       license='MIT',
       packages=['circus'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
-      extra_requires={'cuda' : ['cudamat']},
-      install_requires=['progressbar', 'mpi4py', 'mdp', 'hdf5storage', 'numpy', 'cython', 'scipy', 'matplotlib', 'configparser', 'h5py', 'termcolor'],
+      extras_require={'cuda' : ['cudamat']},
+      install_requires=['progressbar', 'mpi4py', 'mdp', 'hdf5storage', 'numpy', 'scipy', 'matplotlib', 'configparser', 'h5py', 'termcolor'],
       dependency_links=['http://github.com/cudamat/cudamat/tarball/master#egg=cudamat'],
       scripts=[pjoin('bin', 'spyking-circus'),
                pjoin('bin', 'spyking-circus-subtask.py'),
@@ -22,5 +23,6 @@ setup(name='circus',
                                'matlab_GUI/SortingGUI.fig',
                                'matlab_GUI/strjoin.m',
                                'matlab_GUI/strsplit.m']},
+      data_files=[(os.path.expanduser('~/spyking-circus/'), ['circus/config.params'])],
       classifiers=['Development Status :: 3 - Alpha'],
       zip_safe=False)

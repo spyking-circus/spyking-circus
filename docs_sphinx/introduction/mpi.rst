@@ -1,7 +1,13 @@
 Installation of MPI
 ===================
 
-The code is able to use multiple CPU to speed up the operations. However, you need to have a hostfile to inform MPI of what are the available nodes on your computer. You can provide it to the code with the -H argument (see :doc:`documentation on the parameters <../code/parameters>`)
+The code is able to use multiple CPU to speed up the operations. However, you need to have a valid hostfile to inform MPI of what are the available nodes on your computer. By default, the code searches for the file ``circus.hosts`` in the spyking-circus folder, create during the installation ``/home/user/spyking-circus/``. Otherwise, you can provide it to the main script with the -H argument (see :doc:`documentation on the parameters <../code/parameters>`)::
+
+    >> spyking-circus path/mydata.extesion -H mpi.hosts
+
+
+Structure of the hostfile
+-------------------------
 
 Such a hostfile will typically look like::
 

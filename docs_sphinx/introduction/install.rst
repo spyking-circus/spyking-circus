@@ -4,8 +4,6 @@ Installation
 The SpyKING CIRCUS comes as a python package, and it has to be installed from sources. 
 Note that currently, only unix systems are supported. 
 
-.. _installation_from_source:
-
 Installation from source
 ------------------------
 You can install the SpyKING CIRCUS from the Python package index: https://pypi.python.org/pypi/spyking-circus
@@ -49,7 +47,11 @@ the source directory to your ``PYTHONPATH`` (this will only work for Python
 2.x).
 
 
-.. _installation_cuda:
+Home Directory
+--------------
+
+During the install, the code will create a ``spyking-circus`` folder in ``/home/user`` where it will copy several probe designs, and a copy of the default parameter file. Note that if you are always using a similar setup, you can edit this template.
+
 
 Requirements for CUDA
 ---------------------
@@ -58,21 +60,5 @@ Using CUDA_ is highly recommended since it can drastically increase the
 speed of algorithm. To use it, you need to have a working CUDA_ environment installed onto the machine, and install the 
 package as explained above.
 
-Dependencies requiered by the SpyKING CIRCUS
------------------------------------
-
-There are various packages that are useful but not necessary for working with
-SpyKING CIRCUS. These include: matplotlib_ (for plotting). To install
-them, simply do::
-
-    pip install matplotlib
-
 
 .. _CUDA: https://developer.nvidia.com/cuda-downloads
-.. _matplotlib: http://matplotlib.org/
-.. _ipython: http://ipython.org/
-.. _travis: https://travis-ci.org/brian-team/brian2
-.. _appveyor: https://ci.appveyor.com/project/brianteam/brian2
-.. _nose: https://pypi.python.org/pypi/nose
-.. _Cython: http://cython.org/
-.. _weave: https://github.com/scipy/weave
