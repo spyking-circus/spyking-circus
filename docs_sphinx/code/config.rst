@@ -27,8 +27,8 @@ The data section is::
 Parameters that are most likely to be changed:
     * ``data_offset`` If your file has no header, put 0. Otherwise, if it has been generated with MCRack, there is a header, and let the value to MCS, such that its length will be automatically detected
     * ``mapping`` This is the path to your probe mapping (see :doc:`How to design a probe file <../code/probe>`)
-    * ``data_dtype`` The type of your data (*uint16*,*int16*,...)
-    * ``dtype_offset`` If you are using *uint16* data, then you must have an offset. If data are *int16*, this should be 0
+    * ``data_dtype`` The type of your data (``uint16``, ``int16``,...)
+    * ``dtype_offset`` If you are using ``uint16`` data, then you must have an offset. If data are ``int16``, this should be 0
     * ``spike_thresh`` 
     * ``sampling_rate`` The sampling rate of your recording
     * ``N_t`` The temporal width of the templates. For *in vitro* data, 5ms seems a good value. For *in vivo* data, you should rather use 3 or even 2ms
@@ -45,7 +45,7 @@ The filtering section is::
 
 .. warning::
 
-    The code performs the filtering of your data writting on the file itself. Therefore, you ``must`` have a copy of your raw data elsewhere. Note that as long as your keeping the parameter files, you can relaunch the code safely: the program will not filter multiple times the data, because of the flag ``filter_done`` at the end of the configuration file
+    The code performs the filtering of your data writing on the file itself. Therefore, you ``must`` have a copy of your raw data elsewhere. Note that as long as your keeping the parameter files, you can relaunch the code safely: the program will not filter multiple times the data, because of the flag ``filter_done`` at the end of the configuration file
 
 Parameters that are most likely to be changed:
     * ``cut_off`` The default value of 500Hz has been used in various recordings, but you can change it if needed
@@ -72,7 +72,7 @@ Clustering
 
 The clustering section is::
 
-    safety_space   = True      # If True, we exlude spikes in the vicinity of a selected spikes
+    safety_space   = True      # If True, we exclude spikes in the vicinity of a selected spikes
     safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
     max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8       # Fraction of max_elts that should be obtained per electrode [0-1]
@@ -95,7 +95,7 @@ Parameters that are most likely to be changed:
     * ``max_clusters`` This is the maximal number of cluster that you expect to see on a given electrode. For *in vitro* data, 10 seems to be a reasonable value. For *in vivo* data and dense probes, you should set it to 20-25
     * ``nb_repeats`` The number of passes performed by the algorithm to refine the density landscape
     * ``smart_search`` Control how different you want the collected spikes to be, on a given electrode. The more you increase this value, the more you'll discard spikes. If increased too much, you may not collect enough spikes, so 3 seems to be a good criteria. In fact, the code will suggest you to decrease this value if you are throwing away too many spikes
-    * ``sim_same_elec`` Control how similar clusters have to be in order to be merged, before fitting, in order to reduce overclustering. The more you increase this value, the more you'll merge pairs of clusters. Again, 3 seems to be a good value. 
+    * ``sim_same_elec`` Control how similar clusters have to be in order to be merged, before fitting, in order to reduce over clustering. The more you increase this value, the more you'll merge pairs of clusters. Again, 3 seems to be a good value. 
     * ``make_plots`` By default, the code generates sanity plots of the clustering, one per electrode.
 
 Fitting

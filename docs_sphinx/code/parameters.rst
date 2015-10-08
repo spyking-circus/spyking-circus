@@ -38,7 +38,7 @@ The number of GPU that will be used by the code during the fitting phase. If you
 
 .. warning::
 
-    Currently, nodes with several GPUs are not properly handled. Be in touch if interested by the functionnality
+    Currently, nodes with several GPUs are not properly handled. Be in touch if interested by the functionality
 
 * ``-H`` or ``--hostfile``
 
@@ -48,10 +48,22 @@ The CPUs used depends on your MPI configuration. If you wan to configure them, y
 
 To know more about the host file, see the MPI section :doc:`documentation on MPI <../introduction/mpi>`
 
+* ``-f`` or ``--file``
+
+The code can accept a text file with several commands that will be executed one after the other, in a batch mode. This is interesting for processing several datasets in a row. An example of such a text file would simply be::
+    
+    path/mydata1.extention -c 10
+    path/mydata2.extention -c 10 -m fitting
+    path/mydata3.extention -c 10 -m clustering,fitting,converting
+
+.. warning::
+
+    When processing files in a batch mode, be sure that the parameters file have been pre-generated. Otherwise, the code will hangs asking you to generate them
+    
 
 Configuration File
 ------------------
 
-The code, when launched for the first time, generates a parameter file. The default template used for the parameter files is the one located in ``/home/user/spyking-circus/config.parmas``. You can edit it in advance if you are always using the same setup.
+The code, when launched for the first time, generates a parameter file. The default template used for the parameter files is the one located in ``/home/user/spyking-circus/config.params``. You can edit it in advance if you are always using the same setup.
 
 To know more about what is in the configuration file, :doc:`documentation on the configuration <../code/config>`

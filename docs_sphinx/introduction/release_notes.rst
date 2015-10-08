@@ -6,7 +6,7 @@ Spyking CIRCUS 0.1
 
 This is the first alpha release of the SpyKING CIRCUS, a new approach to the
 problem of spike sorting. The code is based on a smart clustering with
-subsampling, and a greedy template matching approach, such that it can
+sub sampling, and a greedy template matching approach, such that it can
 resolve the problem of overlapping spikes.
 
 .. warning::

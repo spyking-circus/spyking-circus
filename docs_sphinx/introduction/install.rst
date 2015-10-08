@@ -12,7 +12,7 @@ To do so, use the ``pip`` utility::
 
     pip install circus-0.1.tar.gz
 
-By default, the pacakge is installed without the CUDA dependencies. To install the code with the GPU support::
+By default, the package is installed without the CUDA dependencies. To install the code with the GPU support::
 
     pip install circus-0.1.tar.gz[cuda]
 

@@ -17,7 +17,7 @@ This is not the default output of the SpyKING CIRCUS yet, but you can export you
 
     >> spyking-circus path/data.extensions -m converting
 
-This will create in the **path** folder a file name **path/mydata.kwx**, and you can use phy_ to open it. To launch phy on the exported data, simply do::
+This will create in the ``path`` folder a file name ``path/mydata.kwx``, and you can use phy_ to open it. To launch phy_ on the exported data, simply do::
 
     >> phy cluster-manual path/data.kwx
 
