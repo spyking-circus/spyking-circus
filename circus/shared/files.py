@@ -54,7 +54,7 @@ def load_parameters(file_name):
     parser          = ConfigParser.SafeConfigParser()
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'basis', 'clustering', 'fitting', 'filtering', 'noedits']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'noedits']
     for section in sections:
         for (key, value) in parser.items(section):
             parser.set(section, key, value.split('#')[0].replace(' ', '')) 
@@ -88,7 +88,7 @@ def load_parameters(file_name):
         N_e += len(probe['channel_groups'][key]['channels'])
     parser.set('data', 'N_e', str(N_e))   
 
-    for section in ['extracting', 'basis', 'clustering']:
+    for section in ['extracting', 'whitening', 'clustering']:
         test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
         assert test, colored("nb_elts in %s should be in [0,1]" %section, 'red')
 

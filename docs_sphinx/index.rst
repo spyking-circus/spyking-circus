@@ -6,7 +6,8 @@
 Welcome to SpyKING CIRCUS's documentation!
 ==========================================
 
-Contents:
+.. figure::  circus.png
+   :align:   center
 
 .. toctree::
    :maxdepth: 2
@@ -15,4 +16,4 @@ Contents:
    introduction/index
    code/index
    GUI/index
-   advanced/index
+

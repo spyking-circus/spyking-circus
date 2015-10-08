@@ -6,3 +6,5 @@ Launching the code
 
    quickstart
    parameters
+   probe
+   config

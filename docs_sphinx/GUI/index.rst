@@ -1,5 +1,5 @@
-Introduction
-============
+Using the GUI
+=============
 
 .. toctree::
    :maxdepth: 1

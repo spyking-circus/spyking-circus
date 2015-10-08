@@ -9,7 +9,11 @@ Running the algorithm
 Copy your files
 ~~~~~~~~~~~~~~~
 
-First, you will need to create a directory (we call it **path** – usually you put both the date of the experiment and the name of the person doing the sorting). Your data file should have a name like **path/mydata.extension** Note that your data should not be filtered, and that this filtering will be done ONTO the data, so you need to keep a copy elsewhere of you raw data.
+First, you will need to create a directory (we call it **path** – usually you put both the date of the experiment and the name of the person doing the sorting). Your data file should have a name like **path/mydata.extension** 
+
+.. warning::
+
+    Note that your data should not be filtered, and that the filtering will be done ONTO the data, so you need to keep a copy elsewhere of you raw data.
 
 Generate a parameter file
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -27,7 +31,7 @@ Before running the algorithm, you will always need to provide parameters, as a p
     in the same folder, with the data file.
     Do you want SpyKING CIRCUS to create a template there? [y/n]
 
-Before running the algorithm, you will always need to provide parameters, at the beginning of a parameter file. Note that this parameter file has to be in the same folder than your data, and should be named **path/mydata.params**. If you launch the algorithm without this parameter file, the algorithm will ask you if you want to create a template one, that you have to edit before launching the code. In this file, you mostly have to change
+Before running the algorithm, you will always need to provide parameters, at the beginning of a parameter file. Note that this parameter file has to be in the same folder than your data, and should be named **path/mydata.params**. If you launch the algorithm without this parameter file, the algorithm will ask you if you want to create a template one, that you have to edit before launching the code. In this file, you mostly have to change informations in the **data** section (see :doc:`documentation on the code <../code/config>` for more information).
 
 Run the algorithm
 ~~~~~~~~~~~~~~~~~
@@ -57,35 +61,45 @@ It should take around the time of the recording to run – maybe a bit more. The
 
 Note that you can of course change the number of CPU/GPU used, and also launch only a subset of the steps. See the help of the code to have more informations.
 
+Using Several CPUs
+------------------
+
+To use several CPUs, you should have a proper installation of MPI, and a valid hostfile given to the program. See :doc:`documentation on MPI <../introduction/mpi>`
+
+
 Using the GUI
 -------------
 
 Get the data
 ~~~~~~~~~~~~
 
-Once the algorithm has run on the data path/mydata.extension, you should have the following files in the directory path, all stating with your mydata:
+Once the algorithm has run on the data path/mydata.extension, you should have the following files in the directory path:
 
-path/mydata/mydata.amplitudes.mat
-path/mydata/mydata.cluster.mat
-path/mydata/mydata.overlap.mat
-path/mydata/mydata.templates.mat
-path/mydata/mydata.spiketimes.mat
+* path/mydata/mydata.amplitudes.mat
+* path/mydata/mydata.cluster.mat
+* path/mydata/mydata.overlap.mat
+* path/mydata/mydata.templates.mat
+* path/mydata/mydata.spiketimes.mat
+* path/mydata/mydata.limits.mat
 
 Matlab GUI
 ~~~~~~~~~~
 
-To launch the MATLAB GUI provided with the software, you need of course to have a valid installtion of MATLAB, and you should be able to simply do::
+To launch the MATLAB_ GUI provided with the software, you need of course to have a valid installation of MATLAB_, and you should be able to simply do::
 
-    >> circus-gui path/data.extensions
-
+    >> circus-gui path/mydata.extension
 
 Phy
 ~~~
 
-This is not the default output of the SpyKING CIRCUS yet, but you can export your data into the kwik format, and being able to load them with phy. To do so, at the end of the algorithm, simply do::
+This is not the default output of the SpyKING CIRCUS yet, but you can export your data into the kwik format, and being able to load them 
+with phy_. To do so, at the end of the algorithm, simply do::
 
-    >> spyking-circus path/data.extensions -m converting
+    >> spyking-circus path/mydata.extension -m converting
 
 This will create in the **path** folder a file name **path/mydata.kwx**, and you can use phy to open it.
 
-To know more about the GUI section, see :doc:`documentation on the GUI <../GUI>`
+To know more about the GUI section, see :doc:`documentation on the GUI <../GUI/index>`
+
+.. _phy: https://github.com/kwikteam/phy
+.. _MATLAB: http://fr.mathworks.com/products/matlab/
