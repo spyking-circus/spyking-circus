@@ -161,7 +161,7 @@ in the same folder, with the data file.'''
                 if command == 'python':
                     # Directly call the launcher
                     try:
-                        circus.launch(subtask, filename, nb_cpu, use_gpu)
+                        circus.launch(subtask, filename, nb_cpu, nb_gpu, use_gpu)
                     except:
                         print colored('Step "%s" failed!' % subtask, color='red')
                         raise

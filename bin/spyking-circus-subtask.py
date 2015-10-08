@@ -10,9 +10,10 @@ import circus
 if __name__ == '__main__':
     # This should not never be called by the user, therefore we can assume a
     # standard format
-    assert len(sys.argv) == 5, 'Incorrect number of arguments -- do not run this script manually, use "spyking-circus" instead'
+    assert len(sys.argv) == 6, 'Incorrect number of arguments -- do not run this script manually, use "spyking-circus" instead'
     task = sys.argv[1]
     filename = sys.argv[2]
     nb_cpu = int(sys.argv[3])
-    use_gpu = (sys.argv[4].lower() == 'true')
-    circus.launch(task, filename, nb_cpu, use_gpu)
+    nb_gpu = int(sys.argv[4])
+    use_gpu = (sys.argv[5].lower() == 'true')
+    circus.launch(task, filename, nb_cpu, nb_gpu, use_gpu)
