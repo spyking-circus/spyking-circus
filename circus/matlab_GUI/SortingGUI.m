@@ -27,7 +27,7 @@ function varargout = SortingGUI(varargin)
 
 % Edit the above text to modify the response to help SortingGUI
 
-% Last Modified by GUIDE v2.5 07-Oct-2015 11:31:44
+% Last Modified by GUIDE v2.5 03-Oct-2015 08:32:11
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -1466,6 +1466,8 @@ nch = size(handles.templates,1);
 
 DisplayElec = find(Coor(:,1)>=Xmin & Coor(:,2)>=Ymin & Coor(:,1)<=Xmax & Coor(:,2)<=Ymax  );
 
+handles.TemplateDisplayRatio = str2double(get(handles.Xscale,'String'));
+
 for idElec=1:length(DisplayElec)%nch
     i = DisplayElec(idElec);
     X(:,i) = linspace(Coor(i,1),Coor(i,1)+handles.TemplateDisplayRatio,length(waveform(i,:)));
@@ -1830,11 +1832,9 @@ t = handles.SpikeTimes{CellNb}*(handles.SamplingRate/1000);
 
 set(handles.EnableWaveforms,'Value', 1);
 
-duration = round(str2double(get(handles.Xscale,'String')));
+% duration = round(str2double(get(handles.Xscale,'String')));
 
-if duration <size(handles.templates,2)
-    duration = size(handles.templates,2);
-end
+duration = size(handles.templates,2);
 
 if duration/2 == round(duration/2)
     duration = duration + 1;
@@ -1842,7 +1842,6 @@ end
 
 
 AboveT = find(t> (handles.DataStartPt +(duration+1)/2 - 1) );
-    
 
 if ~isempty(AboveT)
     handles.DataStartPt =t(AboveT(1)) - (duration+1)/2 + 1;
@@ -1871,11 +1870,9 @@ CellNb = str2num(get(handles.TemplateNb,'String'));
 t = handles.SpikeTimes{CellNb}*(handles.SamplingRate/1000);
 
 
-duration = round(str2double(get(handles.Xscale,'String')));
+% duration = round(str2double(get(handles.Xscale,'String')));
 
-if duration <size(handles.templates,2)
-    duration = size(handles.templates,2);
-end
+duration = size(handles.templates,2);
 
 if duration/2 == round(duration/2)
     duration = duration + 1;
@@ -1907,7 +1904,7 @@ function Xscale_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of Xscale as text
 %        str2double(get(hObject,'String')) returns contents of Xscale as a double
 
-DisplayRawData(hObject, eventdata, handles)
+PlotData(handles)
 
 % --- Executes during object creation, after setting all properties.
 function Xscale_CreateFcn(hObject, eventdata, handles)
@@ -1934,11 +1931,9 @@ axes(handles.AmpTimeWin);
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
-duration = round(str2double(get(handles.Xscale,'String')));
+% duration = round(str2double(get(handles.Xscale,'String')));
 
-if duration <size(handles.templates,2)
-    duration = size(handles.templates,2);
-end
+duration = size(handles.templates,2);
 
 if duration/2 == round(duration/2)
     duration = duration + 1;
@@ -1982,11 +1977,7 @@ if get(handles.EnableWaveforms,'Value')==1
     FileStart = handles.HeaderSize + 2*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
 
 
-    duration = round(str2double(get(handles.Xscale,'String')));
-
-    if duration <size(handles.templates,2)
-        duration = size(handles.templates,2);
-    end
+    duration = size(handles.templates,2);
 
     if duration/2 == round(duration/2)
         duration = duration + 1;
@@ -2035,18 +2026,4 @@ function EnableWaveforms_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of EnableWaveforms
-PlotData(handles)
-
-
-% --- Executes on button press in ResetBtn.
-function ResetBtn_Callback(hObject, eventdata, handles)
-% hObject    handle to ResetBtn (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-handles.Xmin = min(handles.Positions(:,1));
-handles.Xmax = max(handles.Positions(:,1));
-handles.Ymin = min(handles.Positions(:,2));
-handles.Ymax = max(handles.Positions(:,2))+1;
-
 PlotData(handles)
