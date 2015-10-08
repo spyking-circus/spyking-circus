@@ -10,8 +10,7 @@ Installation from source
 ------------------------
 You can install the SpyKING CIRCUS from the Python package index: https://pypi.python.org/pypi/spyking-circus
 
-To do so, use the ``pip`` utility. Newer versions of ``pip`` require you to use
-the ``--pre`` option to install SpyKING CIRCUS since it is not yet a final release::
+To do so, use the ``pip`` utility::
 
     pip install circus-0.1.tar.gz
 
@@ -55,11 +54,11 @@ the source directory to your ``PYTHONPATH`` (this will only work for Python
 Requirements for CUDA
 ---------------------
 
-Using CUDA is highly recommended since it can drastically increase the
-speed of algorithm. To use it, you need to have a working CUDA environment installed onto the machine, and install the 
+Using CUDA_ is highly recommended since it can drastically increase the
+speed of algorithm. To use it, you need to have a working CUDA_ environment installed onto the machine, and install the 
 package as explained above.
 
-Dependencies for the SpyKING CIRCUS
+Dependencies requiered by the SpyKING CIRCUS
 -----------------------------------
 
 There are various packages that are useful but not necessary for working with

@@ -8,3 +8,4 @@ Launching the code
    parameters
    probe
    config
+   plots
