@@ -4,8 +4,8 @@ Installation
 The SpyKING CIRCUS comes as a python package, and it has to be installed from sources. 
 Note that currently, only unix systems are supported. 
 
-Installation from source
-------------------------
+Installation with pip
+---------------------
 You can install the SpyKING CIRCUS from the Python package index: https://pypi.python.org/pypi/spyking-circus
 
 To do so, use the ``pip`` utility::
@@ -27,6 +27,13 @@ Unfortunately, this does not work for ``numpy``, it has to be installed in a
 separate step before all other dependencies (``pip install numpy``), if it is
 not already installed.
 
+Once the install is complete, you need to add the PATH where SpyKING CIRCUS has been installed into your local PATH, if not already the case. To do so, simply edit your ``/home/user/.bashrc`` and add the following line::
+
+    export PATH=$PATH:$HOME/.local/bin
+
+Then you have to relaunch the shell, and you should now have the SpyKING CIRCUS installed!
+
+
 If you have an older version of pip, first update pip itself::
 
     # On Linux/MacOsX:
@@ -40,11 +47,11 @@ it to install ``pip``::
 If you have neither ``pip`` nor ``easy_install``, use the approach described
 here to install ``pip``: https://pip.pypa.io/en/latest/installing.htm
 
+Installation from source
+------------------------
+
 Alternatively, you can download the source package directly and uncompress it.
-You can then either run ``python setup.py install`` or
-``python setup.py develop`` to install it, or simply add
-the source directory to your ``PYTHONPATH`` (this will only work for Python
-2.x).
+You can then simply run ``python setup.py install --user``.
 
 
 Home Directory

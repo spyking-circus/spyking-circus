@@ -170,9 +170,14 @@ in the same folder, with the data file.'''
                         raise
                 elif command == 'mpirun':
                     # Use mpirun to make the call
+                    from mpi4py import MPI
+
+                    version = MPI.get_vendor()
                     args = ['mpirun']
                     if os.path.exists(hostfile):
                         args += ['-hostfile', hostfile]
+                    if version[0] == 'Open MPI':
+                        args += ['-x LD_LIBRARY_PATH']
                     args += ['-np', str(nb_cpu),
                                'spyking-circus-subtask.py',
                                subtask, filename, str(nb_cpu), use_gpu]
