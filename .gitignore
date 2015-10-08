@@ -11,3 +11,6 @@ build
 /circus.egg-info
 /dist
 /build
+
+#Generated python
+*.pyc
