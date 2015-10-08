@@ -11,10 +11,11 @@ Matlab GUI
 
 As you can see, the GUI is divided in several panels:
 
-* A view of the templates
-* A view of the amplitudes
-* A view of the ISI and Cross Correlogram
-* A view for putative repeats, depending on your stimulation
-
+* **A** A view of the templates
+* **B** A view of the features that gave rise to this templates
+* **C** A view of the amplitudes over time
+* **D** A view for putative repeats, depending on your stimulation
+* **E** A view of the Inter Spike Interval Distribution, for that given template
+* **F** A view of the Auto/Cross Correlation (Press Show Correlation)
 
 
