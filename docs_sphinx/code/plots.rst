@@ -26,9 +26,9 @@ Views of the waveforms
 
 At the end of the clustering phase, the algorithm will save files names ``waveform_i.pdf`` where *i* is the number of the electrode. A typical plot will look like that
 
-.. figure::  clusters_50.png
+.. figure::  waveforms_50.png
    :align:   center
 
    A view on the templates, on a given electrode
 
-On this plot, you should get an insight on the templates that have been computed out of the clustering phase.
+On this plot, you should get an insight on the templates that have been computed out of the clustering phase. For all the clusters detected on that given electrode, you should see all the waveforms peaking on that particular electrode, and the template, in red (in blue, this is the min and max amplitudes allowed during the fitting procedure). Note that if template is not aligned with the waveforms, this is normal. The templates are aligned on the electrodes were they have an absolute min. Here you are just looking at them on a particular electrode. The key point is that, as you can see, templates should all go below threshold on that particular electrode (dash-dotted line).

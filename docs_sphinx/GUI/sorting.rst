@@ -72,7 +72,7 @@ At any time, if you want to throw away a templates, because too noisy, you just 
 
 .. warning::
 
-    There is currently no ``Undo'' button in the MATLAB_ GUI. So please consider saving regularly your sorting session, or please consider using phy_
+    There is currently no ``Undo`` button in the MATLAB_ GUI. So please consider saving regularly your sorting session, or please consider using phy_
 
 
 Merging two templates

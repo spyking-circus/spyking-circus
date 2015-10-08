@@ -9,7 +9,7 @@ Running the algorithm
 Copy your files
 ~~~~~~~~~~~~~~~
 
-First, you will need to create a directory (we call it **path** – usually you put both the date of the experiment and the name of the person doing the sorting). Your data file should have a name like **path/mydata.extension** 
+First, you will need to create a directory (we call it ``path`` – usually you put both the date of the experiment and the name of the person doing the sorting). Your data file should have a name like ``path/mydata.extension`` 
 
 .. warning::
 
@@ -18,7 +18,7 @@ First, you will need to create a directory (we call it **path** – usually you 
 Generate a parameter file
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before running the algorithm, you will always need to provide parameters, as a parameter file. Note that this parameter file has to be in the same folder than your data, and should be named **path/mydata.params**. If you have already yours, great, just copy it in the folder. Otherwise, just launch the algorithm, and the algorithm will ask you if you want to create a template one, that you have to edit before launching the code::
+Before running the algorithm, you will always need to provide parameters, as a parameter file. Note that this parameter file has to be in the same folder than your data, and should be named ``path/mydata.params``. If you have already yours, great, just copy it in the folder. Otherwise, just launch the algorithm, and the algorithm will ask you if you want to create a template one, that you have to edit before launching the code::
 
     >> spyking-circus.py path/mydata.extension
     ##############################################################
@@ -31,14 +31,14 @@ Before running the algorithm, you will always need to provide parameters, as a p
     in the same folder, with the data file.
     Do you want SpyKING CIRCUS to create a template there? [y/n]
 
-Before running the algorithm, you will always need to provide parameters, at the beginning of a parameter file. Note that this parameter file has to be in the same folder than your data, and should be named **path/mydata.params**. If you launch the algorithm without this parameter file, the algorithm will ask you if you want to create a template one, that you have to edit before launching the code. In this file, you mostly have to change informations in the **data** section (see :doc:`documentation on the code <../code/config>` for more information).
+Before running the algorithm, you will always need to provide parameters, at the beginning of a parameter file. Note that this parameter file has to be in the same folder than your data, and should be named ``path/mydata.params``. If you launch the algorithm without this parameter file, the algorithm will ask you if you want to create a template one, that you have to edit before launching the code. In this file, you mostly have to change informations in the ``data`` section (see :doc:`documentation on the code <../code/config>` for more information).
 
 Run the algorithm
 ~~~~~~~~~~~~~~~~~
 
 Then you should run the algorithm by typing the following command(s)::
 
-    >> python spyking-circus path/mydata.extension
+    >> spyking-circus path/mydata.extension
 
 It should take around the time of the recording to run – maybe a bit more. The typical output of the program will  be something like::
 
@@ -75,12 +75,12 @@ Get the data
 
 Once the algorithm has run on the data path/mydata.extension, you should have the following files in the directory path:
 
-* path/mydata/mydata.amplitudes.mat
-* path/mydata/mydata.cluster.mat
-* path/mydata/mydata.overlap.mat
-* path/mydata/mydata.templates.mat
-* path/mydata/mydata.spiketimes.mat
-* path/mydata/mydata.limits.mat
+* ``path/mydata/mydata.amplitudes.mat``
+* ``path/mydata/mydata.cluster.mat``
+* ``path/mydata/mydata.overlap.mat``
+* ``path/mydata/mydata.templates.mat``
+* ``path/mydata/mydata.spiketimes.mat``
+* ``path/mydata/mydata.limits.mat``
 
 Matlab GUI
 ~~~~~~~~~~
@@ -97,7 +97,7 @@ with phy_. To do so, at the end of the algorithm, simply do::
 
     >> spyking-circus path/mydata.extension -m converting
 
-This will create in the **path** folder a file name **path/mydata.kwx**, and you can use phy to open it.
+This will create in the ``path`` folder a file name ``path/mydata.kwx``, and you can use phy to open it.
 
 To know more about the GUI section, see :doc:`documentation on the GUI <../GUI/index>`
 
