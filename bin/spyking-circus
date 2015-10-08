@@ -1,0 +1,185 @@
+#!/usr/bin/env python
+import os
+import sys
+import socket
+import getopt
+import shutil
+import subprocess
+import pkg_resources
+
+from termcolor import colored
+
+import circus
+
+def main(argv):
+
+    user_path  = os.path.expanduser('~') + '/spyking-circus/'
+    tasks_list = None
+    if not os.path.exists(user_path):
+        os.makedirs(user_path)
+
+    try:
+        import cudamat as cmt
+        cmt.init()
+        HAVE_CUDA = True
+    except Exception:
+        HAVE_CUDA = False
+        nb_gpu    = 0
+
+    all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking']
+    steps     = ['filtering', 'whitening', 'clustering', 'fitting']
+    hostfile  = user_path + 'circus.hosts'
+
+    if os.path.exists(user_path + 'config.params'):
+        config_file = user_path + 'config.params'
+    else:
+        config_file = pkg_resources.resource_stream('circus', 'config.params')
+
+    header = '''
+##############################################################
+#####          Welcome to the SpyKING CIRCUS             #####
+#####                                                    #####
+#####          Written by P.Yger and O.Marre             #####
+##############################################################
+'''
+
+    message = '''   
+Syntax is spyking-circus file [options]
+
+ Options are:
+-h or --help     : display the help
+-m or --method   : by default, all 4 steps of the algorithm are
+                   performed, but if specified, only a sublist [x,y] can be
+                   done, using the syntax -m x,y,z 
+                   Available steps are
+                     - filtering
+                     - whitening
+                     - clustering
+                     - fitting
+                     - (extra) gathering [to collect results]
+                     - (extra) extracting [to get templates from spike times]
+                     - (extra) converting [to export to phy format]
+                     - (extra) benchmarking [internal use only]
+                      The extra steps are only for custom needs (see documentation)
+-c or --cpu      : number of CPU (default 1)
+-g or --gpu      : number of GPU (default 1 if CUDA available)
+-H or --hostfile : hostfile for MPI (default is in ~/circus.hosts)
+-f or --file     : txt file with a list of files to be processed, in a batch mode'''
+
+    noparams='''
+The parameter file is not present!
+You must have a file named %s, properly configured,
+in the same folder, with the data file.'''
+
+    if len(argv) < 2:
+        print colored(header, 'green'), message
+        sys.exit()
+    else:
+        filename   = argv[1]
+        if filename in ['-h', '--help']:
+            print colored(header, 'green'), message
+            sys.exit()
+        elif not os.path.exists(filename):
+            print colored(header, 'green'), "The data file %s can not be found!" %filename
+            sys.exit()
+        else:
+            extension       = '.' + filename.split('.')[-1]
+            file_params     = filename.replace(extension, '.params')
+            if not os.path.exists(file_params):
+                print colored(header, 'green'), colored(noparams %file_params, 'red')
+                key = ''
+                while key not in ['y', 'n']:
+                    key = raw_input("Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
+                if key == 'y':
+                    print "Generating template file", file_params
+                    print "Please fill it properly before launching the code! (see documentation)"
+                    with open(file_params, 'wb') as output_file:
+                        shutil.copyfileobj(config_file, output_file)
+                sys.exit()
+            opts, args  = getopt.getopt(argv[2:], "hvm:H:c:g:", ["help", "method=", "hostfile=", "cpu=", "gpu="])
+
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            print colored(header, 'green'), message
+            sys.exit()
+        elif opt == '-d':
+            verbose = True
+        elif opt in ('-m', '--method'):
+            args = arg.split(',')
+            for arg in args:
+                if arg not in all_steps:
+                    print "The method has to be in", all_steps
+                    sys.exit(0)
+            else:
+                steps = args
+        elif opt in ('-g', '--gpu'):
+            nb_gpu = int(arg)
+        elif opt in ('-c', '--cpu'):
+            nb_cpu = int(arg)
+        elif opt in ('-H', '--hostfile'):
+            hostfile = arg
+        elif opt in ('-f', '--file'):
+            tasks_list = arg
+
+    if tasks_list is not None:
+        with open(tasks_list, 'r') as f:
+            for line in f:
+                if len(line) > 0:
+                    main(['spyking-circus'] + line.split(" "))
+    else:
+        print colored(header, 'green')
+        print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
+        print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
+        print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
+        if HAVE_CUDA:
+            print colored("Number of GPU :", 'green'), colored(nb_gpu, 'cyan')
+        print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
+        print ""
+        print colored("##############################################################", 'green')
+        print ""
+
+        # Print info
+        params = circus.shared.utils.io.load_parameters(filename)
+        circus.shared.utils.io.data_stats(params)
+
+        # Launch the subtasks
+        subtasks = [('filtering', 'mpirun'),
+                    ('whitening', 'mpirun'),
+                    ('clustering', 'mpirun'),
+                    ('fitting', 'mpirun'),
+                    ('extracting', 'mpirun'),
+                    ('gathering', 'python'),
+                    ('converting', 'python'),
+                    ('benchmarking', 'mpirun')]
+
+        if HAVE_CUDA and nb_gpu > 0:
+            use_gpu = 'True'
+        else:
+            use_gpu = 'False'
+
+        for subtask, command in subtasks:
+            if subtask in steps:
+                if command == 'python':
+                    # Directly call the launcher
+                    try:
+                        circus.launch(subtask, filename, nb_cpu, use_gpu)
+                    except:
+                        print colored('Step "%s" failed!' % subtask, color='red')
+                        raise
+                elif command == 'mpirun':
+                    # Use mpirun to make the call
+                    args = ['mpirun']
+                    if os.path.exists(hostfile):
+                        args += ['-hostfile', hostfile]
+                    args += ['-np', str(nb_cpu),
+                               'spyking-circus-subtask.py',
+                               subtask, filename, str(nb_cpu), use_gpu]
+                    try:
+                        subprocess.check_call(args)
+                    except:
+                        print colored('Step "%s" failed!' % subtask, color='red')
+                        raise
+
+
+if __name__ == '__main__':
+    main(sys.argv)
