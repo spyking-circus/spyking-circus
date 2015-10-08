@@ -170,9 +170,10 @@ in the same folder, with the data file.'''
                     args = ['mpirun']
                     if os.path.exists(hostfile):
                         args += ['-hostfile', hostfile]
-                    args += ['-np', str(nb_cpu),
+
+                    args += ['-np', str(max(nb_cpu, nb_gpu)),
                                'spyking-circus-subtask.py',
-                               subtask, filename, str(nb_cpu), use_gpu]
+                               subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                     try:
                         subprocess.check_call(args)
                     except:

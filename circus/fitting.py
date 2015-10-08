@@ -1,6 +1,6 @@
 from .shared.utils import *
 
-def main(filename, params, nb_cpu, use_gpu):
+def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')
@@ -28,7 +28,8 @@ def main(filename, params, nb_cpu, use_gpu):
 
     if use_gpu:
         ## Need to properly handle multi GPU per MPI nodes?
-        cmt.cuda_set_device(0)
+        gpu_id = numpy.mod(comm.size, nb_cpu)
+        cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
 

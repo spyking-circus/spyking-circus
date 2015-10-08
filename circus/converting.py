@@ -363,7 +363,7 @@ class Converter(object):
                                )
         run()
 
-def main(filename, params, nb_cpu, use_gpu):
+def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     basename         = params.get('data', 'data_file_noext')
     prb_file         = params.get('data', 'mapping')

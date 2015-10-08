@@ -38,7 +38,8 @@ The number of GPU that will be used by the code during the fitting phase. If you
 
 .. warning::
 
-    Currently, nodes with several GPUs are not properly handled. Be in touch if interested by the functionality
+    Currently, clusters with heterogeneous numbers of GPUs per nodes are not properly handled. Be in touch if interested by the functionality
+
 
 * ``-H`` or ``--hostfile``
 

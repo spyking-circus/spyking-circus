@@ -80,7 +80,7 @@ The channel_group is a python dictionary where you'll specify, for every electro
 Examples
 --------
 
-By default, during the install process, the code should copy some default probe files into ``/home/user/spyking-circus/mappings``. You can have a look to them.
+By default, during the install process, the code should copy some default probe files into ``/home/user/spyking-circus/probes``. You can have a look at them.
 
 
 .. _phy: https://github.com/kwikteam/phy

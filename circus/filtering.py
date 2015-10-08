@@ -3,7 +3,7 @@ from scipy import signal
 from .shared.utils import *
 
 
-def main(filename, params, nb_cpu, use_gpu):
+def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')
