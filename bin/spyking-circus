@@ -33,7 +33,7 @@ def main(argv):
     if os.path.exists(user_path + 'config.params'):
         config_file = user_path + 'config.params'
     else:
-        config_file = pkg_resources.resource_stream('circus', 'config.params')
+        config_file = pkg_resources.resource_filename('circus', 'config.params')
 
     header = '''
 ##############################################################
@@ -93,8 +93,7 @@ in the same folder, with the data file.'''
                 if key == 'y':
                     print "Generating template file", file_params
                     print "Please fill it properly before launching the code! (see documentation)"
-                    with open(file_params, 'wb') as output_file:
-                        shutil.copyfileobj(config_file, output_file)
+                    shutil.copyfileobj(config_file, file_params)
                 sys.exit()
             opts, args  = getopt.getopt(argv[2:], "hvm:H:c:g:", ["help", "method=", "hostfile=", "cpu=", "gpu="])
 
