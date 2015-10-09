@@ -13,7 +13,7 @@ During the clustering phase, the algorithm will save files names ``cluster_i.pdf
 
    A view on the clusters detected by the algorithm, on a given electrode
 
-On the two plots in the left column, you can see the rho vs delta plots (see REFERENCE). Top plots shows the centroids that have been selected, and bottom plots shows in red all the putative centers that were considered by the algorithm.
+On the two plots in the left column, you can see the rho vs delta plots (see `[Rodriguez et Laio, 2014] <http://www.sciencemag.org/content/344/6191/1492.short>`_). Top plots shows the centroids that have been selected, and bottom plots shows in red all the putative centers that were considered by the algorithm.
 
 On the 4 plots on the rights, this is a 3D projection of all the spikes collected by that electrode, projected along different axes: x vs y, y vs z and x vs z.
 
