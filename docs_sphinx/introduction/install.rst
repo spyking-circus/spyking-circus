@@ -59,13 +59,16 @@ Home Directory
 
 During the install, the code will create a ``spyking-circus`` folder in ``/home/user`` where it will copy several probe designs, and a copy of the default parameter file. Note that if you are always using a similar setup, you can edit this template.
 
+Using MPI
+---------
 
-Requirements for CUDA
----------------------
+If you are planning to use MPI, the best solution is to create a file ``/home/user/spyking-circus/circus.hosts`` with the lists of available nodes (see :doc:`Configuration of MPI <../introduction/mpi>`)
 
-Using CUDA_ is highly recommended since it can drastically increase the
-speed of algorithm. To use it, you need to have a working CUDA_ environment installed onto the machine, and install the 
-package as explained above.
+
+Using CUDA
+----------
+
+Using CUDA_ is highly recommended since it can drastically increase the speed of algorithm. To use it, you need to have a working CUDA_ environment installed onto the machine, and install the package as explained above.
 
 
 .. _CUDA: https://developer.nvidia.com/cuda-downloads

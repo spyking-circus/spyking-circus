@@ -37,4 +37,4 @@ This will tell the code that because ``n_gpu`` is larger than ``n_cpu``, several
     Currently, clusters with heterogeneous numbers of GPUs per nodes are not properly handled. Be in touch if interested by the functionality
     
 
-.. _OpenMPI: https://github.com/kwikteam/phy
+.. _OpenMPI: http://www.open-mpi.org/
