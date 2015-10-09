@@ -1,3 +1,8 @@
+try:
+    import cudamat as cmt
+except ImportError:
+    cmt = None
+
 from .shared.utils import *
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
