@@ -15,7 +15,7 @@ In this first step, nothing incredibly fancy is happening. All the channels are 
    Raw vs. Filtered data
 
 
-Withening
+Whitening
 ---------
 
 In this step, we are removing the spurious spatio-temporal correlations that may exist between all the channels. By detecting temporal periods in the data without any spikes, we compute a spatial matrix and a temporal filter that are whitening the data. This is a key step in most signal processing algorithms. 
