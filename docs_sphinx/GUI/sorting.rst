@@ -30,7 +30,7 @@ Panel B shows the cluster from which this template has been extracted. Unless yo
 
 Panel E shows the ISI (inter spike interval). You can look at it from 0 to 25 ms, or from 0 to 200 ms if the button ``Big ISI`` is clicked. Above this panel, the % of refractory period violation is indicated, and a ratio indicates the number of violations / the total number of spikes. If you click on the button ``Show corr``, panel F will show the auto-correlation. This is not automatically updated since it can take a moment to be estimated for very long recordings. 
 
-.. warning::
+.. note::
 
     If you are viewing two templates (see below), then Panel E shows combined ISI for the two templates, and Panel F shows the Cross-Correlogram between the two templates
 
@@ -48,7 +48,7 @@ The template is matched all over the data, with a different amplitude each time.
 
 Many templates should have a large number of amplitudes around 1, as a sanity check that the template matching algorithm is working. Howver, sometimes, some others can have amplitude that may be anormally small or large. These latter points are usually "wrong matches": they don't correspond to real occurrences of the template. Rather, the algorithm just fitted noise here, or the residual that remains after subtracting templates. Of course, you don't want to consider them as real spikes. So these amplitudes need to be separated from the other ones and removed.
 
-.. warning::
+.. note::
 
     The minimal amplitude is now automatically handled during the fitting procedure, so there should be no need for adjusting the lower amplitude
 
@@ -84,7 +84,7 @@ To merge the two templates together, click on the ``Merge`` button. The spikes f
 
 Note that the algorithm is rather on the side of over-dividing the cells into more templates, rather than the opposite, because it is much easier to merge cells than to cluster them further. So you will probably need to do that many times.
 
-.. warning::
+.. note::
 
     We are working on a meta-merging algorithm that will automatize all this sorting process, and we hope to add it soon into the main code of the SpyKING CIRCUS.
 

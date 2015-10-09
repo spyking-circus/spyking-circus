@@ -85,7 +85,7 @@ The clustering section is::
     test_clusters  = False     # Should be False. Only to plot injection of synthetic clusters
     noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
-.. warning::
+.. note::
 
     This is the a key section, as bad clustering will implies bad results. However, the code is very robust to parameters changes.
 
