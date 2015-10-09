@@ -120,7 +120,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         try:
             all_res         = all_res.reshape((comm.size, N_t**2))
         except Exception:
-            print "No silent periods detected: something wrong with the parameters?"
+            print io.print_info(["No silent periods detected: something wrong with the parameters?"])
         all_res             = numpy.sum(all_res, 0)
         all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
         temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)

@@ -171,6 +171,11 @@ in the same folder, with the data file.'''
                     if os.path.exists(hostfile):
                         args += ['-hostfile', hostfile]
 
+                    from mpi4py import MPI
+                    vendor = MPI.get_vendor()
+                    if vendor is 'Open MPI':
+                        args += ['-x', 'LD_LIBRARY_PATH']
+
                     args += ['-np', str(max(nb_cpu, nb_gpu)),
                                'spyking-circus-subtask.py',
                                subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
