@@ -13,10 +13,10 @@ The parameters to launch the program are:
 * ``-m`` or ``--method``
 
 What are the steps of the algorithm you would like to perform. Defaults steps are:
-1. filtering
-2. whitening
-3. clustering
-4. fitting
+    1. filtering
+    2. whitening
+    3. clustering
+    4. fitting
 
 Note that filtering is performed only once, and if the code is relaunched on the same data, a flag in the parameter file will prevent the code to filter twice. You can specify only a subset of steps by doing::
     
@@ -59,7 +59,7 @@ The code can accept a text file with several commands that will be executed one 
 
 .. warning::
 
-    When processing files in a batch mode, be sure that the parameters file have been pre-generated. Otherwise, the code will hangs asking you to generate them
+    When processing files in a batch mode, be sure that the parameters file have been pre-generated. Otherwise, the code will hang asking you to generate them
     
 
 Configuration File

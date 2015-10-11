@@ -20,4 +20,5 @@ The SpyKING CIRCUS is a massively parallel code to perform spike sorting on larg
    code/index
    GUI/index
    advanced/index
+   issues/index
 

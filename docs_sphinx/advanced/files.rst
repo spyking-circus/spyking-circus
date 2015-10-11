@@ -29,7 +29,6 @@ At the end of that step, several files are produced:
     * ``mydata.amplitudes.mat`` A MATLAB_ file that contains, for all the templates, the amplitudes used at the given spike times. Note that those amplitudes has two component, but only the first one is relevant. The second one is the template of the orthogonal template.
 
 
-
 Converting
 ----------
 

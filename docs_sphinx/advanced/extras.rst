@@ -11,7 +11,7 @@ Gathering
 
 The more important one is the ``gathering`` option. This option allows you, while the fitting procedure is still running, to collect the data that have already been generated and save them as a temporary result. This methods use the fact that temporal chunks are processed sequentially, so you can, at any time, review what has already been fitted. To do so, simply do::
 
-    spyking-circus path/mydata.extension -m gathering -c N
+    >> spyking-circus path/mydata.extension -m gathering -c N
 
 .. warning::
 
@@ -24,7 +24,7 @@ Converting
 
 As already said in the GUI section, this function allows you to export your results into the phy_ format. To do so, simply do::
 
-    spyking-circus path/mydata.extension -m converting
+    >> spyking-circus path/mydata.extension -m converting
 
 .. warning::
 
@@ -36,7 +36,7 @@ Extracting
 
 This option allows the user to get, given a list of spike times and cluster ids, its own templates. For example one could perform the clustering with its own method, and given the results of its algorithms, extract templates and simply launch the template matching part in order to resolve overlapping spikes. To perform such a workflow, you just need to do::
 
-    spyking-circus path/mydata.extension -m extracting,fitting 
+    >> spyking-circus path/mydata.extension -m extracting,fitting 
 
 .. warning::
     This option has not yet been tested during the integration in this alpha release, but please contact us if you are interested. 

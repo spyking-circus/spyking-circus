@@ -97,7 +97,9 @@ with phy_. To do so, at the end of the algorithm, simply do::
 
     >> spyking-circus path/mydata.extension -m converting
 
-This will create in the ``path`` folder a file name ``path/mydata.kwx``, and you can use phy to open it.
+This will create in the ``path`` folder a file name ``path/mydata.kwx``, and you can use phy to open it, by simply doing::
+
+    >> phy cluster-manual path/mydata/mydata.kwx
 
 To know more about the GUI section, see :doc:`documentation on the GUI <../GUI/index>`
 
