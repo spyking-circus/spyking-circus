@@ -7,8 +7,10 @@ There are several improvements:
 
 """
 
+from utils import *
 import os
 import os.path as op
+import shutil
 
 import numpy as np
 
@@ -19,10 +21,15 @@ from phy.io.kwik import create_kwik, KwikCreator, KwikModel
 from phy.utils.event import ProgressReporter
 from phy.traces.waveform import WaveformLoader, SpikeLoader
 from phy.utils.logging import info
+from phy.traces.filter import bandpass_filter, apply_filter
+
+
+filename  = sys.argv[-1]
+params    = io.load_parameters(filename)
 
 
 def _read_spikes(basename):
-    with open_h5(basename + '/' + basename.split('/')[-1] + '.spiketimes.mat', 'r') as f:
+    with open_h5(basename + '.spiketimes.mat', 'r') as f:
         spike_samples = {}
         for name in f.children():
             cluster = int(name.split('_')[1])
@@ -41,7 +48,7 @@ def _read_spikes(basename):
 
 
 def _read_templates(basename, probe, n_total_channels, n_channels):
-    with open_h5(basename + '/' + basename.split('/')[-1] + '.templates.mat', 'r') as f:
+    with open_h5(basename + '.templates.mat', 'r') as f:
         templates = f.read('/templates')
         n_templates, n_samples, n_channels = templates.shape
         n_templates    //= 2
@@ -142,6 +149,14 @@ class Converter(object):
         self.n_total_channels = n_total_channels
         extract_s_before = extract_s_after = int(N_t - 1)/2
 
+        # set to True if your data is already pre-filtered (much quicker)
+        filtered_datfile = False
+
+        # Filtering parameters for PCA (these are ignored if filtered_datfile == True)
+        filter_low = 500.
+        filter_high = 0.95 * .5 * sample_rate
+        filter_butter_order = 3
+
         self.basename = basename
         self.kwik_path = basename + '.kwik'
         self.dtype = dtype
@@ -185,17 +200,39 @@ class Converter(object):
         self.n_templates = len(self.templates)
         info("Loaded templates: {}.".format(self.templates.shape))
 
-        # The WaveformLoader fetches waveforms from the raw traces dynamically.
+        # The WaveformLoader fetches and filters waveforms from the raw traces dynamically.
+        n_samples = (extract_s_before, extract_s_after)
+        b_filter = bandpass_filter(rate=self.sample_rate,
+                                   low=filter_low,
+                                   high=filter_high,
+                                   order=filter_butter_order)
+
+        def filter(x):
+          return apply_filter(x, b_filter)
+
+        filter_margin = filter_butter_order * 3
+
         nodes            = []
         for key in self.probe['channel_groups'].keys():
           nodes += self.probe['channel_groups'][key]['channels']
-        
-        self._wl = WaveformLoader(traces=self.traces_f,
-                                  n_samples=self.n_samples_w,
-                                  dc_offset=offset,
-                                  scale_factor=gain,
-                                  channels=nodes
-                                  )
+        nodes    = np.array(nodes, dtype=np.int32)
+
+        if filtered_datfile:
+          self._wl = WaveformLoader(traces=self.traces_f,
+                                    n_samples=self.n_samples_w,
+                                    dc_offset=offset,
+                                    scale_factor=gain,
+                                    channels=nodes
+                                    )
+        else:
+          self._wl = WaveformLoader(traces=self.traces_f,
+                                    n_samples=self.n_samples_w,
+                                    filter=filter,
+                                    filter_margin=filter_margin,
+                                    dc_offset=offset,
+                                    scale_factor=gain,
+                                    channels=nodes
+                                    )
 
         # A virtual (n_spikes, n_samples, n_channels) array that is
         # memmapped to the filtered data file.
@@ -363,32 +400,38 @@ class Converter(object):
                                )
         run()
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
-    basename         = params.get('data', 'data_file_noext')
-    prb_file         = params.get('data', 'mapping')
-    n_channels       = params.getint('data', 'N_e')
-    N_t              = params.getint('data', 'N_t')
-    n_total_channels = params.getint('data', 'N_total')
-    sample_rate      = params.getint('data', 'sampling_rate')
-    dtype            = params.get('data', 'data_dtype')
-    offset           = params.getint('data', 'data_offset')
-    gain             = params.getfloat('data', 'gain')
 
-    c = Converter(basename, filename, N_t,
-                  n_channels=n_channels,
-                  n_total_channels=n_total_channels,
-                  offset=offset,
-                  prb_file=prb_file,
-                  sample_rate=sample_rate,
-                  dtype=dtype,
-                  gain=gain
-                  )
 
-    if not os.path.exists(basename + '.kwik'):
-        # Conversion.
-        c.create_kwik()
+basename         = params.get('data', 'data_file_noext')
+basename         = basename + '/' + basename.split('/')[-1]
+prb_file         = params.get('data', 'mapping')
+n_channels       = params.getint('data', 'N_e')
+N_t              = params.getint('data', 'N_t')
+n_total_channels = params.getint('data', 'N_total')
+sample_rate      = params.getint('data', 'sampling_rate')
+dtype            = params.get('data', 'data_dtype')
+offset           = params.getint('data', 'data_offset')
+gain             = params.getfloat('data', 'gain')
 
-    # Try to open the kwik file after the conversion.
-    model = KwikModel(c.kwik_path)
-    model.describe()
+c = Converter(basename, filename, N_t,
+              n_channels=n_channels,
+              n_total_channels=n_total_channels,
+              offset=offset,
+              prb_file=prb_file,
+              sample_rate=sample_rate,
+              dtype=dtype,
+              gain=gain
+              )
+
+# Uncomment to have a look at the templates or waveforms.
+#c.template_explorer('waveforms')  # 'waveforms' or 'templates'
+#exit()
+
+if not os.path.exists(basename + '.kwik'):
+    # Conversion.
+    c.create_kwik()
+
+# Try to open the kwik file after the conversion.
+model = KwikModel(c.kwik_path)
+model.describe()
