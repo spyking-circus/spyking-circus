@@ -14,3 +14,4 @@ build
 
 #Generated python
 *.pyc
+*.egg-info
