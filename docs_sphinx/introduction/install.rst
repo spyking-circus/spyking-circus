@@ -9,7 +9,7 @@ How to install
 Installation with CONDA
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Install Anaconda_ or minconda_, e.g. all on the terminal (but there is also a .exe installer for Windows, etc.):
+Install Anaconda_ or miniconda_, e.g. all on the terminal (but there is also a .exe installer for Windows, etc.):
 
 For linux, just type::
 
@@ -29,7 +29,7 @@ Installation with pip
 
 To do so, use the ``pip`` utility::
 
-    pip install circus-0.1.tar.gz
+    pip install spyking-circus-0.1.tar.gz
 
 You might want to add the ``--user`` flag, to install SpyKING CIRCUS for the local user
 only, which means that you don't need administrator privileges for the
@@ -90,6 +90,6 @@ For information, here is the list of all the dependencies required by the SpyKIN
     10. ``termcolor``
 
 .. _CUDA: https://developer.nvidia.com/cuda-downloads
-.. _Anaconda_: https://www.continuum.io/downloads
-.. _miniconda : http://conda.pydata.org/miniconda.html
+.. _Anaconda: https://www.continuum.io/downloads
+.. _miniconda: http://conda.pydata.org/miniconda.html
 .. _OpenMPI: http://www.open-mpi.org/
