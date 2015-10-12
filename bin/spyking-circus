@@ -26,6 +26,7 @@ def main(argv):
         import cudamat as cmt
         cmt.init()
         HAVE_CUDA = True
+        nb_gpu    = 1
     except Exception:
         HAVE_CUDA = False
 
