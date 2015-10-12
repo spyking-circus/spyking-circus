@@ -7,7 +7,7 @@ There are several improvements:
 
 """
 
-from utils import *
+from .shared.utils import *
 import os
 import os.path as op
 import shutil
