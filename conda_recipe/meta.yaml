@@ -1,0 +1,52 @@
+package:
+  name: spyking-circus
+  version: "0.1"
+
+requirements:
+  # Note: hdf5storage and termcolor are not available in the standard anaconda
+  # repository, you need to add the "auto" channel for it (and this channel
+  # only includes hdf5storage for linux-64 and termcolor for linux-32, linux-64
+  # and mac-osx for termcolor)
+  build:
+    - progressbar
+    - mpi4py
+    - mdp
+    - hdf5storage
+    - numpy
+    - cython
+    - scipy
+    - matplotlib
+    - h5py
+    - setuptools
+    - termcolor
+  run:
+    - progressbar
+    - mpi4py
+    - mdp
+    - hdf5storage
+    - numpy
+    - cython
+    - scipy
+    - matplotlib
+    - h5py
+    - setuptools
+    - termcolor
+
+source:
+  path: ..
+
+build:
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+
+test:
+  # Python imports
+  imports:
+    - circus
+    - circus.shared
+  commands:
+    - spyking-circus -h
+
+about:
+  home: http://www.yger.net/software/spyking-circus
+  license: MIT
+  summary: 'Fast spike sorting by template matching'

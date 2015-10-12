@@ -1,8 +1,16 @@
-from setuptools import setup
 import os
 from os.path import join as pjoin
+import sys
 
-setup(name='circus',
+from setuptools import setup
+
+if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
+    # We seem to be running under a "conda build"
+    data_path = pjoin('data', 'spyking-circus')
+else:
+    data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
+
+setup(name='spyking-circus',
       version='0.1',
       description='Fast spike sorting by template matching',
       url='http://www.yger.net/software/spyking-circus',
@@ -11,9 +19,7 @@ setup(name='circus',
       license='MIT',
       packages=['circus', 'circus.shared'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
-      extras_require={'cuda' : ['cudamat']},
-      install_requires=['progressbar', 'mpi4py', 'mdp', 'hdf5storage', 'numpy', 'cython', 'scipy', 'matplotlib', 'configparser', 'h5py', 'termcolor'],
-      dependency_links=['http://github.com/cudamat/cudamat/tarball/master#egg=cudamat'],
+      install_requires=['progressbar', 'mpi4py', 'mdp', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'hdf5storage', 'termcolor'],
       scripts=[pjoin('bin', 'spyking-circus'),
                pjoin('bin', 'spyking-circus-subtask.py'),
                pjoin('bin', 'circus-gui')],
@@ -23,12 +29,12 @@ setup(name='circus',
                                'matlab_GUI/SortingGUI.fig',
                                'matlab_GUI/strjoin.m',
                                'matlab_GUI/strsplit.m']},
-      data_files=[(os.path.expanduser('~/spyking-circus/'), ['circus/config.params']),
-                  (os.path.expanduser('~/spyking-circus/probes/'), ['probes/mea_252.prb']),
-                  (os.path.expanduser('~/spyking-circus/probes/'), ['probes/small_mea_252.prb']),
-                  (os.path.expanduser('~/spyking-circus/probes/'), ['probes/wide_mea_252.prb']),
-                  (os.path.expanduser('~/spyking-circus/probes/'), ['probes/groundtruth_mea_252.prb']),
-                  (os.path.expanduser('~/spyking-circus/probes/'), ['probes/imec.prb']),
-                  (os.path.expanduser('~/spyking-circus/probes/'), ['probes/mea_4225.prb'])],
+      data_files=[(data_path, ['circus/config.params']),
+                  (pjoin(data_path, 'probes/'), ['probes/mea_252.prb']),
+                  (pjoin(data_path, 'probes/'), ['probes/small_mea_252.prb']),
+                  (pjoin(data_path, 'probes/'), ['probes/wide_mea_252.prb']),
+                  (pjoin(data_path, 'probes/'), ['probes/groundtruth.prb']),
+                  (pjoin(data_path, 'probes/'), ['probes/imec.prb']),
+                  (pjoin(data_path, 'probes/'), ['probes/mea_4225.prb'])],
       classifiers=['Development Status :: 3 - Alpha'],
       zip_safe=False)
