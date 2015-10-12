@@ -15,6 +15,10 @@ def main(argv):
 
     user_path  = os.path.expanduser('~') + '/spyking-circus/'
     tasks_list = None
+
+    nb_gpu     = 0
+    nb_cpu     = 1
+
     if not os.path.exists(user_path):
         os.makedirs(user_path)
 
@@ -24,7 +28,6 @@ def main(argv):
         HAVE_CUDA = True
     except Exception:
         HAVE_CUDA = False
-        nb_gpu    = 0
 
     all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking']
     steps     = ['filtering', 'whitening', 'clustering', 'fitting']
