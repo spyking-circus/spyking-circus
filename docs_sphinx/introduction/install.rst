@@ -35,14 +35,11 @@ You might want to add the ``--user`` flag, to install SpyKING CIRCUS for the loc
 only, which means that you don't need administrator privileges for the
 installation.
 
-In principle, the above command also install SpyKING CIRCUS's dependencies. 
-
-Once the install is complete, you need to add the PATH where SpyKING CIRCUS has been installed into your local PATH, if not already the case. To do so, simply edit your ``/home/user/.bashrc`` and add the following line::
+In principle, the above command also install SpyKING CIRCUS's dependencies. Once the install is complete, you need to add the ``PATH`` where SpyKING CIRCUS has been installed into your local ``PATH``, if not already the case. To do so, simply edit your ``/home/user/.bashrc`` and add the following line::
 
     export PATH=$PATH:$HOME/.local/bin
 
 Then you have to relaunch the shell, and you should now have the SpyKING CIRCUS installed!
-
 
 Installation from source
 ~~~~~~~~~~~~~~~~~~~~~~~~
