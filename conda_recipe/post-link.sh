@@ -5,6 +5,6 @@ mkdir $HOME/spyking-circus/ 2>/dev/null
 cp -n -r $PREFIX/data/spyking-circus/* $HOME/spyking-circus
 echo "##########################################################################" >> $PREFIX/.messages.txt
 echo "# Mapping files and parameter template have been copied to $HOME/spyking-circus" >> $PREFIX/.messages.txt
-echo "# To get support for faster filtering using the GPU, install 'cudamat' with the following command:" >> $PREFIX/.messages.txt
+echo "# To get support for the GPU, install 'cudamat' with the following command:" >> $PREFIX/.messages.txt
 echo "#     pip install https://github.com/cudamat/cudamat/archive/master.zip ">> $PREFIX/.messages.txt
 echo "##########################################################################" >> $PREFIX/.messages.txt
