@@ -24,6 +24,9 @@ from phy.utils.logging import info
 from phy.traces.filter import bandpass_filter, apply_filter
 
 
+extract_features = True
+filtered_datfile = True
+
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     def _read_spikes(basename):
@@ -142,13 +145,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                      offset=0,
                      gain=0.01
                      ):
-
-            self.n_features_per_channel = 3
+            if extract_features:
+                self.n_features_per_channel = 3
+            else:
+                self.n_features_per_channel = 0
             self.n_total_channels = n_total_channels
             extract_s_before = extract_s_after = int(N_t - 1)/2
 
             # set to True if your data is already pre-filtered (much quicker)
-            filtered_datfile = False
+            
 
             # Filtering parameters for PCA (these are ignored if filtered_datfile == True)
             filter_low = 500.
@@ -198,48 +203,49 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             self.n_templates = len(self.templates)
             info("Loaded templates: {}.".format(self.templates.shape))
 
-            # The WaveformLoader fetches and filters waveforms from the raw traces dynamically.
-            n_samples = (extract_s_before, extract_s_after)
-            b_filter = bandpass_filter(rate=self.sample_rate,
-                                       low=filter_low,
-                                       high=filter_high,
-                                       order=filter_butter_order)
+            if extract_features:
+                # The WaveformLoader fetches and filters waveforms from the raw traces dynamically.
+                n_samples = (extract_s_before, extract_s_after)
+                b_filter = bandpass_filter(rate=self.sample_rate,
+                                           low=filter_low,
+                                           high=filter_high,
+                                           order=filter_butter_order)
 
-            def filter(x):
-              return apply_filter(x, b_filter)
+                def filter(x):
+                  return apply_filter(x, b_filter)
 
-            filter_margin = filter_butter_order * 3
+                filter_margin = filter_butter_order * 3
 
-            nodes            = []
-            for key in self.probe['channel_groups'].keys():
-              nodes += self.probe['channel_groups'][key]['channels']
-            nodes    = np.array(nodes, dtype=np.int32)
+                nodes            = []
+                for key in self.probe['channel_groups'].keys():
+                  nodes += self.probe['channel_groups'][key]['channels']
+                nodes    = np.array(nodes, dtype=np.int32)
 
-            if filtered_datfile:
-              self._wl = WaveformLoader(traces=self.traces_f,
-                                        n_samples=self.n_samples_w,
-                                        dc_offset=offset,
-                                        scale_factor=gain,
-                                        channels=nodes
-                                        )
-            else:
-              self._wl = WaveformLoader(traces=self.traces_f,
-                                        n_samples=self.n_samples_w,
-                                        filter=filter,
-                                        filter_margin=filter_margin,
-                                        dc_offset=offset,
-                                        scale_factor=gain,
-                                        channels=nodes
-                                        )
+                if filtered_datfile:
+                  self._wl = WaveformLoader(traces=self.traces_f,
+                                            n_samples=self.n_samples_w,
+                                            dc_offset=offset,
+                                            scale_factor=gain,
+                                            channels=nodes
+                                            )
+                else:
+                  self._wl = WaveformLoader(traces=self.traces_f,
+                                            n_samples=self.n_samples_w,
+                                            filter=filter,
+                                            filter_margin=filter_margin,
+                                            dc_offset=offset,
+                                            scale_factor=gain,
+                                            channels=nodes
+                                            )
 
-            # A virtual (n_spikes, n_samples, n_channels) array that is
-            # memmapped to the filtered data file.
-            self.waveforms = SpikeLoader(self._wl, self.spike_samples)
+                # A virtual (n_spikes, n_samples, n_channels) array that is
+                # memmapped to the filtered data file.
+                self.waveforms = SpikeLoader(self._wl, self.spike_samples)
 
-            assert self.waveforms.shape == (self.n_spikes,
-                                            self.n_samples_w,
-                                            self.n_channels)
-            assert self.template_masks.shape == (self.n_templates, self.n_channels)
+                assert self.waveforms.shape == (self.n_spikes,
+                                                self.n_samples_w,
+                                                self.n_channels)
+                assert self.template_masks.shape == (self.n_templates, self.n_channels)
 
         def iter_spikes(self):
             for idx in range(0, self.n_chunks):
@@ -303,15 +309,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         overwrite=True,
                         )
 
-            # Compute PCs and features.
-            info("Computing PCs...")
-            self.compute_pcs()
+            if extract_features:
+                # Compute PCs and features.
+                info("Computing PCs...")
+                self.compute_pcs()
 
-            info("Computing features of all spikes...")
-            # WARNING: watch out RAM usage here. We cannot use a generator because
-            # the KwiKCreator only accepts lists at the moment.
-            features = (f for f in self.compute_features())
-            masks    = (m for m in self.compute_masks())
+                info("Computing features of all spikes...")
+                # WARNING: watch out RAM usage here. We cannot use a generator because
+                # the KwiKCreator only accepts lists at the moment.
+                features = (f for f in self.compute_features())
+                masks    = (m for m in self.compute_masks())
+            else:
+                info("Skipping PCA...")
+                features = None
+                masks = None
+                self.n_features_per_channel = 0
 
             # Add clusters.
             creator = KwikCreator(self.kwik_path)
@@ -330,7 +342,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                masks=masks,
                                features=features,
                                n_channels = self.n_channels,
-                               n_features = 3
+                               n_features = self.n_features_per_channel
                                )
 
 

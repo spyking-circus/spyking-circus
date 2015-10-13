@@ -3,8 +3,9 @@ import numpy, hdf5storage, pylab, cPickle
 file_name       = '/home/pierre/synthetic/fake_2'
 data            = cPickle.load(open(file_name + '.pic'))
 n_cells         = data['cells'] 
-nb_insert       = len(n_cells)
-amplitude       = data['amplitudes']
+n_point         = numpy.sqrt(len(n_cells))
+amplitude       = data['amplitudes'][0:n_point]
+rate            = data['rates'][::n_point]
 sampling        = data['sampling']
 probe_file      = data['probe']
 sim_templates   = 0.8
@@ -40,8 +41,8 @@ pylab.subplot(221)
 pylab.imshow(res.reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
 cb = pylab.colorbar()
 cb.set_label('Correlation')
-pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(numpy.linspace(0.5, 50, 5), 1))
-pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(numpy.linspace(0.5, 5, 5), 1))
+pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
+pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
 pylab.ylabel('Rate [Hz]')
 pylab.xlabel('Relative Amplitude')
 pylab.xlim(-0.5, n_point-0.5)
@@ -52,8 +53,8 @@ pylab.subplot(222)
 pylab.imshow(res2.reshape(n_point, n_point).astype(numpy.int32), aspect='auto', interpolation='nearest', origin='lower')
 cb = pylab.colorbar()
 cb.set_label('Number of templates')
-pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(numpy.linspace(0.5, 50, 5), 1))
-pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(numpy.linspace(0.5, 5, 5), 1))
+pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
+pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
 pylab.ylabel('Rate [Hz]')
 pylab.xlabel('Relative Amplitude')
 pylab.xlim(-0.5, n_point-0.5)
@@ -64,8 +65,8 @@ pylab.subplot(223)
 pylab.imshow(amplitudes[-len(n_cells):][:,0].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
 cb = pylab.colorbar()
 cb.set_label('Min amplitude')
-pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(numpy.linspace(0.5, 50, 5), 1))
-pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(numpy.linspace(0.5, 5, 5), 1))
+pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
+pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
 pylab.ylabel('Rate [Hz]')
 pylab.xlabel('Relative Amplitude')
 pylab.xlim(-0.5, n_point-0.5)
@@ -76,13 +77,12 @@ pylab.subplot(224)
 pylab.imshow(amplitudes[-len(n_cells):][:,1].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
 cb = pylab.colorbar()
 cb.set_label('Max amplitude')
-pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(numpy.linspace(0.5, 50, 5), 1))
-pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(numpy.linspace(0.5, 5, 5), 1))
+pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
+pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
 pylab.ylabel('Rate [Hz]')
 pylab.xlabel('Relative Amplitude')
 pylab.xlim(-0.5, n_point-0.5)
 pylab.ylim(-0.5, n_point-0.5)
-
 
 pylab.tight_layout()
 
