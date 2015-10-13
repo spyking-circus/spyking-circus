@@ -91,7 +91,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if not numpy.all(sdata > 0):
                     lines = ["Smart Search disabled on %d electrodes: too few spikes" %(numpy.sum(sdata == 0))]
                     io.print_info(lines)
-                if numpy.any(smart_search > 0):
+                if numpy.any(sdata > 0):
                     print "Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)
                 else:
                     print "Searching random spikes for the clustering (%d/%d) (no smart search)..." %(gpass, nb_repeats)
