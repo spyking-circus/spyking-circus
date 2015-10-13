@@ -36,7 +36,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[2]/2-1, 1)[0]]
         file_name       = 'synthetic/fake_3'
         rate            = 10./corrcoef
-        amplitude       = 2*numpy.ones(nb_insert)
+        amplitude       = 2
 
     if comm.rank == 0:
         if os.path.exists(file_name):
@@ -152,7 +152,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     new_indices = []
             count += 1
         if comm.rank == 0:
-            print "Template", cell_id, "is copied from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
+            print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
 
         old_templates = templates.copy()
         N_tm          = old_templates.shape[2]/2
