@@ -422,7 +422,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['clusters_' + str(ielec)]    = cluster_results[ielec]['groups']
                     for i in numpy.unique(cluster_results[ielec]['groups'][mask]):
                         n_clusters += [numpy.sum(cluster_results[ielec]['groups'][mask] == i)]
-                    print "Node", comm.rank, ":", '%d-%d' %(merged[0], merged[1]), "templates on electrode", ielec, "with", n_data, "spikes:", n_clusters
+                    print "Node %d:" %comm.rank, '%d-%d' %(merged[0], merged[1]), "templates on electrode", ielec, "with", n_data, "spikes:", n_clusters
                     if (merged[0]-merged[1]) == max_clusters:
                         local_hits += 1
                     local_mergings += merged[1]
@@ -431,7 +431,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     cluster_results[ielec]['n_clus'] = 0
                     result['clusters_' + str(ielec)] = []
                     result['debug_'    + str(ielec)] = numpy.zeros((2,0), dtype=numpy.float32)
-                    print "Node", comm.rank, "has not enough spikes on electrode", ielec
+                    print "Node %d:" %comm.rank, "not enough spikes on electrode", ielec
 
                 local_nb_clusters += cluster_results[ielec]['n_clus']
 
