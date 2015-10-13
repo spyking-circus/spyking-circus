@@ -3,25 +3,32 @@ from .shared.utils import *
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(451235)
 
+    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling):
+        import cPickle
+        to_write = {'benchmark' : benchmark}
+        to_write['cells']      = cells
+        to_write['rates']      = rates
+        to_write['amplitudes'] = amplitudes
+        to_write['sampling']   = sampling
+        cPickle.dump(to_write, open(filename + '.pic', 'w'))
+
     benchmark = 'fitting'
+    templates = io.load_data(params, 'templates')
+    sim_same_elec   = 0.8
 
     if benchmark == 'fitting':
         nb_insert       = 25
-        n_cells         = nb_insert*[5]
+        n_cells         = numpy.random.random_integers(0, templates.shape[2]/2-1, nb_insert)
         file_name       = 'synthetic/rfake_1'
         rate            = nb_insert*[10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
-        noise           = 0
-        sim_same_elec   = 0.8
     if benchmark == 'clustering':
         n_point         = 5
-        n_cells         = n_point**2*[55]
+        n_cells         = numpy.random.random_integers(0, templates.shape[2]/2-1, n_point**2)
         file_name       = 'synthetic/rfake_2'
         x, y            = numpy.mgrid[0:n_point,0:n_point]
         rate            = numpy.linspace(0.5, 20, n_point)[x.flatten()]
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
-        sim_same_elec   = 0.8
-        noise           = 0
     if benchmark == 'synchrony':
         nb_insert       = 5
         corrcoef        = 0.2
@@ -29,8 +36,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         file_name       = 'synthetic/fake_3'
         rate            = 10./corrcoef
         amplitude       = 2*numpy.ones(nb_insert)
-        noise           = 0
-        sim_same_elec   = 0.8
+
+    if n_cells is None:
+        n_cells    = 1
+        cells      = [numpy.random.permutation(numpy.arange(n_cells))[0]]
+    elif not numpy.iterable(n_cells):
+        cells      = [n_cells]
+        n_cells    = 1
+    else:
+        cells      = n_cells
+        n_cells    = len(cells)
+
+    if numpy.iterable(rate):
+        assert len(rate) == len(cells), "Should have the same number of rates and cells"
+    else:
+        rate = [rate]*len(cells)
+
+    if numpy.iterable(amplitude):
+        assert len(amplitude) == len(cells), "Should have the same number of amplitudes and cells"
+    else:
+        amplitude = [amplitude]*len(cells)
 
     N_e             = params.getint('data', 'N_e')
     sampling_rate   = params.getint('data', 'sampling_rate')
@@ -38,7 +63,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     nodes, edges     = io.get_nodes_and_edges(params)
     N_t              = params.getint('data', 'N_t')
-    templates        = io.load_data(params, 'templates')
     clusters         = io.load_data(params, 'clusters')
     gain             = params.getfloat('data', 'gain')
     N_total          = params.getint('data', 'N_total')
@@ -48,6 +72,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     N_tm_init             = templates.shape[2]/2
     thresholds            = io.load_data(params, 'thresholds')
+
+    if comm.rank == 0:
+        write_benchmark(file_name, benchmark, cells, rate, amplitude, sampling_rate)
 
     if comm.rank == 0:
         if not os.path.exists(file_name):
@@ -71,33 +98,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     best_elecs     = []
     data_mpi       = get_mpi_type(data_dtype)
     if comm.rank == 0:
-        file           = open(file_name + '.raw', 'w')
+        file = open(file_name + '.raw', 'w')
         for i in xrange(data_offset):
             f.write('1')
         file.close()
     comm.Barrier()
     g              = myfile.Open(comm, file_name + '.raw', MPI.MODE_RDWR)
     g.Set_view(data_offset, data_mpi, data_mpi)
-
-    if n_cells is None:
-        n_cells    = 1
-        cells      = [numpy.random.permutation(numpy.arange(n_cells))[0]]
-    elif not numpy.iterable(n_cells):
-        cells      = [n_cells]
-        n_cells    = 1
-    else:
-        cells      = n_cells
-        n_cells    = len(cells)
-
-    if numpy.iterable(rate):
-        assert len(rate) == len(cells), "Should have the same number of rates and cells"
-    else:
-        rate = [rate]*len(cells)
-
-    if numpy.iterable(amplitude):
-        assert len(amplitude) == len(cells), "Should have the same number of amplitudes and cells"
-    else:
-        amplitude = [amplitude]*len(cells)
 
     for gcount, cell_id in enumerate(cells):
         best_elec   = clusters['electrodes'][cell_id]
@@ -143,7 +150,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             print "Template", cell_id, "is copied from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
 
         old_templates = templates.copy()
-
         N_tm          = old_templates.shape[2]/2
         new_line      = numpy.zeros((old_templates.shape[0], old_templates.shape[1]))
         templates     = numpy.dstack((old_templates[:, :, :N_tm], new_line))
@@ -159,11 +165,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         nb_chunks += 1
 
     if comm.rank == 0:
-        print "Generating fake data with", n_cells, "cells at", rate, "Hz for", nb_chunks, "min"
+        io.print_info(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)])
         io.purge(file_out, '.data')
 
     template_shift = int((N_t-1)/2)
-
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)
@@ -208,17 +213,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             spikes[:N_t]   = False
             spikes[-N_t:]  = False
             spikes         = numpy.where(spikes == True)[0]
-            amps           = 1 + noise*numpy.random.randn(len(spikes))
             n_template     = N_tm_init + idx
             first_flat     = templates[:, :, n_template].T.flatten()
             norm_flat      = numpy.sum(first_flat**2)
             for scount, spike in enumerate(spikes):
-                local_chunk[spike-template_shift:spike+template_shift+1, :] += amps[scount]*templates[:, :, n_template].T
+                local_chunk[spike-template_shift:spike+template_shift+1, :] += templates[:, :, n_template].T
                 amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
                 amp       /= norm_flat
                 result['real_amps']  += [amp]
                 result['spiketimes'] += [spike + offset]
-                result['amplitudes'] += [(amps[scount], 0)]
+                result['amplitudes'] += [(1, 0)]
                 result['templates']  += [n_template]
                 result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
 
