@@ -84,7 +84,7 @@ in the same folder, with the data file.'''
             print colored(header, 'green'), message
             sys.exit()
         elif not os.path.exists(filename):
-            print colored(header, 'green'), "The data file %s can not be found!" %filename
+            print colored(header, 'red'), "The data file %s can not be found!" %filename
             sys.exit()
         else:
             extension       = '.' + filename.split('.')[-1]
