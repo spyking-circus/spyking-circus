@@ -72,6 +72,7 @@ pylab.xlabel('Relative Amplitude')
 pylab.ylabel('Error Rate')
 pylab.title('False Positive')
 
+pylab.tight_layout()
 pylab.savefig('plots/test_all.pdf')
 
 

@@ -84,5 +84,6 @@ pylab.ylabel('Fitted amplitude')
 pylab.xlim(amplitude[0], amplitude[-1])
 pylab.show()
 
+pylab.tight_layout()
 output = 'plots/test_fitting.pdf'
 pylab.savefig(output)
