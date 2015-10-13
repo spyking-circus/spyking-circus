@@ -48,5 +48,5 @@ test:
 
 about:
   home: http://www.yger.net/software/spyking-circus
-  license: MIT
+  license: CEA CNRS Inria Logiciel Libre License, version 2.1 (CeCILL-2.1)
   summary: 'Fast spike sorting by template matching'

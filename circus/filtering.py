@@ -71,6 +71,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             pbar.finish()
-            io.change_flag(sys.argv[-1], 'filter_done', 'True')
+            io.change_flag(filename, 'filter_done', 'True')
 
     comm.Barrier()
