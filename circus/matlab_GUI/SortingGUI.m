@@ -2021,3 +2021,16 @@ function EnableWaveforms_Callback(hObject, eventdata, handles)
 
 % Hint: get(hObject,'Value') returns toggle state of EnableWaveforms
 PlotData(handles)
+
+% --- Executes on button press in ResetBtn.
+function ResetButtn_Callback(hObject, eventdata, handles)
+% hObject    handle to ResetBtn (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+handles.Xmin = min(handles.Positions(:,1));
+handles.Xmax = max(handles.Positions(:,1));
+handles.Ymin = min(handles.Positions(:,2));
+handles.Ymax = max(handles.Positions(:,2))+1;
+
+PlotData(handles)
