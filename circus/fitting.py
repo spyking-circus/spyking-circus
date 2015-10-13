@@ -67,20 +67,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             info_string = "using %d CPUs" %(comm.size)
 
+    comm.Barrier()
+
+    thresholds    = io.load_data(params, 'thresholds')
+    
+    if comm.rank == 0 and not os.path.exists(file_out_suff + '.overlap.hdf5'):
+        c_overlap = io.get_overlaps(params)
+
+    comm.Barrier()
+    c_overlap     = io.get_overlaps(params)
 
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string
         io.purge(file_out_suff, '.data')
 
-    comm.Barrier()
-
-    thresholds    = io.load_data(params, 'thresholds')
-    
-    if comm.rank == 0 and not os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension):
-        c_overlap = io.get_overlaps(params)
-
-    comm.Barrier()
-    c_overlap     = io.get_overlaps(params)
 
     if do_spatial_whitening or do_temporal_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')

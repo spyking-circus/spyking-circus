@@ -179,8 +179,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     real_amps_file      = open(file_name +'/'+file_name_noext+ '.real_amps-%d.data' %comm.rank, 'w')
     voltages_file       = open(file_name +'/'+file_name_noext+ '.voltages-%d.data' %comm.rank, 'w')
 
-    print file_name +'/'+file_name_noext+ '.spiketimes-%d.data' %comm.rank
-
     for count, gidx in enumerate(to_process):
 
         if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
