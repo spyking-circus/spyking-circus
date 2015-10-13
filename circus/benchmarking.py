@@ -3,39 +3,44 @@ from .shared.utils import *
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(451235)
 
-    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling):
+    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe):
         import cPickle
         to_write = {'benchmark' : benchmark}
         to_write['cells']      = cells
         to_write['rates']      = rates
+        to_write['probe']      = probe
         to_write['amplitudes'] = amplitudes
         to_write['sampling']   = sampling
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
-    benchmark = 'fitting'
+    benchmark = 'clustering'
     templates = io.load_data(params, 'templates')
     sim_same_elec   = 0.8
 
     if benchmark == 'fitting':
         nb_insert       = 25
         n_cells         = numpy.random.random_integers(0, templates.shape[2]/2-1, nb_insert)
-        file_name       = 'synthetic/rfake_1'
+        file_name       = 'synthetic/fake_1'
         rate            = nb_insert*[10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
     if benchmark == 'clustering':
         n_point         = 5
         n_cells         = numpy.random.random_integers(0, templates.shape[2]/2-1, n_point**2)
-        file_name       = 'synthetic/rfake_2'
+        file_name       = 'synthetic/fake_2'
         x, y            = numpy.mgrid[0:n_point,0:n_point]
         rate            = numpy.linspace(0.5, 20, n_point)[x.flatten()]
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
     if benchmark == 'synchrony':
         nb_insert       = 5
         corrcoef        = 0.2
-        n_cells         = nb_insert*[55]
+        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[2]/2-1, 1)[0]]
         file_name       = 'synthetic/fake_3'
         rate            = 10./corrcoef
         amplitude       = 2*numpy.ones(nb_insert)
+
+    if comm.rank == 0:
+        if os.path.exists(file_name):
+            shutil.rmtree(file_name)
 
     if n_cells is None:
         n_cells    = 1
@@ -74,7 +79,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     thresholds            = io.load_data(params, 'thresholds')
 
     if comm.rank == 0:
-        write_benchmark(file_name, benchmark, cells, rate, amplitude, sampling_rate)
+        write_benchmark(file_name, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'))
 
     if comm.rank == 0:
         if not os.path.exists(file_name):
@@ -262,6 +267,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     g.Close()
+    comm.Barrier()
 
     file_params = file_name + '.params'
 
@@ -278,8 +284,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         hdf5storage.savemat(file_out + '.templates', {'templates' : templates})
 
     comm.Barrier()
-
-
     if comm.rank == 0:
         io.collect_data(comm.size, io.load_parameters(file_params), erase=True, with_real_amps=True, with_voltages=True)
         io.change_flag(file_name + '.raw', 'temporal', 'False')
