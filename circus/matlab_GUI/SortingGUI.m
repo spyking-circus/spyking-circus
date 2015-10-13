@@ -104,19 +104,13 @@ handles.templates2 = template.templates(:,:,end/2+1:end);
 %% Raw data file if it is there
 
 if length(varargin)>=6 
-    x         = strsplit(filename, '/');
-    data_file = strjoin(x(1:end-1),'/');
-    if ( exist([data_file '.dat'],'file') |  exist([data_file '.raw'],'file') )
+    data_file = varargin{9};
+    if (exist(data_file,'file'))
         handles.DataFormat = varargin{6};
         handles.HeaderSize = varargin{7};
-        handles.Gain = varargin{8};
-
-        if  exist([data_file '.dat'],'file')
-            handles.DataFid = fopen([data_file '.dat'],'r');
-        else
-            handles.DataFid = fopen([data_file '.raw'],'r');
-        end
-
+        handles.Gain       = varargin{8};
+        handles.DataFid    = fopen(data_file,'r');
+        
         if handles.HeaderSize<0%Read the MCS header automatically
             HeaderText = '';
             stop=0;

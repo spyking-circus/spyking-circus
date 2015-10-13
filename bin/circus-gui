@@ -42,14 +42,15 @@ def generate_matlab_mapping(probe):
     return t
 
 mapping    = generate_matlab_mapping(probe)
-gui_params = [sampling_rate, os.path.abspath(file_out_suff), '.mat', mapping, 2, data_dtype, data_offset, gain]
+filename   = os.path.abspath(sys.argv[1])
+gui_params = [sampling_rate, os.path.abspath(file_out_suff), '.mat', mapping, 2, data_dtype, data_offset, gain, filename]
 
 gui_file = pkg_resources.resource_filename('circus', 'matlab_GUI/SortingGUI.m')
 # Change to the directory of the matlab file
 os.chdir(os.path.abspath(os.path.dirname(gui_file)))
 
 # Use quotation marks for string arguments
-is_string = [False, True, True, True, False, True, False, False]
+is_string = [False, True, True, True, False, True, False, False, True]
 arguments = ', '.join(["'%s'" % arg if s else "%s" % arg
                        for arg, s in zip(gui_params, is_string)])
 matlab_command = 'SortingGUI(%s)' % arguments
