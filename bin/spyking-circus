@@ -179,8 +179,10 @@ in the same folder, with the data file.'''
 
                     from mpi4py import MPI
                     vendor = MPI.get_vendor()
-                    if vendor is 'Open MPI':
+                    if vendor[0] == 'Open MPI':
                         args += ['-x', 'LD_LIBRARY_PATH']
+                        args += ['-x', 'PATH']
+                        args += ['-x', 'PYTHONPATH']
 
                     args += ['-np', str(max(nb_cpu, nb_gpu)),
                                'spyking-circus-subtask.py',
