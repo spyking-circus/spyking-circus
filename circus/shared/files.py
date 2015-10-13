@@ -75,12 +75,12 @@ def load_parameters(file_name):
     parser.set('data', 'data_offset', str(detect_header(file_name+extension, data_offset)))
     
     probe     = {}
-    probetext = file(parser.get('data', 'mapping'), 'r')
     try:
+        probetext = file(parser.get('data', 'mapping'), 'r')
         exec probetext in probe
+        probetext.close()
     except Exception:
         print colored("Something wrong with the probe file!", 'red')
-    probetext.close()
     #mapping_elec = hdf5storage.loadmat(parser.get('data', 'mapping'))['Mapping']
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
     N_e = 0
