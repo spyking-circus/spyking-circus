@@ -1,5 +1,7 @@
 import matplotlib
 matplotlib.use('Agg')
+import os
+os.environ['MDP_DISABLE_SKLEARN']='yes'
 import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats
 
 
