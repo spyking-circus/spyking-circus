@@ -67,7 +67,7 @@ Syntax is spyking-circus file [options]
                       The extra steps are only for custom needs (see documentation)
 -c or --cpu      : number of CPU (default 1)
 -g or --gpu      : number of GPU (default 1 if CUDA available)
--H or --hostfile : hostfile for MPI (default is in ~/circus.hosts)
+-H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
 -b or --batch    : file in a text file with list of commands to launch, in a batch mode'''
 
     noparams='''
