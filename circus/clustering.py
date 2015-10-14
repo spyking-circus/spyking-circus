@@ -31,6 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_clusters   = params.getint('clustering', 'max_clusters')
     make_plots     = params.getboolean('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
+    cc_merge       = params.getfloat('clustering', 'cc_merge')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     smart_search   = numpy.ones(N_e, dtype=numpy.float32)*params.getfloat('clustering', 'smart_search')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
@@ -580,6 +581,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 result['w_' + str(j)]        = rs[i]['w_' + str(j)]
                 result['pca_' + str(j)]      = rs[i]['pca_' + str(j)]
                 result['times_' + str(j)]    = rs[i]['times_' + str(j)]
+
+        #templates, result = algo.merging_cc(templates, result, cc_merge)
 
         if os.path.exists(file_out_suff + '.templates.mat'):
             os.remove(file_out_suff + '.templates.mat')

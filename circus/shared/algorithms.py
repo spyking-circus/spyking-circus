@@ -206,6 +206,40 @@ def merging(groups, sim_same_elec, data):
     return groups, merged
 
 
+def merging_cc(result, templates, cc_merge):
+
+    def perform_merging(resut, templates, cc_merge):
+        dmax      = 0
+        to_merge  = [None, None]
+        nb_temp   = templates.shape[2]/2
+        
+        for ic1 in xrange(nb_temp):
+            for ic2 in xrange(ic1+1, nb_temp):
+                
+                with numpy.errstate(all='ignore'):  
+                    dist = numpy.corrcoeff(templates[:,:,ic1].flatten(), templates[:,:,ic2].flatten())[0, 1]
+                    
+                if dist > dmax:
+                    dmax     = dist
+                    to_merge = [ic1, ic2]
+
+        if dmin > cc_merge:
+
+            return True, templates
+        
+        return False, templates, result
+
+    has_been_merged = True
+    merged          = [len(clusters), 0]
+
+    while has_been_merged:
+        has_been_merged, templates, result = perform_merging(result, templates, cc_merge)
+        if has_been_merged:
+            merged[1] += 1
+    return templates, result
+
+
+
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False, show=False, ax=None):
 
     """

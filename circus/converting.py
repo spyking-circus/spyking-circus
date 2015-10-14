@@ -323,7 +323,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 info("Skipping PCA...")
                 features = None
                 masks = None
-                self.n_features_per_channel = 0
 
             # Add clusters.
             creator = KwikCreator(self.kwik_path)
