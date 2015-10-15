@@ -42,8 +42,14 @@ def generate_matlab_mapping(probe):
     return t
 
 mapping    = generate_matlab_mapping(probe)
-filename   = os.path.abspath(sys.argv[1])
-gui_params = [sampling_rate, os.path.abspath(file_out_suff), '.mat', mapping, 2, data_dtype, data_offset, gain, filename]
+if len(sys.argv) == 2:
+    filename   = os.path.abspath(sys.argv[1])
+    extension  = ''
+elif len(sys.argv) == 3:
+    filename   = os.path.abspath(sys.argv[1])
+    extension  = sys.argv[2]
+
+gui_params = [sampling_rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
 
 gui_file = pkg_resources.resource_filename('circus', 'matlab_GUI/SortingGUI.m')
 # Change to the directory of the matlab file

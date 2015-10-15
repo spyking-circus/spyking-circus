@@ -184,7 +184,15 @@ in the same folder, with the data file.'''
                         args += ['-x', 'PATH']
                         args += ['-x', 'PYTHONPATH']
 
-                    args += ['-np', str(max(nb_cpu, nb_gpu)),
+                    if subtask != 'fitting':
+                        nb_tasks = str(max(nb_cpu, nb_gpu))
+                    else:
+                        if use_gpu == 'True':
+                            nb_tasks = str(nb_gpu)
+                        else:
+                            nb_tasks = str(nb_cpu)
+
+                    args += ['-np', nb_tasks,
                                'spyking-circus-subtask.py',
                                subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                     try:
