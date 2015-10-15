@@ -1575,8 +1575,6 @@ ClusterLims = handles.ClusterLims;
 
 save([filename '.clusters' suffix '.mat'],'clusters','DistribClust','BestElec','ClusterLims','-mat','-v7.3')
 
-save([filename '.recluster.mat' ],'ClusterLims','-mat','-v7.3')
-
 %% overlap
 
 overlap = handles.overlap;
