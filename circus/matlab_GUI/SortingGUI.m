@@ -1234,12 +1234,12 @@ if ViewMode == 1
 else
     template2 = handles.templates(:,:,CellNb2);
 
-    Yspacing = max( max(abs(template(:))) , max(abs(template2(:))) );
+    %Yspacing = max( max(abs(template(:))) , max(abs(template2(:))) );
 
     if get(handles.NormalizeTempl,'Value')==0
-        PlotWaveform(handles,template,Yspacing)
+        PlotWaveform(handles,template,str2num(get(handles.Yspacing,'String')))
         hold(handles.TemplateWin,'on')
-        PlotWaveform(handles,template2,Yspacing,'r')
+        PlotWaveform(handles,template2,str2num(get(handles.Yspacing,'String')),'r')
         hold(handles.TemplateWin,'off')
     else
         PlotWaveform(handles,template/max(abs(template(:))),1)
