@@ -172,7 +172,7 @@ def merging(groups, sim_same_elec, data):
         for ic1 in xrange(len(clusters)):
             idx1 = numpy.where(groups == clusters[ic1])[0]
             m1   = numpy.median(data[idx1], 0)
-            for ic2 in xrange(ic1, len(clusters)):
+            for ic2 in xrange(ic1+1, len(clusters)):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
                 m2   = numpy.median(data[idx2], 0)
                 v_n  = m1 - m2      
@@ -206,37 +206,69 @@ def merging(groups, sim_same_elec, data):
     return groups, merged
 
 
-def merging_cc(result, templates, cc_merge):
+def merging_cc(templates, amplitudes, result, cc_merge):
 
-    def perform_merging(resut, templates, cc_merge):
+    def perform_merging(templates, amplitudes, result, cc_merge):
         dmax      = 0
         to_merge  = [None, None]
         nb_temp   = templates.shape[2]/2
         
         for ic1 in xrange(nb_temp):
             for ic2 in xrange(ic1+1, nb_temp):
-                
-                with numpy.errstate(all='ignore'):  
-                    dist = numpy.corrcoeff(templates[:,:,ic1].flatten(), templates[:,:,ic2].flatten())[0, 1]
-                    
+                dist = numpy.corrcoef(templates[:,:,ic1].flatten(), templates[:,:,ic2].flatten())[0, 1]
                 if dist > dmax:
                     dmax     = dist
                     to_merge = [ic1, ic2]
 
-        if dmin > cc_merge:
+        if dmax > cc_merge:
 
-            return True, templates
+            elec_ic1  = result['electrodes'][to_merge[0]]
+            elec_ic2  = result['electrodes'][to_merge[1]]
+            nic1      = to_merge[0] - numpy.where(result['electrodes'] == elec_ic1)[0][0]
+            nic2      = to_merge[1] - numpy.where(result['electrodes'] == elec_ic2)[0][0]
+
+            mask1     = result['clusters_' + str(elec_ic1)] > -1
+            mask2     = result['clusters_' + str(elec_ic2)] > -1
+            tmp1      = numpy.unique(result['clusters_' + str(elec_ic1)][mask1])
+            tmp2      = numpy.unique(result['clusters_' + str(elec_ic2)][mask2])
+
+            print tmp1[nic1], tmp2[nic2]            
+            elements1 = numpy.where(result['clusters_' + str(elec_ic1)] == tmp1[nic1])[0]
+            elements2 = numpy.where(result['clusters_' + str(elec_ic2)] == tmp2[nic2])[0]
+
+            if len(elements1) > len(elements2):
+                to_remove = to_merge[1]
+                to_keep   = to_merge[0]
+                elec      = elec_ic2
+                elements  = elements2
+            else:
+                to_remove = to_merge[0]
+                to_keep   = to_merge[1]
+                elec      = elec_ic1
+                elements  = elements1
+
+            print to_keep, to_remove, elec, elec_ic1, elec_ic2
+            result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
+            result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
+            result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
+            result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
+            result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
+            templates                       = numpy.delete(templates, [to_remove, to_remove + nb_temp], axis=2)
+            amplitudes[to_keep][0]          = min(amplitudes[to_keep][0], amplitudes[to_remove][0])
+            amplitudes[to_keep][1]          = max(amplitudes[to_keep][1], amplitudes[to_remove][1])            
+            amplitudes                      = numpy.delete(amplitudes, to_remove, axis=0)
+            return True, templates, amplitudes, result
         
-        return False, templates, result
+        return False, templates, amplitudes, result
 
     has_been_merged = True
-    merged          = [len(clusters), 0]
+    merged          = [templates.shape[2]/2, 0]
 
     while has_been_merged:
-        has_been_merged, templates, result = perform_merging(result, templates, cc_merge)
+        has_been_merged, templates, amplitudes, result = perform_merging(templates, amplitudes, result, cc_merge)
         if has_been_merged:
             merged[1] += 1
-    return templates, result
+    return templates, amplitudes, result, merged
 
 
 

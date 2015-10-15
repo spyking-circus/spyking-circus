@@ -22,6 +22,7 @@ from phy.utils.event import ProgressReporter
 from phy.traces.waveform import WaveformLoader, SpikeLoader
 from phy.utils.logging import info
 from phy.traces.filter import bandpass_filter, apply_filter
+from phy.utils.array import _spikes_per_cluster
 
 
 extract_features = True
@@ -81,6 +82,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     masks[count, idx[inv_nodes[get_edges(nodes[i], probe['channel_groups'][key])]]] = 1
         return templates, masks
 
+
+    def _read_amplitudes(basename, n_templates, n_spikes, spike_clusters):
+        amplitudes = np.empty_like(spike_clusters, dtype=np.float32)
+        spike_ids = np.arange(n_spikes, dtype=np.int32)
+        spc = _spikes_per_cluster(spike_ids, spike_clusters)
+
+        with open_h5(basename + '.amplitudes.mat', 'r') as f:
+            for i in range(n_templates):
+                amplitudes_i = f.read('/temp_' + str(i))[0,...]
+                amplitudes[spc[i]] = amplitudes_i
+        return amplitudes
 
     def _truncate(fn, extension='.dat', offset=None, n_channels=None, itemsize=None, dtype=None, chunk_size=50000):
         """Eventually truncate a file at the end to ensure it has a correct shape.
@@ -150,7 +162,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 self.n_features_per_channel = 0
             self.n_total_channels = n_total_channels
-            extract_s_before = extract_s_after = int(N_t - 1)/2
+            self.extract_s_after = self.extract_s_before = extract_s_before = extract_s_after = int(N_t - 1)//2
 
             # set to True if your data is already pre-filtered (much quicker)
             
@@ -202,6 +214,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             self.templates, self.template_masks = _read_templates(basename, self.probe, self.n_total_channels, self.n_channels)
             self.n_templates = len(self.templates)
             info("Loaded templates: {}.".format(self.templates.shape))
+
+            # Load amplitudes.
+            self.amplitudes = _read_amplitudes(basename, self.n_templates, self.n_spikes, self.spike_clusters)
 
             if extract_features:
                 # The WaveformLoader fetches and filters waveforms from the raw traces dynamically.
@@ -306,6 +321,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         sample_rate=self.sample_rate,
                         dtype=self.dtype,
                         nfeatures_per_channel=self.n_features_per_channel,
+                        extract_s_after = self.extract_s_after,
+                        extract_s_before = self.extract_s_before,
                         overwrite=True,
                         )
 
@@ -323,26 +340,30 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 info("Skipping PCA...")
                 features = None
                 masks = None
+                self.n_features_per_channel = None
 
             # Add clusters.
             creator = KwikCreator(self.kwik_path)
 
             info("Adding the clusters in the kwik file.")
             creator.add_clustering(group=1,
-                                   name='main',
-                                   spike_clusters=self.spike_clusters,
-                                   )
+                               name='main',
+                               spike_clusters=self.spike_clusters,
+                               template_waveforms=self.templates,
+                               template_masks=self.template_masks,
+                               template_amplitudes=self.amplitudes,
+                               )
 
 
             # Add spikes.
             info("Adding the spikes in the kwik file.")
             creator.add_spikes(group=1,
-                               spike_samples=self.spike_samples,
-                               masks=masks,
-                               features=features,
-                               n_channels = self.n_channels,
-                               n_features = self.n_features_per_channel
-                               )
+                           spike_samples=self.spike_samples,
+                           masks=masks,
+                           features=features,
+                           n_channels = self.n_channels,
+                           n_features = self.n_features_per_channel
+                           )
 
 
             info("Kwik file successfully created!")

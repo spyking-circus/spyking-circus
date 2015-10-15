@@ -131,7 +131,7 @@ def load_parameters(file_name):
                   ['clustering', 'smart_search', 'float', '3'],
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
-                  ['clustering', 'cc_merge', 'float', '0.95']]
+                  ['clustering', 'cc_merge', 'float', '0.975']]
 
     for item in new_values:
         section, name, val_type, value = item

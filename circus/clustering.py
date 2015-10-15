@@ -90,7 +90,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 print "Searching random spikes to estimate distances..."
             elif gpass == 1:
                 if not numpy.all(sdata > 0):
-                    lines = ["Smart Search disabled on %d electrodes: too few spikes" %(numpy.sum(sdata == 0))]
+                    lines = ["Smart Search disabled on %d electrodes" %(numpy.sum(sdata == 0))]
                     io.print_info(lines)
                 if numpy.any(sdata > 0):
                     print "Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)
@@ -306,8 +306,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if numpy.any(smart_search > 0):
                     result.pop('sub_' + str(ielec))
 
-        result['limits'] = numpy.zeros((N_e, 3))
-
         if comm.rank == 0:
             if gpass == 0:
                 print "Estimating the distances..."
@@ -449,7 +447,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         total_mergings    = int(numpy.sum(gdata2))
         total_nb_clusters = int(numpy.sum(gdata3))
         lines = ["Number of clusters found : %d" %total_nb_clusters,
-                 "Number of mergings       : %d" %total_mergings]
+                 "Number of merges         : %d" %total_mergings]
         if few_elts:
             lines += ["Not enough spikes gathered: -decrease smart_search?"]
             lines += ["                            -put safety_space=False?"]
@@ -556,7 +554,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         bs         = [numpy.load(file_out_suff + '.amplitudes-%d.npy' %i).tolist() for i in xrange(comm.size)]
         rs         = [cPickle.load(file(file_out_suff + '.data-%d.pic' %i, 'r')) for i in xrange(comm.size)]
         result     = {}
-        result['limits'] = numpy.zeros((N_e, 3))
         n_clusters = numpy.sum([ts[i].shape[2] for i in xrange(comm.size)])/2
         templates  = numpy.zeros((N_e, N_t, 2*n_clusters), dtype=numpy.float32)
         electrodes = []
@@ -577,12 +574,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 result['data_' + str(j)]     = rs[i]['data_' + str(j)]
                 result['clusters_' + str(j)] = rs[i]['clusters_' + str(j)]
                 result['debug_' + str(j)]    = rs[i]['debug_' + str(j)]
-                result['limits'][j]          = rs[i]['limits'][j]
                 result['w_' + str(j)]        = rs[i]['w_' + str(j)]
                 result['pca_' + str(j)]      = rs[i]['pca_' + str(j)]
                 result['times_' + str(j)]    = rs[i]['times_' + str(j)]
 
-        #templates, result = algo.merging_cc(templates, result, cc_merge)
+        result['electrodes']   = numpy.array(electrodes)
+        amplitudes             = numpy.array(amplitudes)
+
+        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge)
+
+        io.print_info(["Removing again %d templates likely to be duplicates" % merged[1]])
 
         if os.path.exists(file_out_suff + '.templates.mat'):
             os.remove(file_out_suff + '.templates.mat')
@@ -590,9 +591,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if os.path.exists(file_out_suff + '.clusters.mat'):
             os.remove(file_out_suff + '.clusters.mat')
-
-        result['electrodes']   = numpy.array(electrodes)
-        amplitudes             = numpy.array(amplitudes)
 
         hdf5storage.savemat(file_out_suff + '.clusters',   result)
         hdf5storage.savemat(file_out_suff + '.limits', {'limits' : amplitudes})
