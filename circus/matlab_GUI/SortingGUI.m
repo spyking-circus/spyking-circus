@@ -1537,7 +1537,7 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 %% Template file: could also contain AmpLim and AmpTrend
 
 suffix = get(handles.VersionNb,'String');
-filename = [handles.filename suffix];
+filename = [handles.filename];
 
 templates = handles.templates;
 templates(:,:,size(templates,3)+1:size(templates,3)*2) = handles.templates2;
@@ -1545,7 +1545,7 @@ AmpLim = handles.AmpLim;
 AmpTrend = handles.AmpTrend;
 Tagged = handles.Tagged;
 
-save([filename '.templates.mat'],'templates','AmpLim','AmpTrend','Tagged','-mat','-v7.3');
+save([filename '.templates' suffix '.mat'],'templates','AmpLim','AmpTrend','Tagged','-mat','-v7.3');
 
 
 %% Amplitudes file: does not have to exist
@@ -1553,7 +1553,7 @@ save([filename '.templates.mat'],'templates','AmpLim','AmpTrend','Tagged','-mat'
 Amplitudes = handles.Amplitudes;
 Amplitudes2 = handles.Amplitudes2;
 
-save([filename '.amplitudes.mat' ],'Amplitudes','Amplitudes2','-mat','-v7.3');
+save([filename '.amplitudes' suffix '.mat'],'Amplitudes','Amplitudes2','-mat','-v7.3');
 
 %% spiketimes file
 
@@ -1563,7 +1563,7 @@ for id=1:size(handles.templates,3)
     SpikeTimes{id} = SpikeTimes{id}(:)*(handles.SamplingRate/1000);
 end
 
-save([filename '.spiketimes.mat' ],'SpikeTimes','-mat','-v7.3');
+save([filename '.spiketimes' suffix '.mat'],'SpikeTimes','-mat','-v7.3');
 
 
 %% Clusters file
@@ -1573,7 +1573,7 @@ DistribClust = handles.DistribClust;
 BestElec = handles.BestElec;
 ClusterLims = handles.ClusterLims;
 
-save([filename '.clusters.mat' ],'clusters','DistribClust','BestElec','ClusterLims','-mat','-v7.3')
+save([filename '.clusters' suffix '.mat'],'clusters','DistribClust','BestElec','ClusterLims','-mat','-v7.3')
 
 save([filename '.recluster.mat' ],'ClusterLims','-mat','-v7.3')
 
@@ -1581,7 +1581,7 @@ save([filename '.recluster.mat' ],'ClusterLims','-mat','-v7.3')
 
 overlap = handles.overlap;
 
-save([filename '.overlap.mat' ],'overlap','-mat','-v7.3');
+save([filename '.overlap' suffix '.mat'],'overlap','-mat','-v7.3');
 
 
 
