@@ -187,7 +187,7 @@ in the same folder, with the data file.'''
                     if subtask != 'fitting':
                         nb_tasks = str(max(nb_cpu, nb_gpu))
                     else:
-                        if use_gpu:
+                        if use_gpu == 'True':
                             nb_tasks = str(nb_gpu)
                         else:
                             nb_tasks = str(nb_cpu)
