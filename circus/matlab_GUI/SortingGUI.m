@@ -1472,6 +1472,7 @@ if ~isempty(X)
     plot(Htemplate,X,Y,'color',wcolor,'LineWidth',Width);
 
     set(Htemplate,'xlim',[double(Xmin-0.1) double(Xmax+1.1)],'ylim',[double(Ymin-1) double(Ymax+0.5)]);
+    set(Htemplate,'xlim',[double(Xmin-0.1) double(Xmax+handles.TemplateDisplayRatio+0.1)],'ylim',[double(Ymin-1) double(Ymax+0.5)]);
 end
 set(Htemplate,'Xtick',[],'Ytick',[]);
 
