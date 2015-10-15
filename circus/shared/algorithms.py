@@ -232,7 +232,6 @@ def merging_cc(templates, amplitudes, result, cc_merge):
             tmp1      = numpy.unique(result['clusters_' + str(elec_ic1)][mask1])
             tmp2      = numpy.unique(result['clusters_' + str(elec_ic2)][mask2])
 
-            print tmp1[nic1], tmp2[nic2]            
             elements1 = numpy.where(result['clusters_' + str(elec_ic1)] == tmp1[nic1])[0]
             elements2 = numpy.where(result['clusters_' + str(elec_ic2)] == tmp2[nic2])[0]
 
@@ -247,7 +246,6 @@ def merging_cc(templates, amplitudes, result, cc_merge):
                 elec      = elec_ic1
                 elements  = elements1
 
-            print to_keep, to_remove, elec, elec_ic1, elec_ic2
             result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
             result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
             result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
