@@ -16,7 +16,7 @@ cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
 filter         = True      # If True, then a low-pass filtering is performed
 
 [whitening]
-safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
+safety_time    = 0.5       # Temporal zone around which templates are isolated [in ms]
 temporal       = True      # Perform temporal whitening
 spatial        = True      # Perform spatial whitening
 max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
