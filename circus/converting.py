@@ -20,10 +20,9 @@ from phy.io.h5 import open_h5
 from phy.io.kwik import create_kwik, KwikCreator, KwikModel
 from phy.utils.event import ProgressReporter
 from phy.traces.waveform import WaveformLoader, SpikeLoader
-from phy.utils.logging import info
 from phy.traces.filter import bandpass_filter, apply_filter
+from phy.utils.logging import info
 from phy.utils.array import _spikes_per_cluster
-
 
 extract_features = True
 filtered_datfile = True
@@ -31,22 +30,22 @@ filtered_datfile = True
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     def _read_spikes(basename):
-        with open_h5(basename + '.spiketimes.mat', 'r') as f:
-            spike_samples = {}
-            for name in f.children():
-                cluster = int(name.split('_')[1])
-                samples = f.read(name)[:].ravel().astype(np.uint64)
-                spike_samples[cluster] = samples
-            clusters = np.sort(list(spike_samples.keys()))
-            # n_clusters = len(clusters)
-            counts = {cluster: len(spikes)
-                      for cluster, spikes in spike_samples.items()}
-            spikes = np.hstack([spike_samples[cluster]
-                                for cluster in clusters])
-            idx = np.argsort(spikes)
-            spike_clusters = np.repeat(clusters, [counts[cluster]
-                                                  for cluster in clusters])
-            return spikes[idx], spike_clusters[idx]
+      with open_h5(basename + '.spiketimes.mat', 'r') as f:
+          spike_samples = {}
+          for name in f.children():
+              cluster = int(name.split('_')[1])
+              samples = f.read(name)[:].ravel().astype(np.uint64)
+              spike_samples[cluster] = samples
+          clusters = np.sort(list(spike_samples.keys()))
+          # n_clusters = len(clusters)
+          counts = {cluster: len(spikes)
+                    for cluster, spikes in spike_samples.items()}
+          spikes = np.hstack([spike_samples[cluster]
+                              for cluster in clusters])
+          idx = np.argsort(spikes)
+          spike_clusters = np.repeat(clusters, [counts[cluster]
+                                                for cluster in clusters])
+          return spikes[idx], spike_clusters[idx]
 
 
     def _read_templates(basename, probe, n_total_channels, n_channels):
@@ -82,7 +81,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     masks[count, idx[inv_nodes[get_edges(nodes[i], probe['channel_groups'][key])]]] = 1
         return templates, masks
 
-
     def _read_amplitudes(basename, n_templates, n_spikes, spike_clusters):
         amplitudes = np.empty_like(spike_clusters, dtype=np.float32)
         spike_ids = np.arange(n_spikes, dtype=np.int32)
@@ -94,14 +92,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes[spc[i]] = amplitudes_i
         return amplitudes
 
+
     def _truncate(fn, extension='.dat', offset=None, n_channels=None, itemsize=None, dtype=None, chunk_size=50000):
         """Eventually truncate a file at the end to ensure it has a correct shape.
         """
         data = np.memmap(fn, dtype=dtype, offset=offset)
         N    = data.shape[0]
-        
+
         if np.mod(N, n_channels) != 0:
-            
+
             fn_copy   = fn + extension
             N         = int(N/n_channels)
 
@@ -113,7 +112,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             f = open(fn_copy, 'w')
             chunk_len = n_channels*chunk_size
             n_samples = N/chunk_len
-            for i in xrange(n_samples):
+            for i in range(n_samples):
                 data = np.memmap(fn, dtype=dtype, offset=offset)
                 f.write(data[i*chunk_len:(i+1)*chunk_len])
             f.close()
@@ -139,7 +138,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         filename, shape = _truncate(fn,
                           offset=offset,
                           n_channels=n_channels,
-                          itemsize=dtype.itemsize, 
+                          itemsize=dtype.itemsize,
                           dtype=dtype)
         return filename, np.memmap(filename, dtype=dtype, offset=0, shape=shape)
 
@@ -157,15 +156,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                      offset=0,
                      gain=0.01
                      ):
-            if extract_features:
-                self.n_features_per_channel = 3
-            else:
-                self.n_features_per_channel = 0
+
+            self.n_features_per_channel = 3
             self.n_total_channels = n_total_channels
             self.extract_s_after = self.extract_s_before = extract_s_before = extract_s_after = int(N_t - 1)//2
-
-            # set to True if your data is already pre-filtered (much quicker)
-            
 
             # Filtering parameters for PCA (these are ignored if filtered_datfile == True)
             filter_low = 500.
@@ -179,6 +173,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             self.probe = load_probe(prb_file)
 
             self.sample_rate = sample_rate
+            self.filtered_datfile = filtered_datfile
 
             self._sd = SpikeDetekt(probe=self.probe,
                                    n_features_per_channel=
@@ -326,8 +321,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         overwrite=True,
                         )
 
+            # Compute PCs and features.
             if extract_features:
-                # Compute PCs and features.
                 info("Computing PCs...")
                 self.compute_pcs()
 
@@ -347,23 +342,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             info("Adding the clusters in the kwik file.")
             creator.add_clustering(group=1,
-                               name='main',
-                               spike_clusters=self.spike_clusters,
-                               template_waveforms=self.templates,
-                               template_masks=self.template_masks,
-                               template_amplitudes=self.amplitudes,
-                               )
-
+                                   name='main',
+                                   spike_clusters=self.spike_clusters,
+                                   template_waveforms=self.templates,
+                                   template_masks=self.template_masks,
+                                   template_amplitudes=self.amplitudes,
+                                   )
 
             # Add spikes.
             info("Adding the spikes in the kwik file.")
             creator.add_spikes(group=1,
-                           spike_samples=self.spike_samples,
-                           masks=masks,
-                           features=features,
-                           n_channels = self.n_channels,
-                           n_features = self.n_features_per_channel
-                           )
+                               spike_samples=self.spike_samples,
+                               masks=masks,
+                               features=features,
+                               n_channels = self.n_channels,
+                               n_features = self.n_features_per_channel
+                               )
+
+            # Add template amplitudes. We add these to the .kwik file, not the
+            # .kwx, since they're lightweight enough that you can delete them
+            # afterwards!
 
 
             info("Kwik file successfully created!")
@@ -418,10 +416,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         cluster = self.spike_clusters[self._n]
                         info("Waveform {}, template={}, sample={}.".format(self._n,
                              cluster, sample))
-                        
+
                         wav = np.vstack((templates[self._n],
                                          self.templates[cluster][:-1][None, ...]))
-                        
+
                         m = np.vstack((masks[self._n],
                                        self.template_masks[cluster][None, ...]))
                         w.set_data(waveforms=wav,
@@ -429,9 +427,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                    spike_clusters=[0, 1],
                                    )
             run()
-
-
-
 
     basename         = params.get('data', 'data_file_noext')
     basename         = basename + '/' + basename.split('/')[-1]
