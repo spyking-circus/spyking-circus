@@ -6,14 +6,14 @@ import getopt
 import shutil
 import subprocess
 import pkg_resources
-
+from os.path import join as pjoin
 from termcolor import colored
 
 import circus
 
 def main(argv):
 
-    user_path  = os.path.expanduser('~') + '/spyking-circus/'
+    user_path  = pjoin(os.path.expanduser('~'), 'spyking-circus')
     tasks_list = None
 
     nb_gpu     = 0
@@ -32,7 +32,7 @@ def main(argv):
 
     all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking']
     steps     = ['filtering', 'whitening', 'clustering', 'fitting']
-    hostfile  = user_path + 'circus.hosts'
+    hostfile  = pjoin(user_path, 'circus.hosts')
 
     if os.path.exists(user_path + 'config.params'):
         config_file = user_path + 'config.params'
