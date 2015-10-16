@@ -1,7 +1,12 @@
 from .shared.utils import *
+from termcolor import colored
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     numpy.random.seed(451235)
+
+    if benchmark not in ['fitting', 'clustering', 'synchrony']:
+        print colored('Benchmark need to be in [fitting, clustering, synchrony]', 'red')
+        sys.exit(0)
 
     def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe):
         import cPickle
@@ -13,20 +18,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         to_write['sampling']   = sampling
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
-    benchmark = 'clustering'
     templates = io.load_data(params, 'templates')
     sim_same_elec   = 0.8
 
     if benchmark == 'fitting':
         nb_insert       = 25
         n_cells         = numpy.random.random_integers(0, templates.shape[2]/2-1, nb_insert)
-        file_name       = 'synthetic/fake_1'
         rate            = nb_insert*[10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
     if benchmark == 'clustering':
         n_point         = 5
         n_cells         = numpy.random.random_integers(0, templates.shape[2]/2-1, n_point**2)
-        file_name       = 'synthetic/fake_2'
         x, y            = numpy.mgrid[0:n_point,0:n_point]
         rate            = numpy.linspace(0.5, 20, n_point)[x.flatten()]
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
@@ -34,7 +36,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         nb_insert       = 5
         corrcoef        = 0.2
         n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[2]/2-1, 1)[0]]
-        file_name       = 'synthetic/fake_3'
         rate            = 10./corrcoef
         amplitude       = 2
 
@@ -103,7 +104,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     best_elecs     = []
     data_mpi       = get_mpi_type(data_dtype)
     if comm.rank == 0:
-        file = open(file_name + '.raw', 'w')
+        file = open(file_name, 'w')
         for i in xrange(data_offset):
             f.write('1')
         file.close()
