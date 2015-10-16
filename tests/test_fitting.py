@@ -101,7 +101,7 @@ class TestFitting(unittest.TestCase):
     
     def setUp(self):
         self.all_spikes     = None
-        self.max_chunk      = '20'
+        self.max_chunk      = '100'
         self.file_name      = 'synthetic/fitting.raw'
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
         if not os.path.exists(self.file_name):

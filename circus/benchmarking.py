@@ -144,9 +144,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
                     if len(new_indices) == len(indices):
                         new_temp                 = templates[:, :, cell_id].copy()
-                        new_temp[indices, :]     = 0
+                        new_temp[:, :]           = 0
                         new_temp[new_indices, :] = templates[indices, :, cell_id]
-                        gmin = templates[:, :, cell_id].min()
+                        gmin = new_temp[:, :].min()
                         data = numpy.where(new_temp == gmin)
                         scaling = -thresholds[data[0][0]]/gmin
                         for i in xrange(templates.shape[2]/2):
