@@ -3,7 +3,7 @@ import unittest
 from . import mpi_launch
 from circus.shared.utils import *
 
-def get_performance(file_name):
+def get_performance(file_name, name):
 
     file_name       = ".".join(file_name.split('.')[:-1])
     pic_name        = file_name + '.pic'
@@ -78,7 +78,10 @@ def get_performance(file_name):
     pylab.title('False Positive')
 
     pylab.tight_layout()
-    pylab.savefig('plots/test_all.pdf')
+    if not os.path.exists('plots/complete'):
+        os.makedirs('plots/complete')
+    output = 'plots/complete/%s.pdf' %name
+    pylab.savefig(output)
 
 class TestCompleteWorkflow(unittest.TestCase):
 
@@ -91,5 +94,5 @@ class TestCompleteWorkflow(unittest.TestCase):
     def test_all_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
-        res = get_performance(self.file_name, 1, 0)
+        res = get_performance(self.file_name, 'test')
 

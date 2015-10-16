@@ -3,7 +3,7 @@ import unittest
 from . import mpi_launch
 from circus.shared.utils import *
 
-def get_performance(file_name, n_cpu):
+def get_performance(file_name, name):
 
     file_name       = ".".join(file_name.split('.')[:-1])
     pic_name        = file_name + '.pic'
@@ -89,13 +89,14 @@ def get_performance(file_name, n_cpu):
 
     pylab.tight_layout()
 
-    output = 'plots/test_clustering_%d.pdf' %n_cpu
+    if not os.path.exists('plots/clustering'):
+        os.makedirs('plots/clustering')
+    output = 'plots/clustering/%s.pdf' %name
     pylab.savefig(output)
     return templates, res2
 
 
 class TestClustering(unittest.TestCase):
-
 
     def setUp(self):
         self.all_matches    = None
@@ -104,10 +105,11 @@ class TestClustering(unittest.TestCase):
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
+        io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
 
     def test_clustering_one_CPU(self):
         mpi_launch('clustering', self.file_name, 1, 0, 'False')
-        res = get_performance(self.file_name, 1, 0)
+        res = get_performance(self.file_name, 'one_CPU')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
@@ -115,7 +117,7 @@ class TestClustering(unittest.TestCase):
         
     def test_clustering_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        res = get_performance(self.file_name, 2, 0)
+        res = get_performance(self.file_name, 'two_CPU')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
@@ -125,7 +127,7 @@ class TestClustering(unittest.TestCase):
         io.change_flag(self.file_name, 'smart_search', '0')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'smart_search', '3')
-        res = get_performance(self.file_name, 2, 0)
+        res = get_performance(self.file_name, 'smart_search')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
@@ -135,7 +137,7 @@ class TestClustering(unittest.TestCase):
         io.change_flag(self.file_name, 'nb_repeats', '1')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'nb_repeats', '3')
-        res = get_performance(self.file_name, 2, 0)
+        res = get_performance(self.file_name, 'nb_passes')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
@@ -145,7 +147,7 @@ class TestClustering(unittest.TestCase):
         io.change_flag(self.file_name, 'sim_same_elec', '5')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'sim_same_elec', '3')
-        res = get_performance(self.file_name, 2, 0)
+        res = get_performance(self.file_name, 'sim_same_elec')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
@@ -155,7 +157,7 @@ class TestClustering(unittest.TestCase):
         io.change_flag(self.file_name, 'cc_merge', '0.5')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'cc_merge', '0.975')
-        res = get_performance(self.file_name, 2, 0)
+        res = get_performance(self.file_name, 'cc_merge')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]

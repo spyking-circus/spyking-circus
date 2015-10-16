@@ -50,9 +50,9 @@ def main(argv):
 '''
 
     message = '''   
-Syntax is spyking-circus file [options]
+Syntax is spyking-circus datafile [options]
 
- Options are:
+Options are:
 -h or --help     : display the help
 -m or --method   : by default, all 4 steps of the algorithm are
                    performed, but if specified, only a sublist [x,y] can be
@@ -70,7 +70,7 @@ Syntax is spyking-circus file [options]
 -c or --cpu      : number of CPU (default 1)
 -g or --gpu      : number of GPU (default 1 if CUDA available)
 -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
--b or --batch    : file in a text file with list of commands to launch, in a batch mode
+-b or --batch    : datafile is a text file with a list of commands to launch, in a batch mode
 -o or --output   : output file [only for generation of synthetic benchmarks]
 -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 

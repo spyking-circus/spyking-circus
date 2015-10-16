@@ -3,7 +3,7 @@ import unittest
 from . import mpi_launch
 from circus.shared.utils import *
 
-def get_performance(file_name, n_cpu, n_gpu):
+def get_performance(file_name, name):
 
     file_name       = ".".join(file_name.split('.')[:-1])
     pic_name        = file_name + '.pic'
@@ -91,7 +91,9 @@ def get_performance(file_name, n_cpu, n_gpu):
     pylab.show()
 
     pylab.tight_layout()
-    output = 'plots/test_fitting_%d_%d.pdf' %(n_cpu, n_gpu)
+    if not os.path.exists('plots/fitting'):
+        os.makedirs('plots/fitting')
+    output = 'plots/fitting/%s.pdf' %name
     pylab.savefig(output)
     return res
 
@@ -99,25 +101,26 @@ class TestFitting(unittest.TestCase):
     
     def setUp(self):
         self.all_spikes     = None
+        self.max_chunk      = '20'
         self.file_name      = 'synthetic/fitting.raw'
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
 
     def test_fitting_one_CPU(self):
-        io.change_flag(self.file_name, 'max_chunk', '50')
+        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 1, 0, 'False')
         io.change_flag(self.file_name, 'max_chunk', 'inf')
-        res = get_performance(self.file_name, 1, 0)
+        res = get_performance(self.file_name, 'one_CPU')
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
 
     def test_fitting_two_CPUs(self):
-        io.change_flag(self.file_name, 'max_chunk', '50')
+        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'max_chunk', 'inf')
-        res = get_performance(self.file_name, 2, 0)
+        res = get_performance(self.file_name, 'two_CPU')
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
@@ -130,23 +133,43 @@ class TestFitting(unittest.TestCase):
         except ImportError:
             pass
         if HAVE_CUDA:
-            io.change_flag(self.file_name, 'max_chunk', '10')
+            io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
             mpi_launch('fitting', self.file_name, 1, 0, 'False')
             io.change_flag(self.file_name, 'max_chunk', 'inf')
-            res = get_performance(self.file_name, 0, 1)
+            res = get_performance(self.file_name, 'one_GPU')
             if self.all_spikes is None:
                 self.all_spikes = res
             assert numpy.all(self.all_spikes == res)
 
-    #def test_fitting_large_chunks(self):
-    #    file_name = '/home/pierre/synthetic/fake_1.raw'
-    #    io.change_flag(file_name, 'chunk', '1')
-    #    io.change_flag(file_name, 'max_chunk', '5')
-    #    mpi_launch('fitting', file_name, 2, 0, 'False')
-    #    io.change_flag(file_name, 'max_chunk', 'inf')
-    #    io.change_flag(file_name, 'chunk', '0.5')
-    #    file_name = '/home/pierre/synthetic/fake_1'
-    #    res = get_performance(file_name, 1, 0)
-    #    if self.all_spikes is None:
-    #        self.all_spikes = res
-    #    assert numpy.all(self.all_spikes == res)
+    def test_fitting_large_chunks(self):
+        io.change_flag(self.file_name, 'chunk', '1', avoid_flag='max_chunk')
+        io.change_flag(self.file_name, 'max_chunk', str(int(self.max_chunk)/2))
+        mpi_launch('fitting', self.file_name, 2, 0, 'False')
+        io.change_flag(self.file_name, 'max_chunk', 'inf')
+        io.change_flag(self.file_name, 'chunk', '0.5', avoid_flag='max_chunk')
+        res = get_performance(self.file_name, 'large_chunks')
+        if self.all_spikes is None:
+            self.all_spikes = res
+        assert numpy.all(self.all_spikes == res)
+
+    def test_fitting_refractory(self):
+        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
+        io.change_flag(self.file_name, 'refractory', '5')
+        mpi_launch('fitting', self.file_name, 2, 0, 'False')
+        io.change_flag(self.file_name, 'refractory', '0')
+        io.change_flag(self.file_name, 'max_chunk', 'inf')
+        res = get_performance(self.file_name, 'refractory')
+        if self.all_spikes is None:
+            self.all_spikes = res
+        assert numpy.all(self.all_spikes == res)
+
+    def test_fitting_spike_range(self):
+        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
+        io.change_flag(self.file_name, 'spike_range', '1')
+        mpi_launch('fitting', self.file_name, 2, 0, 'False')
+        io.change_flag(self.file_name, 'spike_range', '0')
+        io.change_flag(self.file_name, 'max_chunk', 'inf')
+        res = get_performance(self.file_name, 'spike_range')
+        if self.all_spikes is None:
+            self.all_spikes = res
+        assert numpy.all(self.all_spikes == res)

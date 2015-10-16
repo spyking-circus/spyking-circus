@@ -3,7 +3,7 @@ import unittest
 from . import mpi_launch
 from circus.shared.utils import *
 
-def get_performance(file_name, t_stop):
+def get_performance(file_name, t_stop, name):
 
     file_name       = ".".join(file_name.split('.')[:-1])
     pic_name        = file_name + '.pic'
@@ -156,7 +156,9 @@ def get_performance(file_name, t_stop):
     pylab.xlabel('Time [s]')
 
     pylab.tight_layout()
-    output = 'plots/test_synchrony.pdf'
+    if not os.path.exists('plots/synchrony'):
+        os.makedirs('plots/synchrony')
+    output = 'plots/synchrony/%s.pdf' %name
     pylab.savefig(output)
     return numpy.mean(cd_nodiag)/numpy.mean(cc_nodiag)
 
@@ -165,14 +167,15 @@ class TestSynchrony(unittest.TestCase):
     def setUp(self):
         self.all_matches    = None
         self.all_templates  = None
+        self.max_chunk      = '100'
         self.file_name      = 'synthetic/synchrony.raw'
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'synchrony')
 
     def test_synchrony(self):
-        io.change_flag(self.file_name, 'max_chunk', '100')
+        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'max_chunk', 'inf')
-        res = get_performance(self.file_name, 100*0.5)
+        res = get_performance(self.file_name, 100*0.5, 'test')
         assert (numpy.abs(res - 1) < 0.75), "Synchrony not properly resolved %g" %res

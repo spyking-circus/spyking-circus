@@ -32,7 +32,7 @@ def detect_header(filename, value='MCS'):
     else:
         return value
 
-def change_flag(file_name, flag, value):
+def change_flag(file_name, flag, value, avoid_flag=None):
     extension       = '.' + file_name.split('.')[-1]
     file_params     = file_name.replace(extension, '.params')
     f     = open(file_params, 'r')
@@ -41,7 +41,11 @@ def change_flag(file_name, flag, value):
     f     = open(file_params, 'w')
     to_write = '%s      = %s              #!! AUTOMATICALLY EDITED: DO NOT MODIFY !!\n' %(flag, value)
     for line in lines:
-        if line.find(flag) > -1:
+        if avoid_flag is not None:
+            mytest = (line.find(flag) > -1) and (line.find(avoid_flag) == -1)
+        else:
+            mytest = (line.find(flag) > -1)
+        if mytest:
             f.write(to_write)
         else:
             f.write(line)
@@ -144,8 +148,6 @@ def load_parameters(file_name):
                 parser.getfloat(section, name)
         except Exception:
             parser.set(section, name, value)
-
-
 
     return parser
 
