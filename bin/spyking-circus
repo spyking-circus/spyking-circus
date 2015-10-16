@@ -74,10 +74,7 @@ Options are:
 -o or --output   : output file [for generation of synthetic benchmarks]
 -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
-    noparams='''
-The parameter file is not present!
-You must have a file named %s, properly configured,
-in the same folder, with the data file.'''
+    noparams='''The parameter file %s is not present!'''
 
     print colored(header, 'green')
 
@@ -96,7 +93,7 @@ in the same folder, with the data file.'''
             extension       = '.' + filename.split('.')[-1]
             file_params     = filename.replace(extension, '.params')
             if not os.path.exists(file_params) and not (('-b' in argv) or ('--batch' in argv)):
-                print_error([noparams %file_params])
+                print noparams %file_params
                 key = ''
                 while key not in ['y', 'n']:
                     key = raw_input("Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
