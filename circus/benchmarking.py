@@ -4,6 +4,12 @@ from termcolor import colored
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     numpy.random.seed(451235)
 
+    data_path = '/'.join(file_name.split('/')[:-1])
+    data_suff = file_name.split('/')[-1].split('.')[0]
+    file_out  = ".".join(file_name.split('.')[:-1])
+
+    print data_path, data_suff, file_out
+
     if benchmark not in ['fitting', 'clustering', 'synchrony']:
         print colored('Benchmark need to be in [fitting, clustering, synchrony]', 'red')
         sys.exit(0)
@@ -40,8 +46,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude       = 2
 
     if comm.rank == 0:
-        if os.path.exists(file_name):
-            shutil.rmtree(file_name)
+        if os.path.exists(file_out):
+            shutil.rmtree(file_out)
 
     if n_cells is None:
         n_cells    = 1
@@ -80,11 +86,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     thresholds            = io.load_data(params, 'thresholds')
 
     if comm.rank == 0:
-        write_benchmark(file_name, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'))
+        if not os.path.exists(file_out):
+            os.makedirs(file_out)
 
     if comm.rank == 0:
-        if not os.path.exists(file_name):
-            os.makedirs(file_name)
+        write_benchmark(file_out, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'))
+
 
     comm.Barrier()
 
@@ -94,7 +101,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     N_total        = params.getint('data', 'N_total')
     N_e            = params.getint('data', 'N_e')
-    file_out       = file_name + '/' + file_name.split('/')[-1]
     chunk_size     = params.getint('data', 'chunk_size')
     data_offset    = params.getint('data', 'data_offset')
     dtype_offset   = params.getint('data', 'dtype_offset')
@@ -109,7 +115,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             f.write('1')
         file.close()
     comm.Barrier()
-    g              = myfile.Open(comm, file_name + '.raw', MPI.MODE_RDWR)
+    g              = myfile.Open(comm, file_name, MPI.MODE_RDWR)
     g.Set_view(data_offset, data_mpi, data_mpi)
 
     for gcount, cell_id in enumerate(cells):
@@ -183,12 +189,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if comm.rank == 0:
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=loc_nb_chunks).start()
 
-    file_name_noext     = file_name.split('/')[-1]
-    spiketimes_file     = open(file_name +'/'+file_name_noext+ '.spiketimes-%d.data' %comm.rank, 'w')
-    amplitudes_file     = open(file_name +'/'+file_name_noext+ '.amplitudes-%d.data' %comm.rank, 'w')
-    templates_file      = open(file_name +'/'+file_name_noext+ '.templates-%d.data' %comm.rank, 'w')
-    real_amps_file      = open(file_name +'/'+file_name_noext+ '.real_amps-%d.data' %comm.rank, 'w')
-    voltages_file       = open(file_name +'/'+file_name_noext+ '.voltages-%d.data' %comm.rank, 'w')
+    spiketimes_file     = open(file_out +'/'+data_suff+ '.spiketimes-%d.data' %comm.rank, 'w')
+    amplitudes_file     = open(file_out +'/'+data_suff+ '.amplitudes-%d.data' %comm.rank, 'w')
+    templates_file      = open(file_out +'/'+data_suff+ '.templates-%d.data' %comm.rank, 'w')
+    real_amps_file      = open(file_out +'/'+data_suff+ '.real_amps-%d.data' %comm.rank, 'w')
+    voltages_file       = open(file_out +'/'+data_suff+ '.voltages-%d.data' %comm.rank, 'w')
 
     for count, gidx in enumerate(to_process):
 
@@ -270,41 +275,40 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     g.Close()
     comm.Barrier()
 
-    file_params = file_name + '.params'
+    file_params = file_out + '.params'
+    print file_params
 
     if comm.rank == 0:
 
-        if not os.path.exists(file_name + '/injected'):
-            os.makedirs(file_name + '/injected')
+        result_path = file_out + '/injected/' 
+        if not os.path.exists(result_path):
+            os.makedirs(result_path)
 
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
 
         for name in ['.basis.npz', '.thresholds.npy', '.limits.mat', '.whitening.mat']:
-            shutil.copy2(params.get('data', 'file_out') + name, file_name+'/injected/'+file_name.split('/')[-1]+name)
+            shutil.copy2(params.get('data', 'file_out') + name, result_path + data_suff + name)
 
-        hdf5storage.savemat(file_out + '.templates', {'templates' : templates})
+        hdf5storage.savemat(file_out + '/' + data_suff + '.templates', {'templates' : templates})
 
     comm.Barrier()
     if comm.rank == 0:
         io.collect_data(comm.size, io.load_parameters(file_params), erase=True, with_real_amps=True, with_voltages=True)
-        io.change_flag(file_name + '.raw', 'temporal', 'False')
-        io.change_flag(file_name + '.raw', 'spatial', 'False')
-        shutil.move(file_out + '.templates.mat', file_name+'/injected/templates.mat')
-        shutil.move(file_out + '.spiketimes.mat', file_name+'/injected/spiketimes.mat')
-        shutil.move(file_out + '.real_amps.mat', file_name+'/injected/real_amps.mat')
-        shutil.move(file_out + '.amplitudes.mat', file_name+'/injected/amplitudes.mat')
-        shutil.move(file_out + '.voltages.mat', file_name+'/injected/voltages.mat')
-        data = hdf5storage.loadmat(file_name+'/injected/'+file_name.split('/')[-1]+'.limits.mat')['limits']
+        io.change_flag(file_name, 'temporal', 'False')
+        io.change_flag(file_name, 'spatial', 'False')
+        for name in ['templates', 'spiketimes', 'real_amps', 'amplitudes', 'voltages']:
+            shutil.move(file_out + '/' + data_suff + '.%s.mat' %name, result_path + '%s.mat' %name)
+        data = hdf5storage.loadmat(file_out+'/injected/'+data_suff+'.limits.mat')['limits']
         for count, cell in enumerate(cells):
             data = numpy.vstack((data, data[cell]))
-        hdf5storage.savemat(file_name+'/injected/'+file_name.split('/')[-1]+'.limits.mat', {'limits' : data})
-        numpy.save(file_name+'/injected/'+file_name.split('/')[-1]+'.scalings', scalings)
-        numpy.save(file_name+'/injected/elecs', best_elecs)
+        hdf5storage.savemat(result_path + data_suff + '.limits.mat', {'limits' : data})
+        numpy.save(result_path + data_suff + '.scalings', scalings)
+        numpy.save(result_path + 'elecs', best_elecs)
 
         file_name_noext = file_name.split('/')[-1]
 
         for name in ['.basis.npz', '.thresholds.npy', '.limits.mat', '.whitening.mat']:
-            shutil.copy2(file_name+'/injected/'+file_name.split('/')[-1]+name, file_name+'/'+file_name_noext+ name)
+            shutil.copy2(result_path + data_suff + name, file_out + '/' + data_suff+ name)
 
         if benchmark in ['fitting', 'synchrony']:
-            os.system('cp %s %s' %(file_name+'/injected/templates.mat', file_name+'/'+file_name_noext+'.templates.mat'))
+            shutil.copy2(result_path + 'templates.mat', file_out + '/' + data_suff + '.templates.mat')
