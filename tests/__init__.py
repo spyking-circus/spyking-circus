@@ -13,22 +13,22 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
         args += ['-x', 'PATH']
         args += ['-x', 'PYTHONPATH']
 
-        if use_gpu == 'True':
-            nb_tasks = str(nb_gpu)
-        else:
-            nb_tasks = str(nb_cpu)
+    if use_gpu == 'True':
+        nb_tasks = str(nb_gpu)
+    else:
+        nb_tasks = str(nb_cpu)
 
-        if subtask != 'benchmarking':
-            args += ['-np', nb_tasks,
-                        'spyking-circus-subtask.py',
-                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
-        else:
-            if (output is None) or (benchmark is None):
-                print colored("To generate synthetic datasets, you must provide output and type", 'red')
-                sys.exit()
-            args += ['-np', nb_tasks,
-                     'spyking-circus-subtask.py',
-                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+    if subtask != 'benchmarking':
+        args += ['-np', nb_tasks,
+                 'spyking-circus-subtask.py',
+                 subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
+    else:
+        if (output is None) or (benchmark is None):
+            print colored("To generate synthetic datasets, you must provide output and type", 'red')
+            sys.exit()
+        args += ['-np', nb_tasks,
+                 'spyking-circus-subtask.py',
+                 subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
     subprocess.check_call(args)
 
 def run():

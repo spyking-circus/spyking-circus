@@ -157,8 +157,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 else:
                     new_indices = []
             count += 1
-        if comm.rank == 0:
-            print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
+        #if comm.rank == 0:
+        #    print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
 
         old_templates = templates.copy()
         N_tm          = old_templates.shape[2]/2
