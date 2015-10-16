@@ -186,7 +186,7 @@ def print_info(lines):
 def print_error(lines):
     print colored("--------------------------  Error  ---------------------------", 'red')
     for line in lines:
-        print colored("|", 'red'), line
+        print colored("| " + line, 'red')
     print colored("--------------------------------------------------------------", 'red')
 
 
