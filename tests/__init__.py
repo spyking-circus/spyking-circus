@@ -1,8 +1,4 @@
-try:
-    import nose
-except ImportError:
-    raise ImportError('Running the test suite requires the "nose" package.')
-
+import os, sys, nose
 import circus
 import subprocess
 from termcolor import colored
@@ -35,23 +31,23 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
     subprocess.check_call(args)
 
-def test_MPI():
-    HAVE_MPI = False
-    try:
-        import mpi4py
-        HAVE_MPI = True
-    except ImportError:
-        pass
-    assert HAVE_MPI == True 
+def run():
+    dirname = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+    # We write to stderr since nose does all of its output on stderr as well
+    sys.stderr.write('Running tests in "%s" ' % dirname)
+    success = []
+    argv = ['nosetests', dirname]
+    success.append(nose.run(argv=argv))
+    all_success = all(success)
+    if not all_success:
+        sys.stderr.write(('ERROR: %d/%d test suite(s) did not complete '
+                          'successfully (see above).\n') % (len(success) - sum(success),
+                                                            len(success)))
+    else:
+        sys.stderr.write(('OK: %d/%d test suite(s) did complete '
+                          'successfully.\n') % (len(success), len(success)))
 
-def test_CUDA():
-    HAVE_CUDA = False
-    try:
-        import cudamat
-        HAVE_CUDA = True
-    except ImportError:
-        pass
-    assert HAVE_CUDA == True
 
-def test_import_dataset():
-    pass
+
+if __name__=='__main__':
+    run()
