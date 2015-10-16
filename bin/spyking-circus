@@ -9,7 +9,9 @@ import pkg_resources
 from os.path import join as pjoin
 from termcolor import colored
 
+
 import circus
+from circus.shared.files import print_error
 
 def main(argv):
 
@@ -79,22 +81,24 @@ The parameter file is not present!
 You must have a file named %s, properly configured,
 in the same folder, with the data file.'''
 
+    print colored(header, 'green')
+
     if len(argv) < 2:
-        print colored(header, 'green'), message
+        print message
         sys.exit()
     else:
         filename   = argv[1]
         if filename in ['-h', '--help']:
-            print colored(header, 'green'), message
+            print message
             sys.exit()
         elif not os.path.exists(filename):
-            print colored(header, 'red'), "The data file %s can not be found!" %filename
+            print_error(["The data file %s can not be found!" %filename])
             sys.exit()
         else:
             extension       = '.' + filename.split('.')[-1]
             file_params     = filename.replace(extension, '.params')
             if not os.path.exists(file_params) and not (('-b' in argv) or ('--batch' in argv)):
-                print colored(header, 'green'), colored(noparams %file_params, 'red')
+                print_error([noparams %file_params])
                 key = ''
                 while key not in ['y', 'n']:
                     key = raw_input("Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
@@ -110,7 +114,7 @@ in the same folder, with the data file.'''
 
     for opt, arg in opts:
         if opt in ('-h', '--help'):
-            print colored(header, 'green'), message
+            print message
             sys.exit()
         elif opt == '-d':
             verbose = True
@@ -118,7 +122,7 @@ in the same folder, with the data file.'''
             args = arg.split(',')
             for arg in args:
                 if arg not in all_steps:
-                    print "The method has to be in", all_steps
+                    print_error(["The method has to be in:", all_steps])
                     sys.exit(0)
             else:
                 steps = args
@@ -176,7 +180,7 @@ in the same folder, with the data file.'''
                     try:
                         circus.launch(subtask, filename, nb_cpu, nb_gpu, use_gpu)
                     except:
-                        print colored('Step "%s" failed!' % subtask, color='red')
+                        print_error(['Step "%s" failed!' % subtask])
                         raise
                 elif command == 'mpirun':
                     # Use mpirun to make the call
@@ -205,7 +209,7 @@ in the same folder, with the data file.'''
                                    subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                     else:
                         if (output is None) or (benchmark is None):
-                            print colored("To generate synthetic datasets, you must provide output and type", 'red')
+                            print_error(["To generate synthetic datasets, you must provide output and type"])
                             sys.exit()
                         args += ['-np', nb_tasks,
                                    'spyking-circus-subtask.py',
@@ -214,7 +218,7 @@ in the same folder, with the data file.'''
                     try:
                         subprocess.check_call(args)
                     except:
-                        print colored('Step "%s" failed!' % subtask, color='red')
+                        print_error(['Step "%s" failed!' % subtask])
                         raise
 
 

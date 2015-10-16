@@ -84,7 +84,7 @@ def load_parameters(file_name):
         exec probetext in probe
         probetext.close()
     except Exception:
-        print colored("Something wrong with the probe file!", 'red')
+        print_error(["Something wrong with the probe file!"])
     #mapping_elec = hdf5storage.loadmat(parser.get('data', 'mapping'))['Mapping']
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
     N_e = 0
@@ -183,6 +183,11 @@ def print_info(lines):
         print colored("| " + line, 'yellow')
     print colored("--------------------------------------------------------------", 'yellow')
 
+def print_error(lines):
+    print colored("--------------------------  Error  ---------------------------", 'red')
+    for line in lines:
+        print colored("|", 'red'), line
+    print colored("--------------------------------------------------------------", 'red')
 
 
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
@@ -234,7 +239,7 @@ def get_nodes_and_edges(parameters):
     try:
         exec probetext in probe
     except Exception:
-        print colored("Something wrong with the probe file!", 'red')
+        print_error(["Something wrong with the probe file!"])
     probetext.close()
 
     radius = parameters.getint('data', 'radius')

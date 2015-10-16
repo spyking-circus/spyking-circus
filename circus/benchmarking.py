@@ -9,7 +9,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     file_out  = ".".join(file_name.split('.')[:-1])
 
     if benchmark not in ['fitting', 'clustering', 'synchrony']:
-        print colored('Benchmark need to be in [fitting, clustering, synchrony]', 'red')
+        if comm.rank == 0:
+            io.print_error(['Benchmark need to be in [fitting, clustering, synchrony]'])
         sys.exit(0)
 
     def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe):
@@ -127,7 +128,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
-                    print "No electrode to move template %d (max similarity is %g) !!!" %(cell_id, similarity)
+                    io.print_error(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)])
                 sys.exit(0)
             else:
                 n_elec = all_elecs[count]
