@@ -57,23 +57,21 @@ Syntax is spyking-circus datafile [options]
 Options are:
 -h or --help     : display the help
 -m or --method   : by default, all 4 steps of the algorithm are
-                   performed, but if specified, only a sublist [x,y] can be
-                   done, using the syntax -m x,y,z 
-                   Available steps are
+                   performed, but a subset x,y can be done, 
+                   using the syntax -m x,y. Steps are:
                      - filtering
                      - whitening
                      - clustering
                      - fitting
                      - (extra) gathering [to collect results]
-                     - (extra) extracting [to get templates from spike times]
+                     - (extra) extracting [templates from spike times]
                      - (extra) converting [to export to phy format]
-                     - (extra) benchmarking [internal use only]
-                      The extra steps are only for custom needs (see documentation)
+                     - (extra) benchmarking [with -o and -t]
 -c or --cpu      : number of CPU (default 1)
 -g or --gpu      : number of GPU (default 1 if CUDA available)
 -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
--b or --batch    : datafile is a text file with a list of commands to launch, in a batch mode
--o or --output   : output file [only for generation of synthetic benchmarks]
+-b or --batch    : datafile is a list of commands to launch, in a batch mode
+-o or --output   : output file [for generation of synthetic benchmarks]
 -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
     noparams='''
