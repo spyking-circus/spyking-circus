@@ -8,8 +8,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_suff = file_name.split('/')[-1].split('.')[0]
     file_out  = ".".join(file_name.split('.')[:-1])
 
-    print data_path, data_suff, file_out
-
     if benchmark not in ['fitting', 'clustering', 'synchrony']:
         print colored('Benchmark need to be in [fitting, clustering, synchrony]', 'red')
         sys.exit(0)
@@ -276,7 +274,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     comm.Barrier()
 
     file_params = file_out + '.params'
-    print file_params
 
     if comm.rank == 0:
 
