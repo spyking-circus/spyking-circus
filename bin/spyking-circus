@@ -99,7 +99,7 @@ Options are:
                     key = raw_input("Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
                 if key == 'y':
                     print "Generating template file", file_params
-                    print "Please fill it properly before launching the code! (see documentation)"
+                    print "Fill it properly before launching the code! (see documentation)"
                     shutil.copyfile(config_file, file_params)
                 sys.exit()
             elif (('-b' in argv) or ('--batch' in argv)):
@@ -117,7 +117,7 @@ Options are:
             args = arg.split(',')
             for arg in args:
                 if arg not in all_steps:
-                    print_error(["The method has to be in:", all_steps])
+                    print_error(['The method "%s" is not recognized' % arg])
                     sys.exit(0)
             else:
                 steps = args
