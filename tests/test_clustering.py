@@ -107,13 +107,18 @@ class TestClustering(unittest.TestCase):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
         io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
 
+    #def tearDown(self):
+    #    data_path = '.'.join(self.file_name.split('.')[:-1])
+    #    shutil.rmtree(data_path)
+
+
     def test_clustering_one_CPU(self):
         mpi_launch('clustering', self.file_name, 1, 0, 'False')
         res = get_performance(self.file_name, 'one_CPU')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == templates)
+        assert numpy.all(self.all_templates == res[0])
         
     def test_clustering_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
@@ -121,7 +126,7 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == templates)
+        assert numpy.all(self.all_templates == res[0])
 
     def test_clustering_smart_search(self):
         io.change_flag(self.file_name, 'smart_search', '0')
@@ -131,7 +136,7 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == templates)
+        assert numpy.all(self.all_templates == res[0])
 
     def test_clustering_nb_passes(self):
         io.change_flag(self.file_name, 'nb_repeats', '1')
@@ -141,7 +146,7 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == templates)
+        assert numpy.all(self.all_templates == res[0])
 
     def test_clustering_sim_same_elec(self):
         io.change_flag(self.file_name, 'sim_same_elec', '5')
@@ -151,10 +156,10 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.sum(res[1]) <= nump.sum(self.all_matches)
+        assert numpy.sum(res[1]) <= numpy.sum(self.all_matches)
 
     def test_clustering_cc_merge(self):
-        io.change_flag(self.file_name, 'cc_merge', '0.5')
+        io.change_flag(self.file_name, 'cc_merge', '0.8')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'cc_merge', '0.975')
         res = get_performance(self.file_name, 'cc_merge')

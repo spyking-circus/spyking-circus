@@ -173,6 +173,10 @@ class TestSynchrony(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'synchrony')
 
+    #def tearDown(self):
+    #    data_path = '.'.join(self.file_name.split('.')[:-1])
+    #    shutil.rmtree(data_path)
+
     def test_synchrony(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 2, 0, 'False')

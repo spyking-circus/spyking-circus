@@ -91,6 +91,11 @@ class TestCompleteWorkflow(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
 
+    #def tearDown(self):
+    #    data_path = '.'.join(self.file_name.split('.')[:-1])
+    #    shutil.rmtree(data_path)
+
+
     def test_all_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         mpi_launch('fitting', self.file_name, 2, 0, 'False')

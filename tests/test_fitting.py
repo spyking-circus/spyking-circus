@@ -107,6 +107,11 @@ class TestFitting(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
 
+    #def tearDown(self):
+    #    data_path = '.'.join(self.file_name.split('.')[:-1])
+    #    shutil.rmtree(data_path)
+
+
     def test_fitting_one_CPU(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 1, 0, 'False')
