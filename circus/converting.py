@@ -103,23 +103,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             fn_copy   = fn + extension
             N         = int(N/n_channels)
+            chunk_len = chunk_size
+            n_samples = int(N/chunk_len)
+            offset    = 0
 
             if op.exists(fn_copy):
-                return fn_copy, (N, n_channels)
+                return fn_copy, np.memmap(fn_copy, dtype=dtype, offset=offset, shape=(N, n_channels))
 
             # Create the end-truncated file.
             info("Truncating...")
             f = open(fn_copy, 'w')
-            chunk_len = chunk_size
-            n_samples = n_channels*N/chunk_len
-            for i in range(n_samples):
-                data = np.memmap(fn, dtype=dtype, offset=offset)
-                f.write(data[i*chunk_len:(i+1)*chunk_len])
+            for i in range(n_samples+1):
+                f.write(data[i*chunk_len*n_channels:(i+1)*chunk_len*n_channels])
             f.close()
         else:
-            fn_copy   = fn
-            N         = int(N/n_channels)
-        return fn_copy, (N, n_channels)
+            fn_copy = fn
+
+        data    = np.memmap(fn_copy, dtype=dtype, offset=offset, shape=(N, n_channels))
+        return fn_copy, data
 
 
     def _read_filtered(filename, n_channels=None, dtype=None):
@@ -135,12 +136,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             offset = 0
         info("Header: {} bytes.".format(offset))
         dtype = np.dtype(dtype)
-        filename, shape = _truncate(fn,
+        filename, data = _truncate(fn,
                           offset=offset,
                           n_channels=n_channels,
                           itemsize=dtype.itemsize,
                           dtype=dtype)
-        return filename, np.memmap(filename, dtype=dtype, offset=0, shape=shape)
+        return filename, data
 
 
     class Converter(object):
