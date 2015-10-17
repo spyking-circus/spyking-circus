@@ -39,6 +39,7 @@ setup(name='spyking-circus',
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'groundtruth.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'imec.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'mea_4225.prb')])],
+      use_2to3=True,
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Science/Research',
