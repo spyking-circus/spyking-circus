@@ -110,8 +110,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # Create the end-truncated file.
             info("Truncating...")
             f = open(fn_copy, 'w')
-            chunk_len = n_channels*chunk_size
-            n_samples = N/chunk_len
+            chunk_len = chunk_size
+            n_samples = n_channels*N/chunk_len
             for i in range(n_samples):
                 data = np.memmap(fn, dtype=dtype, offset=offset)
                 f.write(data[i*chunk_len:(i+1)*chunk_len])
@@ -344,9 +344,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             creator.add_clustering(group=1,
                                    name='main',
                                    spike_clusters=self.spike_clusters,
-                                   template_waveforms=self.templates,
-                                   template_masks=self.template_masks,
-                                   template_amplitudes=self.amplitudes,
+                                   #template_waveforms=self.templates,
+                                   #template_masks=self.template_masks,
+                                   #template_amplitudes=self.amplitudes,
                                    )
 
             # Add spikes.
