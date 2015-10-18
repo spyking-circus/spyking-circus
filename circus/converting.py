@@ -13,6 +13,7 @@ import os.path as op
 import shutil
 
 import numpy as np
+from circus.shared.files import detect_header
 
 from phy.detect.spikedetekt import SpikeDetekt
 from phy.electrode import load_probe
@@ -124,17 +125,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         return fn_copy, data
 
 
-    def _read_filtered(filename, n_channels=None, dtype=None):
-        fn = filename
-        with open(fn, 'rb') as f:
-            data = f.read(4096)
-        data = data.decode('ascii',  'ignore')
-        try:
-            i = data.index('EOH')
-            # OFFSET = HEADER + EOH (3 bytes) + 2 uint16 samples (4 bytes)
-            offset = i + 3 + 2 * 2
-        except Exception:
-            offset = 0
+    def _read_filtered(filename, offset_value, n_channels=None, dtype=None):
+        fn     = filename
+        offset = int(detect_header(filename, offset_value))
         info("Header: {} bytes.".format(offset))
         dtype = np.dtype(dtype)
         filename, data = _truncate(fn,
@@ -156,7 +149,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                      dtype=None,
                      sample_rate=None,
                      dc_offset=0,
-                     gain=0.01
+                     gain=0.01,
+                     offset_value=0
                      ):
 
             self.n_features_per_channel = 3
@@ -189,6 +183,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             # A xxx.filtered.trunc file may be created if needed.
             self.file, self.traces_f = _read_filtered(filename,
+                                           offset_value=offset_value,
                                            n_channels=n_total_channels,
                                            dtype=dtype,
                                            )
@@ -440,6 +435,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     dtype            = params.get('data', 'data_dtype')
     dc_offset        = params.getint('data', 'dtype_offset')
     gain             = params.getfloat('data', 'gain')
+    data_offset      = params.get('data', 'data_offset')
 
     c = Converter(basename, filename, N_t,
                   n_channels=n_channels,
@@ -448,12 +444,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   prb_file=prb_file,
                   sample_rate=sample_rate,
                   dtype=dtype,
-                  gain=gain
+                  gain=gain,
+                  offset_value=data_offset
                   )
 
     # Uncomment to have a look at the templates or waveforms.
-    c.template_explorer('waveforms')  # 'waveforms' or 'templates'
-    exit()
+    #c.template_explorer('waveforms')  # 'waveforms' or 'templates'
+    #exit()
 
     if not os.path.exists(basename + '.kwik'):
         # Conversion.
