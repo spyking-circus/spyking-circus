@@ -76,7 +76,8 @@ Options are:
 
     noparams='''The parameter file %s is not present!'''
 
-    print colored(header, 'green')
+    if not (('-b' in argv) or ('--batch' in argv)):
+        print colored(header, 'green')
 
     if len(argv) < 2:
         print message
