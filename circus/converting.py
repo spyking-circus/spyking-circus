@@ -113,7 +113,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # Create the end-truncated file.
             info("Truncating...")
             f = open(fn_copy, 'w')
-            for i in range(n_samples+1):
+            for i in range(n_samples):
                 f.write(data[i*chunk_len*n_channels:(i+1)*chunk_len*n_channels])
             f.close()
         else:
@@ -437,7 +437,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     n_total_channels = params.getint('data', 'N_total')
     sample_rate      = params.getint('data', 'sampling_rate')
     dtype            = params.get('data', 'data_dtype')
-    offset           = params.getint('data', 'data_offset')
+    offset           = params.getint('data', 'dtype_offset')
     gain             = params.getfloat('data', 'gain')
 
     c = Converter(basename, filename, N_t,

@@ -138,7 +138,6 @@ Options are:
                 if len(line) > 0:
                     main(['spyking-circus'] + line.replace('\n', '').split(" "))
     else:
-        print colored(header, 'green')
         print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
         print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
         print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
