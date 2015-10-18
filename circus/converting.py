@@ -118,6 +118,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             f.close()
         else:
             fn_copy = fn
+            N       = int(N/n_channels)
 
         data    = np.memmap(fn_copy, dtype=dtype, offset=offset, shape=(N, n_channels))
         return fn_copy, data
@@ -154,7 +155,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                      prb_file=None,
                      dtype=None,
                      sample_rate=None,
-                     offset=0,
+                     dc_offset=0,
                      gain=0.01
                      ):
 
@@ -235,7 +236,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if filtered_datfile:
                   self._wl = WaveformLoader(traces=self.traces_f,
                                             n_samples=self.n_samples_w,
-                                            dc_offset=offset,
+                                            dc_offset=dc_offset,
                                             scale_factor=gain,
                                             channels=nodes
                                             )
@@ -244,7 +245,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             n_samples=self.n_samples_w,
                                             filter=filter,
                                             filter_margin=filter_margin,
-                                            dc_offset=offset,
+                                            dc_offset=dc_offset,
                                             scale_factor=gain,
                                             channels=nodes
                                             )
@@ -437,13 +438,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     n_total_channels = params.getint('data', 'N_total')
     sample_rate      = params.getint('data', 'sampling_rate')
     dtype            = params.get('data', 'data_dtype')
-    offset           = params.getint('data', 'dtype_offset')
+    dc_offset        = params.getint('data', 'dtype_offset')
     gain             = params.getfloat('data', 'gain')
 
     c = Converter(basename, filename, N_t,
                   n_channels=n_channels,
                   n_total_channels=n_total_channels,
-                  offset=offset,
+                  dc_offset=dc_offset,
                   prb_file=prb_file,
                   sample_rate=sample_rate,
                   dtype=dtype,
@@ -451,8 +452,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   )
 
     # Uncomment to have a look at the templates or waveforms.
-    #c.template_explorer('waveforms')  # 'waveforms' or 'templates'
-    #exit()
+    c.template_explorer('waveforms')  # 'waveforms' or 'templates'
+    exit()
 
     if not os.path.exists(basename + '.kwik'):
         # Conversion.
