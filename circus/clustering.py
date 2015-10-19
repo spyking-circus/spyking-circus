@@ -584,7 +584,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         max_delay = int(template_shift/3)
         templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, max_delay)
 
-        io.print_info(["Removing again %d templates likely to be duplicates" % merged[1]])
+        io.print_info(["Removing %d templates likely to be duplicates" % merged[1]])
 
         if os.path.exists(file_out_suff + '.templates.mat'):
             os.remove(file_out_suff + '.templates.mat')

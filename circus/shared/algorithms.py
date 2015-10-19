@@ -219,17 +219,18 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
                 for temporal_shift in xrange(-delay, delay):
                     tmp_template = numpy.zeros(templates[:,:, ic2].shape, dtype=numpy.float32)
                     if temporal_shift > 0:
-                        tmp_template[:, temporal_shift:] = templates[:,:-temporal_shift, ic2]
+                        tmp_template[:, temporal_shift:] = templates[:, :-temporal_shift, ic2]
                     elif temporal_shift < 0:
                         tmp_template[:, :temporal_shift] = templates[:, -temporal_shift:, ic2]
                     else:
                         tmp_template = templates[:,:,ic2]
 
-                dist = numpy.corrcoef(templates[:,:,ic1].flatten(), tmp_template.flatten())[0, 1]
-                if dist > dmax:
-                    dmax     = dist
-                    tmax     = temporal_shift
-                    to_merge = [ic1, ic2]
+                    dist = numpy.corrcoef(templates[:,:,ic1].flatten(), tmp_template.flatten())[0, 1]
+                    
+                    if dist > dmax:
+                        dmax     = dist
+                        tmax     = temporal_shift
+                        to_merge = [ic1, ic2]
 
         if dmax > cc_merge:
 
