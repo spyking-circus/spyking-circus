@@ -25,7 +25,7 @@ from phy.traces.filter import bandpass_filter, apply_filter
 from phy.utils.logging import info
 from phy.utils.array import _spikes_per_cluster
 
-extract_features = False
+extract_features = True #False is working now with max's branch
 filtered_datfile = True
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
@@ -342,9 +342,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             creator.add_clustering(group=1,
                                    name='main',
                                    spike_clusters=self.spike_clusters,
-                                   template_waveforms=self.templates,
-                                   template_masks=self.template_masks,
-                                   template_amplitudes=self.amplitudes,
+                                   #template_waveforms=self.templates,
+                                   #template_masks=self.template_masks,
+                                   #template_amplitudes=self.amplitudes,
                                    )
 
             # Add spikes.
