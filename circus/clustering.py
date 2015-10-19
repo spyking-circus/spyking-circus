@@ -32,6 +32,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     make_plots     = params.getboolean('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     cc_merge       = params.getfloat('clustering', 'cc_merge')
+    cc_delay       = int(params.getfloat('clustering', 'cc_delay')*sampling_rate*1e-3)
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     smart_search   = numpy.ones(N_e, dtype=numpy.float32)*params.getfloat('clustering', 'smart_search')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
@@ -581,8 +582,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['electrodes']   = numpy.array(electrodes)
         amplitudes             = numpy.array(amplitudes)
 
-        max_delay = int(template_shift/3)
-        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, max_delay)
+        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, cc_delay)
 
         io.print_info(["Removing %d templates likely to be duplicates" % merged[1]])
 
