@@ -453,7 +453,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             lines += ["                            -put safety_space=False?"]
         if total_hits > 0:
             lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
-            lines += ["                               -increase sim_same_elec?"]
+            lines += ["                              -increase sim_same_elec?"]
         io.print_info(lines)
 
         print "Extracting the templates..."
@@ -581,7 +581,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['electrodes']   = numpy.array(electrodes)
         amplitudes             = numpy.array(amplitudes)
 
-        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge)
+        max_delay = int(template_shift/3)
+        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, max_delay)
 
         io.print_info(["Removing again %d templates likely to be duplicates" % merged[1]])
 

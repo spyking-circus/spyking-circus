@@ -25,7 +25,7 @@ from phy.traces.filter import bandpass_filter, apply_filter
 from phy.utils.logging import info
 from phy.utils.array import _spikes_per_cluster
 
-extract_features = True
+extract_features = False
 filtered_datfile = True
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
@@ -179,7 +179,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                    extract_s_after=extract_s_after,
                                    sample_rate=sample_rate,
                                    )
-            self.n_samples_w = extract_s_before + extract_s_after
+            self.n_samples_w = extract_s_before + extract_s_after + 1
 
             # A xxx.filtered.trunc file may be created if needed.
             self.file, self.traces_f = _read_filtered(filename,
@@ -227,6 +227,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 for key in self.probe['channel_groups'].keys():
                   nodes += self.probe['channel_groups'][key]['channels']
                 nodes    = np.array(nodes, dtype=np.int32)
+
 
                 if filtered_datfile:
                   self._wl = WaveformLoader(traces=self.traces_f,
@@ -341,9 +342,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             creator.add_clustering(group=1,
                                    name='main',
                                    spike_clusters=self.spike_clusters,
-                                   #template_waveforms=self.templates,
-                                   #template_masks=self.template_masks,
-                                   #template_amplitudes=self.amplitudes,
+                                   template_waveforms=self.templates,
+                                   template_masks=self.template_masks,
+                                   template_amplitudes=self.amplitudes,
                                    )
 
             # Add spikes.
@@ -449,7 +450,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   )
 
     # Uncomment to have a look at the templates or waveforms.
-    #c.template_explorer('waveforms')  # 'waveforms' or 'templates'
+    #c.template_explorer('templates')  # 'waveforms' or 'templates'
     #exit()
 
     if not os.path.exists(basename + '.kwik'):

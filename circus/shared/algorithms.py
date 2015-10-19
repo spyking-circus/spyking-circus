@@ -206,18 +206,29 @@ def merging(groups, sim_same_elec, data):
     return groups, merged
 
 
-def merging_cc(templates, amplitudes, result, cc_merge):
+def merging_cc(templates, amplitudes, result, cc_merge, delay):
 
-    def perform_merging(templates, amplitudes, result, cc_merge):
+    def perform_merging(templates, amplitudes, result, cc_merge, delay):
         dmax      = 0
+        tmax      = 0
         to_merge  = [None, None]
         nb_temp   = templates.shape[2]/2
         
         for ic1 in xrange(nb_temp):
             for ic2 in xrange(ic1+1, nb_temp):
-                dist = numpy.corrcoef(templates[:,:,ic1].flatten(), templates[:,:,ic2].flatten())[0, 1]
+                for temporal_shift in xrange(-delay, delay):
+                    tmp_template = numpy.zeros(templates[:,:, ic2].shape, dtype=numpy.float32)
+                    if temporal_shift > 0:
+                        tmp_template[:, temporal_shift:] = templates[:,:-temporal_shift, ic2]
+                    elif temporal_shift < 0:
+                        tmp_template[:, :temporal_shift] = templates[:, -temporal_shift:, ic2]
+                    else:
+                        tmp_template = templates[:,:,ic2]
+
+                dist = numpy.corrcoef(templates[:,:,ic1].flatten(), tmp_template.flatten())[0, 1]
                 if dist > dmax:
                     dmax     = dist
+                    tmax     = temporal_shift
                     to_merge = [ic1, ic2]
 
         if dmax > cc_merge:
@@ -263,7 +274,7 @@ def merging_cc(templates, amplitudes, result, cc_merge):
     merged          = [templates.shape[2]/2, 0]
 
     while has_been_merged:
-        has_been_merged, templates, amplitudes, result = perform_merging(templates, amplitudes, result, cc_merge)
+        has_been_merged, templates, amplitudes, result = perform_merging(templates, amplitudes, result, cc_merge, delay)
         if has_been_merged:
             merged[1] += 1
     return templates, amplitudes, result, merged
