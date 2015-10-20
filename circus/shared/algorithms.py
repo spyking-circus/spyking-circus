@@ -205,30 +205,13 @@ def merging(groups, sim_same_elec, data):
             merged[1] += 1
     return groups, merged
 
-
 def merging_cc(templates, amplitudes, result, cc_merge, delay):
 
-    def perform_merging(templates, amplitudes, result, cc_merge, delay):
-        dmax      = 0
-        to_merge  = [None, None]
+    def perform_merging(templates, amplitudes, result, cc_merge, delay, distances):
+        dmax      = distances.max()
         nb_temp   = templates.shape[2]/2
-        
-        for ic1 in xrange(nb_temp):
-            for ic2 in xrange(ic1+1, nb_temp):
-                for temporal_shift in xrange(-delay, delay+1):
-                    tmp_template = numpy.zeros(templates[:,:, ic2].shape, dtype=numpy.float32)
-                    if temporal_shift > 0:
-                        tmp_template[:, temporal_shift:] = templates[:, :-temporal_shift, ic2]
-                    elif temporal_shift < 0:
-                        tmp_template[:, :temporal_shift] = templates[:, -temporal_shift:, ic2]
-                    else:
-                        tmp_template = templates[:,:,ic2]
-
-                    dist = numpy.corrcoef(templates[:,:,ic1].flatten(), tmp_template.flatten())[0, 1]
-                    
-                    if dist > dmax:
-                        dmax     = dist
-                        to_merge = [ic1, ic2]
+        idx       = numpy.where(distances == dmax)
+        to_merge  = [idx[0][0], idx[1][0]]
 
         if dmax > cc_merge:
 
@@ -265,19 +248,38 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
             amplitudes[to_keep][0]          = min(amplitudes[to_keep][0], amplitudes[to_remove][0])
             amplitudes[to_keep][1]          = max(amplitudes[to_keep][1], amplitudes[to_remove][1])            
             amplitudes                      = numpy.delete(amplitudes, to_remove, axis=0)
-            return True, templates, amplitudes, result
+            distances                       = numpy.delete(distances, to_remove, axis=0)
+            distances                       = numpy.delete(distances, to_remove, axis=1)
+            return True, templates, amplitudes, result, distances
         
-        return False, templates, amplitudes, result
+        return False, templates, amplitudes, result, distances
 
     has_been_merged = True
-    merged          = [templates.shape[2]/2, 0]
+    nb_temp         = templates.shape[2]/2
+    merged          = [nb_temp, 0]
+
+    distances       = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    for ic1 in xrange(nb_temp):
+        for ic2 in xrange(ic1+1, nb_temp):
+            for temporal_shift in xrange(-delay, delay+1):
+                tmp_template = numpy.zeros(templates[:,:, ic2].shape, dtype=numpy.float32)
+                if temporal_shift > 0:
+                    tmp_template[:, temporal_shift:] = templates[:, :-temporal_shift, ic2]
+                elif temporal_shift < 0:
+                    tmp_template[:, :temporal_shift] = templates[:, -temporal_shift:, ic2]
+                else:
+                    tmp_template = templates[:,:,ic2]
+
+                dist = numpy.corrcoef(templates[:,:,ic1].flatten(), tmp_template.flatten())[0, 1]
+                    
+                if dist > distances[ic1, ic2]:
+                    distances[ic1, ic2] = dist
 
     while has_been_merged:
-        has_been_merged, templates, amplitudes, result = perform_merging(templates, amplitudes, result, cc_merge, delay)
+        has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, delay, distances)
         if has_been_merged:
             merged[1] += 1
     return templates, amplitudes, result, merged
-
 
 
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False, show=False, ax=None):
