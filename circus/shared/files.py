@@ -1,4 +1,4 @@
-import numpy, ConfigParser, hdf5storage, h5py, os, progressbar
+import numpy, configparser, hdf5storage, h5py, os, progressbar
 from termcolor import colored
 
 def purge(file, pattern):
@@ -55,7 +55,7 @@ def load_parameters(file_name):
 
     extension       = '.' + file_name.split('.')[-1]
     file_params     = file_name.replace(extension, '.params')
-    parser          = ConfigParser.SafeConfigParser()
+    parser          = configparser.SafeConfigParser()
     parser.read(file_params)
 
     sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'noedits']
