@@ -1,4 +1,5 @@
-import numpy, configparser, hdf5storage, h5py, os, progressbar
+import numpy, hdf5storage, h5py, os, progressbar
+import ConfigParser as configparser
 from termcolor import colored
 
 def purge(file, pattern):
