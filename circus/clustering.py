@@ -584,7 +584,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, cc_delay)
 
-        io.print_info(["Number of global merges   : %d" %merged[1]])
+        io.print_info(["Number of global merges  : %d" %merged[1]])
 
         if os.path.exists(file_out_suff + '.templates.mat'):
             os.remove(file_out_suff + '.templates.mat')

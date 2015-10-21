@@ -281,4 +281,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pca      = mdp.nodes.PCANode(output_dim=output_dim)
         res_pca  = pca(elts.astype(numpy.double).T)
         numpy.savez(file_out + '.basis', proj=pca.get_projmatrix().astype(numpy.float32), rec=pca.get_recmatrix().astype(numpy.float32))
-        print "A basis with %s dimensions has been built..." %pca.get_projmatrix().shape[1]
+        io.print_info(["A basis with %s dimensions has been built" %pca.get_projmatrix().shape[1]])
