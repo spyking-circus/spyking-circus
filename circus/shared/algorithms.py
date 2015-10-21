@@ -295,23 +295,12 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
     print distances.max(), distances.min()
 
     '''
-    distances       = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
     for ic1 in xrange(nb_temp):
         for ic2 in xrange(ic1+1, nb_temp):
-            for temporal_shift in xrange(-delay, delay+1):
-                tmp_template = numpy.zeros(templates[:,:, ic2].shape, dtype=numpy.float32)
-                if temporal_shift > 0:
-                    tmp_template[:, temporal_shift:] = templates[:, :-temporal_shift, ic2]
-                elif temporal_shift < 0:
-                    tmp_template[:, :temporal_shift] = templates[:, -temporal_shift:, ic2]
-                else:
-                    tmp_template = templates[:,:,ic2]
+            dist = numpy.max(ccf(templates[:,:,ic1].flatten(), templates[:,:,ic2].flatten()))
+            distances[ic1, ic2] = dist
 
-                dist = numpy.corrcoef(templates[:,:,ic1].flatten(), tmp_template.flatten())[0, 1]
-                    
-                if dist > distances[ic1, ic2]:
-                    distances[ic1, ic2] = dist
-    
     while has_been_merged:
         has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, delay, distances)
         if has_been_merged:
@@ -406,3 +395,55 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
         pylab.plot(x, 'k')
 
     return ind
+
+def ccf(x, y, axis=None):
+    """
+    Computes the cross-correlation function of two series x and y.
+    Note that the computations are performed on anomalies (deviations from
+    average).
+    Returns the values of the cross-correlation at different lags.
+        
+    Inputs:
+        x    - 1D MaskedArray of a Time series.
+        y    - 1D MaskedArray of a Time series.
+        axis - integer *[None]* Axis along which to compute (0 for rows, 1 for cols).
+               If `None`, the array is flattened first.
+    
+    Examples:
+        >> z= arange(1000)
+        >> ccf(z,z)
+
+    """
+    assert x.ndim == y.ndim, "Inconsistent shape !"
+#    assert(x.shape == y.shape, "Inconsistent shape !")
+    if axis is None:
+        if x.ndim > 1:
+            x = x.ravel()
+            y = y.ravel()
+        npad = x.size + y.size
+        xanom = (x - x.mean(axis=None))
+        yanom = (y - y.mean(axis=None))
+        Fx = numpy.fft.fft(xanom, npad, )
+        Fy = numpy.fft.fft(yanom, npad, )
+        iFxy = numpy.fft.ifft(Fx.conj()*Fy).real
+        varxy = numpy.sqrt(numpy.inner(xanom,xanom) * numpy.inner(yanom,yanom))
+    else:
+        npad = x.shape[axis] + y.shape[axis]
+        if axis == 1:
+            if x.shape[0] != y.shape[0]:
+                raise ValueError, "Arrays should have the same length!"
+            xanom = (x - x.mean(axis=1)[:,None])
+            yanom = (y - y.mean(axis=1)[:,None])
+            varxy = numpy.sqrt((xanom*xanom).sum(1) * (yanom*yanom).sum(1))[:,None]
+        else:
+            if x.shape[1] != y.shape[1]:
+                raise ValueError, "Arrays should have the same width!"
+            xanom = (x - x.mean(axis=0))
+            yanom = (y - y.mean(axis=0))
+            varxy = numpy.sqrt((xanom*xanom).sum(0) * (yanom*yanom).sum(0))
+        Fx = numpy.fft.fft(xanom, npad, axis=axis)
+        Fy = numpy.fft.fft(yanom, npad, axis=axis)
+        iFxy = numpy.fft.ifft(Fx.conj()*Fy,n=npad,axis=axis).real
+    # We juste turn the lags into correct positions:
+    iFxy = numpy.concatenate((iFxy[len(iFxy)/2:len(iFxy)],iFxy[0:len(iFxy)/2]))
+    return iFxy/varxy
