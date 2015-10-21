@@ -448,7 +448,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         total_mergings    = int(numpy.sum(gdata2))
         total_nb_clusters = int(numpy.sum(gdata3))
         lines = ["Number of clusters found : %d" %total_nb_clusters,
-                 "Number of merges         : %d" %total_mergings]
+                 "Number of local merges   : %d" %total_mergings]
         if few_elts:
             lines += ["Not enough spikes gathered: -decrease smart_search?"]
             lines += ["                            -put safety_space=False?"]
@@ -584,7 +584,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, cc_delay)
 
-        io.print_info(["Removing %d templates likely to be duplicates" % merged[1]])
+        io.print_info(["Number of global merges   : %d" %merged[1]])
 
         if os.path.exists(file_out_suff + '.templates.mat'):
             os.remove(file_out_suff + '.templates.mat')

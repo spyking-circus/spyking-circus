@@ -258,6 +258,43 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
 
+    '''
+    try:
+        import cudamat as cmt    
+        HAVE_CUDA = True
+        cmt.cuda_set_device(0)
+        cmt.init()
+        cmt.cuda_sync_threads()
+    except Exception:
+        HAVE_CUDA = False
+
+    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,:nb_temp]**2,0),0))
+    norm_templates = templates[:,:, :nb_temp]/norm_templates
+    overlaps       = numpy.zeros((nb_temp, nb_temp, 2*delay - 1), dtype=numpy.float32)
+
+    for idelay in xrange(1, delay+1):
+        tmp_1 = norm_templates[:, :idelay, :]
+        tmp_2 = norm_templates[:, -idelay:, :]
+        size  = templates.shape[0]*idelay
+        if HAVE_CUDA:
+            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_temp))
+            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, nb_temp))
+            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+        else:
+            tmp_1 = tmp_1.reshape(size, nb_temp)
+            tmp_2 = tmp_2.reshape(size, nb_temp)
+            data  = numpy.dot(tmp_1.T, tmp_2)
+
+        data /= size
+        overlaps[:, :, idelay-1]             = data
+        overlaps[:, :, 2*delay - idelay - 1] = numpy.transpose(data)
+
+    distances       = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    for i in xrange(nb_temp):
+        distances[i] = numpy.max(overlaps[i], 1)
+    print distances.max(), distances.min()
+
+    '''
     distances       = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
     for ic1 in xrange(nb_temp):
         for ic2 in xrange(ic1+1, nb_temp):
@@ -274,7 +311,7 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
                     
                 if dist > distances[ic1, ic2]:
                     distances[ic1, ic2] = dist
-
+    
     while has_been_merged:
         has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, delay, distances)
         if has_been_merged:

@@ -1,6 +1,6 @@
 [data]
 data_offset    = MCS                    # Length of the header ('MCS' is auto for MCS file)
-mapping        = mappings/mea_252.prb   # Mapping of the electrode (contact Pierre if changes)
+mapping        = mappings/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files
 data_dtype     = uint16                 # Type of the data
 dtype_offset   = 32767                  # Padding for data (uint16 is 32767)
@@ -33,8 +33,8 @@ max_clusters   = 10        # Maximal number of clusters for every electrodes
 nb_repeats     = 3         # Number of passes used for the clustering
 smart_search   = 3         # Parameter for the smart search. The higher, the more strict
 sim_same_elec  = 3         # Distance within clusters under which they are re-merged
-cc_merge       = 0.975     # If CC between two templates is higher, they are merged
-cc_delay       = 0.        # The temporal shift allowed while merging of templates [in ms]
+cc_merge       = 0.95      # If CC between two templates is higher, they are merged
+cc_delay       = 0.5       # The temporal shift allowed while merging of templates [in ms]
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 make_plots     = True      # Generate sanity plots of the clustering
 test_clusters  = False     # Should be False. Only to plot injection of synthetic clusters
