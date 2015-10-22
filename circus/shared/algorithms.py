@@ -292,6 +292,7 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
     for i in xrange(nb_temp):
         distances[i, i+1:] = numpy.max(overlaps[i, i+1:], 1)
+        distances[i+1:, i] = distances[i, i+1:]
 
     distances /= (templates.shape[0]*N_t)
 
@@ -389,55 +390,3 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
         pylab.plot(x, 'k')
 
     return ind
-
-def ccf(x, y, axis=None):
-    """
-    Computes the cross-correlation function of two series x and y.
-    Note that the computations are performed on anomalies (deviations from
-    average).
-    Returns the values of the cross-correlation at different lags.
-        
-    Inputs:
-        x    - 1D MaskedArray of a Time series.
-        y    - 1D MaskedArray of a Time series.
-        axis - integer *[None]* Axis along which to compute (0 for rows, 1 for cols).
-               If `None`, the array is flattened first.
-    
-    Examples:
-        >> z= arange(1000)
-        >> ccf(z,z)
-
-    """
-    assert x.ndim == y.ndim, "Inconsistent shape !"
-#    assert(x.shape == y.shape, "Inconsistent shape !")
-    if axis is None:
-        if x.ndim > 1:
-            x = x.ravel()
-            y = y.ravel()
-        npad = x.size + y.size
-        xanom = (x - x.mean(axis=None))
-        yanom = (y - y.mean(axis=None))
-        Fx = numpy.fft.fft(xanom, npad, )
-        Fy = numpy.fft.fft(yanom, npad, )
-        iFxy = numpy.fft.ifft(Fx.conj()*Fy).real
-        varxy = numpy.sqrt(numpy.inner(xanom,xanom) * numpy.inner(yanom,yanom))
-    else:
-        npad = x.shape[axis] + y.shape[axis]
-        if axis == 1:
-            if x.shape[0] != y.shape[0]:
-                raise ValueError, "Arrays should have the same length!"
-            xanom = (x - x.mean(axis=1)[:,None])
-            yanom = (y - y.mean(axis=1)[:,None])
-            varxy = numpy.sqrt((xanom*xanom).sum(1) * (yanom*yanom).sum(1))[:,None]
-        else:
-            if x.shape[1] != y.shape[1]:
-                raise ValueError, "Arrays should have the same width!"
-            xanom = (x - x.mean(axis=0))
-            yanom = (y - y.mean(axis=0))
-            varxy = numpy.sqrt((xanom*xanom).sum(0) * (yanom*yanom).sum(0))
-        Fx = numpy.fft.fft(xanom, npad, axis=axis)
-        Fy = numpy.fft.fft(yanom, npad, axis=axis)
-        iFxy = numpy.fft.ifft(Fx.conj()*Fy,n=npad,axis=axis).real
-    # We juste turn the lags into correct positions:
-    iFxy = numpy.concatenate((iFxy[len(iFxy)/2:len(iFxy)],iFxy[0:len(iFxy)/2]))
-    return iFxy/varxy
