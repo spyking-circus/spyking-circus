@@ -203,7 +203,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     thresholds = io.load_data(params, 'thresholds')
 
     if comm.rank == 0:
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_elts).start()
+        pbar = get_progressbar(nb_elts)
 
 
 

@@ -186,7 +186,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     numpy.random.seed(comm.rank)
 
     if comm.rank == 0:
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=loc_nb_chunks).start()
+        pbar = get_progressbar(loc_nb_chunks)
 
     spiketimes_file     = open(file_out +'/'+data_suff+ '.spiketimes-%d.data' %comm.rank, 'w')
     amplitudes_file     = open(file_out +'/'+data_suff+ '.amplitudes-%d.data' %comm.rank, 'w')

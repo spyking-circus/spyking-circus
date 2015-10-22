@@ -19,6 +19,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_elts_temp  = params.getint('extracting', 'max_elts')
     nb_elts        = int(params.getfloat('extracting', 'nb_elts')*N_e*max_elts_temp)
     output_dim     = params.getfloat('extracting', 'output_dim')
+    cc_merge       = params.getfloat('clustering', 'cc_merge')
+    cc_delay       = int(params.getfloat('clustering', 'cc_delay')*sampling_rate*1e-3)
+    noise_thr      = params.getfloat('clustering', 'noise_thr')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
@@ -51,7 +54,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks))
 
     if comm.rank == 0:
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_elts).start()
+        pbar = get_progressbar(nb_elts)
 
 
     for gidx in all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]:
@@ -130,7 +133,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pca        = mdp.nodes.PCANode(output_dim=output_dim)
         res_pca    = pca(elts.astype(numpy.double).T)
         numpy.savez(file_out + '.basis', proj=pca.get_projmatrix().astype(numpy.float32), rec=pca.get_recmatrix().astype(numpy.float32))
-        print "A basis with %s dimensions has been built..." %pca.get_projmatrix().shape[1]
+        io.print_info(["A basis with %s dimensions has been built" %pca.get_projmatrix().shape[1]])
 
     comm.Barrier()
 
@@ -178,11 +181,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(x):
                 data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
 
-            xamp, yamp       = numpy.histogram(amplitudes, len(amplitudes))
-            amp_data         = xamp/float(numpy.sum(xamp))
-            amp_min          = max(amp_limits[0], yamp[1:][numpy.where(numpy.cumsum(amp_data) > 0.001)[0][0]])
-            amp_max          = min(amp_limits[1], yamp[1:][numpy.where(numpy.cumsum(amp_data) > 0.999)[0][0]])
-            amplitudes_lims += [[amp_min, amp_max]]
+            variations       = 6*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+            physical_limit   = noise_thr*(-thresholds[tmpidx[0][0]])/tmp_templates.min()
+            amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
+            amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
+            amps_lims       += [[amp_min, amp_max]]
 
             if len(data_flat) > 1:
                 pca              = mdp.nodes.PCANode(output_dim=1)
@@ -217,6 +220,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.remove(file_out_suff + '.templates-%d.npy' %i)
             os.remove(file_out_suff + '.amplitudes-%d.npy' %i)
 
+        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, cc_delay)
+
+        io.print_info(["Number of global merges  : %d" %merged[1]])
+
         if os.path.exists(file_out_suff + '.templates.mat'):
             os.remove(file_out_suff + '.templates.mat')
         hdf5storage.savemat(file_out_suff + '.templates', {'templates' : templates})
@@ -228,4 +235,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         hdf5storage.savemat(file_out_suff + '.clusters',   result)
         hdf5storage.savemat(file_out_suff + '.limits', {'limits' : amplitudes})
 
-        io.get_overlaps(params)
+        io.get_overlaps(params, erase=True)

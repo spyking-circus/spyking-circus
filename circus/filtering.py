@@ -35,7 +35,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             print "Filtering the signal with a Butterworth filter in", (cut_off, int(0.95*(sampling_rate/2))), "Hz"
-            pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=loc_nb_chunks).start()
+            pbar = get_progressbar(loc_nb_chunks)
 
         myfile   = MPI.File()
         data_mpi = get_mpi_type(data_dtype)

@@ -131,7 +131,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loop_nb_elts       = nb_elts
 
         if comm.rank == 0:
-            pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=loop_nb_elts).start()
+            pbar = get_progressbar(loop_nb_elts)
 
         comm.Barrier()
         ## Random selection of spikes

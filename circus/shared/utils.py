@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 import matplotlib
 matplotlib.use('Agg')
 import os, sys, time
@@ -10,6 +10,11 @@ comm = MPI.COMM_WORLD
 
 from circus.shared import algorithms as algo
 from circus.shared import files as io
+
+def get_progressbar(size):
+
+    return progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=size).start()
+
 
 def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     # gather 1D or 2D numpy arrays
@@ -157,7 +162,7 @@ def fake_data_from_templates(templates, recording=1, file_name='fake', rate=10, 
         result['spiketimes']['temp_' + str(i)] = []
         result['amplitudes']['temp_' + str(i)] = []
 
-    pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=ngbins).start()
+    pbar = get_progressbar(ngbins)
 
     for k in xrange(ngbins):
         curve          = numpy.zeros((N_e, nbins), dtype=numpy.float32)

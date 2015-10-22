@@ -112,7 +112,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_chunks                                     = int(min(nb_chunks, max_chunk))
 
     if comm.rank == 0:
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=int(nb_chunks/comm.size)).start()
+        pbar = get_progressbar(int(nb_chunks/comm.size))
 
 
     spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' %comm.rank, 'w')

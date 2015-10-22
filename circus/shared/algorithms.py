@@ -2,8 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 import os
 os.environ['MDP_DISABLE_SKLEARN']='yes'
-import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats
-
+import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
 
 def distancematrix(data, weight=None):
     
@@ -258,11 +257,43 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
 
+    try:
+        import cudamat as cmt    
+        HAVE_CUDA = True
+        cmt.cuda_set_device(0)
+        cmt.init()
+        cmt.cuda_sync_threads()
+    except Exception:
+        HAVE_CUDA = False
+
+    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,:nb_temp]**2,0),0))
+    norm_templates = templates[:,:, :nb_temp]/norm_templates
+    overlaps       = numpy.zeros((nb_temp, nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32)
+    N_t            = templates.shape[1]
+    pbar           = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
+
+    for idelay in xrange(1, N_t+1):
+        tmp_1 = norm_templates[:, :idelay, :]
+        tmp_2 = norm_templates[:, -idelay:, :]
+        size  = templates.shape[0]*idelay
+        if HAVE_CUDA:
+            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_temp))
+            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, nb_temp))
+            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+        else:
+            tmp_1 = tmp_1.reshape(size, nb_temp)
+            tmp_2 = tmp_2.reshape(size, nb_temp)
+            data  = numpy.dot(tmp_1.T, tmp_2)
+
+        overlaps[:, :, idelay-1]             = data
+        overlaps[:, :, 2*delay - idelay - 1] = numpy.transpose(data)
+        pbar.update(idelay)
+    pbar.finish()
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-    for ic1 in xrange(nb_temp):
-        for ic2 in xrange(ic1+1, nb_temp):
-            dist = numpy.max(ccf(templates[:,:,ic1].flatten(), templates[:,:,ic2].flatten()))
-            distances[ic1, ic2] = dist
+    for i in xrange(nb_temp):
+        distances[i, i+1:] = numpy.max(overlaps[i, i+1:], 1)
+
+    distances /= (templates.shape[0]*N_t)
 
     while has_been_merged:
         has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, delay, distances)
