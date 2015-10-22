@@ -31,7 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if comm.rank == 0:
-        print "Getting templates from already found clusters..."
+        print "Creating templates from already found clusters..."
 
     clusters, spiketimes, N_clusters     = io.load_data(params, 'spike-cluster')
     inv_clusters                         = numpy.zeros(clusters.max()+1, dtype=numpy.int32)
@@ -119,7 +119,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     gdata = gather_array(numpy.array([total_nb_elts], dtype=numpy.float32), comm, 0)
     if comm.rank == 0:
-        print "We have found a total of", int(numpy.sum(gdata)), "over", int(nb_elts*comm.size)
+        print "We found", int(numpy.sum(gdata)), "spikes over", int(nb_elts*comm.size), "requested"
 
     #print "Spikes extracted in", time.time() - t_start, "s"
 
@@ -138,9 +138,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     basis_proj, basis_rec = io.load_data(params, 'basis')
-
-    if comm.rank == 0:
-        print "Gathering data among nodes and start extracting the templates..."
 
     for temp in xrange(N_clusters):
         for i in xrange(len(result['temp_' + str(temp)])):
@@ -207,7 +204,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         bs         = [numpy.load(file_out_suff + '.amplitudes-%d.npy' %i).tolist() for i in xrange(comm.size)]
         result     = {}
         n_clusters = numpy.sum([ts[i].shape[2] for i in xrange(comm.size)])/2
-        print "Number of templates found is", n_clusters
         templates  = numpy.zeros((N_e, N_t, 2*n_clusters), dtype=numpy.float32)
         count      = 0
         amplitudes = []
@@ -220,6 +216,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.remove(file_out_suff + '.templates-%d.npy' %i)
             os.remove(file_out_suff + '.amplitudes-%d.npy' %i)
 
+        amplitudes             = numpy.array(amplitudes)
         templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, cc_delay)
 
         io.print_info(["Number of global merges  : %d" %merged[1]])
