@@ -1,9 +1,12 @@
-import numpy, hdf5storage, h5py, os, progressbar
+import numpy, hdf5storage, h5py, os, progressbar, platform
 import ConfigParser as configparser
 from termcolor import colored
 
 def purge(file, pattern):
-    dir = "/".join(file.split("/")[:-1])
+    if platform.system() == 'Windows':
+        dir = "\\".join(file.split("\\")[:-1])
+    else:
+        dir = "/".join(file.split("/")[:-1])
     for f in os.listdir(dir):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
@@ -64,7 +67,10 @@ def load_parameters(file_name):
         for (key, value) in parser.items(section):
             parser.set(section, key, value.split('#')[0].replace(' ', '')) 
 
-    file_path       = "/".join(file_name.split("/")[:-1])
+    if platform.system() == 'Windows':
+        file_path   = "\\".join(file_name.split("\\")[:-1])
+    else:
+        file_path   = "/".join(file_name.split("/")[:-1])
     file_name       = file_name.replace(extension, '')
 
     N_t             = parser.getfloat('data', 'N_t')
@@ -104,7 +110,11 @@ def load_parameters(file_name):
         os.makedirs(file_name)
     except Exception:
         pass
-    file_out = file_name + '/'+ file_name.split('/')[-1]
+
+    if platform.system() == 'Windows':
+        file_out = file_name + '\\'+ file_name.split('\\')[-1]
+    else:
+        file_out = file_name + '/'+ file_name.split('/')[-1]
     parser.set('data', 'file_name', file_name)
     parser.set('data', 'file_out', file_out) # Output file without suffix
     parser.set('data', 'file_out_suff', file_out  + parser.get('data', 'suffix')) # Output file with suffix
