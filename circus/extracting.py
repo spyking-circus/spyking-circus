@@ -23,14 +23,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
-    elts           = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
 
     if comm.rank == 0:
-        print "Creating templates from already found clusters..."
+        print "Extracting templates from already found clusters..."
 
+    thresholds                           = io.load_data(params, 'thresholds')
     clusters, spiketimes, N_clusters     = io.load_data(params, 'spike-cluster')
     inv_clusters                         = numpy.zeros(clusters.max()+1, dtype=numpy.int32)
     inv_clusters[numpy.unique(clusters)] = numpy.argsort(numpy.unique(clusters))
@@ -41,7 +41,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     result         = {}
     for i in xrange(N_clusters):
-        result['data_' + str(i)]  = []
+        result['data_' + str(i)]  = numpy.zeros((0, N_e * N_t), dtype=numpy.float32)
         result['times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
@@ -86,7 +86,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 n_times         = len(local_peaktimes)
                 argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
                 clusters_id     = local_clusters[argmax_peak]
-                best_electrode  = numpy.argmin(abs_chunks[argmax_peak], 1)
+                best_electrode  = numpy.argmin(local_chunk[local_peaktimes[argmax_peak]], 1)
 
                 myslice         = numpy.mod(clusters_id, comm.size) == comm.rank
                 argmax_peak     = argmax_peak[myslice]
@@ -105,9 +105,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     peak    = local_peaktimes[idx]
                     if not myslice.any():
                         if (len(result['data_' + str(temp)]) < max_elts_temp):
-                            elts[:, elt_count]            = local_chunk[peak-template_shift:peak+template_shift+1, elec]
                             elt_count                    += 1
-                            result['data_' + str(temp)]  += [local_chunk[peak-template_shift:peak+template_shift+1, :]]
+                            sub_mat                       = local_chunk[peak-template_shift:peak+template_shift+1, :]
+                            sub_mat                       = sub_mat.reshape(1, N_e * N_t)
+                            result['data_' + str(temp)]   = numpy.vstack((result['data_' + str(temp)], sub_mat))
                             to_add                        = numpy.array([peak + local_offset], dtype=numpy.int32)
                             result['times_' + str(temp)]  = numpy.concatenate((result['times_' + str(temp)], to_add))
                         all_times[indices, min_times[idx]:max_times[idx]] = True
@@ -128,33 +129,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #print "Spikes extracted in", time.time() - t_start, "s"
 
-    #CLUSTERING: once we have been through enough chunks (we don't need all of them), we run a clustering for each electrode.
-    #print "Clustering the data..."
-    total_nb_clusters = 0
-    cluster_results   = {}
-
-    gdata = gather_array(elts[:, :elt_count], comm, 0)
-    if comm.rank == 0:
-        pca        = mdp.nodes.PCANode(output_dim=output_dim)
-        res_pca    = pca(elts.astype(numpy.double).T)
-        numpy.savez(file_out + '.basis', proj=pca.get_projmatrix().astype(numpy.float32), rec=pca.get_recmatrix().astype(numpy.float32))
-        io.print_info(["A basis with %s dimensions has been built" %pca.get_projmatrix().shape[1]])
-
     comm.Barrier()
 
-    basis_proj, basis_rec = io.load_data(params, 'basis')
-
-    for temp in xrange(comm.rank, N_clusters, comm.size):
-        for i in xrange(len(result['data_' + str(temp)])):
-            result['data_' + str(temp)][i] = numpy.dot(basis_proj.T, result['data_' + str(temp)][i])
-        result['data_' + str(temp)] = numpy.array(result['data_' + str(temp)], dtype=numpy.float32)
-        n_data                      = len(result['data_' + str(temp)])
-        result['data_' + str(temp)] = result['data_' + str(temp)].reshape(n_data, N_e*basis_proj.shape[1])
-
-    total_nb_clusters = 0
+    local_nb_clusters = 0
     for temp in xrange(comm.rank, N_clusters, comm.size):
         if len(result['data_' + str(temp)]) > 0:
-            total_nb_clusters += 1
+            local_nb_clusters += 1
 
     #print total_nb_clusters, "found in", time.time() - t_start, "s"
 
@@ -162,32 +142,32 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Extracting the templates..."
     t_start         = time.time()
-    templates       = numpy.zeros((N_e, N_t, 2*total_nb_clusters), dtype=numpy.float32)
+    templates       = numpy.zeros((N_e, N_t, 2*local_nb_clusters), dtype=numpy.float32)
     count_templates = 0
-    amplitudes_lims = []
+    amps_lims       = []
     electrodes      = []
 
 
     for temp in xrange(comm.rank, N_clusters, comm.size):
         n_data           = len(result['data_' + str(temp)])
         if n_data > 0:
-            data             = result['data_' + str(temp)].reshape(n_data, basis_proj.shape[1], N_e)
-            first_component  = numpy.median(data, axis=0)
-            tmp_templates    = numpy.dot(first_component.T, basis_rec)
+            data             = result['data_' + str(temp)].reshape(n_data, N_e, N_t)
+            tmp_templates    = numpy.median(data, axis=0)
             tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
             temporal_shift   = template_shift - tmpidx[1][0]
             electrodes      += [tmpidx[0][0]]
+            indices          = inv_nodes[edges[nodes[electrodes[-1]]]]
 
             if temporal_shift > 0:
-                templates[indices, temporal_shift:, count_templates] = tmp_templates[:, :-temporal_shift]
+                templates[indices, temporal_shift:, count_templates] = tmp_templates[indices, :-temporal_shift]
             elif temporal_shift < 0:
-                templates[indices, :temporal_shift, count_templates] = tmp_templates[:, -temporal_shift:]
+                templates[indices, :temporal_shift, count_templates] = tmp_templates[indices, -temporal_shift:]
             else:
-                templates[indices, :, count_templates] = tmp_templates
+                templates[indices, :, count_templates] = tmp_templates[indices, :]
 
             x, y, z          = data.shape
             data_flat        = data.reshape(x, y*z)
-            first_flat       = first_component.reshape(y*z, 1)
+            first_flat       = tmp_templates.reshape(y*z, 1)
             amplitudes       = numpy.dot(data_flat, first_flat)
             amplitudes      /= numpy.sum(first_flat**2)
             for i in xrange(x):
@@ -202,17 +182,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(data_flat) > 1:
                 pca              = mdp.nodes.PCANode(output_dim=1)
                 res_pca          = pca(data_flat.astype(numpy.double))
-                second_component = pca.get_projmatrix().reshape(y, z)
+                tmp_templates    = pca.get_projmatrix().reshape(y, z)
             else:
-                second_component = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
+                tmp_templates    = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
             
-            tmp_templates        = numpy.dot(second_component.T, basis_rec)
             if temporal_shift > 0:
-                templates[indices, temporal_shift:, local_nb_clusters + count_templates] = tmp_templates[:, :-temporal_shift]
+                templates[indices, temporal_shift:, local_nb_clusters + count_templates] = tmp_templates[indices, :-temporal_shift]
             elif temporal_shift < 0:
-                templates[indices, :temporal_shift, local_nb_clusters + count_templates] = tmp_templates[:, -temporal_shift:]
+                templates[indices, :temporal_shift, local_nb_clusters + count_templates] = tmp_templates[indices, -temporal_shift:]
             else:
-                templates[indices, :, local_nb_clusters + count_templates] = tmp_templates
+                templates[indices, :, local_nb_clusters + count_templates] = tmp_templates[indices, :]
 
             count_templates += 1
 
@@ -248,14 +227,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.remove(file_out_suff + '.electrodes-%d.npy' %i)
             os.remove(file_out_suff + '.amplitudes-%d.npy' %i)
             os.remove(file_out_suff + '.data-%d.pic' %i)
-            for j in range(i, N_e, comm.size):
+            for j in range(i, N_clusters, comm.size):
+
                 result['data_' + str(j)]     = rs[i]['data_' + str(j)]
-                result['clusters_' + str(j)] = rs[i]['clusters_' + str(j)]
                 result['debug_' + str(j)]    = numpy.zeros((2, len(result['data_' + str(j)])), dtype=numpy.float32)
                 result['times_' + str(j)]    = rs[i]['times_' + str(j)]
 
         amplitudes             = numpy.array(amplitudes)
-        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, cc_delay)
+        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge)
 
         io.print_info(["Number of global merges  : %d" %merged[1]])
 

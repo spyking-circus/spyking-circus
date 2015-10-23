@@ -204,9 +204,9 @@ def merging(groups, sim_same_elec, data):
             merged[1] += 1
     return groups, merged
 
-def merging_cc(templates, amplitudes, result, cc_merge, delay):
+def merging_cc(templates, amplitudes, result, cc_merge):
 
-    def perform_merging(templates, amplitudes, result, cc_merge, delay, distances):
+    def perform_merging(templates, amplitudes, result, cc_merge, distances):
         dmax      = distances.max()
         nb_temp   = templates.shape[2]/2
         idx       = numpy.where(distances == dmax)
@@ -285,8 +285,8 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
             tmp_2 = tmp_2.reshape(size, 2*nb_temp)
             data  = numpy.dot(tmp_1.T, tmp_2)
 
-        overlaps[:, :, idelay-1]             = data
-        overlaps[:, :, 2*delay - idelay - 1] = numpy.transpose(data)
+        overlaps[:, :, idelay-1]           = data
+        overlaps[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
         pbar.update(idelay)
     pbar.finish()
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
@@ -297,7 +297,7 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
     distances /= (templates.shape[0]*N_t)
 
     while has_been_merged:
-        has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, delay, distances)
+        has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, distances)
         if has_been_merged:
             merged[1] += 1
     return templates, amplitudes, result, merged

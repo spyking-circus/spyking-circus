@@ -582,7 +582,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['electrodes']   = numpy.array(electrodes)
         amplitudes             = numpy.array(amplitudes)
 
-        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge, cc_delay)
+        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge)
 
         io.print_info(["Number of global merges  : %d" %merged[1]])
 

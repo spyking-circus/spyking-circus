@@ -93,7 +93,7 @@ def load_parameters(file_name):
         N_e += len(probe['channel_groups'][key]['channels'])
     parser.set('data', 'N_e', str(N_e))   
 
-    for section in ['extracting', 'whitening', 'clustering']:
+    for section in ['whitening', 'clustering']:
         test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
         assert test, colored("nb_elts in %s should be in [0,1]" %section, 'red')
 
