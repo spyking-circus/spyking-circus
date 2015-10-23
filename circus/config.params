@@ -49,9 +49,10 @@ spike_range    = 0         # Jitter allowed around each spike time to fit the te
 
 [extracting]
 safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
-max_elts       = 10000     # Max number of events per templates (should be compatible with nb_elts)
-nb_elts        = 0.8       # Fraction of max_elts that should be obtained per electrode [0-1]
+max_elts       = 1000      # Max number of events per templates
 output_dim     = 5         # Percentage of variance explained while performing PCA
+cc_merge       = 0.95      # If CC between two templates is higher, they are merged
+noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
 [noedits]
 filter_done    = False     # Will become True automatically after filtering.

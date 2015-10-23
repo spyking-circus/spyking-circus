@@ -137,7 +137,9 @@ def load_parameters(file_name):
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.975'],
-                  ['clustering', 'cc_delay', 'float', '0']]
+                  ['clustering', 'cc_delay', 'float', '0'],
+                  ['extracting', 'cc_merge', 'float', '0.95'],
+                  ['extracting', 'noise_thr', 'float', '0.8']]
 
     for item in new_values:
         section, name, val_type, value = item
