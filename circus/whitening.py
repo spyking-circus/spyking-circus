@@ -31,7 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if nb_chunks < comm.size:
         if comm.rank == 0:
-            io.print_info(["More nodes than 1 min chunks to load: decrease n_cpu"])
+            io.print_error(["More nodes than 1 min chunks to load: decrease n_cpu or provide more data"])
         sys.exit(0)
 
 

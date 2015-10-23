@@ -212,7 +212,7 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
         idx       = numpy.where(distances == dmax)
         to_merge  = [idx[0][0], idx[1][0]]
 
-        if dmax > cc_merge:
+        if dmax >= cc_merge:
 
             elec_ic1  = result['electrodes'][to_merge[0]]
             elec_ic2  = result['electrodes'][to_merge[1]]
@@ -266,9 +266,9 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
     except Exception:
         HAVE_CUDA = False
 
-    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,:nb_temp]**2,0),0))
-    norm_templates = templates[:,:, :nb_temp]/norm_templates
-    overlaps       = numpy.zeros((nb_temp, nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32)
+    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0),0))
+    norm_templates = templates/norm_templates
+    overlaps       = numpy.zeros((2*nb_temp, 2*nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32)
     N_t            = templates.shape[1]
     pbar           = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
@@ -277,12 +277,12 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
         tmp_2 = norm_templates[:, -idelay:, :]
         size  = templates.shape[0]*idelay
         if HAVE_CUDA:
-            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_temp))
-            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, nb_temp))
+            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2*nb_temp))
+            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, 2*nb_temp))
             data  = cmt.dot(tmp_1.T, tmp_2).asarray()
         else:
-            tmp_1 = tmp_1.reshape(size, nb_temp)
-            tmp_2 = tmp_2.reshape(size, nb_temp)
+            tmp_1 = tmp_1.reshape(size, 2*nb_temp)
+            tmp_2 = tmp_2.reshape(size, 2*nb_temp)
             data  = numpy.dot(tmp_1.T, tmp_2)
 
         overlaps[:, :, idelay-1]             = data
@@ -291,7 +291,7 @@ def merging_cc(templates, amplitudes, result, cc_merge, delay):
     pbar.finish()
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
     for i in xrange(nb_temp):
-        distances[i, i+1:] = numpy.max(overlaps[i, i+1:], 1)
+        distances[i, i+1:] = numpy.max(overlaps[i, i+1:nb_temp], 1)
         distances[i+1:, i] = distances[i, i+1:]
 
     distances /= (templates.shape[0]*N_t)
