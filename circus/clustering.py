@@ -14,7 +14,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     if params.get('data', 'global_tmp'):
-        tmp_path_loc = os.path.abspath(params.get('data', 'data_file_noext'))
+        tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     else:
         tmp_path_loc = tempfile.gettempdir()
     plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
@@ -56,8 +56,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         injected_spikes = io.load_data(params, 'injected_spikes')
 
     if comm.rank == 0:
-        if not os.path.exists(os.path.join(tmp_path_loc, 'tmp')):
-            os.makedirs(os.path.join(tmp_path_loc, 'tmp'))
+        if not os.path.exists(tmp_path_loc):
+            os.makedirs(tmp_path_loc)
 
     comm.Barrier()
 
@@ -345,7 +345,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_' + str(ielec)]  = pca.get_projmatrix().astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], compute_rho=True)
                     dist_file = tempfile.NamedTemporaryFile()
-                    numpy.save(tmp_path_loc + dist_file.name, dist)
+                    tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))
+                    numpy.save(tmp_file, dist)
                     result['dist_' + str(ielec)] = dist_file
                     result['norm_' + str(ielec)] = len(result['data_' + str(ielec)])
                     result['rho_'  + str(ielec)] = rho
@@ -371,8 +372,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 n_data  = len(result['data_' + str(ielec)])
                 n_min   = numpy.maximum(5, int(nclus_min*n_data))
                 if (n_data > 1):
-                    dist    = numpy.load(tmp_path_loc + result['dist_' + str(ielec)].name+'.npy')
-                    os.remove(tmp_path_loc + result['dist_' + str(ielec)].name+'.npy')
+                    tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
+                    dist     = numpy.load(tmp_file +'.npy')
+                    os.remove(tmp_file + '.npy')
                     result['dist_' + str(ielec)].close()
                     result['rho_' + str(ielec)] /= result['norm_' + str(ielec)]
 
