@@ -1,6 +1,6 @@
 [data]
 data_offset    = MCS                    # Length of the header ('MCS' is auto for MCS file)
-mapping        = mappings/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+mapping        = probes/mea_252.prb     # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files
 data_dtype     = uint16                 # Type of the data
 dtype_offset   = 32767                  # Padding for data (uint16 is 32767)

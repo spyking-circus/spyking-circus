@@ -41,8 +41,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     result         = {}
     for i in xrange(N_clusters):
-        result['data_' + str(i)]  = numpy.zeros((0, N_e * N_t), dtype=numpy.float32)
-        result['times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
+        result['data_tmp_' + str(i)]  = numpy.zeros((0, N_e * N_t), dtype=numpy.float32)
+        result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
 
@@ -104,11 +104,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     myslice = all_times[indices, min_times[idx]:max_times[idx]]
                     peak    = local_peaktimes[idx]
                     if not myslice.any():
-                        if (len(result['data_' + str(temp)]) < max_elts_temp):
+                        if (len(result['data_tmp_' + str(temp)]) < max_elts_temp):
                             elt_count                    += 1
                             sub_mat                       = local_chunk[peak-template_shift:peak+template_shift+1, :]
                             sub_mat                       = sub_mat.reshape(1, N_e * N_t)
-                            result['data_' + str(temp)]   = numpy.vstack((result['data_' + str(temp)], sub_mat))
+                            result['data_tmp_' + str(temp)]   = numpy.vstack((result['data_tmp_' + str(temp)], sub_mat))
                             to_add                        = numpy.array([peak + local_offset], dtype=numpy.int32)
                             result['times_' + str(temp)]  = numpy.concatenate((result['times_' + str(temp)], to_add))
                         all_times[indices, min_times[idx]:max_times[idx]] = True
@@ -121,7 +121,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     total_nb_elts = 0
     for temp in xrange(N_clusters):
-        total_nb_elts += len(result['data_' + str(temp)])
+        total_nb_elts += len(result['data_tmp_' + str(temp)])
 
     gdata = gather_array(numpy.array([total_nb_elts], dtype=numpy.float32), comm, 0)
     if comm.rank == 0:
@@ -133,7 +133,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     local_nb_clusters = 0
     for temp in xrange(comm.rank, N_clusters, comm.size):
-        if len(result['data_' + str(temp)]) > 0:
+        if len(result['data_tmp_' + str(temp)]) > 0:
             local_nb_clusters += 1
 
     #print total_nb_clusters, "found in", time.time() - t_start, "s"
@@ -149,9 +149,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     for temp in xrange(comm.rank, N_clusters, comm.size):
-        n_data           = len(result['data_' + str(temp)])
+        n_data           = len(result['data_tmp_' + str(temp)])
         if n_data > 0:
-            data             = result['data_' + str(temp)].reshape(n_data, N_e, N_t)
+            data             = result['data_tmp_' + str(temp)].reshape(n_data, N_e, N_t)
             tmp_templates    = numpy.median(data, axis=0)
             tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
             temporal_shift   = template_shift - tmpidx[1][0]
@@ -212,6 +212,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         bs         = [numpy.load(file_out_suff + '.amplitudes-%d.npy' %i).tolist() for i in xrange(comm.size)]
         rs         = [cPickle.load(file(file_out_suff + '.data-%d.pic' %i, 'r')) for i in xrange(comm.size)]
         result     = {}
+
+        for ielec in xrange(N_e):
+            result['data_' + str(ielec)]     = numpy.zeros(0, dtype=numpy.int32)
+            result['times_' + str(ielec)]    = numpy.zeros(0, dtype=numpy.int32)
+            result['clusters_' + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
+
         n_clusters = numpy.sum([ts[i].shape[2] for i in xrange(comm.size)])/2
         templates  = numpy.zeros((N_e, N_t, 2*n_clusters), dtype=numpy.float32)
         count      = 0
@@ -228,10 +234,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.remove(file_out_suff + '.amplitudes-%d.npy' %i)
             os.remove(file_out_suff + '.data-%d.pic' %i)
             for j in range(i, N_clusters, comm.size):
-
-                result['data_' + str(j)]     = rs[i]['data_' + str(j)]
-                result['debug_' + str(j)]    = numpy.zeros((2, len(result['data_' + str(j)])), dtype=numpy.float32)
-                result['times_' + str(j)]    = rs[i]['times_' + str(j)]
+                for best_elec in bs[i]:
+                    result['data_' + str(best_elec)]     = rs[i]['data_' + str(j)]
+                    result['times_' + str(best_elec)]    = rs[i]['times_' + str(j)]
+                    result['clusters_' + str(best_elec)] = rs[i]['clusters_' + str(j)]
 
         amplitudes             = numpy.array(amplitudes)
         templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge)
