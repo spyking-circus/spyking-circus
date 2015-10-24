@@ -50,7 +50,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
         if display:
             ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
             if save:
-                pylab.savefig('%s/rho_delta_%s.png' %(save[0], save[1]))
+                pylab.savefig(os.path.join(save[0], 'rho_delta_%s.png' %(save[1])))
                 pylab.close()
             else:
                 pylab.show()

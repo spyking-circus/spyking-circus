@@ -4,9 +4,9 @@ from termcolor import colored
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     numpy.random.seed(451235)
 
-    data_path = '/'.join(file_name.split('/')[:-1])
-    data_suff = file_name.split('/')[-1].split('.')[0]
-    file_out  = ".".join(file_name.split('.')[:-1])
+    data_path      = os.path.dirname(os.path.abspath(file_name))
+    data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
+    file_out, ext  = os.path.splitext(os.path.abspath(file_name))
 
     if benchmark not in ['fitting', 'clustering', 'synchrony']:
         if comm.rank == 0:
@@ -188,11 +188,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
 
-    spiketimes_file     = open(file_out +'/'+data_suff+ '.spiketimes-%d.data' %comm.rank, 'w')
-    amplitudes_file     = open(file_out +'/'+data_suff+ '.amplitudes-%d.data' %comm.rank, 'w')
-    templates_file      = open(file_out +'/'+data_suff+ '.templates-%d.data' %comm.rank, 'w')
-    real_amps_file      = open(file_out +'/'+data_suff+ '.real_amps-%d.data' %comm.rank, 'w')
-    voltages_file       = open(file_out +'/'+data_suff+ '.voltages-%d.data' %comm.rank, 'w')
+    spiketimes_file     = open(os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank), 'w')
+    amplitudes_file     = open(os.path.join(file_out, data_suff + '.amplitudes-%d.data' %comm.rank), 'w')
+    templates_file      = open(os.path.join(file_out, data_suff + '.templates-%d.data' %comm.rank), 'w')
+    real_amps_file      = open(os.path.join(file_out, data_suff + '.real_amps-%d.data' %comm.rank), 'w')
+    voltages_file       = open(os.path.join(file_out, data_suff + '.voltages-%d.data' %comm.rank), 'w')
 
     for count, gidx in enumerate(to_process):
 
@@ -278,16 +278,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     if comm.rank == 0:
 
-        result_path = file_out + '/injected/' 
+        result_path = os.path.join(file_out, 'injected') 
         if not os.path.exists(result_path):
             os.makedirs(result_path)
 
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
 
         for name in ['.basis.npz', '.thresholds.npy', '.limits.mat', '.whitening.mat']:
-            shutil.copy2(params.get('data', 'file_out') + name, result_path + data_suff + name)
+            shutil.copy2(params.get('data', 'file_out') + name, os.path.join(result_path, data_suff + name))
 
-        hdf5storage.savemat(file_out + '/' + data_suff + '.templates', {'templates' : templates})
+        hdf5storage.savemat(os.path.join(file_out,data_suff + '.templates'), {'templates' : templates})
 
     comm.Barrier()
     if comm.rank == 0:
@@ -295,18 +295,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.change_flag(file_name, 'temporal', 'False')
         io.change_flag(file_name, 'spatial', 'False')
         for name in ['templates', 'spiketimes', 'real_amps', 'amplitudes', 'voltages']:
-            shutil.move(file_out + '/' + data_suff + '.%s.mat' %name, result_path + '%s.mat' %name)
-        data = hdf5storage.loadmat(file_out+'/injected/'+data_suff+'.limits.mat')['limits']
+            shutil.move(os.path.join(file_out, data_suff + '.%s.mat' %name), os.path.join(result_path, '%s.mat' %name))
+        data = hdf5storage.loadmat(os.path.join(result_path, data_suff+'.limits.mat'))['limits']
         for count, cell in enumerate(cells):
             data = numpy.vstack((data, data[cell]))
-        hdf5storage.savemat(result_path + data_suff + '.limits.mat', {'limits' : data})
-        numpy.save(result_path + data_suff + '.scalings', scalings)
-        numpy.save(result_path + 'elecs', best_elecs)
+        hdf5storage.savemat(os.path.join(result_path, data_suff+'.limits.mat'), {'limits' : data})
+        numpy.save(os.path.join(result_path, data_suff + '.scalings'), scalings)
+        numpy.save(os.path.join(result_path, 'elecs'), best_elecs)
 
-        file_name_noext = file_name.split('/')[-1]
+        file_name_noext, ext = os.path.splitext(file_name)
 
         for name in ['.basis.npz', '.thresholds.npy', '.limits.mat', '.whitening.mat']:
-            shutil.copy2(result_path + data_suff + name, file_out + '/' + data_suff+ name)
+            shutil.copy2(os.path.join(result_path, data_suff + name), os.path.join(file_out, data_suff+name))
 
         if benchmark in ['fitting', 'synchrony']:
-            shutil.copy2(result_path + 'templates.mat', file_out + '/' + data_suff + '.templates.mat')
+            shutil.copy2(os.path.join(result_path, 'templates.mat'), os.path.join(file_out,data_suff + '.templates.mat'))
