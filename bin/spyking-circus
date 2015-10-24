@@ -84,11 +84,12 @@ Options are:
         print message
         sys.exit()
     else:
-        filename   = os.path.abspath(argv[1])
+        filename   = argv[1]
         if filename in ['-h', '--help']:
             print message
             sys.exit()
-        elif not os.path.exists(filename):
+        filename   = os.path.abspath(filename)
+        if not os.path.exists(filename):
             print_error(["The data file %s can not be found!" %filename])
             sys.exit()
         else:
