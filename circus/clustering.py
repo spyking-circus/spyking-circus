@@ -14,10 +14,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     if params.get('data', 'global_tmp'):
-        tmp_path_loc = params.get('data', 'data_file_noext')
+        tmp_path_loc = os.path.abspath(params.get('data', 'data_file_noext'))
     else:
-        tmp_path_loc = ''
-    plot_path      = params.get('data', 'data_file_noext') + '/plots/'
+        tmp_path_loc = tempfile.gettempdir()
+    plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     safety_time    = int(params.getfloat('clustering', 'safety_time')*sampling_rate*1e-3)
@@ -56,8 +56,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         injected_spikes = io.load_data(params, 'injected_spikes')
 
     if comm.rank == 0:
-        if not os.path.exists(tmp_path_loc + '/tmp/'):
-            os.makedirs(tmp_path_loc + '/tmp/')
+        if not os.path.exists(os.path.join(tmp_path_loc, 'tmp')):
+            os.makedirs(os.path.join(tmp_path_loc, 'tmp'))
 
     comm.Barrier()
 

@@ -3,10 +3,7 @@ import ConfigParser as configparser
 from termcolor import colored
 
 def purge(file, pattern):
-    if platform.system() == 'Windows':
-        dir = "\\".join(file.split("\\")[:-1])
-    else:
-        dir = "/".join(file.split("/")[:-1])
+    dir = os.path.dirname(os.path.abspath(file))
     for f in os.listdir(dir):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
@@ -37,8 +34,8 @@ def detect_header(filename, value='MCS'):
         return value
 
 def change_flag(file_name, flag, value, avoid_flag=None):
-    extension       = '.' + file_name.split('.')[-1]
-    file_params     = file_name.replace(extension, '.params')
+    f_next, extension = os.path.splitext(os.path.abspath(file_name))
+    file_params       = os.path.abspath(file_name.replace(extension, '.params'))
     f     = open(file_params, 'r')
     lines = f.readlines()
     f.close()
@@ -57,9 +54,9 @@ def change_flag(file_name, flag, value, avoid_flag=None):
 
 def load_parameters(file_name):
 
-    extension       = '.' + file_name.split('.')[-1]
-    file_params     = file_name.replace(extension, '.params')
-    parser          = configparser.SafeConfigParser()
+    f_next, extension = os.path.splitext(os.path.abspath(file_name))
+    file_params       = os.path.abspath(file_name.replace(extension, '.params'))
+    parser            = configparser.SafeConfigParser()
     parser.read(file_params)
 
     sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'noedits']
@@ -67,11 +64,8 @@ def load_parameters(file_name):
         for (key, value) in parser.items(section):
             parser.set(section, key, value.split('#')[0].replace(' ', '')) 
 
-    if platform.system() == 'Windows':
-        file_path   = "\\".join(file_name.split("\\")[:-1])
-    else:
-        file_path   = "/".join(file_name.split("/")[:-1])
-    file_name       = file_name.replace(extension, '')
+    file_path       = os.path.dirname(os.path.abspath(file_name))
+    file_name       = f_next
 
     N_t             = parser.getfloat('data', 'N_t')
     sampling_rate   = parser.getint('data', 'sampling_rate')
@@ -111,10 +105,8 @@ def load_parameters(file_name):
     except Exception:
         pass
 
-    if platform.system() == 'Windows':
-        file_out = file_name + '\\'+ file_name.split('\\')[-1]
-    else:
-        file_out = file_name + '/'+ file_name.split('/')[-1]
+    a, b     = os.path.splitext(os.path.basename(file_name))
+    file_out = os.path.join(os.path.abspath(file_name), a)
     parser.set('data', 'file_name', file_name)
     parser.set('data', 'file_out', file_out) # Output file without suffix
     parser.set('data', 'file_out_suff', file_out  + parser.get('data', 'suffix')) # Output file with suffix

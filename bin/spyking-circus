@@ -40,9 +40,9 @@ def main(argv):
     hostfile  = pjoin(user_path, 'circus.hosts')
 
     if os.path.exists(user_path + 'config.params'):
-        config_file = user_path + 'config.params'
+        config_file = os.path.abspath(user_path + 'config.params')
     else:
-        config_file = pkg_resources.resource_filename('circus', 'config.params')
+        config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
     header = '''
 ##############################################################
@@ -84,7 +84,7 @@ Options are:
         print message
         sys.exit()
     else:
-        filename   = argv[1]
+        filename   = os.path.abspath(argv[1])
         if filename in ['-h', '--help']:
             print message
             sys.exit()
@@ -92,8 +92,8 @@ Options are:
             print_error(["The data file %s can not be found!" %filename])
             sys.exit()
         else:
-            extension       = '.' + filename.split('.')[-1]
-            file_params     = filename.replace(extension, '.params')
+            f_next, extension = os.path.splitext(filename)
+            file_params       = os.path.abspath(filename.replace(extension, '.params'))
             if not os.path.exists(file_params) and not (('-b' in argv) or ('--batch' in argv)):
                 print noparams %file_params
                 key = ''

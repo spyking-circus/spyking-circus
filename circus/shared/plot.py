@@ -168,8 +168,9 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
     ax.plot(rho[centers], delta[centers], 'o', color='r')
     ax.set_yscale('log')
     pylab.tight_layout()
+    import os
     if save:
-        pylab.savefig('%s/cluster_%s.pdf' %(save[0], save[1]))
+        pylab.savefig(os.path.join(save[0], 'cluster_%s.pdf' %save[1]))
         pylab.close()
     else:
         pylab.show()
@@ -212,7 +213,8 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     if nb_templates > 0:
         pylab.tight_layout()
     if save:
-        pylab.savefig('%s/waveforms_%s.pdf' %(save[0], save[1]))
+        import os
+        pylab.savefig(os.path.join(save[0], 'waveforms_%s.pdf' %save[1]))
         pylab.close()
     else:
         pylab.show()
