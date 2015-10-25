@@ -160,8 +160,10 @@ def get_performance(file_name, t_stop, name):
     pylab.xlabel('Time [s]')
 
     pylab.tight_layout()
-    plot_path = os.path.join('plots', 'synchrony')
-    if not plot_path:
+    plot_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+    plot_path = os.path.join(plot_path, 'plots')
+    plot_path = os.path.join(plot_path, 'synchrony')
+    if not os.path.exists(plot_path):
         os.makedirs(plot_path)
     output = os.path.join(plot_path, '%s.pdf' %name)
     pylab.savefig(output)
