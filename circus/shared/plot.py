@@ -96,14 +96,12 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
             pylab.xticks(x, numpy.round(x/sampling_rate, 2))
 
         pylab.ylim(-2*thresholds[i], 2*thresholds[i])
+    pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], save[1]))
+        pylab.savefig(os.path.join(save[0], save[1] + '.pdf'))
         pylab.close()
     else:
         pylab.show()
-    pylab.tight_layout()
-    pylab.show()
-
 
 
 def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=False):
