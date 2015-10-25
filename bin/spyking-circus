@@ -181,16 +181,23 @@ Options are:
                         raise
                 elif command == 'mpirun':
                     # Use mpirun to make the call
-                    args = ['mpirun']
-                    if os.path.exists(hostfile):
-                        args += ['-hostfile', hostfile]
 
                     from mpi4py import MPI
                     vendor = MPI.get_vendor()
                     if vendor[0] == 'Open MPI':
+                        args  = ['mpirun']
                         args += ['-x', 'LD_LIBRARY_PATH']
                         args += ['-x', 'PATH']
                         args += ['-x', 'PYTHONPATH']
+                        if os.path.exists(hostfile):
+                            args += ['-hostfile', hostfile]
+
+                    if vendor[0] == 'Microsoft MPI':
+                        args  = ['mpiexec']
+                        args += ['-env', 'PATH']
+                        args += ['-env', 'PYTHONPATH']
+                        if os.path.exists(hostfile):
+                            args += ['-gmachinefile', hostfile]
 
                     if subtask != 'fitting':
                         nb_tasks = str(max(nb_cpu, nb_gpu))
