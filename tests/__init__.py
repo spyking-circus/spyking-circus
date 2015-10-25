@@ -82,8 +82,10 @@ def get_dataset(self):
         probe_file = os.path.join(os.path.join(user_path, 'probes'), 'dan.prb')
         io.change_flag(filename, 'mapping', probe_file)
 
+
     a, b     = os.path.splitext(os.path.basename(filename))
-    file_out = os.path.join(os.path.abspath(filename), a)
+    c, d     = os.path.splitext(filename)
+    file_out = os.path.join(os.path.abspath(c), a)
 
     mpi_launch('filtering', filename, 2, 0, 'False')
     if not os.path.exists(file_out + '.whitening.mat'):

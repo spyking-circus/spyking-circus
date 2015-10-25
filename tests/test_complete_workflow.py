@@ -5,7 +5,11 @@ from circus.shared.utils import *
 
 def get_performance(file_name, name):
 
+    a, b            = os.path.splitext(os.path.basename(file_name))
     file_name, ext  = os.path.splitext(file_name)
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    result_name     = os.path.join(file_name, 'injected')
+
     pic_name        = file_name + '.pic'
     data            = cPickle.load(open(pic_name))
     n_cells         = data['cells']
@@ -14,10 +18,6 @@ def get_performance(file_name, name):
     sampling        = data['sampling']
     thresh          = int(sampling*2*1e-3)
     sim_templates   = 0.8
-
-    a, b            = os.path.splitext(os.path.basename(file_name))
-    file_out        = os.path.join(os.path.abspath(file_name), a)
-    result_name     = os.path.join(file_name, 'injected')
 
     inj_templates   = hdf5storage.loadmat(os.path.join(result_name, 'templates.mat'))['templates']
     templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']

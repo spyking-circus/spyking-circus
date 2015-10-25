@@ -5,7 +5,11 @@ from circus.shared.utils import *
 
 def get_performance(file_name, t_stop, name):
 
+    a, b            = os.path.splitext(os.path.basename(file_name))
     file_name, ext  = os.path.splitext(file_name)
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    result_name     = os.path.join(file_name, 'injected')
+
     pic_name        = file_name + '.pic'
     data            = cPickle.load(open(pic_name))
     n_cells         = data['cells'] 
@@ -17,10 +21,6 @@ def get_performance(file_name, t_stop, name):
     truncate        = True
     bin_cc          = 10
     t_stop          = t_stop*1000
-
-    a, b            = os.path.splitext(os.path.basename(file_name))
-    file_out        = os.path.join(os.path.abspath(file_name), a)
-    result_name     = os.path.join(file_name, 'injected')
 
     fitted_spikes   = hdf5storage.loadmat(file_out + '.spiketimes.mat')
     fitted_amps     = hdf5storage.loadmat(file_out + '.amplitudes.mat')

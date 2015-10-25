@@ -5,7 +5,11 @@ from circus.shared.utils import *
 
 def get_performance(file_name, name):
 
+    a, b            = os.path.splitext(os.path.basename(file_name))
     file_name, ext  = os.path.splitext(file_name)
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    result_name     = os.path.join(file_name, 'injected')
+
     pic_name        = file_name + '.pic'
     data            = cPickle.load(open(pic_name))
     n_cells         = data['cells'] 
@@ -14,10 +18,6 @@ def get_performance(file_name, name):
     sampling        = data['sampling']
     thresh          = int(sampling*2*1e-3)
     truncate        = True
-
-    a, b            = os.path.splitext(os.path.basename(file_name))
-    file_out        = os.path.join(os.path.abspath(file_name), a)
-    result_name     = os.path.join(file_name, 'injected')
 
     fitted_spikes   = hdf5storage.loadmat(file_out + '.spiketimes.mat')
     fitted_amps     = hdf5storage.loadmat(file_out + '.amplitudes.mat')
@@ -116,6 +116,7 @@ class TestFitting(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
 
+    
     def test_fitting_one_CPU(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 1, 0, 'False')
@@ -124,7 +125,7 @@ class TestFitting(unittest.TestCase):
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
-
+    
     def test_fitting_two_CPUs(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 2, 0, 'False')

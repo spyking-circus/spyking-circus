@@ -5,9 +5,10 @@ from circus.shared.utils import *
 
 def get_performance(file_name, name):
 
-    a, b      = os.path.splitext(os.path.basename(file_name))
-    file_out  = os.path.join(os.path.abspath(file_name), a)
-    data      = hdf5storage.loadmat(file_out + '.whitening.mat')
+    a, b            = os.path.splitext(os.path.basename(file_name))
+    file_name, ext  = os.path.splitext(file_name)
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    data            = hdf5storage.loadmat(file_out + '.whitening.mat')
 
     pylab.figure()
     pylab.subplot(121)
