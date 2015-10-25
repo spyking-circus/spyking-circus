@@ -194,8 +194,6 @@ Options are:
 
                     if vendor[0] == 'Microsoft MPI':
                         args  = ['mpiexec']
-                        args += ['-env', 'PATH']
-                        args += ['-env', 'PYTHONPATH']
                         if os.path.exists(hostfile):
                             args += ['-gmachinefile', hostfile]
 
