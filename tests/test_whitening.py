@@ -5,8 +5,9 @@ from circus.shared.utils import *
 
 def get_performance(file_name, name):
 
-    file_name = ".".join(file_name.split('.')[:-1])
-    data      = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.whitening.mat')
+    a, b      = os.path.splitext(os.path.basename(file_name))
+    file_out  = os.path.join(os.path.abspath(file_name), a)
+    data      = hdf5storage.loadmat(file_out + '.whitening.mat')
 
     pylab.figure()
     pylab.subplot(121)
@@ -22,9 +23,10 @@ def get_performance(file_name, name):
     x, y = pylab.xticks()
     pylab.xticks(x, (x-x[-1]/2)/10)
     pylab.tight_layout()
-    if not os.path.exists('plots/whitening'):
-        os.makedirs('plots/whitening')
-    output = 'plots/whitening/%s.pdf' %name
+    plot_path = os.path.join('plots', 'whitening')
+    if not plot_path:
+        os.makedirs(plot_path)
+    output = os.path.join(plot_path, '%s.pdf' %name)
     pylab.savefig(output)
 
     return data
@@ -32,7 +34,7 @@ def get_performance(file_name, name):
 class TestWhitening(unittest.TestCase):
 
     def setUp(self):
-        self.file_name      = 'synthetic/whitening.raw'
+        self.file_name      = os.path.join('synthetic', 'whitening.raw')
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'     
         self.whitening      = None
         if not os.path.exists(self.file_name):

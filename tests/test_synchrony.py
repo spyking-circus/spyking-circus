@@ -5,7 +5,7 @@ from circus.shared.utils import *
 
 def get_performance(file_name, t_stop, name):
 
-    file_name       = ".".join(file_name.split('.')[:-1])
+    file_name, ext  = os.path.splitext(file_name)
     pic_name        = file_name + '.pic'
     data            = cPickle.load(open(pic_name))
     n_cells         = data['cells'] 
@@ -18,11 +18,15 @@ def get_performance(file_name, t_stop, name):
     bin_cc          = 10
     t_stop          = t_stop*1000
 
-    fitted_spikes   = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.spiketimes.mat')
-    fitted_amps     = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.amplitudes.mat')
-    spikes          = hdf5storage.loadmat(file_name + '/injected/spiketimes.mat')
-    templates       = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.templates.mat')['templates']
-    clusters        = numpy.load(file_name + '/injected/elecs.npy')
+    a, b            = os.path.splitext(os.path.basename(file_name))
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    result_name     = os.path.join(file_name, 'injected')
+
+    fitted_spikes   = hdf5storage.loadmat(file_out + '.spiketimes.mat')
+    fitted_amps     = hdf5storage.loadmat(file_out + '.amplitudes.mat')
+    spikes          = hdf5storage.loadmat(os.path.join(result_name, 'spiketimes.mat'))
+    templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']
+    clusters        = numpy.load(os.path.join(result_name, 'elecs.npy'))
 
     N_t             = templates.shape[1]
     n_tm            = templates.shape[2]/2
@@ -156,9 +160,10 @@ def get_performance(file_name, t_stop, name):
     pylab.xlabel('Time [s]')
 
     pylab.tight_layout()
-    if not os.path.exists('plots/synchrony'):
-        os.makedirs('plots/synchrony')
-    output = 'plots/synchrony/%s.pdf' %name
+    plot_path = os.path.join('plots', 'synchrony')
+    if not plot_path:
+        os.makedirs(plot_path)
+    output = os.path.join(plot_path, '%s.pdf' %name)
     pylab.savefig(output)
     return numpy.mean(cd_nodiag)/numpy.mean(cc_nodiag)
 
@@ -168,7 +173,7 @@ class TestSynchrony(unittest.TestCase):
         self.all_matches    = None
         self.all_templates  = None
         self.max_chunk      = '100'
-        self.file_name      = 'synthetic/synchrony.raw'
+        self.file_name      = os.path.join('synthetic', 'synchrony.raw')
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'synchrony')

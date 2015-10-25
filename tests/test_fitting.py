@@ -5,7 +5,7 @@ from circus.shared.utils import *
 
 def get_performance(file_name, name):
 
-    file_name       = ".".join(file_name.split('.')[:-1])
+    file_name, ext  = os.path.splitext(file_name)
     pic_name        = file_name + '.pic'
     data            = cPickle.load(open(pic_name))
     n_cells         = data['cells'] 
@@ -15,12 +15,16 @@ def get_performance(file_name, name):
     thresh          = int(sampling*2*1e-3)
     truncate        = True
 
-    fitted_spikes   = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.spiketimes.mat')
-    fitted_amps     = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.amplitudes.mat')
-    spikes          = hdf5storage.loadmat(file_name + '/injected/spiketimes.mat')
-    templates       = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.templates.mat')['templates']
-    real_amps       = hdf5storage.loadmat(file_name + '/injected/real_amps.mat')
-    voltages        = hdf5storage.loadmat(file_name + '/injected/voltages.mat')
+    a, b            = os.path.splitext(os.path.basename(file_name))
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    result_name     = os.path.join(file_name, 'injected')
+
+    fitted_spikes   = hdf5storage.loadmat(file_out + '.spiketimes.mat')
+    fitted_amps     = hdf5storage.loadmat(file_out + '.amplitudes.mat')
+    templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']
+    spikes          = hdf5storage.loadmat(os.path.join(result_name, 'spiketimes.mat'))
+    real_amps       = hdf5storage.loadmat(os.path.join(result_name, 'real_amps.mat'))
+    voltages        = hdf5storage.loadmat(os.path.join(result_name, 'voltages.mat'))
     n_tm            = templates.shape[2]/2
     res             = numpy.zeros((len(n_cells), 2))
     res2            = numpy.zeros((len(n_cells), 2))
@@ -91,9 +95,10 @@ def get_performance(file_name, name):
     pylab.show()
 
     pylab.tight_layout()
-    if not os.path.exists('plots/fitting'):
-        os.makedirs('plots/fitting')
-    output = 'plots/fitting/%s.pdf' %name
+    plot_path = os.path.join('plots', 'fitting')
+    if not plot_path:
+        os.makedirs(plot_path)
+    output = os.path.join(plot_path, '%s.pdf' %name)
     pylab.savefig(output)
     return res
 
@@ -102,7 +107,7 @@ class TestFitting(unittest.TestCase):
     def setUp(self):
         self.all_spikes     = None
         self.max_chunk      = '100'
-        self.file_name      = 'synthetic/fitting.raw'
+        self.file_name      = os.path.join('synthetic', 'fitting.raw')
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')

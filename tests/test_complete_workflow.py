@@ -5,7 +5,7 @@ from circus.shared.utils import *
 
 def get_performance(file_name, name):
 
-    file_name       = ".".join(file_name.split('.')[:-1])
+    file_name, ext  = os.path.splitext(file_name)
     pic_name        = file_name + '.pic'
     data            = cPickle.load(open(pic_name))
     n_cells         = data['cells']
@@ -15,13 +15,17 @@ def get_performance(file_name, name):
     thresh          = int(sampling*2*1e-3)
     sim_templates   = 0.8
 
-    inj_templates   = hdf5storage.loadmat(file_name + '/injected/templates.mat')['templates']
-    templates       = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.templates.mat')['templates']
-    amplitudes      = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.limits.mat')['limits']
-    clusters        = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.clusters.mat')
-    fitted_spikes   = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.spiketimes.mat')
-    fitted_amps     = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.amplitudes.mat')
-    spikes          = hdf5storage.loadmat(file_name + '/injected/spiketimes.mat')
+    a, b            = os.path.splitext(os.path.basename(file_name))
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    result_name     = os.path.join(file_name, 'injected')
+
+    inj_templates   = hdf5storage.loadmat(os.path.join(result_name, 'templates.mat'))['templates']
+    templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']
+    amplitudes      = hdf5storage.loadmat(file_out + '.limits.mat')['limits']
+    clusters        = hdf5storage.loadmat(file_out + '.clusters.mat')
+    fitted_spikes   = hdf5storage.loadmat(file_out + '.spiketimes.mat')
+    fitted_amps     = hdf5storage.loadmat(file_out + '.amplitudes.mat')
+    spikes          = hdf5storage.loadmat(os.path.join(result_name, 'spiketimes.mat'))
     n_tm            = inj_templates.shape[2]/2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
@@ -78,15 +82,17 @@ def get_performance(file_name, name):
     pylab.title('False Positive')
 
     pylab.tight_layout()
-    if not os.path.exists('plots/complete'):
-        os.makedirs('plots/complete')
-    output = 'plots/complete/%s.pdf' %name
+    plot_path = os.path.join('plots', 'complete')
+    if not plot_path:
+        os.makedirs(plot_path)
+    output = os.path.join(plot_path, '%s.pdf' %name)
+    pylab.savefig(output)
     pylab.savefig(output)
 
 class TestCompleteWorkflow(unittest.TestCase):
 
     def setUp(self):
-        self.file_name      = 'synthetic/complete.raw'
+        self.file_name      = os.path.join('synthetic', 'complete.raw')
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')

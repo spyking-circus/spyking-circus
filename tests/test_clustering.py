@@ -5,7 +5,7 @@ from circus.shared.utils import *
 
 def get_performance(file_name, name):
 
-    file_name       = ".".join(file_name.split('.')[:-1])
+    file_name, ext  = os.path.splitext(file_name)
     pic_name        = file_name + '.pic'
     data            = cPickle.load(open(pic_name))
     n_cells         = data['cells'] 
@@ -16,11 +16,15 @@ def get_performance(file_name, name):
     probe_file      = data['probe']
     sim_templates   = 0.8
 
-    inj_templates   = hdf5storage.loadmat(file_name + '/injected/templates.mat')['templates']
-    templates       = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.templates.mat')['templates']
-    amplitudes      = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.limits.mat')['limits']
-    clusters        = hdf5storage.loadmat(file_name + '/' + file_name.split('/')[-1] + '.clusters.mat')
-    real_amps       = hdf5storage.loadmat(file_name + '/injected/real_amps.mat')
+    a, b            = os.path.splitext(os.path.basename(file_name))
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    result_name     = os.path.join(file_name, 'injected')
+
+    inj_templates   = hdf5storage.loadmat(os.path.join(result_name, 'templates.mat'))['templates']
+    templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']
+    amplitudes      = hdf5storage.loadmat(file_out + '.limits.mat')['limits']
+    clusters        = hdf5storage.loadmat(file_out + '.clusters.mat')
+    real_amps       = hdf5storage.loadmat(os.path.join(result_name, 'real_amps.mat'))
     n_tm            = inj_templates.shape[2]/2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
@@ -89,9 +93,10 @@ def get_performance(file_name, name):
 
     pylab.tight_layout()
 
-    if not os.path.exists('plots/clustering'):
-        os.makedirs('plots/clustering')
-    output = 'plots/clustering/%s.pdf' %name
+    plot_path = os.path.join('plots', 'clustering')
+    if not plot_path:
+        os.makedirs(plot_path)
+    output = os.path.join(plot_path, '%s.pdf' %name)
     pylab.savefig(output)
     return templates, res2
 
@@ -101,7 +106,7 @@ class TestClustering(unittest.TestCase):
     def setUp(self):
         self.all_matches    = None
         self.all_templates  = None
-        self.file_name      = 'synthetic/clustering.raw'
+        self.file_name      = os.path.join('synthetic', 'clustering.raw')
         self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
