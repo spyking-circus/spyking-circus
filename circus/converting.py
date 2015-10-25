@@ -426,8 +426,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                    )
             run()
 
-    basename         = params.get('data', 'data_file_noext')
-    basename         = basename + '/' + basename.split('/')[-1]
+    basename         = params.get('data', 'file_out_suff')
+    basename, ext    = os.path.splitext(basename)
     prb_file         = params.get('data', 'mapping')
     n_channels       = params.getint('data', 'N_e')
     N_t              = params.getint('data', 'N_t')
