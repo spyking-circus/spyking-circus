@@ -46,7 +46,6 @@ setup(name='spyking-circus',
           'License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
           'Natural Language :: English',
           'Operating System :: OS Independent',
-          'Programming Language :: Python',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 3',
           'Topic :: Scientific/Engineering :: Bio-Informatics'

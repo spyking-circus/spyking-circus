@@ -196,7 +196,10 @@ Options are:
                         if os.path.exists(hostfile):
                             args += ['-gmachinefile', hostfile]
                     else: 
-                        print_error(['%s is not yet implemented: contact developpers' %vendor[0]])
+                        print_error(['%s may not be yet properly implemented: contact developpers' %vendor[0]])
+                        args  = ['mpirun']
+                        if os.path.exists(hostfile):
+                            args += ['-hostfile', hostfile]
 
                     if subtask != 'fitting':
                         nb_tasks = str(max(nb_cpu, nb_gpu))

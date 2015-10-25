@@ -7,7 +7,7 @@ import circus
 import tempfile
 import hdf5storage
 import numpy
-from termcolor import colored
+from circus.shared.files import print_error
 
 filename       = os.path.abspath(sys.argv[1])
 params         = circus.shared.utils.io.load_parameters(filename)
@@ -23,7 +23,7 @@ probetext = file(params.get('data', 'mapping'), 'r')
 try:
     exec probetext in probe
 except Exception:
-    print colored("Something wrong with the probe file!", 'red')
+    print_error(["Something wrong with the probe file!"])
 probetext.close()
 
 def generate_matlab_mapping(probe):
