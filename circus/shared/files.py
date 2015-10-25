@@ -86,7 +86,7 @@ def load_parameters(file_name):
         probetext.close()
     except Exception:
         print_error(["Something wrong with the probe file!"])
-    #mapping_elec = hdf5storage.loadmat(parser.get('data', 'mapping'))['Mapping']
+    
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
     N_e = 0
     for key in probe['channel_groups'].keys():

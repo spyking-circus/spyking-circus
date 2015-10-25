@@ -1,6 +1,6 @@
 import numpy, hdf5storage, pylab, cPickle
 import unittest
-from . import mpi_launch
+from . import mpi_launch, get_dataset
 from circus.shared.utils import *
 
 def get_performance(file_name, t_stop, name):
@@ -173,8 +173,11 @@ class TestSynchrony(unittest.TestCase):
         self.all_matches    = None
         self.all_templates  = None
         self.max_chunk      = '100'
-        self.file_name      = os.path.join('synthetic', 'synchrony.raw')
-        self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
+        self.path           = os.path.join(dirname, 'synthetic')
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        self.file_name      = os.path.join(self.path, 'synchrony.raw')
+        self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'synchrony')
 

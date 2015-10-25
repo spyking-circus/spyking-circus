@@ -1,6 +1,6 @@
 import numpy, hdf5storage, pylab, cPickle
 import unittest
-from . import mpi_launch
+from . import mpi_launch, get_dataset
 from circus.shared.utils import *
 
 def get_performance(file_name, name):
@@ -106,16 +106,14 @@ class TestClustering(unittest.TestCase):
     def setUp(self):
         self.all_matches    = None
         self.all_templates  = None
-        self.file_name      = os.path.join('synthetic', 'clustering.raw')
-        self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
+        self.path           = os.path.join(dirname, 'synthetic')
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        self.file_name      = os.path.join(self.path, 'clustering.raw')
+        self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
         io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
-
-    #def tearDown(self):
-    #    data_path = '.'.join(self.file_name.split('.')[:-1])
-    #    shutil.rmtree(data_path)
-
 
     def test_clustering_one_CPU(self):
         mpi_launch('clustering', self.file_name, 1, 0, 'False')

@@ -1,6 +1,6 @@
 import numpy, hdf5storage, pylab, cPickle
 import unittest
-from . import mpi_launch
+from . import mpi_launch, get_dataset
 from circus.shared.utils import *
 
 def get_performance(file_name, name):
@@ -107,15 +107,14 @@ class TestFitting(unittest.TestCase):
     def setUp(self):
         self.all_spikes     = None
         self.max_chunk      = '100'
-        self.file_name      = os.path.join('synthetic', 'fitting.raw')
-        self.source_dataset = '/home/pierre/gpu/data/Dan/silico_0.dat'
+        dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+        self.path           = os.path.join(dirname, 'synthetic')
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        self.file_name      = os.path.join(self.path, 'fitting.raw')
+        self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
-
-    #def tearDown(self):
-    #    data_path = '.'.join(self.file_name.split('.')[:-1])
-    #    shutil.rmtree(data_path)
-
 
     def test_fitting_one_CPU(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
