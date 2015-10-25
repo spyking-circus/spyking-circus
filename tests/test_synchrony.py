@@ -85,7 +85,7 @@ def get_performance(file_name, t_stop, name):
     try:
         exec probetext in probe
     except Exception:
-        print "Something wrong with the probe file!"
+        io.print_error(["Something wrong with the probe file!"])
     probetext.close()
 
     positions = {}

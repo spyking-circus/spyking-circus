@@ -316,8 +316,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 print "Refining density estimations..."
             if not os.path.exists(plot_path):
                 os.makedirs(plot_path)
-            else:
-                io.purge(plot_path, '.pdf')
 
         for ielec in xrange(comm.rank, N_e, comm.size):
             cluster_results[ielec] = {}

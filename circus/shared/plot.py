@@ -1,11 +1,12 @@
 import numpy
 import pylab
+import os
 
 from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results
 import numpy, pylab
 from circus.shared import algorithms as algo
 
-def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, xzoom=None, yzoom=None, square=True, templates=None):
+def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
     params          = load_parameters(file_name)
     N_e             = params.getint('data', 'N_e')
@@ -37,23 +38,24 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, xzoom=None, yzoom=None, s
         result    = load_data(params, 'results')
     except Exception:
         result    = {'spiketimes' : {}, 'amplitudes' : {}}
-    curve     = numpy.zeros((N_e, (t_stop-t_start)*sampling_rate), dtype=numpy.float32)
-    count     = 0
-    limit     = (t_stop-t_start)*sampling_rate-template_shift+1
-    if templates is None:
-        try:
-            templates = load_data(params, 'templates')
-        except Exception:
-            templates = numpy.zeros((0, 0, 0))
-    for key in result['spiketimes'].keys():
-        elec  = int(key.split('_')[1])
-        lims  = (t_start*sampling_rate + template_shift, t_stop*sampling_rate - template_shift-1)
-        idx   = numpy.where((result['spiketimes'][key] > lims[0]) & (result['spiketimes'][key] < lims[1]))
-        for spike, (amp1, amp2) in zip(result['spiketimes'][key][idx], result['amplitudes'][key][idx]):
-            count += 1
-            spike -= t_start*sampling_rate
-            curve[:, spike-template_shift:spike+template_shift+1] += amp1*templates[:, :, elec] + amp2*templates[:, :, elec+templates.shape[2]/2]
-    print "Number of spikes", count
+    if fit_on:
+        curve     = numpy.zeros((N_e, (t_stop-t_start)*sampling_rate), dtype=numpy.float32)
+        count     = 0
+        limit     = (t_stop-t_start)*sampling_rate-template_shift+1
+        if templates is None:
+            try:
+                templates = load_data(params, 'templates')
+            except Exception:
+                templates = numpy.zeros((0, 0, 0))
+        for key in result['spiketimes'].keys():
+            elec  = int(key.split('_')[1])
+            lims  = (t_start*sampling_rate + template_shift, t_stop*sampling_rate - template_shift-1)
+            idx   = numpy.where((result['spiketimes'][key] > lims[0]) & (result['spiketimes'][key] < lims[1]))
+            for spike, (amp1, amp2) in zip(result['spiketimes'][key][idx], result['amplitudes'][key][idx]):
+                count += 1
+                spike -= t_start*sampling_rate
+                curve[:, spike-template_shift:spike+template_shift+1] += amp1*templates[:, :, elec] + amp2*templates[:, :, elec+templates.shape[2]/2]
+        print "Number of spikes", count
 
     if not numpy.iterable(n_elec):
         if square:
@@ -83,7 +85,8 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, xzoom=None, yzoom=None, s
                 pylab.xlabel('Time [ms]')
                 
         pylab.plot(data[:, i], '0.25')
-        pylab.plot(curve[i], 'r')
+        if fit_on:
+            pylab.plot(curve[i], 'r')
         xmin, xmax = pylab.xlim()
         pylab.plot([xmin, xmax], [-thresholds[i], -thresholds[i]], 'k--')
         pylab.plot([xmin, xmax], [thresholds[i], thresholds[i]], 'k--')
@@ -92,11 +95,12 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, xzoom=None, yzoom=None, s
             x, y = pylab.xticks()
             pylab.xticks(x, numpy.round(x/sampling_rate, 2))
 
-        if xzoom:
-            pylab.xlim(xzoom[0], xzoom[1])
         pylab.ylim(-2*thresholds[i], 2*thresholds[i])
-        if yzoom:
-            pylab.ylim(yzoom[0], yzoom[1])
+    if save:
+        pylab.savefig(os.path.join(save[0], save[1]))
+        pylab.close()
+    else:
+        pylab.show()
     pylab.tight_layout()
     pylab.show()
 
@@ -168,7 +172,6 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
     ax.plot(rho[centers], delta[centers], 'o', color='r')
     ax.set_yscale('log')
     pylab.tight_layout()
-    import os
     if save:
         pylab.savefig(os.path.join(save[0], 'cluster_%s.pdf' %save[1]))
         pylab.close()
@@ -213,7 +216,6 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     if nb_templates > 0:
         pylab.tight_layout()
     if save:
-        import os
         pylab.savefig(os.path.join(save[0], 'waveforms_%s.pdf' %save[1]))
         pylab.close()
     else:

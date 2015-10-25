@@ -1,4 +1,5 @@
 from .shared.utils import *
+from .shared import plot
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
@@ -15,6 +16,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out       = params.get('data', 'file_out')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+    plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     nodes, edges     = io.get_nodes_and_edges(params)
     safety_time      = int(params.getfloat('whitening', 'safety_time')*sampling_rate*1e-3)
     nb_temp_white    = min(20, N_e)
@@ -154,6 +156,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 threshold = numpy.mean(gdata, 0)
                 numpy.save(file_out + '.thresholds', thresholds)
             comm.Barrier()
+
+    if comm.rank == 0:
+        if not os.path.exists(plot_path):
+            os.makedirs(plot_path)
+        n_elec = min(int(numpy.sqrt(N_e)), 5)
+        plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True, n_elec=n_elec, save=[plot_path, 'electrodes'])
 
     # Part 2: Basis
     numpy.random.seed(422)

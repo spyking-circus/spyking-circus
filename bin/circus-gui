@@ -9,7 +9,7 @@ import hdf5storage
 import numpy
 from termcolor import colored
 
-filename       = sys.argv[1]
+filename       = os.path.abspath(sys.argv[1])
 params         = circus.shared.utils.io.load_parameters(filename)
 
 sampling_rate  = params.getint('data', 'sampling_rate')
