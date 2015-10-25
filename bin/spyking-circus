@@ -191,11 +191,12 @@ Options are:
                         args += ['-x', 'PYTHONPATH']
                         if os.path.exists(hostfile):
                             args += ['-hostfile', hostfile]
-
-                    if vendor[0] == 'Microsoft MPI':
+                    elif vendor[0] == 'Microsoft MPI':
                         args  = ['mpiexec']
                         if os.path.exists(hostfile):
                             args += ['-gmachinefile', hostfile]
+                    else: 
+                        print_error(['%s is not yet implemented: contact developpers' %vendor[0]])
 
                     if subtask != 'fitting':
                         nb_tasks = str(max(nb_cpu, nb_gpu))
