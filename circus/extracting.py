@@ -31,6 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         print "Extracting templates from already found clusters..."
 
     thresholds                           = io.load_data(params, 'thresholds')
+    basis_proj, basis_rec                = io.load_data(params, 'basis')
     clusters, spiketimes, N_clusters     = io.load_data(params, 'spike-cluster')
     inv_clusters                         = numpy.zeros(clusters.max()+1, dtype=numpy.int32)
     inv_clusters[numpy.unique(clusters)] = numpy.argsort(numpy.unique(clusters))
@@ -41,7 +42,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     result         = {}
     for i in xrange(N_clusters):
-        result['data_tmp_' + str(i)]  = numpy.zeros((0, N_e * N_t), dtype=numpy.float32)
+        result['data_tmp_' + str(i)]  = numpy.zeros((0, N_e * basis_proj.shape[1]), dtype=numpy.float32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
@@ -105,12 +106,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     peak    = local_peaktimes[idx]
                     if not myslice.any():
                         if (len(result['data_tmp_' + str(temp)]) < max_elts_temp):
-                            elt_count                    += 1
-                            sub_mat                       = local_chunk[peak-template_shift:peak+template_shift+1, :]
-                            sub_mat                       = sub_mat.reshape(1, N_e * N_t)
-                            result['data_tmp_' + str(temp)]   = numpy.vstack((result['data_tmp_' + str(temp)], sub_mat))
-                            to_add                        = numpy.array([peak + local_offset], dtype=numpy.int32)
-                            result['times_' + str(temp)]  = numpy.concatenate((result['times_' + str(temp)], to_add))
+                            elt_count += 1
+                            sub_mat    = local_chunk[peak-template_shift:peak+template_shift+1, :]
+                            sub_mat    = numpy.dot(basis_rec, sub_mat)
+                            nx, ny     = sub_mat.shape
+                            sub_mat    = sub_mat.reshape((1, nx * ny))
+                            result['data_tmp_' + str(temp)] = numpy.vstack((result['data_tmp_' + str(temp)], sub_mat))
+                            to_add                          = numpy.array([peak + local_offset], dtype=numpy.int32)
+                            result['times_' + str(temp)]    = numpy.concatenate((result['times_' + str(temp)], to_add))
                         all_times[indices, min_times[idx]:max_times[idx]] = True
 
             if comm.rank == 0:
@@ -151,8 +154,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for temp in xrange(comm.rank, N_clusters, comm.size):
         n_data           = len(result['data_tmp_' + str(temp)])
         if n_data > 0:
-            data             = result['data_tmp_' + str(temp)].reshape(n_data, N_t, N_e)
-            tmp_templates    = numpy.median(data, axis=0).T
+            data             = result['data_tmp_' + str(temp)].reshape(n_data, basis_proj.shape[1], N_e)
+            first_component  = numpy.median(data, axis=0)
+            tmp_templates    = numpy.dot(first_component.T, basis_rec)
             tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
             temporal_shift   = template_shift - tmpidx[1][0]
             electrodes      += [tmpidx[0][0]]
@@ -167,7 +171,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             x, y, z          = data.shape
             data_flat        = data.reshape(x, y*z)
-            first_flat       = tmp_templates.reshape(y*z, 1)
+            first_flat       = first_component.reshape(y*z, 1)
             amplitudes       = numpy.dot(data_flat, first_flat)
             amplitudes      /= numpy.sum(first_flat**2)
             for i in xrange(x):
@@ -182,10 +186,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(data_flat) > 1:
                 pca              = mdp.nodes.PCANode(output_dim=1)
                 res_pca          = pca(data_flat.astype(numpy.double))
-                tmp_templates    = pca.get_projmatrix().reshape(y, z)
+                second_component = pca.get_projmatrix().reshape(y, z)
             else:
-                tmp_templates    = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
-            tmp_templates = tmp_templates.T
+                second_component = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
+            
+            tmp_templates        = numpy.dot(second_component.T, basis_rec)
+            
             if temporal_shift > 0:
                 templates[indices, temporal_shift:, local_nb_clusters + count_templates] = tmp_templates[indices, :-temporal_shift]
             elif temporal_shift < 0:
@@ -214,7 +220,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result     = {}
 
         for ielec in xrange(N_e):
-            result['data_' + str(ielec)]     = numpy.zeros((0, N_e * N_t), dtype=numpy.float32)
+            result['data_' + str(ielec)]     = numpy.zeros((0, N_e * basis_proj.shape[1]), dtype=numpy.float32)
             result['times_' + str(ielec)]    = numpy.zeros(0, dtype=numpy.int32)
             result['clusters_' + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
 
@@ -260,6 +266,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.remove(file_out_suff + '.clusters.mat')
 
         hdf5storage.savemat(file_out_suff + '.clusters',   result)
-        hdf5storage.savemat(file_out_suff + '.limits-bis', {'limits' : amplitudes})
+        hdf5storage.savemat(file_out_suff + '.limits', {'limits' : amplitudes})
 
         io.get_overlaps(params, erase=True)
