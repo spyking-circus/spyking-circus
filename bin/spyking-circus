@@ -195,6 +195,10 @@ Options are:
                         args  = ['mpiexec']
                         if os.path.exists(hostfile):
                             args += ['-gmachinefile', hostfile]
+                    elif vendor[0] == 'MPICH2':
+                        args  = ['mpiexec']
+                        if os.path.exists(hostfile):
+                            args += ['-f', hostfile]
                     else: 
                         print_error(['%s may not be yet properly implemented: contact developpers' %vendor[0]])
                         args  = ['mpirun']
