@@ -392,14 +392,14 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_threads).start()
 
     for count, node in enumerate(xrange(nb_threads)):
-        spiketimes_file = file(file_out_suff + '.spiketimes-%d.data' %node, 'r')
-        amplitudes_file = file(file_out_suff + '.amplitudes-%d.data' %node, 'r')
-        templates_file  = file(file_out_suff + '.templates-%d.data' %node, 'r')
+        spiketimes_file = file_out_suff + '.spiketimes-%d.data' %node
+        amplitudes_file = file_out_suff + '.amplitudes-%d.data' %node
+        templates_file  = file_out_suff + '.templates-%d.data' %node
         if with_real_amps:
-            real_amps_file = file(file_out_suff + '.real_amps-%d.data' %node, 'r')
+            real_amps_file = file_out_suff + '.real_amps-%d.data' %node
             real_amps      = numpy.fromfile(real_amps_file, dtype=numpy.float32)
         if with_voltages:
-            voltages_file  = file(file_out_suff + '.voltages-%d.data' %node, 'r')
+            voltages_file  = file_out_suff + '.voltages-%d.data' %node
             voltages       = numpy.fromfile(voltages_file, dtype=numpy.float32)
 
         amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)

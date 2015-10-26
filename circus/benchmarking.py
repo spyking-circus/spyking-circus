@@ -187,11 +187,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
 
-    spiketimes_file     = open(os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank), 'w')
-    amplitudes_file     = open(os.path.join(file_out, data_suff + '.amplitudes-%d.data' %comm.rank), 'w')
-    templates_file      = open(os.path.join(file_out, data_suff + '.templates-%d.data' %comm.rank), 'w')
-    real_amps_file      = open(os.path.join(file_out, data_suff + '.real_amps-%d.data' %comm.rank), 'w')
-    voltages_file       = open(os.path.join(file_out, data_suff + '.voltages-%d.data' %comm.rank), 'w')
+    spiketimes_file     = open(os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank), 'wb')
+    amplitudes_file     = open(os.path.join(file_out, data_suff + '.amplitudes-%d.data' %comm.rank), 'wb')
+    templates_file      = open(os.path.join(file_out, data_suff + '.templates-%d.data' %comm.rank), 'wb')
+    real_amps_file      = open(os.path.join(file_out, data_suff + '.real_amps-%d.data' %comm.rank), 'wb')
+    voltages_file       = open(os.path.join(file_out, data_suff + '.voltages-%d.data' %comm.rank), 'wb')
 
     for count, gidx in enumerate(to_process):
 
