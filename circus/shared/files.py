@@ -1,6 +1,8 @@
 import numpy, hdf5storage, h5py, os, progressbar, platform
 import ConfigParser as configparser
 from termcolor import colored
+import colorama
+colorama.init()
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))

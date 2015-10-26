@@ -1,5 +1,4 @@
 from .shared.utils import *
-from termcolor import colored
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     numpy.random.seed(451235)
