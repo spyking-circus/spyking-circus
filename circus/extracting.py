@@ -151,8 +151,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for temp in xrange(comm.rank, N_clusters, comm.size):
         n_data           = len(result['data_tmp_' + str(temp)])
         if n_data > 0:
-            data             = result['data_tmp_' + str(temp)].reshape(n_data, N_e, N_t)
-            tmp_templates    = numpy.median(data, axis=0)
+            data             = result['data_tmp_' + str(temp)].reshape(n_data, N_t, N_e)
+            tmp_templates    = numpy.median(data, axis=0).T
             tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
             temporal_shift   = template_shift - tmpidx[1][0]
             electrodes      += [tmpidx[0][0]]
@@ -185,7 +185,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 tmp_templates    = pca.get_projmatrix().reshape(y, z)
             else:
                 tmp_templates    = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
-            
+            tmp_templates = tmp_templates.T
             if temporal_shift > 0:
                 templates[indices, temporal_shift:, local_nb_clusters + count_templates] = tmp_templates[indices, :-temporal_shift]
             elif temporal_shift < 0:
@@ -214,7 +214,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result     = {}
 
         for ielec in xrange(N_e):
-            result['data_' + str(ielec)]     = numpy.zeros(0, dtype=numpy.int32)
+            result['data_' + str(ielec)]     = numpy.zeros((0, N_e * N_t), dtype=numpy.float32)
             result['times_' + str(ielec)]    = numpy.zeros(0, dtype=numpy.int32)
             result['clusters_' + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
 
@@ -234,11 +234,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.remove(file_out_suff + '.amplitudes-%d.npy' %i)
             os.remove(file_out_suff + '.data-%d.pic' %i)
             for j in range(i, N_clusters, comm.size):
-                for best_elec in bs[i]:
-                    result['data_' + str(best_elec)]     = rs[i]['data_' + str(j)]
-                    result['times_' + str(best_elec)]    = rs[i]['times_' + str(j)]
-                    result['clusters_' + str(best_elec)] = rs[i]['clusters_' + str(j)]
+                for best_elec in cs[i]:
+                    result['data_' + str(best_elec)]  = numpy.concatenate((result['data_' + str(best_elec)], rs[i]['data_tmp_' + str(j)]))
+                    result['times_' + str(best_elec)] = numpy.concatenate((result['times_' + str(best_elec)], rs[i]['times_' + str(j)]))
+                    n_data = len(result['clusters_' + str(best_elec)])
+                    if n_data == 0:
+                        cluster_id = 0
+                    else:
+                        cluster_id = result['clusters_' + str(best_elec)].max() + 1
+                    labels = cluster_id * numpy.ones(n_data, dtype=numpy.int32)
+                    result['clusters_' + str(best_elec)] = numpy.concatenate((result['clusters_' + str(best_elec)], labels))
 
+        result['electrodes']   = numpy.array(electrodes)
         amplitudes             = numpy.array(amplitudes)
         templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge)
 
@@ -253,6 +260,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.remove(file_out_suff + '.clusters.mat')
 
         hdf5storage.savemat(file_out_suff + '.clusters',   result)
-        hdf5storage.savemat(file_out_suff + '.limits', {'limits' : amplitudes})
+        hdf5storage.savemat(file_out_suff + '.limits-bis', {'limits' : amplitudes})
 
         io.get_overlaps(params, erase=True)
