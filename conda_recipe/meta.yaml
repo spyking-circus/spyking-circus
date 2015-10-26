@@ -19,6 +19,7 @@ requirements:
     - h5py
     - setuptools
     - termcolor
+    - colorama
   run:
     - progressbar
     - mpi4py
@@ -31,6 +32,7 @@ requirements:
     - h5py
     - setuptools
     - termcolor
+    - colorama
 
 source:
   path: ..
