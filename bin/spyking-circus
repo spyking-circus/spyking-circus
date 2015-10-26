@@ -9,6 +9,8 @@ import pkg_resources
 import platform
 from os.path import join as pjoin
 from termcolor import colored
+import colorama
+colorama.init()
 
 
 import circus
