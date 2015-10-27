@@ -1724,7 +1724,7 @@ if ViewMode==2
     
     
 
-    BinSize = 20;%1 ms
+    BinSize = 2;%1 ms
 
     MaxDelay = 100;% in BinSize
 
@@ -1751,7 +1751,7 @@ if ViewMode==2
 else
     t1 = handles.SpikeTimes{CellNb};
     
-    BinSize = 20;%1 ms
+    BinSize = 2;%1 ms
 
     MaxDelay = 100;% in BinSize
 
