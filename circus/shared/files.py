@@ -528,7 +528,7 @@ def get_overlaps(params, extension='', erase=False):
         for i in xrange(N_tm):
             max_overlaps[i] = numpy.max(file.get('overlap')[i], 1)
 
-        hdf5storage.savemat(file_out_suff + '.overlap.mat%s' %extension, {'maxoverlap' : max_overlaps})
+        hdf5storage.savemat(file_out_suff + '.overlap%s.mat' %extension, {'maxoverlap' : max_overlaps})
 
         return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]
 
