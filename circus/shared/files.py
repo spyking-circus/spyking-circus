@@ -144,8 +144,8 @@ def load_parameters(file_name):
                   ['clustering', 'cc_delay', 'float', '0'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
-                  ['merging', 'cc_gap', 'float', '0.02',
-                  ['merging', 'cc_overlap', 'float', '0.75']]]
+                  ['merging', 'cc_gap', 'float', '0.02'],
+                  ['merging', 'cc_overlap', 'float', '0.75']]
 
     for item in new_values:
         section, name, val_type, value = item
