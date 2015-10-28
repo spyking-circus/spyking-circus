@@ -63,11 +63,10 @@ handles.output = hObject;
 filename = varargin{2};
 suffix = varargin{3};
 
-%if ~strcmp(suffix, '.mat')
-%    result = strsplit(suffix, '.mat');
-%    strcat([result(1) '1'])
-%    set(handles.VersionNb, 'String', strcat([result(1) '1']));
-%end
+if ~strcmp(suffix, '.mat')
+    result = strsplit(suffix, '.mat');
+    set(handles.VersionNb, 'String', result(1));
+end
 
 handles.SamplingRate = varargin{1};
 
