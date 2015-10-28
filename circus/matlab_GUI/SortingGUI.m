@@ -63,6 +63,11 @@ handles.output = hObject;
 filename = varargin{2};
 suffix = varargin{3};
 
+%if ~strcmp(suffix, '.mat')
+%    result = strsplit(suffix, '.mat');
+%    strcat([result(1) '1'])
+%    set(handles.VersionNb, 'String', strcat([result(1) '1']));
+%end
 
 handles.SamplingRate = varargin{1};
 
@@ -1537,8 +1542,8 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-suffix = get(handles.VersionNb,'String');
-filename = [handles.filename];
+suffix = get(handles.VersionNb,'String')
+filename = handles.filename;
 
 templates = handles.templates;
 templates(:,:,size(templates,3)+1:size(templates,3)*2) = handles.templates2;
@@ -1578,7 +1583,7 @@ save([filename '.clusters' suffix '.mat'],'clusters','DistribClust','BestElec','
 
 %% overlap
 
-overlap = handles.overlap;
+overlap = handles.overlap * (size(handles.templates,1) * size(handles.templates,2));
 
 save([filename '.overlap' suffix '.mat'],'overlap','-mat','-v7.3');
 
