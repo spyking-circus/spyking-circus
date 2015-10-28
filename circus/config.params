@@ -47,6 +47,10 @@ refractory     = 0         # Refractory period, in ms [0 is None]
 max_chunk      = inf       # Fit only up to max_chunk   
 spike_range    = 0         # Jitter allowed around each spike time to fit the templates (in ms) 
 
+[merging]
+cc_gap         = 0.02      # Normalized difference between CrossCorr and shuffled CrossCorr
+cc_overlap     = 0.75      # Only templates with CC higher than cc_overlap may be merged
+
 [extracting]
 safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
 max_elts       = 1000      # Max number of collected events per templates

@@ -10,9 +10,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     file_out_suff  = params.get('data', 'file_out_suff')
     file_out       = params.get('data', 'file_out')
-
+    cc_gap         = params.get('merging', 'cc_gap')
+    cc_overlap     = params.get('merging', 'cc_overlap')
+    
     bin_size       = int(2e-3 * sampling_rate)
-    overlap_thresh = 0.75
     max_delay      = 100
 
     templates      = io.load_data(params, 'templates')
@@ -111,7 +112,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(spikes['temp_' + str(temp_id1)]) > 0:
                 for temp_id2 in xrange(temp_id1+1, nb_before):
                     if len(spikes['temp_' + str(temp_id2)]) > 0:
-                        if overlap[temp_id1, temp_id2] > overlap_thresh:
+                        if overlap[temp_id1, temp_id2] > cc_overlap:
                             x_cc, y_cc    = reversed_corr(spikes['temp_' + str(temp_id1)], spikes['temp_' + str(temp_id2)], max_delay)
                             all_overlaps += [overlap[temp_id1, temp_id2]]
                             d1            = numpy.mean(y_cc[to_average])
@@ -120,7 +121,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             all_pairs    += [[temp_id1, temp_id2]]
 
                             distances     = (1 - all_overlaps[-1])*all_corrs[-1]
-                            if distances > 0.02:
+                            if distances > cc_gap:
                                 if (not (temp_id1 in all_mergings)) and (not (temp_id2 in all_mergings)):
                                     all_mergings = numpy.vstack((all_mergings,  numpy.array([temp_id1, temp_id2])))
 
