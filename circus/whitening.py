@@ -19,7 +19,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     nodes, edges     = io.get_nodes_and_edges(params)
     safety_time      = int(params.getfloat('whitening', 'safety_time')*sampling_rate*1e-3)
-    nb_temp_white    = min(20, N_e)
+    nb_temp_white    = min(max(20, comm.size), N_e)
     max_silence_1    = int(500000 / comm.size)
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
