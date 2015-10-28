@@ -10,8 +10,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     file_out_suff  = params.get('data', 'file_out_suff')
     file_out       = params.get('data', 'file_out')
-    cc_gap         = params.get('merging', 'cc_gap')
-    cc_overlap     = params.get('merging', 'cc_overlap')
+    cc_gap         = params.getfloat('merging', 'cc_gap')
+    cc_overlap     = params.getfloat('merging', 'cc_overlap')
     
     bin_size       = int(2e-3 * sampling_rate)
     max_delay      = 100
