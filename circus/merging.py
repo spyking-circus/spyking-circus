@@ -16,6 +16,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     bin_size       = int(2e-3 * sampling_rate)
     max_delay      = 100
 
+    debug          = True
     templates      = io.load_data(params, 'templates')
     clusters       = io.load_data(params, 'clusters')
     result         = io.load_data(params, 'results')
@@ -23,6 +24,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     overlap       /= templates.shape[0] * templates.shape[1]
 
     io.purge(file_out_suff, '-merged')
+    if debug:
+        io.purge(file_out_suff, 'debug-')
 
     delay_average  = 20
     to_average     = range(max_delay + 1 - delay_average, max_delay + 1 + delay_average)
@@ -98,15 +101,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Merging similar templates..."
     do_merging = True
+    count = 0
     nb_init    = templates.shape[2]/2
     while do_merging:
 
         all_overlaps = []
         all_pairs    = []
         all_corrs    = []
+        all_x_cc     = []
+        all_y_cc     = []
         spikes       = result['spiketimes']
         nb_before    = templates.shape[2]/2
         all_mergings = numpy.zeros((0, 2), dtype=numpy.int32)
+        d_mergings   = numpy.zeros(0, dtype=numpy.int32)
 
         for temp_id1 in xrange(nb_before):
             if len(spikes['temp_' + str(temp_id1)]) > 0:
@@ -115,16 +122,36 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         if overlap[temp_id1, temp_id2] > cc_overlap:
                             x_cc, y_cc    = reversed_corr(spikes['temp_' + str(temp_id1)], spikes['temp_' + str(temp_id2)], max_delay)
                             all_overlaps += [overlap[temp_id1, temp_id2]]
-                            d1            = numpy.mean(y_cc[to_average])
-                            d2            = numpy.mean(x_cc[to_average])
-                            all_corrs    += [(d1 - d2)/(d1 + d2 + 1)]
+                            d1            = y_cc[to_average]
+                            d2            = x_cc[to_average]
+                            all_x_cc     += [d2]
+                            all_y_cc     += [d1]
+                            all_corrs    += [(numpy.mean(d1) - numpy.mean(d2))/(numpy.mean(d1) + numpy.mean(d2) + 1)]
                             all_pairs    += [[temp_id1, temp_id2]]
-
-                            distances     = (1 - all_overlaps[-1])*all_corrs[-1]
-                            if distances > cc_gap:
+                            distance      = all_overlaps[-1]*all_corrs[-1]
+                            if distance > cc_gap:
                                 if (not (temp_id1 in all_mergings)) and (not (temp_id2 in all_mergings)):
-                                    all_mergings = numpy.vstack((all_mergings,  numpy.array([temp_id1, temp_id2])))
+                                    all_mergings = numpy.vstack((all_mergings, numpy.array([temp_id1, temp_id2])))
+                                    d_mergings   = numpy.concatenate((d_mergings, [distance]))
+                                else:
+                                    for i in xrange(len(all_mergings)):
+                                        if (temp_id1 in all_mergings[i]) or (temp_id2 in all_mergings[i]):
+                                            if distance > d_mergings[i]:
+                                                all_mergings[i] = [temp_id1, temp_id2]
+                                                d_mergings[i]   = distance  
 
+
+        if debug:
+            m = numpy.array(all_overlaps)*numpy.array(all_corrs)
+            pylab.figure()
+            pylab.subplot(121)
+            pylab.plot(m, '.')
+            pylab.plot(m[m > cc_gap], 'r.')
+            pylab.subplot(122)
+            pylab.imshow(numpy.array(all_x_cc)[m > cc_gap], aspect='auto', interpolation='nearest')
+            pylab.savefig(file_out_suff + '-debug-plot-%d.pdf' %count)
+
+        count += 1
         if len(all_mergings) > 0:
             templates, clusters, overlap, result = perform_merging(all_mergings, templates, clusters, overlap, result)
         else:
