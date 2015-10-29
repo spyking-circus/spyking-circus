@@ -12,11 +12,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out       = params.get('data', 'file_out')
     cc_gap         = params.getfloat('merging', 'cc_gap')
     cc_overlap     = params.getfloat('merging', 'cc_overlap')
+    make_plots     = params.getbool('merging', 'make_plots')
+
     
     bin_size       = int(2e-3 * sampling_rate)
     max_delay      = 100
 
-    debug          = True
     templates      = io.load_data(params, 'templates')
     clusters       = io.load_data(params, 'clusters')
     result         = io.load_data(params, 'results')
@@ -51,7 +52,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         for count in xrange(len(all_pairs)):
             pairs      = all_pairs[count]
-            print "Automatic merging of templates", pairs
             key        = 'temp_' + str(pairs[0])
             key2       = 'temp_' + str(pairs[1])
             spikes     = result['spiketimes'][key2]
@@ -140,7 +140,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                                 all_mergings[i] = [temp_id1, temp_id2]
                                                 d_mergings[i]   = distance  
 
-
         if debug:
             m = numpy.array(all_overlaps)*numpy.array(all_corrs)
             pylab.figure()
@@ -154,16 +153,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         count += 1
         if len(all_mergings) > 0:
             templates, clusters, overlap, result = perform_merging(all_mergings, templates, clusters, overlap, result)
+            print "Automatic merging of %d pairs..." %len(all_mergings)
         else:
             do_merging = False
-
-        #distances  = (1 - numpy.array(all_overlaps)) * numpy.array(all_corrs)
-        #d          = numpy.argmax(distances)
-        #if distances[d] > 0.01:
-        #    pairs = all_pairs[d]
-        #    templates, clusters, overlap, result = perform_merging(pairs, templates, clusters, overlap, result)
-        #else:
-        #    do_merging = False
 
     if comm.rank == 0:
         print "We merged", nb_init - templates.shape[2]/2, "templates" 

@@ -50,6 +50,7 @@ spike_range    = 0         # Jitter allowed around each spike time to fit the te
 [merging]
 cc_gap         = 0.05      # Normalized difference between CrossCorr and shuffled CrossCorr
 cc_overlap     = 0.75      # Only templates with CC higher than cc_overlap may be merged
+make_plots     = True      # Generate sanity plots during automatic merging
 
 [extracting]
 safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
