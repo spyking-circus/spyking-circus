@@ -114,13 +114,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     nb_elecs  = numpy.array([len(local_res)], dtype=numpy.float32)
     local_res = numpy.array(local_res, dtype=numpy.float32)
-    local_res = numpy.sum(local_res, 0)
+    if len(local_res) == 0:
+        local_res = numpy.zeros(0, dtype=numpy.float32)
+    else:
+        local_res = numpy.sum(local_res, 0)
     all_res   = gather_array(local_res.flatten(), comm, 0, 1)
     all_elecs = gather_array(nb_elecs, comm, 0, 1)
 
     if comm.rank == 0 and (do_spatial_whitening or do_temporal_whitening):
         try:
-            all_res         = all_res.reshape((comm.size, N_t**2))
+            nb_silences     = numpy.sum(all_elecs > 0)
+            all_res         = all_res.reshape((nb_silences, N_t**2))
         except Exception:
             print io.print_info(["No silent periods detected: something wrong with the parameters?"])
         all_res             = numpy.sum(all_res, 0)
