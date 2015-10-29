@@ -12,8 +12,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out       = params.get('data', 'file_out')
     cc_gap         = params.getfloat('merging', 'cc_gap')
     cc_overlap     = params.getfloat('merging', 'cc_overlap')
-    make_plots     = params.getbool('merging', 'make_plots')
-
+    make_plots     = params.getboolean('merging', 'make_plots')
+    plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     
     bin_size       = int(2e-3 * sampling_rate)
     max_delay      = 100
@@ -25,8 +25,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     overlap       /= templates.shape[0] * templates.shape[1]
 
     io.purge(file_out_suff, '-merged')
-    if debug:
-        io.purge(file_out_suff, 'debug-')
+    if make_plots:
+        if not os.path.exists(plot_path):
+            os.makedirs(plot_path)
+        io.purge(plot_path, 'merging')
 
     delay_average  = 20
     to_average     = range(max_delay + 1 - delay_average, max_delay + 1 + delay_average)
@@ -104,7 +106,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     count = 0
     nb_init    = templates.shape[2]/2
     while do_merging:
-
+        print "Searching for pairs to merge [iteration %d]..." %count
         all_overlaps = []
         all_pairs    = []
         all_corrs    = []
@@ -140,7 +142,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                                 all_mergings[i] = [temp_id1, temp_id2]
                                                 d_mergings[i]   = distance  
 
-        if debug:
+        if make_plots:
             m = numpy.array(all_overlaps)*numpy.array(all_corrs)
             pylab.figure()
             pylab.subplot(121)
@@ -148,7 +150,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             pylab.plot(m[m > cc_gap], 'r.')
             pylab.subplot(122)
             pylab.imshow(numpy.array(all_x_cc)[m > cc_gap], aspect='auto', interpolation='nearest')
-            pylab.savefig(file_out_suff + '-debug-plot-%d.pdf' %count)
+            pylab.savefig(os.path.join(plot_path, 'merging-%d.pdf' %count))
 
         count += 1
         if len(all_mergings) > 0:
@@ -158,7 +160,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             do_merging = False
 
     if comm.rank == 0:
-        print "We merged", nb_init - templates.shape[2]/2, "templates" 
+        print "We merged a total of", nb_init - templates.shape[2]/2, "templates" 
 
     if templates.shape[2]/2 < nb_init:
         hdf5storage.savemat(file_out_suff + '.amplitudes-merged', result['amplitudes'])
