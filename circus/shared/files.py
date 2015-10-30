@@ -167,7 +167,7 @@ def data_stats(params):
     N_total        = params.getint('data', 'N_total')
     N_e            = params.getint('data', 'N_e')
     sampling_rate  = params.getint('data', 'sampling_rate')
-    datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype)
+    datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     N              = len(datablock)
     chunk_len      = N_total * (60 * sampling_rate)
     nb_chunks      = N / chunk_len
@@ -208,7 +208,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
     gain         = params.getfloat('data', 'gain')
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype)
+    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     local_chunk  = datablock[idx*chunk_len+padding[0]:(idx+1)*chunk_len+padding[1]]
     local_shape  = chunk_size + (padding[1]-padding[0])/N_total
     local_chunk  = local_chunk.reshape(local_shape, N_total)
@@ -228,7 +228,7 @@ def analyze_data(params, chunk_size=None):
     data_dtype     = params.get('data', 'data_dtype')
     N_total        = params.getint('data', 'N_total')
     template_shift = params.getint('data', 'template_shift')
-    datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype)
+    datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     N              = len(datablock)
     chunk_len      = N_total * chunk_size
     nb_chunks      = N / chunk_len
