@@ -12,12 +12,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out       = params.get('data', 'file_out')
     cc_gap         = params.getfloat('merging', 'cc_gap')
     cc_overlap     = params.getfloat('merging', 'cc_overlap')
+    cc_bin         = params.getfloat('merging', 'cc_bin')
+    cc_average     = params.getfloat('merging', 'cc_average')
     make_plots     = params.getboolean('merging', 'make_plots')
     plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     
-    bin_size       = int(2e-3 * sampling_rate)
-    max_delay      = 100
-
+    bin_size       = int(cc_bin * sampling_rate * 1e-3)
+    delay_average  = int(cc_average/cc_bin)
+    max_delay      = max(100, delay_average)
+    
     templates      = io.load_data(params, 'templates')
     clusters       = io.load_data(params, 'clusters')
     result         = io.load_data(params, 'results')
@@ -30,7 +33,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(plot_path)
         io.purge(plot_path, 'merging')
 
-    delay_average  = 25
     to_average     = range(max_delay + 1 - delay_average, max_delay + 1 + delay_average)
     
     def reversed_corr(spike_1, spike_2, max_delay):

@@ -145,6 +145,8 @@ def load_parameters(file_name):
                   ['extracting', 'noise_thr', 'float', '0.8'],
                   ['merging', 'cc_gap', 'float', '0.02'],
                   ['merging', 'cc_overlap', 'float', '0.75'],
+                  ['merging', 'cc_bin', 'float', '2'],
+                  ['merging', 'cc_average', 'float', '40'],
                   ['merging', 'make_plots', 'bool', 'True']]
 
     for item in new_values:
