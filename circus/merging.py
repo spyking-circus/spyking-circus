@@ -30,7 +30,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(plot_path)
         io.purge(plot_path, 'merging')
 
-    delay_average  = 20
+    delay_average  = 25
     to_average     = range(max_delay + 1 - delay_average, max_delay + 1 + delay_average)
     
     def reversed_corr(spike_1, spike_2, max_delay):
@@ -116,7 +116,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         nb_before    = templates.shape[2]/2
         all_mergings = numpy.zeros((0, 2), dtype=numpy.int32)
         d_mergings   = numpy.zeros(0, dtype=numpy.int32)
+        idx_mergings = []
 
+        gidx         = 0
         for temp_id1 in xrange(nb_before):
             if len(spikes['temp_' + str(temp_id1)]) > 0:
                 for temp_id2 in xrange(temp_id1+1, nb_before):
@@ -124,40 +126,51 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         if overlap[temp_id1, temp_id2] > cc_overlap:
                             x_cc, y_cc    = reversed_corr(spikes['temp_' + str(temp_id1)], spikes['temp_' + str(temp_id2)], max_delay)
                             all_overlaps += [overlap[temp_id1, temp_id2]]
-                            d1            = y_cc[to_average]
-                            d2            = x_cc[to_average]
+                            d1            = y_cc
+                            d2            = x_cc
                             all_x_cc     += [d2]
                             all_y_cc     += [d1]
-                            all_corrs    += [(numpy.mean(d1) - numpy.mean(d2))/(numpy.mean(d1) + numpy.mean(d2) + 1)]
+                            dd1           = d1[[to_average]]
+                            dd2           = d2[to_average]
+                            all_corrs    += [(numpy.mean(dd1) - numpy.mean(dd2))/(numpy.mean(dd1) + numpy.mean(dd2) + 1)]
                             all_pairs    += [[temp_id1, temp_id2]]
                             distance      = all_overlaps[-1]*all_corrs[-1]
                             if distance > cc_gap:
                                 if (not (temp_id1 in all_mergings)) and (not (temp_id2 in all_mergings)):
-                                    all_mergings = numpy.vstack((all_mergings, numpy.array([temp_id1, temp_id2])))
-                                    d_mergings   = numpy.concatenate((d_mergings, [distance]))
+                                    all_mergings  = numpy.vstack((all_mergings, numpy.array([temp_id1, temp_id2])))
+                                    d_mergings    = numpy.concatenate((d_mergings, [distance]))
+                                    idx_mergings += [gidx]
                                 else:
                                     for i in xrange(len(all_mergings)):
                                         if (temp_id1 in all_mergings[i]) or (temp_id2 in all_mergings[i]):
                                             if distance > d_mergings[i]:
                                                 all_mergings[i] = [temp_id1, temp_id2]
-                                                d_mergings[i]   = distance  
+                                                d_mergings[i]   = distance
+                                                idx_mergings[i] = gidx  
+                            gidx += 1
 
-        if make_plots:
-            m = numpy.array(all_overlaps)*numpy.array(all_corrs)
-            pylab.figure()
-            pylab.subplot(121)
-            pylab.plot(m, '.')
-            pylab.plot(m[m > cc_gap], 'r.')
-            pylab.subplot(122)
-            pylab.imshow(numpy.array(all_x_cc)[m > cc_gap], aspect='auto', interpolation='nearest')
-            pylab.savefig(os.path.join(plot_path, 'merging-%d.pdf' %count))
-
-        count += 1
         if len(all_mergings) > 0:
+            if make_plots:
+                m = numpy.array(all_overlaps)*numpy.array(all_corrs)
+                pylab.figure()
+                pylab.subplot(131)
+                pylab.plot(m, '.')
+                pylab.plot(m[idx_mergings], 'r.')
+                pylab.subplot(132)
+                pylab.title('Merged CCs')
+                pylab.imshow(numpy.array(all_x_cc)[idx_mergings], aspect='auto', interpolation='nearest')
+                pylab.subplot(133)
+                pylab.title('All CCs')
+                pylab.imshow(numpy.array(all_x_cc), aspect='auto', interpolation='nearest')
+                pylab.tight_layout()
+                pylab.savefig(os.path.join(plot_path, 'merging-%d.pdf' %count))
+
             templates, clusters, overlap, result = perform_merging(all_mergings, templates, clusters, overlap, result)
             print "Automatic merging of %d pairs..." %len(all_mergings)
         else:
             do_merging = False
+
+        count += 1
 
     if comm.rank == 0:
         print "We merged a total of", nb_init - templates.shape[2]/2, "templates" 
