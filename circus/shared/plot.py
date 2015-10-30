@@ -153,7 +153,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
         my_cmap   = pylab.get_cmap('winter')
 
         ax = fig.add_subplot(236)
-        ax.scatter(visu_data[:,0], visu_data[:,1], c=rho, cmap=my_cmap)
+        idx = numpy.argsort(rho)
+        ax.scatter(visu_data[idx,0], visu_data[idx,1], c=rho[idx], cmap=my_cmap)
         ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
         if injected is not None:
             ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
