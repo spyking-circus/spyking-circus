@@ -481,7 +481,7 @@ def get_overlaps(params, extension='', erase=False):
             
         templates      = load_data(params, 'templates', extension=extension)
         N_e, N_t, N_tm = templates.shape
-        cuda_string    = 'with 1 CPU...'
+        cuda_string    = 'using 1 CPU...'
 
         try:
             import cudamat as cmt    
@@ -489,7 +489,7 @@ def get_overlaps(params, extension='', erase=False):
             cmt.cuda_set_device(0)
             cmt.init()
             cmt.cuda_sync_threads()
-            cuda_string    = 'with 1 GPU...'
+            cuda_string    = 'using 1 GPU...'
         except Exception:
             HAVE_CUDA = False
 
