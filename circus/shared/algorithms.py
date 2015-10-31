@@ -383,7 +383,8 @@ def delete_mixtures(templates, amplitudes, result, cc_merge):
     distances /= (templates.shape[0]*N_t)
 
     for i in xrange(nb_temp):
-        idx = numpy.where(distances[i, i+1:] > 0.9)[0]
+        indices = numpy.delete(numpy.arange(nb_temp), i)
+        idx     = numpy.where(distances[i, indices] > 0.9)[0]
         if len(idx) > 1:
             mixtures += [i]
     
