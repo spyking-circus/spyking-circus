@@ -268,7 +268,10 @@ def merging_cc(templates, amplitudes, result, cc_merge):
 
     norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0),0))
     norm_templates = templates/norm_templates
-    overlaps       = numpy.zeros((2*nb_temp, 2*nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32)
+    import tempfile, h5py
+    tmp_file = tempfile.NamedTemporaryFile()
+    file = h5py.File(tmp_file.name, 'w')
+    file.create_dataset('overlap', shape=(2*nb_temp, 2*nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32, chunks=True)
     N_t            = templates.shape[1]
     pbar           = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
@@ -285,15 +288,18 @@ def merging_cc(templates, amplitudes, result, cc_merge):
             tmp_2 = tmp_2.reshape(size, 2*nb_temp)
             data  = numpy.dot(tmp_1.T, tmp_2)
 
-        overlaps[:, :, idelay-1]           = data
-        overlaps[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
+        file.get('overlap')[:, :, idelay-1]           = data
+        file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
         pbar.update(idelay)
     pbar.finish()
+    file.close()
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    file = h5py.File(tmp_file.name)
     for i in xrange(nb_temp):
-        distances[i, i+1:] = numpy.max(overlaps[i, i+1:nb_temp], 1)
+        distances[i, i+1:] = numpy.max(file.get('overlap')[i, i+1:nb_temp], 1)
         distances[i+1:, i] = distances[i, i+1:]
-
+    file.close()
+    tmp_file.close()
     distances /= (templates.shape[0]*N_t)
 
     while has_been_merged:
