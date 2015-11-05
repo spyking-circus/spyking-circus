@@ -57,7 +57,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_chunk   = local_chunk.astype(numpy.float32)
             local_chunk  -= dtype_offset
             for i in xrange(N_total):
-                local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
+                try:
+                    local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
+                except Exception:
+                    pass
             local_chunk  += dtype_offset
             local_chunk   = local_chunk.astype(data_dtype)
             local_chunk   = local_chunk.reshape(local_shape * N_total)
