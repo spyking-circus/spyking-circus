@@ -313,9 +313,7 @@ def merging_cc(templates, amplitudes, result, cc_merge):
 def delete_mixtures(templates, amplitudes, result, cc_merge):
 
     def remove_template(templates, amplitudes, result, to_remove):
-        dmax      = distances.max()
         nb_temp   = templates.shape[2]/2
-
         elec      = result['electrodes'][to_remove]
         nic       = to_remove - numpy.where(result['electrodes'] == elec)[0][0]
         mask      = result['clusters_' + str(elec)] > -1
@@ -329,9 +327,7 @@ def delete_mixtures(templates, amplitudes, result, cc_merge):
         result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
         templates                       = numpy.delete(templates, [to_remove, to_remove + nb_temp], axis=2)
         amplitudes                      = numpy.delete(amplitudes, to_remove, axis=0)
-        distances                       = numpy.delete(distances, to_remove, axis=0)
-        distances                       = numpy.delete(distances, to_remove, axis=1)
-        return templates, amplitudes, result, distances
+        return templates, amplitudes, result
         
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
@@ -346,10 +342,9 @@ def delete_mixtures(templates, amplitudes, result, cc_merge):
     except Exception:
         HAVE_CUDA = False
 
-
     import tempfile, h5py
     tmp_file = tempfile.NamedTemporaryFile()
-    file = h5py.File(tmp_file.name, 'w')
+    file = h5py.File(tmp_file.name + '.hdf5', 'w')
     file.create_dataset('overlap', shape=(2*nb_temp, 2*nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32, chunks=True)
     N_t            = templates.shape[1]
     pbar           = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
@@ -374,12 +369,14 @@ def delete_mixtures(templates, amplitudes, result, cc_merge):
     file.close()
 
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-    file = h5py.File(tmp_file.name)
+    file = h5py.File(tmp_file.name + '.hdf5')
     for i in xrange(nb_temp):
         distances[i, i+1:] = numpy.max(file.get('overlap')[i, i+1:nb_temp], 1)
         distances[i+1:, i] = distances[i, i+1:]
     file.close()
     tmp_file.close()
+    os.remove(tmp_file.name + '.hdf5')
+
     distances /= (templates.shape[0]*N_t)
 
     for i in xrange(nb_temp):
@@ -387,9 +384,9 @@ def delete_mixtures(templates, amplitudes, result, cc_merge):
         idx     = numpy.where(distances[i, indices] > 0.9)[0]
         if len(idx) > 1:
             mixtures += [i]
-    
+
     for tmp in mixtures:
-        templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, tmp)
+        templates, amplitudes, result = remove_template(templates, amplitudes, result, tmp)
 
     return templates, amplitudes, result, [nb_temp, len(mixtures)]
 
