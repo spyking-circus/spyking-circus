@@ -581,9 +581,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['electrodes']   = numpy.array(electrodes)
         amplitudes             = numpy.array(amplitudes)
 
-        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge)
+        print "Merging similar templates..."
+        templates, amplitudes, result, merged1 = algo.merging_cc(templates, amplitudes, result, cc_merge)
 
-        io.print_info(["Number of global merges  : %d" %merged[1]])
+        print "Removing mixtures..."
+        templates, amplitudes, result, merged2 = algo.delete_mixtures(templates, amplitudes, result, cc_merge)
+
+        io.print_info(["Number of global merges    : %d" %merged1[1], 
+                       "Number of mixtures removed : %d" %merged2[1]])
 
         if os.path.exists(file_out_suff + '.templates.mat'):
             os.remove(file_out_suff + '.templates.mat')

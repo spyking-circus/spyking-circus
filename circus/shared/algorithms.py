@@ -310,6 +310,86 @@ def merging_cc(templates, amplitudes, result, cc_merge):
     return templates, amplitudes, result, merged
 
 
+def delete_mixtures(templates, amplitudes, result, cc_merge):
+
+    def remove_template(templates, amplitudes, result, to_remove):
+        nb_temp   = templates.shape[2]/2
+        elec      = result['electrodes'][to_remove]
+        nic       = to_remove - numpy.where(result['electrodes'] == elec)[0][0]
+        mask      = result['clusters_' + str(elec)] > -1
+        tmp       = numpy.unique(result['clusters_' + str(elec)][mask])
+        elements  = numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0]
+        
+        result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
+        result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
+        result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
+        result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
+        result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
+        templates                       = numpy.delete(templates, [to_remove, to_remove + nb_temp], axis=2)
+        amplitudes                      = numpy.delete(amplitudes, to_remove, axis=0)
+        return templates, amplitudes, result
+        
+    nb_temp         = templates.shape[2]/2
+    merged          = [nb_temp, 0]
+    mixtures        = []
+
+    try:
+        import cudamat as cmt    
+        HAVE_CUDA = True
+        cmt.cuda_set_device(0)
+        cmt.init()
+        cmt.cuda_sync_threads()
+    except Exception:
+        HAVE_CUDA = False
+
+    import tempfile, h5py
+    tmp_file = tempfile.NamedTemporaryFile()
+    file = h5py.File(tmp_file.name + '.hdf5', 'w')
+    file.create_dataset('overlap', shape=(2*nb_temp, 2*nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32, chunks=True)
+    N_t            = templates.shape[1]
+    pbar           = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
+
+    for idelay in xrange(1, N_t+1):
+        tmp_1 = templates[:, :idelay, :]
+        tmp_2 = templates[:, -idelay:, :]
+        size  = templates.shape[0]*idelay
+        if HAVE_CUDA:
+            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2*nb_temp))
+            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, 2*nb_temp))
+            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+        else:
+            tmp_1 = tmp_1.reshape(size, 2*nb_temp)
+            tmp_2 = tmp_2.reshape(size, 2*nb_temp)
+            data  = numpy.dot(tmp_1.T, tmp_2)
+
+        file.get('overlap')[:, :, idelay-1]           = data
+        file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
+        pbar.update(idelay)
+    pbar.finish()
+    file.close()
+
+    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    file = h5py.File(tmp_file.name + '.hdf5')
+    for i in xrange(nb_temp):
+        distances[i, i+1:] = numpy.max(file.get('overlap')[i, i+1:nb_temp], 1)
+        distances[i+1:, i] = distances[i, i+1:]
+    file.close()
+    tmp_file.close()
+    os.remove(tmp_file.name + '.hdf5')
+
+    distances /= (templates.shape[0]*N_t)
+
+    for i in xrange(nb_temp):
+        indices = numpy.delete(numpy.arange(nb_temp), i)
+        idx     = numpy.where(distances[i, indices] > 0.9)[0]
+        if len(idx) > 1:
+            mixtures += [i]
+
+    for tmp in mixtures:
+        templates, amplitudes, result = remove_template(templates, amplitudes, result, tmp)
+
+    return templates, amplitudes, result, [nb_temp, len(mixtures)]
+
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False, show=False, ax=None):
 
     """

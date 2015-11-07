@@ -61,7 +61,7 @@ def load_parameters(file_name):
     parser            = configparser.SafeConfigParser()
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'noedits']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits']
     for section in sections:
         for (key, value) in parser.items(section):
             parser.set(section, key, value.split('#')[0].replace(' ', '')) 
@@ -142,7 +142,12 @@ def load_parameters(file_name):
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
-                  ['extracting', 'noise_thr', 'float', '0.8']]
+                  ['extracting', 'noise_thr', 'float', '0.8'],
+                  ['merging', 'cc_gap', 'float', '0.02'],
+                  ['merging', 'cc_overlap', 'float', '0.75'],
+                  ['merging', 'cc_bin', 'float', '2'],
+                  ['merging', 'cc_average', 'float', '40'],
+                  ['merging', 'make_plots', 'bool', 'True']]
 
     for item in new_values:
         section, name, val_type, value = item
