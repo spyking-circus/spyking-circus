@@ -502,7 +502,7 @@ def get_overlaps(params, extension='', erase=False):
         norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0),0))
         templates     /= norm_templates
 
-        print "Computing the templates overlaps", cuda_string
+        print "Computing the overlaps", cuda_string
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
         file = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w')
