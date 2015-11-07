@@ -48,7 +48,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
         u          = numpy.median(local_chunk, 0)
-        thresholds = numpy.median(abs(local_chunk - u), 0)
+        thresholds = numpy.zeros(N_e, dtype=numpy.float32)
+        for i in xrange(N_e):
+            thresholds[i] = numpy.median(abs(local_chunk[:, i] - u[i]), 0)
         gdata      = gather_array(thresholds, comm)
         if comm.rank == 0:
             gdata.reshape((comm.size, N_e))
