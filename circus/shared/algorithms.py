@@ -312,21 +312,25 @@ def merging_cc(templates, amplitudes, result, cc_merge):
 
 def delete_mixtures(templates, amplitudes, result):
 
-    def remove_template(templates, amplitudes, result, to_remove):
-        nb_temp   = templates.shape[2]/2
-        elec      = result['electrodes'][to_remove]
-        nic       = to_remove - numpy.where(result['electrodes'] == elec)[0][0]
-        mask      = result['clusters_' + str(elec)] > -1
-        tmp       = numpy.unique(result['clusters_' + str(elec)][mask])
-        elements  = numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0]
-        
-        result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
-        result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
-        result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
-        result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
-        result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
-        templates                       = numpy.delete(templates, [to_remove, to_remove + nb_temp], axis=2)
-        amplitudes                      = numpy.delete(amplitudes, to_remove, axis=0)
+    def remove_template(templates, amplitudes, result, mixtures):
+
+        for count in xrange(len(mixtures)):
+            to_remove = mixtures[count]
+            nb_temp   = templates.shape[2]/2
+            elec      = result['electrodes'][to_remove]
+            nic       = to_remove - numpy.where(result['electrodes'] == elec)[0][0]
+            mask      = result['clusters_' + str(elec)] > -1
+            tmp       = numpy.unique(result['clusters_' + str(elec)][mask])
+            elements  = numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0]
+            
+            result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
+            result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
+            result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
+            result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
+            result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
+            templates                       = numpy.delete(templates, [to_remove, to_remove + nb_temp], axis=2)
+            amplitudes                      = numpy.delete(amplitudes, to_remove, axis=0)
+            mixtures[mixtures > to_remove] -= 1
         return templates, amplitudes, result
         
     nb_temp         = templates.shape[2]/2
@@ -409,8 +413,7 @@ def delete_mixtures(templates, amplitudes, result):
     tmp_file.close()
     os.remove(tmp_file.name + '.hdf5')
 
-    for tmp in mixtures:
-        templates, amplitudes, result = remove_template(templates, amplitudes, result, tmp)
+    templates, amplitudes, result = remove_template(templates, amplitudes, result, numpy.array(mixtures))
 
     return templates, amplitudes, result, [nb_temp, len(mixtures)]
 
