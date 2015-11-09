@@ -79,6 +79,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             abs_chunks      = numpy.abs(local_chunk[local_peaktimes])
             argmax_peak     = numpy.random.permutation(numpy.arange(len(local_peaktimes)))
             best_electrode  = numpy.argmax(abs_chunks[argmax_peak], 1)
+            del abs_chunks
 
             #print "Selection of the peaks with spatio-temporal masks..."
             for idx, elec in zip(argmax_peak, best_electrode):
@@ -137,6 +138,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         hdf5storage.savemat(file_out + '.whitening', {'spatial' : spatial_whitening, 'temporal' : temporal_whitening})
         print "Because of whitening, we need to recompute the thresholds..."
 
+    del all_res, all_silences
     comm.Barrier()
 
     if do_spatial_whitening or do_temporal_whitening:

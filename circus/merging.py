@@ -19,7 +19,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     bin_size       = int(cc_bin * sampling_rate * 1e-3)
     delay_average  = int(cc_average/cc_bin)
-    max_delay      = max(100, delay_average)
+    max_delay      = int(2*cc_average)
     
     templates      = io.load_data(params, 'templates')
     clusters       = io.load_data(params, 'clusters')
@@ -122,9 +122,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         gidx         = 0
         for temp_id1 in xrange(nb_before):
-            if len(spikes['temp_' + str(temp_id1)]) > 0:
+            if len(spikes['temp_' + str(temp_id1)]) > 20:
                 for temp_id2 in xrange(temp_id1+1, nb_before):
-                    if len(spikes['temp_' + str(temp_id2)]) > 0:
+                    if len(spikes['temp_' + str(temp_id2)]) > 20:
                         if overlap[temp_id1, temp_id2] > cc_overlap:
                             x_cc, y_cc    = reversed_corr(spikes['temp_' + str(temp_id1)], spikes['temp_' + str(temp_id2)], max_delay)
                             all_overlaps += [overlap[temp_id1, temp_id2]]
@@ -155,15 +155,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if make_plots:
                 m = numpy.array(all_overlaps)*numpy.array(all_corrs)
                 pylab.figure()
-                pylab.subplot(131)
+                pylab.subplot(121)
                 pylab.plot(m, '.')
                 pylab.plot(m[idx_mergings], 'r.')
-                pylab.subplot(132)
+                pylab.xlabel('Pairs')
+                pylab.ylabel('Merging criteria')
+                pylab.subplot(122)
                 pylab.title('Merged CCs')
-                pylab.imshow(numpy.array(all_x_cc)[idx_mergings], aspect='auto', interpolation='nearest')
-                pylab.subplot(133)
-                pylab.title('All CCs')
-                pylab.imshow(numpy.array(all_x_cc), aspect='auto', interpolation='nearest')
+                pylab.xlabel('Time [ms]')
+                arg_idx      = numpy.argsort(d_mergings)
+                idx_mergings = numpy.array(idx_mergings)
+                pylab.imshow(numpy.array(all_x_cc)[idx_mergings[arg_idx]], aspect='auto', interpolation='nearest')
+                xmin, xmax = pylab.xlim()
+                ymin, ymax = pylab.ylim()
+                x, y = pylab.xticks()
+                pylab.xticks(x, numpy.round(numpy.linspace(-max_delay*cc_bin, max_delay*cc_bin, len(x)), 1))
+                pylab.plot([-cc_average + max_delay, -cc_average + max_delay], [ymin, ymax], 'r--')
+                pylab.plot([cc_average + max_delay, cc_average + max_delay], [ymin, ymax], 'r--')
+                pylab.xlim(xmin, xmax)
+                pylab.ylim(ymin, ymax)
                 pylab.tight_layout()
                 pylab.savefig(os.path.join(plot_path, 'merging-%d.pdf' %count))
 
