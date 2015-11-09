@@ -371,19 +371,30 @@ def delete_mixtures(templates, amplitudes, result, cc_merge):
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
     file = h5py.File(tmp_file.name + '.hdf5')
     for i in xrange(nb_temp):
-        distances[i, i+1:] = numpy.max(file.get('overlap')[i, i+1:nb_temp], 1)
+        distances[i, i+1:] = numpy.argmax(file.get('overlap')[i, i+1:nb_temp], 1)
         distances[i+1:, i] = distances[i, i+1:]
+
+    import scipy.linalg
+    for k in xrange(nb_temp):
+        idx_1 = numpy.where(result['electrodes'] == result['electrodes'][k])[0]
+        for i in idx_1:
+            idx_2 = numpy.where(result['electrodes'] != result['electrodes'][k])[0]
+            for j in idx_2:
+                for delay in [distances[k, i], distances[k, j]]:
+                    t1_vs_t1 = file.get('overlap')[i, i, N_t]   #numpy.dot(templates[:,:,i].flatten(), templates[:,:,i].flatten())
+                    t2_vs_t2 = file.get('overlap')[j, j, N_t]   #numpy.dot(templates[:,:,j].flatten(), templates[:,:,j].flatten())
+                    t1_vs_t2 = file.get('overlap')[i, j, delay] #numpy.dot(templates[:,:,i].flatten(), templates[:,:,j].flatten())
+                    t_vs_t1  = file.get('overlap')[k, i, delay] #numpy.dot(templates[:,:,k].flatten(), templates[:,:,i].flatten())
+                    t_vs_t2  = file.get('overlap')[k, j, delay] #numpy.dot(templates[:,:,k].flatten(), templates[:,:,j].flatten())
+                    M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
+                    V        = numpy.hstack((t_vs_t1, t_vs_t2))
+                    [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                    if numpy.abs(1 - a1) < 0.1 and numpy.abs(1 - a2) < 0.1:
+                        mixtures += [k]
+
     file.close()
     tmp_file.close()
     os.remove(tmp_file.name + '.hdf5')
-
-    distances /= (templates.shape[0]*N_t)
-
-    for i in xrange(nb_temp):
-        indices = numpy.delete(numpy.arange(nb_temp), i)
-        idx     = numpy.where(distances[i, indices] > 0.9)[0]
-        if len(idx) > 1:
-            mixtures += [i]
 
     for tmp in mixtures:
         templates, amplitudes, result = remove_template(templates, amplitudes, result, tmp)
