@@ -63,25 +63,26 @@ def load_parameters(file_name):
 
     sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits']
     for section in sections:
-        for (key, value) in parser.items(section):
-            parser.set(section, key, value.split('#')[0].replace(' ', '')) 
+        try:
+            for (key, value) in parser.items(section):
+                parser.set(section, key, value.split('#')[0].replace(' ', '')) 
+        except Exception:
+            pass
 
     file_path       = os.path.dirname(os.path.abspath(file_name))
     file_name       = f_next
-
     N_t             = parser.getfloat('data', 'N_t')
     sampling_rate   = parser.getint('data', 'sampling_rate')
     N_t             = int(sampling_rate*N_t*1e-3)
     if numpy.mod(N_t, 2) == 0:
         N_t += 1
     parser.set('data', 'N_t', str(N_t))
-    parser.set('data', 'chunk_size', str(60*sampling_rate))
     parser.set('data', 'template_shift', str(int((N_t-1)/2)))
 
     data_offset = parser.get('data', 'data_offset')
     parser.set('data', 'data_offset', str(detect_header(file_name+extension, data_offset)))
     
-    probe     = {}
+    probe = {}
     try:
         probetext = file(parser.get('data', 'mapping'), 'r')
         exec probetext in probe
@@ -132,6 +133,7 @@ def load_parameters(file_name):
                   ['fitting', 'spike_range', 'float', '0'],
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
+                  ['data', 'chunk_size', 'int', '60'],
                   ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
                   ['clustering', 'make_plots', 'bool', 'True'],
@@ -160,6 +162,9 @@ def load_parameters(file_name):
                 parser.getfloat(section, name)
         except Exception:
             parser.set(section, name, value)
+
+    chunk_size = parser.getint('data', 'chunk_size')
+    parser.set('data', 'chunk_size', str(chunk_size*sampling_rate))
 
     return parser
 
