@@ -370,27 +370,35 @@ def delete_mixtures(templates, amplitudes, result):
 
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
     file = h5py.File(tmp_file.name + '.hdf5')
+
     for i in xrange(nb_temp):
         distances[i, i+1:] = numpy.argmax(file.get('overlap')[i, i+1:nb_temp], 1)
         distances[i+1:, i] = distances[i, i+1:]
 
     import scipy.linalg
+    overlap_0 = file.get('overlap')[:, :, N_t]
     for k in xrange(nb_temp):
-        print k
-        idx_1 = numpy.where(result['electrodes'] == result['electrodes'][k])[0]
+        idx_1      = numpy.where(result['electrodes'] == result['electrodes'][k])[0]
+        tmp_idx    = numpy.where(result['electrodes'] != result['electrodes'][k])[0]
+        electrodes = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
+        idx_2      = []
+        overlap_k  = file.get('overlap')[k]
+        for idx in tmp_idx:
+            if result['electrodes'][idx] in electrodes:
+                idx_2 += [idx]
         for i in idx_1:
-            t1_vs_t1 = file.get('overlap')[i, i, N_t]
-            idx_2 = numpy.where(result['electrodes'] != result['electrodes'][k])[0]
+            overlap_i = file.get('overlap')[i]
+            t1_vs_t1  = overlap_0[i, i]
             for j in idx_2:
-                t2_vs_t2 = file.get('overlap')[j, j, N_t]
-                t1_vs_t2 = file.get('overlap')[i, j, distances[k, i] - distances[k, j]]
+                t2_vs_t2 = overlap_0[j, j]
+                t1_vs_t2 = overlap_i[j, distances[k, i] - distances[k, j]]
                 for delay in [distances[k, i], distances[k, j]]:
-                    t_vs_t1  = file.get('overlap')[k, i, delay]
-                    t_vs_t2  = file.get('overlap')[k, j, delay]
+                    t_vs_t1  = overlap_k[i, delay]
+                    t_vs_t2  = overlap_k[j, delay]
                     M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
                     V        = numpy.hstack((t_vs_t1, t_vs_t2))
                     [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                    if numpy.abs(1 - a1) < 0.1 and numpy.abs(1 - a2) < 0.1:
+                    if numpy.abs(1 - a1) < 0.05 and numpy.abs(1 - a2) < 0.05:
                         print i, j, k, a1, a2
                         if k not in mixtures:
                             mixtures += [k]
