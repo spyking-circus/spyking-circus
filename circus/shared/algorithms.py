@@ -310,7 +310,7 @@ def merging_cc(templates, amplitudes, result, cc_merge):
     return templates, amplitudes, result, merged
 
 
-def delete_mixtures(templates, amplitudes, result, cc_merge):
+def delete_mixtures(templates, amplitudes, result):
 
     def remove_template(templates, amplitudes, result, to_remove):
         nb_temp   = templates.shape[2]/2
@@ -376,21 +376,24 @@ def delete_mixtures(templates, amplitudes, result, cc_merge):
 
     import scipy.linalg
     for k in xrange(nb_temp):
+        print k
         idx_1 = numpy.where(result['electrodes'] == result['electrodes'][k])[0]
         for i in idx_1:
+            t1_vs_t1 = file.get('overlap')[i, i, N_t]
             idx_2 = numpy.where(result['electrodes'] != result['electrodes'][k])[0]
             for j in idx_2:
+                t2_vs_t2 = file.get('overlap')[j, j, N_t]
+                t1_vs_t2 = file.get('overlap')[i, j, distances[k, i] - distances[k, j]]
                 for delay in [distances[k, i], distances[k, j]]:
-                    t1_vs_t1 = file.get('overlap')[i, i, N_t]   #numpy.dot(templates[:,:,i].flatten(), templates[:,:,i].flatten())
-                    t2_vs_t2 = file.get('overlap')[j, j, N_t]   #numpy.dot(templates[:,:,j].flatten(), templates[:,:,j].flatten())
-                    t1_vs_t2 = file.get('overlap')[i, j, delay] #numpy.dot(templates[:,:,i].flatten(), templates[:,:,j].flatten())
-                    t_vs_t1  = file.get('overlap')[k, i, delay] #numpy.dot(templates[:,:,k].flatten(), templates[:,:,i].flatten())
-                    t_vs_t2  = file.get('overlap')[k, j, delay] #numpy.dot(templates[:,:,k].flatten(), templates[:,:,j].flatten())
+                    t_vs_t1  = file.get('overlap')[k, i, delay]
+                    t_vs_t2  = file.get('overlap')[k, j, delay]
                     M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
                     V        = numpy.hstack((t_vs_t1, t_vs_t2))
                     [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
                     if numpy.abs(1 - a1) < 0.1 and numpy.abs(1 - a2) < 0.1:
-                        mixtures += [k]
+                        print i, j, k, a1, a2
+                        if k not in mixtures:
+                            mixtures += [k]
 
     file.close()
     tmp_file.close()

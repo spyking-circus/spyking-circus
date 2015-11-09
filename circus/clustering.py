@@ -585,7 +585,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         templates, amplitudes, result, merged1 = algo.merging_cc(templates, amplitudes, result, cc_merge)
 
         print "Removing mixtures..."
-        templates, amplitudes, result, merged2 = algo.delete_mixtures(templates, amplitudes, result, cc_merge)
+        templates, amplitudes, result, merged2 = algo.delete_mixtures(templates, amplitudes, result)
 
         io.print_info(["Number of global merges    : %d" %merged1[1], 
                        "Number of mixtures removed : %d" %merged2[1]])
