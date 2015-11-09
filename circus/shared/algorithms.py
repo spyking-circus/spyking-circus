@@ -377,6 +377,7 @@ def delete_mixtures(templates, amplitudes, result):
 
     import scipy.linalg
     overlap_0 = file.get('overlap')[:, :, N_t]
+    pbar      = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_temp).start()
     for k in xrange(nb_temp):
         idx_1      = numpy.where(result['electrodes'] == result['electrodes'][k])[0]
         tmp_idx    = numpy.where(result['electrodes'] != result['electrodes'][k])[0]
@@ -399,9 +400,10 @@ def delete_mixtures(templates, amplitudes, result):
                     V        = numpy.hstack((t_vs_t1, t_vs_t2))
                     [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
                     if numpy.abs(1 - a1) < 0.05 and numpy.abs(1 - a2) < 0.05:
-                        print i, j, k, a1, a2
                         if k not in mixtures:
                             mixtures += [k]
+        pbar.update(k)
+    pbar.finish()
 
     file.close()
     tmp_file.close()
