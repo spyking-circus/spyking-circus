@@ -219,13 +219,15 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     gain         = params.getfloat('data', 'gain')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     local_chunk  = datablock[idx*chunk_len+padding[0]:(idx+1)*chunk_len+padding[1]]
+    del datablock
     local_shape  = chunk_size + (padding[1]-padding[0])/N_total
     local_chunk  = local_chunk.reshape(local_shape, N_total)
     local_chunk  = local_chunk.astype(numpy.float32)
     local_chunk -= dtype_offset
     local_chunk *= gain
     if nodes is not None:
-        local_chunk  = local_chunk[:, nodes]
+        if not numpy.all(nodes == numpy.arange(N_total)):
+            local_chunk = local_chunk[:, nodes]
     return local_chunk, local_shape
 
 def analyze_data(params, chunk_size=None):

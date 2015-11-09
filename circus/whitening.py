@@ -36,7 +36,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.print_error(["More nodes than 1 min chunks to load: decrease n_cpu or provide more data"])
         sys.exit(0)
 
-
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
     all_electrodes = numpy.random.permutation(N_e)
@@ -45,12 +44,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         #print "Node", comm.rank, "is analyzing chunk", gidx,  "/", nb_chunks, " ..."
         local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, nodes=nodes)
-
+        print "Data loaded", chunk_len
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
-        u          = numpy.median(local_chunk, 0)
         thresholds = numpy.zeros(N_e, dtype=numpy.float32)
         for i in xrange(N_e):
-            thresholds[i] = numpy.median(abs(local_chunk[:, i] - u[i]), 0)
+            u             = numpy.median(local_chunk[:, i], 0)
+            thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
         gdata      = gather_array(thresholds, comm)
         if comm.rank == 0:
             gdata.reshape((comm.size, N_e))
@@ -154,8 +153,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 for i in xrange(N_e):
                     local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
 
-            u          = numpy.median(local_chunk, 0)
-            thresholds = numpy.median(abs(local_chunk - u), 0)
+            thresholds = numpy.zeros(N_e, dtype=numpy.float32)
+            for i in xrange(N_e):
+                u             = numpy.median(local_chunk[:, i], 0)
+                thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
             gdata      = gather_array(thresholds, comm)
             if comm.rank == 0:
                 gdata.reshape((comm.size, N_e))
