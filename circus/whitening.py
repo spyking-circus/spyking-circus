@@ -44,7 +44,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         #print "Node", comm.rank, "is analyzing chunk", gidx,  "/", nb_chunks, " ..."
         local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, nodes=nodes)
-        print "Data loaded", chunk_len
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
         thresholds = numpy.zeros(N_e, dtype=numpy.float32)
         for i in xrange(N_e):
