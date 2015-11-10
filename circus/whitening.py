@@ -247,7 +247,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_peaktimes   = all_peaktimes[idx]
             all_minimas     = all_minimas[idx]
 
-            local_peaktimes = numpy.lib.arraysetops.unique(all_peaktimes)
+            local_peaktimes = numpy.unique(all_peaktimes)
 
             if len(local_peaktimes) > 0:
 

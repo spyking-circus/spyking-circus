@@ -87,34 +87,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 n_times         = len(local_peaktimes)
                 argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
                 clusters_id     = local_clusters[argmax_peak]
-                best_electrode  = numpy.argmin(local_chunk[local_peaktimes[argmax_peak]], 1)
-
-                myslice         = numpy.mod(clusters_id, comm.size) == comm.rank
-                argmax_peak     = argmax_peak[myslice]
-                best_electrode  = best_electrode[myslice]
                 local_peaktimes = local_peaktimes[argmax_peak]
-
+                
                 #print "Selection of the peaks with spatio-temporal masks..."
-                #for idx, temp, elec in zip(argmax_peak, clusters_id, best_electrode):
                 for idx in xrange(len(local_peaktimes)):
+                    
                     if elt_count == nb_elts:
                         break
-                    elec    = best_electrode[idx]
-                    temp    = clusters_id[idx]
-                    indices = inv_nodes[edges[nodes[elec]]]
-                    myslice = all_times[indices, min_times[idx]:max_times[idx]]
-                    peak    = local_peaktimes[idx]
-                    if not myslice.any():
-                        if (len(result['data_tmp_' + str(temp)]) < max_elts_temp):
-                            elt_count += 1
-                            sub_mat    = local_chunk[peak-template_shift:peak+template_shift+1, :]
-                            sub_mat    = numpy.dot(basis_rec, sub_mat)
-                            nx, ny     = sub_mat.shape
-                            sub_mat    = sub_mat.reshape((1, nx * ny))
-                            result['data_tmp_' + str(temp)] = numpy.vstack((result['data_tmp_' + str(temp)], sub_mat))
-                            to_add                          = numpy.array([peak + local_offset], dtype=numpy.int32)
-                            result['times_' + str(temp)]    = numpy.concatenate((result['times_' + str(temp)], to_add))
-                        all_times[indices, min_times[idx]:max_times[idx]] = True
+
+                    temp = clusters_id[idx]
+
+                    if numpy.mod(temp, comm.size) == comm.rank:
+
+                        elec = numpy.argmin(local_chunk[local_peaktimes[idx]])
+                        indices = inv_nodes[edges[nodes[elec]]]
+                        myslice = all_times[indices, min_times[idx]:max_times[idx]]
+                        peak    = local_peaktimes[idx]
+                        if not myslice.any():
+                            if (len(result['data_tmp_' + str(temp)]) < max_elts_temp):
+                                elt_count += 1
+                                sub_mat    = local_chunk[peak-template_shift:peak+template_shift+1, :]
+                                sub_mat    = numpy.dot(basis_rec, sub_mat)
+                                nx, ny     = sub_mat.shape
+                                sub_mat    = sub_mat.reshape((1, nx * ny))
+                                result['data_tmp_' + str(temp)] = numpy.vstack((result['data_tmp_' + str(temp)], sub_mat))
+                                to_add                          = numpy.array([peak + local_offset], dtype=numpy.int32)
+                                result['times_' + str(temp)]    = numpy.concatenate((result['times_' + str(temp)], to_add))
+                            all_times[indices, min_times[idx]:max_times[idx]] = True
 
             if comm.rank == 0:
                 pbar.update(elt_count)
@@ -177,7 +176,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(x):
                 data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
 
-            variations       = 6*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+            variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
             physical_limit   = noise_thr*(-thresholds[tmpidx[0][0]])/tmp_templates.min()
             amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
@@ -253,9 +252,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         result['electrodes']   = numpy.array(electrodes)
         amplitudes             = numpy.array(amplitudes)
-        templates, amplitudes, result, merged = algo.merging_cc(templates, amplitudes, result, cc_merge)
 
-        io.print_info(["Number of global merges  : %d" %merged[1]])
+        print "Merging similar templates..."
+        templates, amplitudes, result, merged1 = algo.merging_cc(templates, amplitudes, result, cc_merge)
+
+        print "Removing mixtures..."
+        templates, amplitudes, result, merged2 = algo.delete_mixtures(templates, amplitudes, result)
+
+        io.print_info(["Number of global merges    : %d" %merged1[1], 
+                       "Number of mixtures removed : %d" %merged2[1]])
 
         if os.path.exists(file_out_suff + '.templates.mat'):
             os.remove(file_out_suff + '.templates.mat')
