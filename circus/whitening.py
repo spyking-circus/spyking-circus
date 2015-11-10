@@ -20,7 +20,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges     = io.get_nodes_and_edges(params)
     safety_time      = int(params.getfloat('whitening', 'safety_time')*sampling_rate*1e-3)
     nb_temp_white    = min(max(20, comm.size), N_e)
-    max_silence_1    = int(500000 / comm.size)
+    max_silence_1    = int(20*sampling_rate / comm.size)
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
@@ -63,7 +63,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
-        local_peaktimes = numpy.unique(local_peaktimes, dtype=numpy.int32)
+        local_peaktimes = numpy.unique(local_peaktimes)
 
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)
