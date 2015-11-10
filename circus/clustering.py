@@ -175,13 +175,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     n_times         = len(local_peaktimes)
                     argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
-                    best_electrode  = numpy.argmin(local_chunk[local_peaktimes[argmax_peak]], 1)
+                    all_idx         = local_peaktimes[argmax_peak]
 
-                    if gpass == 1:
-                        myslice        = numpy.mod(best_electrode, comm.size) == comm.rank
-                        argmax_peak    = argmax_peak[myslice]
-                        best_electrode = best_electrode[myslice]
-                    elif gpass > 1:
+                    if gpass > 1:
                         for elec in xrange(N_e):
                             subset  = result['all_times_' + str(elec)] - local_offset
                             peaks   = subset[numpy.where((subset >= 0) & (subset < (local_shape)))[0]]
@@ -195,69 +191,73 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     all_times[elec, min_times[t]:max_times[t]] = True
 
                     #print "Selection of the peaks with spatio-temporal masks..."
-                    for idx, elec in zip(argmax_peak, best_electrode):
+                    for idx, sidx in zip(argmax_peak, all_idx):
 
                         if elt_count == loop_nb_elts:
                             break
 
-                        indices = inv_nodes[edges[nodes[elec]]]
+                        elec = numpy.argmin(local_chunk[sidx])
+                        
+                        if ((gpass != 1) or (numpy.mod(elec, comm.size) == comm.rank)):
 
-                        if safety_space:
-                            myslice = all_times[indices, min_times[idx]:max_times[idx]]
-                        else:
-                            myslice = all_times[elec, min_times[idx]:max_times[idx]]
+                            indices = inv_nodes[edges[nodes[elec]]]
 
-                        peak         = local_peaktimes[idx]
-                        is_local_min = elec in all_minimas[all_peaktimes == peak]
-
-                        if is_local_min and not myslice.any():
-
-                            to_accept  = False
-
-                            if gpass == 1:
-                                to_update = result['data_' + str(elec)]
+                            if safety_space:
+                                myslice = all_times[indices, min_times[idx]:max_times[idx]]
                             else:
-                                to_update = result['tmp_' + str(elec)]
+                                myslice = all_times[elec, min_times[idx]:max_times[idx]]
 
-                            if len(to_update) < loop_max_elts_elec:
-                                sub_mat    = local_chunk[peak-template_shift:peak+template_shift+1, indices]
-                                sub_mat    = numpy.dot(basis_rec, sub_mat)
-                                nx, ny     = sub_mat.shape
-                                sub_mat    = sub_mat.reshape((1, nx * ny))
+                            peak         = local_peaktimes[idx]
+                            is_local_min = elec in all_minimas[all_peaktimes == peak]
 
-                                if gpass == 0:
-                                    to_accept  = True
-                                    result['tmp_' + str(elec)] = numpy.vstack((result['tmp_' + str(elec)], sub_mat))
-                                elif gpass == 1:
-                                    if smart_search[elec] > 0:
-                                        sub_sub_mat = numpy.dot(sub_mat, result['pca_' + str(elec)])
-                                        if len(result['data_' + str(elec)]) == 0:
-                                            to_accept = True
-                                        else:
-                                            dist = numpy.mean((sub_sub_mat - result['sub_' + str(elec)])**2, 1)
-                                            if numpy.min(dist) >= smart_search[elec]*result['dc_' + str(elec)]:
+                            if is_local_min and not myslice.any():
+
+                                to_accept  = False
+
+                                if gpass == 1:
+                                    to_update = result['data_' + str(elec)]
+                                else:
+                                    to_update = result['tmp_' + str(elec)]
+
+                                if len(to_update) < loop_max_elts_elec:
+                                    sub_mat    = local_chunk[peak-template_shift:peak+template_shift+1, indices]
+                                    sub_mat    = numpy.dot(basis_rec, sub_mat)
+                                    nx, ny     = sub_mat.shape
+                                    sub_mat    = sub_mat.reshape((1, nx * ny))
+
+                                    if gpass == 0:
+                                        to_accept  = True
+                                        result['tmp_' + str(elec)] = numpy.vstack((result['tmp_' + str(elec)], sub_mat))
+                                    elif gpass == 1:
+                                        if smart_search[elec] > 0:
+                                            sub_sub_mat = numpy.dot(sub_mat, result['pca_' + str(elec)])
+                                            if len(result['data_' + str(elec)]) == 0:
                                                 to_accept = True
                                             else:
-                                                rejected += 1
+                                                dist = numpy.mean((sub_sub_mat - result['sub_' + str(elec)])**2, 1)
+                                                if numpy.min(dist) >= smart_search[elec]*result['dc_' + str(elec)]:
+                                                    to_accept = True
+                                                else:
+                                                    rejected += 1
+                                        else:
+                                            to_accept = True
+                                        if to_accept:
+                                            result['data_' + str(elec)] = numpy.vstack((result['data_' + str(elec)], sub_mat))
+                                            if smart_search[elec] > 0:
+                                                result['sub_' + str(elec)] = numpy.vstack((result['sub_' + str(elec)], sub_sub_mat))
                                     else:
-                                        to_accept = True
-                                    if to_accept:
-                                        result['data_' + str(elec)] = numpy.vstack((result['data_' + str(elec)], sub_mat))
-                                        if smart_search[elec] > 0:
-                                            result['sub_' + str(elec)] = numpy.vstack((result['sub_' + str(elec)], sub_sub_mat))
-                                else:
-                                    to_accept  = True
-                                    result['tmp_' + str(elec)] = numpy.vstack((result['tmp_' + str(elec)], sub_mat))
+                                        to_accept  = True
+                                        result['tmp_' + str(elec)] = numpy.vstack((result['tmp_' + str(elec)], sub_mat))
 
-                            if to_accept:
-                                elt_count += 1
-                                if gpass > 0:
-                                    to_add = numpy.array([peak + local_offset], dtype=numpy.int32)
-                                    result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
-                                if safety_space:
-                                    all_times[indices, min_times[idx]:max_times[idx]] = True
-                                else:
-                                    all_times[elec, min_times[idx]:max_times[idx]] = True
+                                if to_accept:
+                                    elt_count += 1
+                                    if gpass > 0:
+                                        to_add = numpy.array([peak + local_offset], dtype=numpy.int32)
+                                        result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
+                                    if safety_space:
+                                        all_times[indices, min_times[idx]:max_times[idx]] = True
+                                    else:
+                                        all_times[elec, min_times[idx]:max_times[idx]] = True
 
                 if comm.rank == 0:
                     pbar.update(elt_count)
