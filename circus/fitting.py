@@ -140,18 +140,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         #print "Extracting the peaks..."
         if not spikedetekt:
-            local_peaktimes = []
+            local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
             for i in xrange(N_e):
-                local_peaktimes += algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True).tolist()
+                peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
             idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
             local_peaktimes = spiketimes[idx] - gidx*chunk_size
 
-        spikes = numpy.unique(local_peaktimes)
-        for spike in spikes:
-            local_peaktimes += range(spike-spike_range, spike+spike_range)
+        if spike_range > 0:
+            spikes = numpy.unique(local_peaktimes)
+            for spike in spikes:
+                local_peaktimes = numpy.concatenate((local_peaktimes, numpy.arange(spike-spike_range, spike+spike_range)))
 
-        local_peaktimes = numpy.unique(numpy.array(local_peaktimes, dtype=numpy.int32))
+        local_peaktimes = numpy.unique(local_peaktimes)
 
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)

@@ -58,11 +58,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         thresholds  = io.load_data(params, 'thresholds')
 
         #print "Extracting the peaks..."
-        local_peaktimes = []
+        local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
         for i in xrange(N_e):
-            local_peaktimes += algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks).tolist()
+            peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
+            local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
-        local_peaktimes = numpy.unique(numpy.array(local_peaktimes, dtype=numpy.int32))
+        local_peaktimes = numpy.unique(local_peaktimes, dtype=numpy.int32)
 
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)
@@ -233,15 +234,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
 
             #print "Extracting the peaks..."
-            all_peaktimes = []
-            all_minimas   = []
+            all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+            all_minimas   = numpy.zeros(0, dtype=numpy.int32)
             for i in xrange(N_e):
-                peaktimes      = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks).tolist()
-                all_peaktimes += peaktimes
-                all_minimas   += [i]*len(peaktimes)
-
-            all_peaktimes       = numpy.array(all_peaktimes, dtype=numpy.int32)
-            all_minimas         = numpy.array(all_minimas, dtype=numpy.int32)
+                peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
+                all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
             #print "Removing the useless borders..."
             local_borders   = (template_shift, local_shape - template_shift)
