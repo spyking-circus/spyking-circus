@@ -63,11 +63,11 @@ def load_parameters(file_name):
 
     sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits']
     for section in sections:
-        try:
+        if parser.has_section(section):
             for (key, value) in parser.items(section):
                 parser.set(section, key, value.split('#')[0].replace(' ', '')) 
-        except Exception:
-            pass
+        else:
+            parser.add_section(section)
 
     file_path       = os.path.dirname(os.path.abspath(file_name))
     file_name       = f_next

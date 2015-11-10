@@ -75,22 +75,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_times       = numpy.zeros((N_e, diff_times+1), dtype=numpy.bool)
             min_times       = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
             max_times       = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
-
-            abs_chunks      = numpy.abs(local_chunk[local_peaktimes])
             argmax_peak     = numpy.random.permutation(numpy.arange(len(local_peaktimes)))
-            best_electrode  = numpy.argmax(abs_chunks[argmax_peak], 1)
-            del abs_chunks
+            all_idx         = local_peaktimes[argmax_peak]
 
             #print "Selection of the peaks with spatio-temporal masks..."
-            for idx, elec in zip(argmax_peak, best_electrode):
+            for idx, sidx in zip(argmax_peak, all_idx):
+                elec    = numpy.argmax(numpy.abs(local_chunk[sidx]))
                 indices = inv_nodes[edges[nodes[elec]]]
                 myslice = all_times[indices, min_times[idx]:max_times[idx]]
                 peak    = local_peaktimes[idx]
                 all_times[indices, min_times[idx]:max_times[idx]] = True
         else:
-            all_times       = numpy.zeros((N_e, len(local_chunk)), dtype=numpy.bool)
-
-    all_times_Ne   = numpy.sum(all_times, 0).astype(numpy.bool)
+            all_times   = numpy.zeros((N_e, len(local_chunk)), dtype=numpy.bool)
+    
+    all_times_Ne   = numpy.any(all_times, 0)
     subset         = numpy.where(all_times_Ne == False)[0]
     local_silences = local_chunk[subset, :][:max_silence_1]
     all_silences   = gather_array(local_silences, comm, 0, 1)
@@ -100,7 +98,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         res            = numpy.zeros((0, N_t), dtype=numpy.float32)
         scount         = 0
         indices        = inv_nodes[edges[nodes[elec]]]
-        all_times_elec = numpy.sum(all_times[indices], 0).astype(numpy.bool)
+        all_times_elec = numpy.any(all_times[indices], 0)
         esubset        = numpy.where(all_times_elec == False)[0]
         bound          = len(esubset) - N_t
         while (scount < bound) and (len(res) < max_silence_2):
@@ -262,12 +260,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 n_times         = len(local_peaktimes)
                 argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
-                best_electrode  = numpy.argmin(local_chunk[local_peaktimes[argmax_peak]], 1)
+                all_idx         = local_peaktimes[argmax_peak]
 
                 #print "Selection of the peaks with spatio-temporal masks..."
-                for idx, elec in zip(argmax_peak, best_electrode):
+                for idx, sidx in zip(argmax_peak, all_idx):
                     if elt_count == nb_elts:
                         break
+                    elec    = numpy.argmin(local_chunk[sidx])
                     indices = inv_nodes[edges[nodes[elec]]]
                     myslice = all_times[indices, min_times[idx]:max_times[idx]]
                     peak    = local_peaktimes[idx]
