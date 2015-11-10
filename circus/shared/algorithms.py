@@ -394,18 +394,17 @@ def delete_mixtures(templates, amplitudes, result):
         for i in idx_1:
             overlap_i = file.get('overlap')[i]
             t1_vs_t1  = overlap_0[i, i]
+            t_vs_t1   = overlap_k[i, distances[k, i]]
             for j in idx_2:
                 t2_vs_t2 = overlap_0[j, j]
                 t1_vs_t2 = overlap_i[j, distances[k, i] - distances[k, j]]
-                for delay in [distances[k, i], distances[k, j]]:
-                    t_vs_t1  = overlap_k[i, delay]
-                    t_vs_t2  = overlap_k[j, delay]
-                    M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
-                    V        = numpy.hstack((t_vs_t1, t_vs_t2))
-                    [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                    if numpy.abs(1 - a1) < 0.05 and numpy.abs(1 - a2) < 0.05:
-                        if k not in mixtures:
-                            mixtures += [k]
+                t_vs_t2  = overlap_k[j, distances[k, j]]
+                M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
+                V        = numpy.hstack((t_vs_t1, t_vs_t2))
+                [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                if numpy.abs(1 - a1) < 0.05 and numpy.abs(1 - a2) < 0.05:
+                    if k not in mixtures:
+                        mixtures += [k]
         pbar.update(k)
     pbar.finish()
 
