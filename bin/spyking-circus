@@ -38,7 +38,7 @@ def main(argv):
         HAVE_CUDA = False
 
     all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging']
-    steps     = ['filtering', 'whitening', 'clustering', 'fitting']
+    steps     = ['filtering', 'whitening', 'clustering', 'fitting', 'merging']
     hostfile  = pjoin(user_path, 'circus.hosts')
 
     if os.path.exists(user_path + 'config.params'):
@@ -59,18 +59,18 @@ Syntax is spyking-circus datafile [options]
 
 Options are:
 -h or --help     : display the help
--m or --method   : by default, all 4 steps of the algorithm are
+-m or --method   : by default, all 5 steps of the algorithm are
                    performed, but a subset x,y can be done, 
                    using the syntax -m x,y. Steps are:
                      - filtering
                      - whitening
                      - clustering
                      - fitting
+                     - merging
                      - (extra) gathering [to collect results]
                      - (extra) extracting [templates from spike times]
                      - (extra) converting [to export to phy format]
                      - (extra) benchmarking [with -o and -t]
-                     - (extra) merging
 -c or --cpu      : number of CPU (default 1)
 -g or --gpu      : number of GPU (default 1 if CUDA available)
 -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
