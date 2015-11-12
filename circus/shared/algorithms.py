@@ -315,7 +315,7 @@ def delete_mixtures(templates, amplitudes, result):
     def remove_template(templates, amplitudes, result, mixtures):
 
         a, b, c = templates.shape
-        removed = numpy.zeros((a, b), dtype=numpy.float32)
+        removed = numpy.zeros((a, b, 0), dtype=numpy.float32)
         for count in xrange(len(mixtures)):
             to_remove = mixtures[count]
             removed   = numpy.concatenate((removed, templates[:, :, to_remove].reshape(a, b, 1)), axis=2)
