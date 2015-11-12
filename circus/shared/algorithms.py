@@ -314,8 +314,11 @@ def delete_mixtures(templates, amplitudes, result):
 
     def remove_template(templates, amplitudes, result, mixtures):
 
+        a, b, c = templates.shape
+        removed = numpy.zeros((a, b), dtype=numpy.float32)
         for count in xrange(len(mixtures)):
             to_remove = mixtures[count]
+            removed   = numpy.concatenate((removed, templates[:, :, to_remove].reshape(a, b, 1)), axis=2)
             nb_temp   = templates.shape[2]/2
             elec      = result['electrodes'][to_remove]
             nic       = to_remove - numpy.where(result['electrodes'] == elec)[0][0]
@@ -331,7 +334,7 @@ def delete_mixtures(templates, amplitudes, result):
             templates                       = numpy.delete(templates, [to_remove, to_remove + nb_temp], axis=2)
             amplitudes                      = numpy.delete(amplitudes, to_remove, axis=0)
             mixtures[mixtures > to_remove] -= 1
-        return templates, amplitudes, result
+        return templates, amplitudes, result, removed
         
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
@@ -412,9 +415,9 @@ def delete_mixtures(templates, amplitudes, result):
     tmp_file.close()
     os.remove(tmp_file.name + '.hdf5')
 
-    templates, amplitudes, result = remove_template(templates, amplitudes, result, numpy.array(mixtures))
+    templates, amplitudes, result, removed = remove_template(templates, amplitudes, result, numpy.array(mixtures))
 
-    return templates, amplitudes, result, [nb_temp, len(mixtures)]
+    return templates, amplitudes, result, removed, [nb_temp, len(mixtures)]
 
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False, show=False, ax=None):
 

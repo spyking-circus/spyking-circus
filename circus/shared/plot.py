@@ -435,7 +435,7 @@ def view_performance(file_name, triggers, lims=(150,150)):
     return curve
 
 
-def view_templates(file_name, temp_id=0, best_elec=None):
+def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
 
     params          = load_parameters(file_name)
     N_e             = params.getint('data', 'N_e')
@@ -452,7 +452,8 @@ def view_templates(file_name, temp_id=0, best_elec=None):
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
 
-    templates        = load_data(params, 'templates')
+    if templates is None:
+        templates    = load_data(params, 'templates')
     clusters         = load_data(params, 'clusters')
     probe            = {}
     probetext        = file(params.get('data', 'mapping'), 'r')
