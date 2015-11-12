@@ -337,9 +337,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['w_' + str(ielec)]    = pca.d/pca.d.sum()
                     result['pca_' + str(ielec)]  = pca.get_projmatrix().astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], compute_rho=True)
-                    dist_file = tempfile.NamedTemporaryFile()
+                    dist_file = tempfile.NamedTemporaryFile(delete=False)
                     tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))
                     numpy.save(tmp_file, dist)
+                    dist_file.close()
                     result['dist_' + str(ielec)] = dist_file
                     result['norm_' + str(ielec)] = len(result['data_' + str(ielec)])
                     result['rho_'  + str(ielec)] = rho
@@ -368,7 +369,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                     dist     = numpy.load(tmp_file +'.npy')
                     os.remove(tmp_file + '.npy')
-                    result['dist_' + str(ielec)].close()
                     result['rho_' + str(ielec)] /= result['norm_' + str(ielec)]
 
                     cluster_results[ielec]['groups'], r, d, c = algo.clustering(result['rho_' + str(ielec)], dist,
