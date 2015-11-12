@@ -479,43 +479,71 @@ def get_results(params, extension=''):
     result['spiketimes'] = hdf5storage.loadmat(file_out_suff + '.spiketimes%s.mat' %extension)
     return result
 
-def get_overlaps(params, extension='', erase=False):
+def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
 
-    file_out_suff = params.get('data', 'file_out_suff')   
-    N_e           = params.getint('data', 'N_e')
-    N_t           = params.getint('data', 'N_t')    
+    file_out_suff  = params.get('data', 'file_out_suff')   
+    templates      = load_data(params, 'templates', extension=extension)
+    N_e, N_t, N_tm = templates.shape
 
     if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension) and not erase:
         return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]
     else:
-        if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension) and erase:
+        if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension) and erase and (comm.rank == 0):
             os.remove(file_out_suff + '.overlap%s.hdf5' %extension)
-            
-        templates      = load_data(params, 'templates', extension=extension)
-        N_e, N_t, N_tm = templates.shape
-        cuda_string    = 'using 1 CPU...'
+    
+    comm.Barrier()
+    
+    if not parallel_hdf5:
+        cuda_string = 'using 1 CPU [no parallel HDF5]...'
+    else:
+        cuda_string = 'using %d CPU...' %comm.size
 
-        try:
-            import cudamat as cmt    
-            HAVE_CUDA = True
-            cmt.cuda_set_device(0)
-            cmt.init()
-            cmt.cuda_sync_threads()
-            cuda_string    = 'using 1 GPU...'
-        except Exception:
-            HAVE_CUDA = False
+    try:
+        HAVE_CUDA = True
+        if parallel_hdf5:
+            if nb_gpu > nb_cpu:
+                gpu_id = numpy.mod(comm.rank, nb_cpu)
+            else:
+                gpu_id = 0
+        else:
+            gpu_id = 0
+        cmt.cuda_set_device(gpu_id)
+        cmt.init()
+        cmt.cuda_sync_threads()
+    except Exception:
+        HAVE_CUDA = False
 
-        #print "Normalizing the templates..."
-        norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0),0))
-        templates     /= norm_templates
+    if HAVE_CUDA:
+        if parallel_hdf5:
+            cuda_string = 'using %d GPU...' %comm.size
+        else:
+            cuda_string = 'using 1 GPU [no parallel HDF5]...'
 
+    #print "Normalizing the templates..."
+    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0),0))
+    templates     /= norm_templates
+
+    if comm.rank == 0:
         print "Computing the overlaps", cuda_string
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
+    if parallel_hdf5:
+        file = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w', driver='mpio', comm=comm)
+        file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+    elif comm.rank == 0:
         file = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w')
         file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
 
-        for idelay in xrange(1, N_t+1):
+    all_delays   = numpy.arange(1, N_t+1)
+        
+    if parallel_hdf5:
+        local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
+    else:
+        local_delays = all_delays        
+
+    if parallel_hdf5 or (comm.rank == 0):
+
+        for idelay in local_delays:
             tmp_1 = templates[:, :idelay, :] 
             tmp_2 = templates[:, -idelay:, :]
             size  = N_e*idelay
@@ -530,10 +558,15 @@ def get_overlaps(params, extension='', erase=False):
 
             file.get('overlap')[:, :, idelay-1]           = data
             file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
-            pbar.update(idelay)
+            if comm.rank == 0:
+                pbar.update(idelay)
         file.close()
-        pbar.finish()
+        if comm.rank == 0:
+            pbar.finish()
 
+    comm.Barrier()
+
+    if comm.rank == 0:
         max_overlaps = numpy.zeros((N_tm, N_tm), dtype=numpy.float32)
         file = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension)
         for i in xrange(N_tm):
@@ -541,5 +574,4 @@ def get_overlaps(params, extension='', erase=False):
 
         hdf5storage.savemat(file_out_suff + '.overlap%s.mat' %extension, {'maxoverlap' : max_overlaps})
 
-        return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]
-
+    return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]

@@ -480,14 +480,15 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
             ymin = positions[i][0]
         if positions[i][1] > ymax:
             ymax = positions[i][1]
-    
     if best_elec is None:
         best_elec = clusters['electrodes'][temp_id]
+    elif best_elec == 'auto':
+        best_elec = numpy.argmin(numpy.min(templates[:, :, temp_id], 1))
     pylab.figure()
     for count, i in enumerate(xrange(N_e)):
         x, y     = positions[i]
-        xpadding = ((x - xmin)/float(xmax - xmin))*(2*N_t)
-        ypadding = ((y - ymin)/float(ymax - ymin))*scaling
+        xpadding = ((x - xmin)/(float(xmax - xmin) + 1))*(2*N_t)
+        ypadding = ((y - ymin)/(float(ymax - ymin) + 1))*scaling
 
         if i == best_elec:
             c='r'

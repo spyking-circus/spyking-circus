@@ -75,10 +75,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     thresholds    = io.load_data(params, 'thresholds')
     
     if comm.rank == 0 and not os.path.exists(file_out_suff + '.overlap.hdf5'):
-        c_overlap = io.get_overlaps(params)
+        c_overlap = io.get_overlaps(comm, params)
 
     comm.Barrier()
-    c_overlap     = io.get_overlaps(params)
+    c_overlap     = io.get_overlaps(comm, params)
 
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string

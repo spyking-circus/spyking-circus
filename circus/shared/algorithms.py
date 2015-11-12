@@ -3,6 +3,7 @@ matplotlib.use('Agg')
 import os
 os.environ['MDP_DISABLE_SKLEARN']='yes'
 import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
+from circus.shared.files import load_data
 
 def distancematrix(data, weight=None):
     
@@ -204,7 +205,7 @@ def merging(groups, sim_same_elec, data):
             merged[1] += 1
     return groups, merged
 
-def merging_cc(templates, amplitudes, result, cc_merge):
+def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
     def perform_merging(templates, amplitudes, result, cc_merge, distances):
         dmax      = distances.max()
@@ -254,13 +255,23 @@ def merging_cc(templates, amplitudes, result, cc_merge):
         return False, templates, amplitudes, result, distances
 
     has_been_merged = True
+    templates       = load_data(params, 'templates')
+    amplitudes      = load_data(params, 'limits')
+    result          = load_data(params, 'clusters')
+    N_e, N_t, N_tm  = templates.shape
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
 
     try:
-        import cudamat as cmt    
         HAVE_CUDA = True
-        cmt.cuda_set_device(0)
+        if parallel_hdf5:
+            if nb_gpu > nb_cpu:
+                gpu_id = numpy.mod(comm.rank, nb_cpu)
+            else:
+                gpu_id = 0
+        else:
+            gpu_id = 0
+        cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
     except Exception:
@@ -268,49 +279,71 @@ def merging_cc(templates, amplitudes, result, cc_merge):
 
     norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0),0))
     norm_templates = templates/norm_templates
+
+    if comm.rank == 0:
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
+
     import tempfile, h5py
     tmp_file = tempfile.NamedTemporaryFile()
-    file = h5py.File(tmp_file.name + '.hdf5', 'w')
-    file.create_dataset('overlap', shape=(2*nb_temp, 2*nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32, chunks=True)
-    N_t            = templates.shape[1]
-    pbar           = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
-    for idelay in xrange(1, N_t+1):
-        tmp_1 = norm_templates[:, :idelay, :]
-        tmp_2 = norm_templates[:, -idelay:, :]
-        size  = templates.shape[0]*idelay
-        if HAVE_CUDA:
-            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2*nb_temp))
-            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, 2*nb_temp))
-            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
-        else:
-            tmp_1 = tmp_1.reshape(size, 2*nb_temp)
-            tmp_2 = tmp_2.reshape(size, 2*nb_temp)
-            data  = numpy.dot(tmp_1.T, tmp_2)
+    if parallel_hdf5:
+        file = h5py.File(tmp_file.name + '.hdf5', 'w', driver='mpio', comm=comm)
+        file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+    elif comm.rank == 0:
+        file = h5py.File(tmp_file.name + '.hdf5', 'w')
+        file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
 
-        file.get('overlap')[:, :, idelay-1]           = data
-        file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
-        pbar.update(idelay)
-    pbar.finish()
-    file.close()
-    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-    file = h5py.File(tmp_file.name + '.hdf5')
-    for i in xrange(nb_temp):
-        distances[i, i+1:] = numpy.max(file.get('overlap')[i, i+1:nb_temp], 1)
-        distances[i+1:, i] = distances[i, i+1:]
-    file.close()
-    tmp_file.close()
-    os.remove(tmp_file.name + '.hdf5')
-    distances /= (templates.shape[0]*N_t)
+    all_delays   = numpy.arange(1, N_t+1)
+        
+    if parallel_hdf5:
+        local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
+    else:
+        local_delays = all_delays      
 
-    while has_been_merged:
-        has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, distances)
-        if has_been_merged:
-            merged[1] += 1
+    if parallel_hdf5 or (comm.rank == 0):
+
+        for idelay in local_delays:
+            tmp_1 = norm_templates[:, :idelay, :]
+            tmp_2 = norm_templates[:, -idelay:, :]
+            size  = templates.shape[0]*idelay
+            if HAVE_CUDA:
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2*nb_temp))
+                tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, 2*nb_temp))
+                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+            else:
+                tmp_1 = tmp_1.reshape(size, 2*nb_temp)
+                tmp_2 = tmp_2.reshape(size, 2*nb_temp)
+                data  = numpy.dot(tmp_1.T, tmp_2)
+
+            file.get('overlap')[:, :, idelay-1]           = data
+            file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
+            if comm.rank == 0:
+                pbar.update(idelay)
+        if comm.rank == 0:
+            pbar.finish()
+        file.close()
+
+    comm.Barrier()
+
+    if comm.rank == 0:
+        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        file = h5py.File(tmp_file.name + '.hdf5')
+        for i in xrange(nb_temp):
+            distances[i, i+1:] = numpy.max(file.get('overlap')[i, i+1:nb_temp], 1)
+            distances[i+1:, i] = distances[i, i+1:]
+        file.close()
+        tmp_file.close()
+        os.remove(tmp_file.name + '.hdf5')
+        distances /= (templates.shape[0]*N_t)
+
+        while has_been_merged:
+            has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, distances)
+            if has_been_merged:
+                merged[1] += 1
     return templates, amplitudes, result, merged
 
 
-def delete_mixtures(templates, amplitudes, result):
+def delete_mixtures(comm, params, parallel_hdf5=False):
 
     def remove_template(templates, amplitudes, result, mixtures):
 
@@ -336,86 +369,118 @@ def delete_mixtures(templates, amplitudes, result):
             mixtures[mixtures > to_remove] -= 1
         return templates, amplitudes, result, removed
         
+    templates       = load_data(params, 'templates')
+    amplitudes      = load_data(params, 'limits')
+    result          = load_data(params, 'clusters')
+    N_e, N_t, N_tm  = templates.shape
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
     mixtures        = []
+    removed         = []
 
     try:
-        import cudamat as cmt    
         HAVE_CUDA = True
-        cmt.cuda_set_device(0)
+        if parallel_hdf5:
+            if nb_gpu > nb_cpu:
+                gpu_id = numpy.mod(comm.rank, nb_cpu)
+            else:
+                gpu_id = 0
+        else:
+            gpu_id = 0
+        cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
     except Exception:
         HAVE_CUDA = False
 
+    if comm.rank == 0:
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
+
     import tempfile, h5py
     tmp_file = tempfile.NamedTemporaryFile()
-    file = h5py.File(tmp_file.name + '.hdf5', 'w')
-    file.create_dataset('overlap', shape=(2*nb_temp, 2*nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32, chunks=True)
-    N_t            = templates.shape[1]
-    pbar           = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
-    for idelay in xrange(1, N_t+1):
-        tmp_1 = templates[:, :idelay, :]
-        tmp_2 = templates[:, -idelay:, :]
-        size  = templates.shape[0]*idelay
-        if HAVE_CUDA:
-            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2*nb_temp))
-            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, 2*nb_temp))
-            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
-        else:
-            tmp_1 = tmp_1.reshape(size, 2*nb_temp)
-            tmp_2 = tmp_2.reshape(size, 2*nb_temp)
-            data  = numpy.dot(tmp_1.T, tmp_2)
+    if parallel_hdf5:
+        file = h5py.File(tmp_file.name + '.hdf5', 'w', driver='mpio', comm=comm)
+        file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+    elif comm.rank == 0:
+        file = h5py.File(tmp_file.name + '.hdf5', 'w')
+        file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
 
-        file.get('overlap')[:, :, idelay-1]           = data
-        file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
-        pbar.update(idelay)
-    pbar.finish()
-    file.close()
+    all_delays   = numpy.arange(1, N_t+1)
+        
+    if parallel_hdf5:
+        local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
+    else:
+        local_delays = all_delays      
 
-    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-    file = h5py.File(tmp_file.name + '.hdf5')
+    if parallel_hdf5 or (comm.rank == 0):
 
-    for i in xrange(nb_temp):
-        distances[i, i+1:] = numpy.argmax(file.get('overlap')[i, i+1:nb_temp], 1)
-        distances[i+1:, i] = distances[i, i+1:]
+        for idelay in local_delays:
+            tmp_1 = templates[:, :idelay, :]
+            tmp_2 = templates[:, -idelay:, :]
+            size  = templates.shape[0]*idelay
+            if HAVE_CUDA:
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2*nb_temp))
+                tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, 2*nb_temp))
+                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+            else:
+                tmp_1 = tmp_1.reshape(size, 2*nb_temp)
+                tmp_2 = tmp_2.reshape(size, 2*nb_temp)
+                data  = numpy.dot(tmp_1.T, tmp_2)
 
-    import scipy.linalg
-    overlap_0 = file.get('overlap')[:, :, N_t]
-    pbar      = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_temp).start()
-    for k in xrange(nb_temp):
-        idx_1      = numpy.where(result['electrodes'] == result['electrodes'][k])[0]
-        tmp_idx    = numpy.where(result['electrodes'] != result['electrodes'][k])[0]
-        electrodes = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
-        idx_2      = []
-        overlap_k  = file.get('overlap')[k]
-        for idx in tmp_idx:
-            if result['electrodes'][idx] in electrodes:
-                idx_2 += [idx]
-        for i in idx_1:
-            overlap_i = file.get('overlap')[i]
-            t1_vs_t1  = overlap_0[i, i]
-            t_vs_t1   = overlap_k[i, distances[k, i]]
-            for j in idx_2:
-                t2_vs_t2 = overlap_0[j, j]
-                t1_vs_t2 = overlap_i[j, distances[k, i] - distances[k, j]]
-                t_vs_t2  = overlap_k[j, distances[k, j]]
-                M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
-                V        = numpy.hstack((t_vs_t1, t_vs_t2))
-                [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                if numpy.abs(1 - a1) < 0.15 and numpy.abs(1 - a2) < 0.15:
-                    if k not in mixtures:
-                        mixtures += [k]
-        pbar.update(k)
-    pbar.finish()
+            file.get('overlap')[:, :, idelay-1]           = data
+            file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
+            if comm.rank == 0:
+                pbar.update(idelay)
+        if comm.rank == 0:
+            pbar.finish()
+        file.close()
 
-    file.close()
-    tmp_file.close()
-    os.remove(tmp_file.name + '.hdf5')
+    comm.Barrier()
 
-    templates, amplitudes, result, removed = remove_template(templates, amplitudes, result, numpy.array(mixtures))
+    if comm.rank == 0:
+        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        file = h5py.File(tmp_file.name + '.hdf5')
+
+        for i in xrange(nb_temp):
+            distances[i, i+1:] = numpy.argmax(file.get('overlap')[i, i+1:nb_temp], 1)
+            distances[i+1:, i] = distances[i, i+1:]
+
+        import scipy.linalg
+        overlap_0 = file.get('overlap')[:, :, N_t]
+        pbar      = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_temp).start()
+
+        for k in xrange(nb_temp):
+            idx_1      = numpy.where(result['electrodes'] == result['electrodes'][k])[0]
+            tmp_idx    = numpy.where(result['electrodes'] != result['electrodes'][k])[0]
+            electrodes = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
+            idx_2      = []
+            overlap_k  = file.get('overlap')[k]
+            for idx in tmp_idx:
+                if result['electrodes'][idx] in electrodes:
+                    idx_2 += [idx]
+            for i in idx_1:
+                overlap_i = file.get('overlap')[i]
+                t1_vs_t1  = overlap_0[i, i]
+                t_vs_t1   = overlap_k[i, distances[k, i]]
+                for j in idx_2:
+                    t2_vs_t2 = overlap_0[j, j]
+                    t1_vs_t2 = overlap_i[j, distances[k, i] - distances[k, j]]
+                    t_vs_t2  = overlap_k[j, distances[k, j]]
+                    M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
+                    V        = numpy.hstack((t_vs_t1, t_vs_t2))
+                    [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                    if numpy.abs(1 - a1) < 0.15 and numpy.abs(1 - a2) < 0.15:
+                        if k not in mixtures:
+                            mixtures += [k]
+            pbar.update(k)
+        pbar.finish()
+
+        file.close()
+        tmp_file.close()
+        os.remove(tmp_file.name + '.hdf5')
+
+        templates, amplitudes, result, removed = remove_template(templates, amplitudes, result, numpy.array(mixtures))
 
     return templates, amplitudes, result, removed, [nb_temp, len(mixtures)]
 
