@@ -3,6 +3,9 @@ import pylab
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
+    import h5py
+    parallel_hdf5 = h5py.get_config().mpi
+
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')
     N_e            = params.getint('data', 'N_e')
@@ -19,21 +22,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     bin_size       = int(cc_bin * sampling_rate * 1e-3)
     delay_average  = int(cc_average/cc_bin)
-    max_delay      = int(2*cc_average)
-    
-    templates      = io.load_data(params, 'templates')
-    clusters       = io.load_data(params, 'clusters')
-    result         = io.load_data(params, 'results')
-    overlap        = hdf5storage.loadmat(file_out_suff + '.overlap.mat')['maxoverlap']
-    overlap       /= templates.shape[0] * templates.shape[1]
+    max_delay      = max(100, cc_average)
 
-    io.purge(file_out_suff, '-merged')
-    if make_plots:
-        if not os.path.exists(plot_path):
-            os.makedirs(plot_path)
-        io.purge(plot_path, 'merging')
+    if comm.rank == 0:
+        templates      = io.load_data(params, 'templates')
+        clusters       = io.load_data(params, 'clusters')
+        result         = io.load_data(params, 'results')
+        overlap        = hdf5storage.loadmat(file_out_suff + '.overlap.mat')['maxoverlap']
+        overlap       /= templates.shape[0] * templates.shape[1]
 
-    to_average     = range(max_delay + 1 - delay_average, max_delay + 1 + delay_average)
+        io.purge(file_out_suff, '-merged')
+        if make_plots:
+            if not os.path.exists(plot_path):
+                os.makedirs(plot_path)
+            io.purge(plot_path, 'merging')
+
+        to_average     = range(max_delay + 1 - delay_average, max_delay + 1 + delay_average)
     
     def reversed_corr(spike_1, spike_2, max_delay):
         t1b     = numpy.unique(numpy.floor(spike_1/bin_size))
@@ -104,92 +108,95 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         print "Merging similar templates..."
-    do_merging = True
-    count = 0
-    nb_init    = templates.shape[2]/2
-    while do_merging:
-        print "Searching for pairs to merge [iteration %d]..." %count
-        all_overlaps = []
-        all_pairs    = []
-        all_corrs    = []
-        all_x_cc     = []
-        all_y_cc     = []
-        spikes       = result['spiketimes']
-        nb_before    = templates.shape[2]/2
-        all_mergings = numpy.zeros((0, 2), dtype=numpy.int32)
-        d_mergings   = numpy.zeros(0, dtype=numpy.int32)
-        idx_mergings = []
-
-        gidx         = 0
-        for temp_id1 in xrange(nb_before):
-            if len(spikes['temp_' + str(temp_id1)]) > 20:
-                for temp_id2 in xrange(temp_id1+1, nb_before):
-                    if len(spikes['temp_' + str(temp_id2)]) > 20:
-                        if overlap[temp_id1, temp_id2] > cc_overlap:
-                            x_cc, y_cc    = reversed_corr(spikes['temp_' + str(temp_id1)], spikes['temp_' + str(temp_id2)], max_delay)
-                            all_overlaps += [overlap[temp_id1, temp_id2]]
-                            d1            = y_cc
-                            d2            = x_cc
-                            all_x_cc     += [d2]
-                            all_y_cc     += [d1]
-                            dd1           = d1[[to_average]]
-                            dd2           = d2[to_average]
-                            all_corrs    += [(numpy.mean(dd1) - numpy.mean(dd2))/(numpy.mean(dd1) + numpy.mean(dd2) + 1)]
-                            all_pairs    += [[temp_id1, temp_id2]]
-                            distance      = all_overlaps[-1]*all_corrs[-1]
-                            if distance > cc_gap:
-                                if (not (temp_id1 in all_mergings)) and (not (temp_id2 in all_mergings)):
-                                    all_mergings  = numpy.vstack((all_mergings, numpy.array([temp_id1, temp_id2])))
-                                    d_mergings    = numpy.concatenate((d_mergings, [distance]))
-                                    idx_mergings += [gidx]
-                                else:
-                                    for i in xrange(len(all_mergings)):
-                                        if (temp_id1 in all_mergings[i]) or (temp_id2 in all_mergings[i]):
-                                            if distance > d_mergings[i]:
-                                                all_mergings[i] = [temp_id1, temp_id2]
-                                                d_mergings[i]   = distance
-                                                idx_mergings[i] = gidx  
-                            gidx += 1
-
-        if len(all_mergings) > 0:
-            if make_plots:
-                m = numpy.array(all_overlaps)*numpy.array(all_corrs)
-                pylab.figure()
-                pylab.subplot(121)
-                pylab.plot(m, '.')
-                pylab.plot(m[idx_mergings], 'r.')
-                pylab.xlabel('Pairs')
-                pylab.ylabel('Merging criteria')
-                pylab.subplot(122)
-                pylab.title('Merged CCs')
-                pylab.xlabel('Time [ms]')
-                arg_idx      = numpy.argsort(d_mergings)
-                idx_mergings = numpy.array(idx_mergings)
-                pylab.imshow(numpy.array(all_x_cc)[idx_mergings[arg_idx]], aspect='auto', interpolation='nearest')
-                xmin, xmax = pylab.xlim()
-                ymin, ymax = pylab.ylim()
-                x, y = pylab.xticks()
-                pylab.xticks(x, numpy.round(numpy.linspace(-max_delay*cc_bin, max_delay*cc_bin, len(x)), 1))
-                pylab.plot([-cc_average + max_delay, -cc_average + max_delay], [ymin, ymax], 'r--')
-                pylab.plot([cc_average + max_delay, cc_average + max_delay], [ymin, ymax], 'r--')
-                pylab.xlim(xmin, xmax)
-                pylab.ylim(ymin, ymax)
-                pylab.tight_layout()
-                pylab.savefig(os.path.join(plot_path, 'merging-%d.pdf' %count))
-
-            templates, clusters, overlap, result = perform_merging(all_mergings, templates, clusters, overlap, result)
-            print "Automatic merging of %d pairs..." %len(all_mergings)
-        else:
-            do_merging = False
-
-        count += 1
-
+    
     if comm.rank == 0:
-        print "We merged a total of", nb_init - templates.shape[2]/2, "templates" 
+        do_merging = True
+        count      = 0
+        nb_init    = templates.shape[2]/2
+        while do_merging:
+            print "Searching for pairs to merge [iteration %d]..." %count
+            all_overlaps = []
+            all_pairs    = []
+            all_corrs    = []
+            all_x_cc     = []
+            all_y_cc     = []
+            spikes       = result['spiketimes']
+            nb_before    = templates.shape[2]/2
+            all_mergings = numpy.zeros((0, 2), dtype=numpy.int32)
+            d_mergings   = numpy.zeros(0, dtype=numpy.int32)
+            idx_mergings = []
 
-    if templates.shape[2]/2 < nb_init:
-        hdf5storage.savemat(file_out_suff + '.amplitudes-merged', result['amplitudes'])
-        hdf5storage.savemat(file_out_suff + '.spiketimes-merged', result['spiketimes'])
-        hdf5storage.savemat(file_out_suff + '.templates-merged', {'templates' : templates})
-        hdf5storage.savemat(file_out_suff + '.clusters-merged', clusters)
-        io.get_overlaps(comm, params, extension='-merged')
+            gidx         = 0
+            for temp_id1 in xrange(nb_before):
+                if len(spikes['temp_' + str(temp_id1)]) > 10:
+                    for temp_id2 in xrange(temp_id1+1, nb_before):
+                        if len(spikes['temp_' + str(temp_id2)]) > 10:
+                            if overlap[temp_id1, temp_id2] > cc_overlap:
+                                x_cc, y_cc    = reversed_corr(spikes['temp_' + str(temp_id1)], spikes['temp_' + str(temp_id2)], max_delay)
+                                all_overlaps += [overlap[temp_id1, temp_id2]]
+                                d1            = y_cc
+                                d2            = x_cc
+                                all_x_cc     += [d2]
+                                all_y_cc     += [d1]
+                                dd1           = d1[[to_average]]
+                                dd2           = d2[to_average]
+                                all_corrs    += [(numpy.mean(dd1) - numpy.mean(dd2))/(numpy.mean(dd1) + numpy.mean(dd2) + 1)]
+                                all_pairs    += [[temp_id1, temp_id2]]
+                                distance      = all_overlaps[-1]*all_corrs[-1]
+                                if distance > cc_gap:
+                                    if (not (temp_id1 in all_mergings)) and (not (temp_id2 in all_mergings)):
+                                        all_mergings  = numpy.vstack((all_mergings, numpy.array([temp_id1, temp_id2])))
+                                        d_mergings    = numpy.concatenate((d_mergings, [distance]))
+                                        idx_mergings += [gidx]
+                                    else:
+                                        for i in xrange(len(all_mergings)):
+                                            if (temp_id1 in all_mergings[i]) or (temp_id2 in all_mergings[i]):
+                                                if distance > d_mergings[i]:
+                                                    all_mergings[i] = [temp_id1, temp_id2]
+                                                    d_mergings[i]   = distance
+                                                    idx_mergings[i] = gidx  
+                                gidx += 1
+
+            if len(all_mergings) > 0:
+                if make_plots:
+                    m = numpy.array(all_overlaps)*numpy.array(all_corrs)
+                    pylab.figure()
+                    pylab.subplot(121)
+                    pylab.plot(m, '.')
+                    pylab.plot(m[idx_mergings], 'r.')
+                    pylab.xlabel('Pairs')
+                    pylab.ylabel('Merging criteria')
+                    pylab.subplot(122)
+                    pylab.title('Merged CCs')
+                    pylab.xlabel('Time [ms]')
+                    arg_idx      = numpy.argsort(d_mergings)
+                    idx_mergings = numpy.array(idx_mergings)
+                    pylab.imshow(numpy.array(all_x_cc)[idx_mergings[arg_idx]], aspect='auto', interpolation='nearest')
+                    xmin, xmax = pylab.xlim()
+                    ymin, ymax = pylab.ylim()
+                    pylab.xticks(numpy.linspace(xmin, xmax, 5), numpy.round(numpy.linspace(-max_delay*cc_bin, max_delay*cc_bin, 5), 1))
+                    pylab.plot([-cc_average + max_delay, -cc_average + max_delay], [ymin, ymax], 'r--')
+                    pylab.plot([cc_average + max_delay, cc_average + max_delay], [ymin, ymax], 'r--')
+                    pylab.xlim(xmin, xmax)
+                    pylab.ylim(ymin, ymax)
+                    pylab.tight_layout()
+                    pylab.savefig(os.path.join(plot_path, 'merging-%d.pdf' %count))
+
+                templates, clusters, overlap, result = perform_merging(all_mergings, templates, clusters, overlap, result)
+                print "Automatic merging of %d pairs..." %len(all_mergings)
+            else:
+                do_merging = False
+
+            count += 1
+
+        if comm.rank == 0:
+            print "We merged a total of", nb_init - templates.shape[2]/2, "templates" 
+
+        if templates.shape[2]/2 < nb_init:
+            hdf5storage.savemat(file_out_suff + '.amplitudes-merged', result['amplitudes'])
+            hdf5storage.savemat(file_out_suff + '.spiketimes-merged', result['spiketimes'])
+            hdf5storage.savemat(file_out_suff + '.templates-merged', {'templates' : templates})
+            hdf5storage.savemat(file_out_suff + '.clusters-merged', clusters)
+    
+    comm.Barrier()
+    io.get_overlaps(comm, params, extension='-merged', parallel_hdf5=parallel_hdf5)

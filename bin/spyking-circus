@@ -171,7 +171,7 @@ Options are:
                     ('gathering', 'python'),
                     ('converting', 'python'),
                     ('benchmarking', 'mpirun'),
-                    ('merging', 'python')]
+                    ('merging', 'mpirun')]
 
         if HAVE_CUDA and nb_gpu > 0:
             use_gpu = 'True'
