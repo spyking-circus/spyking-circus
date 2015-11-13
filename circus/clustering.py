@@ -4,6 +4,9 @@ from .shared import plot
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
+    import h5py
+    parallel_hdf5 = h5py.get_config().mpi
+
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')
     N_e            = params.getint('data', 'N_e')
@@ -585,7 +588,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Merging similar templates..."
     
-    templates, amplitudes, result, merged1 = algo.merging_cc(comm, params, cc_merge)
+    templates, amplitudes, result, merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
 
     if comm.rank == 0:
         hdf5storage.savemat(file_out_suff + '.templates', {'templates' : templates})
@@ -596,7 +599,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Removing mixtures..."
 
-    templates, amplitudes, result, removed, merged2 = algo.delete_mixtures(comm, params)
+    templates, amplitudes, result, removed, merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
 
     if comm.rank == 0:
         hdf5storage.savemat(file_out_suff + '.templates', {'templates' : templates})
@@ -610,4 +613,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     del result, templates, amplitudes
 
     comm.Barrier()
-    io.get_overlaps(comm, params, erase=True)
+    io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)

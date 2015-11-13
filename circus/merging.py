@@ -192,4 +192,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         hdf5storage.savemat(file_out_suff + '.spiketimes-merged', result['spiketimes'])
         hdf5storage.savemat(file_out_suff + '.templates-merged', {'templates' : templates})
         hdf5storage.savemat(file_out_suff + '.clusters-merged', clusters)
-        io.get_overlaps(params, extension='-merged')
+        io.get_overlaps(comm, params, extension='-merged')

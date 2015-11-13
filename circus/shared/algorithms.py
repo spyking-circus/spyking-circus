@@ -258,6 +258,8 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     templates       = load_data(params, 'templates')
     amplitudes      = load_data(params, 'limits')
     result          = load_data(params, 'clusters')
+    tmp_path        = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+    filename        = os.path.join(tmp_path, 'merging_cc.hdf5')
     N_e, N_t, N_tm  = templates.shape
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
@@ -283,14 +285,13 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     if comm.rank == 0:
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
-    import tempfile, h5py
-    tmp_file = tempfile.NamedTemporaryFile()
+    import h5py
 
     if parallel_hdf5:
-        file = h5py.File(tmp_file.name + '.hdf5', 'w', driver='mpio', comm=comm)
+        file = h5py.File(filename, 'w', driver='mpio', comm=comm)
         file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
     elif comm.rank == 0:
-        file = h5py.File(tmp_file.name + '.hdf5', 'w')
+        file = h5py.File(filename, 'w')
         file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
 
     all_delays   = numpy.arange(1, N_t+1)
@@ -327,13 +328,12 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
     if comm.rank == 0:
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        file = h5py.File(tmp_file.name + '.hdf5')
+        file = h5py.File(filename)
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.max(file.get('overlap')[i, i+1:nb_temp], 1)
             distances[i+1:, i] = distances[i, i+1:]
         file.close()
-        tmp_file.close()
-        os.remove(tmp_file.name + '.hdf5')
+        os.remove(filename)
         distances /= (templates.shape[0]*N_t)
 
         while has_been_merged:
@@ -372,6 +372,8 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     templates       = load_data(params, 'templates')
     amplitudes      = load_data(params, 'limits')
     result          = load_data(params, 'clusters')
+    tmp_path        = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+    filename        = os.path.join(tmp_path, 'mixtures.hdf5')
     N_e, N_t, N_tm  = templates.shape
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
@@ -396,14 +398,13 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if comm.rank == 0:
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
-    import tempfile, h5py
-    tmp_file = tempfile.NamedTemporaryFile()
+    import h5py
 
     if parallel_hdf5:
-        file = h5py.File(tmp_file.name + '.hdf5', 'w', driver='mpio', comm=comm)
+        file = h5py.File(filename, 'w', driver='mpio', comm=comm)
         file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
     elif comm.rank == 0:
-        file = h5py.File(tmp_file.name + '.hdf5', 'w')
+        file = h5py.File(filename, 'w')
         file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
 
     all_delays   = numpy.arange(1, N_t+1)
@@ -440,7 +441,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
 
     if comm.rank == 0:
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        file = h5py.File(tmp_file.name + '.hdf5')
+        file = h5py.File(filename)
 
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.argmax(file.get('overlap')[i, i+1:nb_temp], 1)
@@ -475,10 +476,8 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                             mixtures += [k]
             pbar.update(k)
         pbar.finish()
-
         file.close()
-        tmp_file.close()
-        os.remove(tmp_file.name + '.hdf5')
+        os.remove(filename)
 
         templates, amplitudes, result, removed = remove_template(templates, amplitudes, result, numpy.array(mixtures))
 
