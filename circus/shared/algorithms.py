@@ -268,7 +268,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
-                gpu_id = numpy.mod(comm.rank, nb_cpu)
+                gpu_id = int(comm.rank/nb_cpu)
             else:
                 gpu_id = 0
         else:
@@ -384,7 +384,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
-                gpu_id = numpy.mod(comm.rank, nb_cpu)
+                gpu_id = int(comm.rank/nb_cpu)
             else:
                 gpu_id = 0
         else:

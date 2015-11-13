@@ -34,7 +34,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu:
         ## Need to properly handle multi GPU per MPI nodes?
         if nb_gpu > nb_cpu:
-            gpu_id = numpy.mod(comm.rank, nb_cpu)
+            gpu_id = int(comm.rank/nb_cpu)
         else:
             gpu_id = 0
         cmt.cuda_set_device(gpu_id)
