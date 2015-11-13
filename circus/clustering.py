@@ -466,6 +466,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     similars        = []
     n_datas         = []
 
+    if comm.rank == 0:
+        pbar = get_progressbar(local_nb_clusters)
+
     for ielec in range(comm.rank, N_e, comm.size):
         #print "Dealing with cluster", ielec
         n_data   = len(result['data_' + str(ielec)])
@@ -533,11 +536,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     thresholds[ielec], templates[indices[idx], :, loc_pad:loc_pad+nb_temp],
                     amps_lims[loc_pad:loc_pad+nb_temp], save=save)
 
+        if comm.rank == 0:
+            pbar.update(count_templates)
+
+    if comm.rank == 0:
+        pbar.finish()
 
     result['electrodes'] = numpy.array(electrodes, dtype=numpy.int32)
     result['groups']     = numpy.array(groups, dtype=numpy.int32)
     result['amplitudes'] = numpy.array(amps_lims, dtype=numpy.float32)
-
 
     #At the end we should have a templates variable to store.
     numpy.save(file_out_suff + '.templates-%d' %comm.rank, templates)
