@@ -478,10 +478,10 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         pbar.finish()
         file.close()
         os.remove(filename)
-
+        to_be_removed = numpy.copy(mixtures)
         templates, amplitudes, result, removed = remove_template(templates, amplitudes, result, numpy.array(mixtures))
 
-    return templates, amplitudes, result, removed, [nb_temp, len(mixtures)]
+    return templates, amplitudes, result, removed, to_be_removed, [nb_temp, len(mixtures)]
 
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False, show=False, ax=None):
 
