@@ -18,6 +18,9 @@ from circus.shared.files import print_error
 
 def main(argv):
 
+    import h5py
+    parallel_hdf5 = h5py.get_config().mpi
+
     user_path  = pjoin(os.path.expanduser('~'), 'spyking-circus')
     tasks_list = None
 
@@ -149,6 +152,7 @@ Options are:
         print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
         if HAVE_CUDA:
             print colored("Number of GPU :", 'green'), colored(nb_gpu, 'cyan')
+        print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
         print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
         print ""
         print colored("##############################################################", 'green')
