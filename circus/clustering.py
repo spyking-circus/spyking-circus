@@ -606,13 +606,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Removing mixtures..."
 
-    templates, amplitudes, result, removed, merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+    templates, amplitudes, result, removed, to_be_removed, merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
 
     if comm.rank == 0:
         hdf5storage.savemat(file_out_suff + '.templates', {'templates' : templates})
         hdf5storage.savemat(file_out_suff + '.clusters',   result)
         hdf5storage.savemat(file_out_suff + '.limits', {'limits' : amplitudes})
-        hdf5storage.savemat(file_out_suff + '.templates-removed', {'templates' : removed})
+        hdf5storage.savemat(file_out_suff + '.templates-removed', {'templates' : removed, 'removed' : to_be_removed})
 
         io.print_info(["Number of global merges    : %d" %merged1[1], 
                        "Number of mixtures removed : %d" %merged2[1]])
