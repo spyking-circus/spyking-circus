@@ -378,6 +378,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
     mixtures        = []
+    to_be_removed   = []
     removed         = []
 
     try:

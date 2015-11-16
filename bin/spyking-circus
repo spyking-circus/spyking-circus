@@ -87,11 +87,21 @@ Options are:
         print colored(header, 'green')
 
     if len(argv) < 2:
+        print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
+        print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
+        print ""
+        print colored("##############################################################", 'green')
+        print ""
         print message
         sys.exit()
     else:
         filename   = argv[1]
         if filename in ['-h', '--help']:
+            print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
+            print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
+            print ""
+            print colored("##############################################################", 'green')
+            print ""
             print message
             sys.exit()
         filename   = os.path.abspath(filename)

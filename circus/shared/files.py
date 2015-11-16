@@ -131,6 +131,7 @@ def load_parameters(file_name):
 
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
                   ['fitting', 'spike_range', 'float', '0'],
+                  ['fitting', 'min_rate', 'float', '0'],
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '60'],
@@ -193,6 +194,7 @@ def data_stats(params):
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius')]
     print_info(lines)
+    return nb_chunks*60 + last_chunk_len
 
 def print_info(lines):
     print colored("-----------------------  Informations  -----------------------", 'yellow')
@@ -382,6 +384,8 @@ def save_data(params, data, extension=''):
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False):
 
     file_out_suff  = params.get('data', 'file_out_suff')
+    min_rate       = params.get('fitting', 'min_rate')
+    duration       = data_stats(params)
     templates      = load_data(params, 'templates')
     N_e, N_t, N_tm = templates.shape
 
