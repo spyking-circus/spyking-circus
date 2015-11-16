@@ -567,17 +567,19 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
                 pbar.update(idelay)
         if comm.rank == 0:
             pbar.finish()
+        myfile.close()
 
+    templates.file.close()
     comm.Barrier()
 
     if comm.rank == 0:
+        myfile  = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'r')
+        overlap = myfile.get('overlap')
         max_overlaps = numpy.zeros((N_tm, N_tm), dtype=numpy.float32)
         for i in xrange(N_tm):
             max_overlaps[i] = numpy.max(overlap[i], 1)
 
         hdf5storage.savemat(file_out_suff + '.overlap%s.mat' %extension, {'maxoverlap' : max_overlaps})
-
-    comm.Barrier()
-    myfile.close()
+        myfile.close()  
 
     return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]

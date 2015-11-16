@@ -321,13 +321,20 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
             overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
             if comm.rank == 0:
                 pbar.update(idelay)
+        myfile.close()
         if comm.rank == 0:
             pbar.finish()
 
     comm.Barrier()
-
-    if comm.rank == 0:
+    if comm.rank > 0:
+        templates.file.close()
+    else:
+        local_templates = templates[:]
+        templates.file.close()
+        templates = local_templates
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        myfile    = h5py.File(filename, 'r')
+        overlap   = myfile.get('overlap')
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.max(overlap[i, i+1:nb_temp], 1)
             distances[i+1:, i] = distances[i, i+1:]
@@ -339,10 +346,8 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
             if has_been_merged:
                 merged[1] += 1
 
-    comm.Barrier()
-    myfile.close()
-    if comm.rank == 0:
-        os.remove(filename)
+        myfile.close()
+        os.remove(filename)        
 
     return templates, amplitudes, result, merged
 
@@ -438,13 +443,20 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
             overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
             if comm.rank == 0:
                 pbar.update(idelay)
+        myfile.close()
         if comm.rank == 0:
             pbar.finish()
 
     comm.Barrier()
-
-    if comm.rank == 0:
+    if comm.rank > 0:
+        templates.file.close()
+    else:
+        local_templates = templates[:]
+        templates.file.close()
+        templates = local_templates
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        myfile    = h5py.File(filename, 'r')
+        overlap   = myfile.get('overlap')
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
             distances[i+1:, i] = distances[i, i+1:]
@@ -483,10 +495,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         pbar.finish()
         to_be_removed = numpy.copy(mixtures)
         templates, amplitudes, result, removed = remove_template(templates, amplitudes, result, numpy.array(mixtures))
-
-    comm.Barrier()
-    myfile.close()
-    if comm.rank == 0:
+        myfile.close()
         os.remove(filename)
 
     return templates, amplitudes, result, removed, to_be_removed, [nb_temp, len(mixtures)]
