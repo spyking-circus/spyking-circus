@@ -316,8 +316,8 @@ def load_data(params, data, extension=''):
             basis_rec  = numpy.identity(N_t)
         return basis_proj, basis_rec
     elif data == 'templates':
-        if os.path.exists(file_out_suff + '.templates%s.mat' %extension):
-           return hdf5storage.loadmat(file_out_suff + '.templates%s.mat' %extension)['templates']
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension).get('templates')
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'spike-cluster':
@@ -524,19 +524,20 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
             cuda_string = 'using 1 GPU [no parallel HDF5]...'
 
     #print "Normalizing the templates..."
-    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0),0))
-    templates     /= norm_templates
+    norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+    for i in xrange(templates.shape[2]):
+        norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
     if comm.rank == 0:
         print "Computing the overlaps", cuda_string
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
     if parallel_hdf5:
-        file = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w', driver='mpio', comm=comm)
-        file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        myfile  = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w', driver='mpio', comm=comm)
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
     elif comm.rank == 0:
-        file = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w')
-        file.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        myfile  = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w')
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
 
     all_delays   = numpy.arange(1, N_t+1)
         
@@ -548,8 +549,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     if parallel_hdf5 or (comm.rank == 0):
 
         for idelay in local_delays:
-            tmp_1 = templates[:, :idelay, :] 
-            tmp_2 = templates[:, -idelay:, :]
+            tmp_1 = templates[:, :idelay, :]/norm_templates
+            tmp_2 = templates[:, -idelay:, :]/norm_templates
             size  = N_e*idelay
             if HAVE_CUDA:
                 tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, N_tm))
@@ -560,11 +561,10 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
                 tmp_2 = tmp_2.reshape(size, N_tm)
                 data  = numpy.dot(tmp_1.T, tmp_2)
 
-            file.get('overlap')[:, :, idelay-1]           = data
-            file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
+            overlap[:, :, idelay-1]           = data
+            overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
             if comm.rank == 0:
                 pbar.update(idelay)
-        file.close()
         if comm.rank == 0:
             pbar.finish()
 
@@ -572,10 +572,12 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
 
     if comm.rank == 0:
         max_overlaps = numpy.zeros((N_tm, N_tm), dtype=numpy.float32)
-        file = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension)
         for i in xrange(N_tm):
-            max_overlaps[i] = numpy.max(file.get('overlap')[i], 1)
+            max_overlaps[i] = numpy.max(overlap[i], 1)
 
         hdf5storage.savemat(file_out_suff + '.overlap%s.mat' %extension, {'maxoverlap' : max_overlaps})
+
+    comm.Barrier()
+    myfile.close()
 
     return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]

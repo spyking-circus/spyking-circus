@@ -57,8 +57,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         amp_limits       = io.load_data(params, 'limits')
 
     #print "Normalizing the templates..."
-    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0), 0))
-    templates     /= norm_templates
+    norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+    for i in xrange(templates.shape[2]):
+        norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
+
+    templates[:]  /= norm_templates
     info_string    = ''
 
     if comm.rank == 0:
