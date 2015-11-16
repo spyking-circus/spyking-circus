@@ -254,15 +254,14 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         
         return False, templates, amplitudes, result, distances
 
-    has_been_merged = True
     templates       = load_data(params, 'templates')
-    amplitudes      = load_data(params, 'limits')
-    result          = load_data(params, 'clusters')
     tmp_path        = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     filename        = os.path.join(tmp_path, 'merging_cc.hdf5')
     N_e, N_t, N_tm  = templates.shape
     nb_temp         = templates.shape[2]/2
     merged          = [nb_temp, 0]
+    result          = []
+    amplitudes      = []
 
     try:
         HAVE_CUDA = True
@@ -329,12 +328,15 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     if comm.rank > 0:
         templates.file.close()
     else:
+        has_been_merged = True
         local_templates = templates[:]
         templates.file.close()
-        templates = local_templates
-        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        myfile    = h5py.File(filename, 'r')
-        overlap   = myfile.get('overlap')
+        templates  = local_templates
+        distances  = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        amplitudes = load_data(params, 'limits')
+        result     = load_data(params, 'clusters')
+        myfile     = h5py.File(filename, 'r')
+        overlap    = myfile.get('overlap')
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.max(overlap[i, i+1:nb_temp], 1)
             distances[i+1:, i] = distances[i, i+1:]
@@ -379,8 +381,6 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         return templates, amplitudes, result, removed
         
     templates       = load_data(params, 'templates')
-    amplitudes      = load_data(params, 'limits')
-    result          = load_data(params, 'clusters')
     tmp_path        = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     filename        = os.path.join(tmp_path, 'mixtures.hdf5')
     N_e, N_t, N_tm  = templates.shape
@@ -389,6 +389,8 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     mixtures        = []
     to_be_removed   = []
     removed         = []
+    result          = []
+    amplitudes      = []
 
     try:
         HAVE_CUDA = True
@@ -453,10 +455,12 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     else:
         local_templates = templates[:]
         templates.file.close()
-        templates = local_templates
-        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        myfile    = h5py.File(filename, 'r')
-        overlap   = myfile.get('overlap')
+        templates  = local_templates
+        result     = load_data(params, 'clusters')
+        amplitudes = load_data(params, 'limits')
+        distances  = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        myfile     = h5py.File(filename, 'r')
+        overlap    = myfile.get('overlap')
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
             distances[i+1:, i] = distances[i, i+1:]

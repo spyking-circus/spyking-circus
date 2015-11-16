@@ -385,7 +385,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     file_out_suff  = params.get('data', 'file_out_suff')
     min_rate       = params.get('fitting', 'min_rate')
-    duration       = data_stats(params)
+    #duration       = data_stats(params)
     templates      = load_data(params, 'templates')
     N_e, N_t, N_tm = templates.shape
 

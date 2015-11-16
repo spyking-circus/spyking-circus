@@ -552,41 +552,45 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     comm.Barrier()
 
-    if comm.rank == 0:
+    if parallel_hdf5 == 5:
+        pass
+    else:
 
-        ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
-        rs         = [cPickle.load(file(file_out_suff + '.data-%d.pic' %i, 'r')) for i in xrange(comm.size)]
-        result     = {}
-        n_clusters = numpy.sum([ts[i].get('templates').shape[2] for i in xrange(comm.size)])/2
-        hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w')
-        templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True)
-        electrodes = []
-        amplitudes = []
-        count      = 0
-        for i in xrange(comm.size):
-            loc_temp    = ts[i].get('templates')
-            middle      = loc_temp.shape[2]/2
-            templates[:,:,count:count+middle] = loc_temp[:,:,:middle]
-            templates[:,:,n_clusters+count:n_clusters+count+middle] = loc_temp[:,:,middle:]
-            count      += middle
-            electrodes += ts[i].get('electrodes')[:].tolist()
-            amplitudes += ts[i].get('limits')[:].tolist()
-            ts[i].close()
-            os.remove(file_out_suff + '.templates-%d.hdf5' %i)
-            os.remove(file_out_suff + '.data-%d.pic' %i)
-            for j in range(i, N_e, comm.size):
-                result['data_' + str(j)]     = rs[i]['data_' + str(j)]
-                result['clusters_' + str(j)] = rs[i]['clusters_' + str(j)]
-                result['debug_' + str(j)]    = rs[i]['debug_' + str(j)]
-                result['w_' + str(j)]        = rs[i]['w_' + str(j)]
-                result['pca_' + str(j)]      = rs[i]['pca_' + str(j)]
-                result['times_' + str(j)]    = rs[i]['times_' + str(j)]
+        if comm.rank == 0:
 
-        hfile.close()
-        result['electrodes']   = numpy.array(electrodes)
-        amplitudes             = numpy.array(amplitudes)
-        hdf5storage.savemat(file_out_suff + '.clusters',   result)
-        hdf5storage.savemat(file_out_suff + '.limits', {'limits' : amplitudes})
+            ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
+            rs         = [cPickle.load(file(file_out_suff + '.data-%d.pic' %i, 'r')) for i in xrange(comm.size)]
+            result     = {}
+            n_clusters = numpy.sum([ts[i].get('templates').shape[2] for i in xrange(comm.size)])/2
+            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w')
+            templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True)
+            electrodes = []
+            amplitudes = []
+            count      = 0
+            for i in xrange(comm.size):
+                loc_temp    = ts[i].get('templates')
+                middle      = loc_temp.shape[2]/2
+                templates[:,:,count:count+middle] = loc_temp[:,:,:middle]
+                templates[:,:,n_clusters+count:n_clusters+count+middle] = loc_temp[:,:,middle:]
+                count      += middle
+                electrodes += ts[i].get('electrodes')[:].tolist()
+                amplitudes += ts[i].get('limits')[:].tolist()
+                ts[i].close()
+                os.remove(file_out_suff + '.templates-%d.hdf5' %i)
+                os.remove(file_out_suff + '.data-%d.pic' %i)
+                for j in range(i, N_e, comm.size):
+                    result['data_' + str(j)]     = rs[i]['data_' + str(j)]
+                    result['clusters_' + str(j)] = rs[i]['clusters_' + str(j)]
+                    result['debug_' + str(j)]    = rs[i]['debug_' + str(j)]
+                    result['w_' + str(j)]        = rs[i]['w_' + str(j)]
+                    result['pca_' + str(j)]      = rs[i]['pca_' + str(j)]
+                    result['times_' + str(j)]    = rs[i]['times_' + str(j)]
+
+            hfile.close()
+            result['electrodes']   = numpy.array(electrodes)
+            amplitudes             = numpy.array(amplitudes)
+            hdf5storage.savemat(file_out_suff + '.clusters',   result)
+            hdf5storage.savemat(file_out_suff + '.limits', {'limits' : amplitudes})
 
     comm.Barrier()
     
