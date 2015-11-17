@@ -41,7 +41,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    templates      = io.load_data(params, 'templates')
+    templates      = io.load_data(params, 'templates')[:]
     N_e, N_t, N_tm = templates.shape
     template_shift = int((N_t-1)/2)
     temp_2_shift   = 2*template_shift
@@ -61,8 +61,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for i in xrange(templates.shape[2]):
         norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
-    templates[:]  /= norm_templates
-    info_string    = ''
+    templates    /= norm_templates
+    info_string   = ''
 
     if comm.rank == 0:
         if use_gpu:

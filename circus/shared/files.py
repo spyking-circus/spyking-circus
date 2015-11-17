@@ -337,8 +337,13 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'clusters':
-        if os.path.exists(file_out_suff + '.clusters%s.mat' %extension):
-            return hdf5storage.loadmat(file_out_suff + '.clusters%s.mat' %extension)
+        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
+            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension)
+            result = {}
+            for key in myfile.keys():
+                result[str(key)] = myfile.get(key)[:]
+            myfile.close()
+            return result
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'results':
@@ -353,7 +358,7 @@ def load_data(params, data, extension=''):
             raise Exception('No overlaps found! Check suffix or run the fitting?')
     elif data == 'limits':
         try:
-            return hdf5storage.loadmat(file_out_suff + '.limits.mat')['limits']
+            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension).get('limits')
         except Exception:
             return None
     elif data == 'injected_spikes':
@@ -372,14 +377,14 @@ def load_data(params, data, extension=''):
         except Exception:
             return None
 
-
-def save_data(params, data, extension=''):
-    file_out = params.get('data', 'file_out')
-    file     = h5py.File(file_out + '.hdf5' %extension)
-    for key, value in data:
-        file.create_dataset(key, data=value)
-    file.close()
-
+def write_datasets(h5file, to_write, result, electrode=None):
+    for key in to_write:
+        if electrode is not None:
+            mykey = key + str(electrode)
+        else:
+            mykey = key
+        h5file.create_dataset(mykey, shape=result[mykey].shape, dtype=result[mykey].dtype, chunks=True)
+        h5file.get(mykey)[:] = result[mykey]
 
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False):
 

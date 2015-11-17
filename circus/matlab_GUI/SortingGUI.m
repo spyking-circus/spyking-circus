@@ -100,10 +100,17 @@ handles.filename = filename;
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-template = load([filename '.templates' suffix],'-mat');
-handles.templates  = template.templates(:,:,1:end/2);
-handles.templates2 = template.templates(:,:,end/2+1:end);
-
+if exist([filename '.templates' suffix '-mat'])
+    template = load([filename '.templates' suffix],'-mat');
+    handles.templates  = template.templates(:,:,1:end/2);
+    handles.templates2 = template.templates(:,:,end/2+1:end);
+else
+    tmpfile = [filename '.templates' suffix];
+    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    template = h5read(tmpfile, '/templates');
+    handles.templates  = template(:,:,1:end/2);
+    handles.templates2 = template(:,:,end/2+1:end);
+end
 
 %% Raw data file if it is there
 
