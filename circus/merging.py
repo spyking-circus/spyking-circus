@@ -25,7 +25,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_delay      = max(100, cc_average)
 
     if comm.rank == 0:
-        templates      = io.load_data(params, 'templates')
+        templates      = io.load_data(params, 'templates')[:]
+        limits         = io.load_data(params, 'limits')
         clusters       = io.load_data(params, 'clusters')
         result         = io.load_data(params, 'results')
         overlap        = hdf5storage.loadmat(file_out_suff + '.overlap.mat')['maxoverlap']
@@ -56,7 +57,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             y_cc[d]        -= len(gsum)
         return x_cc, y_cc
 
-    def perform_merging(all_pairs, templates, clusters, overlap, result):
+    def perform_merging(all_pairs, templates, clusters, overlap, result, limits):
         
         for count in xrange(len(all_pairs)):
             pairs      = all_pairs[count]
@@ -90,6 +91,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             overlap   = numpy.delete(overlap, indices, axis=0)
             overlap   = numpy.delete(overlap, indices, axis=1)
             overlap  /= templates.shape[0] * templates.shape[1]
+            limits    = numpy.delete(limits, indices, axis=0)
 
             elec      = clusters['electrodes'][pairs[1]]
             nic       = pairs[1] - numpy.where(clusters['electrodes'] == elec)[0][0]
@@ -102,9 +104,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             clusters['debug_' + str(elec)]    = numpy.delete(clusters['debug_' + str(elec)], elements, axis=1)  
             clusters['data_' + str(elec)]     = numpy.delete(clusters['data_' + str(elec)], elements, axis=0) 
             clusters['times_' + str(elec)]    = numpy.delete(clusters['times_' + str(elec)], elements)
-                    
+
             all_pairs[all_pairs >= pairs[1]] -= 1
-        return templates, clusters, overlap, result
+        return templates, clusters, overlap, result, limits
 
     if comm.rank == 0:
         print "Merging similar templates..."
@@ -182,7 +184,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     pylab.tight_layout()
                     pylab.savefig(os.path.join(plot_path, 'merging-%d.pdf' %count))
 
-                templates, clusters, overlap, result = perform_merging(all_mergings, templates, clusters, overlap, result)
+                templates, clusters, overlap, result, limits = perform_merging(all_mergings, templates, clusters, overlap, result, limits)
                 print "Automatic merging of %d pairs..." %len(all_mergings)
             else:
                 do_merging = False
@@ -192,11 +194,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             print "We merged a total of", nb_init - templates.shape[2]/2, "templates" 
 
-        if templates.shape[2]/2 < nb_init:
-            hdf5storage.savemat(file_out_suff + '.amplitudes-merged', result['amplitudes'])
-            hdf5storage.savemat(file_out_suff + '.spiketimes-merged', result['spiketimes'])
-            hdf5storage.savemat(file_out_suff + '.templates-merged', {'templates' : templates})
-            hdf5storage.savemat(file_out_suff + '.clusters-merged', clusters)
+        
+        hdf5storage.savemat(file_out_suff + '.amplitudes-merged', result['amplitudes'])
+        hdf5storage.savemat(file_out_suff + '.spiketimes-merged', result['spiketimes'])
+        hfile = h5py.File(file_out_suff + '.templates-merged.hdf5', 'w')
+        cfile = h5py.File(file_out_suff + '.clusters-merged.hdf5', 'w')
+        io.write_datasets(hfile, ['templates', 'limits'], {'templates' : templates, 'limits' : limits})
+        hfile.close()
+        to_write = ['data_', 'clusters_', 'debug_', 'times_']
+        for ielec in xrange(N_e):
+            io.write_datasets(cfile, to_write, clusters, ielec)
+        io.write_datasets(cfile, ['electrodes'], clusters)
+        cfile.close()
     
     comm.Barrier()
     io.get_overlaps(comm, params, extension='-merged', parallel_hdf5=parallel_hdf5)
