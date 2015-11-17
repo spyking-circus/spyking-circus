@@ -290,27 +290,27 @@ def load_data(params, data, extension=''):
     if data == 'thresholds':
         spike_thresh = params.getfloat('data', 'spike_thresh')
         N_e          = params.getint('data', 'N_e') 
-        if os.path.exists(file_out + '.thresholds.npy'):
-            thresholds = spike_thresh * numpy.load(file_out + '.thresholds.npy')
+        if os.path.exists(file_out + '.basis.hdf5'):
+            thresholds  = h5py.File(file_out + '.basis.hdf5').get('thresholds')[:]
+            thresholds *= spike_thresh
         else:
             thresholds = spike_thresh * numpy.ones(N_e, dtype=numpy.float32)
         return thresholds
     elif data == 'spatial_whitening':
-        if os.path.exists(file_out + '.whitening.mat'):
-            return hdf5storage.loadmat(file_out + '.whitening.mat')['spatial']
+        if os.path.exists(file_out + '.basis.hdf5'):
+            return h5py.File(file_out + '.basis.hdf5').get('spatial')[:]
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'temporal_whitening':
-        if os.path.exists(file_out + '.whitening.mat'):
-            return hdf5storage.loadmat(file_out + '.whitening.mat')['temporal']
+        if os.path.exists(file_out + '.basis.hdf5'):
+            return h5py.File(file_out + '.basis.hdf5').get('temporal')[:]
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'basis':
         N_t = params.getfloat('data', 'N_t')
-        if os.path.exists(file_out + '.basis.npz'):
-            basis      = numpy.load(file_out + '.basis.npz')
-            basis_proj = basis['proj']
-            basis_rec  = basis['rec']
+        if os.path.exists(file_out + '.basis.hdf5'):
+            basis_proj = h5py.File(file_out + '.basis.hdf5').get('proj')[:]
+            basis_rec  = h5py.File(file_out + '.basis.hdf5').get('rec')[:]
         else:
             basis_proj = numpy.identity(N_t)
             basis_rec  = numpy.identity(N_t)
@@ -358,7 +358,7 @@ def load_data(params, data, extension=''):
             raise Exception('No overlaps found! Check suffix or run the fitting?')
     elif data == 'limits':
         try:
-            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension).get('limits')
+            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension).get('limits')[:]
         except Exception:
             return None
     elif data == 'injected_spikes':

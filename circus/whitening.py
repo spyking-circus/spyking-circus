@@ -4,6 +4,7 @@ from .shared import plot
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
+    import h5py
 
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')
@@ -51,12 +52,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
         gdata      = gather_array(thresholds, comm)
         if comm.rank == 0:
-            gdata.reshape((comm.size, N_e))
-            threshold = numpy.mean(gdata, 0)
-            numpy.save(file_out + '.thresholds', thresholds)
+            gdata      = gdata.reshape((comm.size, N_e))
+            thresholds = numpy.mean(gdata, 0)
+            bfile      = h5py.File(file_out + '.basis.hdf5', 'w')
+            io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
         comm.Barrier()
         thresholds  = io.load_data(params, 'thresholds')
-
+        
         #print "Extracting the peaks..."
         local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
         for i in xrange(N_e):
@@ -94,6 +96,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     local_silences = local_chunk[subset, :][:max_silence_1]
     all_silences   = gather_array(local_silences, comm, 0, 1)
     local_res      = []
+
+    print 'toto'
 
     for elec in all_electrodes[numpy.arange(comm.rank, nb_temp_white, comm.size)]:
         res            = numpy.zeros((0, N_t), dtype=numpy.float32)
@@ -134,7 +138,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         print "We found", len(all_silences), "times without spikes for whitening matrices..."
         spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
-        hdf5storage.savemat(file_out + '.whitening', {'spatial' : spatial_whitening, 'temporal' : temporal_whitening})
+        io.write_datasets(bfile, ['spatial', 'temporal'], {'spatial' : spatial_whitening, 'temporal' : temporal_whitening})
         print "Because of whitening, we need to recompute the thresholds..."
 
     del all_res, all_silences
@@ -159,9 +163,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
             gdata      = gather_array(thresholds, comm)
             if comm.rank == 0:
-                gdata.reshape((comm.size, N_e))
-                threshold = numpy.mean(gdata, 0)
-                numpy.save(file_out + '.thresholds', thresholds)
+                gdata      = gdata.reshape((comm.size, N_e))
+                thresholds = numpy.mean(gdata, 0)
+                io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
             comm.Barrier()
 
     if comm.rank == 0:
@@ -293,5 +297,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         print "We found", gdata.shape[1], "spikes over", int(nb_elts*comm.size), "requested"
         pca      = mdp.nodes.PCANode(output_dim=output_dim)
         res_pca  = pca(elts.astype(numpy.double).T)
-        numpy.savez(file_out + '.basis', proj=pca.get_projmatrix().astype(numpy.float32), rec=pca.get_recmatrix().astype(numpy.float32))
+        io.write_datasets(bfile, ['proj', 'rec'], {'proj' : pca.get_projmatrix().astype(numpy.float32), 
+                                                    'rec' : pca.get_recmatrix().astype(numpy.float32)})
         io.print_info(["A basis with %s dimensions has been built" %pca.get_projmatrix().shape[1]])
+        bfile.close()
