@@ -20,8 +20,8 @@ function varargout = SortingGUI(varargin)
 %      unrecognized property name or invalid value makes property application
 %      stop.  All inputs are passed to SortingGUI_OpeningFcn via varargin.
 %
-%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
-%      instance to run (singleton)".
+%      *See GUI Options on GUIDEs Tools menu.  "Choose GUI allows only one
+%      instance to run (singleton").
 %
 % See also: GUIDE, GUIDATA, GUIHANDLES
 
@@ -101,13 +101,15 @@ handles.filename = filename;
 %% Template file: could also contain AmpLim and AmpTrend
 
 if exist([filename '.templates' suffix '-mat'])
-    template = load([filename '.templates' suffix],'-mat');
+    template           = load([filename '.templates' suffix],'-mat');
     handles.templates  = template.templates(:,:,1:end/2);
     handles.templates2 = template.templates(:,:,end/2+1:end);
 else
-    tmpfile = [filename '.templates' suffix];
-    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    tmpfile  = [filename '.templates' suffix];
+    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
     template = h5read(tmpfile, '/templates');
+    ndim     = numel(size(template));
+    template = permute(template,[ndim:-1:1]);
     handles.templates  = template(:,:,1:end/2);
     handles.templates2 = template(:,:,end/2+1:end);
 end
@@ -128,7 +130,7 @@ if length(varargin)>=6
             HeaderSize=0;
 
             while (stop==0)&&(HeaderSize<=10000)%to avoid infinite loop
-                ch = fread(handles.DataFid, 1, 'uint8=>char')';
+                ch = fread(handles.DataFid, 1, 'uint8=>char');
                 HeaderSize = HeaderSize + 1;
                 HeaderText = [HeaderText ch];
                 if (HeaderSize>2)
@@ -151,8 +153,12 @@ if length(varargin)>=6
             handles.WhiteTemporal = a.temporal;
         else
             tmpfile = [filename '.basis' '.hdf5'];
-            handles.WhiteSpatial = h5read(tmpfile, '/spatial');
+            handles.WhiteSpatial  = h5read(tmpfile, '/spatial');
+            ndim                  = numel(size(handles.WhiteSpatial));
+            handles.WhiteSpatial  = permute(handles.WhiteSpatial,[ndim:-1:1]);
             handles.WhiteTemporal = h5read(tmpfile, '/temporal');
+            ndim                  = numel(size(handles.WhiteTemporal));
+            handles.WhiteTemporal = permute(handles.WhiteTemporal,[ndim:-1:1]);
         end
 
         b = load(varargin{4},'-mat');
@@ -208,6 +214,8 @@ else
     tmpfile = [filename '.templates' suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
     handles.AmpLim = h5read(tmpfile, '/limits');
+    ndim           = numel(size(handles.AmpLim));
+    handles.AmpLim = permute(handles.AmpLim,[ndim:-1:1]);
 end
 
 if ~isfield(template,'AmpTrend') || exist([filename '.limits' suffix],'file')
@@ -285,17 +293,15 @@ if exist([filename '.clusters' suffix], 'file')
     a = load([filename '.clusters' suffix],'-mat');
     if isfield(a,'clusters') %This is the save format
         handles.clusters     = a.clusters;
-        handles.DistribClust = a.DistribClust;
         handles.BestElec     = a.BestElec;
     else 
         handles.BestElec = a.electrodes + 1;
         for id=1:size(handles.templates,1)%number of electrodes
             if ~isempty(eval(['a.clusters_' int2str(id-1)]))
-                features = double(eval(['a.data_' int2str(id-1)]));
+                features  = double(eval(['a.data_' int2str(id-1)]));
                 ClusterId = double(eval(['a.clusters_' int2str(id-1)]));
-
-                Values = sort(unique(ClusterId),'ascend');
-                if Values(1)==-1
+                Values    = sort(unique(ClusterId),'ascend');
+                if Values(1) == -1
                     Values(1) = [];
                 end
                 
@@ -306,7 +312,6 @@ if exist([filename '.clusters' suffix], 'file')
                         handles.clusters{corresponding_template_nbs(idx)} = sf;
                     end
                 end
-                handles.DistribClust{id} = eval(['a.debug_' int2str(id-1)]);
             end
         end
     end
@@ -314,33 +319,27 @@ else
     tmpfile = [filename '.clusters' suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
     handles.BestElec = h5read(tmpfile, '/electrodes') + 1;
-    for id=1:size(handles.templates,1)%number of electrodes
+    for id=1:size(handles.templates, 1) %number of electrodes
         if ~isempty(h5read(tmpfile, ['/clusters_' int2str(id-1)]))
             features  = h5read(tmpfile, ['/data_' int2str(id-1)]);
+            ndim      = numel(size(features));
+            features  = permute(features,[ndim:-1:1]);
             ClusterId = h5read(tmpfile, ['/clusters_' int2str(id-1)]);
-
-            Values = sort(unique(ClusterId),'ascend');
-            if Values(1)==-1
+            ndim      = numel(size(ClusterId));
+            ClusterId = permute(ClusterId,[ndim:-1:1]);
+            Values    = sort(unique(ClusterId),'ascend');
+            if Values(1) == -1
                 Values(1) = [];
             end
             
-            corresponding_template_nbs = find(handles.BestElec==id);
+            corresponding_template_nbs = find(handles.BestElec == id);
             if length(corresponding_template_nbs) > 0
                 for idx=1:length(Values)
-                    sf = features(find(ClusterId==Values(idx)),:);
+                    sf = features(find(ClusterId==Values(idx)), :);
                     handles.clusters{corresponding_template_nbs(idx)} = sf;
                 end
             end
-            handles.DistribClust{id} = h5read(tmpfile, ['/debug_' int2str(id-1)]);
         end
-    end
-end
-
-handles.Clims = zeros(size(handles.templates,1),2);
-for i=1:length(handles.DistribClust)
-    if ~isempty(handles.DistribClust{i})
-        handles.Clims(i,1) = max(handles.DistribClust{i}(:,1));
-        handles.Clims(i,2) = max(handles.DistribClust{i}(:,2));
     end
 end
 
@@ -952,7 +951,6 @@ handles.AmpLim(CellNb2,:) = [];
 handles.AmpTrend(CellNb2) = [];
 handles.clusters(CellNb2) = [];
 handles.BestElec(CellNb2) = [];
-% handles.DistribClust(CellNb2) = [];
 handles.Tagged(CellNb2) = [];
 
 
@@ -1276,21 +1274,6 @@ if (ViewMode==2) & (handles.BestElec(CellNb)==handles.BestElec(CellNb2))
     hold(handles.ClusterWin,'off')
 end
 
-
-%% PLOT DistribClust
-% % plot(handles.SeparationWin,handles.DistribClust{handles.BestElec(CellNb)}(:,1),handles.DistribClust{handles.BestElec(CellNb)}(:,2),'.')
-% % 
-% % rhomin = handles.ClusterLims(handles.BestElec(CellNb),1);
-% % deltamin = handles.ClusterLims(handles.BestElec(CellNb),2);
-% % 
-% % Selec = find(handles.DistribClust{handles.BestElec(CellNb)}(:,1) >rhomin & handles.DistribClust{handles.BestElec(CellNb)}(:,2)>deltamin);
-% % hold(handles.SeparationWin,'on')
-% % plot(handles.SeparationWin,handles.DistribClust{handles.BestElec(CellNb)}(Selec,1),handles.DistribClust{handles.BestElec(CellNb)}(Selec,2),'r.')
-% % hold(handles.SeparationWin,'off')
-% % 
-% % set(handles.SeparationWin,'Xlim',[0 handles.Clims(handles.BestElec(CellNb),1)])
-% % set(handles.SeparationWin,'Ylim',[0 handles.Clims(handles.BestElec(CellNb),2)])
-
 %% PLOT AMPLITUDE
 
 if ~isempty(handles.SpikeTimes{CellNb})
@@ -1547,9 +1530,9 @@ filename = handles.filename;
 
 templates = handles.templates;
 templates(:,:,size(templates,3)+1:size(templates,3)*2) = handles.templates2;
-AmpLim = handles.AmpLim;
+AmpLim   = handles.AmpLim;
 AmpTrend = handles.AmpTrend;
-Tagged = handles.Tagged;
+Tagged   = handles.Tagged;
 
 save([filename '.templates' suffix '.mat'],'templates','AmpLim','AmpTrend','Tagged','-mat','-v7.3');
 
@@ -1574,12 +1557,10 @@ save([filename '.spiketimes' suffix '.mat'],'SpikeTimes','-mat','-v7.3');
 
 %% Clusters file
 
-clusters = handles.clusters;
-DistribClust = handles.DistribClust;
-BestElec = handles.BestElec;
-ClusterLims = handles.ClusterLims;
+clusters    = handles.clusters;
+BestElec    = handles.BestElec;
 
-save([filename '.clusters' suffix '.mat'],'clusters','DistribClust','BestElec','ClusterLims','-mat','-v7.3')
+save([filename '.clusters' suffix '.mat'],'clusters','BestElec','-mat','-v7.3')
 
 %% overlap
 

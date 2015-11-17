@@ -638,6 +638,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                        "Number of mixtures removed : %d" %merged2[1]])
 
     del result, templates, limits
+    
 
     comm.Barrier()
     io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
