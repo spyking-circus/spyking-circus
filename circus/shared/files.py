@@ -289,13 +289,8 @@ def load_data(params, data, extension=''):
 
     if data == 'thresholds':
         spike_thresh = params.getfloat('data', 'spike_thresh')
-        N_e          = params.getint('data', 'N_e') 
         if os.path.exists(file_out + '.basis.hdf5'):
-            thresholds  = h5py.File(file_out + '.basis.hdf5').get('thresholds')[:]
-            thresholds *= spike_thresh
-        else:
-            thresholds = spike_thresh * numpy.ones(N_e, dtype=numpy.float32)
-        return thresholds
+            return spike_thresh * h5py.File(file_out + '.basis.hdf5').get('thresholds')[:]
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
             return h5py.File(file_out + '.basis.hdf5').get('spatial')[:]

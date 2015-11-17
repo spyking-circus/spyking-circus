@@ -56,6 +56,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             thresholds = numpy.mean(gdata, 0)
             bfile      = h5py.File(file_out + '.basis.hdf5', 'w')
             io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
+            bfile.close()
         comm.Barrier()
         thresholds  = io.load_data(params, 'thresholds')
         
@@ -97,8 +98,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     all_silences   = gather_array(local_silences, comm, 0, 1)
     local_res      = []
 
-    print 'toto'
-
     for elec in all_electrodes[numpy.arange(comm.rank, nb_temp_white, comm.size)]:
         res            = numpy.zeros((0, N_t), dtype=numpy.float32)
         scount         = 0
@@ -138,7 +137,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         print "We found", len(all_silences), "times without spikes for whitening matrices..."
         spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
+        bfile = h5py.File(file_out + '.basis.hdf5', 'r+')
         io.write_datasets(bfile, ['spatial', 'temporal'], {'spatial' : spatial_whitening, 'temporal' : temporal_whitening})
+        bfile.close()
         print "Because of whitening, we need to recompute the thresholds..."
 
     del all_res, all_silences
@@ -165,7 +166,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 gdata      = gdata.reshape((comm.size, N_e))
                 thresholds = numpy.mean(gdata, 0)
+                bfile      = h5py.File(file_out + '.basis.hdf5', 'r+')
+                bfile.pop('thresholds')
                 io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
+                bfile.close()
             comm.Barrier()
 
     if comm.rank == 0:
@@ -217,7 +221,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_elts       /= comm.size
     elts           = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
     chunks_to_load = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
-
 
     thresholds = io.load_data(params, 'thresholds')
 
@@ -297,6 +300,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         print "We found", gdata.shape[1], "spikes over", int(nb_elts*comm.size), "requested"
         pca      = mdp.nodes.PCANode(output_dim=output_dim)
         res_pca  = pca(elts.astype(numpy.double).T)
+        bfile    = h5py.File(file_out + '.basis.hdf5', 'r+')
         io.write_datasets(bfile, ['proj', 'rec'], {'proj' : pca.get_projmatrix().astype(numpy.float32), 
                                                     'rec' : pca.get_recmatrix().astype(numpy.float32)})
         io.print_info(["A basis with %s dimensions has been built" %pca.get_projmatrix().shape[1]])
