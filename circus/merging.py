@@ -29,7 +29,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         limits         = io.load_data(params, 'limits')
         clusters       = io.load_data(params, 'clusters')
         result         = io.load_data(params, 'results')
-        overlap        = hdf5storage.loadmat(file_out_suff + '.overlap.mat')['maxoverlap']
+        overlap        = h5py.File(file_out_suff + '.overlap.mat').get('maxoverlap')[:]
         overlap       /= templates.shape[0] * templates.shape[1]
 
         io.purge(file_out_suff, '-merged')
@@ -91,7 +91,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             overlap   = numpy.delete(overlap, indices, axis=0)
             overlap   = numpy.delete(overlap, indices, axis=1)
             overlap  /= templates.shape[0] * templates.shape[1]
-            limits    = numpy.delete(limits, indices, axis=0)
+            limits    = numpy.delete(limits, pairs[1], axis=0)
 
             elec      = clusters['electrodes'][pairs[1]]
             nic       = pairs[1] - numpy.where(clusters['electrodes'] == elec)[0][0]

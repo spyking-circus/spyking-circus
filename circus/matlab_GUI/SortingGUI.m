@@ -145,9 +145,15 @@ if length(varargin)>=6
 
         handles.DataStartPt = 1000;
 
-        a = load([filename '.whitening.mat'],'-mat');
-        handles.WhiteSpatial = a.spatial;
-        handles.WhiteTemporal = a.temporal;
+        if exist([filename '.whitening' suffix '-mat'])
+            a = load([filename '.whitening.mat'],'-mat');
+            handles.WhiteSpatial = a.spatial;
+            handles.WhiteTemporal = a.temporal;
+        else
+            tmpfile = [filename '.basis' '.hdf5'];
+            handles.WhiteSpatial = h5read(tmpfile, '/spatial');
+            handles.WhiteTemporal = h5read(tmpfile, '/temporal');
+        end
 
         b = load(varargin{4},'-mat');
 
@@ -199,14 +205,9 @@ if exist([filename '.limits' suffix],'file')
     b = load([filename '.limits' suffix],'-mat');
     handles.AmpLim = b.limits;
 else
-    if ~isfield(template,'AmpLim')
-        AmpLim = ones(size(handles.templates,3),2);
-        AmpLim(:,1) = AmpLim(:,1) * 0.5;
-        AmpLim(:,2) = AmpLim(:,2) * 2;
-        handles.AmpLim = AmpLim;
-    else
-        handles.AmpLim = template.AmpLim;
-    end
+    tmpfile = [filename '.templates' suffix];
+    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    handles.AmpLim = h5read(tmpfile, '/limits');
 end
 
 if ~isfield(template,'AmpTrend') || exist([filename '.limits' suffix],'file')
@@ -280,14 +281,13 @@ end
 
 %% Clusters file
 
-if exist([filename '.clusters' suffix],'file')    
+if exist([filename '.clusters' suffix], 'file')    
     a = load([filename '.clusters' suffix],'-mat');
-    if isfield(a,'clusters')%This is the save format
-        handles.clusters = a.clusters;
+    if isfield(a,'clusters') %This is the save format
+        handles.clusters     = a.clusters;
         handles.DistribClust = a.DistribClust;
-        handles.BestElec = a.BestElec;
-    else
-        
+        handles.BestElec     = a.BestElec;
+    else 
         handles.BestElec = a.electrodes + 1;
         for id=1:size(handles.templates,1)%number of electrodes
             if ~isempty(eval(['a.clusters_' int2str(id-1)]))
@@ -306,42 +306,34 @@ if exist([filename '.clusters' suffix],'file')
                         handles.clusters{corresponding_template_nbs(idx)} = sf;
                     end
                 end
-                handles.DistribClust{id} = eval(['a.debug_' int2str(id-1)])';
+                handles.DistribClust{id} = eval(['a.debug_' int2str(id-1)]);
             end
-        end
-    end
-    
-    if isfield(a,'ClusterLims')
-        handles.ClusterLims = a.ClusterLims;
-    else
-        if isfield(a,'limits')
-            handles.ClusterLims = a.limits;
-%             handles.ClusterLims(:,1) = double(eval('a.rho_limts'));
-%             handles.ClusterLims(:,2) = double(eval('a.delta_limts'));
-%             handles.ClusterLims(:,3) = zeros(size(handles.templates,1));
-            
-            if isnan(handles.ClusterLims(1,1)) 
-                handles.ClusterLims(:,1) = .1;
-                handles.ClusterLims(:,2) = 1e-7;
-            end
-        else
-            handles.ClusterLims = ones(size(handles.templates,1),3);
-            handles.ClusterLims(:,3) = 0;
         end
     end
 else
-    for i=1:size(handles.templates,3)
-        clusters{i} = randn(100,5);
-    end
-    handles.clusters = clusters;
-    handles.BestElec = randi(size(handles.templates,1),[size(handles.templates,3) 1]);
+    tmpfile = [filename '.clusters' suffix];
+    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    handles.BestElec = h5read(tmpfile, '/electrodes') + 1;
+    for id=1:size(handles.templates,1)%number of electrodes
+        if ~isempty(h5read(tmpfile, ['/clusters_' int2str(id-1)]))
+            features  = h5read(tmpfile, ['/data_' int2str(id-1)]);
+            ClusterId = h5read(tmpfile, ['/clusters_' int2str(id-1)]);
 
-    for i=1:size(handles.templates,1)
-        DistribClust{i} = randn(10,2);
+            Values = sort(unique(ClusterId),'ascend');
+            if Values(1)==-1
+                Values(1) = [];
+            end
+            
+            corresponding_template_nbs = find(handles.BestElec==id);
+            if length(corresponding_template_nbs) > 0
+                for idx=1:length(Values)
+                    sf = features(find(ClusterId==Values(idx)),:);
+                    handles.clusters{corresponding_template_nbs(idx)} = sf;
+                end
+            end
+            handles.DistribClust{id} = h5read(tmpfile, ['/debug_' int2str(id-1)]);
+        end
     end
-    handles.DistribClust = DistribClust;
-    handles.ClusterLims = ones(size(handles.templates,1),3);
-    handles.ClusterLims(:,3) = 0;
 end
 
 handles.Clims = zeros(size(handles.templates,1),2);
@@ -355,11 +347,13 @@ end
 
 %% overlap
 
-a = load([filename '.overlap' suffix],'-mat');
-if isfield(a,'maxoverlap')
+if exist([filename '.overlap' suffix], 'file')
+    a               = load([filename '.overlap' suffix],'-mat');
     handles.overlap = a.maxoverlap/(size(handles.templates,1) * size(handles.templates,2));
 else
-    handles.overlap = max(a.overlap,[],3)/(size(handles.templates,1) * size(handles.templates,2));
+    tmpfile = [filename '.overlap' suffix];
+    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    handles.overlap = h5read(tmpfile, '/maxoverlap')/(size(handles.templates,1) * size(handles.templates,2));
 end
 
 if size(handles.overlap, 1) == size(handles.templates,3)*2

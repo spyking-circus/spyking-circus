@@ -283,8 +283,8 @@ def get_nodes_and_edges(parameters):
 
 def load_data(params, data, extension=''):
 
-    file_out      = params.get('data', 'file_out')
-    file_out_suff = params.get('data', 'file_out_suff')
+    file_out        = params.get('data', 'file_out')
+    file_out_suff   = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
 
     if data == 'thresholds':
@@ -302,13 +302,8 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'basis':
-        N_t = params.getfloat('data', 'N_t')
-        if os.path.exists(file_out + '.basis.hdf5'):
-            basis_proj = h5py.File(file_out + '.basis.hdf5').get('proj')[:]
-            basis_rec  = h5py.File(file_out + '.basis.hdf5').get('rec')[:]
-        else:
-            basis_proj = numpy.identity(N_t)
-            basis_rec  = numpy.identity(N_t)
+        basis_proj = h5py.File(file_out + '.basis.hdf5').get('proj')[:]
+        basis_rec  = h5py.File(file_out + '.basis.hdf5').get('rec')[:]
         return basis_proj, basis_rec
     elif data == 'templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
@@ -573,13 +568,11 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     comm.Barrier()
 
     if comm.rank == 0:
-        myfile  = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'r')
-        overlap = myfile.get('overlap')
-        max_overlaps = numpy.zeros((N_tm, N_tm), dtype=numpy.float32)
+        myfile     = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'r+')
+        overlap    = myfile.get('overlap')
+        maxoverlap = myfile.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
         for i in xrange(N_tm):
-            max_overlaps[i] = numpy.max(overlap[i], 1)
-
-        hdf5storage.savemat(file_out_suff + '.overlap%s.mat' %extension, {'maxoverlap' : max_overlaps})
+            maxoverlap[i] = numpy.max(overlap[i], 1)
         myfile.close()  
 
     return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]
