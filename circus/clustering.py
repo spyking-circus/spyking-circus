@@ -557,6 +557,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #At the end we should have a templates variable to store.
     cfile.close()
+    del result, templates, amps_lims
     comm.Barrier()
     
     if parallel_hdf5:
@@ -636,10 +637,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cfile.close()
 
         io.print_info(["Number of global merges    : %d" %merged1[1], 
-                       "Number of mixtures removed : %d" %merged2[1]])
-
-    del result, templates, limits
-    
+                       "Number of mixtures removed : %d" %merged2[1]])    
 
     comm.Barrier()
     io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
