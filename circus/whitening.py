@@ -51,8 +51,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         thresholds = numpy.median(abs(local_chunk - u), 0)
         gdata      = gather_array(thresholds, comm)
         if comm.rank == 0:
-            gdata.reshape((comm.size, N_e))
-            threshold = numpy.mean(gdata, 0)
+            gdata = gdata.reshape((comm.size, N_e))
+            thresholds = numpy.mean(gdata, 0)
             numpy.save(file_out + '.thresholds', thresholds)
         comm.Barrier()
         thresholds  = io.load_data(params, 'thresholds')
@@ -156,8 +156,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             thresholds = numpy.median(abs(local_chunk - u), 0)
             gdata      = gather_array(thresholds, comm)
             if comm.rank == 0:
-                gdata.reshape((comm.size, N_e))
-                threshold = numpy.mean(gdata, 0)
+                gdata = gdata.reshape((comm.size, N_e))
+                thresholds = numpy.mean(gdata, 0)
                 numpy.save(file_out + '.thresholds', thresholds)
             comm.Barrier()
 
