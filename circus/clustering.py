@@ -428,7 +428,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     cluster_results[ielec]['groups'] = numpy.array([], dtype=numpy.int32)
                     cluster_results[ielec]['n_clus'] = 0
-                    result['clusters_' + str(ielec)] = []
+                    result['clusters_' + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
                     result['debug_'    + str(ielec)] = numpy.zeros((2,0), dtype=numpy.float32)
                     print "Node %d:" %comm.rank, "not enough spikes on electrode", ielec
 
