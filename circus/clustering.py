@@ -426,7 +426,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         local_hits += 1
                     local_mergings += merged[1]
                 else:
-                    cluster_results[ielec]['groups'] = numpy.array([], dtype=numpy.int32)
+                    cluster_results[ielec]['groups'] = numpy.zeros(0, dtype=numpy.int32)
                     cluster_results[ielec]['n_clus'] = 0
                     result['clusters_' + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
                     result['debug_'    + str(ielec)] = numpy.zeros((2,0), dtype=numpy.float32)
@@ -557,6 +557,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #At the end we should have a templates variable to store.
     cfile.close()
+    comm.Barrier()
     
     if parallel_hdf5:
         if comm.rank == 0:
