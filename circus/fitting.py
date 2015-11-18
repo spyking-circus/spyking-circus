@@ -29,6 +29,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     spike_range    = int(params.getfloat('fitting', 'spike_range')*sampling_rate*1e-3)
+    low_memory     = params.getboolean('fitting', 'low_memory')
     #################################################################
 
     if use_gpu:
@@ -41,7 +42,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    templates      = io.load_data(params, 'templates')[:]
+    templates  = io.load_data(params, 'templates')
+    if not low_memory:
+        templates  = templates[:]
     N_e, N_t, N_tm = templates.shape
     template_shift = int((N_t-1)/2)
     temp_2_shift   = 2*template_shift
@@ -61,7 +64,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for i in xrange(templates.shape[2]):
         norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
-    templates    /= norm_templates
     info_string   = ''
 
     if comm.rank == 0:
@@ -82,6 +84,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     c_overlap     = io.get_overlaps(comm, params)
+    if not low_memory:
+        c_overlap = c_overlap[:]
 
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string
@@ -181,12 +185,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
                         cloc.select_columns(cu_slice, sub_mat)
                         sub_mat_transpose = sub_mat.transpose()
-                        sub_templates     = cmt.CUDAMatrix(templates[:, itime, :])
+                        sub_templates     = cmt.CUDAMatrix(templates[:, itime, :]/norm_templates)
                         b.add_dot(sub_mat_transpose, sub_templates)
                         del sub_templates, sub_mat_transpose
                     else:
                         sub_mat = local_chunk[local_peaktimes+itime-template_shift, :]
-                        b      += numpy.dot(sub_mat, templates[:, itime, :])
+                        b      += numpy.dot(sub_mat, templates[:, itime, :]/norm_templates)
             except Exception:
                 if comm.rank == 0:
                     lines = ["There may be a GPU memory error: -set gpu_only to False",
@@ -326,7 +330,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     x, y         = numpy.where(numpy.abs(tmp) <= temp_2_shift)
                     itmp         = tmp[x, y].astype(numpy.int32) + temp_2_shift
 
-
                     for count, keep, t in zip(range(len(to_keep)), to_keep, ts):
 
                         if full_gpu:
@@ -353,9 +356,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             myslice      = x == count
                             idx_b        = y[myslice]
-                            b[:, idx_b] -= best_amp[keep]*c_overlap[inds_temp[keep], :,  itmp[myslice]].T
+                            tmp1         = c_overlap[inds_temp[keep], :,  itmp[myslice]]
+                            tmp2         = c_overlap[inds_temp_2[count], :,  itmp[myslice]]
+                            if not low_memory:
+                                tmp1     = tmp1.T
+                                tmp2     = tmp2.T
+                            elif itmp[myslice].shape[0] == 1:
+                                tmp1     = tmp1.reshape(tmp1.shape[0], 1)
+                                tmp2     = tmp2.reshape(tmp2.shape[0], 1)
+
+                            b[:, idx_b] -= best_amp[keep]*tmp1
                             best_amp2    = b[inds_temp_2[count], inds_t[keep]]/n_scalar
-                            b[:, idx_b] -= best_amp2*c_overlap[inds_temp_2[count], :,  itmp[myslice]].T
+                            b[:, idx_b] -= best_amp2*tmp2
 
                         if good[count]:
                             normed_2 = norm_templates[inds_temp_2[count]]

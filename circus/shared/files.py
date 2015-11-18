@@ -132,6 +132,7 @@ def load_parameters(file_name):
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
                   ['fitting', 'spike_range', 'float', '0'],
                   ['fitting', 'min_rate', 'float', '0'],
+                  ['fitting', 'low_memory', 'bool', 'False'],
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '60'],
@@ -170,7 +171,7 @@ def load_parameters(file_name):
     return parser
 
 
-def data_stats(params):
+def data_stats(params, show=True):
     data_file      = params.get('data', 'data_file')
     data_offset    = params.getint('data', 'data_offset')
     data_dtype     = params.get('data', 'data_dtype')
@@ -193,7 +194,8 @@ def data_stats(params):
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius')]
-    print_info(lines)
+    if show:
+        print_info(lines)
     return nb_chunks*60 + last_chunk_len
 
 def print_info(lines):
@@ -380,7 +382,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     file_out_suff  = params.get('data', 'file_out_suff')
     min_rate       = params.get('fitting', 'min_rate')
-    #duration       = data_stats(params)
+    #duration       = data_stats(params, show=False)
     templates      = load_data(params, 'templates')
     N_e, N_t, N_tm = templates.shape
 
@@ -485,7 +487,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     N_e, N_t, N_tm = templates.shape
 
     if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension) and not erase:
-        return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]
+        return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')
     else:
         if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension) and erase and (comm.rank == 0):
             os.remove(file_out_suff + '.overlap%s.hdf5' %extension)
@@ -575,4 +577,4 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
             maxoverlap[i] = numpy.max(overlap[i], 1)
         myfile.close()  
 
-    return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')[:]
+    return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')
