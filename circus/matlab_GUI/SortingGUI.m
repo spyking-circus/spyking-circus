@@ -99,8 +99,7 @@ handles.filename = filename;
 
 
 %% Template file: could also contain AmpLim and AmpTrend
-
-if exist([filename '.templates' suffix '-mat'])
+if exist([filename '.templates' suffix])
     template           = load([filename '.templates' suffix],'-mat');
     handles.templates  = template.templates(:,:,1:end/2);
     handles.templates2 = template.templates(:,:,end/2+1:end);
@@ -147,7 +146,7 @@ if length(varargin)>=6
 
         handles.DataStartPt = 1000;
 
-        if exist([filename '.whitening' suffix '-mat'])
+        if exist([filename '.whitening' suffix])
             a = load([filename '.whitening.mat'],'-mat');
             handles.WhiteSpatial = a.spatial;
             handles.WhiteTemporal = a.temporal;
