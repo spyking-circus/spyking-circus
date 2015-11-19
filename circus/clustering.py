@@ -608,33 +608,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Merging similar templates..."
     
-    templates, limits, result, merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
-
-    if comm.rank == 0:
-        hfile = h5py.File(file_out_suff + '.templates.hdf5', 'w')
-        cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'w')
-        io.write_datasets(hfile, ['templates', 'limits'], {'templates' : templates, 'limits' : limits})
-        hfile.close()
-        for ielec in xrange(N_e):
-            io.write_datasets(cfile, to_write, result, ielec)
-        io.write_datasets(cfile, ['electrodes'], result)
-        cfile.close()
+    merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
 
     comm.Barrier()
     if comm.rank == 0:
         print "Removing mixtures..."
 
-    templates, limits, result, removed, to_be_removed, merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+    merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
 
     if comm.rank == 0:
-        hfile = h5py.File(file_out_suff + '.templates.hdf5', 'w')
-        cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'w')
-        io.write_datasets(hfile, ['templates', 'limits'], {'templates' : templates, 'limits' : limits})
-        hfile.close()
-        for ielec in xrange(N_e):
-            io.write_datasets(cfile, to_write, result, ielec)
-        io.write_datasets(cfile, ['electrodes'], result)
-        cfile.close()
 
         io.print_info(["Number of global merges    : %d" %merged1[1], 
                        "Number of mixtures removed : %d" %merged2[1]])    

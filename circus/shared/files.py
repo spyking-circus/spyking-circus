@@ -338,6 +338,11 @@ def load_data(params, data, extension=''):
             return result
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
+    elif data == 'electrodes':
+        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
+            return h5py.File(file_out_suff + '.clusters%s.hdf5' %extension).get('electrodes')[:]
+        else:
+            raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'results':
         try:
             return get_results(params, extension)
