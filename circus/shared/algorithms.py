@@ -604,18 +604,10 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
     ax : a matplotlib.axes.Axes instance, optional (default = None).
     """
 
-    x = numpy.atleast_1d(x).astype('float32')
-    if x.size < 3:
-        return numpy.array([], dtype=numpy.int32)
     if valley:
         x = -x
     # find indices of all peaks
     dx = x[1:] - x[:-1]
-    # handle NaN's
-    indnan = numpy.where(numpy.isnan(x))[0]
-    if indnan.size:
-        x[indnan] = numpy.inf
-        dx[numpy.where(numpy.isnan(dx))[0]] = numpy.inf
     ine, ire, ife = numpy.array([[], [], []], dtype=numpy.int32)
     if not edge:
         ine = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) > 0))[0]
@@ -625,10 +617,6 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
         if edge.lower() in ['falling', 'both']:
             ife = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) >= 0))[0]
     ind = numpy.unique(numpy.hstack((ine, ire, ife)))
-    # handle NaN's
-    if ind.size and indnan.size:
-        # NaN's and values close to NaN's cannot be peaks
-        ind = ind[numpy.in1d(ind, numpy.unique(numpy.hstack((indnan, indnan-1, indnan+1))), invert=True)]
     # first and last values of x cannot be peaks
     if ind.size and ind[0] == 0:
         ind = ind[1:]
@@ -655,8 +643,6 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
         ind = numpy.sort(ind[~idel])
 
     if show:
-        if indnan.size:
-            x[indnan] = numpy.nan
         if valley:
             x = -x
         pylab.plot(ind, x[ind], 'ro')
