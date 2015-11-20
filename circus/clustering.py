@@ -475,6 +475,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
         amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
     
+    comm.Barrier()
     cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w')
     count_templates = node_pad
 
