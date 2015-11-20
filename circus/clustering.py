@@ -609,7 +609,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         print "Merging similar templates..."
     
     merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
-
+    
     comm.Barrier()
     if comm.rank == 0:
         print "Removing mixtures..."

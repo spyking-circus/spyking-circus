@@ -219,21 +219,11 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
         if to_merge is not None:
             to_remove = []
             for count in xrange(len(to_merge)):
-                keep       = to_merge[count][0]
                 remove     = to_merge[count][1]
                 to_remove += [remove]
-                if keep < remove:
-                    to_merge[count+1:, ][to_merge[count+1:, ] >= keep] += 1
-                else:
-                    to_merge[count+1:, ][to_merge[count+1:, ] >= remove] += 1
 
         all_templates = set(numpy.arange(N_tm/2))
         to_keep       = numpy.array(list(all_templates.difference(to_remove)))
-
-        try:
-            print len(to_merge), len(to_keep), to_remove, len(numpy.unique(to_remove))
-        except Exception:
-            pass
 
     if parallel_hdf5:
         hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', driver='mpio', comm=comm)
@@ -249,7 +239,16 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
         for count, keep in zip(positions, local_keep):
             templates[:, :, count]                = old_templates[:, :, keep]
             templates[:, :, count + len(to_keep)] = old_templates[:, :, keep + N_tm/2]
-            limits[count]                         = old_limits[keep]
+            if to_merge is None:
+                new_limits = old_limits[keep]
+            else:
+                subset     = numpy.where(to_merge[:, 0] == keep)[0]
+                if len(subset) > 0:
+                    idx        = numpy.unique(to_merge[subset].flatten())
+                    new_limits = [numpy.min(old_limits[idx][:, 0]), numpy.max(old_limits[idx][:, 1])]
+                else:
+                    new_limits = old_limits[keep]
+            limits[count]  = new_limits
         hfile.close()
         myfile.close()
     
@@ -279,8 +278,10 @@ def slice_clusters(comm, params, result, to_remove=None):
 def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
     def remove(result, distances, cc_merge):
-        do_merge   = True
-        to_merge   = []
+        do_merge  = True
+        local_idx = numpy.zeros((0, 2), dtype=numpy.int32)
+        to_merge  = numpy.zeros((0, 2), dtype=numpy.int32)
+        g_idx     = range(len(distances))
         while do_merge:
             dmax      = distances.max()
             idx       = numpy.where(distances == dmax)
@@ -317,8 +318,11 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
                 result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
                 result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
                 distances                       = numpy.delete(distances, to_remove, axis=0)
-                distances                       = numpy.delete(distances, to_remove, axis=1)            
-                to_merge                       += [[to_keep, to_remove]]
+                distances                       = numpy.delete(distances, to_remove, axis=1)
+                local_idx                       = numpy.vstack((local_idx, numpy.array([to_keep, to_remove])))
+                to_merge                        = numpy.vstack((to_merge, numpy.array([g_idx[to_keep], g_idx[to_remove]])))
+                g_idx.pop(to_remove)
+
         return to_merge, result
             
     templates      = load_data(params, 'templates')
