@@ -515,6 +515,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     else:
         result    = load_data(params, 'clusters')
         best_elec = load_data(params, 'electrodes')
+        limits    = load_data(params, 'limits')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
         myfile    = h5py.File(filename, 'r')
         overlap   = myfile.get('overlap')
@@ -549,7 +550,11 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                         [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
                     except Exception:
                         [a1, a2] = [0, 0]
-                    if numpy.abs(1 - a1) < 0.15 and numpy.abs(1 - a2) < 0.15:
+                    a1_lim = limits[i]
+                    a2_lim = limits[j]
+                    is_a1  = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
+                    is_a2  = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
+                    if is_a1 and is_a2:
                         if k not in mixtures:
                             mixtures += [k]
             pbar.update(k)
@@ -599,7 +604,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
     ax : a matplotlib.axes.Axes instance, optional (default = None).
     """
 
-    x = numpy.atleast_1d(x).astype('float64')
+    x = numpy.atleast_1d(x).astype('float32')
     if x.size < 3:
         return numpy.array([], dtype=numpy.int32)
     if valley:
