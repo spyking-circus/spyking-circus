@@ -194,9 +194,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             print "We merged a total of", nb_init - templates.shape[2]/2, "templates" 
 
-        
-        hdf5storage.savemat(file_out_suff + '.amplitudes-merged', result['amplitudes'])
-        hdf5storage.savemat(file_out_suff + '.spiketimes-merged', result['spiketimes'])
+        keys   = ['spiketimes', 'amplitudes']
+        mydata = h5py.File(file_out_suff + '.result-merged.hdf5', 'w')
+        for key in keys:
+            mydata.create_group(key)
+            for temp in result[key].keys():
+                tmp_path = '%s/%s' %(key, temp)
+                mydata.create_dataset(tmp_path, data=result[key][temp])
+        mydata.close()
+
         hfile = h5py.File(file_out_suff + '.templates-merged.hdf5', 'w')
         cfile = h5py.File(file_out_suff + '.clusters-merged.hdf5', 'w')
         io.write_datasets(hfile, ['templates', 'limits'], {'templates' : templates, 'limits' : limits})
