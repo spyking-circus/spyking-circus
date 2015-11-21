@@ -232,7 +232,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     if nodes is not None:
         if not numpy.all(nodes == numpy.arange(N_total)):
             local_chunk = local_chunk[:, nodes]
-    return local_chunk, local_shape
+    return numpy.ascontiguousarray(local_chunk), local_shape
 
 def analyze_data(params, chunk_size=None):
 
@@ -295,7 +295,7 @@ def load_data(params, data, extension=''):
             return spike_thresh * h5py.File(file_out + '.basis.hdf5').get('thresholds')[:]
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
-            return h5py.File(file_out + '.basis.hdf5').get('spatial')[:]
+            return numpy.ascontiguousarray(h5py.File(file_out + '.basis.hdf5').get('spatial')[:])
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'temporal_whitening':
