@@ -387,7 +387,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     file_out_suff  = params.get('data', 'file_out_suff')
     min_rate       = params.get('fitting', 'min_rate')
-    #duration       = data_stats(params, show=False)
+    duration       = data_stats(params, show=False)
     templates      = load_data(params, 'templates')
     N_e, N_t, N_tm = templates.shape
 
@@ -464,11 +464,15 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         keys += ['real_amps']
     if with_voltages:
         keys += ['voltages']
-    for key in keys:
-        if os.path.exists(file_out_suff + '.%s.mat' %key):
-            purge(file_out_suff, '.%s.mat' %key)
-        hdf5storage.savemat(file_out_suff + '.%s' %key, result[key])
 
+    mydata = h5py.File(file_out_suff + '.result.hdf5')
+    for key in keys:
+        mydata.create_group(key)
+        for temp in result[key].keys():
+            tmp_path = '%s/%s' %(key, temp)
+            mydata.create_dataset(tmp_path, data=result[key][temp])
+    mydata.close()        
+    
     count = 0
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
@@ -481,8 +485,12 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 def get_results(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
     result               = {}
-    result['amplitudes'] = hdf5storage.loadmat(file_out_suff + '.amplitudes%s.mat' %extension)
-    result['spiketimes'] = hdf5storage.loadmat(file_out_suff + '.spiketimes%s.mat' %extension)
+    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r')
+    for key in myfile.keys():
+        result[str(key)] = {}
+        for temp in myfile.get(key).keys():
+            result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
+    myfile.close()
     return result
 
 def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):

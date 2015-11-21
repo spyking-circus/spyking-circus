@@ -83,7 +83,6 @@ else
     handles.Xmax = max(Positions(:,1));
     handles.Ymin = min(Positions(:,2));
     handles.Ymax = max(Positions(:,2))+1;
-
 end
 
 handles.Positions = double(Positions);
@@ -161,16 +160,8 @@ if length(varargin)>=6
         end
 
         b = load(varargin{4},'-mat');
-
-        if isfield(b,'n_total')
-            handles.NelecTot = b.n_total;
-            for i=1:length(b.permutation)
-                handles.ElecPermut(i) = b.permutation{i};
-            end
-        else
-            handles.NelecTot = size(handles.templates,1);
-            handles.ElecPermut = (0:size(handles.templates,1)-1);
-        end
+        handles.NelecTot   = size(handles.templates,1);
+        handles.ElecPermut = (0:size(handles.templates,1)-1);
     end
 end
 
@@ -199,19 +190,22 @@ if exist([filename '.spiketimes' suffix],'file')
         end
     end
 else
-    if ~isfield(handles,'SpikeTimes')
-        handles.SpikeTimes = cell(1,size(handles.templates,3));
+    tmpfile        = [filename '.result' suffix];
+    tmpfile        = strrep(tmpfile, '.mat', '.hdf5');
+    info           = h5info(tmpfile);
+    for id = 1:size(info.Groups(1).Datasets, 1)
+        handles.SpikeTimes{id} = double(h5read(tmpfile, ['/spiketimes/temp_' int2str(id - 1)]))/(handles.SamplingRate/1000);
     end
 end
 
 %% Amplitude Limits
 
 if exist([filename '.limits' suffix],'file')
-    b = load([filename '.limits' suffix],'-mat');
+    b              = load([filename '.limits' suffix],'-mat');
     handles.AmpLim = b.limits;
 else
-    tmpfile = [filename '.templates' suffix];
-    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    tmpfile        = [filename '.templates' suffix];
+    tmpfile        = strrep(tmpfile, '.mat', '.hdf5');
     handles.AmpLim = h5read(tmpfile, '/limits');
     ndim           = numel(size(handles.AmpLim));
     handles.AmpLim = permute(handles.AmpLim,[ndim:-1:1]);
@@ -252,10 +246,8 @@ if exist([filename '.amplitudes' suffix],'file')
     a = load([filename '.amplitudes' suffix],'-mat');
     
     if isfield(a,'Amplitudes')
-        handles.Amplitudes = a.Amplitudes;
-        if isfield(a,'Amplitudes2')
-            handles.Amplitudes2 = a.Amplitudes2;
-        end
+        handles.Amplitudes  = a.Amplitudes;
+        handles.Amplitudes2 = a.Amplitudes2;
     else
         for id=1:size(handles.templates,3)
             if ~isempty(eval(['a.temp_' int2str(id-1)]))
@@ -271,19 +263,18 @@ if exist([filename '.amplitudes' suffix],'file')
         end
     end
 else
-    if exist([filename '.raster' suffix],'file')  
-        a = load([filename '.raster' suffix],'-mat');
-        handles.Amplitudes = a.Amplitudes;
-        handles.SpikeTimes = a.SpikeTimes;
-        for i=1:length(handles.SpikeTimes)
-            handles.SpikeTimes{i} = double(handles.SpikeTimes{i})/(handles.SamplingRate/1000);
-        end
-    else
-        
-        handles.Amplitudes = cell(1,size(handles.templates,3));
-        handles.Amplitudes2 = cell(1,size(handles.templates,3));
+    tmpfile        = [filename '.result' suffix];
+    tmpfile        = strrep(tmpfile, '.mat', '.hdf5');
+    info           = h5info(tmpfile);
+    for id = 1:size(info.Groups(1).Datasets, 1)
+        amplitudes  = h5read(tmpfile, ['/amplitudes/temp_' int2str(id - 1)]);
+        ndim        = numel(size(amplitudes));
+        amplitudes  = permute(amplitudes,[ndim:-1:1]);
+        handles.Amplitudes{id}  = amplitudes(:, 1);
+        handles.Amplitudes2{id} = amplitudes(:, 2);
     end
 end
+
 
 
 %% Clusters file
