@@ -583,7 +583,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     comm.Barrier()
 
     if comm.rank == 0:
-        myfile     = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'r+')
+        myfile     = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+')
         overlap    = myfile.get('overlap')
         maxoverlap = myfile.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
         for i in xrange(N_tm):

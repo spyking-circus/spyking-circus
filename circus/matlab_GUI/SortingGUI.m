@@ -275,8 +275,6 @@ else
     end
 end
 
-
-
 %% Clusters file
 
 if exist([filename '.clusters' suffix], 'file')    
@@ -340,7 +338,7 @@ if exist([filename '.overlap' suffix], 'file')
     a               = load([filename '.overlap' suffix],'-mat');
     handles.overlap = a.maxoverlap/(size(handles.templates,1) * size(handles.templates,2));
 else
-    tmpfile = [filename '.overlap' suffix];
+    tmpfile = [filename '.templates' suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
     handles.overlap = h5read(tmpfile, '/maxoverlap')/(size(handles.templates,1) * size(handles.templates,2));
 end
@@ -351,32 +349,6 @@ end
 
 handles.TemplateDisplayRatio = 0.9;
 
-
-
-% % %% Sort the templates from the highest to the lowest and reorder everything
-% % 
-% % m = max(max(abs(handles.templates)));
-% % 
-% % [v,id] = sort(m,'descend');
-% % 
-% % handles.templates = handles.templates(:,:,id);
-% % handles.templates2 = handles.templates2(:,:,id);
-% % 
-% % handles.overlap = handles.overlap(id,id,:);
-% % 
-% % handles.Amplitudes = handles.Amplitudes(id);
-% % handles.Amplitudes2 = handles.Amplitudes2(id);
-% % 
-% % handles.AmpLim = handles.AmpLim(id,:);
-% % handles.AmpTrend = handles.AmpTrend(id);
-% % handles.Tagged = handles.Tagged(id);
-% % 
-% % handles.SpikeTimes = handles.SpikeTimes(id);
-% % 
-% % handles.clusters = handles.clusters(id);
-% % handles.BestElec = handles.BestElec(id);
-
-%% Plot
 
 PlotData(handles)
 
@@ -1515,49 +1487,51 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-suffix = get(handles.VersionNb,'String')
+suffix   = get(handles.VersionNb,'String')
 filename = handles.filename;
 
 templates = handles.templates;
 templates(:,:,size(templates,3)+1:size(templates,3)*2) = handles.templates2;
-AmpLim   = handles.AmpLim;
+
+overlap = handles.overlap * (size(handles.templates,1) * size(handles.templates,2));
+
+
+output_file = [filename '.templates' suffix '.hdf5']
+
+h5create(output_file, 'templates', size(templates));
+h5write(output_file, 'templates', templates);
+
+h5create(output_file, 'limits', size(handles.AmpLim));
+h5write(output_file, 'limits', handles.AmpLim);
+
+h5create(output_file, 'maxoverlap', size(overlap));
+h5write(output_file, 'maxoverlap', overlap);
+
+h5create(output_file, 'Tagged', size(handles.Tagged));
+h5write(output_file, 'Tagged', handles.Tagged);
+
 AmpTrend = handles.AmpTrend;
-Tagged   = handles.Tagged;
 
-save([filename '.templates' suffix '.mat'],'templates','AmpLim','AmpTrend','Tagged','-mat','-v7.3');
-
-
-%% Amplitudes file: does not have to exist
-
-Amplitudes = handles.Amplitudes;
-Amplitudes2 = handles.Amplitudes2;
-
-save([filename '.amplitudes' suffix '.mat'],'Amplitudes','Amplitudes2','-mat','-v7.3');
-
-%% spiketimes file
-
-SpikeTimes = handles.SpikeTimes;
-
+output_file = [filename '.result' suffix '.hdf5']
 for id=1:size(handles.templates,3)
-    SpikeTimes{id} = SpikeTimes{id}(:)*(handles.SamplingRate/1000);
+    key = ['/spiketimes/temp_' int2str(id - 1)];
+    h5create(output_file, key, size(handles.SpikeTimes{id}));
+    h5write(output_file, key, handles.SpikeTimes{id}*(handles.SamplingRate/1000));
+    key = ['/amplitudes/temp_' int2str(id - 1)];
+    to_write = [handles.Amplitudes{id} handles.Amplitudes2{id}];
+    h5create(output_file, key, size(to_write));
+    h5write(output_file, key, to_write);
 end
-
-save([filename '.spiketimes' suffix '.mat'],'SpikeTimes','-mat','-v7.3');
 
 
 %% Clusters file
 
-clusters    = handles.clusters;
-BestElec    = handles.BestElec;
+output_file = [filename '.clusters' suffix '.hdf5']
+%h5create(output_file, 'BestElec', handles.BestElec);
 
-save([filename '.clusters' suffix '.mat'],'clusters','BestElec','-mat','-v7.3')
-
-%% overlap
-
-overlap = handles.overlap * (size(handles.templates,1) * size(handles.templates,2));
-
-save([filename '.overlap' suffix '.mat'],'overlap','-mat','-v7.3');
-
+%clusters    = handles.clusters;
+%BestElec    = handles.BestElec;
+%save([filename '.clusters' suffix '.mat'],'clusters','BestElec','-mat','-v7.3')
 
 
 % --- Executes on button press in SplitBtn.
