@@ -29,7 +29,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         limits         = io.load_data(params, 'limits')
         clusters       = io.load_data(params, 'clusters')
         result         = io.load_data(params, 'results')
-        overlap        = h5py.File(file_out_suff + '.overlap.hdf5').get('maxoverlap')[:]
+        overlap        = h5py.File(file_out_suff + '.templates.hdf5').get('maxoverlap')[:]
         overlap       /= templates.shape[0] * templates.shape[1]
 
         io.purge(file_out_suff, '-merged')

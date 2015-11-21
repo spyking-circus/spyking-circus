@@ -465,7 +465,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if with_voltages:
         keys += ['voltages']
 
-    mydata = h5py.File(file_out_suff + '.result.hdf5')
+    mydata = h5py.File(file_out_suff + '.result.hdf5', 'w')
     for key in keys:
         mydata.create_group(key)
         for temp in result[key].keys():
@@ -583,11 +583,13 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     comm.Barrier()
 
     if comm.rank == 0:
-        myfile     = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+')
+        myfile     = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'r+')
+        myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+')
         overlap    = myfile.get('overlap')
-        maxoverlap = myfile.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
+        maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
         for i in xrange(N_tm):
             maxoverlap[i] = numpy.max(overlap[i], 1)
         myfile.close()  
+        myfile2.close()
 
     return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')
