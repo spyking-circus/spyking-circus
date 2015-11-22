@@ -306,25 +306,35 @@ if exist([filename '.clusters' suffix], 'file')
 else
     tmpfile = [filename '.clusters' suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    info    = h5info(tmpfile);
     handles.BestElec = h5read(tmpfile, '/electrodes') + 1;
-    for id=1:size(handles.templates, 1) %number of electrodes
-        if ~isempty(h5read(tmpfile, ['/clusters_' int2str(id-1)]))
-            features  = h5read(tmpfile, ['/data_' int2str(id-1)]);
-            ndim      = numel(size(features));
-            features  = permute(features,[ndim:-1:1]);
-            ClusterId = h5read(tmpfile, ['/clusters_' int2str(id-1)]);
-            ndim      = numel(size(ClusterId));
-            ClusterId = permute(ClusterId,[ndim:-1:1]);
-            Values    = sort(unique(ClusterId),'ascend');
-            if Values(1) == -1
-                Values(1) = [];
-            end
-            
-            corresponding_template_nbs = find(handles.BestElec == id);
-            if length(corresponding_template_nbs) > 0
-                for idx=1:length(Values)
-                    sf = features(find(ClusterId==Values(idx)), :);
-                    handles.clusters{corresponding_template_nbs(idx)} = sf;
+    if size(info.Groups, 1) > 0 %This is the save format
+        for id=1:size(handles.templates,3)
+            data = h5read(tmpfile, ['/clusters/temp_' int2str(id-1)]);
+            ndim = numel(size(data));
+            data = permute(data,[ndim:-1:1]);
+            handles.clusters{id} = data;
+        end
+    else
+        for id=1:size(handles.templates, 1) %number of electrodes
+            if ~isempty(h5read(tmpfile, ['/clusters_' int2str(id-1)]))
+                features  = h5read(tmpfile, ['/data_' int2str(id-1)]);
+                ndim      = numel(size(features));
+                features  = permute(features,[ndim:-1:1]);
+                ClusterId = h5read(tmpfile, ['/clusters_' int2str(id-1)]);
+                ndim      = numel(size(ClusterId));
+                ClusterId = permute(ClusterId,[ndim:-1:1]);
+                Values    = sort(unique(ClusterId),'ascend');
+                if Values(1) == -1
+                    Values(1) = [];
+                end
+                
+                corresponding_template_nbs = find(handles.BestElec == id);
+                if length(corresponding_template_nbs) > 0
+                    for idx=1:length(Values)
+                        sf = features(find(ClusterId==Values(idx)), :);
+                        handles.clusters{corresponding_template_nbs(idx)} = sf;
+                    end
                 end
             end
         end
@@ -1487,7 +1497,7 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-suffix   = get(handles.VersionNb,'String')
+suffix   = get(handles.VersionNb,'String');
 filename = handles.filename;
 
 templates = handles.templates;
@@ -1497,18 +1507,14 @@ overlap = handles.overlap * (size(handles.templates,1) * size(handles.templates,
 
 
 output_file = [filename '.templates' suffix '.hdf5']
-
-h5create(output_file, 'templates', size(templates));
-h5write(output_file, 'templates', templates);
-
-h5create(output_file, 'limits', size(handles.AmpLim));
-h5write(output_file, 'limits', handles.AmpLim);
-
-h5create(output_file, 'maxoverlap', size(overlap));
-h5write(output_file, 'maxoverlap', overlap);
-
-h5create(output_file, 'Tagged', size(handles.Tagged));
-h5write(output_file, 'Tagged', handles.Tagged);
+h5create(output_file, '/templates', size(templates));
+h5write(output_file, '/templates', templates);
+h5create(output_file, '/limits', size(handles.AmpLim));
+h5write(output_file, '/limits', handles.AmpLim);
+h5create(output_file, '/maxoverlap', size(overlap));
+h5write(output_file, '/maxoverlap', overlap);
+h5create(output_file, '/Tagged', size(handles.Tagged));
+h5write(output_file, '/Tagged', handles.Tagged);
 
 AmpTrend = handles.AmpTrend;
 
@@ -1518,20 +1524,22 @@ for id=1:size(handles.templates,3)
     h5create(output_file, key, size(handles.SpikeTimes{id}));
     h5write(output_file, key, handles.SpikeTimes{id}*(handles.SamplingRate/1000));
     key = ['/amplitudes/temp_' int2str(id - 1)];
-    to_write = [handles.Amplitudes{id} handles.Amplitudes2{id}];
+    to_write = transpose([handles.Amplitudes{id} handles.Amplitudes2{id}]);
     h5create(output_file, key, size(to_write));
     h5write(output_file, key, to_write);
 end
 
 
 %% Clusters file
-
 output_file = [filename '.clusters' suffix '.hdf5']
-%h5create(output_file, 'BestElec', handles.BestElec);
-
-%clusters    = handles.clusters;
-%BestElec    = handles.BestElec;
-%save([filename '.clusters' suffix '.mat'],'clusters','BestElec','-mat','-v7.3')
+h5create(output_file, '/electrodes', size(handles.BestElec));
+h5write(output_file, '/electrodes', handles.BestElec);
+for id=1:size(handles.templates,3)
+    key = ['/clusters/temp_' int2str(id - 1)];
+    to_write = transpose(handles.clusters{id});
+    h5create(output_file, key, size(to_write));
+    h5write(output_file, key, to_write);
+end
 
 
 % --- Executes on button press in SplitBtn.
