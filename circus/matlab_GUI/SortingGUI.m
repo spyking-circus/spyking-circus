@@ -61,7 +61,7 @@ function SortingGUI_OpeningFcn(hObject, eventdata, handles, varargin)
 handles.output = hObject;
 
 filename = varargin{2};
-suffix = varargin{3};
+suffix   = varargin{3};
 
 if ~strcmp(suffix, '.mat')
     result = strsplit(suffix, '.mat');
@@ -102,6 +102,11 @@ if exist([filename '.templates' suffix])
     template           = load([filename '.templates' suffix],'-mat');
     handles.templates  = template.templates(:,:,1:end/2);
     handles.templates2 = template.templates(:,:,end/2+1:end);
+    if isfield(template, 'Tagged')
+        handles.Tagged = template.Tagged;
+    else
+        handles.Tagged = zeros(size(handles.templates,3),1);
+    end
 else
     tmpfile  = [filename '.templates' suffix];
     tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
@@ -110,6 +115,31 @@ else
     template = permute(template,[ndim:-1:1]);
     handles.templates  = template(:,:,1:end/2);
     handles.templates2 = template(:,:,end/2+1:end);
+    info       = h5info(tmpfile);
+    has_tagged = false;
+    for id=1:size(info.Datasets, 1)
+        if strcmp(info.Datasets(id).Name, 'tagged')
+            has_tagged = true;
+        end
+    end
+    if has_tagged
+        handles.Tagged = h5read(tmpfile, '/tagged');
+    else
+        handles.Tagged = zeros(size(handles.templates,3),1);
+    end
+    has_amptrend = false;
+    for id=1:size(info.Groups, 1)
+        if strcmp(info.Groups(id).Name, 'amptrend')
+            has_amptrend = true;
+        end
+    end
+    if has_amptrend
+        for id=1:size(handles.templates,3)
+            handles.AmpTrend{id} = h5read(tmpfile, ['/amptrend/temp_' int2str(id - 1)]);
+        end
+    else
+        handles.AmpTrend = zeros(size(handles.templates,3),1);
+    end
 end
 
 %% Raw data file if it is there
@@ -147,7 +177,7 @@ if length(varargin)>=6
 
         if exist([filename '.whitening' suffix])
             a = load([filename '.whitening.mat'],'-mat');
-            handles.WhiteSpatial = a.spatial;
+            handles.WhiteSpatial  = a.spatial;
             handles.WhiteTemporal = a.temporal;
         else
             tmpfile = [filename '.basis' '.hdf5'];
@@ -165,34 +195,22 @@ if length(varargin)>=6
     end
 end
 
-
-
-%% Tagged
-
-if isfield(template,'Tagged')
-    handles.Tagged = template.Tagged;
-else
-    handles.Tagged = zeros(size(handles.templates,3),1);
-end
-
 %% spiketimes file
 if exist([filename '.spiketimes' suffix],'file')    
     a = load([filename '.spiketimes' suffix],'-mat');
-    if isfield(a,'SpikeTimes')
-        handles.SpikeTimes = a.SpikeTimes;
+    if isfield(a, 'SpikeTimes')
         for id=1:size(handles.templates,3)
-            handles.SpikeTimes{id} = handles.SpikeTimes{id}(:)/(handles.SamplingRate/1000);
+            handles.SpikeTimes{id} = a.SpikeTimes{id}/(handles.SamplingRate/1000);
         end
     else
         for id=1:size(handles.templates,3)
             handles.SpikeTimes{id} = double(eval(['a.temp_' int2str(id-1)]))/(handles.SamplingRate/1000);
-            handles.SpikeTimes{id} = handles.SpikeTimes{id}(:);
         end
     end
 else
-    tmpfile        = [filename '.result' suffix];
-    tmpfile        = strrep(tmpfile, '.mat', '.hdf5');
-    info           = h5info(tmpfile);
+    tmpfile = [filename '.result' suffix];
+    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
         handles.SpikeTimes{id} = double(h5read(tmpfile, ['/spiketimes/temp_' int2str(id - 1)]))/(handles.SamplingRate/1000);
     end
@@ -251,21 +269,18 @@ if exist([filename '.amplitudes' suffix],'file')
     else
         for id=1:size(handles.templates,3)
             if ~isempty(eval(['a.temp_' int2str(id-1)]))
-                handles.Amplitudes{id} = double(eval(['a.temp_' int2str(id-1) '(:,1)']));
+                handles.Amplitudes{id}  = double(eval(['a.temp_' int2str(id-1) '(:,1)']));
                 handles.Amplitudes2{id} = double(eval(['a.temp_' int2str(id-1) '(:,2)']));
-                
-                handles.Amplitudes{id} = handles.Amplitudes{id}(:);
-                handles.Amplitudes2{id} = handles.Amplitudes2{id}(:);
             else
-                handles.Amplitudes{id} = [];
+                handles.Amplitudes{id}  = [];
                 handles.Amplitudes2{id} = [];
             end
         end
     end
 else
-    tmpfile        = [filename '.result' suffix];
-    tmpfile        = strrep(tmpfile, '.mat', '.hdf5');
-    info           = h5info(tmpfile);
+    tmpfile = [filename '.result' suffix];
+    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+    info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
         amplitudes  = h5read(tmpfile, ['/amplitudes/temp_' int2str(id - 1)]);
         ndim        = numel(size(amplitudes));
@@ -309,7 +324,7 @@ else
     info    = h5info(tmpfile);
     handles.BestElec = h5read(tmpfile, '/electrodes') + 1;
     if size(info.Groups, 1) > 0 %This is the save format
-        for id=1:size(handles.templates,3)
+        for id=1:size(handles.templates, 3)
             data = h5read(tmpfile, ['/clusters/temp_' int2str(id-1)]);
             ndim = numel(size(data));
             data = permute(data,[ndim:-1:1]);
@@ -395,7 +410,7 @@ m = max(abs(template),[],2);
 Mx = handles.Positions(elec,1);
 My = handles.Positions(elec,2);
 
-if handles.Xmax > handles.Xmin%otherwise we don't change anything - only 1 column of electrodes
+if handles.Xmax > handles.Xmin %otherwise we don't change anything - only 1 column of electrodes
     if (Mx-handles.Xmin) > (handles.Xmax-Mx)
         handles.Xmin = handles.Xmin + 1;
     else 
@@ -1502,27 +1517,31 @@ filename = handles.filename;
 
 templates = handles.templates;
 templates(:,:,size(templates,3)+1:size(templates,3)*2) = handles.templates2;
-
 overlap = handles.overlap * (size(handles.templates,1) * size(handles.templates,2));
 
-
 output_file = [filename '.templates' suffix '.hdf5']
+delete(output_file)
 h5create(output_file, '/templates', size(templates));
 h5write(output_file, '/templates', templates);
-h5create(output_file, '/limits', size(handles.AmpLim));
-h5write(output_file, '/limits', handles.AmpLim);
-h5create(output_file, '/maxoverlap', size(overlap));
-h5write(output_file, '/maxoverlap', overlap);
-h5create(output_file, '/Tagged', size(handles.Tagged));
-h5write(output_file, '/Tagged', handles.Tagged);
-
-AmpTrend = handles.AmpTrend;
+h5create(output_file, '/limits', size(transpose(handles.AmpLim)));
+h5write(output_file, '/limits', transpose(handles.AmpLim));
+h5create(output_file, '/maxoverlap', size(transpose(overlap)));
+h5write(output_file, '/maxoverlap', transpose(overlap));
+h5create(output_file, '/tagged', size(transpose(handles.Tagged)));
+h5write(output_file, '/tagged', transpose(handles.Tagged));
+for id=1:size(handles.templates,3)
+    key = ['/amptrend/temp_' int2str(id - 1)];
+    h5create(output_file, key, size(transpose(handles.AmpTrend{id})));
+    h5write(output_file, key, transpose(handles.AmpTrend{id}));
+end
 
 output_file = [filename '.result' suffix '.hdf5']
+delete(output_file)
 for id=1:size(handles.templates,3)
     key = ['/spiketimes/temp_' int2str(id - 1)];
-    h5create(output_file, key, size(handles.SpikeTimes{id}));
-    h5write(output_file, key, handles.SpikeTimes{id}*(handles.SamplingRate/1000));
+    to_write = transpose(handles.SpikeTimes{id}*(handles.SamplingRate/1000));
+    h5create(output_file, key, size(to_write));
+    h5write(output_file, key, to_write);
     key = ['/amplitudes/temp_' int2str(id - 1)];
     to_write = transpose([handles.Amplitudes{id} handles.Amplitudes2{id}]);
     h5create(output_file, key, size(to_write));
@@ -1532,8 +1551,9 @@ end
 
 %% Clusters file
 output_file = [filename '.clusters' suffix '.hdf5']
-h5create(output_file, '/electrodes', size(handles.BestElec));
-h5write(output_file, '/electrodes', handles.BestElec);
+delete(output_file)
+h5create(output_file, '/electrodes', size(transpose(handles.BestElec)));
+h5write(output_file, '/electrodes', transpose(handles.BestElec));
 for id=1:size(handles.templates,3)
     key = ['/clusters/temp_' int2str(id - 1)];
     to_write = transpose(handles.clusters{id});
