@@ -129,7 +129,7 @@ else
     end
     has_amptrend = false;
     for id=1:size(info.Groups, 1)
-        if strcmp(info.Groups(id).Name, 'amptrend')
+        if strcmp(info.Groups(id).Name, '/amptrend')
             has_amptrend = true;
         end
     end
@@ -1519,8 +1519,10 @@ templates = handles.templates;
 templates(:,:,size(templates,3)+1:size(templates,3)*2) = handles.templates2;
 overlap = handles.overlap * (size(handles.templates,1) * size(handles.templates,2));
 
-output_file = [filename '.templates' suffix '.hdf5']
+output_file = [filename '.templates' suffix '.hdf5'];
 delete(output_file)
+ndim      = numel(size(templates));
+templates = permute(templates,[ndim:-1:1]);
 h5create(output_file, '/templates', size(templates));
 h5write(output_file, '/templates', templates);
 h5create(output_file, '/limits', size(transpose(handles.AmpLim)));
@@ -1535,7 +1537,7 @@ for id=1:size(handles.templates,3)
     h5write(output_file, key, transpose(handles.AmpTrend{id}));
 end
 
-output_file = [filename '.result' suffix '.hdf5']
+output_file = [filename '.result' suffix '.hdf5'];
 delete(output_file)
 for id=1:size(handles.templates,3)
     key = ['/spiketimes/temp_' int2str(id - 1)];
@@ -1550,7 +1552,7 @@ end
 
 
 %% Clusters file
-output_file = [filename '.clusters' suffix '.hdf5']
+output_file = [filename '.clusters' suffix '.hdf5'];
 delete(output_file)
 h5create(output_file, '/electrodes', size(transpose(handles.BestElec)));
 h5write(output_file, '/electrodes', transpose(handles.BestElec));
@@ -1572,38 +1574,30 @@ function SplitBtn_Callback(hObject, eventdata, handles)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
-handles.SpikeTimes  = handles.SpikeTimes([(1:CellNb) (CellNb:length(handles.SpikeTimes))]);
+handles.SpikeTimes  = handles.spiketimes([(1:CellNb) (CellNb:length(handles.SpikeTimes))]);
 handles.Amplitudes  = handles.Amplitudes([(1:CellNb) (CellNb:length(handles.Amplitudes))]);
 handles.Amplitudes2 = handles.Amplitudes([(1:CellNb) (CellNb:length(handles.Amplitudes2))]);
 handles.Tagged      = handles.Tagged([(1:CellNb) (CellNb:size(handles.templates,3))]);
 handles.templates   = handles.templates(:,:,[(1:CellNb) (CellNb:size(handles.templates,3))]);
 handles.templates2  = handles.templates2(:,:,[(1:CellNb) (CellNb:size(handles.templates2,3))]);
-
-handles.AmpLim   = handles.AmpLim([(1:CellNb) (CellNb:size(handles.AmpLim,1))],:);
-handles.AmpTrend = handles.AmpTrend([(1:CellNb) (CellNb:length(handles.AmpTrend))]);
-handles.clusters = handles.clusters([(1:CellNb) (CellNb:length(handles.clusters))]);
-handles.BestElec = handles.BestElec([(1:CellNb) (CellNb:length(handles.BestElec))]);
-
-handles.overlap = handles.overlap([(1:CellNb) (CellNb:size(handles.overlap,1))],:);
-handles.overlap = handles.overlap(:,[(1:CellNb) (CellNb:size(handles.overlap,2))]);
+handles.AmpLim      = handles.AmpLim([(1:CellNb) (CellNb:size(handles.AmpLim,1))],:);
+handles.AmpTrend    = handles.AmpTrend([(1:CellNb) (CellNb:length(handles.AmpTrend))]);
+handles.clusters    = handles.clusters([(1:CellNb) (CellNb:length(handles.clusters))]);
+handles.BestElec    = handles.BestElec([(1:CellNb) (CellNb:length(handles.BestElec))]);
+handles.overlap     = handles.overlap([(1:CellNb) (CellNb:size(handles.overlap,1))],:);
+handles.overlap     = handles.overlap(:,[(1:CellNb) (CellNb:size(handles.overlap,2))]);
 
 %Remove the amplitudes/spiketimes in or out of the amp lims
 
-% handles.SpikeTimes = handles.SpikeTimes([(1:CellNb) (CellNb:length(handles.SpikeTimes))]);
-% handles.Amplitudes = handles.Amplitudes([(1:CellNb) (CellNb:length(handles.Amplitudes))]);
-% + Amplitudes2
-
-
-Trend = interp1(handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2),handles.SpikeTimes{CellNb}(:));
-
+Trend  = interp1(handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2),handles.SpikeTimes{CellNb}(:));
 ToKeep = Trend*handles.AmpLim(CellNb,1) <= handles.Amplitudes{CellNb} & Trend*handles.AmpLim(CellNb,2) >= handles.Amplitudes{CellNb};
 
-handles.SpikeTimes{CellNb} = handles.SpikeTimes{CellNb}(find(ToKeep));
-handles.Amplitudes{CellNb} = handles.Amplitudes{CellNb}(find(ToKeep));
+handles.SpikeTimes{CellNb}  = handles.SpikeTimes{CellNb}(find(ToKeep));
+handles.Amplitudes{CellNb}  = handles.Amplitudes{CellNb}(find(ToKeep));
 handles.Amplitudes2{CellNb} = handles.Amplitudes2{CellNb}(find(ToKeep));
 
-handles.SpikeTimes{CellNb+1} = handles.SpikeTimes{CellNb+1}(find(~ToKeep));
-handles.Amplitudes{CellNb+1} = handles.Amplitudes{CellNb+1}(find(~ToKeep));
+handles.SpikeTimes{CellNb+1}  = handles.SpikeTimes{CellNb+1}(find(~ToKeep));
+handles.Amplitudes{CellNb+1}  = handles.Amplitudes{CellNb+1}(find(~ToKeep));
 handles.Amplitudes2{CellNb+1} = handles.Amplitudes2{CellNb+1}(find(~ToKeep));
 
 guidata(hObject, handles);
@@ -1698,59 +1692,38 @@ ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
 if ViewMode==2
     t1 = handles.SpikeTimes{CellNb};
     t2 = handles.SpikeTimes{CellNb2};
-    
-    
-    
-
     BinSize = 2;%1 ms
-
     MaxDelay = 100;% in BinSize
 
     %Here it starts
 
     t1b = floor(t1/BinSize);
     t2b = floor(t2/BinSize);
-
     t1b = unique(t1b);
     t2b = unique(t2b);
 
     CorrCount = ones(1,2*MaxDelay+1)*(length(t1b) + length(t2b));
-
     for i=1:(2*MaxDelay+1)
         t2bShifted = t2b + (i - MaxDelay - 1);
         CorrCount(i) = CorrCount(i) - length(unique([t1b(:) ; t2bShifted(:)]));
     end
-
-
-    
     cc = CorrCount;
-    
-%     tcc = crosscorrspike(t1,t2,100);
 else
     t1 = handles.SpikeTimes{CellNb};
-    
     BinSize = 2;%1 ms
-
     MaxDelay = 100;% in BinSize
 
     %Here it starts
-
     t1b = floor(t1/BinSize);
-
     t1b = unique(t1b);
-
     CorrCount = ones(1,2*MaxDelay+1)*(2*length(t1b) );
-
     for i=1:(2*MaxDelay+1)
         t2bShifted = t1b + (i - MaxDelay - 1);
         CorrCount(i) = CorrCount(i) - length(unique([t1b(:) ; t2bShifted(:)]));
     end
-
     cc = CorrCount;
-
     cc(101) = 0;
 end
-% end
 
 bar(handles.CrossCorrWin,(-100:100),cc);
 xlabel(handles.CrossCorrWin,'Delay (ms)');
