@@ -70,7 +70,6 @@ end
 
 handles.SamplingRate = varargin{1};
 
-
 if length(varargin)<=3
     load('../mappings/mea_252.mapping.mat','-mat')
     handles.Xmin = 1;
@@ -143,6 +142,8 @@ else
     end
 end
 
+handles.local_template  = [];
+handles.local_template2 = [];
 
 %% Raw data file if it is there
 
@@ -722,57 +723,60 @@ ViewMode = str2num(get(handles.SwitchViewNb,'String'));
 if ViewMode==1
     ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
     set(handles.SwitchViewNb,'String',int2str(ViewMode));
-
 end
 
-if false
-    CellNb           = str2num(get(handles.TemplateNb,'String'));
-    templateOld(:,:) = handles.templates(:,:,CellNbOld);
-    m        = max(abs(template),[],2);
-    [m,elec] = max(m);
 
-    MxOld = handles.Positions(elec,1);
-    MyOld = handles.Positions(elec,2);
+CellNb           = str2num(get(handles.TemplateNb,'String'));
+if handles.has_hdf5
+    template_old = handles.local_template;
+    tmpfile  = [handles.filename '.templates' handles.suffix];
+    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
+    handles.local_template  = h5read(tmpfile, '/templates', [CellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    ndim                    = numel(size(handles.local_template));
+    handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
+else
+    template_old           = handles.local_template;
+    handles.local_template = handles.template(:, :, CellNb) 
+end
+m        = max(abs(template_old),[],2);
+[m,elec] = max(m);
+MxOld    = handles.Positions(elec,1);
+MyOld    = handles.Positions(elec,2);
+m        = max(abs(handles.local_template),[],2);
+[m,elec] = max(m);
+Mx       = handles.Positions(elec,1);
+My       = handles.Positions(elec,2);
+dx       = handles.Xmax - handles.Xmin;
+dy       = handles.Ymax - handles.Ymin;
 
-    template(:,:) = handles.templates(:,:,CellNb);
-    m = max(abs(template),[],2);
-    [m,elec] = max(m);
+%handles.Xmin = handles.Xmin - MxOld + Mx;
+%handles.Xmax = handles.Xmax - MxOld + Mx;
+%handles.Ymin = handles.Ymin - MyOld + My;
+%handles.Ymax = handles.Ymax - MyOld + My;
 
-    Mx = handles.Positions(elec,1);
-    My = handles.Positions(elec,2);
+if handles.Xmin < min(handles.Positions(:,1))
+    handles.Xmin = min(handles.Positions(:,1));
+    handles.Xmax = handles.Xmin + dx;
+end
 
-    dx = handles.Xmax - handles.Xmin;
-    dy = handles.Ymax - handles.Ymin;
-
-    handles.Xmin = handles.Xmin - MxOld + Mx;
-    handles.Xmax = handles.Xmax - MxOld + Mx;
-    handles.Ymin = handles.Ymin - MyOld + My;
-    handles.Ymax = handles.Ymax - MyOld + My;
-
+if handles.Xmax > max(handles.Positions(:,1))
+    handles.Xmax = max(handles.Positions(:,1));
+    handles.Xmin = handles.Xmax - dx;
     if handles.Xmin < min(handles.Positions(:,1))
         handles.Xmin = min(handles.Positions(:,1));
-        handles.Xmax = handles.Xmin + dx;
     end
+end
 
-    if handles.Xmax > max(handles.Positions(:,1))
-        handles.Xmax = max(handles.Positions(:,1));
-        handles.Xmin = handles.Xmax - dx;
-        if handles.Xmin < min(handles.Positions(:,1))
-            handles.Xmin = min(handles.Positions(:,1));
-        end
-    end
+if handles.Ymin < min(handles.Positions(:,2))
+    handles.Ymin = min(handles.Positions(:,2));
+    handles.Ymax = handles.Ymin + dy;
+end
 
+if handles.Ymax > max(handles.Positions(:,2))
+    handles.Ymax = max(handles.Positions(:,2));
+    handles.Ymin = handles.Ymax - dy;
     if handles.Ymin < min(handles.Positions(:,2))
         handles.Ymin = min(handles.Positions(:,2));
-        handles.Ymax = handles.Ymin + dy;
-    end
-
-    if handles.Ymax > max(handles.Positions(:,2))
-        handles.Ymax = max(handles.Positions(:,2));
-        handles.Ymin = handles.Ymax - dy;
-        if handles.Ymin < min(handles.Positions(:,2))
-            handles.Ymin = min(handles.Positions(:,2));
-        end
     end
 end
 
@@ -976,24 +980,23 @@ t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
 a = [handles.Amplitudes{CellNb}(:) ; handles.Amplitudes{CellNb2}(:) ];
 a = a(id);
 
-handles.SpikeTimes{CellNb} = t;
-handles.Amplitudes{CellNb} = a;
+nb_templates = length(handles.SpikeTimes);
 
-handles.SpikeTimes(CellNb2) = [];
-handles.Amplitudes(CellNb2) = [];
-handles.Amplitudes2(CellNb2) = [];
-
-handles.templates(:,:,CellNb2) = [];
+handles.SpikeTimes{CellNb}      = t;
+handles.Amplitudes{CellNb}      = a;
+handles.SpikeTimes(CellNb2)     = [];
+handles.Amplitudes(CellNb2)     = [];
+handles.Amplitudes2(CellNb2)    = [];
+%handles.to_keep                 = handles.to_keep[1:CellNb CellNb2:]
+handles.templates(:,:,CellNb2)  = [];
 handles.templates2(:,:,CellNb2) = [];
-handles.AmpLim(CellNb2,:) = [];
-handles.AmpTrend(CellNb2) = [];
-handles.clusters(CellNb2) = [];
-handles.BestElec(CellNb2) = [];
-handles.Tagged(CellNb2) = [];
-
-
-handles.overlap(CellNb2,:) = [];
-handles.overlap(:,CellNb2) = [];
+handles.AmpLim(CellNb2,:)       = [];
+handles.AmpTrend(CellNb2)       = [];
+handles.clusters(CellNb2)       = [];
+handles.BestElec(CellNb2)       = [];
+handles.Tagged(CellNb2)         = [];
+handles.overlap(CellNb2,:)      = [];
+handles.overlap(:,CellNb2)      = [];
 
 if CellNb2<CellNb
     set(handles.TemplateNb,'String',int2str(CellNb-1));
@@ -1240,8 +1243,8 @@ ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
 if handles.has_hdf5
     tmpfile  = [handles.filename '.templates' handles.suffix];
     tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
-    handles.local_template  = h5read(tmpfile, '/templates', [CellNb 1 1], [CellNb handles.templates_size(2) handles.templates_size(1)]);
-    handles.local_template2 = h5read(tmpfile, '/templates', [CellNb2 1 1], [CellNb2 handles.templates_size(2) handles.templates_size(1)]);
+    handles.local_template  = h5read(tmpfile, '/templates', [CellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    handles.local_template2 = h5read(tmpfile, '/templates', [CellNb2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
     ndim                    = numel(size(handles.local_template));
     handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
     ndim                    = numel(size(handles.local_template2));
@@ -1251,7 +1254,7 @@ else
     handles.local_template2 = handles.templates(:, :, CellNb2);
 end 
 
-Yspacing = max(abs(handles.local_template));
+Yspacing = max(abs(handles.local_template(:)));
 
 GradeStr{1} = 'O';
 GradeStr{2} = 'E';
@@ -1291,9 +1294,9 @@ else
         PlotWaveform(handles,handles.local_template2,str2num(get(handles.Yspacing,'String')),'r')
         hold(handles.TemplateWin,'off')
     else
-        PlotWaveform(handles,handles.local_template/max(abs(handles.local_template)),1)
+        PlotWaveform(handles,handles.local_template/max(abs(handles.local_template(:))),1)
         hold(handles.TemplateWin,'on')
-        PlotWaveform(handles,handles.local_template2/max(abs(handles.local_template2)),1,'r')
+        PlotWaveform(handles,handles.local_template2/max(abs(handles.local_template2(:))),1,'r')
         hold(handles.TemplateWin,'off')
     end
     
@@ -1301,8 +1304,6 @@ else
     
 %     ShowCorr_Callback;
 end
-
-
 
 if nargin == 1
     %% TEMPLATE COUNT
@@ -1632,7 +1633,7 @@ function SplitBtn_Callback(hObject, eventdata, handles)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
-nb_templates        = length(handles.SpikeTimes)
+nb_templates        = length(handles.SpikeTimes);
 myslice             = [(1:CellNb) (CellNb:nb_templates)];
 handles.SpikeTimes  = handles.spiketimes(myslice);
 handles.Amplitudes  = handles.Amplitudes(myslice);
