@@ -122,7 +122,6 @@ else
             handles.templates_size = [handles.templates_size(3) handles.templates_size(2) handles.templates_size(1)/2];
         end
     end
-    handles.to_keep  = 1:handles.templates_size(3);
     if has_tagged
         handles.Tagged = h5read(tmpfile, '/tagged');
     end
@@ -142,6 +141,7 @@ else
     end
 end
 
+handles.to_keep         = 1:handles.templates_size(3);
 handles.local_template  = [];
 handles.local_template2 = [];
 
@@ -987,7 +987,7 @@ handles.Amplitudes{CellNb}      = a;
 handles.SpikeTimes(CellNb2)     = [];
 handles.Amplitudes(CellNb2)     = [];
 handles.Amplitudes2(CellNb2)    = [];
-%handles.to_keep                 = handles.to_keep[1:CellNb CellNb2:]
+handles.to_keep                 = handles.to_keep[1:CellNb CellNb2:]
 handles.templates(:,:,CellNb2)  = [];
 handles.templates2(:,:,CellNb2) = [];
 handles.AmpLim(CellNb2,:)       = [];
@@ -1125,74 +1125,6 @@ handles.AmpLim(CellNb,1) = Lim;
 guidata(hObject, handles);
 
 PlotData(handles)
-
-% % % template = squeeze(handles.templates(:,:,CellNb));
-% % % 
-% % % m = max(abs(template),[],2);
-% % % 
-% % % [mm,LargestElec] = max(m);
-% % % 
-% % % a = handles.Amplitudes{CellNb};
-% % % t = handles.SpikeTimes{CellNb};
-% % % V=[];
-% % % P=[];
-% % % 
-% % % duration = size(handles.templates,2);
-% % % 
-% % % if duration/2 == round(duration/2)
-% % %     duration = duration + 1;
-% % % end
-% % % 
-% % % for ispike=1:length(t)
-% % %     tstart = double(handles.SpikeTimes{CellNb}(ispike)*(handles.SamplingRate/1000))  - (duration+1)/2 + 1 ;
-% % % 
-% % %     NbElec = handles.NelecTot;
-% % % 
-% % %     FileStart = handles.HeaderSize + 2*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
-% % % 
-% % % 
-% % %     FullStart  = FileStart - size(handles.templates,2)*NbElec*2;
-% % %     FullLength = (duration + 2*size(handles.templates,2))*NbElec;
-% % % 
-% % %     fseek(handles.DataFid,FullStart,'bof');
-% % % 
-% % %     data = double(fread(handles.DataFid,FullLength,handles.DataFormat));
-% % % 
-% % %     if strcmp(handles.DataFormat,'uint16')
-% % %         data = data - 32767;
-% % %     end
-% % % 
-% % %     data = data*handles.Gain;
-% % % 
-% % %     data = reshape(data,[NbElec (duration + 2*size(handles.templates,2))]);
-% % % 
-% % %     %% Filtering
-% % % 
-% % %     data = data(handles.ElecPermut + 1,:);
-% % % 
-% % %     data = handles.WhiteSpatial*data;
-% % %     for i=1:size(data,1)
-% % %         data(i,:) = conv(data(i,:),handles.WhiteTemporal,'same');
-% % %     end
-% % % 
-% % %     %% Reduce the data to the portion of interest - remove also the unnecessary
-% % %     %electrodes
-% % %     RawData = data(:,(size(handles.templates,2)+1):(end-size(handles.templates,2)));
-% % % 
-% % %     %% Compare voltage value and the one from the template
-% % % 
-% % %     V(ispike) = RawData(LargestElec,(size(handles.templates,2)-1)/2+1);
-% % %     P(ispike) = a(ispike)* template(LargestElec,(size(handles.templates,2)-1)/2+1);
-% % % 
-% % % end
-% % % 
-% % % figure;
-% % % plot(V,P,'.')
-% % % 
-% % % figure;
-% % % plot((V-P)./V,a,'.')
-% % % 
-% % % V
 
 % --- Executes on button press in SetAmpMax.
 function SetAmpMax_Callback(hObject, eventdata, handles)
@@ -1487,11 +1419,6 @@ Ymax = handles.Ymax;
 Coor = handles.Positions;
 
 nch = handles.templates_size(1);
-
-% % %DeNormalization
-% % if get(handles.DeNormalization,'Value')>0
-% %    waveform = handles.decov * waveform;
-% % end
 
 %Subselect the electrodes to be displayed: 
 
