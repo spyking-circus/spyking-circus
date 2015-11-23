@@ -74,7 +74,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_elts_elec /= comm.size
     nb_elts       /= comm.size
     few_elts       = False
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
+    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     if numpy.all(smart_search == 0):
         gpass = 1
@@ -143,7 +143,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-                local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, nodes=nodes)
+                local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
                 if do_spatial_whitening:
                     local_chunk = numpy.dot(local_chunk, spatial_whitening)
                 if do_temporal_whitening:

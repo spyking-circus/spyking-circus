@@ -17,6 +17,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out       = params.get('data', 'file_out')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+    chunk_size       = params.getint('whitening', 'chunk_size')
     plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     nodes, edges     = io.get_nodes_and_edges(params)
     safety_time      = int(params.getfloat('whitening', 'safety_time')*sampling_rate*1e-3)
@@ -30,7 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Analyzing data to get whitening matrices and thresholds..."
 
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
+    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     if nb_chunks < comm.size:
         if comm.rank == 0:
@@ -44,7 +45,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for gidx in [all_chunks[comm.rank]]:
 
         #print "Node", comm.rank, "is analyzing chunk", gidx,  "/", nb_chunks, " ..."
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, nodes=nodes)
+        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
         thresholds = numpy.zeros(N_e, dtype=numpy.float32)
         for i in xrange(N_e):
@@ -192,6 +193,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges   = io.get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+    chunk_size       = params.getint('data', 'chunk_size')
     safety_time      = int(params.getfloat('whitening', 'safety_time')*sampling_rate*1e-3)
     max_elts_elec    = params.getint('whitening', 'max_elts')
     nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
@@ -209,7 +211,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
+    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     groups    = {}
     for i in xrange(N_e):
@@ -233,7 +235,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if (elt_count < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, nodes=nodes)
+            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
