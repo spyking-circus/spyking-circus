@@ -48,7 +48,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['data_tmp_' + str(i)]  = numpy.zeros((0, N_e * basis_proj.shape[1]), dtype=numpy.float32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
 
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
+    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks))
@@ -63,7 +63,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if (elt_count < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, nodes=nodes)
+            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
 
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -279,37 +279,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
 
-        if comm.rank == 0:
+    if comm.rank == 0:
         print "Merging similar templates..."
     
-    templates, limits, result, merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
-
-    if comm.rank == 0:
-        hfile = h5py.File(file_out_suff + '.templates.hdf5', 'w')
-        cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'w')
-        io.write_datasets(hfile, ['templates', 'limits'], {'templates' : templates, 'limits' : limits})
-        hfile.close()
-        for ielec in xrange(N_e):
-            io.write_datasets(cfile, to_write, result, ielec)
-        io.write_datasets(cfile, ['electrodes'], result)
-        cfile.close()
+    merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
 
     comm.Barrier()
     if comm.rank == 0:
         print "Removing mixtures..."
 
-    templates, limits, result, removed, to_be_removed, merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+    merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
 
     if comm.rank == 0:
-        hfile = h5py.File(file_out_suff + '.templates.hdf5', 'w')
-        cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'w')
-        io.write_datasets(hfile, ['templates', 'limits'], {'templates' : templates, 'limits' : limits})
-        hfile.close()
-        for ielec in xrange(N_e):
-            io.write_datasets(cfile, to_write, result, ielec)
-        io.write_datasets(cfile, ['electrodes'], result)
-        cfile.close()
-
         io.print_info(["Number of global merges    : %d" %merged1[1], 
                        "Number of mixtures removed : %d" %merged2[1]])    
 
