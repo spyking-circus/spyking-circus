@@ -97,7 +97,7 @@ if exist([handles.filename '.templates' handles.suffix])
     template           = load([handles.filename '.templates' handles.suffix],'-mat');
     handles.templates  = template.templates(:,:,1:end/2);
     handles.templates2 = template.templates(:,:,end/2+1:end);
-    handles.templates_size = size(templates); 
+    handles.templates_size = size(handles.templates); 
     handles.has_hdf5   = false;
     if isfield(template, 'Tagged')
         handles.Tagged = template.Tagged;
@@ -403,14 +403,13 @@ function ZoomInBtn_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 %Find electrode with max for template
-CellNb   = str2num(get(handles.TemplateNb,'String'));
 m        = max(abs(handles.local_template),[],2);
 [m,elec] = max(m);
 
 Mx = handles.Positions(elec,1);
 My = handles.Positions(elec,2);
 
-if handles.Xmax > handles.Xmin %otherwise we don't change anything - only 1 column of electrodes
+if handles.Xmax > handles.Xmin %otherwise we dont change anything - only 1 column of electrodes
     if (Mx-handles.Xmin) > (handles.Xmax-Mx)
         handles.Xmin = handles.Xmin + 1;
     else 
@@ -419,33 +418,13 @@ if handles.Xmax > handles.Xmin %otherwise we don't change anything - only 1 colu
 end
 
 
-if handles.Ymax > handles.Ymin%otherwise we don't change anything - only 1 line of electrodes
+if handles.Ymax > handles.Ymin%otherwise we dont change anything - only 1 line of electrodes
     if (My-handles.Ymin) > (handles.Ymax-My)
         handles.Ymin = handles.Ymin + 1;
     else 
         handles.Ymax = handles.Ymax - 1;
     end
 end
-
-%
-% 
-% DmaxX = max(Mx-handles.Xmin,handles.Xmax-Mx);
-% RatioX = (DmaxX-1)/DmaxX;
-% Xmin = round(Mx - RatioX*(Mx-handles.Xmin));
-% Xmax = round(Mx + RatioX*(handles.Xmax-Mx));
-% if Xmin<Xmax
-%     handles.Xmin = Xmin;
-%     handles.Xmax = Xmax;
-% end
-% 
-% DmaxY = max(My-handles.Ymin,handles.Ymax-My);
-% RatioY = (DmaxY-1)/DmaxY;
-% Ymin = round(My - RatioY*(My-handles.Ymin));
-% Ymax = round(My + RatioY*(handles.Ymax-My));
-% if Ymin<Ymax
-%     handles.Ymin = Ymin;
-%     handles.Ymax = Ymax;
-% end
 
 guidata(hObject, handles);
 
@@ -461,8 +440,7 @@ function ZoonOutBtn_Callback(hObject, eventdata, handles)
 
 
 %Find electrode with max for template
-CellNb = str2num(get(handles.TemplateNb,'String'));
-m = max(abs(handles.local_template),[],2);
+m        = max(abs(handles.local_template),[],2);
 [m,elec] = max(m);
 
 Mx = handles.Positions(elec,1);
@@ -492,31 +470,6 @@ else
         end
     end
 end
-
-% DminX = max(Mx-handles.Xmin,handles.Xmax-Mx);
-% RatioX = (DminX+1)/DminX;
-% Xmin = round(Mx - RatioX*(Mx-handles.Xmin));
-% Xmax = round(Mx + RatioX*(handles.Xmax-Mx));
-% if Xmin>=1
-%     handles.Xmin = Xmin;
-% end
-% 
-% if Xmax<=16
-%     handles.Xmax = Xmax;
-% end
-% 
-% DminY = max(My-handles.Ymin,handles.Ymax-My);
-% RatioY = (DminY+1)/DminY;
-% Ymin = round(My - RatioY*(My-handles.Ymin));
-% Ymax = round(My + RatioY*(handles.Ymax-My));
-
-% if Ymin<=min(Positions(:,2))
-%     handles.Ymin = Ymin;
-% end
-% 
-% if Ymax>=max(Positions(:,2))
-%     handles.Ymax = Ymax;
-% end
 
 guidata(hObject, handles);
 
@@ -576,7 +529,6 @@ function FeatureYplus_Callback(hObject, eventdata, handles)
 % hObject    handle to FeatureYplus (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
@@ -710,7 +662,7 @@ function TemplateNbPlus_Callback(hObject, eventdata, handles)
 CellNb    = str2num(get(handles.TemplateNb,'String'));
 CellNbOld = CellNb;
 
-if CellNb < handles.templates_size(3)
+if CellNb < size(handles.to_keep, 2)
     CellNb = CellNb + 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb))
@@ -726,17 +678,19 @@ if ViewMode==1
 end
 
 
-CellNb           = str2num(get(handles.TemplateNb,'String'));
+CellNb  = str2num(get(handles.TemplateNb,'String'));
+RCellNb = handles.to_keep(CellNb);
+
 if handles.has_hdf5
     template_old = handles.local_template;
     tmpfile  = [handles.filename '.templates' handles.suffix];
     tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
-    handles.local_template  = h5read(tmpfile, '/templates', [CellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
     ndim                    = numel(size(handles.local_template));
     handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
 else
     template_old           = handles.local_template;
-    handles.local_template = handles.template(:, :, CellNb) 
+    handles.local_template = handles.templates(:, :, RCellNb) 
 end
 m        = max(abs(template_old),[],2);
 [m,elec] = max(m);
@@ -840,7 +794,7 @@ function Template2NbPlus_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 CellNb2 = str2num(get(handles.Template2Nb,'String'));
-if CellNb2 < handles.templates_size(3)
+if CellNb2 < size(handles.to_keep, 2)
     CellNb2 = CellNb2 + 1;
 end
 set(handles.Template2Nb,'String',int2str(CellNb2))
@@ -861,7 +815,7 @@ function CellGrade_Callback(hObject, eventdata, handles)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
-if handles.Tagged(CellNb)<5
+if handles.Tagged(CellNb) < 5
     handles.Tagged(CellNb) = handles.Tagged(CellNb) + 1;
 else
     handles.Tagged(CellNb) = 0;
@@ -971,7 +925,7 @@ function MergeTemplates_Callback(hObject, eventdata, handles)
 %We keep the data from template 1, merge what can be merged from template 2
 %and delete the rest. 
 
-CellNb = str2num(get(handles.TemplateNb,'String'));
+CellNb  = str2num(get(handles.TemplateNb,'String'));
 CellNb2 = str2num(get(handles.Template2Nb,'String'));
 
 t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
@@ -980,16 +934,12 @@ t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
 a = [handles.Amplitudes{CellNb}(:) ; handles.Amplitudes{CellNb2}(:) ];
 a = a(id);
 
-nb_templates = length(handles.SpikeTimes);
-
 handles.SpikeTimes{CellNb}      = t;
 handles.Amplitudes{CellNb}      = a;
 handles.SpikeTimes(CellNb2)     = [];
 handles.Amplitudes(CellNb2)     = [];
 handles.Amplitudes2(CellNb2)    = [];
-handles.to_keep                 = handles.to_keep[1:CellNb CellNb2:]
-handles.templates(:,:,CellNb2)  = [];
-handles.templates2(:,:,CellNb2) = [];
+handles.to_keep                 = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb2))
 handles.AmpLim(CellNb2,:)       = [];
 handles.AmpTrend(CellNb2)       = [];
 handles.clusters(CellNb2)       = [];
@@ -1163,8 +1113,10 @@ PlotData(handles)
 
 function PlotData(handles, window_update)
 
-CellNb = str2num(get(handles.TemplateNb,'String'));
-CellNb2 = str2num(get(handles.Template2Nb,'String'));
+CellNb   = str2num(get(handles.TemplateNb,'String'));
+CellNb2  = str2num(get(handles.Template2Nb,'String'));
+RCellNb  = handles.to_keep(CellNb);
+RCellNb2 = handles.to_keep(CellNb2);
 
 set(handles.ElecNb,'String',int2str(handles.BestElec(CellNb)))
 set(handles.ElecNb2,'String',int2str(handles.BestElec(CellNb2)))
@@ -1175,15 +1127,15 @@ ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
 if handles.has_hdf5
     tmpfile  = [handles.filename '.templates' handles.suffix];
     tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
-    handles.local_template  = h5read(tmpfile, '/templates', [CellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    handles.local_template2 = h5read(tmpfile, '/templates', [CellNb2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    handles.local_template2 = h5read(tmpfile, '/templates', [RCellNb2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
     ndim                    = numel(size(handles.local_template));
     handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
     ndim                    = numel(size(handles.local_template2));
     handles.local_template2 = permute(handles.local_template2,[ndim:-1:1]);
 else
-    handles.local_template  = handles.templates(:, :, CellNb);
-    handles.local_template2 = handles.templates(:, :, CellNb2);
+    handles.local_template  = handles.templates(:, :, RCellNb);
+    handles.local_template2 = handles.templates(:, :, RCellNb2);
 end 
 
 Yspacing = max(abs(handles.local_template(:)));
@@ -1240,9 +1192,8 @@ end
 if nargin == 1
     %% TEMPLATE COUNT
 
-    set(handles.TemplateCountTxt,'String',[int2str(length(find(handles.Tagged>0))) '/' int2str(handles.templates_size(3))])
-
-
+    set(handles.TemplateCountTxt,'String',[int2str(length(find(handles.Tagged>0))) '/' int2str(size(handles.to_keep, 2))])
+    
     %% PLOT CLUSTER
     FeatureX = str2num(get(handles.FeatureX,'String'));
     FeatureY = str2num(get(handles.FeatureY,'String'));
@@ -1449,11 +1400,10 @@ function KillBtn_Callback(hObject, eventdata, handles)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
+handles.to_keep                = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb))
 handles.SpikeTimes(CellNb)     = [];
 handles.Amplitudes(CellNb)     = [];
 handles.Amplitudes2(CellNb)    = [];
-handles.templates(:,:,CellNb)  = [];
-handles.templates2(:,:,CellNb) = [];
 handles.AmpLim(CellNb,:)       = [];
 handles.AmpTrend(CellNb)       = [];
 handles.clusters(CellNb)       = [];
@@ -1499,18 +1449,30 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-handles.suffix = get(handles.VersionNb,'String');
-
-templates = handles.templates;
-templates(:,:,size(templates,3)+1:size(templates,3)*2) = handles.templates2;
+suffix  = get(handles.VersionNb,'String');
 overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(2));
 
-output_file = [handles.filename '.templates' handles.suffix '.hdf5'];
+output_file = [handles.filename '.templates' suffix '.hdf5'];
 delete(output_file)
-ndim      = numel(size(templates));
-templates = permute(templates,[ndim:-1:1]);
-h5create(output_file, '/templates', size(templates));
-h5write(output_file, '/templates', templates);
+
+nb_templates = size(handles.to_keep, 2);
+h5create(output_file,'/templates', [handles.templates_size(1) handles.templates_size(2) 2*nb_templates])
+for id = 1:nb_templates
+    temp_1 = handles.to_keep(id);
+    temp_2 = handles.to_keep(id) + handles.templates_size(3);
+    if handles.has_hdf5
+        tmpfile    = [handles.filename '.templates' handles.suffix];
+        tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
+        to_write_1 = transpose(h5read(tmpfile, '/templates', [temp_1 1 1], [1 handles.templates_size(2) handles.templates_size(1)]));
+        to_write_2 = transpose(h5read(tmpfile, '/templates', [temp_2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]));
+    else
+        to_write_1 = templates(:, :, temp_1)
+        to_write_2 = templates(:, :, temp_2)
+    end
+    h5write(output_file, '/templates', to_write, [1 1 id], [handles.templates_size(1) handles.templates_size(2) 1]);
+    h5write(output_file, '/templates', to_write, [1 1 id+nb_templates], [handles.templates_size(1) handles.templates_size(2) 1]); 
+end
+
 h5create(output_file, '/limits', size(transpose(handles.AmpLim)));
 h5write(output_file, '/limits', transpose(handles.AmpLim));
 h5create(output_file, '/maxoverlap', size(transpose(overlap)));
@@ -1523,7 +1485,7 @@ for id=1:handles.templates_size(3)
     h5write(output_file, key, transpose(handles.AmpTrend{id}));
 end
 
-output_file = [handles.filename '.result' handles.suffix '.hdf5'];
+output_file = [handles.filename '.result' suffix '.hdf5'];
 delete(output_file)
 for id=1:handles.templates_size(3)
     key = ['/spiketimes/temp_' int2str(id - 1)];
@@ -1538,7 +1500,7 @@ end
 
 
 %% Clusters file
-output_file = [handles.filename '.clusters' handles.suffix '.hdf5'];
+output_file = [handles.filename '.clusters' suffix '.hdf5'];
 delete(output_file)
 h5create(output_file, '/electrodes', size(transpose(handles.BestElec)));
 h5write(output_file, '/electrodes', transpose(handles.BestElec));
@@ -1558,22 +1520,20 @@ function SplitBtn_Callback(hObject, eventdata, handles)
 
 %Duplicate the template
 
-CellNb = str2num(get(handles.TemplateNb,'String'));
-
+CellNb              = str2num(get(handles.TemplateNb,'String'));
 nb_templates        = length(handles.SpikeTimes);
 myslice             = [(1:CellNb) (CellNb:nb_templates)];
-handles.SpikeTimes  = handles.spiketimes(myslice);
+handles.SpikeTimes  = handles.SpikeTimes(myslice);
 handles.Amplitudes  = handles.Amplitudes(myslice);
 handles.Amplitudes2 = handles.Amplitudes(myslice);
 handles.Tagged      = handles.Tagged(myslice);
-handles.templates   = handles.templates(:,:,myslice);
-handles.templates2  = handles.templates2(:,:,myslice);
 handles.AmpLim      = handles.AmpLim(myslice,:);
 handles.AmpTrend    = handles.AmpTrend(myslice);
 handles.clusters    = handles.clusters(myslice);
 handles.BestElec    = handles.BestElec(myslice);
 handles.overlap     = handles.overlap(myslice,:);
 handles.overlap     = handles.overlap(:,myslice);
+handles.to_keep     = handles.to_keep(myslice);
 
 %Remove the amplitudes/spiketimes in or out of the amp lims
 
