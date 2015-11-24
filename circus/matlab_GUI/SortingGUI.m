@@ -220,7 +220,6 @@ else
         else
             handles.SpikeTimes{id} = double(data)/(handles.SamplingRate/1000);
         end
-        size(handles.SpikeTimes{id})
     end
 end
 
@@ -677,7 +676,6 @@ if CellNb < size(handles.to_keep, 2)
 end
 set(handles.TemplateNb,'String',int2str(CellNb))
 
-
 ClearCrossCorr(hObject, eventdata, handles);
 
 ViewMode = str2num(get(handles.SwitchViewNb,'String'));
@@ -687,21 +685,24 @@ if ViewMode==1
     set(handles.SwitchViewNb,'String',int2str(ViewMode));
 end
 
-
-CellNb  = str2num(get(handles.TemplateNb,'String'));
-RCellNb = handles.to_keep(CellNb);
-
+CellNb       = str2num(get(handles.TemplateNb,'String'));
+RCellNb      = handles.to_keep(CellNb);
+RCellNbOld   = handles.to_keep(CellNbOld);
+    
 if handles.has_hdf5
-    template_old = handles.local_template;
     tmpfile  = [handles.filename '.templates' handles.suffix];
     tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
     handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
     ndim                    = numel(size(handles.local_template));
     handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
+    template_old  = h5read(tmpfile, '/templates', [RCellNbOld 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    ndim          = numel(size(template_old));
+    template_old  = permute(template_old,[ndim:-1:1]);
 else
-    template_old           = handles.local_template;
-    handles.local_template = handles.templates(:, :, RCellNb) 
+    template_old           = handles.templates(:, :, RCellNbOld);
+    handles.local_template = handles.templates(:, :, RCellNb) ;
 end
+
 m        = max(abs(template_old),[],2);
 [m,elec] = max(m);
 MxOld    = handles.Positions(elec,1);
@@ -713,10 +714,10 @@ My       = handles.Positions(elec,2);
 dx       = handles.Xmax - handles.Xmin;
 dy       = handles.Ymax - handles.Ymin;
 
-%handles.Xmin = handles.Xmin - MxOld + Mx;
-%handles.Xmax = handles.Xmax - MxOld + Mx;
-%handles.Ymin = handles.Ymin - MyOld + My;
-%handles.Ymax = handles.Ymax - MyOld + My;
+handles.Xmin = handles.Xmin - MxOld + Mx;
+handles.Xmax = handles.Xmax - MxOld + Mx;
+handles.Ymin = handles.Ymin - MyOld + My;
+handles.Ymax = handles.Ymax - MyOld + My;
 
 if handles.Xmin < min(handles.Positions(:,1))
     handles.Xmin = min(handles.Positions(:,1));
@@ -756,10 +757,14 @@ function TemplateNbMinus_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-CellNb = str2num(get(handles.TemplateNb,'String'));
+
+CellNb    = str2num(get(handles.TemplateNb,'String'));
+CellNbOld = CellNb;
+
 if CellNb > 1
     CellNb = CellNb - 1;
 end
+
 set(handles.TemplateNb,'String',int2str(CellNb))
 
 ClearCrossCorr(hObject, eventdata, handles);
@@ -770,6 +775,66 @@ if ViewMode==1
     ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
     set(handles.SwitchViewNb,'String',int2str(ViewMode));
 
+end
+
+CellNb       = str2num(get(handles.TemplateNb,'String'));
+RCellNb      = handles.to_keep(CellNb);
+RCellNbOld   = handles.to_keep(CellNbOld);
+    
+if handles.has_hdf5
+    tmpfile  = [handles.filename '.templates' handles.suffix];
+    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
+    handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    ndim                    = numel(size(handles.local_template));
+    handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
+    template_old  = h5read(tmpfile, '/templates', [RCellNbOld 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    ndim          = numel(size(template_old));
+    template_old  = permute(template_old,[ndim:-1:1]);
+else
+    template_old           = handles.templates(:, :, RCellNbOld);
+    handles.local_template = handles.templates(:, :, RCellNb) ;
+end
+
+m        = max(abs(template_old),[],2);
+[m,elec] = max(m);
+MxOld    = handles.Positions(elec,1);
+MyOld    = handles.Positions(elec,2);
+m        = max(abs(handles.local_template),[],2);
+[m,elec] = max(m);
+Mx       = handles.Positions(elec,1);
+My       = handles.Positions(elec,2);
+dx       = handles.Xmax - handles.Xmin;
+dy       = handles.Ymax - handles.Ymin;
+
+handles.Xmin = handles.Xmin - MxOld + Mx;
+handles.Xmax = handles.Xmax - MxOld + Mx;
+handles.Ymin = handles.Ymin - MyOld + My;
+handles.Ymax = handles.Ymax - MyOld + My;
+
+if handles.Xmin < min(handles.Positions(:,1))
+    handles.Xmin = min(handles.Positions(:,1));
+    handles.Xmax = handles.Xmin + dx;
+end
+
+if handles.Xmax > max(handles.Positions(:,1))
+    handles.Xmax = max(handles.Positions(:,1));
+    handles.Xmin = handles.Xmax - dx;
+    if handles.Xmin < min(handles.Positions(:,1))
+        handles.Xmin = min(handles.Positions(:,1));
+    end
+end
+
+if handles.Ymin < min(handles.Positions(:,2))
+    handles.Ymin = min(handles.Positions(:,2));
+    handles.Ymax = handles.Ymin + dy;
+end
+
+if handles.Ymax > max(handles.Positions(:,2))
+    handles.Ymax = max(handles.Positions(:,2));
+    handles.Ymin = handles.Ymax - dy;
+    if handles.Ymin < min(handles.Positions(:,2))
+        handles.Ymin = min(handles.Positions(:,2));
+    end
 end
 
 guidata(hObject, handles);
