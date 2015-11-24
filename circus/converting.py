@@ -13,6 +13,7 @@ import os.path as op
 import shutil
 
 import numpy as np
+import h5py
 from circus.shared.files import detect_header
 
 from phy.detect.spikedetekt import SpikeDetekt

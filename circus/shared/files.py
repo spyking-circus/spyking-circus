@@ -202,16 +202,16 @@ def data_stats(params, show=True):
     return nb_chunks*60 + last_chunk_len
 
 def print_info(lines):
-    print colored("-----------------------  Informations  -----------------------", 'yellow')
+    print colored("--------------------------  Informations  --------------------------", 'yellow')
     for line in lines:
         print colored("| " + line, 'yellow')
-    print colored("--------------------------------------------------------------", 'yellow')
+    print colored("--------------------------------------------------------------------", 'yellow')
 
 def print_error(lines):
-    print colored("--------------------------  Error  ---------------------------", 'red')
+    print colored("-----------------------------  Error  ------------------------------", 'red')
     for line in lines:
         print colored("| " + line, 'red')
-    print colored("--------------------------------------------------------------", 'red')
+    print colored("--------------------------------------------------------------------", 'red')
 
 
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
@@ -510,11 +510,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     
     comm.Barrier()
     
-    if not parallel_hdf5:
-        cuda_string = 'using %d CPU [no parallel HDF5]...' %comm.size
-    else:
-        cuda_string = 'using %d CPU...' %comm.size
-
+    cuda_string = 'using %d CPU...' %comm.size
+    
     try:
         HAVE_CUDA = True
         if parallel_hdf5:
@@ -531,10 +528,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
         HAVE_CUDA = False
 
     if HAVE_CUDA:
-        if parallel_hdf5:
-            cuda_string = 'using %d GPU...' %comm.size
-        else:
-            cuda_string = 'using %d GPU [no parallel HDF5]...' %comm.size
+        cuda_string = 'using %d GPU...' %comm.size
 
     #print "Normalizing the templates..."
     norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)

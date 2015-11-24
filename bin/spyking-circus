@@ -50,11 +50,11 @@ def main(argv):
         config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
     header = '''
-##############################################################
-#####          Welcome to the SpyKING CIRCUS             #####
-#####                                                    #####
-#####          Written by P.Yger and O.Marre             #####
-##############################################################
+####################################################################
+#####               Welcome to the SpyKING CIRCUS              #####
+#####                                                          #####
+#####               Written by P.Yger and O.Marre              #####
+####################################################################
 '''
 
     message = '''   
@@ -90,7 +90,7 @@ Options are:
         print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
         print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
         print ""
-        print colored("##############################################################", 'green')
+        print colored("#####################################################################", 'green')
         print ""
         print message
         sys.exit()
@@ -100,7 +100,7 @@ Options are:
             print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
             print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
             print ""
-            print colored("##############################################################", 'green')
+            print colored("####################################################################", 'green')
             print ""
             print message
             sys.exit()
@@ -165,7 +165,7 @@ Options are:
         print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
         print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
         print ""
-        print colored("##############################################################", 'green')
+        print colored("####################################################################", 'green')
         print ""
 
         # Print info
