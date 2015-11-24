@@ -328,6 +328,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     templates      = load_data(params, 'templates')
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     filename       = os.path.join(tmp_path, 'merging_cc.hdf5')
+    filename_mpi   = os.path.join(tmp_path, 'merging_cc-%d.hdf5' %comm.rank)
     N_e, N_t, N_tm = templates.shape
     nb_temp        = N_tm/2
     to_merge       = []
@@ -356,42 +357,59 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
     import h5py
 
+    all_delays   = numpy.arange(1, N_t+1)
+    local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
+
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
-    elif comm.rank == 0:
+    else:
+        myfile  = h5py.File(filename_mpi, 'w')
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
+        
+    for count, idelay in enumerate(local_delays):
+
+        tmp_1 = templates[:, :idelay, :]/norm_templates
+        tmp_2 = templates[:, -idelay:, :]/norm_templates
+        size  = templates.shape[0]*idelay
+        if HAVE_CUDA:
+            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, N_tm))
+            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, N_tm))
+            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+        else:
+            tmp_1 = tmp_1.reshape(size, N_tm)
+            tmp_2 = tmp_2.reshape(size, N_tm)
+            data  = numpy.dot(tmp_1.T, tmp_2)
+
+            if parallel_hdf5:
+                overlap[:, :, idelay-1]           = data
+                overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
+            else:
+                overlap[:, :, count]              = data
+            
+        if comm.rank == 0:
+            pbar.update(idelay)
+        
+    myfile.close()
+    if comm.rank == 0:
+        pbar.finish()
+
+    comm.Barrier()
+
+    if not parallel_hdf5 and (comm.rank == 0):
         myfile  = h5py.File(filename, 'w')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
-
-    all_delays = numpy.arange(1, N_t+1)
-        
-    if parallel_hdf5:
-        local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
-    else:
-        local_delays = all_delays      
-
-    if parallel_hdf5 or (comm.rank == 0):
-
-        for idelay in local_delays:
-            tmp_1 = templates[:, :idelay, :]/norm_templates
-            tmp_2 = templates[:, -idelay:, :]/norm_templates
-            size  = templates.shape[0]*idelay
-            if HAVE_CUDA:
-                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, N_tm))
-                tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, N_tm))
-                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
-            else:
-                tmp_1 = tmp_1.reshape(size, N_tm)
-                tmp_2 = tmp_2.reshape(size, N_tm)
-                data  = numpy.dot(tmp_1.T, tmp_2)
-
-            overlap[:, :, idelay-1]           = data
-            overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
-            if comm.rank == 0:
-                pbar.update(idelay)
+        for i in xrange(comm.size):
+            filename_mpi = os.path.join(tmp_path, 'merging_cc-%d.hdf5' %i)
+            datafile     = h5py.File(filename_mpi, 'r')
+            data         = datafile.get('overlap')
+            local_delays = all_delays[numpy.arange(i, len(all_delays), comm.size)] 
+            for count, idelay in enumerate(local_delays):
+                overlap[:, :, idelay-1]           = data[:, :, count]
+                overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data[:, :, count])
+            datafile.close()
+            os.remove(filename_mpi)
         myfile.close()
-        if comm.rank == 0:
-            pbar.finish()
 
     comm.Barrier()
     templates.file.close()
@@ -445,6 +463,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     templates      = load_data(params, 'templates')
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     filename       = os.path.join(tmp_path, 'mixtures.hdf5')
+    filename_mpi   = os.path.join(tmp_path, 'mixtures-%d.hdf5' %comm.rank)
     N_e, N_t, N_tm = templates.shape
     nb_temp        = N_tm/2
     merged         = [nb_temp, 0]
@@ -471,44 +490,61 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
 
     import h5py
 
+    all_delays   = numpy.arange(1, N_t+1)
+    local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
+
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
-    elif comm.rank == 0:
-        myfile  = h5py.File(filename, 'w')
-        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
-
-    all_delays   = numpy.arange(1, N_t+1)
-        
-    if parallel_hdf5:
-        local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
     else:
-        local_delays = all_delays      
+        myfile  = h5py.File(filename_mpi, 'w')
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
+        
+    for count, idelay in enumerate(local_delays):
+        tmp_1 = templates[:, :idelay, :]
+        tmp_2 = templates[:, -idelay:, :]
+        size  = templates.shape[0]*idelay
+        if HAVE_CUDA:
+            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, N_tm))
+            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, N_tm))
+            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+        else:
+            tmp_1 = tmp_1.reshape(size, N_tm)
+            tmp_2 = tmp_2.reshape(size, N_tm)
+            data  = numpy.dot(tmp_1.T, tmp_2)
 
-    if parallel_hdf5 or (comm.rank == 0):
-
-        for idelay in local_delays:
-            tmp_1 = templates[:, :idelay, :]
-            tmp_2 = templates[:, -idelay:, :]
-            size  = templates.shape[0]*idelay
-            if HAVE_CUDA:
-                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, N_tm))
-                tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, N_tm))
-                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
-            else:
-                tmp_1 = tmp_1.reshape(size, N_tm)
-                tmp_2 = tmp_2.reshape(size, N_tm)
-                data  = numpy.dot(tmp_1.T, tmp_2)
-
+        if parallel_hdf5:
             overlap[:, :, idelay-1]           = data
             overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
-            if comm.rank == 0:
-                pbar.update(idelay)
-        myfile.close()
+        else:
+            overlap[:, :, count]              = data
+        
         if comm.rank == 0:
-            pbar.finish()
+            pbar.update(idelay)
+
+    myfile.close()
+    if comm.rank == 0:
+        pbar.finish()
 
     comm.Barrier()
+
+    if not parallel_hdf5 and (comm.rank == 0):
+        myfile  = h5py.File(filename, 'w')
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        for i in xrange(comm.size):
+            filename_mpi = os.path.join(tmp_path, 'mixtures-%d.hdf5' %i)
+            datafile     = h5py.File(filename_mpi, 'r')
+            data         = datafile.get('overlap')
+            local_delays = all_delays[numpy.arange(i, len(all_delays), comm.size)] 
+            for count, idelay in enumerate(local_delays):
+                overlap[:, :, idelay-1]           = data[:, :, count]
+                overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data[:, :, count])
+            datafile.close()
+            os.remove(filename_mpi)
+        myfile.close()
+
+    comm.Barrier()
+
     result = []
     if comm.rank > 0:
         templates.file.close()
