@@ -595,4 +595,5 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
         myfile.close()  
         myfile2.close()
 
+    comm.Barrier()
     return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')
