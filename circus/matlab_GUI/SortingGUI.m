@@ -95,9 +95,9 @@ end
 %% Template file: could also contain AmpLim and AmpTrend
 if exist([handles.filename '.templates' handles.suffix])
     template           = load([handles.filename '.templates' handles.suffix],'-mat');
-    handles.templates  = template.templates(:,:,1:end/2);
-    handles.templates2 = template.templates(:,:,end/2+1:end);
+    handles.templates  = template.templates;
     handles.templates_size = size(handles.templates); 
+    handles.templates_size = [handles.templates_size(1) handles.templates_size(2) handles.templates_size(3)/2];
     handles.has_hdf5   = false;
     if isfield(template, 'Tagged')
         handles.Tagged = template.Tagged;
@@ -215,6 +215,9 @@ else
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
         handles.SpikeTimes{id} = double(h5read(tmpfile, ['/spiketimes/temp_' int2str(id - 1)]))/(handles.SamplingRate/1000);
+        if size(handles.SpikeTimes{id}, 1) == 0
+            handles.SpikeTimes{id} = zeros(0, 1)
+        end
     end
 end
 
@@ -1455,7 +1458,7 @@ output_file = [handles.filename '.templates' suffix '.hdf5'];
 delete(output_file);
 
 nb_templates = size(handles.to_keep, 2);
-h5create(output_file,'/templates', [handles.templates_size(1) handles.templates_size(2) 2*nb_templates])
+h5create(output_file,'/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
 for id = 1:nb_templates
     temp_1 = handles.to_keep(id);
     temp_2 = handles.to_keep(id) + handles.templates_size(3);
@@ -1464,15 +1467,12 @@ for id = 1:nb_templates
         tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
         to_write_1 = h5read(tmpfile, '/templates', [temp_1 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
         to_write_2 = h5read(tmpfile, '/templates', [temp_2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-        ndim       = numel(size(to_write_1));
-        to_write_1 = permute(to_write_1,[ndim:-1:1]);
-        to_write_2 = permute(to_write_2,[ndim:-1:1]);
     else
-        to_write_1 = templates(:, :, temp_1)
-        to_write_2 = templates(:, :, temp_2)
+        to_write_1 = transpose(handles.templates(:, :, temp_1));
+        to_write_2 = transpose(handles.templates(:, :, temp_2));
     end
-    h5write(output_file, '/templates', to_write_1, [1 1 id], [handles.templates_size(1) handles.templates_size(2) 1]);
-    h5write(output_file, '/templates', to_write_2, [1 1 id+nb_templates], [handles.templates_size(1) handles.templates_size(2) 1]); 
+    h5write(output_file, '/templates', to_write_1, [id 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    h5write(output_file, '/templates', to_write_2, [id+nb_templates 1 1], [1 handles.templates_size(2) handles.templates_size(1)]); 
 end
 
 h5create(output_file, '/limits', size(transpose(handles.AmpLim)));
