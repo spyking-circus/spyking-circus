@@ -228,14 +228,14 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
     if parallel_hdf5:
         hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', driver='mpio', comm=comm)
         positions = numpy.arange(comm.rank, len(to_keep), comm.size)
-    else:
+    elif comm.rank == 0:
         hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w')
         positions = numpy.arange(len(to_keep))
     
-    local_keep = to_keep[positions]
-    templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*len(to_keep)), dtype=numpy.float32, chunks=True)
-    limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
     if parallel_hdf5 or (comm.rank == 0):
+        local_keep = to_keep[positions]
+        templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*len(to_keep)), dtype=numpy.float32, chunks=True)
+        limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         for count, keep in zip(positions, local_keep):
             templates[:, :, count]                = old_templates[:, :, keep]
             templates[:, :, count + len(to_keep)] = old_templates[:, :, keep + N_tm/2]
