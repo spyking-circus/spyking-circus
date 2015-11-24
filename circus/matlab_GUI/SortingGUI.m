@@ -214,10 +214,13 @@ else
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
-        handles.SpikeTimes{id} = double(h5read(tmpfile, ['/spiketimes/temp_' int2str(id - 1)]))/(handles.SamplingRate/1000);
-        if size(handles.SpikeTimes{id}, 1) == 0
-            handles.SpikeTimes{id} = zeros(0, 1)
+        data = h5read(tmpfile, ['/spiketimes/temp_' int2str(id - 1)]);
+        if size(data, 1) == 0 || (same(data, zeros(1)) > 0)
+            handles.SpikeTimes{id} = zeros(0, 1);
+        else
+            handles.SpikeTimes{id} = double(data)/(handles.SamplingRate/1000);
         end
+        size(handles.SpikeTimes{id})
     end
 end
 
@@ -285,11 +288,16 @@ else
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
-        amplitudes  = h5read(tmpfile, ['/amplitudes/temp_' int2str(id - 1)]);
-        ndim        = numel(size(amplitudes));
-        amplitudes  = permute(amplitudes,[ndim:-1:1]);
-        handles.Amplitudes{id}  = amplitudes(:, 1);
-        handles.Amplitudes2{id} = amplitudes(:, 2);
+        data        = h5read(tmpfile, ['/amplitudes/temp_' int2str(id - 1)]);
+        if same(data, zeros(1))
+            handles.Amplitudes{id}  = [];
+            handles.Amplitudes2{id} = [];
+        else
+            ndim = numel(size(data));
+            data = permute(data,[ndim:-1:1]);
+            handles.Amplitudes{id}  = data(:, 1);
+            handles.Amplitudes2{id} = data(:, 2);
+        end
     end
 end
 
@@ -1491,11 +1499,19 @@ output_file = [handles.filename '.result' suffix '.hdf5'];
 delete(output_file);
 for id=1:nb_templates
     key = ['/spiketimes/temp_' int2str(id - 1)];
-    to_write = transpose(handles.SpikeTimes{id}*(handles.SamplingRate/1000));
+    if size(handles.SpikeTimes{id}, 1) == 0
+        to_write = zeros(1);        
+    else
+        to_write = transpose(handles.SpikeTimes{id}*(handles.SamplingRate/1000));
+    end
     h5create(output_file, key, size(to_write));
     h5write(output_file, key, to_write);
     key = ['/amplitudes/temp_' int2str(id - 1)];
-    to_write = transpose([handles.Amplitudes{id} handles.Amplitudes2{id}]);
+    if size(handles.Amplitudes{id}, 1) == 0
+        to_write = zeros(1);        
+    else
+        to_write = transpose([handles.Amplitudes{id} handles.Amplitudes2{id}]);
+    end
     h5create(output_file, key, size(to_write));
     h5write(output_file, key, to_write);
 end
