@@ -41,7 +41,7 @@ def main(argv):
         HAVE_CUDA = False
 
     all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging']
-    steps     = ['filtering', 'whitening', 'clustering', 'fitting', 'merging']
+    steps     = ['filtering', 'whitening', 'clustering', 'fitting']
     hostfile  = pjoin(user_path, 'circus.hosts')
 
     if os.path.exists(user_path + 'config.params'):
@@ -69,7 +69,7 @@ Options are:
                      - whitening
                      - clustering
                      - fitting
-                     - merging
+                     - (extra) merging [merging obvious pairs]
                      - (extra) gathering [to collect results]
                      - (extra) extracting [templates from spike times]
                      - (extra) converting [to export to phy format]
