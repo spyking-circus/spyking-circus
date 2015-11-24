@@ -152,7 +152,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, nodes=nodes)
+            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:

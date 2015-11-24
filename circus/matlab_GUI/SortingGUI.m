@@ -60,16 +60,15 @@ function SortingGUI_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for SortingGUI
 handles.output = hObject;
 
-filename = varargin{2};
-suffix   = varargin{3};
+handles.filename = varargin{2};
+handles.suffix   = varargin{3};
 
-if ~strcmp(suffix, '.mat')
-    result = strsplit(suffix, '.mat');
+if ~strcmp(handles.suffix, '.mat')
+    result = strsplit(handles.suffix, '.mat');
     set(handles.VersionNb, 'String', result(1));
 end
 
 handles.SamplingRate = varargin{1};
-
 
 if length(varargin)<=3
     load('../mappings/mea_252.mapping.mat','-mat')
@@ -93,39 +92,39 @@ else
     handles.RPVlim = varargin{5};
 end
 
-
-handles.filename = filename;
-
-
 %% Template file: could also contain AmpLim and AmpTrend
-if exist([filename '.templates' suffix])
-    template           = load([filename '.templates' suffix],'-mat');
+if exist([handles.filename '.templates' handles.suffix])
+    template           = load([handles.filename '.templates' handles.suffix],'-mat');
     handles.templates  = template.templates(:,:,1:end/2);
     handles.templates2 = template.templates(:,:,end/2+1:end);
+    handles.templates_size = size(templates); 
+    handles.has_hdf5   = false;
     if isfield(template, 'Tagged')
         handles.Tagged = template.Tagged;
-    else
-        handles.Tagged = zeros(size(handles.templates,3),1);
+    end
+    if isfield(template, 'AmpTrend')
+        handles.AmpTrend = template.AmpTrend;
     end
 else
-    tmpfile  = [filename '.templates' suffix];
+    tmpfile  = [handles.filename '.templates' handles.suffix];
     tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
+    info     = h5info(tmpfile);
+    handles.has_hdf5 = true;
     template = h5read(tmpfile, '/templates');
     ndim     = numel(size(template));
-    template = permute(template,[ndim:-1:1]);
-    handles.templates  = template(:,:,1:end/2);
-    handles.templates2 = template(:,:,end/2+1:end);
-    info       = h5info(tmpfile);
     has_tagged = false;
     for id=1:size(info.Datasets, 1)
         if strcmp(info.Datasets(id).Name, 'tagged')
             has_tagged = true;
         end
+        if strcmp(info.Datasets(id).Name, 'templates')
+            handles.templates_size = info.Datasets(id).Dataspace.Size;
+            handles.templates_size = [handles.templates_size(3) handles.templates_size(2) handles.templates_size(1)/2];
+        end
     end
+    handles.to_keep  = 1:handles.templates_size(3);
     if has_tagged
         handles.Tagged = h5read(tmpfile, '/tagged');
-    else
-        handles.Tagged = zeros(size(handles.templates,3),1);
     end
     has_amptrend = false;
     for id=1:size(info.Groups, 1)
@@ -134,13 +133,17 @@ else
         end
     end
     if has_amptrend
-        for id=1:size(handles.templates,3)
-            handles.AmpTrend{id} = h5read(tmpfile, ['/amptrend/temp_' int2str(id - 1)]);
+        for id=1:handles.templates_size(3)
+            data = h5read(tmpfile, ['/amptrend/temp_' int2str(id - 1)]);
+            ndim = numel(size(data));
+            data = permute(data,[ndim:-1:1]);
+            handles.AmpTrend{id} = data;
         end
-    else
-        handles.AmpTrend = zeros(size(handles.templates,3),1);
     end
 end
+
+handles.local_template  = [];
+handles.local_template2 = [];
 
 %% Raw data file if it is there
 
@@ -175,12 +178,12 @@ if length(varargin)>=6
 
         handles.DataStartPt = 1000;
 
-        if exist([filename '.whitening' suffix])
-            a = load([filename '.whitening.mat'],'-mat');
+        if exist([handles.filename '.whitening' handles.suffix])
+            a = load([handles.filename '.whitening.mat'],'-mat');
             handles.WhiteSpatial  = a.spatial;
             handles.WhiteTemporal = a.temporal;
         else
-            tmpfile = [filename '.basis' '.hdf5'];
+            tmpfile = [handles.filename '.basis' '.hdf5'];
             handles.WhiteSpatial  = h5read(tmpfile, '/spatial');
             ndim                  = numel(size(handles.WhiteSpatial));
             handles.WhiteSpatial  = permute(handles.WhiteSpatial,[ndim:-1:1]);
@@ -190,25 +193,25 @@ if length(varargin)>=6
         end
 
         b = load(varargin{4},'-mat');
-        handles.NelecTot   = size(handles.templates,1);
-        handles.ElecPermut = (0:size(handles.templates,1)-1);
+        handles.NelecTot   = handles.templates_size(1);
+        handles.ElecPermut = (0:handles.templates_size(1)-1);
     end
 end
 
 %% spiketimes file
-if exist([filename '.spiketimes' suffix],'file')    
-    a = load([filename '.spiketimes' suffix],'-mat');
+if exist([handles.filename '.spiketimes' handles.suffix],'file')    
+    a = load([handles.filename '.spiketimes' handles.suffix],'-mat');
     if isfield(a, 'SpikeTimes')
-        for id=1:size(handles.templates,3)
+        for id=1:handles.templates_size(3)
             handles.SpikeTimes{id} = a.SpikeTimes{id}/(handles.SamplingRate/1000);
         end
     else
-        for id=1:size(handles.templates,3)
+        for id=1:handles.templates_size(3)
             handles.SpikeTimes{id} = double(eval(['a.temp_' int2str(id-1)]))/(handles.SamplingRate/1000);
         end
     end
 else
-    tmpfile = [filename '.result' suffix];
+    tmpfile = [handles.filename '.result' handles.suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
@@ -218,56 +221,54 @@ end
 
 %% Amplitude Limits
 
-if exist([filename '.limits' suffix],'file')
-    b              = load([filename '.limits' suffix],'-mat');
+if exist([handles.filename '.limits' handles.suffix],'file')
+    b              = load([handles.filename '.limits' handles.suffix],'-mat');
     handles.AmpLim = b.limits;
 else
-    tmpfile        = [filename '.templates' suffix];
+    tmpfile        = [handles.filename '.templates' handles.suffix];
     tmpfile        = strrep(tmpfile, '.mat', '.hdf5');
     handles.AmpLim = h5read(tmpfile, '/limits');
     ndim           = numel(size(handles.AmpLim));
     handles.AmpLim = permute(handles.AmpLim,[ndim:-1:1]);
 end
 
-if ~isfield(template,'AmpTrend') || exist([filename '.limits' suffix],'file')
-    
+if ~isfield(handles,'AmpTrend')
     m = 0;
     for i=1:length(handles.SpikeTimes)
         if size(handles.SpikeTimes{i}, 1) > 1
             m = max(m,max(handles.SpikeTimes{i}));   
         end
     end
-    
-    AmpTrend = cell(1,size(handles.templates,3));
-
+    handles.AmpTrend = cell(1,handles.templates_size(3));
     for i=1:length(handles.SpikeTimes)
-        AmpTrend{i}([1 2],1) = [0 m];
-        AmpTrend{i}([1 2],2) = [1 1];
-    end
-    
-    handles.AmpTrend = AmpTrend;
-else
-    handles.AmpTrend = template.AmpTrend;
+        handles.AmpTrend{i}([1 2],1) = [0 m];
+        handles.AmpTrend{i}([1 2],2) = [1 1];
+    end    
 end
+
+if ~isfield(handles, 'Tagged')
+    handles.Tagged = zeros(handles.templates_size(3),1);
+end
+
 
 %% stimulus file: check if it exists
 
-if exist([filename '.stim'],'file')
-    a = load([filename '.stim'],'-mat');
+if exist([handles.filename '.stim'],'file')
+    a = load([handles.filename '.stim'],'-mat');
     handles.StimBeg = a.rep_begin_time;
     handles.StimEnd = a.rep_end_time;
 end
 
 %% Amplitudes file: does not have to exist
 
-if exist([filename '.amplitudes' suffix],'file') 
-    a = load([filename '.amplitudes' suffix],'-mat');
+if exist([handles.filename '.amplitudes' handles.suffix],'file') 
+    a = load([handles.filename '.amplitudes' handles.suffix],'-mat');
     
     if isfield(a,'Amplitudes')
         handles.Amplitudes  = a.Amplitudes;
         handles.Amplitudes2 = a.Amplitudes2;
     else
-        for id=1:size(handles.templates,3)
+        for id=1:handles.templates_size(3)
             if ~isempty(eval(['a.temp_' int2str(id-1)]))
                 handles.Amplitudes{id}  = double(eval(['a.temp_' int2str(id-1) '(:,1)']));
                 handles.Amplitudes2{id} = double(eval(['a.temp_' int2str(id-1) '(:,2)']));
@@ -278,7 +279,7 @@ if exist([filename '.amplitudes' suffix],'file')
         end
     end
 else
-    tmpfile = [filename '.result' suffix];
+    tmpfile = [handles.filename '.result' handles.suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
@@ -292,14 +293,14 @@ end
 
 %% Clusters file
 
-if exist([filename '.clusters' suffix], 'file')    
-    a = load([filename '.clusters' suffix],'-mat');
+if exist([handles.filename '.clusters' handles.suffix], 'file')    
+    a = load([handles.filename '.clusters' handles.suffix],'-mat');
     if isfield(a,'clusters') %This is the save format
         handles.clusters     = a.clusters;
         handles.BestElec     = a.BestElec;
     else 
         handles.BestElec = a.electrodes + 1;
-        for id=1:size(handles.templates,1)%number of electrodes
+        for id=1:handles.templates_size(1)%number of electrodes
             if ~isempty(eval(['a.clusters_' int2str(id-1)]))
                 features  = double(eval(['a.data_' int2str(id-1)]));
                 ClusterId = double(eval(['a.clusters_' int2str(id-1)]));
@@ -319,19 +320,19 @@ if exist([filename '.clusters' suffix], 'file')
         end
     end
 else
-    tmpfile = [filename '.clusters' suffix];
+    tmpfile = [handles.filename '.clusters' handles.suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
     info    = h5info(tmpfile);
     handles.BestElec = h5read(tmpfile, '/electrodes') + 1;
     if size(info.Groups, 1) > 0 %This is the save format
-        for id=1:size(handles.templates, 3)
+        for id=1:handles.templates_size(3)
             data = h5read(tmpfile, ['/clusters/temp_' int2str(id-1)]);
             ndim = numel(size(data));
             data = permute(data,[ndim:-1:1]);
             handles.clusters{id} = data;
         end
     else
-        for id=1:size(handles.templates, 1) %number of electrodes
+        for id=1:handles.templates_size(1) %number of electrodes
             if ~isempty(h5read(tmpfile, ['/clusters_' int2str(id-1)]))
                 features  = h5read(tmpfile, ['/data_' int2str(id-1)]);
                 ndim      = numel(size(features));
@@ -359,16 +360,16 @@ end
 
 %% overlap
 
-if exist([filename '.overlap' suffix], 'file')
-    a               = load([filename '.overlap' suffix],'-mat');
-    handles.overlap = a.maxoverlap/(size(handles.templates,1) * size(handles.templates,2));
+if exist([handles.filename '.overlap' handles.suffix], 'file')
+    a               = load([handles.filename '.overlap' handles.suffix],'-mat');
+    handles.overlap = a.maxoverlap/(handles.templates_size(1) * handles.templates_size(2));
 else
-    tmpfile = [filename '.templates' suffix];
+    tmpfile = [handles.filename '.templates' handles.suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
-    handles.overlap = h5read(tmpfile, '/maxoverlap')/(size(handles.templates,1) * size(handles.templates,2));
+    handles.overlap = h5read(tmpfile, '/maxoverlap')/(handles.templates_size(1) * handles.templates_size(2));
 end
 
-if size(handles.overlap, 1) == size(handles.templates,3)*2
+if size(handles.overlap, 1) == handles.templates_size(3)*2
     handles.overlap = handles.overlap(1:end/2,1:end/2,:);
 end
 
@@ -402,9 +403,8 @@ function ZoomInBtn_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 %Find electrode with max for template
-CellNb = str2num(get(handles.TemplateNb,'String'));
-template(:,:) = handles.templates(:,:,CellNb);
-m = max(abs(template),[],2);
+CellNb   = str2num(get(handles.TemplateNb,'String'));
+m        = max(abs(handles.local_template),[],2);
 [m,elec] = max(m);
 
 Mx = handles.Positions(elec,1);
@@ -449,7 +449,7 @@ end
 
 guidata(hObject, handles);
 
-PlotData(handles)
+PlotData(handles, false)
 
 
 
@@ -462,8 +462,7 @@ function ZoonOutBtn_Callback(hObject, eventdata, handles)
 
 %Find electrode with max for template
 CellNb = str2num(get(handles.TemplateNb,'String'));
-template(:,:) = handles.templates(:,:,CellNb);
-m = max(abs(template),[],2);
+m = max(abs(handles.local_template),[],2);
 [m,elec] = max(m);
 
 Mx = handles.Positions(elec,1);
@@ -521,7 +520,7 @@ end
 
 guidata(hObject, handles);
 
-PlotData(handles)
+PlotData(handles, false)
 
 
 
@@ -708,8 +707,10 @@ function TemplateNbPlus_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-CellNb = str2num(get(handles.TemplateNb,'String'));
-if CellNb < size(handles.templates,3)
+CellNb    = str2num(get(handles.TemplateNb,'String'));
+CellNbOld = CellNb;
+
+if CellNb < handles.templates_size(3)
     CellNb = CellNb + 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb))
@@ -722,7 +723,61 @@ ViewMode = str2num(get(handles.SwitchViewNb,'String'));
 if ViewMode==1
     ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
     set(handles.SwitchViewNb,'String',int2str(ViewMode));
+end
 
+
+CellNb           = str2num(get(handles.TemplateNb,'String'));
+if handles.has_hdf5
+    template_old = handles.local_template;
+    tmpfile  = [handles.filename '.templates' handles.suffix];
+    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
+    handles.local_template  = h5read(tmpfile, '/templates', [CellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    ndim                    = numel(size(handles.local_template));
+    handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
+else
+    template_old           = handles.local_template;
+    handles.local_template = handles.template(:, :, CellNb) 
+end
+m        = max(abs(template_old),[],2);
+[m,elec] = max(m);
+MxOld    = handles.Positions(elec,1);
+MyOld    = handles.Positions(elec,2);
+m        = max(abs(handles.local_template),[],2);
+[m,elec] = max(m);
+Mx       = handles.Positions(elec,1);
+My       = handles.Positions(elec,2);
+dx       = handles.Xmax - handles.Xmin;
+dy       = handles.Ymax - handles.Ymin;
+
+%handles.Xmin = handles.Xmin - MxOld + Mx;
+%handles.Xmax = handles.Xmax - MxOld + Mx;
+%handles.Ymin = handles.Ymin - MyOld + My;
+%handles.Ymax = handles.Ymax - MyOld + My;
+
+if handles.Xmin < min(handles.Positions(:,1))
+    handles.Xmin = min(handles.Positions(:,1));
+    handles.Xmax = handles.Xmin + dx;
+end
+
+if handles.Xmax > max(handles.Positions(:,1))
+    handles.Xmax = max(handles.Positions(:,1));
+    handles.Xmin = handles.Xmax - dx;
+    if handles.Xmin < min(handles.Positions(:,1))
+        handles.Xmin = min(handles.Positions(:,1));
+    end
+end
+
+if handles.Ymin < min(handles.Positions(:,2))
+    handles.Ymin = min(handles.Positions(:,2));
+    handles.Ymax = handles.Ymin + dy;
+end
+
+if handles.Ymax > max(handles.Positions(:,2))
+    handles.Ymax = max(handles.Positions(:,2));
+    handles.Ymin = handles.Ymax - dy;
+    if handles.Ymin < min(handles.Positions(:,2))
+        handles.Ymin = min(handles.Positions(:,2));
+    end
 end
 
 guidata(hObject, handles);
@@ -785,7 +840,7 @@ function Template2NbPlus_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 CellNb2 = str2num(get(handles.Template2Nb,'String'));
-if CellNb2 < size(handles.templates,3)
+if CellNb2 < handles.templates_size(3)
     CellNb2 = CellNb2 + 1;
 end
 set(handles.Template2Nb,'String',int2str(CellNb2))
@@ -925,24 +980,23 @@ t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
 a = [handles.Amplitudes{CellNb}(:) ; handles.Amplitudes{CellNb2}(:) ];
 a = a(id);
 
-handles.SpikeTimes{CellNb} = t;
-handles.Amplitudes{CellNb} = a;
+nb_templates = length(handles.SpikeTimes);
 
-handles.SpikeTimes(CellNb2) = [];
-handles.Amplitudes(CellNb2) = [];
-handles.Amplitudes2(CellNb2) = [];
-
-handles.templates(:,:,CellNb2) = [];
+handles.SpikeTimes{CellNb}      = t;
+handles.Amplitudes{CellNb}      = a;
+handles.SpikeTimes(CellNb2)     = [];
+handles.Amplitudes(CellNb2)     = [];
+handles.Amplitudes2(CellNb2)    = [];
+%handles.to_keep                 = handles.to_keep[1:CellNb CellNb2:]
+handles.templates(:,:,CellNb2)  = [];
 handles.templates2(:,:,CellNb2) = [];
-handles.AmpLim(CellNb2,:) = [];
-handles.AmpTrend(CellNb2) = [];
-handles.clusters(CellNb2) = [];
-handles.BestElec(CellNb2) = [];
-handles.Tagged(CellNb2) = [];
-
-
-handles.overlap(CellNb2,:) = [];
-handles.overlap(:,CellNb2) = [];
+handles.AmpLim(CellNb2,:)       = [];
+handles.AmpTrend(CellNb2)       = [];
+handles.clusters(CellNb2)       = [];
+handles.BestElec(CellNb2)       = [];
+handles.Tagged(CellNb2)         = [];
+handles.overlap(CellNb2,:)      = [];
+handles.overlap(:,CellNb2)      = [];
 
 if CellNb2<CellNb
     set(handles.TemplateNb,'String',int2str(CellNb-1));
@@ -1175,7 +1229,7 @@ function BigISI_Callback(hObject, eventdata, handles)
 PlotData(handles)
 
 
-function PlotData(handles)
+function PlotData(handles, window_update)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 CellNb2 = str2num(get(handles.Template2Nb,'String'));
@@ -1186,8 +1240,21 @@ set(handles.ElecNb2,'String',int2str(handles.BestElec(CellNb2)))
 ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
 
 %% PLOT TEMPLATE
-template = handles.templates(:,:,CellNb);
-Yspacing = max(abs(template(:)));
+if handles.has_hdf5
+    tmpfile  = [handles.filename '.templates' handles.suffix];
+    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
+    handles.local_template  = h5read(tmpfile, '/templates', [CellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    handles.local_template2 = h5read(tmpfile, '/templates', [CellNb2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+    ndim                    = numel(size(handles.local_template));
+    handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
+    ndim                    = numel(size(handles.local_template2));
+    handles.local_template2 = permute(handles.local_template2,[ndim:-1:1]);
+else
+    handles.local_template  = handles.templates(:, :, CellNb);
+    handles.local_template2 = handles.templates(:, :, CellNb2);
+end 
+
+Yspacing = max(abs(handles.local_template(:)));
 
 GradeStr{1} = 'O';
 GradeStr{2} = 'E';
@@ -1203,15 +1270,15 @@ if ViewMode == 1
     if get(handles.EnableWaveforms,'Value')==0%Classical display with just the template
     
         if get(handles.NormalizeTempl,'Value')==0
-            PlotWaveform(handles,template);
+            PlotWaveform(handles,handles.local_template);
         else
-            PlotWaveform(handles,template,Yspacing);
+            PlotWaveform(handles,handles.local_template,Yspacing);
         end
     
     else
         
-        %TemplateWindow = round(duration/2) + (-1*(size(template,2)-1)/2 : (size(template,2)-1)/2 );
-        templateIn = handles.Amp2Fit*template;
+        %TemplateWindow = round(duration/2) + (-1*(size(handles.local_template,2)-1)/2 : (size(handles.local_template,2)-1)/2 );
+        templateIn = handles.Amp2Fit*handles.local_template;
 
         PlotWaveform(handles, handles.RawData, str2num(get(handles.Yspacing,'String')));
         hold(handles.TemplateWin,'on')
@@ -1220,21 +1287,16 @@ if ViewMode == 1
         hold(handles.TemplateWin,'off')
         
     end
-    
 else
-    template2 = handles.templates(:,:,CellNb2);
-
-    %Yspacing = max( max(abs(template(:))) , max(abs(template2(:))) );
-
     if get(handles.NormalizeTempl,'Value')==0
-        PlotWaveform(handles,template,str2num(get(handles.Yspacing,'String')))
+        PlotWaveform(handles,handles.local_template,str2num(get(handles.Yspacing,'String')))
         hold(handles.TemplateWin,'on')
-        PlotWaveform(handles,template2,str2num(get(handles.Yspacing,'String')),'r')
+        PlotWaveform(handles,handles.local_template2,str2num(get(handles.Yspacing,'String')),'r')
         hold(handles.TemplateWin,'off')
     else
-        PlotWaveform(handles,template/max(abs(template(:))),1)
+        PlotWaveform(handles,handles.local_template/max(abs(handles.local_template(:))),1)
         hold(handles.TemplateWin,'on')
-        PlotWaveform(handles,template2/max(abs(template2(:))),1,'r')
+        PlotWaveform(handles,handles.local_template2/max(abs(handles.local_template2(:))),1,'r')
         hold(handles.TemplateWin,'off')
     end
     
@@ -1243,158 +1305,159 @@ else
 %     ShowCorr_Callback;
 end
 
+if nargin == 1
+    %% TEMPLATE COUNT
 
-%% TEMPLATE COUNT
-
-set(handles.TemplateCountTxt,'String',[int2str(length(find(handles.Tagged>0))) '/' int2str(size(handles.templates,3))])
+    set(handles.TemplateCountTxt,'String',[int2str(length(find(handles.Tagged>0))) '/' int2str(handles.templates_size(3))])
 
 
-%% PLOT CLUSTER
-FeatureX = str2num(get(handles.FeatureX,'String'));
-FeatureY = str2num(get(handles.FeatureY,'String'));
+    %% PLOT CLUSTER
+    FeatureX = str2num(get(handles.FeatureX,'String'));
+    FeatureY = str2num(get(handles.FeatureY,'String'));
 
-plot(handles.ClusterWin,handles.clusters{CellNb}(:,FeatureX),handles.clusters{CellNb}(:,FeatureY),'.')
+    plot(handles.ClusterWin,handles.clusters{CellNb}(:,FeatureX),handles.clusters{CellNb}(:,FeatureY),'.')
 
-if (ViewMode==2) & (handles.BestElec(CellNb)==handles.BestElec(CellNb2))
-    hold(handles.ClusterWin,'on')
-    plot(handles.ClusterWin,handles.clusters{CellNb2}(:,FeatureX),handles.clusters{CellNb2}(:,FeatureY),'r.')
-    hold(handles.ClusterWin,'off')
-end
+    if (ViewMode==2) & (handles.BestElec(CellNb)==handles.BestElec(CellNb2))
+        hold(handles.ClusterWin,'on')
+        plot(handles.ClusterWin,handles.clusters{CellNb2}(:,FeatureX),handles.clusters{CellNb2}(:,FeatureY),'r.')
+        hold(handles.ClusterWin,'off')
+    end
 
-%% PLOT AMPLITUDE
+    %% PLOT AMPLITUDE
 
-if ~isempty(handles.SpikeTimes{CellNb})
-    plot(handles.AmpTimeWin,handles.SpikeTimes{CellNb},handles.Amplitudes{CellNb},'.')
-else
-    plot(handles.AmpTimeWin,0,0,'.')
-end
-hold(handles.AmpTimeWin,'on')
-plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2),'color',[0.5 0.5 0.5],'LineWidth',2)
-plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2)*handles.AmpLim(CellNb,1),'color',[0.5 0.5 0.5],'LineWidth',2)
-plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2)*handles.AmpLim(CellNb,2),'color',[0.5 0.5 0.5],'LineWidth',2)
+    if ~isempty(handles.SpikeTimes{CellNb})
+        plot(handles.AmpTimeWin,handles.SpikeTimes{CellNb},handles.Amplitudes{CellNb},'.')
+    else
+        plot(handles.AmpTimeWin,0,0,'.')
+    end
+    hold(handles.AmpTimeWin,'on')
+    plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2),'color',[0.5 0.5 0.5],'LineWidth',2)
+    plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2)*handles.AmpLim(CellNb,1),'color',[0.5 0.5 0.5],'LineWidth',2)
+    plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2)*handles.AmpLim(CellNb,2),'color',[0.5 0.5 0.5],'LineWidth',2)
 
-if (ViewMode==2) 
-    plot(handles.AmpTimeWin,handles.SpikeTimes{CellNb2},handles.Amplitudes{CellNb2},'r.')
-    
-    t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:)];
-    a = [handles.Amplitudes{CellNb}(:) ; handles.Amplitudes{CellNb2}(:)];
-    
-    [t,id] = sort(t,'ascend');
-    a = a(id);
-else
-    t = handles.SpikeTimes{CellNb};
-    a = handles.Amplitudes{CellNb};
-end
+    if (ViewMode==2) 
+        plot(handles.AmpTimeWin,handles.SpikeTimes{CellNb2},handles.Amplitudes{CellNb2},'r.')
+        
+        t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:)];
+        a = [handles.Amplitudes{CellNb}(:) ; handles.Amplitudes{CellNb2}(:)];
+        
+        [t,id] = sort(t,'ascend');
+        a = a(id);
+    else
+        t = handles.SpikeTimes{CellNb};
+        a = handles.Amplitudes{CellNb};
+    end
 
-ISI = diff(t);
+    ISI = diff(t);
 
-RPV = find(ISI<handles.RPVlim);
+    RPV = find(ISI<handles.RPVlim);
 
-if ~isempty(RPV)
-    times_RPV(1,:) = t(RPV);
-    times_RPV(2,:) = t(RPV+1);
+    if ~isempty(RPV)
+        times_RPV(1,:) = t(RPV);
+        times_RPV(2,:) = t(RPV+1);
 
-    amp_RPV(1,:) = a(RPV);
-    amp_RPV(2,:) = a(RPV+1);
+        amp_RPV(1,:) = a(RPV);
+        amp_RPV(2,:) = a(RPV+1);
 
-    [max_amp,ind_max] = max(amp_RPV,[],1);
-    max_times = times_RPV(2*(0:(size(times_RPV,2)-1))+ind_max);
+        [max_amp,ind_max] = max(amp_RPV,[],1);
+        max_times = times_RPV(2*(0:(size(times_RPV,2)-1))+ind_max);
 
-    [min_amp,ind_min] = min(amp_RPV,[],1);
-    min_times = times_RPV(2*(0:(size(times_RPV,2)-1))+ind_min);
+        [min_amp,ind_min] = min(amp_RPV,[],1);
+        min_times = times_RPV(2*(0:(size(times_RPV,2)-1))+ind_min);
 
-    plot(handles.AmpTimeWin,max_times,max_amp,'y.')
-    plot(handles.AmpTimeWin,min_times,min_amp,'g.')
-end
+        plot(handles.AmpTimeWin,max_times,max_amp,'y.')
+        plot(handles.AmpTimeWin,min_times,min_amp,'g.')
+    end
 
-if isfield(handles,'RawData')
-    if (ViewMode==1) 
-        if handles.AmpIndex<=length(handles.SpikeTimes{CellNb})
-            plot(handles.AmpTimeWin,handles.SpikeTimes{CellNb}(handles.AmpIndex),handles.Amplitudes{CellNb}(handles.AmpIndex),'m.')
+    if isfield(handles,'RawData')
+        if (ViewMode==1) 
+            if handles.AmpIndex<=length(handles.SpikeTimes{CellNb})
+                plot(handles.AmpTimeWin,handles.SpikeTimes{CellNb}(handles.AmpIndex),handles.Amplitudes{CellNb}(handles.AmpIndex),'m.')
+            end
         end
     end
-end
 
-hold(handles.AmpTimeWin,'off')
+    hold(handles.AmpTimeWin,'off')
 
 
-%% PLOT ISI
-if ViewMode==1
-    t = handles.SpikeTimes{CellNb};
-else
-    t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
-    t = sort(t,'ascend');
-end
-
-%Assuming t is in milliseconds
-ISI = diff(t);
-lenISI = length(ISI);
-NbRPV = length(find(ISI<=handles.RPVlim));
-RatioRPV = length(find(ISI<=handles.RPVlim))/lenISI;
-if get(handles.BigISI,'Value')==0
-    ISI = ISI(ISI<=25);
-    hist(handles.ISIwin,ISI,100);
-else
-    ISI = ISI(ISI<=200);
-    hist(handles.ISIwin,ISI,200);
-end
-% x = (0:2:26);
-set(handles.RPV,'String',['RPV: ' num2str(RatioRPV*100) '%, ' int2str(NbRPV) '/' int2str(lenISI) ]);
-
-%% PLOT RASTER
-
-if isfield(handles,'StimBeg')
-
-    cc = hsv(length(handles.StimBeg));
-
-    for k=1:length(handles.StimBeg)
-       ColorRaster{k} = cc(k,:);
+    %% PLOT ISI
+    if ViewMode==1
+        t = handles.SpikeTimes{CellNb};
+    else
+        t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
+        t = sort(t,'ascend');
     end
 
-    hold(handles.RasterWin,'off');
-    plot(handles.RasterWin,0,0);
+    %Assuming t is in milliseconds
+    ISI = diff(t);
+    lenISI = length(ISI);
+    NbRPV = length(find(ISI<=handles.RPVlim));
+    RatioRPV = length(find(ISI<=handles.RPVlim))/lenISI;
+    if get(handles.BigISI,'Value')==0
+        ISI = ISI(ISI<=25);
+        hist(handles.ISIwin,ISI,100);
+    else
+        ISI = ISI(ISI<=200);
+        hist(handles.ISIwin,ISI,200);
+    end
+    % x = (0:2:26);
+    set(handles.RPV,'String',['RPV: ' num2str(RatioRPV*100) '%, ' int2str(NbRPV) '/' int2str(lenISI) ]);
 
-    MaxLength = 0;
-    MaxTimes = 0;
+    %% PLOT RASTER
 
-    LineCount = 1;
-    for k=1:length(handles.StimBeg)
-        fr_times = [];
-        fr_repeat = [];
-        
-        plot(handles.RasterWin,[0 MaxTimes],[LineCount LineCount],'k');
-        
-        for i=1:length(handles.StimBeg{k})
-            times = handles.SpikeTimes{CellNb}(handles.SpikeTimes{CellNb} >= handles.StimBeg{k}(i) & handles.SpikeTimes{CellNb} <= handles.StimEnd{k}(i)) ...
-                - handles.StimBeg{k}(i);
-            fr_times = [fr_times ; times(:)];
-            fr_repeat = [fr_repeat ; LineCount*ones(length(times),1)];
+    if isfield(handles,'StimBeg')
+
+        cc = hsv(length(handles.StimBeg));
+
+        for k=1:length(handles.StimBeg)
+           ColorRaster{k} = cc(k,:);
+        end
+
+        hold(handles.RasterWin,'off');
+        plot(handles.RasterWin,0,0);
+
+        MaxLength = 0;
+        MaxTimes = 0;
+
+        LineCount = 1;
+        for k=1:length(handles.StimBeg)
+            fr_times = [];
+            fr_repeat = [];
+            
+            plot(handles.RasterWin,[0 MaxTimes],[LineCount LineCount],'k');
+            
+            for i=1:length(handles.StimBeg{k})
+                times = handles.SpikeTimes{CellNb}(handles.SpikeTimes{CellNb} >= handles.StimBeg{k}(i) & handles.SpikeTimes{CellNb} <= handles.StimEnd{k}(i)) ...
+                    - handles.StimBeg{k}(i);
+                fr_times = [fr_times ; times(:)];
+                fr_repeat = [fr_repeat ; LineCount*ones(length(times),1)];
+                LineCount = LineCount + 1;
+                            
+            end
+            
             LineCount = LineCount + 1;
-                        
+            
+    %         fr_times = fr_times / (handles.SamplingRate/1000);
+            
+            if ~isempty(times)
+                MaxTimes = max(MaxTimes,max(fr_times));
+            end
+
+            plot(handles.RasterWin,fr_times,fr_repeat,'.','color',ColorRaster{k});
+
+            hold(handles.RasterWin,'on');
         end
         
-        LineCount = LineCount + 1;
-        
-%         fr_times = fr_times / (handles.SamplingRate/1000);
-        
-        if ~isempty(times)
-            MaxTimes = max(MaxTimes,max(fr_times));
+        LineCount = 1;
+
+        for k=1:length(handles.StimBeg)
+            plot(handles.RasterWin,[0 MaxTimes],[LineCount LineCount],'k');
+            
+            LineCount = LineCount + length(handles.StimBeg{k});
         end
-
-        plot(handles.RasterWin,fr_times,fr_repeat,'.','color',ColorRaster{k});
-
-        hold(handles.RasterWin,'on');
-    end
-    
-    LineCount = 1;
-
-    for k=1:length(handles.StimBeg)
-        plot(handles.RasterWin,[0 MaxTimes],[LineCount LineCount],'k');
         
-        LineCount = LineCount + length(handles.StimBeg{k});
+        hold(handles.RasterWin,'off');
     end
-    
-    hold(handles.RasterWin,'off');
 end
 
 
@@ -1404,7 +1467,6 @@ function PlotWaveform(handles,waveform,Yspacing,wcolor,Width)
 
 if nargin<3
     Yspacing = str2num(get(handles.Yspacing,'String'));
-%     Yspacing = max(abs(waveform(:)));
 end
 
 if nargin<4
@@ -1424,7 +1486,7 @@ Ymax = handles.Ymax;
 
 Coor = handles.Positions;
 
-nch = size(handles.templates,1);
+nch = handles.templates_size(1);
 
 % % %DeNormalization
 % % if get(handles.DeNormalization,'Value')>0
@@ -1460,20 +1522,18 @@ function KillBtn_Callback(hObject, eventdata, handles)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
-handles.SpikeTimes(CellNb) = [];
-handles.Amplitudes(CellNb) = [];
-handles.Amplitudes2(CellNb) = [];
-
-handles.templates(:,:,CellNb) = [];
+handles.SpikeTimes(CellNb)     = [];
+handles.Amplitudes(CellNb)     = [];
+handles.Amplitudes2(CellNb)    = [];
+handles.templates(:,:,CellNb)  = [];
 handles.templates2(:,:,CellNb) = [];
-handles.AmpLim(CellNb,:) = [];
-handles.AmpTrend(CellNb) = [];
-handles.clusters(CellNb) = [];
-handles.BestElec(CellNb) = [];
-handles.Tagged(CellNb)   = [];
-
-handles.overlap(CellNb,:) = [];
-handles.overlap(:,CellNb) = [];
+handles.AmpLim(CellNb,:)       = [];
+handles.AmpTrend(CellNb)       = [];
+handles.clusters(CellNb)       = [];
+handles.BestElec(CellNb)       = [];
+handles.Tagged(CellNb)         = [];
+handles.overlap(CellNb,:)      = [];
+handles.overlap(:,CellNb)      = [];
 
 guidata(hObject, handles);
 
@@ -1512,14 +1572,13 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-suffix   = get(handles.VersionNb,'String');
-filename = handles.filename;
+handles.suffix = get(handles.VersionNb,'String');
 
 templates = handles.templates;
 templates(:,:,size(templates,3)+1:size(templates,3)*2) = handles.templates2;
-overlap = handles.overlap * (size(handles.templates,1) * size(handles.templates,2));
+overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(2));
 
-output_file = [filename '.templates' suffix '.hdf5'];
+output_file = [handles.filename '.templates' handles.suffix '.hdf5'];
 delete(output_file)
 ndim      = numel(size(templates));
 templates = permute(templates,[ndim:-1:1]);
@@ -1531,15 +1590,15 @@ h5create(output_file, '/maxoverlap', size(transpose(overlap)));
 h5write(output_file, '/maxoverlap', transpose(overlap));
 h5create(output_file, '/tagged', size(transpose(handles.Tagged)));
 h5write(output_file, '/tagged', transpose(handles.Tagged));
-for id=1:size(handles.templates,3)
+for id=1:handles.templates_size(3)
     key = ['/amptrend/temp_' int2str(id - 1)];
     h5create(output_file, key, size(transpose(handles.AmpTrend{id})));
     h5write(output_file, key, transpose(handles.AmpTrend{id}));
 end
 
-output_file = [filename '.result' suffix '.hdf5'];
+output_file = [handles.filename '.result' handles.suffix '.hdf5'];
 delete(output_file)
-for id=1:size(handles.templates,3)
+for id=1:handles.templates_size(3)
     key = ['/spiketimes/temp_' int2str(id - 1)];
     to_write = transpose(handles.SpikeTimes{id}*(handles.SamplingRate/1000));
     h5create(output_file, key, size(to_write));
@@ -1552,11 +1611,11 @@ end
 
 
 %% Clusters file
-output_file = [filename '.clusters' suffix '.hdf5'];
+output_file = [handles.filename '.clusters' handles.suffix '.hdf5'];
 delete(output_file)
 h5create(output_file, '/electrodes', size(transpose(handles.BestElec)));
 h5write(output_file, '/electrodes', transpose(handles.BestElec));
-for id=1:size(handles.templates,3)
+for id=1:handles.templates_size(3)
     key = ['/clusters/temp_' int2str(id - 1)];
     to_write = transpose(handles.clusters{id});
     h5create(output_file, key, size(to_write));
@@ -1574,28 +1633,29 @@ function SplitBtn_Callback(hObject, eventdata, handles)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
-handles.SpikeTimes  = handles.spiketimes([(1:CellNb) (CellNb:length(handles.SpikeTimes))]);
-handles.Amplitudes  = handles.Amplitudes([(1:CellNb) (CellNb:length(handles.Amplitudes))]);
-handles.Amplitudes2 = handles.Amplitudes([(1:CellNb) (CellNb:length(handles.Amplitudes2))]);
-handles.Tagged      = handles.Tagged([(1:CellNb) (CellNb:size(handles.templates,3))]);
-handles.templates   = handles.templates(:,:,[(1:CellNb) (CellNb:size(handles.templates,3))]);
-handles.templates2  = handles.templates2(:,:,[(1:CellNb) (CellNb:size(handles.templates2,3))]);
-handles.AmpLim      = handles.AmpLim([(1:CellNb) (CellNb:size(handles.AmpLim,1))],:);
-handles.AmpTrend    = handles.AmpTrend([(1:CellNb) (CellNb:length(handles.AmpTrend))]);
-handles.clusters    = handles.clusters([(1:CellNb) (CellNb:length(handles.clusters))]);
-handles.BestElec    = handles.BestElec([(1:CellNb) (CellNb:length(handles.BestElec))]);
-handles.overlap     = handles.overlap([(1:CellNb) (CellNb:size(handles.overlap,1))],:);
-handles.overlap     = handles.overlap(:,[(1:CellNb) (CellNb:size(handles.overlap,2))]);
+nb_templates        = length(handles.SpikeTimes);
+myslice             = [(1:CellNb) (CellNb:nb_templates)];
+handles.SpikeTimes  = handles.spiketimes(myslice);
+handles.Amplitudes  = handles.Amplitudes(myslice);
+handles.Amplitudes2 = handles.Amplitudes(myslice);
+handles.Tagged      = handles.Tagged(myslice);
+handles.templates   = handles.templates(:,:,myslice);
+handles.templates2  = handles.templates2(:,:,myslice);
+handles.AmpLim      = handles.AmpLim(myslice,:);
+handles.AmpTrend    = handles.AmpTrend(myslice);
+handles.clusters    = handles.clusters(myslice);
+handles.BestElec    = handles.BestElec(myslice);
+handles.overlap     = handles.overlap(myslice,:);
+handles.overlap     = handles.overlap(:,myslice);
 
 %Remove the amplitudes/spiketimes in or out of the amp lims
 
 Trend  = interp1(handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2),handles.SpikeTimes{CellNb}(:));
 ToKeep = Trend*handles.AmpLim(CellNb,1) <= handles.Amplitudes{CellNb} & Trend*handles.AmpLim(CellNb,2) >= handles.Amplitudes{CellNb};
 
-handles.SpikeTimes{CellNb}  = handles.SpikeTimes{CellNb}(find(ToKeep));
-handles.Amplitudes{CellNb}  = handles.Amplitudes{CellNb}(find(ToKeep));
-handles.Amplitudes2{CellNb} = handles.Amplitudes2{CellNb}(find(ToKeep));
-
+handles.SpikeTimes{CellNb}    = handles.SpikeTimes{CellNb}(find(ToKeep));
+handles.Amplitudes{CellNb}    = handles.Amplitudes{CellNb}(find(ToKeep));
+handles.Amplitudes2{CellNb}   = handles.Amplitudes2{CellNb}(find(ToKeep));
 handles.SpikeTimes{CellNb+1}  = handles.SpikeTimes{CellNb+1}(find(~ToKeep));
 handles.Amplitudes{CellNb+1}  = handles.Amplitudes{CellNb+1}(find(~ToKeep));
 handles.Amplitudes2{CellNb+1} = handles.Amplitudes2{CellNb+1}(find(~ToKeep));
@@ -1778,7 +1838,7 @@ set(handles.EnableWaveforms,'Value', 1);
 
 % duration = round(str2double(get(handles.Xscale,'String')));
 
-duration = size(handles.templates,2);
+duration = handles.templates_size(2);
 
 if duration/2 == round(duration/2)
     duration = duration + 1;
@@ -1816,7 +1876,7 @@ t = handles.SpikeTimes{CellNb}*(handles.SamplingRate/1000);
 
 % duration = round(str2double(get(handles.Xscale,'String')));
 
-duration = size(handles.templates,2);
+duration = handles.templates_size(2);
 
 if duration/2 == round(duration/2)
     duration = duration + 1;
@@ -1877,7 +1937,7 @@ CellNb = str2num(get(handles.TemplateNb,'String'));
 
 % duration = round(str2double(get(handles.Xscale,'String')));
 
-duration = size(handles.templates,2);
+duration = handles.templates_size(2);
 
 if duration/2 == round(duration/2)
     duration = duration + 1;
@@ -1921,14 +1981,14 @@ if get(handles.EnableWaveforms,'Value')==1
     FileStart = handles.HeaderSize + 2*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
 
 
-    duration = size(handles.templates,2);
+    duration = handles.templates_size(2);
 
     if duration/2 == round(duration/2)
         duration = duration + 1;
     end
 
-    FullStart  = FileStart - size(handles.templates,2)*NbElec*2;
-    FullLength = (duration + 2*size(handles.templates,2))*NbElec;
+    FullStart  = FileStart - handles.templates_size(2)*NbElec*2;
+    FullLength = (duration + 2*handles.templates_size(2))*NbElec;
 
     fseek(handles.DataFid,FullStart,'bof');
 
@@ -1940,7 +2000,7 @@ if get(handles.EnableWaveforms,'Value')==1
 
     data = data*handles.Gain;
 
-    data = reshape(data,[NbElec (duration + 2*size(handles.templates,2))]);
+    data = reshape(data,[NbElec (duration + 2*handles.templates_size(2))]);
 
     %% Filtering
 
@@ -1953,7 +2013,7 @@ if get(handles.EnableWaveforms,'Value')==1
 
     %% Reduce the data to the portion of interest - remove also the unnecessary
     %electrodes
-    handles.RawData = data(:,(size(handles.templates,2)+1):(end-size(handles.templates,2)));
+    handles.RawData = data(:,(handles.templates_size(2)+1):(end-handles.templates_size(2)));
     guidata(hObject, handles);
 else
     rmfield(handles, 'RawData');

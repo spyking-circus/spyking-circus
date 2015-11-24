@@ -168,6 +168,8 @@ def load_parameters(file_name):
 
     chunk_size = parser.getint('data', 'chunk_size')
     parser.set('data', 'chunk_size', str(chunk_size*sampling_rate))
+    chunk_size = parser.getint('whitening', 'chunk_size')
+    parser.set('whitening', 'chunk_size', str(chunk_size*sampling_rate))
 
     return parser
 
