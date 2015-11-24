@@ -111,7 +111,6 @@ else
     info     = h5info(tmpfile);
     handles.has_hdf5 = true;
     template = h5read(tmpfile, '/templates');
-    ndim     = numel(size(template));
     has_tagged = false;
     for id=1:size(info.Datasets, 1)
         if strcmp(info.Datasets(id).Name, 'tagged')
@@ -939,7 +938,7 @@ handles.Amplitudes{CellNb}      = a;
 handles.SpikeTimes(CellNb2)     = [];
 handles.Amplitudes(CellNb2)     = [];
 handles.Amplitudes2(CellNb2)    = [];
-handles.to_keep                 = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb2))
+handles.to_keep                 = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb2));
 handles.AmpLim(CellNb2,:)       = [];
 handles.AmpTrend(CellNb2)       = [];
 handles.clusters(CellNb2)       = [];
@@ -1453,7 +1452,7 @@ suffix  = get(handles.VersionNb,'String');
 overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(2));
 
 output_file = [handles.filename '.templates' suffix '.hdf5'];
-delete(output_file)
+delete(output_file);
 
 nb_templates = size(handles.to_keep, 2);
 h5create(output_file,'/templates', [handles.templates_size(1) handles.templates_size(2) 2*nb_templates])
@@ -1463,14 +1462,17 @@ for id = 1:nb_templates
     if handles.has_hdf5
         tmpfile    = [handles.filename '.templates' handles.suffix];
         tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
-        to_write_1 = transpose(h5read(tmpfile, '/templates', [temp_1 1 1], [1 handles.templates_size(2) handles.templates_size(1)]));
-        to_write_2 = transpose(h5read(tmpfile, '/templates', [temp_2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]));
+        to_write_1 = h5read(tmpfile, '/templates', [temp_1 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+        to_write_2 = h5read(tmpfile, '/templates', [temp_2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+        ndim       = numel(size(to_write_1));
+        to_write_1 = permute(to_write_1,[ndim:-1:1]);
+        to_write_2 = permute(to_write_2,[ndim:-1:1]);
     else
         to_write_1 = templates(:, :, temp_1)
         to_write_2 = templates(:, :, temp_2)
     end
-    h5write(output_file, '/templates', to_write, [1 1 id], [handles.templates_size(1) handles.templates_size(2) 1]);
-    h5write(output_file, '/templates', to_write, [1 1 id+nb_templates], [handles.templates_size(1) handles.templates_size(2) 1]); 
+    h5write(output_file, '/templates', to_write_1, [1 1 id], [handles.templates_size(1) handles.templates_size(2) 1]);
+    h5write(output_file, '/templates', to_write_2, [1 1 id+nb_templates], [handles.templates_size(1) handles.templates_size(2) 1]); 
 end
 
 h5create(output_file, '/limits', size(transpose(handles.AmpLim)));
@@ -1479,15 +1481,15 @@ h5create(output_file, '/maxoverlap', size(transpose(overlap)));
 h5write(output_file, '/maxoverlap', transpose(overlap));
 h5create(output_file, '/tagged', size(transpose(handles.Tagged)));
 h5write(output_file, '/tagged', transpose(handles.Tagged));
-for id=1:handles.templates_size(3)
+for id=1:nb_templates
     key = ['/amptrend/temp_' int2str(id - 1)];
     h5create(output_file, key, size(transpose(handles.AmpTrend{id})));
     h5write(output_file, key, transpose(handles.AmpTrend{id}));
 end
 
 output_file = [handles.filename '.result' suffix '.hdf5'];
-delete(output_file)
-for id=1:handles.templates_size(3)
+delete(output_file);
+for id=1:nb_templates
     key = ['/spiketimes/temp_' int2str(id - 1)];
     to_write = transpose(handles.SpikeTimes{id}*(handles.SamplingRate/1000));
     h5create(output_file, key, size(to_write));
@@ -1501,10 +1503,10 @@ end
 
 %% Clusters file
 output_file = [handles.filename '.clusters' suffix '.hdf5'];
-delete(output_file)
+delete(output_file);
 h5create(output_file, '/electrodes', size(transpose(handles.BestElec)));
 h5write(output_file, '/electrodes', transpose(handles.BestElec));
-for id=1:handles.templates_size(3)
+for id=1:nb_templates
     key = ['/clusters/temp_' int2str(id - 1)];
     to_write = transpose(handles.clusters{id});
     h5create(output_file, key, size(to_write));
