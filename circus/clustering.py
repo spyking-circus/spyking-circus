@@ -575,6 +575,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         hfile.close()
     else:
         hfile.close()
+        comm.Barrier()
         if comm.rank == 0:
             ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
             rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
