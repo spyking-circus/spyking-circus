@@ -363,6 +363,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        comm.Barrier()
     else:
         myfile  = h5py.File(filename_mpi, 'w')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
@@ -395,6 +396,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         pbar.finish()
 
     comm.Barrier()
+    templates.file.close()
 
     if not parallel_hdf5 and (comm.rank == 0):
         myfile  = h5py.File(filename, 'w')
@@ -412,7 +414,6 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         myfile.close()
 
     comm.Barrier()
-    templates.file.close()
     result   = []
 
     if comm.rank == 0:
@@ -496,6 +497,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        comm.Barrier()
     else:
         myfile  = h5py.File(filename_mpi, 'w')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
@@ -522,10 +524,10 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         if comm.rank == 0:
             pbar.update(idelay)
 
-    myfile.close()
     if comm.rank == 0:
         pbar.finish()
 
+    myfile.close()
     comm.Barrier()
 
     if not parallel_hdf5 and (comm.rank == 0):

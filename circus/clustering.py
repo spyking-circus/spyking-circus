@@ -466,8 +466,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         node_pad   = numpy.sum(offsets[:comm.rank+1])        
         hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm)
         templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*total_nb_clusters), dtype=numpy.float32, chunks=True)
+        comm.Barrier()
         electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
+        comm.Barrier()
         amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+        comm.Barrier()
     else:
         node_pad   = 0
         hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w')
