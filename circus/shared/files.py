@@ -202,16 +202,16 @@ def data_stats(params, show=True):
     return nb_chunks*60 + last_chunk_len
 
 def print_info(lines):
-    print colored("--------------------------  Informations  --------------------------", 'yellow')
+    print colored("-------------------------  Informations  -------------------------", 'yellow')
     for line in lines:
         print colored("| " + line, 'yellow')
-    print colored("--------------------------------------------------------------------", 'yellow')
+    print colored("------------------------------------------------------------------", 'yellow')
 
 def print_error(lines):
-    print colored("-----------------------------  Error  ------------------------------", 'red')
+    print colored("----------------------------  Error  -----------------------------", 'red')
     for line in lines:
         print colored("| " + line, 'red')
-    print colored("--------------------------------------------------------------------", 'red')
+    print colored("------------------------------------------------------------------", 'red')
 
 
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
