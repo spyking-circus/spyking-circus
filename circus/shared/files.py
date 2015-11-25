@@ -500,13 +500,15 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
 
     file_out_suff  = params.get('data', 'file_out_suff')   
     templates      = load_data(params, 'templates', extension=extension)
+    filename       = file_out_suff + '.overlap%s.hdf5' %extension
+    filename_mpi   = file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank)
     N_e, N_t, N_tm = templates.shape
 
-    if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension) and not erase:
-        return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')
+    if os.path.exists(filename) and not erase:
+        return h5py.File(filename).get('overlap')
     else:
-        if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension) and erase and (comm.rank == 0):
-            os.remove(file_out_suff + '.overlap%s.hdf5' %extension)
+        if os.path.exists(filename) and erase and (comm.rank == 0):
+            os.remove(filename)
     
     comm.Barrier()
     
@@ -543,11 +545,11 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
 
     if parallel_hdf5:
-        myfile  = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w', driver='mpio', comm=comm)
+        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         comm.Barrier()
     else:
-        myfile  = h5py.File(file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank), 'w')
+        myfile  = h5py.File(filename_mpi, 'w')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
         
     for count, idelay in enumerate(local_delays):
@@ -580,7 +582,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     comm.Barrier()
 
     if not parallel_hdf5 and (comm.rank == 0):
-        myfile  = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'w')
+        myfile  = h5py.File(filename, 'w')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         for i in xrange(comm.size):
             filename_mpi = file_out_suff + '.overlap%s-%d.hdf5' %(extension, i)
@@ -597,7 +599,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     comm.Barrier()
 
     if comm.rank == 0:
-        myfile     = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension, 'r+')
+        myfile     = h5py.File(filename, 'r+')
         myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+')
         overlap    = myfile.get('overlap')
         maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
@@ -607,4 +609,4 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
         myfile2.close()
 
     comm.Barrier()
-    return h5py.File(file_out_suff + '.overlap%s.hdf5' %extension).get('overlap')
+    return h5py.File(filename).get('overlap')
