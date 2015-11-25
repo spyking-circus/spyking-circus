@@ -1,4 +1,4 @@
-import numpy, hdf5storage, h5py, os, progressbar, platform
+import numpy, hdf5storage, h5py, os, progressbar, platform, re
 import ConfigParser as configparser
 from termcolor import colored
 import colorama
@@ -17,6 +17,7 @@ def detect_header(filename, value='MCS'):
         stop        = False
         fid         = open(filename, 'r')
         header_text = ''
+        regexp      = re.compile('El_\d*')
 
         while ((stop is False) and (header <= 2000)):
             header      += 1
@@ -31,9 +32,9 @@ def detect_header(filename, value='MCS'):
             header  = 0 
         else:
             header += 2
-        return header
+        return header, len(regexp.findall(header_text))
     else:
-        return value
+        return value, None
 
 def change_flag(file_name, flag, value, avoid_flag=None):
     f_next, extension = os.path.splitext(os.path.abspath(file_name))
@@ -79,8 +80,9 @@ def load_parameters(file_name):
     parser.set('data', 'N_t', str(N_t))
     parser.set('data', 'template_shift', str(int((N_t-1)/2)))
 
-    data_offset = parser.get('data', 'data_offset')
-    parser.set('data', 'data_offset', str(detect_header(file_name+extension, data_offset)))
+    data_offset              = parser.get('data', 'data_offset')
+    data_offset, nb_channels = detect_header(file_name+extension, data_offset)
+    parser.set('data', 'data_offset', str(data_offset))
     
     probe = {}
     try:
@@ -94,6 +96,11 @@ def load_parameters(file_name):
     N_e = 0
     for key in probe['channel_groups'].keys():
         N_e += len(probe['channel_groups'][key]['channels'])
+
+    if nb_channels is not None:
+        if N_e != nb_channels:
+            print_error(["MCS file: mistmatch between number of electrodes and data in the header"])
+
     parser.set('data', 'N_e', str(N_e))   
 
     for section in ['whitening', 'clustering']:
