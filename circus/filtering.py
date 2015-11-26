@@ -8,7 +8,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')
     N_total        = params.getint('data', 'N_total')
-    chunk_size     = params.getint('data', 'chunk_size')
+    chunk_size     = params.getint('whitening', 'chunk_size')
     data_file      = params.get('data', 'data_file')
     data_offset    = params.getint('data', 'data_offset')
     dtype_offset   = params.getint('data', 'dtype_offset')
