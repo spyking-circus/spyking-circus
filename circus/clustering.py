@@ -492,6 +492,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
         loc_pad  = count_templates
         indices  = inv_nodes[edges[nodes[ielec]]]
+        sorted_indices = numpy.argsort(indices)
         for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
             electrodes[count_templates] = ielec
             myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
@@ -502,11 +503,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
             temporal_shift   = template_shift - tmpidx[1][0]
             if temporal_shift > 0:
-                templates[indices, temporal_shift:, count_templates] = tmp_templates[:, :-temporal_shift]
+                templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
             elif temporal_shift < 0:
-                templates[indices, :temporal_shift, count_templates] = tmp_templates[:, -temporal_shift:]
+                templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
             else:
-                templates[indices, :, count_templates] = tmp_templates
+                templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
 
             x, y, z          = sub_data.shape
             sub_data_flat    = sub_data.reshape(x, y*z)
@@ -526,17 +527,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(sub_data_flat) > 1:
                 pca              = mdp.nodes.PCANode(output_dim=1)
                 res_pca          = pca(sub_data_flat.astype(numpy.double))
-                second_component = pca.get_projmatrix().reshape(y, z)
+                second_component     = pca.get_projmatrix().reshape(y, z)
             else:
                 second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
             tmp_templates        = numpy.dot(second_component.T, basis_rec)
             if temporal_shift > 0:
-                templates[indices, temporal_shift:, templates.shape[2]/2 + count_templates] = tmp_templates[:, :-temporal_shift]
+                templates[indices[sorted_indices], temporal_shift:, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
             elif temporal_shift < 0:
-                templates[indices, :temporal_shift, templates.shape[2]/2 + count_templates] = tmp_templates[:, -temporal_shift:]
+                templates[indices[sorted_indices], :temporal_shift, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
             else:
-                templates[indices, :, templates.shape[2]/2 + count_templates] = tmp_templates
+                templates[indices[sorted_indices], :, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices]
 
             count_templates += 1
 
