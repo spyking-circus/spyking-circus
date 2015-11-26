@@ -24,7 +24,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     elif do_filter:
 
-        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
+        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
         if last_chunk_len > 0:
             nb_chunks += 1
 
