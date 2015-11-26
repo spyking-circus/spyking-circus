@@ -136,7 +136,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
         temporal_whitening /= temporal_whitening.sum()
 
-        print "We found", len(all_silences), "times without spikes for whitening matrices..."
+        print "We found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)
         spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
         bfile = h5py.File(file_out + '.basis.hdf5', 'r+')
         io.write_datasets(bfile, ['spatial', 'temporal'], {'spatial' : spatial_whitening, 'temporal' : temporal_whitening})
