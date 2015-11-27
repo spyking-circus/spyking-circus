@@ -38,6 +38,7 @@ cc_merge       = 0.95      # If CC between two templates is higher, they are mer
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 make_plots     = True      # Generate sanity plots of the clustering
 test_clusters  = False     # Should be False. Only to plot injection of synthetic clusters
+remove_mixture = False     # At the end of the clustering, we remove mixtures of templates
 
 [fitting]
 chunk          = 0.5       # Size of chunks used during fitting [in second]

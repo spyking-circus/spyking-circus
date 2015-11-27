@@ -36,6 +36,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
+    remove_mixture = params.getboolean('clustering', 'remove_mixture')
     smart_search   = numpy.ones(N_e, dtype=numpy.float32)*params.getfloat('clustering', 'smart_search')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
