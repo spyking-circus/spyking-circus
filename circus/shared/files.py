@@ -125,7 +125,7 @@ def load_parameters(file_name):
     parser.set('data', 'data_file_noext', file_name)   # Data file (assuming .filtered at the end)
     parser.set('data', 'dist_peaks', str(N_t)) # Get only isolated spikes for a single electrode (whitening, clustering, basis)    
     
-    parser.set('fitting', 'space_explo', '0.75')
+    parser.set('fitting', 'space_explo', '1')
     parser.set('fitting', 'nb_chances', '3')
 
     try: 
