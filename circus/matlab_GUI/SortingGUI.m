@@ -180,12 +180,12 @@ if length(varargin)>=6
 
         handles.DataStartPt = 1000;
 
-        if exist([handles.filename '.whitening' handles.suffix])
+        if exist([handles.filename '.whitening.mat'])
             a = load([handles.filename '.whitening.mat'],'-mat');
             handles.WhiteSpatial  = a.spatial;
             handles.WhiteTemporal = a.temporal;
         else
-            tmpfile = [handles.filename '.basis' '.hdf5'];
+            tmpfile = [handles.filename '.basis.hdf5'];
             handles.WhiteSpatial  = h5read(tmpfile, '/spatial');
             ndim                  = numel(size(handles.WhiteSpatial));
             handles.WhiteSpatial  = permute(handles.WhiteSpatial,[ndim:-1:1]);
@@ -228,8 +228,11 @@ end
 
 %% Amplitude Limits
 
-if exist([handles.filename '.limits' handles.suffix],'file')
-    b              = load([handles.filename '.limits' handles.suffix],'-mat');
+if exist([handles.filename '.templates' handles.suffix],'file')
+    b              = load([handles.filename '.templates' handles.suffix],'-mat');
+    handles.AmpLim = b.AmpLim;
+elseif exist([handles.filename '.limits.mat' handles.suffix],'file')
+    b              = load([handles.filename '.limits.mat'],'-mat');
     handles.AmpLim = b.limits;
 else
     tmpfile        = [handles.filename '.templates' handles.suffix];
@@ -239,7 +242,7 @@ else
     handles.AmpLim = permute(handles.AmpLim,[ndim:-1:1]);
 end
 
-if ~isfield(handles,'AmpTrend')
+if ~isfield(handles, 'AmpTrend')
     m = 0;
     for i=1:length(handles.SpikeTimes)
         if size(handles.SpikeTimes{i}, 1) > 1
@@ -265,6 +268,17 @@ if exist([handles.filename '.stim'],'file')
     handles.StimBeg = a.rep_begin_time;
     handles.StimEnd = a.rep_end_time;
 end
+
+if iscell(handles.StimBeg)
+    for s_i = 1:length(handles.StimBeg)
+        handles.StimBeg{s_i} = handles.StimBeg{s_i}/ (handles.SamplingRate/1000);
+        handles.StimEnd{s_i} = handles.StimEnd{s_i}/ (handles.SamplingRate/1000);
+    end
+else
+    handles.StimBeg = handles.StimBeg/ (handles.SamplingRate/1000);
+    handles.StimEnd = handles.StimEnd/ (handles.SamplingRate/1000);
+end
+
 
 %% Amplitudes file: does not have to exist
 
@@ -374,7 +388,11 @@ end
 
 if exist([handles.filename '.overlap' handles.suffix], 'file')
     a               = load([handles.filename '.overlap' handles.suffix],'-mat');
-    handles.overlap = a.maxoverlap/(handles.templates_size(1) * handles.templates_size(2));
+    if isfield(a, 'overlap')
+        handles.overlap = a.overlap/(handles.templates_size(1) * handles.templates_size(2));
+    else
+        handles.overlap = a.maxoverlap/(handles.templates_size(1) * handles.templates_size(2));
+    end
 else
     tmpfile = [handles.filename '.templates' handles.suffix];
     tmpfile = strrep(tmpfile, '.mat', '.hdf5');
@@ -1212,17 +1230,20 @@ if nargin == 1
             [~, sep_line_l, MaxTimes] = plot_Raster( handles, CellNb, line_count_init, ColorRaster);
         else % 2 templates
             [line_count_init, sep_line_l1, MaxTimes1] = plot_Raster( handles, CellNb, line_count_init, ColorRaster);
+            template_sep_line = sep_line_l1(end);
             [~, sep_line_l2, MaxTimes2] = plot_Raster( handles, CellNb2, line_count_init, ColorRaster);
             MaxTimes = max(MaxTimes1, MaxTimes2);
             sep_line_l = union(sep_line_l1, sep_line_l2);
+
+            plot(handles.RasterWin,[0 MaxTimes],[template_sep_line template_sep_line],'k','LineWidth',2);
         end
-        
-        handles.RasterWin.XLim = [0, MaxTimes];
+        if MaxTimes > 0
+            set(handles.RasterWin,'XLim',[0, MaxTimes]);
+        end
         for LineCount=sep_line_l(:)'
             plot(handles.RasterWin,[0 MaxTimes],[LineCount LineCount],'k');
-            
-            LineCount = LineCount + length(handles.StimBeg{k});
         end
+        set(handles.RasterWin,'YLim',[0 sep_line_l(end)]);
     end
 end
 
@@ -1249,7 +1270,7 @@ for k=1:length(handles.StimBeg)
     sep_line_l(end+1) = LineCount;
     %         fr_times = fr_times / (handles.SamplingRate/1000);
     
-    if ~isempty(times)
+    if ~isempty(fr_times)
         MaxTimes = max(MaxTimes,max(fr_times));
     end
 
@@ -1410,7 +1431,9 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 %% Template file: could also contain AmpLim and AmpTrend
 
 suffix  = get(handles.VersionNb, 'String')
-suffix  = suffix{1};
+if iscell(suffix)
+    suffix  = suffix{1};
+end
 overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(2));
 
 output_file = [handles.filename '.templates' suffix '.hdf5']
@@ -1427,8 +1450,8 @@ for id = 1:nb_templates
         to_write_1 = h5read(tmpfile, '/templates', [temp_1 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
         to_write_2 = h5read(tmpfile, '/templates', [temp_2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
     else
-        to_write_1 = transpose(handles.templates(:, :, temp_1));
-        to_write_2 = transpose(handles.templates(:, :, temp_2));
+        to_write_1 = reshape(transpose(handles.templates(:, :, temp_1)), [1 handles.templates_size(2) handles.templates_size(1)]);
+        to_write_2 = reshape(transpose(handles.templates(:, :, temp_2)), [1 handles.templates_size(2) handles.templates_size(1)]);
     end
     h5write(output_file, '/templates', to_write_1, [id 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
     h5write(output_file, '/templates', to_write_2, [id+nb_templates 1 1], [1 handles.templates_size(2) handles.templates_size(1)]); 
@@ -1897,12 +1920,9 @@ function ResetButtn_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-handles.Xmin = min(handles.Positions(:,1));
-handles.Xmax = max(handles.Positions(:,1));
-handles.Ymin = min(handles.Positions(:,2));
-handles.Ymax = max(handles.Positions(:,2))+1;
-
-PlotData(handles)
+handles.H.zoom_coef = max(handles.H.MaxdiffX*str2double(get(handles.XYratio, 'String')), handles.H.MaxdiffY);
+ZoonOutBtn_Callback(hObject, eventdata, handles);
+PlotData(handles, 1)
 
 % --- Executes on button press in KillEs.
 function KillEs_Callback(hObject, eventdata, handles)
