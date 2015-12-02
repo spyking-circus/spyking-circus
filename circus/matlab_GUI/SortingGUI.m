@@ -27,7 +27,7 @@ function varargout = SortingGUI(varargin)
 
 % Edit the above text to modify the response to help SortingGUI
 
-% Last Modified by GUIDE v2.5 03-Oct-2015 08:32:11
+% Last Modified by GUIDE v2.5 02-Dec-2015 10:39:28
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -83,12 +83,12 @@ else
 end
 
 handles.Positions = double(Positions);
+handles.Positions = handles.Positions;
 
-handles.H.zoom_coef = 1;
 handles.H.MaxdiffX = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
 handles.H.MaxdiffY = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
+handles.H.zoom_coef = max(handles.H.MaxdiffX,handles.H.MaxdiffY);
 handles.H.lines    = cell(3,1);
-
 
 if length(varargin)<=4
     handles.RPVlim = 2;
@@ -418,8 +418,7 @@ function ZoomInBtn_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 handles.H.zoom_coef  = handles.H.zoom_coef/1.2;
-xlim(handles.TemplateWin, handles.H.fullX*handles.H.zoom_coef + handles.H.marginX );
-ylim(handles.TemplateWin, handles.H.fullY*handles.H.zoom_coef + handles.H.marginY);
+is_changes = set_TemplateWin_XY_Lims(handles);
 
 
 % --- Executes on button press in ZoonOutBtn.
@@ -430,8 +429,10 @@ function ZoonOutBtn_Callback(hObject, eventdata, handles)
 
 
 handles.H.zoom_coef  = handles.H.zoom_coef*1.2;
-xlim(handles.TemplateWin, handles.H.fullX*handles.H.zoom_coef + handles.H.marginX );
-ylim(handles.TemplateWin, handles.H.fullY*handles.H.zoom_coef + handles.H.marginY);
+is_changes = set_TemplateWin_XY_Lims(handles);
+if ~is_changes
+    handles.H.zoom_coef  = handles.H.zoom_coef/1.2;
+end
 
 
 function FeatureY_Callback(hObject, eventdata, handles)
@@ -569,6 +570,23 @@ function TemplateNb_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of TemplateNb as a double
 
 ClearCrossCorr(hObject, eventdata, handles);
+
+if ~isempty(handles.H.lines{3})
+    delete(handles.H.lines{3});
+end
+
+ClearCrossCorr(hObject, eventdata, handles);
+
+ViewMode = str2num(get(handles.SwitchViewNb,'String'));
+set(handles.SimilarNb, 'String', '1');
+
+if ViewMode==1
+    ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
+    set(handles.SwitchViewNb,'String',int2str(ViewMode));
+end
+
+guidata(hObject, handles);
+
 PlotData(handles)
 
 % --- Executes during object creation, after setting all properties.
@@ -617,25 +635,13 @@ function TemplateNbPlus_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+
 CellNb = str2num(get(handles.TemplateNb,'String'));
 if CellNb < handles.templates_size(3)
     CellNb = CellNb + 1;
 end
-set(handles.TemplateNb,'String',int2str(CellNb))
-
-
-ClearCrossCorr(hObject, eventdata, handles);
-
-ViewMode = str2num(get(handles.SwitchViewNb,'String'));
-
-if ViewMode==1
-    ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
-    set(handles.SwitchViewNb,'String',int2str(ViewMode));
-end
-
-guidata(hObject, handles);
-
-PlotData(handles)
+set(handles.TemplateNb,'String',int2str(CellNb));
+TemplateNb_Callback(hObject, eventdata, handles);
     
 
 % --- Executes on button press in TemplateNbMinus.
@@ -649,22 +655,8 @@ CellNb = str2num(get(handles.TemplateNb,'String'));
 if CellNb > 1
     CellNb = CellNb - 1;
 end
-set(handles.TemplateNb,'String',int2str(CellNb))
-
-ClearCrossCorr(hObject, eventdata, handles);
-
-ViewMode = str2num(get(handles.SwitchViewNb,'String'));
-
-if ViewMode==1
-    ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
-    set(handles.SwitchViewNb,'String',int2str(ViewMode));
-    
-end
-
-guidata(hObject, handles);
-
-PlotData(handles)
-
+set(handles.TemplateNb,'String',int2str(CellNb));
+TemplateNb_Callback(hObject, eventdata, handles);
 
 
 % --- Executes on button press in Template2NbMinus.
@@ -770,25 +762,31 @@ if get(handles.SameElec,'Value')~=0 & val(SimilarNb+1)==0
     disp('No more templates to compare in the same electrode')
 end
 
-
-set(handles.Template2Nb,'String',int2str(IdTempl))
-
-set(handles.SwitchViewNb,'String','1')
-
-if get(handles.SameElec,'Value')~=0 && val(SimilarNb+1)~=0 %We can compare the cluster
-    mf1 = median(handles.clusters{CellNb});
-    mf2 = median(handles.clusters{IdTempl});
-
-    [m,idf] = sort(abs(mf1-mf2),'descend');
+if IdTempl == str2double(handles.Template2Nb.String) % if the second template is already the good one, plot the next one
+    handles.SimilarNb.String = int2str(SimilarNb+1);
+    SuggestSimilar_Callback(hObject, eventdata, handles);
     
-    set(handles.FeatureX,'String',int2str(idf(1)));
-    set(handles.FeatureY,'String',int2str(idf(2)));
+else
 
+    set(handles.Template2Nb,'String',int2str(IdTempl))
+
+    set(handles.SwitchViewNb,'String','1')
+
+    if get(handles.SameElec,'Value')~=0 && val(SimilarNb+1)~=0 %We can compare the cluster
+        mf1 = median(handles.clusters{CellNb});
+        mf2 = median(handles.clusters{IdTempl});
+
+        [m,idf] = sort(abs(mf1-mf2),'descend');
+        
+        set(handles.FeatureX,'String',int2str(idf(1)));
+        set(handles.FeatureY,'String',int2str(idf(2)));
+
+    end
+
+    guidata(hObject, handles);
+
+    PlotData(handles)
 end
-
-guidata(hObject, handles);
-
-PlotData(handles)
 
 
 function SimilarNb_Callback(hObject, eventdata, handles)
@@ -1053,6 +1051,7 @@ set(handles.CellGrade,'String',GradeStr{handles.Tagged(CellNb)+1});
 
 ShowCorr_Callback('', '', handles);
 
+% lines :    1 : template 1   ;  2 : template 2    ;    3  : raw
 if ViewMode == 1
     
     if get(handles.EnableWaveforms,'Value')==0%Classical display with just the template
@@ -1067,15 +1066,16 @@ if ViewMode == 1
                 delete(handles.H.lines{3});
             end
         else
-            error('modify here')
             Yscale = max(abs(handles.local_template(:)));
             PlotWaveform(handles,handles.local_template,Yscale,'k');
         end
     else
-        handles.H.last_neu_i_click = 1;
-        PlotWaveform(handles, handles.RawData, str2double(get(handles.Yscale, 'String')),'b');
+        handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
+        PlotWaveform(handles, handles.local_template, str2double(handles.Yscale.String),'k');
         handles.H.last_neu_i_click = 3;
-        PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
+        PlotWaveform(handles, handles.RawData, str2double(get(handles.Yscale, 'String')), 0.8*[1 1 1]);
+        handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
+        PlotWaveform(handles, handles.local_template, str2double(handles.Yscale.String),'k');
         if ~isempty(handles.H.lines{2})
             delete(handles.H.lines{2});
         end
@@ -1209,51 +1209,60 @@ if nargin == 1
         end
 
         hold(handles.RasterWin,'off');
-        plot(handles.RasterWin,0,0);
 
-        MaxLength = 0;
-        MaxTimes = 0;
-
-        LineCount = 1;
-        for k=1:length(handles.StimBeg)
-            fr_times = [];
-            fr_repeat = [];
-            
-            plot(handles.RasterWin,[0 MaxTimes],[LineCount LineCount],'k');
-            
-            for i=1:length(handles.StimBeg{k})
-                times = handles.SpikeTimes{CellNb}(handles.SpikeTimes{CellNb} >= handles.StimBeg{k}(i) & handles.SpikeTimes{CellNb} <= handles.StimEnd{k}(i)) ...
-                    - handles.StimBeg{k}(i);
-                fr_times = [fr_times ; times(:)];
-                fr_repeat = [fr_repeat ; LineCount*ones(length(times),1)];
-                LineCount = LineCount + 1;
-                            
-            end
-            
-            LineCount = LineCount + 1;
-            
-    %         fr_times = fr_times / (handles.SamplingRate/1000);
-            
-            if ~isempty(times)
-                MaxTimes = max(MaxTimes,max(fr_times));
-            end
-
-            plot(handles.RasterWin,fr_times,fr_repeat,'.','color',ColorRaster{k});
-
-            hold(handles.RasterWin,'on');
+        a = plot(handles.RasterWin,0,0);
+        delete(a);
+        hold(handles.RasterWin,'on');
+    
+        line_count_init = 0;
+        if ViewMode == 1 % 1 template
+            [~, sep_line_l, MaxTimes] = plot_Raster( handles, CellNb, line_count_init, ColorRaster);
+        else % 2 templates
+            [line_count_init, sep_line_l1, MaxTimes1] = plot_Raster( handles, CellNb, line_count_init, ColorRaster);
+            [~, sep_line_l2, MaxTimes2] = plot_Raster( handles, CellNb2, line_count_init, ColorRaster);
+            MaxTimes = max(MaxTimes1, MaxTimes2);
+            sep_line_l = union(sep_line_l1, sep_line_l2);
         end
         
-        LineCount = 1;
-
-        for k=1:length(handles.StimBeg)
+        handles.RasterWin.XLim = [0, MaxTimes];
+        for LineCount=sep_line_l(:)'
             plot(handles.RasterWin,[0 MaxTimes],[LineCount LineCount],'k');
             
             LineCount = LineCount + length(handles.StimBeg{k});
         end
-        
-        hold(handles.RasterWin,'off');
     end
 end
+
+function [line_count_out, sep_line_l, MaxTimes] = plot_Raster( handles, CellNb, line_count_init, ColorRaster)
+
+LineCount = line_count_init;
+sep_line_l = LineCount;
+LineCount = LineCount + 1;
+ 
+sep_line_l = [];
+MaxTimes = 0;
+for k=1:length(handles.StimBeg)
+    fr_times = [];
+    fr_repeat = [];
+
+    for i=1:length(handles.StimBeg{k})
+        times = handles.SpikeTimes{CellNb}(handles.SpikeTimes{CellNb} >= handles.StimBeg{k}(i) & handles.SpikeTimes{CellNb} <= handles.StimEnd{k}(i)) ...
+            - handles.StimBeg{k}(i);
+        fr_times = [fr_times ; times(:)];
+        fr_repeat = [fr_repeat ; LineCount*ones(length(times),1)];
+        LineCount = LineCount + 1;
+        
+    end
+    sep_line_l(end+1) = LineCount;
+    %         fr_times = fr_times / (handles.SamplingRate/1000);
+    
+    if ~isempty(times)
+        MaxTimes = max(MaxTimes,max(fr_times));
+    end
+
+    plot(handles.RasterWin,fr_times,fr_repeat,'.','color',ColorRaster{k});
+end
+line_count_out = LineCount+1;
 
 
 function PlotWaveform(handles,waveform,Yscale,wcolor,Width)
@@ -1277,7 +1286,7 @@ Xspacing = str2double(get(handles.Xscale, 'String'));
 
 Coor = handles.Positions;
 
-if ~isempty(handles.H.lines{handles.H.last_neu_i_click})
+if ~isempty(handles.H.last_neu_i_click)
     delete(handles.H.lines{handles.H.last_neu_i_click});
 end
 
@@ -1290,9 +1299,13 @@ if handles.H.last_neu_i_click == 1 % it is the principal electrode
     max_t = max(waveform(:));
     min_t = min(waveform(:));
     
-    handles.H.fullX   = [  - handles.H.elecMx , handles.H.MaxdiffX - handles.H.elecMx ];
+    %handles.H.fullX   = [  - handles.H.elecMx , handles.H.MaxdiffX - handles.H.elecMx ];
+    %handles.H.fullY   = [  - handles.H.elecMy , handles.H.MaxdiffY - handles.H.elecMy  ];
+
+    handles.H.fullX   = [min(handles.Positions(:,1)) max(handles.Positions(:,1))];
+    handles.H.fullY   = [min(handles.Positions(:,2)) max(handles.Positions(:,2))];
+
     handles.H.marginX = [ - Xspacing/1.5 , Xspacing/1.5 ];
-    handles.H.fullY   = [  - handles.H.elecMy , handles.H.MaxdiffY - handles.H.elecMy  ];
     handles.H.marginY = [min_t - Yscale/2, max_t + Yscale/2 ];
 end
 
@@ -1305,16 +1318,50 @@ for i = 1:handles.templates_size(1) % idElec=1:size(handles.templates,1);
     %X(:,i) = linspace(Coor(i,1),Coor(i,1)+handles.TemplateDisplayRatio,length(waveform(i,:)));
     %Y(:,i) = Coor(i,2) + waveform(i,:)/Yscale;
     
-    X(:,i) = (elecX - handles.H.elecMx)+ linspace(-Xspacing/2, Xspacing/2, size(waveform,2));
-    Y(:,i) = waveform(i,:)/Yscale + (elecY - handles.H.elecMy);
+    %X(:,i) = (elecX - handles.H.elecMx)+ linspace(-Xspacing/2, Xspacing/2, size(waveform,2));
+    %Y(:,i) = waveform(i,:)/Yscale + (elecY - handles.H.elecMy);
+    X(:,i) = (elecX)+ linspace(-Xspacing/2, Xspacing/2, size(waveform,2));
+    Y(:,i) = waveform(i,:)/Yscale + (elecY);
 end
 
 Htemplate = handles.TemplateWin;
-handles.H.lines{handles.H.last_neu_i_click} = plot(Htemplate,X,Y,'color',wcolor,'LineWidth',Width);
-xlim(Htemplate, handles.H.fullX*handles.H.zoom_coef + handles.H.marginX );
-ylim(Htemplate, handles.H.fullY*handles.H.zoom_coef + handles.H.marginY);
+X=X*str2double(handles.XYratio.String);
 
+handles.H.lines{handles.H.last_neu_i_click} = plot(Htemplate,X,Y,'color',wcolor,'LineWidth',Width);
+set_TemplateWin_XY_Lims(handles);
 set(Htemplate,'Xtick',[],'Ytick',[]);
+
+
+function is_changes = set_TemplateWin_XY_Lims(handles)
+
+Htemplate = handles.TemplateWin;
+
+xlim_old = Htemplate.XLim;
+ylim_old = Htemplate.YLim;
+
+handles.Positions
+handles.H
+%x_surround =  handles.H.zoom_coef*[-1, 1]
+x_surround = handles.H.elecMx + handles.H.zoom_coef*[-1, 1]
+
+x_limits =  (handles.H.fullX+ handles.H.marginX)*str2double(handles.XYratio.String)
+x_surround = max(x_surround, x_limits(1))
+x_surround = min(x_surround, x_limits(2))
+xlim(Htemplate, x_surround);
+
+%y_surround = handles.H.elecMy + handles.H.zoom_coef*[-1, 1]
+y_surround = handles.H.zoom_coef*[-1, 1]
+
+y_limits =  handles.H.fullY + handles.H.marginY
+y_surround = max(y_surround, y_limits(1))
+y_surround = min(y_surround, y_limits(2))
+handles.H.fullY
+handles.H.marginY
+ylim(Htemplate, y_surround);
+
+is_changes = (~isequal(xlim_old, x_surround)) || (~isequal(ylim_old, y_surround));
+
+
 
 
 % --- Executes on button press in KillBtn.
@@ -1325,7 +1372,7 @@ function KillBtn_Callback(hObject, eventdata, handles)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
-handles.to_keep                = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb))
+handles.to_keep                = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb));
 handles.SpikeTimes(CellNb)     = [];
 handles.Amplitudes(CellNb)     = [];
 handles.Amplitudes2(CellNb)    = [];
@@ -1566,7 +1613,6 @@ CellNb2 = str2num(get(handles.Template2Nb,'String'));
 
 ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
 BinSize  = str2double(get(handles.CrossCorrMaxBin,'String'));
-set(handles.Nspk1, 'String', int2str(BinSize));
 MaxDelay = 100;% in BinSize
 
 %% PLOT CROSS-CORR
@@ -1951,6 +1997,29 @@ function CrossCorrMaxBin_CreateFcn(hObject, eventdata, handles)
 % handles    empty - handles not created until after all CreateFcns called
 
 % Hint: listbox controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function XYratio_Callback(hObject, eventdata, handles)
+% hObject    handle to XYratio (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of XYratio as text
+%        str2double(get(hObject,'String')) returns contents of XYratio as a double
+PlotData(handles,1);
+
+% --- Executes during object creation, after setting all properties.
+function XYratio_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to XYratio (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
