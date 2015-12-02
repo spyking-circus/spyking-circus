@@ -27,7 +27,7 @@ function varargout = SortingGUI(varargin)
 
 % Edit the above text to modify the response to help SortingGUI
 
-% Last Modified by GUIDE v2.5 02-Dec-2015 17:21:12
+% Last Modified by GUIDE v2.5 02-Dec-2015 18:48:36
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -757,8 +757,8 @@ if get(handles.SameElec,'Value')~=0 & val(SimilarNb+1)==0
     disp('No more templates to compare in the same electrode')
 end
 
-if IdTempl == str2double(handles.Template2Nb.String) % if the second template is already the good one, plot the next one
-    handles.SimilarNb.String = int2str(SimilarNb+1);
+if IdTempl == str2double(get(handles.Template2Nb, 'String')) % if the second template is already the good one, plot the next one
+    set(handles.SimilarNb, 'String', int2str(SimilarNb+1));
     SuggestSimilar_Callback(hObject, eventdata, handles);
     
 else
@@ -1061,15 +1061,15 @@ if ViewMode == 1
             end
         else
             Yscale = max(abs(handles.local_template(:)));
-            PlotWaveform(handles,handles.local_template,Yscale,'k');
+            PlotWaveform(handles,handles.local_template, Yscale,'k');
         end
     else
         handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
-        PlotWaveform(handles, handles.local_template, str2double(handles.Yscale.String),'k');
+        PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
         handles.H.last_neu_i_click = 3;
         PlotWaveform(handles, handles.RawData, str2double(get(handles.Yscale, 'String')), 0.8*[1 1 1]);
         handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
-        PlotWaveform(handles, handles.local_template, str2double(handles.Yscale.String),'k');
+        PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
         if ~isempty(handles.H.lines{2})
             delete(handles.H.lines{2});
         end
@@ -1268,7 +1268,6 @@ function PlotWaveform(handles,waveform,Yscale,wcolor,Width)
 
 if nargin<3
     Yscale = str2double(get(handles.Yscale,'String'));
-    %     Yscale = max(abs(waveform(:)));
 end
 
 if nargin<4
@@ -1296,9 +1295,6 @@ if handles.H.last_neu_i_click == 1 % it is the principal electrode
     max_t = max(waveform(:));
     min_t = min(waveform(:));
     
-    %handles.H.fullX   = [  - handles.H.elecMx , handles.H.MaxdiffX - handles.H.elecMx ];
-    %handles.H.fullY   = [  - handles.H.elecMy , handles.H.MaxdiffY - handles.H.elecMy  ];
-
     handles.H.fullX   = [min(handles.Positions(:,1)) max(handles.Positions(:,1))];
     handles.H.fullY   = [min(handles.Positions(:,2)) max(handles.Positions(:,2))];
 
@@ -1308,48 +1304,36 @@ end
 
 [X,Y] = deal(zeros(size(waveform,2),handles.templates_size(1)));
 for i = 1:handles.templates_size(1) % idElec=1:size(handles.templates,1);
-    %i = DisplayElec(idElec);
     elecX = Coor(i,1);
     elecY = Coor(i,2);
-    
-    %X(:,i) = linspace(Coor(i,1),Coor(i,1)+handles.TemplateDisplayRatio,length(waveform(i,:)));
-    %Y(:,i) = Coor(i,2) + waveform(i,:)/Yscale;
-    
-    %X(:,i) = (elecX - handles.H.elecMx)+ linspace(-Xspacing/2, Xspacing/2, size(waveform,2));
-    %Y(:,i) = waveform(i,:)/Yscale + (elecY - handles.H.elecMy);
     X(:,i) = (elecX)+ linspace(-Xspacing/2, Xspacing/2, size(waveform,2));
     Y(:,i) = waveform(i,:)/Yscale + (elecY);
 end
 
 Htemplate = handles.TemplateWin;
-X=X*str2double(handles.XYratio.String);
+X=X*str2double(get(handles.XYratio, 'String'));
 
-handles.H.lines{handles.H.last_neu_i_click} = plot(Htemplate,X,Y,'color',wcolor,'LineWidth',Width);
+handles.H.lines{handles.H.last_neu_i_click} = plot(handles.TemplateWin,X,Y,'color',wcolor,'LineWidth',Width);
 set_TemplateWin_XY_Lims(handles);
-set(Htemplate,'Xtick',[],'Ytick',[]);
+set(handles.TemplateWin,'Xtick',[],'Ytick',[]);
 
 
 function is_changes = set_TemplateWin_XY_Lims(handles)
 
-Htemplate = handles.TemplateWin;
-
-xlim_old = Htemplate.XLim;
-ylim_old = Htemplate.YLim;
-%x_surround =  handles.H.zoom_coef*[-1, 1];
+xlim_old = get(handles.TemplateWin, 'XLim');
+ylim_old = get(handles.TemplateWin, 'YLim');
 x_surround = handles.H.elecMx + handles.H.zoom_coef*[-1, 1];
 
-x_limits =  (handles.H.fullX+ handles.H.marginX)*str2double(handles.XYratio.String);
+x_limits =  (handles.H.fullX+ handles.H.marginX)*str2double(get(handles.XYratio, 'String'));
 x_surround = max(x_surround, x_limits(1));
 x_surround = min(x_surround, x_limits(2));
-xlim(Htemplate, x_surround);
-
-%y_surround = handles.H.zoom_coef*[-1, 1];
+set(handles.TemplateWin, 'XLim', x_surround);
 y_surround = handles.H.elecMy + handles.H.zoom_coef*[-1, 1];
 
 y_limits =  handles.H.fullY + handles.H.marginY;
 y_surround = max(y_surround, y_limits(1));
 y_surround = min(y_surround, y_limits(2));
-ylim(Htemplate, y_surround);
+set(handles.TemplateWin, 'YLim', y_surround);
 
 is_changes = (~isequal(xlim_old, x_surround)) || (~isequal(ylim_old, y_surround));
 
@@ -1710,9 +1694,6 @@ CellNb = str2num(get(handles.TemplateNb,'String'));
 t = handles.SpikeTimes{CellNb}*(handles.SamplingRate/1000);
 
 set(handles.EnableWaveforms,'Value', 1);
-
-% duration = round(str2double(get(handles.Xscale,'String')));
-
 duration = handles.templates_size(2);
 
 if duration/2 == round(duration/2)
@@ -1747,9 +1728,6 @@ set(handles.EnableWaveforms,'Value', 1);
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 t = handles.SpikeTimes{CellNb}*(handles.SamplingRate/1000);
-
-
-% duration = round(str2double(get(handles.Xscale,'String')));
 
 duration = handles.templates_size(2);
 
