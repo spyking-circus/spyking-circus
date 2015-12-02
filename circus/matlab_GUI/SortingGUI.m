@@ -70,21 +70,25 @@ end
 
 handles.SamplingRate = varargin{1};
 
+hold(handles.TemplateWin,'on');
+
+handles.H = DATA_SortingGUI;
+set(handles.Yscale, 'String', '1');
+set(handles.Xscale, 'String', '1');
+
 if length(varargin)<=3
     load('../mappings/mea_252.mapping.mat','-mat')
-    handles.Xmin = 1;
-    handles.Xmax = 16;
-    handles.Ymin = 1;
-    handles.Ymax = 16;
 else
     load(varargin{4},'-mat')
-    handles.Xmin = min(Positions(:,1));
-    handles.Xmax = max(Positions(:,1));
-    handles.Ymin = min(Positions(:,2));
-    handles.Ymax = max(Positions(:,2))+1;
 end
 
 handles.Positions = double(Positions);
+
+handles.H.zoom_coef = 1;
+handles.H.MaxdiffX = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
+handles.H.MaxdiffY = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
+handles.H.lines    = cell(3,1);
+
 
 if length(varargin)<=4
     handles.RPVlim = 2;
@@ -385,6 +389,8 @@ end
 handles.TemplateDisplayRatio = 0.9;
 
 
+%% Plot
+
 PlotData(handles)
 
 % Update handles structure
@@ -411,34 +417,9 @@ function ZoomInBtn_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-%Find electrode with max for template
-m        = max(abs(handles.local_template),[],2);
-[m,elec] = max(m);
-
-Mx = handles.Positions(elec,1);
-My = handles.Positions(elec,2);
-
-if handles.Xmax > handles.Xmin %otherwise we dont change anything - only 1 column of electrodes
-    if (Mx-handles.Xmin) > (handles.Xmax-Mx)
-        handles.Xmin = handles.Xmin + 1;
-    else 
-        handles.Xmax = handles.Xmax - 1;
-    end
-end
-
-
-if handles.Ymax > handles.Ymin%otherwise we dont change anything - only 1 line of electrodes
-    if (My-handles.Ymin) > (handles.Ymax-My)
-        handles.Ymin = handles.Ymin + 1;
-    else 
-        handles.Ymax = handles.Ymax - 1;
-    end
-end
-
-guidata(hObject, handles);
-
-PlotData(handles, false)
-
+handles.H.zoom_coef  = handles.H.zoom_coef/1.2;
+xlim(handles.TemplateWin, handles.H.fullX*handles.H.zoom_coef + handles.H.marginX );
+ylim(handles.TemplateWin, handles.H.fullY*handles.H.zoom_coef + handles.H.marginY);
 
 
 % --- Executes on button press in ZoonOutBtn.
@@ -448,42 +429,9 @@ function ZoonOutBtn_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-%Find electrode with max for template
-m        = max(abs(handles.local_template),[],2);
-[m,elec] = max(m);
-
-Mx = handles.Positions(elec,1);
-My = handles.Positions(elec,2);
-
-
-if (Mx-handles.Xmin) < (handles.Xmax-Mx) & handles.Xmin>min(handles.Positions(:,1))
-    handles.Xmin = handles.Xmin - 1;
-else 
-    if handles.Xmax<max(handles.Positions(:,1))
-        handles.Xmax = handles.Xmax + 1;
-    else
-        if handles.Xmin>min(handles.Positions(:,1))
-            handles.Xmin = handles.Xmin - 1;
-        end
-    end
-end
-
-if (My-handles.Ymin) < (handles.Ymax-My) & handles.Ymin>min(handles.Positions(:,2))
-    handles.Ymin = handles.Ymin - 1;
-else 
-    if handles.Ymax<max(handles.Positions(:,2))
-        handles.Ymax = handles.Ymax + 1;
-    else
-        if handles.Ymin>min(handles.Positions(:,2))
-            handles.Ymin = handles.Ymin - 1;
-        end
-    end
-end
-
-guidata(hObject, handles);
-
-PlotData(handles, false)
-
+handles.H.zoom_coef  = handles.H.zoom_coef*1.2;
+xlim(handles.TemplateWin, handles.H.fullX*handles.H.zoom_coef + handles.H.marginX );
+ylim(handles.TemplateWin, handles.H.fullY*handles.H.zoom_coef + handles.H.marginY);
 
 
 function FeatureY_Callback(hObject, eventdata, handles)
@@ -620,6 +568,7 @@ function TemplateNb_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of TemplateNb as text
 %        str2double(get(hObject,'String')) returns contents of TemplateNb as a double
 
+ClearCrossCorr(hObject, eventdata, handles);
 PlotData(handles)
 
 % --- Executes during object creation, after setting all properties.
@@ -668,13 +617,12 @@ function TemplateNbPlus_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-CellNb    = str2num(get(handles.TemplateNb,'String'));
-CellNbOld = CellNb;
-
-if CellNb < size(handles.to_keep, 2)
+CellNb = str2num(get(handles.TemplateNb,'String'));
+if CellNb < handles.templates_size(3)
     CellNb = CellNb + 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb))
+
 
 ClearCrossCorr(hObject, eventdata, handles);
 
@@ -685,71 +633,10 @@ if ViewMode==1
     set(handles.SwitchViewNb,'String',int2str(ViewMode));
 end
 
-CellNb       = str2num(get(handles.TemplateNb,'String'));
-RCellNb      = handles.to_keep(CellNb);
-RCellNbOld   = handles.to_keep(CellNbOld);
-    
-if handles.has_hdf5
-    tmpfile  = [handles.filename '.templates' handles.suffix];
-    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
-    handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    ndim                    = numel(size(handles.local_template));
-    handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
-    template_old  = h5read(tmpfile, '/templates', [RCellNbOld 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    ndim          = numel(size(template_old));
-    template_old  = permute(template_old,[ndim:-1:1]);
-else
-    template_old           = handles.templates(:, :, RCellNbOld);
-    handles.local_template = handles.templates(:, :, RCellNb) ;
-end
-
-m        = max(abs(template_old),[],2);
-[m,elec] = max(m);
-MxOld    = handles.Positions(elec,1);
-MyOld    = handles.Positions(elec,2);
-m        = max(abs(handles.local_template),[],2);
-[m,elec] = max(m);
-Mx       = handles.Positions(elec,1);
-My       = handles.Positions(elec,2);
-dx       = handles.Xmax - handles.Xmin;
-dy       = handles.Ymax - handles.Ymin;
-
-handles.Xmin = handles.Xmin - MxOld + Mx;
-handles.Xmax = handles.Xmax - MxOld + Mx;
-handles.Ymin = handles.Ymin - MyOld + My;
-handles.Ymax = handles.Ymax - MyOld + My;
-
-if handles.Xmin < min(handles.Positions(:,1))
-    handles.Xmin = min(handles.Positions(:,1));
-    handles.Xmax = handles.Xmin + dx;
-end
-
-if handles.Xmax > max(handles.Positions(:,1))
-    handles.Xmax = max(handles.Positions(:,1));
-    handles.Xmin = handles.Xmax - dx;
-    if handles.Xmin < min(handles.Positions(:,1))
-        handles.Xmin = min(handles.Positions(:,1));
-    end
-end
-
-if handles.Ymin < min(handles.Positions(:,2))
-    handles.Ymin = min(handles.Positions(:,2));
-    handles.Ymax = handles.Ymin + dy;
-end
-
-if handles.Ymax > max(handles.Positions(:,2))
-    handles.Ymax = max(handles.Positions(:,2));
-    handles.Ymin = handles.Ymax - dy;
-    if handles.Ymin < min(handles.Positions(:,2))
-        handles.Ymin = min(handles.Positions(:,2));
-    end
-end
-
 guidata(hObject, handles);
 
 PlotData(handles)
-
-
+    
 
 % --- Executes on button press in TemplateNbMinus.
 function TemplateNbMinus_Callback(hObject, eventdata, handles)
@@ -758,13 +645,10 @@ function TemplateNbMinus_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-CellNb    = str2num(get(handles.TemplateNb,'String'));
-CellNbOld = CellNb;
-
+CellNb = str2num(get(handles.TemplateNb,'String'));
 if CellNb > 1
     CellNb = CellNb - 1;
 end
-
 set(handles.TemplateNb,'String',int2str(CellNb))
 
 ClearCrossCorr(hObject, eventdata, handles);
@@ -774,67 +658,7 @@ ViewMode = str2num(get(handles.SwitchViewNb,'String'));
 if ViewMode==1
     ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
     set(handles.SwitchViewNb,'String',int2str(ViewMode));
-
-end
-
-CellNb       = str2num(get(handles.TemplateNb,'String'));
-RCellNb      = handles.to_keep(CellNb);
-RCellNbOld   = handles.to_keep(CellNbOld);
     
-if handles.has_hdf5
-    tmpfile  = [handles.filename '.templates' handles.suffix];
-    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
-    handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    ndim                    = numel(size(handles.local_template));
-    handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
-    template_old  = h5read(tmpfile, '/templates', [RCellNbOld 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    ndim          = numel(size(template_old));
-    template_old  = permute(template_old,[ndim:-1:1]);
-else
-    template_old           = handles.templates(:, :, RCellNbOld);
-    handles.local_template = handles.templates(:, :, RCellNb) ;
-end
-
-m        = max(abs(template_old),[],2);
-[m,elec] = max(m);
-MxOld    = handles.Positions(elec,1);
-MyOld    = handles.Positions(elec,2);
-m        = max(abs(handles.local_template),[],2);
-[m,elec] = max(m);
-Mx       = handles.Positions(elec,1);
-My       = handles.Positions(elec,2);
-dx       = handles.Xmax - handles.Xmin;
-dy       = handles.Ymax - handles.Ymin;
-
-handles.Xmin = handles.Xmin - MxOld + Mx;
-handles.Xmax = handles.Xmax - MxOld + Mx;
-handles.Ymin = handles.Ymin - MyOld + My;
-handles.Ymax = handles.Ymax - MyOld + My;
-
-if handles.Xmin < min(handles.Positions(:,1))
-    handles.Xmin = min(handles.Positions(:,1));
-    handles.Xmax = handles.Xmin + dx;
-end
-
-if handles.Xmax > max(handles.Positions(:,1))
-    handles.Xmax = max(handles.Positions(:,1));
-    handles.Xmin = handles.Xmax - dx;
-    if handles.Xmin < min(handles.Positions(:,1))
-        handles.Xmin = min(handles.Positions(:,1));
-    end
-end
-
-if handles.Ymin < min(handles.Positions(:,2))
-    handles.Ymin = min(handles.Positions(:,2));
-    handles.Ymax = handles.Ymin + dy;
-end
-
-if handles.Ymax > max(handles.Positions(:,2))
-    handles.Ymax = max(handles.Positions(:,2));
-    handles.Ymin = handles.Ymax - dy;
-    if handles.Ymin < min(handles.Positions(:,2))
-        handles.Ymin = min(handles.Positions(:,2));
-    end
 end
 
 guidata(hObject, handles);
@@ -1193,6 +1017,11 @@ CellNb2  = str2num(get(handles.Template2Nb,'String'));
 RCellNb  = handles.to_keep(CellNb);
 RCellNb2 = handles.to_keep(CellNb2);
 
+set(handles.Nspk1, 'String', int2str(length(handles.SpikeTimes{CellNb})));
+if ~isempty(CellNb2) && (CellNb2>0) && (CellNb2 <= length(handles.SpikeTimes))
+    set(handles.Nspk2, 'String', int2str(length(handles.SpikeTimes{CellNb2})));
+end
+
 set(handles.ElecNb,'String',int2str(handles.BestElec(CellNb)))
 set(handles.ElecNb2,'String',int2str(handles.BestElec(CellNb2)))
 
@@ -1213,8 +1042,6 @@ else
     handles.local_template2 = handles.templates(:, :, RCellNb2);
 end 
 
-Yspacing = max(abs(handles.local_template(:)));
-
 GradeStr{1} = 'O';
 GradeStr{2} = 'E';
 GradeStr{3} = 'D';
@@ -1224,35 +1051,47 @@ GradeStr{6} = 'A';
 
 set(handles.CellGrade,'String',GradeStr{handles.Tagged(CellNb)+1});
 
+ShowCorr_Callback('', '', handles);
+
 if ViewMode == 1
     
     if get(handles.EnableWaveforms,'Value')==0%Classical display with just the template
-    
+        
         if get(handles.NormalizeTempl,'Value')==0
-            PlotWaveform(handles,handles.local_template);
+            handles.H.last_neu_i_click = 1;
+            PlotWaveform(handles,handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
+            if ~isempty(handles.H.lines{2})
+                delete(handles.H.lines{2});
+            end
+            if ~isempty(handles.H.lines{3})
+                delete(handles.H.lines{3});
+            end
         else
-            PlotWaveform(handles,handles.local_template,Yspacing);
+            error('modify here')
+            Yscale = max(abs(handles.local_template(:)));
+            PlotWaveform(handles,handles.local_template,Yscale,'k');
         end
-    
     else
-        
-        %TemplateWindow = round(duration/2) + (-1*(size(handles.local_template,2)-1)/2 : (size(handles.local_template,2)-1)/2 );
-        templateIn = handles.Amp2Fit*handles.local_template;
-
-        PlotWaveform(handles, handles.RawData, str2num(get(handles.Yspacing,'String')));
-        hold(handles.TemplateWin,'on')
-        
-        PlotWaveform(handles, templateIn, str2num(get(handles.Yspacing,'String')),'r');
-        hold(handles.TemplateWin,'off')
-        
+        handles.H.last_neu_i_click = 1;
+        PlotWaveform(handles, handles.RawData, str2double(get(handles.Yscale, 'String')),'b');
+        handles.H.last_neu_i_click = 3;
+        PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
+        if ~isempty(handles.H.lines{2})
+            delete(handles.H.lines{2});
+        end
     end
-else
+    
+else    
     if get(handles.NormalizeTempl,'Value')==0
-        PlotWaveform(handles,handles.local_template,str2num(get(handles.Yspacing,'String')))
-        hold(handles.TemplateWin,'on')
-        PlotWaveform(handles,handles.local_template2,str2num(get(handles.Yspacing,'String')),'r')
-        hold(handles.TemplateWin,'off')
+        handles.H.last_neu_i_click = 1;
+        PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'b');
+        handles.H.last_neu_i_click = 2;
+        PlotWaveform(handles, handles.local_template2, str2double(get(handles.Yscale, 'String')),'r');
+        if ~isempty(handles.H.lines{3})
+            delete(handles.H.lines{3});
+        end
     else
+        error('modify here');
         PlotWaveform(handles,handles.local_template/max(abs(handles.local_template(:))),1)
         hold(handles.TemplateWin,'on')
         PlotWaveform(handles,handles.local_template2/max(abs(handles.local_template2(:))),1,'r')
@@ -1260,8 +1099,6 @@ else
     end
     
     set(handles.SimilarityTemplates,'String',['Similarity: ' num2str(max(squeeze(handles.overlap(CellNb,CellNb2))) )])
-    
-%     ShowCorr_Callback;
 end
 
 if nargin == 1
@@ -1349,8 +1186,8 @@ if nargin == 1
     %Assuming t is in milliseconds
     ISI = diff(t);
     lenISI = length(ISI);
-    NbRPV = length(find(ISI<=handles.RPVlim));
-    RatioRPV = length(find(ISI<=handles.RPVlim))/lenISI;
+    NbRPV = sum(ISI<=handles.RPVlim);
+    RatioRPV = sum(ISI<=handles.RPVlim)/lenISI;
     if get(handles.BigISI,'Value')==0
         ISI = ISI(ISI<=25);
         hist(handles.ISIwin,ISI,100);
@@ -1419,12 +1256,13 @@ if nargin == 1
 end
 
 
-function PlotWaveform(handles,waveform,Yspacing,wcolor,Width)
+function PlotWaveform(handles,waveform,Yscale,wcolor,Width)
 %Plot the waveform matrix.
 %tstart and duration might be unused. 
 
 if nargin<3
-    Yspacing = str2num(get(handles.Yspacing,'String'));
+    Yscale = str2double(get(handles.Yscale,'String'));
+    %     Yscale = max(abs(waveform(:)));
 end
 
 if nargin<4
@@ -1435,35 +1273,47 @@ if nargin<5
     Width=1;
 end
 
-Htemplate = handles.TemplateWin;
-
-Xmin = handles.Xmin;
-Ymin = handles.Ymin;
-Xmax = handles.Xmax;
-Ymax = handles.Ymax;
+Xspacing = str2double(get(handles.Xscale, 'String'));
 
 Coor = handles.Positions;
 
-nch = handles.templates_size(1);
-
-%Subselect the electrodes to be displayed: 
-
-DisplayElec = find(Coor(:,1)>=Xmin & Coor(:,2)>=Ymin & Coor(:,1)<=Xmax & Coor(:,2)<=Ymax  );
-
-handles.TemplateDisplayRatio = str2double(get(handles.Xscale,'String'));
-
-for idElec=1:length(DisplayElec)%nch
-    i = DisplayElec(idElec);
-    X(:,i) = linspace(Coor(i,1),Coor(i,1)+handles.TemplateDisplayRatio,length(waveform(i,:)));
-    Y(:,i) = Coor(i,2) + waveform(i,:)/Yspacing;
+if ~isempty(handles.H.lines{handles.H.last_neu_i_click})
+    delete(handles.H.lines{handles.H.last_neu_i_click});
 end
 
-if ~isempty(X)
-    plot(Htemplate,X,Y,'color',wcolor,'LineWidth',Width);
-
-    set(Htemplate,'xlim',[double(Xmin-0.1) double(Xmax+1.1)],'ylim',[double(Ymin-1) double(Ymax+0.5)]);
-    set(Htemplate,'xlim',[double(Xmin-0.1) double(Xmax+handles.TemplateDisplayRatio+0.1)],'ylim',[double(Ymin-1) double(Ymax+0.5)]);
+if handles.H.last_neu_i_click == 1 % it is the principal electrode
+    m = max(abs(waveform),[],2);
+    [~,elecM] = max(m);
+    handles.H.elecMx = Coor(elecM,1);
+    handles.H.elecMy = Coor(elecM,2);
+    
+    max_t = max(waveform(:));
+    min_t = min(waveform(:));
+    
+    handles.H.fullX   = [  - handles.H.elecMx , handles.H.MaxdiffX - handles.H.elecMx ];
+    handles.H.marginX = [ - Xspacing/1.5 , Xspacing/1.5 ];
+    handles.H.fullY   = [  - handles.H.elecMy , handles.H.MaxdiffY - handles.H.elecMy  ];
+    handles.H.marginY = [min_t - Yscale/2, max_t + Yscale/2 ];
 end
+
+[X,Y] = deal(zeros(size(waveform,2),handles.templates_size(1)));
+for i = 1:handles.templates_size(1) % idElec=1:size(handles.templates,1);
+    %i = DisplayElec(idElec);
+    elecX = Coor(i,1);
+    elecY = Coor(i,2);
+    
+    %X(:,i) = linspace(Coor(i,1),Coor(i,1)+handles.TemplateDisplayRatio,length(waveform(i,:)));
+    %Y(:,i) = Coor(i,2) + waveform(i,:)/Yscale;
+    
+    X(:,i) = (elecX - handles.H.elecMx)+ linspace(-Xspacing/2, Xspacing/2, size(waveform,2));
+    Y(:,i) = waveform(i,:)/Yscale + (elecY - handles.H.elecMy);
+end
+
+Htemplate = handles.TemplateWin;
+handles.H.lines{handles.H.last_neu_i_click} = plot(Htemplate,X,Y,'color',wcolor,'LineWidth',Width);
+xlim(Htemplate, handles.H.fullX*handles.H.zoom_coef + handles.H.marginX );
+ylim(Htemplate, handles.H.fullY*handles.H.zoom_coef + handles.H.marginY);
+
 set(Htemplate,'Xtick',[],'Ytick',[]);
 
 
@@ -1715,16 +1565,16 @@ CellNb = str2num(get(handles.TemplateNb,'String'));
 CellNb2 = str2num(get(handles.Template2Nb,'String'));
 
 ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
-
+BinSize  = str2double(get(handles.CrossCorrMaxBin,'String'));
+set(handles.Nspk1, 'String', int2str(BinSize));
+MaxDelay = 100;% in BinSize
 
 %% PLOT CROSS-CORR
 % if 0%INSTALL GCC AND COMPILE crosscorrspike.cpp
 if ViewMode==2
     t1 = handles.SpikeTimes{CellNb};
     t2 = handles.SpikeTimes{CellNb2};
-    BinSize = 2;%1 ms
-    MaxDelay = 100;% in BinSize
-
+    
     %Here it starts
 
     t1b = floor(t1/BinSize);
@@ -1732,32 +1582,36 @@ if ViewMode==2
     t1b = unique(t1b);
     t2b = unique(t2b);
 
-    CorrCount = ones(1,2*MaxDelay+1)*(length(t1b) + length(t2b));
+    CorrCount = zeros(1,2*MaxDelay+1);
     for i=1:(2*MaxDelay+1)
-        t2bShifted = t2b + (i - MaxDelay - 1);
-        CorrCount(i) = CorrCount(i) - length(unique([t1b(:) ; t2bShifted(:)]));
+        CorrCount(i) =  sum(ismember(t1b(:), t2b(:) + (i - MaxDelay - 1)));
     end
+    
     cc = CorrCount;
+    
+    set(handles.CrossWinStyle, 'String', 'Cross-Corr');
 else
     t1 = handles.SpikeTimes{CellNb};
-    BinSize = 2;%1 ms
-    MaxDelay = 100;% in BinSize
 
     %Here it starts
     t1b = floor(t1/BinSize);
     t1b = unique(t1b);
-    CorrCount = ones(1,2*MaxDelay+1)*(2*length(t1b) );
+    CorrCount = zeros(1,2*MaxDelay+1);
     for i=1:(2*MaxDelay+1)
-        t2bShifted = t1b + (i - MaxDelay - 1);
-        CorrCount(i) = CorrCount(i) - length(unique([t1b(:) ; t2bShifted(:)]));
+        if i ~= (MaxDelay+1)
+            CorrCount(i) =  sum(ismember(t1b(:), t1b(:) + (i - MaxDelay - 1)));
+        end
     end
+    
     cc = CorrCount;
-    cc(101) = 0;
+    %     cc(MaxDelay+1) = 0;
+    
+    set(handles.CrossWinStyle, 'String', 'Auto-Corr');
 end
 
-bar(handles.CrossCorrWin,(-100:100),cc);
+bar(handles.CrossCorrWin,(-MaxDelay:MaxDelay)*BinSize,cc);
 xlabel(handles.CrossCorrWin,'Delay (ms)');
-set(handles.CrossCorrWin,'xlim',[-100 100])
+set(handles.CrossCorrWin,'xlim',[-MaxDelay,MaxDelay]*BinSize)
 
 
 function ClearCrossCorr(hObject, eventdata, handles)
@@ -1771,7 +1625,7 @@ end
 
 
 
-function Yspacing_Callback(hObject, eventdata, handles)
+function Yscale_Callback(hObject, eventdata, handles)
 % hObject    handle to Yspacing (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -1779,11 +1633,11 @@ function Yspacing_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of Yspacing as text
 %        str2double(get(hObject,'String')) returns contents of Yspacing as a double
 
-PlotData(handles)
+PlotData(handles, 1)
 
 
 % --- Executes during object creation, after setting all properties.
-function Yspacing_CreateFcn(hObject, eventdata, handles)
+function Yscale_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to Yspacing (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -1878,7 +1732,7 @@ function Xscale_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of Xscale as text
 %        str2double(get(hObject,'String')) returns contents of Xscale as a double
 
-PlotData(handles)
+PlotData(handles, 1)
 
 % --- Executes during object creation, after setting all properties.
 function Xscale_CreateFcn(hObject, eventdata, handles)
@@ -1990,7 +1844,7 @@ else
     guidata(hObject, handles);
 end
 
-PlotData(handles)
+PlotData(handles, 1)
 
 
 % --- Executes on button press in EnableWaveforms.
@@ -2014,3 +1868,90 @@ handles.Ymin = min(handles.Positions(:,2));
 handles.Ymax = max(handles.Positions(:,2))+1;
 
 PlotData(handles)
+
+% --- Executes on button press in KillEs.
+function KillEs_Callback(hObject, eventdata, handles)
+% hObject    handle to KillEs (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+CellNbs = find(handles.Tagged==1); % 1 corresponds to E
+
+for i=1:size(CellNbs)
+    CellNb          = CellNbs(i);
+    handles.to_keep = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb));
+    handles.SpikeTimes(CellNb)  = [];
+    handles.Amplitudes(CellNb)  = [];
+    handles.Amplitudes2(CellNb) = [];
+    handles.AmpLim(CellNb,:)    = [];
+    handles.AmpTrend(CellNb)    = [];
+    handles.clusters(CellNb)    = [];
+    handles.BestElec(CellNb)    = [];
+    handles.Tagged(CellNb)      = [];
+    handles.overlap(CellNb,:)   = [];
+    handles.overlap(:,CellNb)   = [];
+end
+
+guidata(hObject, handles);
+
+PlotData(handles)
+
+
+% --- Executes during object creation, after setting all properties.
+function SortingGUI_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to SortingGUI (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+
+% --- Executes on button press in KillAllEmpty.
+function KillAllEmpty_Callback(hObject, eventdata, handles)
+% hObject    handle to KillAllEmpty (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+CellNbs = find(cellfun('length',handles.SpikeTimes)==0); % 1 corresponds to E
+
+for i=1:size(CellNbs)
+    CellNb          = CellNbs(i);
+    handles.to_keep = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb));
+    handles.SpikeTimes(CellNb)  = [];
+    handles.Amplitudes(CellNb)  = [];
+    handles.Amplitudes2(CellNb) = [];
+    handles.AmpLim(CellNb,:)    = [];
+    handles.AmpTrend(CellNb)    = [];
+    handles.clusters(CellNb)    = [];
+    handles.BestElec(CellNb)    = [];
+    handles.Tagged(CellNb)      = [];
+    handles.overlap(CellNb,:)   = [];
+    handles.overlap(:,CellNb)   = [];
+end
+
+guidata(hObject, handles);
+
+PlotData(handles)
+
+
+% --- Executes on selection change in CrossCorrMaxBin.
+function CrossCorrMaxBin_Callback(hObject, eventdata, handles)
+% hObject    handle to CrossCorrMaxBin (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns CrossCorrMaxBin contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from CrossCorrMaxBin
+ShowCorr_Callback(hObject, eventdata, handles);
+
+% --- Executes during object creation, after setting all properties.
+function CrossCorrMaxBin_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to CrossCorrMaxBin (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: listbox controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
