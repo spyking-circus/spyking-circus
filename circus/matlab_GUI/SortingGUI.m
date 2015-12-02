@@ -269,14 +269,16 @@ if exist([handles.filename '.stim'],'file')
     handles.StimEnd = a.rep_end_time;
 end
 
-if iscell(handles.StimBeg)
-    for s_i = 1:length(handles.StimBeg)
-        handles.StimBeg{s_i} = handles.StimBeg{s_i}/ (handles.SamplingRate/1000);
-        handles.StimEnd{s_i} = handles.StimEnd{s_i}/ (handles.SamplingRate/1000);
+if isfield(handles, 'StimBeg')
+    if iscell(handles.StimBeg)
+        for s_i = 1:length(handles.StimBeg)
+            handles.StimBeg{s_i} = handles.StimBeg{s_i}/ (handles.SamplingRate/1000);
+            handles.StimEnd{s_i} = handles.StimEnd{s_i}/ (handles.SamplingRate/1000);
+        end
+    else
+        handles.StimBeg = handles.StimBeg/ (handles.SamplingRate/1000);
+        handles.StimEnd = handles.StimEnd/ (handles.SamplingRate/1000);
     end
-else
-    handles.StimBeg = handles.StimBeg/ (handles.SamplingRate/1000);
-    handles.StimEnd = handles.StimEnd/ (handles.SamplingRate/1000);
 end
 
 
@@ -288,6 +290,11 @@ if exist([handles.filename '.amplitudes' handles.suffix],'file')
     if isfield(a,'Amplitudes')
         handles.Amplitudes  = a.Amplitudes;
         handles.Amplitudes2 = a.Amplitudes2;
+        for id=1:handles.templates_size(3)
+            if size(handles.Amplitudes{id}, 1) ~= size(handles.Amplitudes2{id}, 1)
+                handles.Amplitudes2{id} = zeros(size(handles.Amplitudes{id}));
+            end
+        end
     else
         for id=1:handles.templates_size(3)
             if ~isempty(eval(['a.temp_' int2str(id-1)]))
@@ -1109,7 +1116,7 @@ else
         hold(handles.TemplateWin,'off')
     end
     
-    set(handles.SimilarityTemplates,'String',['Similarity: ' num2str(max(squeeze(handles.overlap(CellNb,CellNb2))) )])
+    set(handles.SimilarityTemplates,'String',num2str(max(squeeze(handles.overlap(CellNb,CellNb2)))))
 end
 
 if nargin == 1
@@ -1450,7 +1457,7 @@ end
 for id = 1:nb_to_write:nb_templates
     temp_1 = handles.to_keep(id:min(nb_templates, id+nb_to_write-1));
     temp_2 = handles.to_keep(id:min(nb_templates, id+nb_to_write-1)) + handles.templates_size(3);
-    local_write = length(temp_1)
+    local_write = length(temp_1);
     if handles.has_hdf5
         tmpfile    = [handles.filename '.templates' handles.suffix];
         tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
@@ -1528,7 +1535,7 @@ nb_templates        = length(handles.SpikeTimes);
 myslice             = [(1:CellNb) (CellNb:nb_templates)];
 handles.SpikeTimes  = handles.SpikeTimes(myslice);
 handles.Amplitudes  = handles.Amplitudes(myslice);
-handles.Amplitudes2 = handles.Amplitudes(myslice);
+handles.Amplitudes2 = handles.Amplitudes2(myslice);
 handles.Tagged      = handles.Tagged(myslice);
 handles.AmpLim      = handles.AmpLim(myslice,:);
 handles.AmpTrend    = handles.AmpTrend(myslice);
@@ -1679,7 +1686,6 @@ else
 end
 
 bar(handles.CrossCorrWin,(-MaxDelay:MaxDelay)*BinSize,cc);
-xlabel(handles.CrossCorrWin,'Delay (ms)');
 set(handles.CrossCorrWin,'xlim',[-MaxDelay,MaxDelay]*BinSize)
 
 
