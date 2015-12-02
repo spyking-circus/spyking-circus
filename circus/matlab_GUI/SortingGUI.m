@@ -83,7 +83,6 @@ else
 end
 
 handles.Positions = double(Positions);
-handles.Positions = handles.Positions;
 
 handles.H.MaxdiffX = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
 handles.H.MaxdiffY = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
@@ -568,12 +567,6 @@ function TemplateNb_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of TemplateNb as text
 %        str2double(get(hObject,'String')) returns contents of TemplateNb as a double
-
-ClearCrossCorr(hObject, eventdata, handles);
-
-if ~isempty(handles.H.lines{3})
-    delete(handles.H.lines{3});
-end
 
 ClearCrossCorr(hObject, eventdata, handles);
 
@@ -1338,25 +1331,20 @@ Htemplate = handles.TemplateWin;
 
 xlim_old = Htemplate.XLim;
 ylim_old = Htemplate.YLim;
+%x_surround =  handles.H.zoom_coef*[-1, 1];
+x_surround = handles.H.elecMx + handles.H.zoom_coef*[-1, 1];
 
-handles.Positions
-handles.H
-%x_surround =  handles.H.zoom_coef*[-1, 1]
-x_surround = handles.H.elecMx + handles.H.zoom_coef*[-1, 1]
-
-x_limits =  (handles.H.fullX+ handles.H.marginX)*str2double(handles.XYratio.String)
-x_surround = max(x_surround, x_limits(1))
-x_surround = min(x_surround, x_limits(2))
+x_limits =  (handles.H.fullX+ handles.H.marginX)*str2double(handles.XYratio.String);
+x_surround = max(x_surround, x_limits(1));
+x_surround = min(x_surround, x_limits(2));
 xlim(Htemplate, x_surround);
 
-%y_surround = handles.H.elecMy + handles.H.zoom_coef*[-1, 1]
-y_surround = handles.H.zoom_coef*[-1, 1]
+%y_surround = handles.H.zoom_coef*[-1, 1];
+y_surround = handles.H.elecMy + handles.H.zoom_coef*[-1, 1];
 
-y_limits =  handles.H.fullY + handles.H.marginY
-y_surround = max(y_surround, y_limits(1))
-y_surround = min(y_surround, y_limits(2))
-handles.H.fullY
-handles.H.marginY
+y_limits =  handles.H.fullY + handles.H.marginY;
+y_surround = max(y_surround, y_limits(1));
+y_surround = min(y_surround, y_limits(2));
 ylim(Htemplate, y_surround);
 
 is_changes = (~isequal(xlim_old, x_surround)) || (~isequal(ylim_old, y_surround));
@@ -1421,10 +1409,11 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-suffix  = get(handles.VersionNb,'String');
+suffix  = get(handles.VersionNb, 'String')
+suffix  = suffix{1};
 overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(2));
 
-output_file = [handles.filename '.templates' suffix '.hdf5'];
+output_file = [handles.filename '.templates' suffix '.hdf5']
 delete(output_file);
 
 nb_templates = size(handles.to_keep, 2);
