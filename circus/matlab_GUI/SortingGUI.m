@@ -1441,20 +1441,31 @@ delete(output_file);
 
 nb_templates = size(handles.to_keep, 2);
 h5create(output_file,'/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
-for id = 1:nb_templates
-    temp_1 = handles.to_keep(id);
-    temp_2 = handles.to_keep(id) + handles.templates_size(3);
+if handles.has_hdf5
+    nb_to_write = 1;
+else
+    nb_to_write = 100;
+end
+
+for id = 1:nb_to_write:nb_templates
+    temp_1 = handles.to_keep(id:min(nb_templates, id+nb_to_write-1));
+    temp_2 = handles.to_keep(id:min(nb_templates, id+nb_to_write-1)) + handles.templates_size(3);
+    local_write = length(temp_1)
     if handles.has_hdf5
         tmpfile    = [handles.filename '.templates' handles.suffix];
         tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
         to_write_1 = h5read(tmpfile, '/templates', [temp_1 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
         to_write_2 = h5read(tmpfile, '/templates', [temp_2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
     else
-        to_write_1 = reshape(transpose(handles.templates(:, :, temp_1)), [1 handles.templates_size(2) handles.templates_size(1)]);
-        to_write_2 = reshape(transpose(handles.templates(:, :, temp_2)), [1 handles.templates_size(2) handles.templates_size(1)]);
+        to_write_1 = handles.templates(:, :, temp_1);
+        to_write_2 = handles.templates(:, :, temp_2);
+        ndim       = numel(size(to_write_1));
+        to_write_1 = permute(to_write_1,[ndim:-1:1]);
+        to_write_2 = permute(to_write_2,[ndim:-1:1]);
     end
-    h5write(output_file, '/templates', to_write_1, [id 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    h5write(output_file, '/templates', to_write_2, [id+nb_templates 1 1], [1 handles.templates_size(2) handles.templates_size(1)]); 
+    size(to_write_1), size(to_write_2)
+    h5write(output_file, '/templates', to_write_1, [id 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+    h5write(output_file, '/templates', to_write_2, [id+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
 end
 
 h5create(output_file, '/limits', size(transpose(handles.AmpLim)));
