@@ -100,7 +100,7 @@ def load_parameters(file_name):
     if nb_channels is not None:
         if N_e != nb_channels:
             print_error(["MCS file: mistmatch between number of electrodes and data header"])
-            sys.exit(0)
+            #sys.exit(0)
 
     parser.set('data', 'N_e', str(N_e))   
 

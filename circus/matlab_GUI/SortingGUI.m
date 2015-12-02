@@ -27,7 +27,7 @@ function varargout = SortingGUI(varargin)
 
 % Edit the above text to modify the response to help SortingGUI
 
-% Last Modified by GUIDE v2.5 02-Dec-2015 10:39:28
+% Last Modified by GUIDE v2.5 02-Dec-2015 17:21:12
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -595,14 +595,6 @@ function TemplateNb_Callback(hObject, eventdata, handles)
 
 ClearCrossCorr(hObject, eventdata, handles);
 
-ViewMode = str2num(get(handles.SwitchViewNb,'String'));
-set(handles.SimilarNb, 'String', '1');
-
-if ViewMode==1
-    ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
-    set(handles.SwitchViewNb,'String',int2str(ViewMode));
-end
-
 guidata(hObject, handles);
 
 PlotData(handles)
@@ -742,21 +734,6 @@ GradeStr{6} = 'A';
 set(handles.CellGrade,'String',GradeStr{handles.Tagged(CellNb)+1});
 
 
-
-% --- Executes on button press in SwitchViewNb.
-function SwitchViewNb_Callback(hObject, eventdata, handles)
-% hObject    handle to SwitchViewNb (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
-set(handles.SwitchViewNb,'String',int2str(ViewMode));
-
-guidata(hObject, handles);
-
-PlotData(handles)
-
-
 % --- Executes on button press in SuggestSimilar.
 function SuggestSimilar_Callback(hObject, eventdata, handles)
 % hObject    handle to SuggestSimilar (see GCBO)
@@ -787,8 +764,7 @@ if IdTempl == str2double(handles.Template2Nb.String) % if the second template is
 else
 
     set(handles.Template2Nb,'String',int2str(IdTempl))
-
-    set(handles.SwitchViewNb,'String','1')
+    set(handles.TwoView,'Value',1)
 
     if get(handles.SameElec,'Value')~=0 && val(SimilarNb+1)~=0 %We can compare the cluster
         mf1 = median(handles.clusters{CellNb});
@@ -1041,7 +1017,7 @@ end
 set(handles.ElecNb,'String',int2str(handles.BestElec(CellNb)))
 set(handles.ElecNb2,'String',int2str(handles.BestElec(CellNb2)))
 
-ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
+ViewMode = 1 + get(handles.TwoView,'Value');
 
 %% PLOT TEMPLATE
 if handles.has_hdf5
@@ -1641,7 +1617,7 @@ function ShowCorr_Callback(hObject, eventdata, handles)
 CellNb = str2num(get(handles.TemplateNb,'String'));
 CellNb2 = str2num(get(handles.Template2Nb,'String'));
 
-ViewMode = 3 - str2num(get(handles.SwitchViewNb,'String'));
+ViewMode = 1 + get(handles.TwoView,'Value');
 BinSize  = str2double(get(handles.CrossCorrMaxBin,'String'));
 MaxDelay = 100;% in BinSize
 
@@ -2050,3 +2026,14 @@ function XYratio_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in TwoView.
+function TwoView_Callback(hObject, eventdata, handles)
+% hObject    handle to TwoView (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of TwoView
+
+PlotData(handles)
