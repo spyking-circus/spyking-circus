@@ -1438,21 +1438,26 @@ tmp_templates = [handles.filename '.templates-tmp' suffix '.hdf5'];
 delete(tmp_templates);
 h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
 
-if handles.has_hdf5
-    nb_to_write = 1;
-else
-    nb_to_write = 100;
-end
+nb_to_write = 100;
+tmp_count   = 1;
+differences = [diff(handles.to_keep) 0];
 
-for id = 1:nb_to_write:nb_templates
-    temp_1 = handles.to_keep(id:min(nb_templates, id+nb_to_write-1));
-    temp_2 = handles.to_keep(id:min(nb_templates, id+nb_to_write-1)) + handles.templates_size(3);
-    local_write = length(temp_1);
+while tmp_count <= nb_templates
+    contiguous  = find(differences(tmp_count:nb_templates) ~= 1);
+    if isempty(contiguous)
+        local_write = min(nb_to_write, nb_templates - tmp_count);
+    else
+        local_write = min(nb_to_write, contiguous(1));
+    end
+
+    temp_1 = handles.to_keep(tmp_count:tmp_count + local_write - 1);
+    temp_2 = handles.to_keep(tmp_count:tmp_count + local_write - 1) + handles.templates_size(3);
+    
     if handles.has_hdf5
         tmpfile    = [handles.filename '.templates' handles.suffix];
         tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
-        to_write_1 = h5read(tmpfile, '/templates', [temp_1 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-        to_write_2 = h5read(tmpfile, '/templates', [temp_2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+        to_write_1 = h5read(tmpfile, '/templates', [temp_1(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+        to_write_2 = h5read(tmpfile, '/templates', [temp_2(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
     else
         to_write_1 = handles.templates(:, :, temp_1);
         to_write_2 = handles.templates(:, :, temp_2);
@@ -1460,8 +1465,9 @@ for id = 1:nb_to_write:nb_templates
         to_write_1 = permute(to_write_1,[ndim:-1:1]);
         to_write_2 = permute(to_write_2,[ndim:-1:1]);
     end
-    h5write(tmp_templates, '/templates', to_write_1, [id 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
-    h5write(tmp_templates, '/templates', to_write_2, [id+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
+    h5write(tmp_templates, '/templates', to_write_1, [tmp_count 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+    h5write(tmp_templates, '/templates', to_write_2, [tmp_count+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
+    tmp_count = tmp_count + local_write;
 end
 
 delete(output_file);
