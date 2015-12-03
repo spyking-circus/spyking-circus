@@ -1016,8 +1016,8 @@ if ~isempty(CellNb2) && (CellNb2>0) && (CellNb2 <= length(handles.SpikeTimes))
     set(handles.Nspk2, 'String', int2str(length(handles.SpikeTimes{CellNb2})));
 end
 
-set(handles.ElecNb,'String',['elec:' int2str(handles.BestElec(CellNb))])
-set(handles.ElecNb2,'String',['elec:' int2str(handles.BestElec(CellNb2)) '  grade:' ])
+set(handles.ElecNb,'String',int2str(handles.BestElec(CellNb)))
+set(handles.ElecNb2,'String',int2str(handles.BestElec(CellNb2)))
 
 ViewMode = 1 + get(handles.TwoView,'Value');
 
@@ -1941,27 +1941,33 @@ function KillEs_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+choice = questdlg('Are you sure?', 'Kill All E', 'Yes', 'No way','No way');
+% Handle response
+switch choice
+    case 'Yes'
+        CellNbs = find(handles.Tagged==1); % 1 corresponds to E
 
-CellNbs = find(handles.Tagged==1); % 1 corresponds to E
+        for i=1:size(CellNbs)
+            CellNb          = CellNbs(i);
+            handles.to_keep = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb));
+            handles.SpikeTimes(CellNb)  = [];
+            handles.Amplitudes(CellNb)  = [];
+            handles.Amplitudes2(CellNb) = [];
+            handles.AmpLim(CellNb,:)    = [];
+            handles.AmpTrend(CellNb)    = [];
+            handles.clusters(CellNb)    = [];
+            handles.BestElec(CellNb)    = [];
+            handles.Tagged(CellNb)      = [];
+            handles.overlap(CellNb,:)   = [];
+            handles.overlap(:,CellNb)   = [];
+        end
+        
+        guidata(hObject, handles);
 
-for i=1:size(CellNbs)
-    CellNb          = CellNbs(i);
-    handles.to_keep = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb));
-    handles.SpikeTimes(CellNb)  = [];
-    handles.Amplitudes(CellNb)  = [];
-    handles.Amplitudes2(CellNb) = [];
-    handles.AmpLim(CellNb,:)    = [];
-    handles.AmpTrend(CellNb)    = [];
-    handles.clusters(CellNb)    = [];
-    handles.BestElec(CellNb)    = [];
-    handles.Tagged(CellNb)      = [];
-    handles.overlap(CellNb,:)   = [];
-    handles.overlap(:,CellNb)   = [];
+        PlotData(handles)
 end
 
-guidata(hObject, handles);
 
-PlotData(handles)
 
 
 % --- Executes during object creation, after setting all properties.
