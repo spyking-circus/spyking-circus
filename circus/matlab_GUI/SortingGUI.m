@@ -1049,6 +1049,8 @@ set(handles.CellGrade2,'String',GradeStr{handles.Tagged(CellNb2)+1});
 
 ShowCorr_Callback('', '', handles);
 
+raw_data_color = 0.8*[1 1 1];
+
 % lines :    1 : template 1   ;  2 : template 2    ;    3  : raw
 if ViewMode == 1
     
@@ -1071,7 +1073,7 @@ if ViewMode == 1
         handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
         PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
         handles.H.last_neu_i_click = 3;
-        PlotWaveform(handles, handles.RawData, str2double(get(handles.Yscale, 'String')), 0.8*[1 1 1]);
+        PlotWaveform(handles, handles.RawData, str2double(get(handles.Yscale, 'String')), raw_data_color);
         handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
         PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
         if ishandle(handles.H.lines{2})
@@ -1085,8 +1087,13 @@ else
         PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'b');
         handles.H.last_neu_i_click = 2;
         PlotWaveform(handles, handles.local_template2, str2double(get(handles.Yscale, 'String')),'r');
-        if ishandle(handles.H.lines{3})
-            delete(handles.H.lines{3});
+        if get(handles.NormalizeTempl,'Value')==0
+            if ishandle(handles.H.lines{3})
+                delete(handles.H.lines{3});
+            end
+        else
+            handles.H.last_neu_i_click = 3;
+            PlotWaveform(handles, handles.RawData, str2double(handles.Yscale.String), raw_data_color);
         end
     else
         PlotWaveform(handles,handles.local_template/max(abs(handles.local_template(:))),1)
@@ -1420,32 +1427,39 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-suffix  = get(handles.VersionNb, 'String')
+suffix  = get(handles.VersionNb, 'String');
 if iscell(suffix)
     suffix  = suffix{1};
 end
 overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(2));
 
-output_file = [handles.filename '.templates' suffix '.hdf5']
-delete(output_file);
+output_file   = [handles.filename '.templates' suffix '.hdf5'];
+nb_templates  = size(handles.to_keep, 2);
+tmp_templates = [handles.filename '.templates-tmp' suffix '.hdf5'];
 
-nb_templates = size(handles.to_keep, 2);
-h5create(output_file,'/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
-if handles.has_hdf5
-    nb_to_write = 1;
-else
-    nb_to_write = 100;
-end
+delete(tmp_templates);
+h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
 
-for id = 1:nb_to_write:nb_templates
-    temp_1 = handles.to_keep(id:min(nb_templates, id+nb_to_write-1));
-    temp_2 = handles.to_keep(id:min(nb_templates, id+nb_to_write-1)) + handles.templates_size(3);
-    local_write = length(temp_1);
+nb_to_write = 100;
+tmp_count   = 1;
+differences = [diff(handles.to_keep) 0];
+
+while tmp_count <= nb_templates
+    contiguous  = find(differences(tmp_count:nb_templates) ~= 1);
+    if isempty(contiguous)
+        local_write = min(nb_to_write, nb_templates - tmp_count);
+    else
+        local_write = min(nb_to_write, contiguous(1));
+    end
+
+    temp_1 = handles.to_keep(tmp_count:tmp_count + local_write - 1);
+    temp_2 = handles.to_keep(tmp_count:tmp_count + local_write - 1) + handles.templates_size(3);
+    
     if handles.has_hdf5
         tmpfile    = [handles.filename '.templates' handles.suffix];
         tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
-        to_write_1 = h5read(tmpfile, '/templates', [temp_1 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-        to_write_2 = h5read(tmpfile, '/templates', [temp_2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+        to_write_1 = h5read(tmpfile, '/templates', [temp_1(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+        to_write_2 = h5read(tmpfile, '/templates', [temp_2(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
     else
         to_write_1 = handles.templates(:, :, temp_1);
         to_write_2 = handles.templates(:, :, temp_2);
@@ -1453,9 +1467,13 @@ for id = 1:nb_to_write:nb_templates
         to_write_1 = permute(to_write_1,[ndim:-1:1]);
         to_write_2 = permute(to_write_2,[ndim:-1:1]);
     end
-    h5write(output_file, '/templates', to_write_1, [id 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
-    h5write(output_file, '/templates', to_write_2, [id+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
+    h5write(tmp_templates, '/templates', to_write_1, [tmp_count 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+    h5write(tmp_templates, '/templates', to_write_2, [tmp_count+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
+    tmp_count = tmp_count + local_write;
 end
+
+delete(output_file);
+movefile(tmp_templates, output_file)
 
 h5create(output_file, '/limits', size(transpose(handles.AmpLim)));
 h5write(output_file, '/limits', transpose(handles.AmpLim));
