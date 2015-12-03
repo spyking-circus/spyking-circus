@@ -36,7 +36,7 @@ smart_search   = 3         # Parameter for the smart search. The higher, the mor
 sim_same_elec  = 3         # Distance within clusters under which they are re-merged
 cc_merge       = 0.95      # If CC between two templates is higher, they are merged
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
-make_plots     = True      # Generate sanity plots of the clustering
+make_plots     = False     # Generate sanity plots of the clustering
 test_clusters  = False     # Should be False. Only to plot injection of synthetic clusters
 remove_mixture = True      # At the end of the clustering, we remove mixtures of templates
 
