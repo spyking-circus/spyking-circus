@@ -82,13 +82,11 @@ else
     load(varargin{4},'-mat')
 end
 
-handles.Positions = double(Positions);
-
-handles.H.MaxdiffX = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
-handles.H.MaxdiffY = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
+handles.Positions   = double(Positions);
+handles.H.MaxdiffX  = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
+handles.H.MaxdiffY  = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
 handles.H.zoom_coef = max(handles.H.MaxdiffX,handles.H.MaxdiffY);
-handles.H.lines    = cell(3,1);
-handles.H.last_neu_i_click = 1;
+handles.H.lines     = cell(3,1);
 
 if length(varargin)<=4
     handles.RPVlim = 2;
@@ -197,7 +195,9 @@ if length(varargin)>=6
 
         b                  = load(varargin{4}, '-mat');
         handles.NelecTot   = b.nb_total;
-        handles.ElecPermut = b.Permutation;
+        for i=1:length(b.Permutation)
+            handles.ElecPermut(i) = b.Permutation{i};
+        end
     end
 end
 
