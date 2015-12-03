@@ -36,9 +36,9 @@ def generate_matlab_mapping(probe):
         positions += [p[channel] for channel in probe['channel_groups'][key]['channels']]
     idx       = numpy.argsort(nodes)
     positions = numpy.array(positions)[idx]
-    
+        
     t = tempfile.NamedTemporaryFile().name + '.mat'
-    hdf5storage.savemat(t, {'Positions' : positions/10.})
+    hdf5storage.savemat(t, {'Positions' : positions/10., 'Permutation' : idx, 'nb_total' : probe['total_nb_channels']})
     return t
 
 mapping    = generate_matlab_mapping(probe)

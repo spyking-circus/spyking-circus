@@ -88,6 +88,7 @@ handles.H.MaxdiffX = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
 handles.H.MaxdiffY = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
 handles.H.zoom_coef = max(handles.H.MaxdiffX,handles.H.MaxdiffY);
 handles.H.lines    = cell(3,1);
+handles.H.last_neu_i_click = 1;
 
 if length(varargin)<=4
     handles.RPVlim = 2;
@@ -194,9 +195,9 @@ if length(varargin)>=6
             handles.WhiteTemporal = permute(handles.WhiteTemporal,[ndim:-1:1]);
         end
 
-        b = load(varargin{4},'-mat');
-        handles.NelecTot   = handles.templates_size(1);
-        handles.ElecPermut = (0:handles.templates_size(1)-1);
+        b                  = load(varargin{4}, '-mat');
+        handles.NelecTot   = b.nb_total;
+        handles.ElecPermut = b.Permutation;
     end
 end
 
@@ -651,6 +652,8 @@ if CellNb < handles.templates_size(3)
     CellNb = CellNb + 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb));
+set(handles.SimilarNb, 'String', '1');
+set(handles.TwoView, 'Value', 0);
 TemplateNb_Callback(hObject, eventdata, handles);
     
 
@@ -666,6 +669,8 @@ if CellNb > 1
     CellNb = CellNb - 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb));
+set(handles.TwoView, 'Value', 0);
+set(handles.SimilarNb, 'String', '1');
 TemplateNb_Callback(hObject, eventdata, handles);
 
 
@@ -741,9 +746,8 @@ function SuggestSimilar_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 SimilarNb = str2num(get(handles.SimilarNb,'String'));
-
-CellNb = str2num(get(handles.TemplateNb,'String'));
-comp   = squeeze(handles.overlap(CellNb,:));
+CellNb    = str2num(get(handles.TemplateNb,'String'));
+comp      = squeeze(handles.overlap(CellNb,:));
 
 if get(handles.SameElec,'Value')~=0
     comp(find(handles.BestElec ~= handles.BestElec(CellNb))) = 0;
@@ -1052,16 +1056,22 @@ if ViewMode == 1
         
         if get(handles.NormalizeTempl,'Value')==0
             handles.H.last_neu_i_click = 1;
-            PlotWaveform(handles,handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
+            PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
             if ~isempty(handles.H.lines{2})
-                delete(handles.H.lines{2});
+                try
+                    delete(handles.H.lines{2});
+                catch error
+                end
             end
             if ~isempty(handles.H.lines{3})
-                delete(handles.H.lines{3});
+                try
+                    delete(handles.H.lines{3});
+                catch error
+                end
             end
         else
             Yscale = max(abs(handles.local_template(:)));
-            PlotWaveform(handles,handles.local_template, Yscale,'k');
+            PlotWaveform(handles, handles.local_template, Yscale,'k');
         end
     else
         handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
@@ -1071,7 +1081,10 @@ if ViewMode == 1
         handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
         PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
         if ~isempty(handles.H.lines{2})
-            delete(handles.H.lines{2});
+            try
+                delete(handles.H.lines{2});
+            catch error
+            end
         end
     end
     
@@ -1082,10 +1095,12 @@ else
         handles.H.last_neu_i_click = 2;
         PlotWaveform(handles, handles.local_template2, str2double(get(handles.Yscale, 'String')),'r');
         if ~isempty(handles.H.lines{3})
-            delete(handles.H.lines{3});
+            try
+                delete(handles.H.lines{3});
+            catch error
+            end
         end
     else
-        error('modify here');
         PlotWaveform(handles,handles.local_template/max(abs(handles.local_template(:))),1)
         hold(handles.TemplateWin,'on')
         PlotWaveform(handles,handles.local_template2/max(abs(handles.local_template2(:))),1,'r')
@@ -1283,7 +1298,10 @@ Xspacing = str2double(get(handles.Xscale, 'String'));
 Coor = handles.Positions;
 
 if ~isempty(handles.H.last_neu_i_click)
-    delete(handles.H.lines{handles.H.last_neu_i_click});
+    try
+        delete(handles.H.lines{handles.H.last_neu_i_click});
+    catch error
+    end
 end
 
 if handles.H.last_neu_i_click == 1 % it is the principal electrode
@@ -1310,9 +1328,7 @@ for i = 1:handles.templates_size(1) % idElec=1:size(handles.templates,1);
     Y(:,i) = waveform(i,:)/Yscale + (elecY);
 end
 
-Htemplate = handles.TemplateWin;
-X=X*str2double(get(handles.XYratio, 'String'));
-
+X = X*str2double(get(handles.XYratio, 'String'));
 handles.H.lines{handles.H.last_neu_i_click} = plot(handles.TemplateWin,X,Y,'color',wcolor,'LineWidth',Width);
 set_TemplateWin_XY_Lims(handles);
 set(handles.TemplateWin,'Xtick',[],'Ytick',[]);
@@ -1430,7 +1446,6 @@ for id = 1:nb_to_write:nb_templates
         to_write_1 = permute(to_write_1,[ndim:-1:1]);
         to_write_2 = permute(to_write_2,[ndim:-1:1]);
     end
-    size(to_write_1), size(to_write_2)
     h5write(output_file, '/templates', to_write_1, [id 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
     h5write(output_file, '/templates', to_write_2, [id+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
 end
