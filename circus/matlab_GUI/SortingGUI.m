@@ -27,7 +27,7 @@ function varargout = SortingGUI(varargin)
 
 % Edit the above text to modify the response to help SortingGUI
 
-% Last Modified by GUIDE v2.5 02-Dec-2015 18:48:36
+% Last Modified by GUIDE v2.5 03-Dec-2015 15:37:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -1016,8 +1016,8 @@ if ~isempty(CellNb2) && (CellNb2>0) && (CellNb2 <= length(handles.SpikeTimes))
     set(handles.Nspk2, 'String', int2str(length(handles.SpikeTimes{CellNb2})));
 end
 
-set(handles.ElecNb,'String',int2str(handles.BestElec(CellNb)))
-set(handles.ElecNb2,'String',int2str(handles.BestElec(CellNb2)))
+set(handles.ElecNb,'String',['elec:' int2str(handles.BestElec(CellNb))])
+set(handles.ElecNb2,'String',['elec:' int2str(handles.BestElec(CellNb2)) '  grade:' ])
 
 ViewMode = 1 + get(handles.TwoView,'Value');
 
@@ -1044,6 +1044,8 @@ GradeStr{5} = 'B';
 GradeStr{6} = 'A';
 
 set(handles.CellGrade,'String',GradeStr{handles.Tagged(CellNb)+1});
+
+set(handles.CellGrade2,'String',GradeStr{handles.Tagged(CellNb2)+1});
 
 ShowCorr_Callback('', '', handles);
 
@@ -2035,3 +2037,18 @@ function TwoView_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of TwoView
 
 PlotData(handles)
+
+
+% --- Executes on button press in switch_templates.
+function switch_templates_Callback(hObject, eventdata, handles)
+% hObject    handle to switch_templates (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+tempString1 = get(handles.TemplateNb,'String');
+set(handles.TemplateNb,'String', get(handles.Template2Nb,'String'));
+set(handles.Template2Nb,'String', tempString1);
+
+TemplateNb_Callback(hObject, eventdata, handles);
+Template2Nb_Callback(hObject, eventdata, handles);
+TwoView_Callback(hObject, eventdata, handles);
