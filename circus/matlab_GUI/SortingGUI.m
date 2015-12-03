@@ -595,7 +595,7 @@ function TemplateNb_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of TemplateNb as a double
 
 ClearCrossCorr(hObject, eventdata, handles);
-
+set(handles.SimilarNb, 'String', '1');
 guidata(hObject, handles);
 
 PlotData(handles)
@@ -652,7 +652,6 @@ if CellNb < handles.templates_size(3)
     CellNb = CellNb + 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb));
-set(handles.SimilarNb, 'String', '1');
 set(handles.TwoView, 'Value', 0);
 TemplateNb_Callback(hObject, eventdata, handles);
     
@@ -670,7 +669,6 @@ if CellNb > 1
 end
 set(handles.TemplateNb,'String',int2str(CellNb));
 set(handles.TwoView, 'Value', 0);
-set(handles.SimilarNb, 'String', '1');
 TemplateNb_Callback(hObject, eventdata, handles);
 
 
@@ -1057,17 +1055,11 @@ if ViewMode == 1
         if get(handles.NormalizeTempl,'Value')==0
             handles.H.last_neu_i_click = 1;
             PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
-            if ~isempty(handles.H.lines{2})
-                try
-                    delete(handles.H.lines{2});
-                catch error
-                end
+            if ishandle(handles.H.lines{2})
+                delete(handles.H.lines{2});
             end
-            if ~isempty(handles.H.lines{3})
-                try
-                    delete(handles.H.lines{3});
-                catch error
-                end
+            if ishandle(handles.H.lines{3})
+                delete(handles.H.lines{3});
             end
         else
             Yscale = max(abs(handles.local_template(:)));
@@ -1080,11 +1072,8 @@ if ViewMode == 1
         PlotWaveform(handles, handles.RawData, str2double(get(handles.Yscale, 'String')), 0.8*[1 1 1]);
         handles.H.last_neu_i_click = 1;  % ++++++++++ inversion
         PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'k');
-        if ~isempty(handles.H.lines{2})
-            try
-                delete(handles.H.lines{2});
-            catch error
-            end
+        if ishandle(handles.H.lines{2})
+            delete(handles.H.lines{2});
         end
     end
     
@@ -1094,11 +1083,8 @@ else
         PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'b');
         handles.H.last_neu_i_click = 2;
         PlotWaveform(handles, handles.local_template2, str2double(get(handles.Yscale, 'String')),'r');
-        if ~isempty(handles.H.lines{3})
-            try
-                delete(handles.H.lines{3});
-            catch error
-            end
+        if ishandle(handles.H.lines{3})
+            delete(handles.H.lines{3});
         end
     else
         PlotWaveform(handles,handles.local_template/max(abs(handles.local_template(:))),1)
@@ -1245,28 +1231,50 @@ if nargin == 1
     end
 end
 
-function [line_count_out, sep_line_l, MaxTimes] = plot_Raster( handles, CellNb, line_count_init, ColorRaster)
+
+function [fr_times, fr_repeat, line_count_out] = find_spikes_for_raster(rep_begin_time, rep_end_time, spk_time, line_count_init)
 
 LineCount = line_count_init;
-sep_line_l = LineCount;
-LineCount = LineCount + 1;
- 
-sep_line_l = [];
-MaxTimes = 0;
-for k=1:length(handles.StimBeg)
-    fr_times = [];
-    fr_repeat = [];
+fr_times = [];
+fr_repeat = [];
+for i=1:length(rep_begin_time)
+    times = spk_time(spk_time >= rep_begin_time(i) & spk_time < rep_end_time(i)) ...
+        - rep_begin_time(i);
+    fr_times = [fr_times ; times(:)];
+    fr_repeat = [fr_repeat ; LineCount*ones(length(times),1)];
+    LineCount = LineCount + 1;
+end
+line_count_out = LineCount;
 
-    for i=1:length(handles.StimBeg{k})
-        times = handles.SpikeTimes{CellNb}(handles.SpikeTimes{CellNb} >= handles.StimBeg{k}(i) & handles.SpikeTimes{CellNb} <= handles.StimEnd{k}(i)) ...
-            - handles.StimBeg{k}(i);
-        fr_times = [fr_times ; times(:)];
-        fr_repeat = [fr_repeat ; LineCount*ones(length(times),1)];
-        LineCount = LineCount + 1;
-        
-    end
+
+function [fr_times, fr_repeat, line_count_out] = find_spikes_for_raster2(rep_begin_time, rep_end_time, spk_time, line_count_init)
+
+spk_time  = spk_time(:);
+rep_times = [rep_begin_time(:)'; rep_end_time(:)'];
+rep_times = rep_times(:);
+
+[~, fr_repeat] = histc( spk_time, rep_times);
+keep = mod(fr_repeat,2) == 1;
+
+fr_times = spk_time(keep(:)) - rep_times(fr_repeat(keep(:)));
+
+fr_repeat = (fr_repeat(keep)-1)/2 + line_count_init;
+
+line_count_out = line_count_init + length(rep_begin_time);
+
+
+function [line_count_out, sep_line_l, MaxTimes] = plot_Raster( handles, CellNb, line_count_init, ColorRaster)
+
+LineCount  = line_count_init;
+sep_line_l = LineCount;
+LineCount  = LineCount + 1;
+sep_line_l = [];
+MaxTimes   = 0;
+for k=1:length(handles.StimBeg)
+    
+    [fr_times, fr_repeat, LineCount] = find_spikes_for_raster2(handles.StimBeg{k}, handles.StimEnd{k}, handles.SpikeTimes{CellNb}, LineCount);
+
     sep_line_l(end+1) = LineCount;
-    %         fr_times = fr_times / (handles.SamplingRate/1000);
     
     if ~isempty(fr_times)
         MaxTimes = max(MaxTimes,max(fr_times));
@@ -1297,11 +1305,8 @@ Xspacing = str2double(get(handles.Xscale, 'String'));
 
 Coor = handles.Positions;
 
-if ~isempty(handles.H.last_neu_i_click)
-    try
-        delete(handles.H.lines{handles.H.last_neu_i_click});
-    catch error
-    end
+if ishandle(handles.H.lines{handles.H.last_neu_i_click})
+    delete(handles.H.lines{handles.H.last_neu_i_click});
 end
 
 if handles.H.last_neu_i_click == 1 % it is the principal electrode
