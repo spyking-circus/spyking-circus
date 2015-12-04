@@ -258,7 +258,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
         shutil.move(file_out_suff + '.templates-new.hdf5', file_out_suff + '.templates.hdf5')
     
 
-def slice_clusters(comm, params, result, to_remove=None):
+def slice_clusters(comm, params, result):
     comm.Barrier()
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -486,6 +486,10 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     except Exception:
         HAVE_CUDA = False
 
+    norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+    for i in xrange(templates.shape[2]):
+        norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
+
     if comm.rank == 0:
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
@@ -565,9 +569,13 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         overlap_0 = overlap[:, :, N_t]
         pbar      = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_temp).start()
 
-        for k in xrange(nb_temp):
-            idx_1      = numpy.where(best_elec == best_elec[k])[0]
-            tmp_idx    = numpy.where(best_elec != best_elec[k])[0]
+        is_part_of_sum = []
+        sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1]
+        for k in sorted_temp:
+            idx_1      = set(numpy.where(best_elec == best_elec[k])[0])
+            tmp_idx    = set(numpy.where(best_elec != best_elec[k])[0])
+            idx_1      = numpy.array(list(idx_1.difference(mixtures + [k])))
+            tmp_idx    = numpy.array(list(tmp_idx.difference(mixtures + [k])))
             electrodes = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
             idx_2      = []
             overlap_k  = overlap[k]
@@ -593,8 +601,9 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                     is_a1  = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
                     is_a2  = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
-                        if k not in mixtures:
-                            mixtures += [k]
+                        if k not in mixtures and k not in is_part_of_sum:
+                            mixtures       += [k]
+                            is_part_of_sum += [i, j]
             pbar.update(k)
 
         pbar.finish()
