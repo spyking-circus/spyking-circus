@@ -68,8 +68,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
-                for i in xrange(N_e):
-                    local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
+                local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
             #print "Extracting the peaks..."
             idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
