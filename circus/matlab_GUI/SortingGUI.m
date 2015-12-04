@@ -1103,9 +1103,7 @@ else
         end
     else
         PlotWaveform(handles,handles.local_template/max(abs(handles.local_template(:))),1)
-        hold(handles.TemplateWin,'on')
         PlotWaveform(handles,handles.local_template2/max(abs(handles.local_template2(:))),1,'r')
-        hold(handles.TemplateWin,'off')
     end
     
     set(handles.SimilarityTemplates,'String',num2str(max(squeeze(handles.overlap(CellNb,CellNb2)))))
@@ -1358,7 +1356,7 @@ function is_changes = set_TemplateWin_XY_Lims(handles)
 
 xlim_old = get(handles.TemplateWin, 'XLim');
 ylim_old = get(handles.TemplateWin, 'YLim');
-x_surround = handles.H.elecMx + handles.H.zoom_coef*[-1, 1];
+x_surround = handles.H.elecMx*str2double(get(handles.XYratio, 'String')) + handles.H.zoom_coef*[-1, 1];
 
 x_limits =  (handles.H.fullX+ handles.H.marginX)*str2double(get(handles.XYratio, 'String'));
 x_surround = max(x_surround, x_limits(1));

@@ -51,10 +51,10 @@ spike_range    = 0         # Jitter allowed around each spike time to fit the te
 low_memory     = False     # For large number of templates only
 
 [merging]
-cc_gap         = 0.05      # Normalized difference between CrossCorr and shuffled CrossCorr
-cc_overlap     = 0.75      # Only templates with CC higher than cc_overlap may be merged
+cc_gap         = 0.25      # Normalized difference between CrossCorr and shuffled CrossCorr
+cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2         # Bin size for computing CC [in ms]
-cc_average     = 40        # [-cc_average, cc_average] is the window of interest [in ms]
+cc_average     = 10        # [-cc_average, cc_average] is the window of interest [in ms]
 make_plots     = True      # Generate sanity plots during automatic merging
 
 [extracting]
