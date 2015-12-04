@@ -832,20 +832,22 @@ a = a(id);
 b = [handles.Amplitudes2{CellNb}(:) ; handles.Amplitudes2{CellNb2}(:) ];
 b = b(id);
 
-handles.SpikeTimes{CellNb}      = t;
-handles.Amplitudes{CellNb}      = a;
-handles.Amplitudes2{CellNb}     = b;
-handles.SpikeTimes(CellNb2)     = [];
-handles.Amplitudes(CellNb2)     = [];
-handles.Amplitudes2(CellNb2)    = [];
-handles.to_keep                 = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb2));
-handles.AmpLim(CellNb2,:)       = [];
-handles.AmpTrend(CellNb2)       = [];
-handles.clusters(CellNb2)       = [];
-handles.BestElec(CellNb2)       = [];
-handles.Tagged(CellNb2)         = [];
-handles.overlap(CellNb2,:)      = [];
-handles.overlap(:,CellNb2)      = [];
+nb_templates    = length(handles.SpikeTimes);
+myslice         = [(1:CellNb2-1) (CellNb2+1:nb_templates)];
+handles.to_keep = handles.to_keep(myslice);
+handles.SpikeTimes{CellNb}   = t;
+handles.Amplitudes{CellNb}   = a;
+handles.Amplitudes2{CellNb}  = b;
+handles.SpikeTimes(CellNb2)  = [];
+handles.Amplitudes(CellNb2)  = [];
+handles.Amplitudes2(CellNb2) = [];
+handles.AmpLim(CellNb2,:)    = [];
+handles.AmpTrend(CellNb2)    = [];
+handles.clusters(CellNb2)    = [];
+handles.BestElec(CellNb2)    = [];
+handles.Tagged(CellNb2)      = [];
+handles.overlap(CellNb2,:)   = [];
+handles.overlap(:,CellNb2)   = [];
 
 if CellNb2<CellNb
     set(handles.TemplateNb,'String',int2str(CellNb-1));
@@ -1382,17 +1384,19 @@ function KillBtn_Callback(hObject, eventdata, handles)
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
 
-handles.to_keep                = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb));
-handles.SpikeTimes(CellNb)     = [];
-handles.Amplitudes(CellNb)     = [];
-handles.Amplitudes2(CellNb)    = [];
-handles.AmpLim(CellNb,:)       = [];
-handles.AmpTrend(CellNb)       = [];
-handles.clusters(CellNb)       = [];
-handles.BestElec(CellNb)       = [];
-handles.Tagged(CellNb)         = [];
-handles.overlap(CellNb,:)      = [];
-handles.overlap(:,CellNb)      = [];
+nb_templates                = length(handles.SpikeTimes);
+myslice                     = [(1:CellNb-1) (CellNb+1:nb_templates)];
+handles.to_keep             = handles.to_keep(myslice);
+handles.SpikeTimes(CellNb)  = [];
+handles.Amplitudes(CellNb)  = [];
+handles.Amplitudes2(CellNb) = [];
+handles.AmpLim(CellNb,:)    = [];
+handles.AmpTrend(CellNb)    = [];
+handles.clusters(CellNb)    = [];
+handles.BestElec(CellNb)    = [];
+handles.Tagged(CellNb)      = [];
+handles.overlap(CellNb,:)   = [];
+handles.overlap(:,CellNb)   = [];
 
 guidata(hObject, handles);
 
@@ -1953,7 +1957,9 @@ switch choice
 
         for i=1:size(CellNbs)
             CellNb          = CellNbs(i);
-            handles.to_keep = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb));
+            nb_templates    = length(handles.SpikeTimes);
+            myslice         = [(1:CellNb-1) (CellNb+1:nb_templates)];
+            handles.to_keep = handles.to_keep(myslice);
             handles.SpikeTimes(CellNb)  = [];
             handles.Amplitudes(CellNb)  = [];
             handles.Amplitudes2(CellNb) = [];
@@ -1992,7 +1998,9 @@ CellNbs = find(cellfun('length',handles.SpikeTimes)==0); % 1 corresponds to E
 
 for i=1:size(CellNbs)
     CellNb          = CellNbs(i);
-    handles.to_keep = handles.to_keep(handles.to_keep ~= handles.to_keep(CellNb));
+    nb_templates    = length(handles.SpikeTimes);
+    myslice         = [(1:CellNb-1) (CellNb+1:nb_templates)];
+    handles.to_keep = handles.to_keep(myslice);
     handles.SpikeTimes(CellNb)  = [];
     handles.Amplitudes(CellNb)  = [];
     handles.Amplitudes2(CellNb) = [];
