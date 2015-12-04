@@ -829,8 +829,12 @@ t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
 a = [handles.Amplitudes{CellNb}(:) ; handles.Amplitudes{CellNb2}(:) ];
 a = a(id);
 
+b = [handles.Amplitudes2{CellNb}(:) ; handles.Amplitudes2{CellNb2}(:) ];
+b = b(id);
+
 handles.SpikeTimes{CellNb}      = t;
 handles.Amplitudes{CellNb}      = a;
+handles.Amplitudes2{CellNb}     = b;
 handles.SpikeTimes(CellNb2)     = [];
 handles.Amplitudes(CellNb2)     = [];
 handles.Amplitudes2(CellNb2)    = [];
