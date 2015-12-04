@@ -144,7 +144,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 dd2           = d2[to_average]
                                 all_corrs    += [(numpy.mean(dd1) - numpy.mean(dd2))/(numpy.mean(dd1) + numpy.mean(dd2) + 1)]
                                 all_pairs    += [[temp_id1, temp_id2]]
-                                distance      = all_overlaps[-1]*all_corrs[-1]
+                                distance      = all_corrs[-1]
                                 if distance > cc_gap:
                                     if (not (temp_id1 in all_mergings)) and (not (temp_id2 in all_mergings)):
                                         all_mergings  = numpy.vstack((all_mergings, numpy.array([temp_id1, temp_id2])))
@@ -161,7 +161,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if len(all_mergings) > 0:
                 if make_plots:
-                    m = numpy.array(all_overlaps)*numpy.array(all_corrs)
+                    m = numpy.array(all_corrs)
                     pylab.figure()
                     pylab.subplot(121)
                     pylab.plot(m, '.')

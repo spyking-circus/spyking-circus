@@ -1093,7 +1093,7 @@ else
         PlotWaveform(handles, handles.local_template, str2double(get(handles.Yscale, 'String')),'b');
         handles.H.last_neu_i_click = 2;
         PlotWaveform(handles, handles.local_template2, str2double(get(handles.Yscale, 'String')),'r');
-        if get(handles.NormalizeTempl,'Value')==0
+        if get(handles.EnableWaveforms,'Value')==0
             if ishandle(handles.H.lines{3})
                 delete(handles.H.lines{3});
             end
