@@ -32,11 +32,11 @@ filtered_datfile = True
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     def _read_spikes(basename):
-      with open_h5(basename + '.spiketimes.mat', 'r') as f:
+      with open_h5(basename + '.result.hdf5', 'r') as f:
           spike_samples = {}
-          for name in f.children():
+          for name in f.read('/spiketimes').keys():
               cluster = int(name.split('_')[1])
-              samples = f.read(name)[:].ravel().astype(np.uint64)
+              samples = f.read('/spiketimes/' + name)[:].ravel().astype(np.uint64)
               spike_samples[cluster] = samples
           clusters = np.sort(list(spike_samples.keys()))
           # n_clusters = len(clusters)
@@ -51,8 +51,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     def _read_templates(basename, probe, n_total_channels, n_channels):
-        with open_h5(basename + '.templates.mat', 'r') as f:
-            templates = f.read('/templates')
+        with open_h5(basename + '.templates.hdf5', 'r') as f:
+            templates        = f.read('/templates')[:].T
             n_templates, n_samples, n_channels = templates.shape
             n_templates    //= 2
             templates        = templates[:n_templates, :, :]
@@ -88,9 +88,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spike_ids = np.arange(n_spikes, dtype=np.int32)
         spc = _spikes_per_cluster(spike_ids, spike_clusters)
 
-        with open_h5(basename + '.amplitudes.mat', 'r') as f:
+        with open_h5(basename + '.result.hdf5', 'r') as f:
             for i in range(n_templates):
-                amplitudes_i = f.read('/temp_' + str(i))[0,...]
+                amplitudes_i = f.read('/amplitudes/temp_' + str(i))[0,...]
                 amplitudes[spc[i]] = amplitudes_i
         return amplitudes
 
@@ -128,7 +128,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     def _read_filtered(filename, offset_value, n_channels=None, dtype=None):
         fn     = filename
-        offset = int(detect_header(filename, offset_value))
+        offset, nb_channels = detect_header(filename, offset_value)
+        offset = int(offset)
         info("Header: {} bytes.".format(offset))
         dtype = np.dtype(dtype)
         filename, data = _truncate(fn,

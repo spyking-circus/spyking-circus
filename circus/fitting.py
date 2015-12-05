@@ -434,5 +434,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.collect_data(comm.size, params, erase=True)
 
-    templates.file.close()
-    overlaps.file.close()
+    if low_memory:
+        templates.file.close()
+        overlaps.file.close()
