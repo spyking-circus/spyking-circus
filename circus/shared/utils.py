@@ -4,7 +4,7 @@ matplotlib.use('Agg')
 import os, sys, time
 os.environ['MDP_DISABLE_SKLEARN']='yes'
 import numpy, pylab, os, mpi4py, hdf5storage, mdp, progressbar, tempfile
-import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil
+import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 

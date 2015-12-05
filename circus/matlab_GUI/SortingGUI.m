@@ -75,6 +75,8 @@ hold(handles.TemplateWin,'on');
 handles.H = DATA_SortingGUI;
 set(handles.Yscale, 'String', '1');
 set(handles.Xscale, 'String', '1');
+set(handles.XYratio, 'String', '1');
+set(handles.CrossCorrMaxBin,'String','1');
 
 if length(varargin)<=3
     load('../mappings/mea_252.mapping.mat','-mat')
@@ -650,7 +652,7 @@ function TemplateNbPlus_Callback(hObject, eventdata, handles)
 
 
 CellNb = str2num(get(handles.TemplateNb,'String'));
-if CellNb < handles.templates_size(3)
+if CellNb < length(handles.to_keep)
     CellNb = CellNb + 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb));

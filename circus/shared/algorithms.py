@@ -279,7 +279,6 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
     def remove(result, distances, cc_merge):
         do_merge  = True
-        local_idx = numpy.zeros((0, 2), dtype=numpy.int32)
         to_merge  = numpy.zeros((0, 2), dtype=numpy.int32)
         g_idx     = range(len(distances))
         while do_merge:
@@ -319,7 +318,6 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
                 result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
                 distances                       = numpy.delete(distances, to_remove, axis=0)
                 distances                       = numpy.delete(distances, to_remove, axis=1)
-                local_idx                       = numpy.vstack((local_idx, numpy.array([to_keep, to_remove])))
                 to_merge                        = numpy.vstack((to_merge, numpy.array([g_idx[to_keep], g_idx[to_remove]])))
                 g_idx.pop(to_remove)
 

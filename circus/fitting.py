@@ -427,8 +427,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
+
     if comm.rank == 0:
         pbar.finish()
 
     if comm.rank == 0:
         io.collect_data(comm.size, params, erase=True)
+
+    templates.file.close()
+    overlaps.file.close()
