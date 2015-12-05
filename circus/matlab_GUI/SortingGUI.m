@@ -197,9 +197,7 @@ if length(varargin)>=6
 
         b                  = load(varargin{4}, '-mat');
         handles.NelecTot   = b.nb_total;
-        for i=1:length(b.Permutation)
-            handles.ElecPermut(i) = b.Permutation{i};
-        end
+        handles.ElecPermut = b.Permutation;
     end
 end
 
@@ -517,7 +515,7 @@ function FeatureYplus_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-CellNb = str2num(get(handles.TemplateNb,'String'));
+CellNb   = str2num(get(handles.TemplateNb,'String'));
 
 FeatureY = str2num(get(handles.FeatureY,'String'));
 if FeatureY < size(handles.clusters{CellNb},2)

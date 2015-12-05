@@ -151,12 +151,13 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
         return halo, NCLUST
 
     #print "Try to maximize the number of clusters..."
-    NCLUST = 0
-    for n in xrange(max_clusters):
-        halo_temp, NCLUST_temp = assign_halo(clust_idx[:n+1])
-        if NCLUST_temp >= NCLUST:
-            halo   = numpy.array(halo_temp).copy()
-            NCLUST = NCLUST_temp
+    #NCLUST = 0
+    #for n in xrange(max_clusters):
+    #    halo_temp, NCLUST_temp = assign_halo(clust_idx[:n+1])
+    #    if NCLUST_temp >= NCLUST:
+    #        halo   = numpy.array(halo_temp).copy()
+    #        NCLUST = NCLUST_temp
+    halo, NCLUST = assign_halo(clust_idx[:max_clusters+1])
 
     return halo, rho, delta, clust_idx
 
