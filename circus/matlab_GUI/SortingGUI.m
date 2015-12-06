@@ -73,9 +73,9 @@ handles.SamplingRate = varargin{1};
 hold(handles.TemplateWin,'on');
 
 handles.H = DATA_SortingGUI;
-set(handles.Yscale, 'String', '1');
-set(handles.Xscale, 'String', '1');
-set(handles.XYratio, 'String', '1');
+set(handles.Yscale, 'String', '2');
+set(handles.Xscale, 'String', '2');
+set(handles.XYratio, 'String', '2');
 set(handles.CrossCorrMaxBin,'String','1');
 
 if length(varargin)<=3
@@ -752,10 +752,8 @@ function SuggestSimilar_Callback(hObject, eventdata, handles)
 if IdTempl == str2double(get(handles.Template2Nb, 'String')) % if the second template is already the good one, plot the next one
     set(handles.SimilarNb, 'String', int2str(SimilarNb+1));
     SuggestSimilar_Callback(hObject, eventdata, handles);
-    
 else
-    plot_similar_template(hObject, handles, CellNb, IdTempl, SimilarNb, val);
-    
+    plot_similar_template(hObject, handles, CellNb, IdTempl, SimilarNb, val); 
 end
 
 
@@ -767,12 +765,10 @@ function SuggestSimilarPrev_Callback(hObject, eventdata, handles)
 if IdTempl == str2double(get(handles.Template2Nb, 'String')) % if the second template is already the good one, plot the previous one
     if SimilarNb>1
         set(handles.SimilarNb, 'String', int2str(SimilarNb-1));
+        SuggestSimilar_Callback(hObject, eventdata, handles);
     end
-    SuggestSimilar_Callback(hObject, eventdata, handles);
-    
 else
     plot_similar_template(hObject, handles, CellNb, IdTempl, SimilarNb, val);
-    
 end
 
 
