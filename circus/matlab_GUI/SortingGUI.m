@@ -747,12 +747,43 @@ function SuggestSimilar_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+[SimilarNb, CellNb, val, IdTempl] = find_similar_templates(handles);
+
+if IdTempl == str2double(get(handles.Template2Nb, 'String')) % if the second template is already the good one, plot the next one
+    set(handles.SimilarNb, 'String', int2str(SimilarNb+1));
+    SuggestSimilar_Callback(hObject, eventdata, handles);
+    
+else
+    plot_similar_template(hObject, handles, CellNb, IdTempl, SimilarNb, val);
+    
+end
+
+
+% --- Executes on button press in SuggestSimilarPrev.
+function SuggestSimilarPrev_Callback(hObject, eventdata, handles)
+
+[SimilarNb, CellNb, val, IdTempl] = find_similar_templates(handles);
+
+if IdTempl == str2double(get(handles.Template2Nb, 'String')) % if the second template is already the good one, plot the previous one
+    if SimilarNb>1
+        set(handles.SimilarNb, 'String', int2str(SimilarNb-1));
+    end
+    SuggestSimilar_Callback(hObject, eventdata, handles);
+    
+else
+    plot_similar_template(hObject, handles, CellNb, IdTempl, SimilarNb, val);
+    
+end
+
+
+function [SimilarNb, CellNb, val, IdTempl] = find_similar_templates(handles)
+
 SimilarNb = str2num(get(handles.SimilarNb,'String'));
 CellNb    = str2num(get(handles.TemplateNb,'String'));
 comp      = squeeze(handles.overlap(CellNb,:));
 
 if get(handles.SameElec,'Value')~=0
-    comp(find(handles.BestElec ~= handles.BestElec(CellNb))) = 0;
+    comp(handles.BestElec ~= handles.BestElec(CellNb)) = 0;
 end
 
 comp     = max(comp,[],1);
@@ -763,30 +794,24 @@ if get(handles.SameElec,'Value')~=0 & val(SimilarNb+1)==0
     disp('No more templates to compare in the same electrode')
 end
 
-if IdTempl == str2double(get(handles.Template2Nb, 'String')) % if the second template is already the good one, plot the next one
-    set(handles.SimilarNb, 'String', int2str(SimilarNb+1));
-    SuggestSimilar_Callback(hObject, eventdata, handles);
-    
-else
+function plot_similar_template(hObject,handles, CellNb, IdTempl, SimilarNb, val)
 
-    set(handles.Template2Nb,'String',int2str(IdTempl))
-    set(handles.TwoView,'Value',1)
+set(handles.Template2Nb,'String',int2str(IdTempl))
+set(handles.TwoView,'Value',1)
 
-    if get(handles.SameElec,'Value')~=0 && val(SimilarNb+1)~=0 %We can compare the cluster
-        mf1 = median(handles.clusters{CellNb});
-        mf2 = median(handles.clusters{IdTempl});
+if get(handles.SameElec,'Value')~=0 && val(SimilarNb+1)~=0 %We can compare the cluster
+    mf1 = median(handles.clusters{CellNb});
+    mf2 = median(handles.clusters{IdTempl});
 
-        [m,idf] = sort(abs(mf1-mf2),'descend');
+    [m,idf] = sort(abs(mf1-mf2),'descend');
         
-        set(handles.FeatureX,'String',int2str(idf(1)));
-        set(handles.FeatureY,'String',int2str(idf(2)));
+    set(handles.FeatureX,'String',int2str(idf(1)));
+    set(handles.FeatureY,'String',int2str(idf(2)));
 
-    end
-
-    guidata(hObject, handles);
-
-    PlotData(handles)
 end
+
+guidata(hObject, handles);
+PlotData(handles)
 
 
 function SimilarNb_Callback(hObject, eventdata, handles)
