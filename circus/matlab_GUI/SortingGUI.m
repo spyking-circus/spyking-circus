@@ -96,6 +96,8 @@ else
     handles.RPVlim = varargin{5};
 end
 
+
+
 %% Template file: could also contain AmpLim and AmpTrend
 if exist([handles.filename '.templates' handles.suffix])
     template           = load([handles.filename '.templates' handles.suffix],'-mat');
@@ -145,6 +147,7 @@ else
 end
 
 handles.to_keep         = 1:handles.templates_size(3);
+handles.all_actions     = cell(0);
 handles.local_template  = [];
 handles.local_template2 = [];
 
@@ -598,6 +601,7 @@ function TemplateNb_Callback(hObject, eventdata, handles)
 
 ClearCrossCorr(hObject, eventdata, handles);
 set(handles.SimilarNb, 'String', '1');
+set(handles.TwoView, 'Value', 0);
 guidata(hObject, handles);
 
 PlotData(handles)
@@ -654,7 +658,6 @@ if CellNb < length(handles.to_keep)
     CellNb = CellNb + 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb));
-set(handles.TwoView, 'Value', 0);
 TemplateNb_Callback(hObject, eventdata, handles);
     
 
@@ -670,7 +673,6 @@ if CellNb > 1
     CellNb = CellNb - 1;
 end
 set(handles.TemplateNb,'String',int2str(CellNb));
-set(handles.TwoView, 'Value', 0);
 TemplateNb_Callback(hObject, eventdata, handles);
 
 
@@ -848,6 +850,9 @@ handles.BestElec(CellNb2)    = [];
 handles.Tagged(CellNb2)      = [];
 handles.overlap(CellNb2,:)   = [];
 handles.overlap(:,CellNb2)   = [];
+
+nb_actions = length(handles.all_actions);
+handles.all_actions{nb_actions + 1} = struct('action', 'merge', 'source', CellNb, 'target', CellNb2);
 
 if CellNb2<CellNb
     set(handles.TemplateNb,'String',int2str(CellNb-1));
@@ -1398,9 +1403,16 @@ handles.Tagged(CellNb)      = [];
 handles.overlap(CellNb,:)   = [];
 handles.overlap(:,CellNb)   = [];
 
+nb_actions = length(handles.all_actions);
+handles.all_actions{nb_actions + 1} = struct('action', 'remove', 'source', CellNb);
+
 guidata(hObject, handles);
 
-PlotData(handles)
+if CellNb == nb_templates
+    TemplateNbMinus_Callback(hObject, eventdata, handles);
+else
+    PlotData(handles)
+end
 
 
 function VersionNb_Callback(hObject, eventdata, handles)
@@ -1441,11 +1453,14 @@ if iscell(suffix)
 end
 overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(2));
 
-output_file   = [handles.filename '.templates' suffix '.hdf5'];
-nb_templates  = size(handles.to_keep, 2);
-tmp_templates = [handles.filename '.templates-tmp' suffix '.hdf5'];
+output_file_temp = [handles.filename '.templates' suffix '.hdf5'];
+nb_templates     = size(handles.to_keep, 2);
+tmp_templates    = [handles.filename '.templates-tmp' suffix '.hdf5'];
 
-delete(tmp_templates);
+if exist(tmp_templates,'file')
+    delete(tmp_templates);
+end
+
 h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
 
 nb_to_write = 100;
@@ -1480,19 +1495,19 @@ while tmp_count <= nb_templates
     tmp_count = tmp_count + local_write;
 end
 
-delete(output_file);
-movefile(tmp_templates, output_file)
+delete(output_file_temp);
+movefile(tmp_templates, output_file_temp)
 
-h5create(output_file, '/limits', size(transpose(handles.AmpLim)));
-h5write(output_file, '/limits', transpose(handles.AmpLim));
-h5create(output_file, '/maxoverlap', size(transpose(overlap)));
-h5write(output_file, '/maxoverlap', transpose(overlap));
-h5create(output_file, '/tagged', size(transpose(handles.Tagged)));
-h5write(output_file, '/tagged', transpose(handles.Tagged));
+h5create(output_file_temp, '/limits', size(transpose(handles.AmpLim)));
+h5write(output_file_temp, '/limits', transpose(handles.AmpLim));
+h5create(output_file_temp, '/maxoverlap', size(transpose(overlap)));
+h5write(output_file_temp, '/maxoverlap', transpose(overlap));
+h5create(output_file_temp, '/tagged', size(transpose(handles.Tagged)));
+h5write(output_file_temp, '/tagged', transpose(handles.Tagged));
 for id=1:nb_templates
     key = ['/amptrend/temp_' int2str(id - 1)];
-    h5create(output_file, key, size(transpose(handles.AmpTrend{id})));
-    h5write(output_file, key, transpose(handles.AmpTrend{id}));
+    h5create(output_file_temp, key, size(transpose(handles.AmpTrend{id})));
+    h5write(output_file_temp, key, transpose(handles.AmpTrend{id}));
 end
 
 output_file = [handles.filename '.result' suffix '.hdf5'];
@@ -1529,6 +1544,13 @@ for id=1:nb_templates
     h5write(output_file, key, to_write);
 end
 
+%%
+if handles.has_hdf5 && strcmp(output_file_temp, tmpfile)
+    handles.to_keep = 1:nb_templates;
+    handles.templates_size(3) = nb_templates;
+end
+guidata(hObject, handles);
+
 
 % --- Executes on button press in SplitBtn.
 function SplitBtn_Callback(hObject, eventdata, handles)
@@ -1552,6 +1574,9 @@ handles.BestElec    = handles.BestElec(myslice);
 handles.overlap     = handles.overlap(myslice,:);
 handles.overlap     = handles.overlap(:,myslice);
 handles.to_keep     = handles.to_keep(myslice);
+
+nb_actions = length(handles.all_actions);
+handles.all_actions{nb_actions + 1} = struct('action', 'split', 'source', CellNb);
 
 %Remove the amplitudes/spiketimes in or out of the amp lims
 
