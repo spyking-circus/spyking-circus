@@ -148,6 +148,10 @@ end
 
 handles.to_keep         = 1:handles.templates_size(3);
 handles.all_actions     = cell(0);
+handles.all_cells       = cell(handles.templates_size(3), 1);
+for i=1:handles.templates_size(3)
+    handles.all_cells{i} = [i];
+end
 handles.local_template  = [];
 handles.local_template2 = [];
 
@@ -1231,6 +1235,8 @@ if nargin == 1
         ISI = ISI(ISI<=200);
         hist(handles.ISIwin,ISI,200);
     end
+    XL = get(handles.ISIwin, 'XLim');
+    set(handles.ISIwin, 'XLim', [0 XL(2)]);
     % x = (0:2:26);
     set(handles.RPV,'String',['RPV: ' num2str(RatioRPV*100) '%, ' int2str(NbRPV) '/' int2str(lenISI) ]);
 
@@ -1465,6 +1471,7 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 set(handles.SaveBtn, 'String', 'In progress');
+guidata(hObject, handles);
 
 %% Template file: could also contain AmpLim and AmpTrend
 

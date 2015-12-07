@@ -498,8 +498,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             first_component  = numpy.median(sub_data, axis=0)
 
             tmp_templates    = numpy.dot(first_component.T, basis_rec)
-            tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
-            temporal_shift   = template_shift - tmpidx[1][0]
+            #tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
+            tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+            temporal_shift   = template_shift - tmpidx[1]
             if temporal_shift > 0:
                 templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
             elif temporal_shift < 0:
@@ -514,7 +515,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amplitudes      /= numpy.sum(first_flat**2)
 
             variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-            physical_limit   = noise_thr*(-thresholds[tmpidx[0][0]])/tmp_templates.min()
+            physical_limit   = noise_thr*(-thresholds[tmpidx[0]])/tmp_templates.min()
             amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
             amps_lims[count_templates] = [amp_min, amp_max]
