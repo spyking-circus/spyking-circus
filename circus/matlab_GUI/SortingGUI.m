@@ -1464,7 +1464,7 @@ function SaveBtn_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-
+set(handles.SaveBtn, 'String', 'In progress');
 
 %% Template file: could also contain AmpLim and AmpTrend
 
@@ -1571,6 +1571,8 @@ if handles.has_hdf5 && strcmp(output_file_temp, tmpfile)
     handles.templates_size(3) = nb_templates;
 end
 guidata(hObject, handles);
+
+set(handles.SaveBtn, 'String', 'Save');
 
 
 % --- Executes on button press in SplitBtn.
