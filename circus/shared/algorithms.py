@@ -365,7 +365,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     for count, idelay in enumerate(local_delays):
         size  = N_e*idelay
         for tc1  in range(0, N_tm, batch):
-            tmp_1 = templates[:, :idelay, tc1:tc1+batch]
+            tmp_1 = templates[:, :idelay, tc1:tc1+batch]/norm_templates[tc1:tc1+batch]
             lb_1  = tmp_1.shape[2]
             if HAVE_CUDA:
                 tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))

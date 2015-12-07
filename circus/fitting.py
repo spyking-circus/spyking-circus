@@ -436,4 +436,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if low_memory:
         templates.file.close()
-        overlaps.file.close()
+        c_overlap.file.close()
