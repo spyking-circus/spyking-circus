@@ -376,11 +376,9 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
                 size  = N_e*idelay
                 lb_2  = tmp_2.shape[2]
                 if HAVE_CUDA:
-                    tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))
                     tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
                     data  = cmt.dot(tmp_1.T, tmp_2).asarray()
                 else:
-                    tmp_1 = tmp_1.reshape(size, lb_1)
                     tmp_2 = tmp_2.reshape(size, lb_2)
                     data  = numpy.dot(tmp_1.T, tmp_2)
 
@@ -523,11 +521,9 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                 tmp_2 = templates[:, -idelay:, tc2:tc2+batch]
                 lb_2  = tmp_2.shape[2]
                 if HAVE_CUDA:
-                    tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))
                     tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
                     data  = cmt.dot(tmp_1.T, tmp_2).asarray()
                 else:
-                    tmp_1 = tmp_1.reshape(size, lb_1)
                     tmp_2 = tmp_2.reshape(size, lb_2)
                     data  = numpy.dot(tmp_1.T, tmp_2)
 
