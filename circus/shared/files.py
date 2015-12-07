@@ -583,14 +583,14 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     for count, idelay in enumerate(local_delays):
         size  = N_e*idelay
         for tc1  in range(0, N_tm, batch):
-            tmp_1 = templates[:, :idelay, tc1:tc1+batch]
+            tmp_1 = templates[:, :idelay, tc1:tc1+batch]/norm_templates[tc1:tc1+batch]
             lb_1  = tmp_1.shape[2]
             if HAVE_CUDA:
                 tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))
             else:
                 tmp_1 = tmp_1.reshape(size, lb_1)
             for tc2 in range(0, N_tm, batch):
-                tmp_2 = templates[:, -idelay:, tc2:tc2+batch]
+                tmp_2 = templates[:, -idelay:, tc2:tc2+batch]/norm_templates[tc2:tc2+batch]
                 lb_2  = tmp_2.shape[2]
                 if HAVE_CUDA:
                     tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
