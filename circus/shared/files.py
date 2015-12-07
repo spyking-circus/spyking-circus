@@ -577,33 +577,37 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     else:
         myfile  = h5py.File(filename_mpi, 'w')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
-        
-    for count, idelay in enumerate(local_delays):
-        tmp_1 = templates[:, :idelay, :]/norm_templates
-        tmp_2 = templates[:, -idelay:, :]/norm_templates
-        size  = N_e*idelay
-        if HAVE_CUDA:
-            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, N_tm))
-            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, N_tm))
-            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
-        else:
-            tmp_1 = tmp_1.reshape(size, N_tm)
-            tmp_2 = tmp_2.reshape(size, N_tm)
-            data  = numpy.dot(tmp_1.T, tmp_2)
+    
+    batch = 100
 
-        if parallel_hdf5:
-            overlap[:, :, idelay-1]           = data
-            overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
-        else:
-            overlap[:, :, count]              = data
+    for count, idelay in enumerate(local_delays):
+        for tc  in range(0, N_tm, batch):
+            tmp_1 = templates[:, :idelay, tc:tc+batch]/norm_templates[tc:tc+batch]
+            tmp_2 = templates[:, -idelay:, tc:tc+batch]/norm_templates[tc:tc+batch]
+            size  = N_e*idelay
+            loc_batch = tmp_1.shape[2]
+            if HAVE_CUDA:
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, loc_batch))
+                tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, loc_batch))
+                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+            else:
+                tmp_1 = tmp_1.reshape(size, loc_batch)
+                tmp_2 = tmp_2.reshape(size, loc_batch)
+                data  = numpy.dot(tmp_1.T, tmp_2)
+
+            if parallel_hdf5:
+                overlap[tc:tc+loc_batch, :, idelay-1]           = data
+                overlap[tc:tc+loc_batch, :, 2*N_t - idelay - 1] = numpy.transpose(data)
+            else:
+                overlap[tc:tc+loc_batch, :, count]              = data
 
         if comm.rank == 0:
             pbar.update(idelay)
 
+    myfile.close()
     if comm.rank == 0:
         pbar.finish()
 
-    myfile.close()
     templates.file.close()
     comm.Barrier()
 
@@ -628,7 +632,10 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
         myfile     = h5py.File(filename, 'r+')
         myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+')
         overlap    = myfile.get('overlap')
-        maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
+        if 'maxoverlap' in myfile2.keys():
+            maxoverlap = myfile2.get('maxoverlap')
+        else:
+            maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
         for i in xrange(N_tm):
             maxoverlap[i] = numpy.max(overlap[i], 1)
         myfile.close()  
