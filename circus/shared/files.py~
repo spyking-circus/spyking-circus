@@ -244,7 +244,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     if nodes is not None:
         if not numpy.all(nodes == numpy.arange(N_total)):
             local_chunk = local_chunk[:, nodes]
-    return numpy.ascontiguousarray(local_chunk), local_shape
+    return local_chunk, local_shape
 
 def analyze_data(params, chunk_size=None):
 
@@ -304,31 +304,20 @@ def load_data(params, data, extension=''):
     if data == 'thresholds':
         spike_thresh = params.getfloat('data', 'spike_thresh')
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5')
-            thresholds = myfile.get('thresholds')[:]
-            myfile.close()
-            return spike_thresh * thresholds 
+            return spike_thresh * h5py.File(file_out + '.basis.hdf5').get('thresholds')[:]
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile  = h5py.File(file_out + '.basis.hdf5')
-            spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
-            myfile.close()
-            return spatial
+            return h5py.File(file_out + '.basis.hdf5').get('spatial')[:]
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'temporal_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile   = h5py.File(file_out + '.basis.hdf5')
-            temporal = myfile.get('temporal')[:]
-            myfile.close() 
-            return temporal
+            return h5py.File(file_out + '.basis.hdf5').get('temporal')[:]
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'basis':
-        myfile     = h5py.File(file_out + '.basis.hdf5')
-        basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
-        basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
-        myfile.close()
+        basis_proj = h5py.File(file_out + '.basis.hdf5').get('proj')[:]
+        basis_rec  = h5py.File(file_out + '.basis.hdf5').get('rec')[:]
         return basis_proj, basis_rec
     elif data == 'templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
@@ -363,10 +352,7 @@ def load_data(params, data, extension=''):
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'electrodes':
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile     = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension)
-            electrodes = myfile.get('electrodes')[:]
-            myfile.close()
-            return electrodes
+            return h5py.File(file_out_suff + '.clusters%s.hdf5' %extension).get('electrodes')[:]
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'results':
@@ -380,13 +366,10 @@ def load_data(params, data, extension=''):
         except Exception:
             raise Exception('No overlaps found! Check suffix or run the fitting?')
     elif data == 'limits':
-        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension)
-            limits = myfile.get('limits')[:]
-            myfile.close()
-            return limits
-        else:
-            raise Exception('No templates found! Check suffix?')
+        try:
+            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension).get('limits')[:]
+        except Exception:
+            return None
     elif data == 'injected_spikes':
         try:
             spikes = hdf5storage.loadmat(data_file_noext + '/injected/spiketimes.mat')
@@ -577,39 +560,33 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     else:
         myfile  = h5py.File(filename_mpi, 'w')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
-    
-    batch = 500
-
+        
     for count, idelay in enumerate(local_delays):
+        tmp_1 = templates[:, :idelay, :]/norm_templates
+        tmp_2 = templates[:, -idelay:, :]/norm_templates
         size  = N_e*idelay
-        for tc1  in range(0, N_tm, batch):
-            for tc2 in range(0, N_tm, batch):
-                tmp_1 = templates[:, :idelay, tc1:tc1+batch]
-                tmp_2 = templates[:, -idelay:, tc2:tc2+batch]
-                lb_1  = tmp_1.shape[2]
-                lb_2  = tmp_2.shape[2]
-                if HAVE_CUDA:
-                    tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))
-                    tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
-                    data  = cmt.dot(tmp_1.T, tmp_2).asarray()
-                else:
-                    tmp_1 = tmp_1.reshape(size, lb_1)
-                    tmp_2 = tmp_2.reshape(size, lb_2)
-                    data  = numpy.dot(tmp_1.T, tmp_2)
+        if HAVE_CUDA:
+            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, N_tm))
+            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, N_tm))
+            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+        else:
+            tmp_1 = tmp_1.reshape(size, N_tm)
+            tmp_2 = tmp_2.reshape(size, N_tm)
+            data  = numpy.dot(tmp_1.T, tmp_2)
 
-                if parallel_hdf5:
-                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, idelay-1]           = data
-                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, 2*N_t - idelay - 1] = numpy.transpose(data)
-                else:
-                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, count]              = data
+        if parallel_hdf5:
+            overlap[:, :, idelay-1]           = data
+            overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
+        else:
+            overlap[:, :, count]              = data
 
         if comm.rank == 0:
             pbar.update(idelay)
 
-    myfile.close()
     if comm.rank == 0:
         pbar.finish()
 
+    myfile.close()
     templates.file.close()
     comm.Barrier()
 
@@ -634,10 +611,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
         myfile     = h5py.File(filename, 'r+')
         myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+')
         overlap    = myfile.get('overlap')
-        if 'maxoverlap' in myfile2.keys():
-            maxoverlap = myfile2.get('maxoverlap')
-        else:
-            maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
+        maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
         for i in xrange(N_tm):
             maxoverlap[i] = numpy.max(overlap[i], 1)
         myfile.close()  
