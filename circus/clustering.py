@@ -144,26 +144,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-                #start = time.time()
                 local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
-                #print comm.rank, "Reading", time.time() - start
                 if do_spatial_whitening:
-                    #start = time.time() 
                     local_chunk = numpy.dot(local_chunk, spatial_whitening)
-                    #print comm.rank, "Spatial", time.time() - start
                 if do_temporal_whitening:
-                    #start = time.time() 
                     local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
-                    #print comm.rank, "Temporal", time.time() - start
                 #print "Extracting the peaks..."
                 all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                 all_minimas   = numpy.zeros(0, dtype=numpy.int32)
-                #start = time.time() 
                 for i in xrange(N_e):
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                     all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
-                #print comm.rank, "Detection", time.time() - start
                 #print "Removing the useless borders..."
                 local_borders   = (template_shift, local_shape - template_shift)
                 idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])

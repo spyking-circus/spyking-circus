@@ -578,7 +578,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
 
         is_part_of_sum = []
         sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1]
-        for k in sorted_temp:
+        for count, k in enumerate(sorted_temp):
             idx_1      = set(numpy.where(best_elec == best_elec[k])[0])
             tmp_idx    = set(numpy.where(best_elec != best_elec[k])[0])
             idx_1      = numpy.array(list(idx_1.difference(mixtures + [k])))
@@ -611,7 +611,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                         if k not in mixtures and k not in is_part_of_sum:
                             mixtures       += [k]
                             is_part_of_sum += [i, j]
-            pbar.update(k)
+            pbar.update(count)
 
         pbar.finish()
         templates.file.close()
