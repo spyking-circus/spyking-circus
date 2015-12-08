@@ -76,7 +76,7 @@ handles.H = DATA_SortingGUI;
 set(handles.Yscale, 'String', '2');
 set(handles.Xscale, 'String', '2');
 set(handles.XYratio, 'String', '2');
-set(handles.CrossCorrMaxBin,'String','1');
+set(handles.CrossCorrMaxBin,'String','2');
 
 if length(varargin)<=3
     load('../mappings/mea_252.mapping.mat','-mat')
@@ -1706,7 +1706,7 @@ CellNb2 = str2num(get(handles.Template2Nb,'String'));
 
 ViewMode = 1 + get(handles.TwoView,'Value');
 BinSize  = str2double(get(handles.CrossCorrMaxBin,'String'));
-MaxDelay = 100;% in BinSize
+MaxDelay = 50; % in BinSize
 
 %% PLOT CROSS-CORR
 % if 0%INSTALL GCC AND COMPILE crosscorrspike.cpp
@@ -1750,7 +1750,6 @@ end
 
 bar(handles.CrossCorrWin,(-MaxDelay:MaxDelay)*BinSize,cc);
 set(handles.CrossCorrWin,'xlim',[-MaxDelay,MaxDelay]*BinSize)
-
 
 function ClearCrossCorr(hObject, eventdata, handles)
 
@@ -2010,7 +2009,7 @@ switch choice
     case 'Yes'
         CellNbs = find(handles.Tagged==1); % 1 corresponds to E
 
-        for i=1:size(CellNbs)
+        for i=1:length(CellNbs)
             CellNb          = CellNbs(i);
             nb_templates    = length(handles.SpikeTimes);
             myslice         = [(1:CellNb-1) (CellNb+1:nb_templates)];
@@ -2051,7 +2050,7 @@ function KillAllEmpty_Callback(hObject, eventdata, handles)
 
 CellNbs = find(cellfun('length',handles.SpikeTimes)==0); % 1 corresponds to E
 
-for i=1:size(CellNbs)
+for i=1:length(CellNbs)
     CellNb          = CellNbs(i);
     nb_templates    = length(handles.SpikeTimes);
     myslice         = [(1:CellNb-1) (CellNb+1:nb_templates)];
