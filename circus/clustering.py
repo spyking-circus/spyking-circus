@@ -617,7 +617,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Removing mixtures..."
 
-    merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+    if remove_mixture:
+        merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+    else:
+        merged2 = [0, 0]
 
     if comm.rank == 0:
 

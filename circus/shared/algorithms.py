@@ -74,8 +74,9 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
         if compute_rho:
             exp_dist = numpy.exp(-(dist/dc)**2)
-            for i in xrange(N):   
-               rho[i] = numpy.sum(exp_dist[didx(i, numpy.arange(i+1, N))]) + numpy.sum(exp_dist[didx(numpy.arange(0, i-1), i)])  
+            for i in xrange(N):
+                indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
+                rho[i]  = numpy.sum(exp_dist[indices])  
     else:
         if weight is None:
             weight   = numpy.ones(data.shape[1])/data.shape[1]
