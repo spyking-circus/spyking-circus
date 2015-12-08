@@ -1,6 +1,6 @@
 package:
   name: spyking-circus
-  version: "0.1"
+  version: "0.2"
 
 requirements:
   # Note: hdf5storage and termcolor are not available in the standard anaconda
