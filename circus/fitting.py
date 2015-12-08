@@ -29,19 +29,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     spike_range    = int(params.getfloat('fitting', 'spike_range')*sampling_rate*1e-3)
+    low_memory     = params.getboolean('fitting', 'low_memory')
     #################################################################
 
     if use_gpu:
         ## Need to properly handle multi GPU per MPI nodes?
         if nb_gpu > nb_cpu:
-            gpu_id = numpy.mod(comm.rank, nb_cpu)
+            gpu_id = int(comm.rank/nb_cpu)
         else:
             gpu_id = 0
         cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
 
-    templates      = io.load_data(params, 'templates')
+    templates  = io.load_data(params, 'templates')
+    if not low_memory:
+        templates  = templates[:]
     N_e, N_t, N_tm = templates.shape
     template_shift = int((N_t-1)/2)
     temp_2_shift   = 2*template_shift
@@ -57,9 +60,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         amp_limits       = io.load_data(params, 'limits')
 
     #print "Normalizing the templates..."
-    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0), 0))
-    templates     /= norm_templates
-    info_string    = ''
+    norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+    for i in xrange(templates.shape[2]):
+        norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
+
+    info_string   = ''
 
     if comm.rank == 0:
         if use_gpu:
@@ -75,10 +80,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     thresholds    = io.load_data(params, 'thresholds')
     
     if comm.rank == 0 and not os.path.exists(file_out_suff + '.overlap.hdf5'):
-        c_overlap = io.get_overlaps(params)
+        c_overlap = io.get_overlaps(comm, params)
 
     comm.Barrier()
-    c_overlap     = io.get_overlaps(params)
+    c_overlap     = io.get_overlaps(comm, params)
+    if not low_memory:
+        c_overlap = c_overlap[:]
 
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string
@@ -119,6 +126,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' %comm.rank, 'wb')
     templates_file  = open(file_out_suff + '.templates-%d.data' %comm.rank, 'wb')
 
+    comm.Barrier()
+
     for gcount, gidx in enumerate(xrange(comm.rank, nb_chunks, comm.size)):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
         ## We need to deal with the borders by taking chunks of size [0, chunck_size+template_shift]
@@ -135,23 +144,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
-            for i in xrange(N_e):
-                local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
+            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
         #print "Extracting the peaks..."
         if not spikedetekt:
-            local_peaktimes = []
+            local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
             for i in xrange(N_e):
-                local_peaktimes += algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True).tolist()
+                peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
             idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
             local_peaktimes = spiketimes[idx] - gidx*chunk_size
 
-        spikes = numpy.unique(local_peaktimes)
-        for spike in spikes:
-            local_peaktimes += range(spike-spike_range, spike+spike_range)
+        if spike_range > 0:
+            spikes = numpy.unique(local_peaktimes)
+            for spike in spikes:
+                local_peaktimes = numpy.concatenate((local_peaktimes, numpy.arange(spike-spike_range, spike+spike_range)))
 
-        local_peaktimes = numpy.unique(numpy.array(local_peaktimes, dtype=numpy.int32))
+        local_peaktimes = numpy.unique(local_peaktimes)
 
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)
@@ -176,12 +186,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
                         cloc.select_columns(cu_slice, sub_mat)
                         sub_mat_transpose = sub_mat.transpose()
-                        sub_templates     = cmt.CUDAMatrix(templates[:, itime, :])
+                        sub_templates     = cmt.CUDAMatrix(templates[:, itime, :]/norm_templates)
                         b.add_dot(sub_mat_transpose, sub_templates)
                         del sub_templates, sub_mat_transpose
                     else:
                         sub_mat = local_chunk[local_peaktimes+itime-template_shift, :]
-                        b      += numpy.dot(sub_mat, templates[:, itime, :])
+                        b      += numpy.dot(sub_mat, templates[:, itime, :]/norm_templates)
             except Exception:
                 if comm.rank == 0:
                     lines = ["There may be a GPU memory error: -set gpu_only to False",
@@ -321,7 +331,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     x, y         = numpy.where(numpy.abs(tmp) <= temp_2_shift)
                     itmp         = tmp[x, y].astype(numpy.int32) + temp_2_shift
 
-
                     for count, keep, t in zip(range(len(to_keep)), to_keep, ts):
 
                         if full_gpu:
@@ -348,9 +357,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             myslice      = x == count
                             idx_b        = y[myslice]
-                            b[:, idx_b] -= best_amp[keep]*c_overlap[inds_temp[keep], :,  itmp[myslice]].T
+                            tmp1         = c_overlap[inds_temp[keep], :,  itmp[myslice]]
+                            tmp2         = c_overlap[inds_temp_2[count], :,  itmp[myslice]]
+                            if not low_memory:
+                                tmp1     = tmp1.T
+                                tmp2     = tmp2.T
+                            elif itmp[myslice].shape[0] == 1:
+                                tmp1     = tmp1.reshape(tmp1.shape[0], 1)
+                                tmp2     = tmp2.reshape(tmp2.shape[0], 1)
+
+                            b[:, idx_b] -= best_amp[keep]*tmp1
                             best_amp2    = b[inds_temp_2[count], inds_t[keep]]/n_scalar
-                            b[:, idx_b] -= best_amp2*c_overlap[inds_temp_2[count], :,  itmp[myslice]].T
+                            b[:, idx_b] -= best_amp2*tmp2
 
                         if good[count]:
                             normed_2 = norm_templates[inds_temp_2[count]]
@@ -409,8 +427,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
+
     if comm.rank == 0:
         pbar.finish()
 
     if comm.rank == 0:
         io.collect_data(comm.size, params, erase=True)
+
+    if low_memory:
+        templates.file.close()
+        c_overlap.file.close()

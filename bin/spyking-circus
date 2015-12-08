@@ -18,6 +18,9 @@ from circus.shared.files import print_error
 
 def main(argv):
 
+    import h5py
+    parallel_hdf5 = h5py.get_config().mpi
+
     user_path  = pjoin(os.path.expanduser('~'), 'spyking-circus')
     tasks_list = None
 
@@ -37,7 +40,7 @@ def main(argv):
     except Exception:
         HAVE_CUDA = False
 
-    all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking']
+    all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging']
     steps     = ['filtering', 'whitening', 'clustering', 'fitting']
     hostfile  = pjoin(user_path, 'circus.hosts')
 
@@ -47,11 +50,11 @@ def main(argv):
         config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
     header = '''
-##############################################################
-#####          Welcome to the SpyKING CIRCUS             #####
-#####                                                    #####
-#####          Written by P.Yger and O.Marre             #####
-##############################################################
+###################################################################
+#####              Welcome to the SpyKING CIRCUS              #####
+#####                                                         #####
+#####              Written by P.Yger and O.Marre              #####
+###################################################################
 '''
 
     message = '''   
@@ -59,13 +62,14 @@ Syntax is spyking-circus datafile [options]
 
 Options are:
 -h or --help     : display the help
--m or --method   : by default, all 4 steps of the algorithm are
+-m or --method   : by default, all 5 steps of the algorithm are
                    performed, but a subset x,y can be done, 
                    using the syntax -m x,y. Steps are:
                      - filtering
                      - whitening
                      - clustering
                      - fitting
+                     - (extra) merging [merging obvious pairs]
                      - (extra) gathering [to collect results]
                      - (extra) extracting [templates from spike times]
                      - (extra) converting [to export to phy format]
@@ -83,11 +87,21 @@ Options are:
         print colored(header, 'green')
 
     if len(argv) < 2:
+        print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
+        print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
+        print ""
+        print colored("###################################################################", 'green')
+        print ""
         print message
         sys.exit()
     else:
         filename   = argv[1]
         if filename in ['-h', '--help']:
+            print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
+            print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
+            print ""
+            print colored("##################################################################", 'green')
+            print ""
             print message
             sys.exit()
         filename   = os.path.abspath(filename)
@@ -148,9 +162,10 @@ Options are:
         print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
         if HAVE_CUDA:
             print colored("Number of GPU :", 'green'), colored(nb_gpu, 'cyan')
+        print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
         print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
         print ""
-        print colored("##############################################################", 'green')
+        print colored("##################################################################", 'green')
         print ""
 
         # Print info
@@ -165,7 +180,8 @@ Options are:
                     ('extracting', 'mpirun'),
                     ('gathering', 'python'),
                     ('converting', 'python'),
-                    ('benchmarking', 'mpirun')]
+                    ('benchmarking', 'mpirun'),
+                    ('merging', 'mpirun')]
 
         if HAVE_CUDA and nb_gpu > 0:
             use_gpu = 'True'

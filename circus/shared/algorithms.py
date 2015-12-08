@@ -3,6 +3,7 @@ matplotlib.use('Agg')
 import os
 os.environ['MDP_DISABLE_SKLEARN']='yes'
 import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
+from circus.shared.files import load_data, write_datasets
 
 def distancematrix(data, weight=None):
     
@@ -149,13 +150,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
                     NCLUST   -= 1
         return halo, NCLUST
 
-    #print "Try to maximize the number of clusters..."
-    NCLUST = 0
-    for n in xrange(max_clusters):
-        halo_temp, NCLUST_temp = assign_halo(clust_idx[:n+1])
-        if NCLUST_temp >= NCLUST:
-            halo   = numpy.array(halo_temp).copy()
-            NCLUST = NCLUST_temp
+    halo, NCLUST = assign_halo(clust_idx[:max_clusters+1])
 
     return halo, rho, delta, clust_idx
 
@@ -204,111 +199,436 @@ def merging(groups, sim_same_elec, data):
             merged[1] += 1
     return groups, merged
 
-def merging_cc(templates, amplitudes, result, cc_merge):
+def slice_templates(comm, params, to_remove=None, to_merge=None):
 
-    def perform_merging(templates, amplitudes, result, cc_merge, distances):
-        dmax      = distances.max()
-        nb_temp   = templates.shape[2]/2
-        idx       = numpy.where(distances == dmax)
-        to_merge  = [idx[0][0], idx[1][0]]
+    import h5py, shutil
+    parallel_hdf5  = h5py.get_config().mpi
+    file_out_suff  = params.get('data', 'file_out_suff')
 
-        if dmax >= cc_merge:
+    if parallel_hdf5 or (comm.rank == 0):
+        myfile         = h5py.File(file_out_suff + '.templates.hdf5', 'r')
+        old_templates  = myfile.get('templates')
+        old_limits     = myfile.get('limits')[:]
+        N_e, N_t, N_tm = old_templates.shape
+        if to_merge is not None:
+            to_remove = []
+            for count in xrange(len(to_merge)):
+                remove     = to_merge[count][1]
+                to_remove += [remove]
 
-            elec_ic1  = result['electrodes'][to_merge[0]]
-            elec_ic2  = result['electrodes'][to_merge[1]]
-            nic1      = to_merge[0] - numpy.where(result['electrodes'] == elec_ic1)[0][0]
-            nic2      = to_merge[1] - numpy.where(result['electrodes'] == elec_ic2)[0][0]
+        all_templates = set(numpy.arange(N_tm/2))
+        to_keep       = numpy.array(list(all_templates.difference(to_remove)))
 
-            mask1     = result['clusters_' + str(elec_ic1)] > -1
-            mask2     = result['clusters_' + str(elec_ic2)] > -1
-            tmp1      = numpy.unique(result['clusters_' + str(elec_ic1)][mask1])
-            tmp2      = numpy.unique(result['clusters_' + str(elec_ic2)][mask2])
-
-            elements1 = numpy.where(result['clusters_' + str(elec_ic1)] == tmp1[nic1])[0]
-            elements2 = numpy.where(result['clusters_' + str(elec_ic2)] == tmp2[nic2])[0]
-
-            if len(elements1) > len(elements2):
-                to_remove = to_merge[1]
-                to_keep   = to_merge[0]
-                elec      = elec_ic2
-                elements  = elements2
+    if parallel_hdf5:
+        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', driver='mpio', comm=comm)
+        positions = numpy.arange(comm.rank, len(to_keep), comm.size)
+    elif comm.rank == 0:
+        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w')
+        positions = numpy.arange(len(to_keep))
+    
+    if parallel_hdf5 or (comm.rank == 0):
+        local_keep = to_keep[positions]
+        templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*len(to_keep)), dtype=numpy.float32, chunks=True)
+        limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
+        for count, keep in zip(positions, local_keep):
+            templates[:, :, count]                = old_templates[:, :, keep]
+            templates[:, :, count + len(to_keep)] = old_templates[:, :, keep + N_tm/2]
+            if to_merge is None:
+                new_limits = old_limits[keep]
             else:
-                to_remove = to_merge[0]
-                to_keep   = to_merge[1]
-                elec      = elec_ic1
-                elements  = elements1
+                subset     = numpy.where(to_merge[:, 0] == keep)[0]
+                if len(subset) > 0:
+                    idx        = numpy.unique(to_merge[subset].flatten())
+                    new_limits = [numpy.min(old_limits[idx][:, 0]), numpy.max(old_limits[idx][:, 1])]
+                else:
+                    new_limits = old_limits[keep]
+            limits[count]  = new_limits
+        hfile.close()
+        myfile.close()
+    
+    comm.Barrier()
+    if comm.rank == 0:
+        os.remove(file_out_suff + '.templates.hdf5')
+        shutil.move(file_out_suff + '.templates-new.hdf5', file_out_suff + '.templates.hdf5')
+    
 
-            result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
-            result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
-            result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
-            result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
-            result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
-            templates                       = numpy.delete(templates, [to_remove, to_remove + nb_temp], axis=2)
-            amplitudes[to_keep][0]          = min(amplitudes[to_keep][0], amplitudes[to_remove][0])
-            amplitudes[to_keep][1]          = max(amplitudes[to_keep][1], amplitudes[to_remove][1])            
-            amplitudes                      = numpy.delete(amplitudes, to_remove, axis=0)
-            distances                       = numpy.delete(distances, to_remove, axis=0)
-            distances                       = numpy.delete(distances, to_remove, axis=1)
-            return True, templates, amplitudes, result, distances
-        
-        return False, templates, amplitudes, result, distances
+def slice_clusters(comm, params, result):
+    comm.Barrier()
+    import h5py, shutil
+    file_out_suff  = params.get('data', 'file_out_suff')
+    N_e            = params.getint('data', 'N_e')
 
-    has_been_merged = True
-    nb_temp         = templates.shape[2]/2
-    merged          = [nb_temp, 0]
+    if comm.rank == 0:
+        cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w')
+        to_write = ['data_', 'clusters_', 'debug_', 'times_'] 
+        for ielec in xrange(N_e):
+            write_datasets(cfile, to_write, result, ielec)
+       
+        write_datasets(cfile, ['electrodes'], result)
+        cfile.close()
+        os.remove(file_out_suff + '.clusters.hdf5')
+        shutil.move(file_out_suff + '.clusters-new.hdf5', file_out_suff + '.clusters.hdf5')
 
+def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
+
+    def remove(result, distances, cc_merge):
+        do_merge  = True
+        to_merge  = numpy.zeros((0, 2), dtype=numpy.int32)
+        g_idx     = range(len(distances))
+        while do_merge:
+            dmax      = distances.max()
+            idx       = numpy.where(distances == dmax)
+            one_merge = [idx[0][0], idx[1][0]]
+            do_merge  = dmax >= cc_merge
+
+            if do_merge:
+
+                elec_ic1  = result['electrodes'][one_merge[0]]
+                elec_ic2  = result['electrodes'][one_merge[1]]
+                nic1      = one_merge[0] - numpy.where(result['electrodes'] == elec_ic1)[0][0]
+                nic2      = one_merge[1] - numpy.where(result['electrodes'] == elec_ic2)[0][0]
+                mask1     = result['clusters_' + str(elec_ic1)] > -1
+                mask2     = result['clusters_' + str(elec_ic2)] > -1
+                tmp1      = numpy.unique(result['clusters_' + str(elec_ic1)][mask1])
+                tmp2      = numpy.unique(result['clusters_' + str(elec_ic2)][mask2])
+                elements1 = numpy.where(result['clusters_' + str(elec_ic1)] == tmp1[nic1])[0]
+                elements2 = numpy.where(result['clusters_' + str(elec_ic2)] == tmp2[nic2])[0]
+
+                if len(elements1) > len(elements2):
+                    to_remove = one_merge[1]
+                    to_keep   = one_merge[0]
+                    elec      = elec_ic2
+                    elements  = elements2
+                else:
+                    to_remove = one_merge[0]
+                    to_keep   = one_merge[1]
+                    elec      = elec_ic1
+                    elements  = elements1
+
+                result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
+                result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
+                result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
+                result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
+                result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
+                distances                       = numpy.delete(distances, to_remove, axis=0)
+                distances                       = numpy.delete(distances, to_remove, axis=1)
+                to_merge                        = numpy.vstack((to_merge, numpy.array([g_idx[to_keep], g_idx[to_remove]])))
+                g_idx.pop(to_remove)
+
+        return to_merge, result
+            
+    templates      = load_data(params, 'templates')
+    tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+    filename       = os.path.join(tmp_path, 'merging_cc.hdf5')
+    filename_mpi   = os.path.join(tmp_path, 'merging_cc-%d.hdf5' %comm.rank)
+    N_e, N_t, N_tm = templates.shape
+    nb_temp        = N_tm/2
+    to_merge       = []
+    
     try:
-        import cudamat as cmt    
         HAVE_CUDA = True
-        cmt.cuda_set_device(0)
+        if parallel_hdf5:
+            if nb_gpu > nb_cpu:
+                gpu_id = int(comm.rank/nb_cpu)
+            else:
+                gpu_id = 0
+        else:
+            gpu_id = 0
+        cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
     except Exception:
         HAVE_CUDA = False
 
-    norm_templates = numpy.sqrt(numpy.mean(numpy.mean(templates**2,0),0))
-    norm_templates = templates/norm_templates
-    import tempfile, h5py
-    tmp_file = tempfile.NamedTemporaryFile()
-    file = h5py.File(tmp_file.name + '.hdf5', 'w')
-    file.create_dataset('overlap', shape=(2*nb_temp, 2*nb_temp, 2*templates.shape[1] - 1), dtype=numpy.float32, chunks=True)
-    N_t            = templates.shape[1]
-    pbar           = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
+    norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+    for i in xrange(templates.shape[2]):
+        norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
-    for idelay in xrange(1, N_t+1):
-        tmp_1 = norm_templates[:, :idelay, :]
-        tmp_2 = norm_templates[:, -idelay:, :]
-        size  = templates.shape[0]*idelay
-        if HAVE_CUDA:
-            tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2*nb_temp))
-            tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, 2*nb_temp))
-            data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+    if comm.rank == 0:
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
+
+    import h5py
+
+    all_delays   = numpy.arange(1, N_t+1)
+    local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
+
+    if parallel_hdf5:
+        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        comm.Barrier()
+    else:
+        myfile  = h5py.File(filename_mpi, 'w')
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
+        
+    batch = 500
+
+    for count, idelay in enumerate(local_delays):
+        size  = N_e*idelay
+        for tc1  in range(0, N_tm, batch):
+            tmp_1 = templates[:, :idelay, tc1:tc1+batch]/norm_templates[tc1:tc1+batch]
+            lb_1  = tmp_1.shape[2]
+            if HAVE_CUDA:
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))
+            else:
+                tmp_1 = tmp_1.reshape(size, lb_1)
+            for tc2 in range(0, N_tm, batch):
+                tmp_2 = templates[:, -idelay:, tc2:tc2+batch]/norm_templates[tc2:tc2+batch]
+                lb_2  = tmp_2.shape[2]
+                if HAVE_CUDA:
+                    tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
+                    data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+                else:
+                    tmp_2 = tmp_2.reshape(size, lb_2)
+                    data  = numpy.dot(tmp_1.T, tmp_2)
+
+                if parallel_hdf5:
+                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, idelay-1]           = data
+                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, 2*N_t - idelay - 1] = numpy.transpose(data)
+                else:
+                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, count]              = data
+
+        if comm.rank == 0:
+            pbar.update(idelay)
+
+    myfile.close()
+    if comm.rank == 0:
+        pbar.finish()
+
+    comm.Barrier()
+    templates.file.close()
+
+    if not parallel_hdf5 and (comm.rank == 0):
+        myfile  = h5py.File(filename, 'w')
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        for i in xrange(comm.size):
+            filename_mpi = os.path.join(tmp_path, 'merging_cc-%d.hdf5' %i)
+            datafile     = h5py.File(filename_mpi, 'r')
+            data         = datafile.get('overlap')
+            local_delays = all_delays[numpy.arange(i, len(all_delays), comm.size)] 
+            for count, idelay in enumerate(local_delays):
+                overlap[:, :, idelay-1]           = data[:, :, count]
+                overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data[:, :, count])
+            datafile.close()
+            os.remove(filename_mpi)
+        myfile.close()
+
+    comm.Barrier()
+    result   = []
+
+    if comm.rank == 0:
+        pair      = []
+        result    = load_data(params, 'clusters')
+        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        myfile    = h5py.File(filename, 'r')
+        overlap   = myfile.get('overlap')
+        for i in xrange(nb_temp):
+            distances[i, i+1:] = numpy.max(overlap[i, i+1:nb_temp], 1)
+            distances[i+1:, i] = distances[i, i+1:]
+
+        distances /= (N_e*N_t)
+
+        to_merge, result = remove(result, distances, cc_merge)
+
+    to_merge = numpy.array(to_merge)
+    to_merge = comm.bcast(to_merge, root=0)
+    if len(to_merge) > 0:
+        slice_templates(comm, params, to_merge=to_merge)
+        slice_clusters(comm, params, result)
+
+    if comm.rank == 0:
+        os.remove(filename)
+
+    return [nb_temp, len(to_merge)]
+
+
+def delete_mixtures(comm, params, parallel_hdf5=False):
+        
+    def remove(result, to_remove):
+        for count in xrange(len(to_remove)):
+            target   = to_remove[count]
+            elec     = result['electrodes'][target]
+            nic      = target - numpy.where(result['electrodes'] == elec)[0][0]
+            mask     = result['clusters_' + str(elec)] > -1
+            tmp      = numpy.unique(result['clusters_' + str(elec)][mask])
+            elements = numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0]
+                    
+            result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
+            result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
+            result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
+            result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
+            result['electrodes']            = numpy.delete(result['electrodes'], target)
+            to_remove[to_remove > target]  -= 1
+        return result
+
+    templates      = load_data(params, 'templates')
+    tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+    filename       = os.path.join(tmp_path, 'mixtures.hdf5')
+    filename_mpi   = os.path.join(tmp_path, 'mixtures-%d.hdf5' %comm.rank)
+    N_e, N_t, N_tm = templates.shape
+    nb_temp        = N_tm/2
+    merged         = [nb_temp, 0]
+    mixtures       = []
+    to_remove      = []
+
+    try:
+        HAVE_CUDA = True
+        if parallel_hdf5:
+            if nb_gpu > nb_cpu:
+                gpu_id = int(comm.rank/nb_cpu)
+            else:
+                gpu_id = 0
         else:
-            tmp_1 = tmp_1.reshape(size, 2*nb_temp)
-            tmp_2 = tmp_2.reshape(size, 2*nb_temp)
-            data  = numpy.dot(tmp_1.T, tmp_2)
+            gpu_id = 0
+        cmt.cuda_set_device(gpu_id)
+        cmt.init()
+        cmt.cuda_sync_threads()
+    except Exception:
+        HAVE_CUDA = False
 
-        file.get('overlap')[:, :, idelay-1]           = data
-        file.get('overlap')[:, :, 2*N_t - idelay - 1] = numpy.transpose(data)
-        pbar.update(idelay)
-    pbar.finish()
-    file.close()
-    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-    file = h5py.File(tmp_file.name + '.hdf5')
-    for i in xrange(nb_temp):
-        distances[i, i+1:] = numpy.max(file.get('overlap')[i, i+1:nb_temp], 1)
-        distances[i+1:, i] = distances[i, i+1:]
-    file.close()
-    tmp_file.close()
-    os.remove(tmp_file.name + '.hdf5')
-    distances /= (templates.shape[0]*N_t)
+    norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+    for i in xrange(templates.shape[2]):
+        norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
-    while has_been_merged:
-        has_been_merged, templates, amplitudes, result, distances = perform_merging(templates, amplitudes, result, cc_merge, distances)
-        if has_been_merged:
-            merged[1] += 1
-    return templates, amplitudes, result, merged
+    if comm.rank == 0:
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
+    import h5py
+
+    all_delays   = numpy.arange(1, N_t+1)
+    local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
+
+    if parallel_hdf5:
+        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        comm.Barrier()
+    else:
+        myfile  = h5py.File(filename_mpi, 'w')
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
+        
+    batch = 500
+
+    for count, idelay in enumerate(local_delays):
+        size  = N_e*idelay
+        for tc1  in range(0, N_tm, batch):
+            tmp_1 = templates[:, :idelay, tc1:tc1+batch]
+            lb_1  = tmp_1.shape[2]
+            if HAVE_CUDA:
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))
+            else:
+                tmp_1 = tmp_1.reshape(size, lb_1)
+            for tc2 in range(0, N_tm, batch):
+                tmp_2 = templates[:, -idelay:, tc2:tc2+batch]
+                lb_2  = tmp_2.shape[2]
+                if HAVE_CUDA:
+                    tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
+                    data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+                else:
+                    tmp_2 = tmp_2.reshape(size, lb_2)
+                    data  = numpy.dot(tmp_1.T, tmp_2)
+
+                if parallel_hdf5:
+                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, idelay-1]           = data
+                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, 2*N_t - idelay - 1] = numpy.transpose(data)
+                else:
+                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, count]              = data
+
+        if comm.rank == 0:
+            pbar.update(idelay)
+
+    myfile.close()
+    if comm.rank == 0:
+        pbar.finish()
+
+    comm.Barrier()
+
+    if not parallel_hdf5 and (comm.rank == 0):
+        myfile  = h5py.File(filename, 'w')
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+        for i in xrange(comm.size):
+            filename_mpi = os.path.join(tmp_path, 'mixtures-%d.hdf5' %i)
+            datafile     = h5py.File(filename_mpi, 'r')
+            data         = datafile.get('overlap')
+            local_delays = all_delays[numpy.arange(i, len(all_delays), comm.size)] 
+            for count, idelay in enumerate(local_delays):
+                overlap[:, :, idelay-1]           = data[:, :, count]
+                overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data[:, :, count])
+            datafile.close()
+            os.remove(filename_mpi)
+        myfile.close()
+
+    comm.Barrier()
+
+    result = []
+    if comm.rank > 0:
+        templates.file.close()
+    else:
+        result    = load_data(params, 'clusters')
+        best_elec = load_data(params, 'electrodes')
+        limits    = load_data(params, 'limits')
+        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        myfile    = h5py.File(filename, 'r')
+        overlap   = myfile.get('overlap')
+        for i in xrange(nb_temp):
+            distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
+            distances[i+1:, i] = distances[i, i+1:]
+
+        import scipy.linalg
+        overlap_0 = overlap[:, :, N_t]
+        pbar      = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_temp).start()
+
+        is_part_of_sum = []
+        sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1]
+        for count, k in enumerate(sorted_temp):
+            idx_1      = set(numpy.where(best_elec == best_elec[k])[0])
+            tmp_idx    = set(numpy.where(best_elec != best_elec[k])[0])
+            idx_1      = numpy.array(list(idx_1.difference(mixtures + [k])))
+            tmp_idx    = numpy.array(list(tmp_idx.difference(mixtures + [k])))
+            electrodes = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
+            idx_2      = []
+            overlap_k  = overlap[k]
+            for idx in tmp_idx:
+                if best_elec[idx] in electrodes:
+                    idx_2 += [idx]
+            for i in idx_1:
+                overlap_i = overlap[i]
+                t1_vs_t1  = overlap_0[i, i]
+                t_vs_t1   = overlap_k[i, distances[k, i]]
+                for j in idx_2:
+                    t2_vs_t2 = overlap_0[j, j]
+                    t1_vs_t2 = overlap_i[j, distances[k, i] - distances[k, j]]
+                    t_vs_t2  = overlap_k[j, distances[k, j]]
+                    M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
+                    V        = numpy.hstack((t_vs_t1, t_vs_t2))
+                    try:
+                        [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                    except Exception:
+                        [a1, a2] = [0, 0]
+                    a1_lim = limits[i]
+                    a2_lim = limits[j]
+                    is_a1  = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
+                    is_a2  = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
+                    if is_a1 and is_a2:
+                        if k not in mixtures and k not in is_part_of_sum:
+                            mixtures       += [k]
+                            is_part_of_sum += [i, j]
+            pbar.update(count)
+
+        pbar.finish()
+        templates.file.close()
+        to_remove = numpy.array(mixtures)
+        myfile.close()
+
+    to_remove = comm.bcast(to_remove, root=0)
+    if len(to_remove) > 0:
+        slice_templates(comm, params, to_remove)
+        if comm.rank == 0:
+            result = remove(result, to_remove)
+        slice_clusters(comm, params, result)
+
+    if comm.rank == 0:
+        os.remove(filename)
+
+    return [nb_temp, len(mixtures)]
 
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False, show=False, ax=None):
 
@@ -338,18 +658,10 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
     ax : a matplotlib.axes.Axes instance, optional (default = None).
     """
 
-    x = numpy.atleast_1d(x).astype('float64')
-    if x.size < 3:
-        return numpy.array([], dtype=numpy.int32)
     if valley:
         x = -x
     # find indices of all peaks
     dx = x[1:] - x[:-1]
-    # handle NaN's
-    indnan = numpy.where(numpy.isnan(x))[0]
-    if indnan.size:
-        x[indnan] = numpy.inf
-        dx[numpy.where(numpy.isnan(dx))[0]] = numpy.inf
     ine, ire, ife = numpy.array([[], [], []], dtype=numpy.int32)
     if not edge:
         ine = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) > 0))[0]
@@ -359,10 +671,6 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
         if edge.lower() in ['falling', 'both']:
             ife = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) >= 0))[0]
     ind = numpy.unique(numpy.hstack((ine, ire, ife)))
-    # handle NaN's
-    if ind.size and indnan.size:
-        # NaN's and values close to NaN's cannot be peaks
-        ind = ind[numpy.in1d(ind, numpy.unique(numpy.hstack((indnan, indnan-1, indnan+1))), invert=True)]
     # first and last values of x cannot be peaks
     if ind.size and ind[0] == 0:
         ind = ind[1:]
@@ -389,8 +697,6 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
         ind = numpy.sort(ind[~idel])
 
     if show:
-        if indnan.size:
-            x[indnan] = numpy.nan
         if valley:
             x = -x
         pylab.plot(ind, x[ind], 'ro')

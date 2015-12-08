@@ -16,6 +16,7 @@ cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
 filter         = True      # If True, then a low-pass filtering is performed
 
 [whitening]
+chunk_size     = 60        # Size of the data chunks [in s]
 safety_time    = 0.5       # Temporal zone around which templates are isolated [in ms]
 temporal       = True      # Perform temporal whitening
 spatial        = True      # Perform spatial whitening
@@ -28,24 +29,33 @@ safety_space   = True      # If True, we exclude spikes in the vicinity of a sel
 safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
 max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8       # Fraction of max_elts that should be obtained per electrode [0-1]
-nclus_min      = 0.002     # Min number of elements in a cluster (given in percentage)
+nclus_min      = 0.005     # Min number of elements in a cluster (given in percentage)
 max_clusters   = 10        # Maximal number of clusters for every electrodes
 nb_repeats     = 3         # Number of passes used for the clustering
 smart_search   = 3         # Parameter for the smart search. The higher, the more strict
 sim_same_elec  = 3         # Distance within clusters under which they are re-merged
 cc_merge       = 0.95      # If CC between two templates is higher, they are merged
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
-make_plots     = True      # Generate sanity plots of the clustering
+make_plots     = False     # Generate sanity plots of the clustering
 test_clusters  = False     # Should be False. Only to plot injection of synthetic clusters
+remove_mixture = True      # At the end of the clustering, we remove mixtures of templates
 
 [fitting]
-chunk          = 0.5       # Size of chunks used during fitting [in second]
+chunk          = 1         # Size of chunks used during fitting [in second]
 gpu_only       = True      # Use GPU for computation of b's AND fitting
 amp_limits     = (0.3, 30) # Amplitudes for the templates during spike detection
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
 refractory     = 0         # Refractory period, in ms [0 is None]
 max_chunk      = inf       # Fit only up to max_chunk   
-spike_range    = 0         # Jitter allowed around each spike time to fit the templates (in ms) 
+spike_range    = 0         # Jitter allowed around each spike time to fit the templates (in ms)
+low_memory     = False     # For large number of templates only
+
+[merging]
+cc_gap         = 0.25      # Normalized difference between CrossCorr and shuffled CrossCorr
+cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
+cc_bin         = 2         # Bin size for computing CC [in ms]
+cc_average     = 10        # [-cc_average, cc_average] is the window of interest [in ms]
+make_plots     = True      # Generate sanity plots during automatic merging
 
 [extracting]
 safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
