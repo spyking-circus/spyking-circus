@@ -482,63 +482,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pbar = get_progressbar(local_nb_clusters)
 
     for ielec in range(comm.rank, N_e, comm.size):
-        io.write_datasets(cfile, to_write, result, ielec)
-
-    comm.Barrier()
-
-    if comm.rank == 0:
-        rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
-        callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'w')
-        for i in xrange(comm.size):
-            for j in range(i, N_e, comm.size):
-                io.write_datasets(callfile, to_write, rs[i], j)
-            rs[i].close()
-            os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
-        callfile.close()
-
-    comm.Barrier()
-
-    callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
-
-    for ielec in range(comm.rank, N_e, comm.size):
-
-        n_neighb  = edges[nodes[ielec]]
-        n_temp    = 0
-        times     = numpy.zeros(0, dtype=numpy.int32)
-        labels    = numpy.zeros(0, dtype=numpy.int32)
-        waveforms = numpy.zeros((0, basis_proj.shape[1]), dtype=numpy.float32)
-        for i in n_neighb:
-            loc_lab   = callfile.get('clusters_%d' %i)[:]
-            mask      = numpy.where(loc_lab > -1)[0]
-            nb_points = len(mask)
-            if nb_points > 0:
-                labels    = numpy.concatenate((labels, loc_lab[mask] + n_temp))
-                times     = numpy.concatenate((times, callfile.get('times_%d' %i)[:][mask]))
-                indices   = inv_nodes[edges[nodes[i]]]
-                src       = numpy.where(indices == nodes[ielec])[0]
-                src_n     = len(edges[nodes[i]])
-                data      = callfile.get('data_%d' %i)[:][mask, :]
-                mydata    = data.reshape(nb_points, basis_proj.shape[1], src_n)
-                mydata    = mydata[:, :, src].reshape(nb_points, basis_proj.shape[1])
-                waveforms = numpy.vstack((waveforms, mydata))
-                n_temp   += len(numpy.unique(loc_lab[mask]))
-        
-        # Now we can do the optimization
-        print "Launching optimization", n_temp
-        all_labels      = numpy.repeat(labels, basis_proj.shape[1])
-        local_waveforms = numpy.ones((n_temp, basis_proj.shape[1]), dtype = numpy.float32).flatten()
-        def myfunction(data):
-            return numpy.sum((waveforms.flatten() - data[all_labels])**2)
-
-        print "optimization",  myfunction(local_waveforms)
-        local_waveforms = scipy.optimize.minimize(myfunction, local_waveforms)['x']
-        print "optimization",  myfunction(local_waveforms)      
-
-
-
-
-
-    for ielec in range(comm.rank, N_e, comm.size):
         #print "Dealing with cluster", ielec
         n_data   = len(result['data_' + str(ielec)])
         n_neighb = len(edges[nodes[ielec]])
@@ -668,11 +611,92 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Merging similar templates..."
     
-    merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
+    #merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
     
     comm.Barrier()
     if comm.rank == 0:
         print "Removing mixtures..."
+
+    callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
+    tmpfile    = h5py.File(file_out_suff + '.templates.hdf5', 'r')
+    templates  = tmpfile.get('templates')
+    electrodes = callfile.get('electrodes')[:]
+
+    for ielec in range(comm.rank, N_e, comm.size):
+
+        n_neighb  = edges[nodes[ielec]]
+        n_temp    = 0
+        times     = numpy.zeros(0, dtype=numpy.int32)
+        labels    = numpy.zeros(0, dtype=numpy.int32)
+        waveforms = numpy.zeros((0, basis_proj.shape[1]), dtype=numpy.float32)
+        temp_init = numpy.zeros((0, N_t), dtype=numpy.float32)
+        for i in n_neighb:
+            loc_lab   = callfile.get('clusters_%d' %i)[:]
+            mask      = numpy.where(loc_lab > -1)[0]
+            nb_points = len(mask)
+            if nb_points > 0:
+                labels    = numpy.concatenate((labels, loc_lab[mask] + n_temp))
+                times     = numpy.concatenate((times, callfile.get('times_%d' %i)[:][mask]))
+                indices   = inv_nodes[edges[nodes[i]]]
+                src       = numpy.where(indices == nodes[ielec])[0]
+                src_n     = len(edges[nodes[i]])
+                data      = callfile.get('data_%d' %i)[:][mask, :]
+                mydata    = data.reshape(nb_points, basis_proj.shape[1], src_n)
+                mydata    = mydata[:, :, src].reshape(nb_points, basis_proj.shape[1])
+                waveforms = numpy.vstack((waveforms, mydata))
+                n_temp   += len(numpy.unique(loc_lab[mask]))
+                idx       = numpy.where(electrodes == i)[0]
+                data      = templates[ielec, :, idx].reshape(N_t, len(idx))
+                temp_init = numpy.vstack((temp_init, data.T))
+                
+        # Now we can do the optimization
+        waveforms       = waveforms.flatten()
+        all_labels      = numpy.repeat(labels, basis_proj.shape[1])
+        local_waveforms = numpy.dot(temp_init, basis_rec.T).flatten()
+        
+        print waveforms.mean(), local_waveforms.mean()
+        def myfunction(data):
+            return numpy.sum((waveforms - data[all_labels])**2)
+
+        tstart =  myfunction(local_waveforms)
+        local_waveforms = scipy.optimize.minimize(myfunction, local_waveforms)['x']
+        print "optimization",  myfunction(local_waveforms) - tstart    
+
+        local_waveforms = local_waveforms.reshape(n_temp, basis_proj.shape[1])
+        tmpdata = h5py.File('tmp_%d' %ielec, 'w')
+        output  = tmpdata.create_dataset('waveforms', shape=local_waveforms.shape, dtype=numpy.float32)
+        output  = local_waveforms
+        tmpdata.close()
+
+    callfile.close()
+    comm.Barrier()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     if remove_mixture:
         merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
