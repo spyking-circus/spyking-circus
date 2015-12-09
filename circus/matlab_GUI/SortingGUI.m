@@ -1716,8 +1716,8 @@ if ViewMode==2
     
     %Here it starts
 
-    t1b = floor(t1/BinSize);
-    t2b = floor(t2/BinSize);
+    t1b = round(t1/BinSize);
+    t2b = round(t2/BinSize);
     t1b = unique(t1b);
     t2b = unique(t2b);
 
@@ -1733,7 +1733,7 @@ else
     t1 = handles.SpikeTimes{CellNb};
 
     %Here it starts
-    t1b = floor(t1/BinSize);
+    t1b = round(t1/BinSize);
     t1b = unique(t1b);
     CorrCount = zeros(1,2*MaxDelay+1);
     for i=1:(2*MaxDelay+1)
