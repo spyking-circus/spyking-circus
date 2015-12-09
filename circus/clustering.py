@@ -498,11 +498,35 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
+    callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
+
     for ielec in range(comm.rank, N_e, comm.size):
 
-        n_neighb = edges[nodes[ielec]]
-        times    = 
-        data     = 
+        n_neighb  = edges[nodes[ielec]]
+        times     = numpy.zeros(0, dtype=numpy.int32)
+        labels    = numpy.zeros(0, dtype=numpy.int32)
+        waveforms = numpy.zeros((0, basis_proj.shape[1]), dtype=numpy.float32)
+        for i in n_neighb:
+            loc_lab   = callfile.get('clusters_%d' %i)[:]
+            mask      = numpy.where(loc_lab > -1)[0]
+            nb_points = len(mask)
+            if nb_points > 0:
+                temp_idx  = numpy.unique(loc_lab[mask])
+                labels    = numpy.concatenate((labels, loc_lab[mask]))
+                times     = numpy.concatenate((times, callfile.get('times_%d' %i)[:][mask]))
+                indices   = inv_nodes[edges[nodes[i]]]
+                src       = numpy.where(indices == nodes[ielec])[0]
+                src_n     = len(edges[nodes[i]])
+                data      = callfile.get('data_%d' %i)[:][mask, :]
+                mydata    = data.reshape(nb_points, basis_proj.shape[1], src_n)
+                mydata    = mydata[:, :, src].reshape(nb_points, basis_proj.shape[1])
+                waveforms = numpy.vstack((waveforms, mydata))
+        
+        # Now we can do the optimization
+        
+        
+
+
 
 
 
