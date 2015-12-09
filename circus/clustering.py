@@ -503,6 +503,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for ielec in range(comm.rank, N_e, comm.size):
 
         n_neighb  = edges[nodes[ielec]]
+        n_temp    = 0
         times     = numpy.zeros(0, dtype=numpy.int32)
         labels    = numpy.zeros(0, dtype=numpy.int32)
         waveforms = numpy.zeros((0, basis_proj.shape[1]), dtype=numpy.float32)
@@ -511,8 +512,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mask      = numpy.where(loc_lab > -1)[0]
             nb_points = len(mask)
             if nb_points > 0:
-                temp_idx  = numpy.unique(loc_lab[mask])
-                labels    = numpy.concatenate((labels, loc_lab[mask]))
+                labels    = numpy.concatenate((labels, loc_lab[mask] + n_temp))
                 times     = numpy.concatenate((times, callfile.get('times_%d' %i)[:][mask]))
                 indices   = inv_nodes[edges[nodes[i]]]
                 src       = numpy.where(indices == nodes[ielec])[0]
@@ -521,10 +521,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mydata    = data.reshape(nb_points, basis_proj.shape[1], src_n)
                 mydata    = mydata[:, :, src].reshape(nb_points, basis_proj.shape[1])
                 waveforms = numpy.vstack((waveforms, mydata))
+                n_temp   += len(numpy.unique(loc_lab[mask]))
         
         # Now we can do the optimization
-        
-        
+        print "Launching optimization", n_temp
+        all_labels      = numpy.repeat(labels, basis_proj.shape[1])
+        local_waveforms = numpy.ones((n_temp, basis_proj.shape[1]), dtype = numpy.float32).flatten()
+        def myfunction(data):
+            return numpy.sum((waveforms.flatten() - data[all_labels])**2)
+
+        print "optimization",  myfunction(local_waveforms)
+        local_waveforms = scipy.optimize.minimize(myfunction, local_waveforms)['x']
+        print "optimization",  myfunction(local_waveforms)      
 
 
 
