@@ -482,6 +482,31 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pbar = get_progressbar(local_nb_clusters)
 
     for ielec in range(comm.rank, N_e, comm.size):
+        io.write_datasets(cfile, to_write, result, ielec)
+
+    comm.Barrier()
+
+    if comm.rank == 0:
+        rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
+        callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'w')
+        for i in xrange(comm.size):
+            for j in range(i, N_e, comm.size):
+                io.write_datasets(callfile, to_write, rs[i], j)
+            rs[i].close()
+            os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
+        callfile.close()
+
+    comm.Barrier()
+
+    for ielec in range(comm.rank, N_e, comm.size):
+
+        n_neighb = edges[nodes[ielec]]
+        times    = 
+        data     = 
+
+
+
+    for ielec in range(comm.rank, N_e, comm.size):
         #print "Dealing with cluster", ielec
         n_data   = len(result['data_' + str(ielec)])
         n_neighb = len(edges[nodes[ielec]])
