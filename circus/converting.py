@@ -52,13 +52,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     def _read_templates(basename, probe, n_total_channels, n_channels):
         with open_h5(basename + '.templates.hdf5', 'r') as f:
-            templates        = f.read('/templates')[:].T
-            n_templates, n_samples, n_channels = templates.shape
+            templates        = f.read('/templates')
+            n_templates, n_samples, n_channels = templates.shape[2], templates.shape[1], templates.shape[0] 
             n_templates    //= 2
-            templates        = templates[:n_templates, :, :]
+            templates        = templates[:, :, :n_templates].T
             masks            = np.zeros((n_templates, n_channels))
             electrodes       = np.argmax(np.abs(templates).max(1), 1)
-
             inv_nodes        = np.zeros(n_total_channels, dtype=np.int32)
             nodes            = []
             for key in probe['channel_groups'].keys():
@@ -87,7 +86,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         amplitudes = np.empty_like(spike_clusters, dtype=np.float32)
         spike_ids = np.arange(n_spikes, dtype=np.int32)
         spc = _spikes_per_cluster(spike_ids, spike_clusters)
-
         with open_h5(basename + '.result.hdf5', 'r') as f:
             for i in range(n_templates):
                 amplitudes_i = f.read('/amplitudes/temp_' + str(i))[0,...]
