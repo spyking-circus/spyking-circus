@@ -606,7 +606,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for ielec in range(comm.rank, N_e, comm.size):
 
         n_neighb  = edges[nodes[ielec]]
-        n_temp    = 0
+        n_temp    = numpy.zeros(0, dtype=numpy.int32)
         times     = numpy.zeros(0, dtype=numpy.int32)
         labels    = numpy.zeros(0, dtype=numpy.int32)
         waveforms = numpy.zeros((0, basis_proj.shape[1]), dtype=numpy.float32)
@@ -617,7 +617,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mask      = numpy.where(loc_lab > -1)[0]
             nb_points = len(mask)
             if nb_points > 0:
-                labels    = numpy.concatenate((labels, loc_lab[mask] + n_temp))
+                labels    = numpy.concatenate((labels, loc_lab[mask] + numpy.sum(n_temp) + 1))
                 times     = numpy.concatenate((times, callfile.get('times_%d' %i)[:][mask]))
                 indices   = inv_nodes[edges[nodes[i]]]
                 src       = numpy.where(indices == nodes[ielec])[0]
@@ -626,10 +626,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mydata    = data.reshape(nb_points, basis_proj.shape[1], src_n)
                 mydata    = mydata[:, :, src].reshape(nb_points, basis_proj.shape[1])
                 waveforms = numpy.vstack((waveforms, mydata))
-                n_temp   += len(numpy.unique(loc_lab[mask]))
                 idx       = numpy.where(electrodes == inv_nodes[i])[0]
                 data      = templates[loc_idx, :, idx].reshape(N_t, len(idx))
                 temp_init = numpy.vstack((temp_init, data.T))
+            n_temp = numpy.concatenate((n_temp, numpy.array([len(numpy.unique(loc_lab[mask]))])))
                 
         # Now we can do the optimization
         waveforms       = waveforms.flatten()
@@ -640,14 +640,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             return numpy.sum((waveforms - data[all_labels])**2)
 
         tstart =  myfunction(local_waveforms)
-        local_waveforms = scipy.optimize.minimize(myfunction, local_waveforms, method='Powell')['x']
+        local_waveforms = scipy.optimize.minimize(myfunction, local_waveforms, method='Nelder-Mead')['x']
         print "Optimization",  myfunction(local_waveforms) - tstart    
 
-        local_waveforms = local_waveforms.reshape(n_temp, basis_proj.shape[1])
-        tmp_file = os.path.join(tmp_path_loc, 'tmp_%d' %ielec)
+        local_waveforms = local_waveforms.reshape(numpy.sum(n_temp), basis_proj.shape[1])
+        tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
         tmpdata  = h5py.File(tmp_file, 'w')
         output   = tmpdata.create_dataset('waveforms', shape=local_waveforms.shape, dtype=numpy.float32)
+        limits   = tmpdata.create_dataset('limits', shape=n_temp.shape, dtype=numpy.float32)
         output   = local_waveforms
+        limits   = n_temp
         tmpdata.close()
 
     callfile.close()
@@ -669,26 +671,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         loc_pad  = count_templates
         indices  = inv_nodes[edges[nodes[ielec]]]
         sorted_indices = numpy.argsort(indices)
-        for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
+        for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
             #myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
             #sub_data         = data[myslice]
 
             first_component  = numpy.zeros((len(indices), basis_proj.shape[1]), dtype=numpy.float32)
-            for count, i in enumerate(indices):
-                pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d' %ielec), 'r')
-                data  = pfile.get('waveforms')[0] #electrodes
+            for i in indices:
+                pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r')
+                count = numpy.where(i == inv_nodes[edges[nodes[i]]])[0][0]
+                j     = pfile.get('limits')[count] + xcount
+                data  = pfile.get('waveforms')[j] 
                 first_component[count] = data
                 pfile.close()
 
             tmp_templates    = numpy.dot(first_component, basis_rec)
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
-            if temporal_shift > 0:
-                templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
-            elif temporal_shift < 0:
-                templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
-            else:
-                templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
+            #if temporal_shift > 0:
+            #    templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
+            #elif temporal_shift < 0:
+            #    templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
+            #else:
+            templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
 
             '''
             x, y, z          = sub_data.shape
