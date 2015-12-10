@@ -427,7 +427,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
-
+        myfile.close()
         to_merge, result = remove(result, distances, cc_merge)
 
     to_merge = numpy.array(to_merge)
@@ -436,7 +436,6 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         slice_templates(comm, params, to_merge=to_merge)
         slice_clusters(comm, params, result)
 
-    myfile.close()
     if comm.rank == 0:
         os.remove(filename)
 

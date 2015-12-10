@@ -597,15 +597,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             cfile.close()
 
     comm.Barrier()
-    
-    #if comm.rank == 0:
-    #    print "Merging similar templates..."
-    
-    #merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
-    
-    #comm.Barrier()
-    #if comm.rank == 0:
-    #    print "Removing mixtures..."
 
     callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
     tmpfile    = h5py.File(file_out_suff + '.templates.hdf5', 'r')
@@ -729,25 +720,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    #if comm.rank == 0:
+    #    print "Merging similar templates..."
+    
+    #merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
+    
+    #comm.Barrier()
+    #if comm.rank == 0:
+    #    print "Removing mixtures..."
 
     if remove_mixture:
         merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
