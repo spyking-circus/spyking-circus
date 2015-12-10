@@ -427,8 +427,9 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
-
+        myfile.close()
         to_merge, result = remove(result, distances, cc_merge)
+        
 
     to_merge = numpy.array(to_merge)
     to_merge = comm.bcast(to_merge, root=0)
