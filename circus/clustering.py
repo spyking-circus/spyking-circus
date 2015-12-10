@@ -539,16 +539,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             count_templates += 1
 
-        if make_plots:
-            if n_data > 1:
-                save     = [plot_path, '%d' %ielec]
-                idx      = numpy.where(indices == ielec)[0][0]
-                sub_data = data[:,:,idx]
-                nb_temp  = cluster_results[ielec]['n_clus']
-                plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
-                    thresholds[ielec], templates[indices[idx], :, loc_pad:loc_pad+nb_temp],
-                    amps_lims[loc_pad:loc_pad+nb_temp], save=save)
-
         io.write_datasets(cfile, to_write, result, ielec)
 
         if comm.rank == 0:
@@ -608,14 +598,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     
-    if comm.rank == 0:
-        print "Merging similar templates..."
+    #if comm.rank == 0:
+    #    print "Merging similar templates..."
     
     #merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
     
-    comm.Barrier()
-    if comm.rank == 0:
-        print "Removing mixtures..."
+    #comm.Barrier()
+    #if comm.rank == 0:
+    #    print "Removing mixtures..."
 
     callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
     tmpfile    = h5py.File(file_out_suff + '.templates.hdf5', 'r')
@@ -630,6 +620,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         labels    = numpy.zeros(0, dtype=numpy.int32)
         waveforms = numpy.zeros((0, basis_proj.shape[1]), dtype=numpy.float32)
         temp_init = numpy.zeros((0, N_t), dtype=numpy.float32)
+        loc_idx   = inv_nodes[edges[nodes[ielec]]][0]
         for i in n_neighb:
             loc_lab   = callfile.get('clusters_%d' %i)[:]
             mask      = numpy.where(loc_lab > -1)[0]
@@ -645,8 +636,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mydata    = mydata[:, :, src].reshape(nb_points, basis_proj.shape[1])
                 waveforms = numpy.vstack((waveforms, mydata))
                 n_temp   += len(numpy.unique(loc_lab[mask]))
-                idx       = numpy.where(electrodes == i)[0]
-                data      = templates[ielec, :, idx].reshape(N_t, len(idx))
+                idx       = numpy.where(electrodes == inv_nodes[i])[0]
+                data      = templates[loc_idx, :, idx].reshape(N_t, len(idx))
                 temp_init = numpy.vstack((temp_init, data.T))
                 
         # Now we can do the optimization
@@ -654,22 +645,82 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         all_labels      = numpy.repeat(labels, basis_proj.shape[1])
         local_waveforms = numpy.dot(temp_init, basis_rec.T).flatten()
         
-        print waveforms.mean(), local_waveforms.mean()
         def myfunction(data):
             return numpy.sum((waveforms - data[all_labels])**2)
 
         tstart =  myfunction(local_waveforms)
-        local_waveforms = scipy.optimize.minimize(myfunction, local_waveforms)['x']
-        print "optimization",  myfunction(local_waveforms) - tstart    
+        local_waveforms = scipy.optimize.minimize(myfunction, local_waveforms, method='Powell')['x']
+        print "Optimization",  myfunction(local_waveforms) - tstart    
 
         local_waveforms = local_waveforms.reshape(n_temp, basis_proj.shape[1])
-        tmpdata = h5py.File('tmp_%d' %ielec, 'w')
-        output  = tmpdata.create_dataset('waveforms', shape=local_waveforms.shape, dtype=numpy.float32)
-        output  = local_waveforms
+        tmp_file = os.path.join(tmp_path_loc, 'tmp_%d' %ielec)
+        tmpdata  = h5py.File(tmp_file, 'w')
+        output   = tmpdata.create_dataset('waveforms', shape=local_waveforms.shape, dtype=numpy.float32)
+        output   = local_waveforms
         tmpdata.close()
 
     callfile.close()
+    tmpfile.close()
     comm.Barrier()
+
+    hfile     = h5py.File(file_out_suff + '.templates.hdf5', 'r+')
+    templates = hfile.get('templates')
+
+    count_templates = 0
+
+    if comm.rank == 0:
+        pbar = get_progressbar(local_nb_clusters)
+
+    for ielec in range(comm.rank, N_e, comm.size):
+        #print "Dealing with cluster", ielec
+        n_neighb = len(edges[nodes[ielec]])
+        mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
+        loc_pad  = count_templates
+        indices  = inv_nodes[edges[nodes[ielec]]]
+        sorted_indices = numpy.argsort(indices)
+        for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
+            #myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
+            #sub_data         = data[myslice]
+
+            first_component  = numpy.zeros((len(indices), basis_proj.shape[1]), dtype=numpy.float32)
+            for count, i in enumerate(indices):
+                pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d' %ielec), 'r')
+                data  = pfile.get('waveforms')[0] #electrodes
+                first_component[count] = data
+                pfile.close()
+
+            tmp_templates    = numpy.dot(first_component, basis_rec)
+            tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+            temporal_shift   = template_shift - tmpidx[1]
+            if temporal_shift > 0:
+                templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
+            elif temporal_shift < 0:
+                templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
+            else:
+                templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
+
+            '''
+            x, y, z          = sub_data.shape
+            sub_data_flat    = sub_data.reshape(x, y*z)
+            first_flat       = first_component.reshape(y*z, 1)
+            amplitudes       = numpy.dot(sub_data_flat, first_flat)
+            amplitudes      /= numpy.sum(first_flat**2)
+
+            variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+            physical_limit   = noise_thr*(-thresholds[tmpidx[0]])/tmp_templates.min()
+            amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
+            amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
+            amps_lims[count_templates] = [amp_min, amp_max]
+            '''
+            count_templates += 1
+
+        if comm.rank == 0:
+            pbar.update(count_templates)
+
+    if comm.rank == 0:
+        pbar.finish()
+
+    hfile.close()
 
 
 
