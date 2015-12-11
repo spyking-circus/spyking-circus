@@ -2007,28 +2007,23 @@ choice = questdlg('Are you sure?', 'Kill All E', 'Yes', 'No way','No way');
 % Handle response
 switch choice
     case 'Yes'
-        CellNbs = find(handles.Tagged==1); % 1 corresponds to E
+        wdw = find(handles.Tagged==1); % 1 corresponds to E
 
-        for i=1:length(CellNbs)
-            CellNb          = CellNbs(i);
-            nb_templates    = length(handles.SpikeTimes);
-            myslice         = [(1:CellNb-1) (CellNb+1:nb_templates)];
-            handles.to_keep = handles.to_keep(myslice);
-            handles.SpikeTimes(CellNb)  = [];
-            handles.Amplitudes(CellNb)  = [];
-            handles.Amplitudes2(CellNb) = [];
-            handles.AmpLim(CellNb,:)    = [];
-            handles.AmpTrend(CellNb)    = [];
-            handles.clusters(CellNb)    = [];
-            handles.BestElec(CellNb)    = [];
-            handles.Tagged(CellNb)      = [];
-            handles.overlap(CellNb,:)   = [];
-            handles.overlap(:,CellNb)   = [];
+        if any(wdw)
+            handles.to_keep(wdw)     = [];
+            handles.SpikeTimes(wdw)  = [];
+            handles.Amplitudes(wdw)  = [];
+            handles.Amplitudes2(wdw) = [];
+            handles.AmpLim(wdw,:)    = [];
+            handles.AmpTrend(wdw)    = [];
+            handles.clusters(wdw)    = [];
+            handles.BestElec(wdw)    = [];
+            handles.Tagged(wdw)      = [];
+            handles.overlap(wdw,:)   = [];
+            handles.overlap(:,wdw)   = [];       
+            guidata(hObject, handles);
+            PlotData(handles)
         end
-        
-        guidata(hObject, handles);
-
-        PlotData(handles)
 end
 
 
@@ -2048,28 +2043,23 @@ function KillAllEmpty_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-CellNbs = find(cellfun('length',handles.SpikeTimes)==0); % 1 corresponds to E
+wdw = (cellfun('length',handles.SpikeTimes)==0);
 
-for i=1:length(CellNbs)
-    CellNb          = CellNbs(i);
-    nb_templates    = length(handles.SpikeTimes);
-    myslice         = [(1:CellNb-1) (CellNb+1:nb_templates)];
-    handles.to_keep = handles.to_keep(myslice);
-    handles.SpikeTimes(CellNb)  = [];
-    handles.Amplitudes(CellNb)  = [];
-    handles.Amplitudes2(CellNb) = [];
-    handles.AmpLim(CellNb,:)    = [];
-    handles.AmpTrend(CellNb)    = [];
-    handles.clusters(CellNb)    = [];
-    handles.BestElec(CellNb)    = [];
-    handles.Tagged(CellNb)      = [];
-    handles.overlap(CellNb,:)   = [];
-    handles.overlap(:,CellNb)   = [];
+if any(wdw)
+    handles.to_keep(wdw)     = [];
+    handles.SpikeTimes(wdw)  = [];
+    handles.Amplitudes(wdw)  = [];
+    handles.Amplitudes2(wdw) = [];
+    handles.AmpLim(wdw,:)    = [];
+    handles.AmpTrend(wdw)    = [];
+    handles.clusters(wdw)    = [];
+    handles.BestElec(wdw)    = [];
+    handles.Tagged(wdw)      = [];
+    handles.overlap(wdw,:)   = [];
+    handles.overlap(:,wdw)   = [];
+    guidata(hObject, handles);
+    PlotData(handles)
 end
-
-guidata(hObject, handles);
-
-PlotData(handles)
 
 
 % --- Executes on selection change in CrossCorrMaxBin.
