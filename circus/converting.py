@@ -88,8 +88,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spc = _spikes_per_cluster(spike_ids, spike_clusters)
         with open_h5(basename + '.result.hdf5', 'r') as f:
             for i in range(n_templates):
-                amplitudes_i = f.read('/amplitudes/temp_' + str(i))[0,...]
-                amplitudes[spc[i]] = amplitudes_i
+                if f.read('/amplitudes/temp_' + str(i)).shape[0] > 0:
+                  amplitudes_i = f.read('/amplitudes/temp_' + str(i))[0,...]
+                  amplitudes[spc[i]] = amplitudes_i
         return amplitudes
 
 
