@@ -226,10 +226,10 @@ else
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
         data = h5read(tmpfile, ['/spiketimes/temp_' int2str(id - 1)]);
-        if size(data, 1) == 0 || (same(data, zeros(1)) > 0)
-            handles.SpikeTimes{id} = zeros(0, 1);
-        else
+        if any(data ~= 0)
             handles.SpikeTimes{id} = double(data)/(handles.SamplingRate/1000);
+        else
+            handles.SpikeTimes{id} = zeros(0, 1);
         end
     end
 end
@@ -322,14 +322,14 @@ else
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
         data        = h5read(tmpfile, ['/amplitudes/temp_' int2str(id - 1)]);
-        if same(data, zeros(1))
-            handles.Amplitudes{id}  = [];
-            handles.Amplitudes2{id} = [];
-        else
+        if any(data ~= 0)
             ndim = numel(size(data));
             data = permute(data,[ndim:-1:1]);
             handles.Amplitudes{id}  = data(:, 1);
             handles.Amplitudes2{id} = data(:, 2);
+        else
+            handles.Amplitudes{id}  = [];
+            handles.Amplitudes2{id} = [];
         end
     end
 end
