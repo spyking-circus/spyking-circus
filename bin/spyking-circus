@@ -204,9 +204,12 @@ Options are:
                     vendor = MPI.get_vendor()
                     if vendor[0] == 'Open MPI':
                         args  = ['mpirun']
-                        args += ['-x', 'LD_LIBRARY_PATH']
-                        args += ['-x', 'PATH']
-                        args += ['-x', 'PYTHONPATH']
+                        if os.getenv('LD_LIBRARY_PATH'):
+                            args += ['-x', 'LD_LIBRARY_PATH']
+                        if os.getenv('PATH'):
+                            args += ['-x', 'PATH']
+                        if os.getenv('PYTHONPATH'):
+                            args += ['-x', 'PYTHONPATH']
                         if os.path.exists(hostfile):
                             args += ['-hostfile', hostfile]
                     elif vendor[0] == 'Microsoft MPI':

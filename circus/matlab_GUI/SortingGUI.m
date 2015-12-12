@@ -132,7 +132,7 @@ else
     end
     has_amptrend = false;
     for id=1:size(info.Groups, 1)
-        if strcmp(info.Groups(id).Name, '/amptrend')
+        if strcmp(info.Groups(id).Name, 'amptrend')
             has_amptrend = true;
         end
     end
@@ -200,6 +200,7 @@ if length(varargin)>=6
             handles.WhiteTemporal = h5read(tmpfile, '/temporal');
             ndim                  = numel(size(handles.WhiteTemporal));
             handles.WhiteTemporal = permute(handles.WhiteTemporal,[ndim:-1:1]);
+            handles.Thresholds    = h5read(tmpfile, '/thresholds');
         end
 
         b                  = load(varargin{4}, '-mat');
