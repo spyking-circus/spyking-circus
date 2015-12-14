@@ -567,14 +567,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         autocorrf[count1,count2] = autocorr[it1, id1, it2, id2]
                         count2 += 1
                 count1 += 1
+        autocorr = autocorrf
         '''
 
         autocorr = autocorr.swapaxes(0, 1).swapaxes(2, 3).reshape(len(elecs)*N_t, len(elecs)*N_t)
         print "Optimization for electrode", ielec
-        #local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas.flatten())
-        #local_waveforms = local_waveforms.reshape(len(elecs), N_t)
-        local_waveforms = stas
-        print "Done!"
+        try:
+            local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas.flatten())
+            local_waveforms = local_waveforms.reshape(len(elecs), N_t)
+        except Exception:
+            print "Failed!"
+            local_waveforms = stas
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
         tmpdata  = h5py.File(tmp_file, 'w')
         output   = tmpdata.create_dataset('waveforms', data=local_waveforms)
