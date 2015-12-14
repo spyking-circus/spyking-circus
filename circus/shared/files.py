@@ -238,7 +238,7 @@ def get_stas(params, times_i, labels_i, src):
 
     for lb, time in zip(labels_i, times_i):
         padding      = N_total * time
-        local_chunk  = datablock[padding:padding + N_total*N_t]
+        local_chunk  = datablock[padding - (N_t/2)*N_total:padding + (N_t/2+1)*N_total]
         local_chunk  = local_chunk.reshape(N_t, N_total)
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset

@@ -526,7 +526,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 stas_i  = io.get_stas(params, times_i, labels_i, src)
                 stas    = numpy.vstack((stas, stas_i))
         
-        autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t))
+        autocorr = numpy.zeros((N_t, len(elecs), N_t, len(elecs)))
 
         for i, li in zip(elecs, labels):
 
@@ -540,7 +540,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 spikes_j = callfile.get('times_%d' %j)[:][mask_j]
 
             for ii in range(N_t):
-                autocorr[i, ii, j, :] = cross_corr(spikes_i+ii, spikes_j)
+                autocorr[ii, i, :, j] = cross_corr(spikes_i+ii, spikes_j)
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
 
@@ -549,6 +549,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         except Exception:
             print "Optimization failed"
             local_waveforms = stas.flatten()
+
+        print "Local mean", local_waveforms.mean()
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
         tmpdata  = h5py.File(tmp_file, 'w')
@@ -575,16 +577,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
             #sub_data         = data[myslice]
 
-            first_component  = numpy.zeros((len(indices), basis_proj.shape[1]), dtype=numpy.float32)
+            tmp_templates  = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
             for i in indices:
                 pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r')
                 count = numpy.where(i == inv_nodes[edges[nodes[i]]])[0][0]
-                j     = pfile.get('limits')[count] + xcount
-                data  = pfile.get('waveforms')[j] 
-                first_component[count] = data
+                j     = pfile.get('limits')[:] == ielec 
+                data  = pfile.get('waveforms')[j][xcount]
+                tmp_templates[count] = data
                 pfile.close()
 
-            tmp_templates    = numpy.dot(first_component, basis_rec)
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
             #if temporal_shift > 0:
