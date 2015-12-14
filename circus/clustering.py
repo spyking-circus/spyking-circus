@@ -502,14 +502,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     def cross_corr(spike_1, spike_2):
         x_cc    = numpy.ones(N_t)*(len(spike_1) + len(spike_2))
         for d in xrange(N_t):
-            spike_2_bis = spike_2 + (d - N_t)
+            spike_2_bis = spike_2 + (d - N_t/2)
             gsum        = numpy.unique(numpy.concatenate((spike_1, spike_2_bis)))
             x_cc[d]    -= len(gsum)
         return x_cc
 
     for ielec in range(comm.rank, N_e, comm.size):
 
-        n_neighb = edges[nodes[ielec]]
+        n_neighb = inv_nodes[edges[nodes[ielec]]]
         elecs    = numpy.zeros(0, dtype=numpy.int32)
         labels   = numpy.zeros(0, dtype=numpy.int32)
         stas     = numpy.zeros((0, N_t), dtype=numpy.int32)
@@ -526,38 +526,63 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 stas_i  = io.get_stas(params, times_i, labels_i, src)
                 stas    = numpy.vstack((stas, stas_i))
         
-        autocorr = numpy.zeros((N_t, len(elecs), N_t, len(elecs)))
+        #autocorr = numpy.zeros((N_t, len(elecs), N_t, len(elecs)), dtype=numpy.float32)
+        autocorr = numpy.zeros((N_t, len(elecs), N_t, len(elecs)), dtype=numpy.float32)
 
-        for i, li in zip(elecs, labels):
+        for i, li, ci in zip(elecs, labels, range(len(elecs))):
 
             loc_lab  = callfile.get('clusters_%d' %i)[:]
-            mask_i   = numpy.where(loc_lab == li)[0]
-            spikes_i = callfile.get('times_%d' %i)[:][mask_i]
+            mask_i   = loc_lab == li
+            spikes_i = callfile.get('times_%d' %i)[mask_i]
 
-            for j, lj in zip(elecs[i+1:], labels[i+1:]):
+            for j, lj, cj in zip(elecs[i:], labels[i:], i + range(len(elecs[i:]))):
                 loc_lab  = callfile.get('clusters_%d' %j)[:]
-                mask_j   = numpy.where(loc_lab == lj)[0]
-                spikes_j = callfile.get('times_%d' %j)[:][mask_j]
+                mask_j   = loc_lab == lj
+                spikes_j = callfile.get('times_%d' %j)[mask_j]
 
-            for ii in range(N_t):
-                autocorr[ii, i, :, j] = cross_corr(spikes_i+ii, spikes_j)
+                M = len(spikes_i) + len(spikes_j)
+                for it1 in range(N_t):
+                    train_i = spikes_i + it1 - N_t/2
+                    for it2 in range(N_t):
+                        train_j = spikes_j + it2 - N_t/2
+                        myslice = numpy.concatenate((train_i, train_j))
+                        autocorr[it1, i, it2, j] = M - len(numpy.unique(myslice))
+                        autocorr[it1, j, it2, i] = autocorr[it1, i, it2, j]
+
+
+                #autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t] = cross_corr(spikes_i, spikes_j)
+                #if cj > ci:
+                #    autocorr[cj*N_t:(cj+1)*N_t, ci*N_t:(ci+1)*N_t] = autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t]
+
+                #for ii in range(N_t):
+                #    autocorr[ii, i, :, j] = cross_corr(spikes_i+ii, spikes_j)
+                #    autocorr[ii, j, :, i] = autocorr[ii, i, :, j]
+
+        #autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
+        autocorrf = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        count1    = 0
+        for id1 in range(len(elecs)):
+            for it1 in range(N_t):
+                count2 = 0
+                for id2 in range(len(elecs)):
+                    for it2 in range(N_t):
+                        autocorrf[count1,count2] = autocorr[it1, id1, it2, id2]
+                        count2 += 1
+                count1 += 1
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
+        print autocorr.mean(), autocorrf.mean(), numpy.all(autocorr == autocorrf)
 
-        try:
-            local_waveforms = numpy.dot(scipy.linalg.inv(autocorr), stas.flatten())
-        except Exception:
-            print "Optimization failed"
-            local_waveforms = stas.flatten()
 
-        print "Local mean", local_waveforms.mean()
+        print "Optimization for electrode", ielec
+        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorrf), stas.flatten())
+        #local_waveforms = stas.flatten()
+        print "Done!"
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
         tmpdata  = h5py.File(tmp_file, 'w')
-        output   = tmpdata.create_dataset('waveforms', shape=local_waveforms.shape, dtype=numpy.float32)
-        limits   = tmpdata.create_dataset('limits', shape=elecs.shape, dtype=numpy.float32)
-        output   = local_waveforms
-        limits   = elecs
+        output   = tmpdata.create_dataset('waveforms', data=local_waveforms)
+        limits   = tmpdata.create_dataset('limits', data=elecs)
         tmpdata.close()
 
     callfile.close()
@@ -567,27 +592,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pbar = get_progressbar(local_nb_clusters)
 
     for ielec in range(comm.rank, N_e, comm.size):
-        #print "Dealing with cluster", ielec
-        n_neighb = len(edges[nodes[ielec]])
+        
         mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
         loc_pad  = count_templates
         indices  = inv_nodes[edges[nodes[ielec]]]
         sorted_indices = numpy.argsort(indices)
         for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
-            #myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
-            #sub_data         = data[myslice]
-
+        
             tmp_templates  = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
-            for i in indices:
+            for count, i in enumerate(indices):
                 pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r')
-                count = numpy.where(i == inv_nodes[edges[nodes[i]]])[0][0]
-                j     = pfile.get('limits')[:] == ielec 
-                data  = pfile.get('waveforms')[j][xcount]
+                mask  = pfile.get('limits')[:] == inv_nodes[nodes[ielec]] 
+                data  = pfile.get('waveforms')[mask, :][xcount]
                 tmp_templates[count] = data
                 pfile.close()
 
-            tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
-            temporal_shift   = template_shift - tmpidx[1]
+            #tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+            #temporal_shift   = template_shift - tmpidx[1]
             #if temporal_shift > 0:
             #    templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
             #elif temporal_shift < 0:
@@ -619,12 +640,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     hfile.close()
 
 
-
-
-
-
-
-
     #if comm.rank == 0:
     #    print "Merging similar templates..."
     
@@ -634,15 +649,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #if comm.rank == 0:
     #    print "Removing mixtures..."
 
-    if remove_mixture:
-        merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
-    else:
-        merged2 = [0, 0]
+    #remove_mixture = False
+    #if remove_mixture:
+    #    merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+    #else:
+    #    merged2 = [0, 0]
 
-    if comm.rank == 0:
+    #if comm.rank == 0:
 
-        io.print_info(["Number of global merges    : %d" %merged1[1], 
-                       "Number of mixtures removed : %d" %merged2[1]])    
+    #    io.print_info(["Number of global merges    : %d" %merged1[1], 
+    #                   "Number of mixtures removed : %d" %merged2[1]])    
 
     comm.Barrier()
     io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
