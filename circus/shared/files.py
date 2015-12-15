@@ -542,6 +542,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     cuda_string = 'using %d CPU...' %comm.size
     
     try:
+        import cudamat as cmt
         HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:

@@ -327,6 +327,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     to_merge       = []
     
     try:
+        import cudamat as cmt
         HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
@@ -473,6 +474,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     to_remove      = []
 
     try:
+        import cudamat as cmt
         HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
