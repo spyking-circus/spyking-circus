@@ -512,21 +512,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         n_neighb = inv_nodes[edges[nodes[ielec]]]
         elecs    = numpy.zeros(0, dtype=numpy.int32)
         labels   = numpy.zeros(0, dtype=numpy.int32)
-        stas     = numpy.zeros((0, N_t), dtype=numpy.int32)
+        stas     = numpy.zeros((0, N_t), dtype=numpy.float32)
         src      = inv_nodes[nodes[ielec]]
 
         for i in n_neighb:
             loc_lab   = callfile.get('clusters_%d' %i)[:]
             mask      = numpy.where(loc_lab > -1)[0]
             labels_i  = numpy.unique(loc_lab[mask])
-            times_i   = callfile.get('times_%d' %i)[:][mask]            
             if len(labels_i) > 0:
+                times_i   = callfile.get('times_%d' %i)[:][mask]
                 elecs   = numpy.concatenate((elecs, i*numpy.ones(len(labels_i))))
                 labels  = numpy.concatenate((labels, labels_i))
                 stas_i  = io.get_stas(params, times_i, labels_i, src)
                 stas    = numpy.vstack((stas, stas_i))
-                        
-        autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.float32)
+        
+        autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.int32)
         last_i   = -1
         last_j   = -1
 
@@ -549,15 +549,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 last_j    = j
 
                 for ii in range(N_t):
-                    autocorr[i, ii, j, :] = cross_corr(spikes_i+ii-(N_t/2), spikes_j)
-                    autocorr[j, ii, i, :] = autocorr[i, ii, j, :]
+                    autocorr[ci, ii, cj, :] = cross_corr(spikes_i+ii-(N_t/2), spikes_j)
+                    autocorr[cj, ii, ci, :] = autocorr[ci, ii, cj, :]
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
 
         print "Optimization for electrode", ielec
-        local_waveforms = numpy.dot(scipy.linalg.pinv2(autocorr, rcond=1e-3), stas.flatten())
-        local_waveforms = local_waveforms.reshape(len(elecs), N_t)
         #local_waveforms = stas
+        #local_waveforms = numpy.linalg.lstsq(autocorr, stas.flatten())[0]
+        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas.flatten()).astype(numpy.float32)
+        local_waveforms = local_waveforms.reshape(len(elecs), N_t)
         
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
         tmpdata  = h5py.File(tmp_file, 'w')
