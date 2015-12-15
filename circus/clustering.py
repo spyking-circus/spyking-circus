@@ -525,59 +525,40 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 labels  = numpy.concatenate((labels, labels_i))
                 stas_i  = io.get_stas(params, times_i, labels_i, src)
                 stas    = numpy.vstack((stas, stas_i))
-        
-        autocorr = numpy.zeros((N_t, len(elecs), N_t, len(elecs)), dtype=numpy.float32)
+                        
+        autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.float32)
+        last_i   = -1
+        last_j   = -1
 
         for i, li, ci in zip(elecs, labels, range(len(elecs))):
 
-            loc_lab  = callfile.get('clusters_%d' %i)[:]
-            mask_i   = loc_lab == li
-            spikes_i = callfile.get('times_%d' %i)[mask_i]
+            if i != last_i:
+                loc_lab_i = callfile.get('clusters_%d' %i)[:]
+                times_i   = callfile.get('times_%d' %i)[:]
+            mask_i    = loc_lab_i == li
+            spikes_i  = times_i[mask_i]
+            last_i    = i
 
             for j, lj, cj in zip(elecs[i:], labels[i:], i + range(len(elecs[i:]))):
-                loc_lab  = callfile.get('clusters_%d' %j)[:]
-                mask_j   = loc_lab == lj
-                spikes_j = callfile.get('times_%d' %j)[mask_j]
+                
+                if j != last_j:
+                    loc_lab_j = callfile.get('clusters_%d' %j)[:]
+                    times_j   = callfile.get('times_%d' %j)[:]
+                mask_j    = loc_lab_j == lj
+                spikes_j  = times_j[mask_j]
+                last_j    = j
 
-                M = len(spikes_i) + len(spikes_j)
-                for it1 in range(N_t):
-                    train_i = spikes_i + it1 - N_t/2
-                    for it2 in range(N_t):
-                        train_j = spikes_j + it2 - N_t/2
-                        myslice = numpy.concatenate((train_i, train_j))
-                        autocorr[it1, i, it2, j] = M - len(numpy.unique(myslice))
-                        autocorr[it1, j, it2, i] = autocorr[it1, i, it2, j]
+                for ii in range(N_t):
+                    autocorr[i, ii, j, :] = cross_corr(spikes_i+ii-(N_t/2), spikes_j)
+                    autocorr[j, ii, i, :] = autocorr[i, ii, j, :]
 
-                #autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t] = cross_corr(spikes_i, spikes_j)
-                #if cj > ci:
-                #    autocorr[cj*N_t:(cj+1)*N_t, ci*N_t:(ci+1)*N_t] = autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t]
+        autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
 
-                #for ii in range(N_t):
-                #    autocorr[ii, i, :, j] = cross_corr(spikes_i+ii, spikes_j)
-                #    autocorr[ii, j, :, i] = autocorr[ii, i, :, j]
-
-        '''
-        autocorrf = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
-        count1    = 0
-        for id1 in range(len(elecs)):
-            for it1 in range(N_t):
-                count2 = 0
-                for id2 in range(len(elecs)):
-                    for it2 in range(N_t):
-                        autocorrf[count1,count2] = autocorr[it1, id1, it2, id2]
-                        count2 += 1
-                count1 += 1
-        autocorr = autocorrf
-        '''
-
-        autocorr = autocorr.swapaxes(0, 1).swapaxes(2, 3).reshape(len(elecs)*N_t, len(elecs)*N_t)
         print "Optimization for electrode", ielec
-        try:
-            local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas.flatten())
-            local_waveforms = local_waveforms.reshape(len(elecs), N_t)
-        except Exception:
-            print "Failed!"
-            local_waveforms = stas
+        local_waveforms = numpy.dot(scipy.linalg.pinv2(autocorr, rcond=1e-3), stas.flatten())
+        local_waveforms = local_waveforms.reshape(len(elecs), N_t)
+        #local_waveforms = stas
+        
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
         tmpdata  = h5py.File(tmp_file, 'w')
         output   = tmpdata.create_dataset('waveforms', data=local_waveforms)
