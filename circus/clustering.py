@@ -513,7 +513,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amplitudes       = numpy.dot(sub_data_flat, first_flat)
             amplitudes      /= numpy.sum(first_flat**2)
 
-            variations       = 100*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+            variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
             physical_limit   = noise_thr*(-thresholds[tmpidx[0]])/tmp_templates.min()
             amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
