@@ -15,6 +15,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
+    spike_thresh   = params.getfloat('data', 'spike_thresh')
+    stationary     = params.getboolean('data', 'stationary')
     spikedetekt    = params.getboolean('data', 'spikedetekt')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -145,6 +147,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+
+        if not stationary:
+            for i in xrange(N_e):
+                u             = numpy.median(local_chunk[:, i], 0)
+                thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
+            thresholds *= spike_thresh
 
         #print "Extracting the peaks..."
         if not spikedetekt:

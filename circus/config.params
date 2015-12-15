@@ -6,6 +6,7 @@ data_dtype     = uint16                 # Type of the data
 dtype_offset   = 32767                  # Padding for data (uint16 is 32767)
 gain           = 0.01                   # Gain for spike detection
 spike_thresh   = 7                      # Threshold for spike detection
+stationary     = True                   # For very long recordings, if thresholds is changing
 sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 N_t            = 5                      # Width of the templates [in ms]
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)

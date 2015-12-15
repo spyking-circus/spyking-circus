@@ -16,6 +16,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
+    spike_thresh   = params.getfloat('data', 'spike_thresh')
+    stationary     = params.getboolean('data', 'stationary')
     if params.get('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     else:
@@ -152,6 +154,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #print "Extracting the peaks..."
                 all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                 all_minimas   = numpy.zeros(0, dtype=numpy.int32)
+
+                if not stationary:
+                    for i in xrange(N_e):
+                        u             = numpy.median(local_chunk[:, i], 0)
+                        thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
+                    thresholds *= spike_thresh
+                    
                 for i in xrange(N_e):
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
