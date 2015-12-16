@@ -9,6 +9,7 @@ spike_thresh   = 7                      # Threshold for spike detection
 sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 N_t            = 5                      # Width of the templates [in ms]
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)
+alignement     = True                   # Realign the waveforms by oversampling
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
 
 [filtering]

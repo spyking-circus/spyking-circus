@@ -189,6 +189,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
+    alignement     = params.getboolean('data', 'alignement')
     file_out       = params.get('data', 'file_out')
     nodes, edges   = io.get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -229,7 +230,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar = get_progressbar(nb_elts)
 
-
+    if alignement:
+        cdata = numpy.linspace(-template_shift/3., template_shift/3., 3*N_t)
+        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     for gcount, gidx in enumerate(chunks_to_load):
 
@@ -279,7 +282,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     is_local_min = elec in all_minimas[all_peaktimes == peak]
                     if is_local_min and not myslice.any():
                         if groups[elec] < max_elts_elec:
+
                             elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+                            if alignement:
+                                ydata = local_chunk[peak - 2*template_shift:peak + 2*template_shift + 1, elec]                    
+                                f     = scipy.interpolate.interp1d(xdata, ydata, kind='cubic')
+                                rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                elts[:, elt_count] = f(ddata)
+
                             groups[elec]       += 1
                             elt_count          += 1
                         all_times[indices, min_times[idx]:max_times[idx]] = True

@@ -144,6 +144,7 @@ def load_parameters(file_name):
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
+                  ['data', 'alignement', 'bool', 'True'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
