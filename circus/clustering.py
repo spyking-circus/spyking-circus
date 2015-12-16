@@ -228,17 +228,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                                 if len(to_update) < loop_max_elts_elec:
                                     
-                                    sub_mat    = local_chunk[peak-template_shift:peak+template_shift+1, indices]
-                                    
                                     if alignement:
-                                        ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
-                                        f     = scipy.interpolate.interp1d(xdata, ydata, kind='cubic')
-                                        rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-                                        for ci, i in enumerate(indices):
-                                            ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, i]
-                                            f     = scipy.interpolate.interp1d(xdata, ydata, kind='cubic')
-                                            ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                            sub_mat[:, ci] = f(ddata)
+                                        idx   = numpy.where(indices == elec)[0]
+                                        zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
+                                        ydata = numpy.arange(len(indices))
+                                        f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata)
+                                        rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+                                        ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                        sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                    else:
+                                        sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
 
                                     sub_mat    = numpy.dot(basis_rec, sub_mat)
                                     nx, ny     = sub_mat.shape

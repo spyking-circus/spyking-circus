@@ -287,12 +287,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         if groups[elec] < max_elts_elec:
 
                             elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+
                             if alignement:
-                                ydata = local_chunk[peak - 2*template_shift:peak + 2*template_shift + 1, elec]                    
-                                f     = scipy.interpolate.interp1d(xdata, ydata, kind='cubic')
+                                ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
+                                f     = scipy.interpolate.UnivariateSpline(xdata, ydata)
                                 rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
                                 ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                elts[:, elt_count] = f(ddata)
+                                elts[:, elt_count] = f(ddata).astype(numpy.float32)
 
                             groups[elec]       += 1
                             elt_count          += 1
