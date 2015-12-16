@@ -253,7 +253,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
             #print "Removing the useless borders..."
-            local_borders   = (template_shift, local_shape - template_shift)
+            if alignement:
+                local_borders = (2*template_shift, local_shape - 2*template_shift)
+            else:
+                local_borders = (template_shift, local_shape - template_shift)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
             all_peaktimes   = all_peaktimes[idx]
             all_minimas     = all_minimas[idx]
