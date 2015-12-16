@@ -14,7 +14,7 @@ colorama.init()
 
 
 import circus
-from circus.shared.files import print_error
+from circus.shared.files import print_error, print_info
 
 def main(argv):
 
@@ -151,6 +151,10 @@ Options are:
         elif opt in ('-t', '--type'):
             benchmark = arg
 
+    # Print info
+    params = circus.shared.utils.io.load_parameters(filename)
+    stationary = params.getboolean('data', 'stationary')
+
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
             for line in f:
@@ -164,13 +168,15 @@ Options are:
             print colored("Number of GPU :", 'green'), colored(nb_gpu, 'cyan')
         print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
         print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
+        print colored("Stationary    :", 'green'), colored(stationary, 'cyan')
         print ""
         print colored("##################################################################", 'green')
-        print ""
+        print ""        
 
-        # Print info
-        params = circus.shared.utils.io.load_parameters(filename)
-        circus.shared.utils.io.data_stats(params)
+        length = circus.shared.utils.io.data_stats(params)
+
+        if length >= 3600 and stationary:
+            print_info(['Long recording detected: maybe turn off the stationary mode'])
 
         # Launch the subtasks
         subtasks = [('filtering', 'mpirun'),
