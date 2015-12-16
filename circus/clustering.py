@@ -497,7 +497,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             first_component  = numpy.median(sub_data, axis=0)
 
             tmp_templates    = numpy.dot(first_component.T, basis_rec)
-            #tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
             if temporal_shift > 0:
@@ -525,7 +524,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(sub_data_flat) > 1:
                 pca              = mdp.nodes.PCANode(output_dim=1)
                 res_pca          = pca(sub_data_flat.astype(numpy.double))
-                second_component     = pca.get_projmatrix().reshape(y, z)
+                second_component = pca.get_projmatrix().reshape(y, z)
             else:
                 second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
