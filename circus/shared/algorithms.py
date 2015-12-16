@@ -211,6 +211,9 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
         old_templates  = myfile.get('templates')
         old_limits     = myfile.get('limits')[:]
         N_e, N_t, N_tm = old_templates.shape
+        norm_templates = numpy.zeros(N_tm/2, dtype=numpy.float32)
+        for i in xrange(N_tm/2):
+            norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(old_templates[:,:,i]**2,0),0))
         if to_merge is not None:
             to_remove = []
             for count in xrange(len(to_merge)):
@@ -240,7 +243,8 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
                 subset     = numpy.where(to_merge[:, 0] == keep)[0]
                 if len(subset) > 0:
                     idx        = numpy.unique(to_merge[subset].flatten())
-                    new_limits = [numpy.min(old_limits[idx][:, 0]), numpy.max(old_limits[idx][:, 1])]
+                    ratios     = norm_templates[keep]/norm_templates[idx]
+                    new_limits = [numpy.min(ratios*old_limits[idx][:, 0]), numpy.max(ratios*old_limits[idx][:, 1])]
                 else:
                     new_limits = old_limits[keep]
             limits[count]  = new_limits

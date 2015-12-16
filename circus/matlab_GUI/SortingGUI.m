@@ -241,6 +241,9 @@ if exist([handles.filename '.templates' handles.suffix],'file')
     b              = load([handles.filename '.templates' handles.suffix],'-mat');
     if isfield(b, 'AmpLim')
         handles.AmpLim = b.AmpLim;
+    else
+        b              = load([handles.filename '.limits.mat'],'-mat');
+        handles.AmpLim = b.limits;
     end
 elseif exist([handles.filename '.limits.mat'],'file')
     b              = load([handles.filename '.limits.mat'],'-mat');
