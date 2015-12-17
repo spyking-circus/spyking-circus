@@ -45,7 +45,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sub_output_dim = 0.95
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    to_write         = ['data_', 'clusters_', 'debug_', 'w_', 'pca_', 'times_']
+    to_write         = ['data_', 'clusters_', 'debug_', 'w_', 'pca_', 'times_', 'sta_']
     #################################################################
 
     basis_proj, basis_rec = io.load_data(params, 'basis')
@@ -70,6 +70,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         result['dc_' + str(i)]        = None
         result['pca_' + str(i)]       = None
+        result['sta_' + str(i)]       = None
 
 
     max_elts_elec /= comm.size
@@ -113,6 +114,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 result['dc_'   + str(i)] = comm.bcast(result['dc_' + str(i)], root=numpy.mod(i, comm.size))
                 result['pca_'  + str(i)] = comm.bcast(result['pca_' + str(i)], root=numpy.mod(i, comm.size))
                 result['data_' + str(i)] = numpy.zeros((0, basis_proj.shape[1] * n_neighb), dtype=numpy.float32)
+                result['sta_'  + str(i)] = numpy.zeros((N_t, n_neighb), dtype=numpy.float32)
                 if numpy.any(smart_search > 0):
                     result['sub_' + str(i)] = numpy.zeros((0, result['pca_' + str(i)].shape[1]), dtype=numpy.float32)
 
@@ -242,6 +244,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             to_accept = True
                                         if to_accept:
                                             result['data_' + str(elec)] = numpy.vstack((result['data_' + str(elec)], sub_mat))
+                                            result['sta_' + str(elec)] += rsub_mat
                                             if smart_search[elec] > 0:
                                                 result['sub_' + str(elec)] = numpy.vstack((result['sub_' + str(elec)], sub_sub_mat))
                                     else:
@@ -519,17 +522,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loc_lab   = callfile.get('clusters_%d' %i)[:]
             mask      = numpy.where(loc_lab > -1)[0]
             labels_i  = numpy.unique(loc_lab[mask])
-            times_i   = callfile.get('times_%d' %i)[:][mask]            
+            times_i   = callfile.get('times_%d' %i)[:][mask]    
+            idx       = numpy.where(inv_nodes[edges[nodes[i]]] == ielec)[0] 
+            stas_i    = callfile.get('sta_%d' %i)[:, idx]       
             if len(labels_i) > 0:
                 elecs   = numpy.concatenate((elecs, i*numpy.ones(len(labels_i))))
                 labels  = numpy.concatenate((labels, labels_i))
-                stas_i  = io.get_stas(params, times_i, labels_i, src)
                 stas    = numpy.vstack((stas, stas_i))
                         
         autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.float32)
         last_i   = -1
         last_j   = -1
 
+        print "Computing crosscorr for electrode", ielec
         for i, li, ci in zip(elecs, labels, range(len(elecs))):
 
             if i != last_i:
@@ -549,8 +554,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 last_j    = j
 
                 for ii in range(N_t):
-                    autocorr[i, ii, j, :] = cross_corr(spikes_i+ii-(N_t/2), spikes_j)
-                    autocorr[j, ii, i, :] = autocorr[i, ii, j, :]
+                    autocorr[ci, ii, cj, :] = cross_corr(spikes_i+ii-(N_t/2), spikes_j)
+                    autocorr[cj, ii, ci, :] = autocorr[ci, ii, cj, :]
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
 
