@@ -236,6 +236,13 @@ def get_stas(params, times_i, labels_i, src):
     gain         = params.getfloat('data', 'gain')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
+    do_temporal_whitening = params.getboolean('whitening', 'temporal')
+    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+
+    if do_spatial_whitening or do_temporal_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+        temporal_whitening = load_data(params, 'temporal_whitening')
+
     for lb, time in zip(labels_i, times_i):
         padding      = N_total * time
         local_chunk  = datablock[padding - (N_t/2)*N_total:padding + (N_t/2+1)*N_total]
@@ -244,6 +251,10 @@ def get_stas(params, times_i, labels_i, src):
         local_chunk -= dtype_offset
         local_chunk *= gain
         lc           = numpy.where(nb_labels == lb)[0]
+        if do_spatial_whitening:
+            local_chunk = numpy.dot(local_chunk, spatial_whitening)
+        if do_temporal_whitening:
+            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
         stas[lc, :] += local_chunk[:, src].T
     return stas
 

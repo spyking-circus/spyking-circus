@@ -516,21 +516,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         elecs    = numpy.zeros(0, dtype=numpy.int32)
         labels   = numpy.zeros(0, dtype=numpy.int32)
         stas     = numpy.zeros((0, N_t), dtype=numpy.float32)
-        src      = inv_nodes[nodes[ielec]]
+        src      = nodes[ielec]
 
         for i in n_neighb:
             loc_lab   = callfile.get('clusters_%d' %i)[:]
             mask      = numpy.where(loc_lab > -1)[0]
             labels_i  = numpy.unique(loc_lab[mask])
             times_i   = callfile.get('times_%d' %i)[:][mask]    
-            idx       = numpy.where(inv_nodes[edges[nodes[i]]] == ielec)[0] 
-            stas_i    = callfile.get('sta_%d' %i)[:, idx]       
             if len(labels_i) > 0:
-                times_i   = callfile.get('times_%d' %i)[:][mask]
+                times_i = callfile.get('times_%d' %i)[:][mask]
                 elecs   = numpy.concatenate((elecs, i*numpy.ones(len(labels_i))))
                 labels  = numpy.concatenate((labels, labels_i))
+                stas_i  = io.get_stas(params, times_i, labels_i, src)
                 stas    = numpy.vstack((stas, stas_i))
-        
+
         autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.int32)
         last_i   = -1
         last_j   = -1
@@ -554,9 +553,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 spikes_j  = times_j[mask_j]
                 last_j    = j
 
+                data_i    = cross_corr(spikes_i-N_t/2, spikes_j)
+                data2_i   = cross_corr(spikes_i+N_t/2, spikes_j)[::-1]
+                data_j    = cross_corr(spikes_i, spikes_j-N_t/2)
+                data2_j   = cross_corr(spikes_i, spikes_j+N_t/2)[::-1]
+
                 for ii in range(N_t):
-                    autocorr[ci, ii, cj, :] = cross_corr(spikes_i+ii-(N_t/2), spikes_j)
-                    autocorr[cj, ii, ci, :] = autocorr[ci, ii, cj, :]
+                    autocorr[ci, ii, cj, ii:] = numpy.roll(data_i, ii)[ii:]
+                    autocorr[ci, ii:, cj, ii] = numpy.roll(data2_i, ii)[ii:]
+                    autocorr[cj, ii, ci, ii:] = numpy.roll(data_j, ii)[ii:]
+                    autocorr[cj, ii:, ci, ii] = numpy.roll(data2_j, ii)[ii:]
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
 
