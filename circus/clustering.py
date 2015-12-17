@@ -65,7 +65,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(tmp_path_loc)
 
     if alignement:
-        cdata = numpy.linspace(-template_shift/3., template_shift/3., 3*N_t)
+        cdata = numpy.linspace(-template_shift/3., template_shift/3., 5*N_t)
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     comm.Barrier()
@@ -232,7 +232,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         idx   = numpy.where(indices == elec)[0]
                                         zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
                                         ydata = numpy.arange(len(indices))
-                                        f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata)
+                                        f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=10)
                                         rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
                                         ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                         sub_mat = f(ddata, ydata).astype(numpy.float32)

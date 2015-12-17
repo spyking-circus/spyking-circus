@@ -231,7 +231,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pbar = get_progressbar(nb_elts)
 
     if alignement:
-        cdata = numpy.linspace(-template_shift/3., template_shift/3., 3*N_t)
+        cdata = numpy.linspace(-template_shift/3., template_shift/3., 5*N_t)
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     for gcount, gidx in enumerate(chunks_to_load):
@@ -290,7 +290,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                             if alignement:
                                 ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
-                                f     = scipy.interpolate.UnivariateSpline(xdata, ydata)
+                                f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=10)
                                 rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
                                 ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                 elts[:, elt_count] = f(ddata).astype(numpy.float32)
