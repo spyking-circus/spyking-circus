@@ -207,7 +207,10 @@ def data_stats(params, show=True):
              "Header offset for the data  : %d" %data_offset,
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
-             "Spatial radius considered   : %d um" %params.getint('data', 'radius')]
+             "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
+             "Stationarity                : %s" %params.getboolean('data', 'stationary'),
+             "Waveform alignment          : %s" %params.getboolean('data', 'alignement')]
+        
     if show:
         print_info(lines)
     return nb_chunks*60 + last_chunk_len

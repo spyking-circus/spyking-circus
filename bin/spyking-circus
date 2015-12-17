@@ -168,7 +168,6 @@ Options are:
             print colored("Number of GPU :", 'green'), colored(nb_gpu, 'cyan')
         print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
         print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
-        print colored("Stationary    :", 'green'), colored(stationary, 'cyan')
         print ""
         print colored("##################################################################", 'green')
         print ""        
