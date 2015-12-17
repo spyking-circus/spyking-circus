@@ -228,6 +228,29 @@ def print_error(lines):
     print colored("------------------------------------------------------------------", 'red')
 
 
+def get_all_stas(params, times, sources, alignement=False):
+
+    N_t          = params.getint('data', 'N_t')
+    stas         = numpy.zeros((len(times), len(sources), N_t), dtype=numpy.float32)
+    data_file    = params.get('data', 'data_file')
+    data_offset  = params.getint('data', 'data_offset')
+    dtype_offset = params.getint('data', 'dtype_offset')
+    data_dtype   = params.get('data', 'data_dtype')
+    N_total      = params.getint('data', 'N_total')
+    gain         = params.getfloat('data', 'gain')
+    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+
+    for count, time in enumerate(times):
+        padding      = N_total * time
+        local_chunk  = datablock[padding - (N_t/2)*N_total:padding + (N_t/2+1)*N_total]
+        local_chunk  = local_chunk.reshape(N_t, N_total)
+        local_chunk  = local_chunk.astype(numpy.float32)
+        local_chunk -= dtype_offset
+        local_chunk *= gain
+        stas[count, :, :] = local_chunk[:, sources].T
+    return stas
+
+
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
     
     if chunk_size is None:

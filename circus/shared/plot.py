@@ -30,9 +30,8 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
     
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
-    if do_temporal_whitening: 
-        for i in xrange(N_e):
-            data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
+    if do_temporal_whitening:
+        data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
 
     try:
         result    = load_data(params, 'results')
@@ -261,9 +260,8 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
         data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
-        if do_temporal_whitening: 
-            for i in xrange(N_e):
-                data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
+        if do_temporal_whitening:
+            data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
         
         curve[count] = data.T
     pylab.subplot(121)
@@ -352,9 +350,8 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         data, data_shape = load_chunk(params, 0, N_t*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
-        if do_temporal_whitening: 
-            for i in xrange(N_e):
-                data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
+        if do_temporal_whitening:
+            data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
         
         curve[count] = data.T
     pylab.subplot(111)
