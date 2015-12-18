@@ -1,4 +1,4 @@
-import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys
+import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 from termcolor import colored
 import colorama
@@ -223,7 +223,7 @@ def print_error(lines):
     print colored("------------------------------------------------------------------", 'red')
 
 
-def get_stas(params, times_i, labels_i, src):
+def get_stas(params, times_i, labels_i, src, nodes=None):
 
     nb_labels    = numpy.unique(labels_i)
     N_t          = params.getint('data', 'N_t')
@@ -251,6 +251,9 @@ def get_stas(params, times_i, labels_i, src):
         local_chunk -= dtype_offset
         local_chunk *= gain
         lc           = numpy.where(nb_labels == lb)[0]
+        if nodes is not None:
+            if not numpy.all(nodes == numpy.arange(N_total)):
+                local_chunk = local_chunk[:, nodes]
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:

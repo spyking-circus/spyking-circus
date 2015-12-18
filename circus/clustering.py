@@ -516,7 +516,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         elecs    = numpy.zeros(0, dtype=numpy.int32)
         labels   = numpy.zeros(0, dtype=numpy.int32)
         stas     = numpy.zeros((0, N_t), dtype=numpy.float32)
-        src      = nodes[ielec]
+        src      = inv_nodes[nodes[ielec]]
 
         for i in n_neighb:
             loc_lab   = callfile.get('clusters_%d' %i)[:]
@@ -527,7 +527,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 times_i = callfile.get('times_%d' %i)[:][mask]
                 elecs   = numpy.concatenate((elecs, i*numpy.ones(len(labels_i))))
                 labels  = numpy.concatenate((labels, labels_i))
-                stas_i  = io.get_stas(params, times_i, labels_i, src)
+                stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
                 stas    = numpy.vstack((stas, stas_i))
 
         autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.int32)
@@ -559,18 +559,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data2_j   = cross_corr(spikes_i, spikes_j+N_t/2)[::-1]
 
                 for ii in range(N_t):
-                    autocorr[ci, ii, cj, ii:] = numpy.roll(data_i, ii)[ii:]
-                    autocorr[ci, ii:, cj, ii] = numpy.roll(data2_i, ii)[ii:]
-                    autocorr[cj, ii, ci, ii:] = numpy.roll(data_j, ii)[ii:]
-                    autocorr[cj, ii:, ci, ii] = numpy.roll(data2_j, ii)[ii:]
+                    autocorr[ci, ii, cj, ii:] = data_i[:N_t-ii]
+                    autocorr[ci, ii:, cj, ii] = data2_i[:N_t-ii]
+                    autocorr[cj, ii, ci, ii:] = data_j[:N_t-ii]
+                    autocorr[cj, ii:, ci, ii] = data2_j[:N_t-ii]
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
 
-        print "Optimization for electrode", ielec
+        
+        stas = stas.flatten()
+        def myfunction(data):
+            return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
+
+        print "Optimization for electrode", ielec, myfunction(stas)
         #local_waveforms = stas
         #local_waveforms = numpy.linalg.lstsq(autocorr, stas.flatten())[0]
-        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas.flatten()).astype(numpy.float32)
+        local_waveforms = numpy.dot(scipy.linalg.pinv2(autocorr, rcond=1e-3), stas).astype(numpy.float32)
+        #local_waveforms = scipy.optimize.minimize(myfunction, stas.copy()).x
+        print "Optimization for electrode", ielec, myfunction(local_waveforms)
+
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
+
         
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
         tmpdata  = h5py.File(tmp_file, 'w')
