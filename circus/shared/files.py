@@ -1,4 +1,4 @@
-import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys
+import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys, scipy.ndimage
 import ConfigParser as configparser
 from termcolor import colored
 import colorama
@@ -228,10 +228,10 @@ def print_error(lines):
     print colored("------------------------------------------------------------------", 'red')
 
 
-def get_all_stas(params, times, sources, alignement=False):
+def get_mediane_by_stas(params, times, sources, alignement=False, nodes=None):
 
     N_t          = params.getint('data', 'N_t')
-    stas         = numpy.zeros((len(times), len(sources), N_t), dtype=numpy.float32)
+    stas         = numpy.zeros((len(sources), N_t), dtype=numpy.float32)
     data_file    = params.get('data', 'data_file')
     data_offset  = params.getint('data', 'data_offset')
     dtype_offset = params.getint('data', 'dtype_offset')
@@ -240,6 +240,13 @@ def get_all_stas(params, times, sources, alignement=False):
     gain         = params.getfloat('data', 'gain')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
+    do_temporal_whitening = params.getboolean('whitening', 'temporal')
+    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+
+    if do_spatial_whitening or do_temporal_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+        temporal_whitening = load_data(params, 'temporal_whitening')
+
     for count, time in enumerate(times):
         padding      = N_total * time
         local_chunk  = datablock[padding - (N_t/2)*N_total:padding + (N_t/2+1)*N_total]
@@ -247,7 +254,17 @@ def get_all_stas(params, times, sources, alignement=False):
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
         local_chunk *= gain
-        stas[count, :, :] = local_chunk[:, sources].T
+        if nodes is not None:
+            if not numpy.all(nodes == numpy.arange(N_total)):
+                local_chunk = local_chunk[:, nodes]
+
+        if do_spatial_whitening:
+            local_chunk = numpy.dot(local_chunk, spatial_whitening)
+        if do_temporal_whitening:
+            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+
+        stas += 0.01*numpy.sign(local_chunk[:, sources].T - stas)
+
     return stas
 
 

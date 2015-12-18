@@ -522,9 +522,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             electrodes[count_templates] = ielec
             myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
             sub_data         = data[myslice]
-            first_component  = numpy.median(sub_data, axis=0)
-
-            tmp_templates    = numpy.dot(first_component.T, basis_rec)
+            #first_component  = numpy.median(sub_data, axis=0)
+            #tmp_templates    = numpy.dot(first_component.T, basis_rec)
+            
+            tmp_templates    = io.get_mediane_by_stas(params, result['times_' + str(ielec)][mask], sources=indices, nodes=nodes)
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
             if temporal_shift > 0:
@@ -534,17 +535,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
 
-            x, y, z          = sub_data.shape
-            sub_data_flat    = sub_data.reshape(x, y*z)
-            first_flat       = first_component.reshape(y*z, 1)
-            amplitudes       = numpy.dot(sub_data_flat, first_flat)
-            amplitudes      /= numpy.sum(first_flat**2)
+            #x, y, z          = sub_data.shape
+            #sub_data_flat    = sub_data.reshape(x, y*z)
+            #first_flat       = first_component.reshape(y*z, 1)
+            #amplitudes       = numpy.dot(sub_data_flat, first_flat)
+            #amplitudes      /= numpy.sum(first_flat**2)
 
-            variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-            physical_limit   = noise_thr*(-thresholds[tmpidx[0]])/tmp_templates.min()
-            amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
-            amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
-            amps_lims[count_templates] = [amp_min, amp_max]
+            #variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+            #physical_limit   = noise_thr*(-thresholds[tmpidx[0]])/tmp_templates.min()
+            #amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
+            #amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
+            #amps_lims[count_templates] = [amp_min, amp_max]
+            amps_lims[count_templates] = [0.5, 1.5]
 
             for i in xrange(x):
                 sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
@@ -552,11 +554,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(sub_data_flat) > 1:
                 pca              = mdp.nodes.PCANode(output_dim=1)
                 res_pca          = pca(sub_data_flat.astype(numpy.double))
-                second_component = pca.get_projmatrix().reshape(y, z)
+                tmp_templates    = pca.get_projmatrix().reshape(y, z)
+                #second_component = pca.get_projmatrix().reshape(y, z)
             else:
-                second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
+                #second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
+                tmp_templates    = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
-            tmp_templates        = numpy.dot(second_component.T, basis_rec)
+            #tmp_templates        = numpy.dot(second_component.T, basis_rec)
             if temporal_shift > 0:
                 templates[indices[sorted_indices], temporal_shift:, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
             elif temporal_shift < 0:
