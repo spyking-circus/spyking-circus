@@ -521,16 +521,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         for i in n_neighb:
             loc_lab   = callfile.get('clusters_%d' %i)[:]
             mask      = numpy.where(loc_lab > -1)[0]
-            labels_i  = numpy.unique(loc_lab[mask])
-            times_i   = callfile.get('times_%d' %i)[:][mask]    
-            if len(labels_i) > 0:
+            labels_i  = loc_lab[mask]
+            unique_i  = numpy.unique(labels_i)
+            if len(unique_i) > 0:
                 times_i = callfile.get('times_%d' %i)[:][mask]
-                elecs   = numpy.concatenate((elecs, i*numpy.ones(len(labels_i))))
-                labels  = numpy.concatenate((labels, labels_i))
+                elecs   = numpy.concatenate((elecs, i*numpy.ones(len(unique_i))))
+                labels  = numpy.concatenate((labels, unique_i))
                 stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
                 stas    = numpy.vstack((stas, stas_i))
 
-        autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.int32)
+        autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.float32)
         last_i   = -1
         last_j   = -1
 
@@ -555,8 +555,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 data_i    = cross_corr(spikes_i-N_t/2, spikes_j)
                 data2_i   = cross_corr(spikes_i+N_t/2, spikes_j)[::-1]
-                data_j    = cross_corr(spikes_i, spikes_j-N_t/2)
-                data2_j   = cross_corr(spikes_i, spikes_j+N_t/2)[::-1]
+                data_j    = data2_i[::-1]
+                data2_j   = data_i[::-1]
 
                 for ii in range(N_t):
                     autocorr[ci, ii, cj, ii:] = data_i[:N_t-ii]
@@ -566,16 +566,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
 
-        
         stas = stas.flatten()
         def myfunction(data):
             return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
 
         print "Optimization for electrode", ielec, myfunction(stas)
-        #local_waveforms = stas
-        #local_waveforms = numpy.linalg.lstsq(autocorr, stas.flatten())[0]
-        local_waveforms = numpy.dot(scipy.linalg.pinv2(autocorr, rcond=1e-3), stas).astype(numpy.float32)
-        #local_waveforms = scipy.optimize.minimize(myfunction, stas.copy()).x
+        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas).astype(numpy.float32)
         print "Optimization for electrode", ielec, myfunction(local_waveforms)
 
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
@@ -631,6 +627,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
             amps_lims[count_templates] = [amp_min, amp_max]
             '''
+            amps_lims[count_templates] = [0.5, 1.5]
+            templates[indices[sorted_indices], :-1, templates.shape[2]/2 + count_templates] = numpy.diff(tmp_templates[sorted_indices])
+
             count_templates += 1
 
         if comm.rank == 0:
