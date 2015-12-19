@@ -570,7 +570,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
 
         print "Optimization for electrode", ielec, myfunction(stas)
-        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas).astype(numpy.float32)
+        local_waveforms = numpy.dot(scipy.linalg.pinv2(autocorr, check_finite=False), stas).astype(numpy.float32)
+        #local_waveforms = scipy.linalg.lstsq(autocorr, stas)[0]
+        
         print "Optimization for electrode", ielec, myfunction(local_waveforms)
 
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
