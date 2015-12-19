@@ -531,8 +531,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         last_i   = -1
         last_j   = -1
 
-        print "Computing crosscorr for electrode", ielec, "with %d templates", len(elecs)
-        for i, li, ci in zip(elecs, labels, range(len(elecs))):
+        print "Computing crosscorr for electrode", ielec, "with %d templates" %len(elecs)
+        for ci in xrange(len(elecs)):
+            i  = elecs[ci]
+            li = labels_i[ci]
 
             if i != last_i:
                 loc_lab_i = callfile.get('clusters_%d' %i)[:]
@@ -541,7 +543,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             spikes_i  = times_i[mask_i]
             last_i    = i
 
-            for j, lj, cj in zip(elecs[i:], labels[i:], i + range(len(elecs[i:]))):
+            for cj in xrange(len(elecs)):
+                j  = elecs[cj]
+                lj = labels[cj]
                 
                 if j != last_j:
                     loc_lab_j = callfile.get('clusters_%d' %j)[:]
@@ -552,23 +556,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 data_i    = cross_corr(spikes_i-N_t/2, spikes_j)
                 data2_i   = cross_corr(spikes_i+N_t/2, spikes_j)[::-1]
-                data_j    = data2_i[::-1]
-                data2_j   = data_i[::-1]
 
                 for ii in range(N_t):
                     autocorr[ci, ii, cj, ii:] = data_i[:N_t-ii]
                     autocorr[ci, ii:, cj, ii] = data2_i[:N_t-ii]
-                    autocorr[cj, ii, ci, ii:] = data_j[:N_t-ii]
-                    autocorr[cj, ii:, ci, ii] = data2_j[:N_t-ii]
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
-
+        pylab.imshow(autocorr)
+        tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.png' %ielec)
+        pylab.savefig(tmp_file)
         stas = stas.flatten()
         def myfunction(data):
             return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
 
         print "Optimization for electrode", ielec, myfunction(stas)
-        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr, rcond=1e-5), stas).astype(numpy.float32)
+        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas).astype(numpy.float32)
         print "Optimization for electrode", ielec, myfunction(local_waveforms)
 
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
