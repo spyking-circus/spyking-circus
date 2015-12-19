@@ -45,7 +45,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sub_output_dim = 0.95
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    to_write         = ['data_', 'clusters_', 'debug_', 'w_', 'pca_', 'times_', 'sta_']
+    to_write         = ['data_', 'clusters_', 'debug_', 'w_', 'pca_', 'times_']
     #################################################################
 
     basis_proj, basis_rec = io.load_data(params, 'basis')
@@ -70,7 +70,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         result['dc_' + str(i)]        = None
         result['pca_' + str(i)]       = None
-        result['sta_' + str(i)]       = None
 
 
     max_elts_elec /= comm.size
@@ -114,7 +113,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 result['dc_'   + str(i)] = comm.bcast(result['dc_' + str(i)], root=numpy.mod(i, comm.size))
                 result['pca_'  + str(i)] = comm.bcast(result['pca_' + str(i)], root=numpy.mod(i, comm.size))
                 result['data_' + str(i)] = numpy.zeros((0, basis_proj.shape[1] * n_neighb), dtype=numpy.float32)
-                result['sta_'  + str(i)] = numpy.zeros((N_t, n_neighb), dtype=numpy.float32)
                 if numpy.any(smart_search > 0):
                     result['sub_' + str(i)] = numpy.zeros((0, result['pca_' + str(i)].shape[1]), dtype=numpy.float32)
 
@@ -244,7 +242,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             to_accept = True
                                         if to_accept:
                                             result['data_' + str(elec)] = numpy.vstack((result['data_' + str(elec)], sub_mat))
-                                            result['sta_' + str(elec)] += rsub_mat
                                             if smart_search[elec] > 0:
                                                 result['sub_' + str(elec)] = numpy.vstack((result['sub_' + str(elec)], sub_sub_mat))
                                     else:
@@ -534,7 +531,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         last_i   = -1
         last_j   = -1
 
-        print "Computing crosscorr for electrode", ielec
+        print "Computing crosscorr for electrode", ielec, "with %d templates", len(elecs)
         for i, li, ci in zip(elecs, labels, range(len(elecs))):
 
             if i != last_i:
@@ -571,7 +568,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
 
         print "Optimization for electrode", ielec, myfunction(stas)
-        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr), stas).astype(numpy.float32)
+        local_waveforms = numpy.dot(scipy.linalg.pinv(autocorr, rcond=1e-5), stas).astype(numpy.float32)
         print "Optimization for electrode", ielec, myfunction(local_waveforms)
 
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
@@ -600,8 +597,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             tmp_templates  = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
             for count, i in enumerate(indices):
                 pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r')
-                mask  = pfile.get('limits')[:] == inv_nodes[nodes[ielec]] 
-                data  = pfile.get('waveforms')[mask, :][xcount]
+                lmask = pfile.get('limits')[:] == inv_nodes[nodes[ielec]] 
+                data  = pfile.get('waveforms')[lmask, :][xcount]
                 tmp_templates[count] = data
                 pfile.close()
 
