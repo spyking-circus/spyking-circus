@@ -562,9 +562,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     autocorr[ci, ii:, cj, ii] = data2_i[:N_t-ii]
 
         autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
-        pylab.imshow(autocorr)
-        tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.png' %ielec)
-        pylab.savefig(tmp_file)
+        #pylab.imshow(autocorr)
+        #tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.png' %ielec)
+        #pylab.savefig(tmp_file)
         stas = stas.flatten()
         def myfunction(data):
             return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
@@ -606,14 +606,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 tmp_templates[count] = data
                 pfile.close()
 
-            #tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
-            #temporal_shift   = template_shift - tmpidx[1]
-            #if temporal_shift > 0:
-            #    templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
-            #elif temporal_shift < 0:
-            #    templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
-            #else:
-            templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
+            tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+            temporal_shift   = template_shift - tmpidx[1]
+            if temporal_shift > 0:
+                templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
+            elif temporal_shift < 0:
+                templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
+            else:
+                templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
 
             '''
             x, y, z          = sub_data.shape
@@ -629,7 +629,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amps_lims[count_templates] = [amp_min, amp_max]
             '''
             amps_lims[count_templates] = [0.5, 1.5]
-            templates[indices[sorted_indices], :-1, templates.shape[2]/2 + count_templates] = numpy.diff(tmp_templates[sorted_indices])
+
+            offset = templates.shape[2]/2 + count_templates
+            if temporal_shift > 0:
+                templates[indices[sorted_indices], temporal_shift:, offset] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
+            elif temporal_shift < 0:
+                templates[indices[sorted_indices], :temporal_shift, offset] = tmp_templatesnumpy.diff([sorted_indices, -temporal_shift:])
+            else:
+                templates[indices[sorted_indices], :, offset] = numpy.diff(tmp_templates[sorted_indices])
 
             count_templates += 1
 
