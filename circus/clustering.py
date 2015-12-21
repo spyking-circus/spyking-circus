@@ -527,7 +527,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
                 stas    = numpy.vstack((stas, stas_i))
 
-        autocorr = numpy.zeros((len(elecs), N_t, len(elecs), N_t), dtype=numpy.float32)
+        autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
         last_i   = -1
         last_j   = -1
 
@@ -543,7 +543,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             spikes_i  = times_i[mask_i]
             last_i    = i
 
-            for cj in xrange(len(elecs)):
+            for cj in xrange(ci, len(elecs)):
                 j  = elecs[cj]
                 lj = labels[cj]
                 
@@ -557,24 +557,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data_i    = cross_corr(spikes_i-N_t/2, spikes_j)
                 
                 for ii in range(N_t):
-                    autocorr[ci, ii, cj, ii:] = data_i[:N_t-ii]
-                    autocorr[ci ,ii:, cj, ii] = data_i[:N_t-ii]
+                    subidx = numpy.arange(ii, N_t)
+                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data_i[:N_t-ii]
+                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data_i[:N_t-ii]
 
-        autocorr = autocorr.reshape(len(elecs)*N_t, len(elecs)*N_t)
+        autocorr += autocorr.T - numpy.diag(autocorr.diagonal())
 
-        pylab.imshow(autocorr)
-        tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.png' %ielec)
-        pylab.savefig(tmp_file)
-        tmp_file = os.path.join(tmp_path_loc, 'tmp_%d' %ielec)
-        numpy.save(tmp_file, autocorr)
+        #pylab.imshow(autocorr)
+        #tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.png' %ielec)
+        #pylab.savefig(tmp_file)
+        #tmp_file = os.path.join(tmp_path_loc, 'tmp_%d' %ielec)
+        #numpy.save(tmp_file, autocorr)
         stas = stas.flatten()
-        def myfunction(data):
-            return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
+        #def myfunction(data):
+        #    return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
 
         print "Optimization for electrode", ielec, myfunction(stas)
         local_waveforms = numpy.dot(scipy.linalg.inv(autocorr), stas).astype(numpy.float32)
         
-        print "Optimization for electrode", ielec, myfunction(local_waveforms)
+        #print "Optimization for electrode", ielec, myfunction(local_waveforms)
 
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
 
@@ -599,7 +600,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         sorted_indices = numpy.argsort(indices)
         for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
         
-            tmp_templates  = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
+            tmp_templates = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
+            myslice       = numpy.where(cluster_results[ielec]['groups'] == group)[0]
             for count, i in enumerate(indices):
                 pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r')
                 lmask = pfile.get('limits')[:] == inv_nodes[nodes[ielec]] 
@@ -617,36 +619,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
 
 
-            amplitudes       = io.get_amplitudes(params, result['times_' + str(ielec)][mask], indices, tmp_templates, nodes)
+            amplitudes       = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], indices, tmp_templates, nodes)
             variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
             physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
             amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
             amps_lims[count_templates] = [amp_min, amp_max]
 
-            
-            '''
-            x, y, z          = sub_data.shape
-            sub_data_flat    = sub_data.reshape(x, y*z)
-            first_flat       = first_component.reshape(y*z, 1)
-            amplitudes       = numpy.dot(sub_data_flat, first_flat)
-            amplitudes      /= numpy.sum(first_flat**2)
-
-            variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-            physical_limit   = noise_thr*(-thresholds[tmpidx[0]])/tmp_templates.min()
-            amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
-            amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
-            amps_lims[count_templates] = [amp_min, amp_max]
-            
-            amps_lims[count_templates] = [0.5, 1.5]
-
             offset = templates.shape[2]/2 + count_templates
+
+            '''
             if temporal_shift > 0:
-                templates[indices[sorted_indices], temporal_shift:, offset] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
+                templates[indices[sorted_indices], temporal_shift:-1, offset] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
             elif temporal_shift < 0:
-                templates[indices[sorted_indices], :temporal_shift, offset] = numpy.diff([sorted_indices, -temporal_shift:])
+                templates[indices[sorted_indices], :temporal_shift-1, offset] = numpy.diff([sorted_indices, -temporal_shift:])
             else:
-                templates[indices[sorted_indices], :, offset] = numpy.diff(tmp_templates[sorted_indices])
+                templates[indices[sorted_indices], :-1, offset] = numpy.diff(tmp_templates[sorted_indices])
             '''
             count_templates += 1
 

@@ -261,6 +261,44 @@ def get_stas(params, times_i, labels_i, src, nodes=None):
         stas[lc, :] += local_chunk[:, src].T
     return stas
 
+def get_amplitudes(params, times_i, sources, template, nodes=None):
+
+    N_t          = params.getint('data', 'N_t')
+    amplitudes   = numpy.zeros(len(times_i), dtype=numpy.float32)
+    data_file    = params.get('data', 'data_file')
+    data_offset  = params.getint('data', 'data_offset')
+    dtype_offset = params.getint('data', 'dtype_offset')
+    data_dtype   = params.get('data', 'data_dtype')
+    N_total      = params.getint('data', 'N_total')
+    gain         = params.getfloat('data', 'gain')
+    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    template     = template.flatten()
+
+    do_temporal_whitening = params.getboolean('whitening', 'temporal')
+    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+
+    if do_spatial_whitening or do_temporal_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+        temporal_whitening = load_data(params, 'temporal_whitening')
+
+    for count, time in enumerate(times_i):
+        padding      = N_total * time
+        local_chunk  = datablock[padding - (N_t/2)*N_total:padding + (N_t/2+1)*N_total]
+        local_chunk  = local_chunk.reshape(N_t, N_total)
+        local_chunk  = local_chunk.astype(numpy.float32)
+        local_chunk -= dtype_offset
+        local_chunk *= gain
+        if nodes is not None:
+            if not numpy.all(nodes == numpy.arange(N_total)):
+                local_chunk = local_chunk[:, nodes]
+        if do_spatial_whitening:
+            local_chunk = numpy.dot(local_chunk, spatial_whitening)
+        if do_temporal_whitening:
+            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+        local_chunk = local_chunk[:, sources].flatten()
+        amplitudes[count] = numpy.dot(local_chunk, template)
+        
+    return amplitudes/numpy.sum(template**2)
 
 
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
