@@ -483,7 +483,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             lines += ["                              -increase sim_same_elec?"]
         io.print_info(lines)
 
-        print "Extracting the templates..."
+        print "Extracting the templates by least-square fitting..."
 
     if parallel_hdf5:
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.float32), root=0)[0])
@@ -639,6 +639,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 tmp_templates[count] = data
                 pfile.close()
 
+            #Denoise the templates with PCA by shifting them
+            argmins = numpy.argmin(tmp_templates, 1)
+            for i in xrange(len(indices)):
+                temporal_shift = template_shift - argmins[i]
+                tmp_data       = numpy.zeros(N_t, dtype=numpy.float32)
+                if temporal_shift > 0:
+                    tmp_data[temporal_shift:] = tmp_templates[i, :-temporal_shift]
+                elif temporal_shift < 0:
+                    tmp_data[:temporal_shift] = tmp_templates[i, -temporal_shift:]
+                else:
+                    tmp_data = tmp_templates[i]
+
+                tmp_data = numpy.dot(basis_proj, numpy.dot(basis_rec, tmp_data))
+                
+                if temporal_shift > 0:
+                    tmp_templates[i, :-temporal_shift] = tmp_data[temporal_shift:]
+                elif temporal_shift < 0:
+                    tmp_templates[i, -temporal_shift:] = tmp_data[:temporal_shift]
+                else:
+                    tmp_templates[i] = tmp_data
+
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
             if temporal_shift > 0:
@@ -655,7 +676,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
             amps_lims[count_templates] = [amp_min, amp_max]
 
-            offset = templates.shape[2]/2 + count_templates
+            offset           = templates.shape[2]/2 + count_templates
+
             if temporal_shift > 0:
                 templates[indices[sorted_indices], temporal_shift:-1, offset] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
             elif temporal_shift < 0:
