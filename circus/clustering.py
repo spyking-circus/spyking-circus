@@ -515,8 +515,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #sub_data         = data[myslice]
             #first_component  = numpy.median(sub_data, axis=0)
             #tmp_templates    = numpy.dot(first_component.T, basis_rec)
-            tmp_templates    = io.get_stas(params, result['times_' + str(ielec)][mask], indices)
-            #tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
+            tmp_templates    = io.get_stas(params, result['times_' + str(ielec)][mask], indices, nodes)
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
             if temporal_shift > 0:
@@ -526,20 +525,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
 
-            '''
-            x, y, z          = sub_data.shape
-            sub_data_flat    = sub_data.reshape(x, y*z)
-            first_flat       = first_component.reshape(y*z, 1)
-            amplitudes       = numpy.dot(sub_data_flat, first_flat)
-            amplitudes      /= numpy.sum(first_flat**2)
-
+            amplitudes       = io.get_amplitudes(params, result['times_' + str(ielec)][mask], indices, tmp_templates, nodes)
             variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-            physical_limit   = noise_thr*(-thresholds[tmpidx[0]])/tmp_templates.min()
+            physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
             amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
             amps_lims[count_templates] = [amp_min, amp_max]
 
-
+            '''
             for i in xrange(x):
                 sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
 
@@ -552,17 +545,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             tmp_templates        = numpy.dot(second_component.T, basis_rec)
             '''
-            
-            amps_lims[count_templates] = [0.5, 1.5]
-
-            '''
+                        
+            offset = templates.shape[2]/2 + count_templates
             if temporal_shift > 0:
-                templates[indices[sorted_indices], temporal_shift:, templates.shape[2]/2 + count_templates] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
+                templates[indices[sorted_indices], temporal_shift:-1, offset] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
             elif temporal_shift < 0:
-                templates[indices[sorted_indices], :temporal_shift, templates.shape[2]/2 + count_templates] = numpy.diff(tmp_templates[sorted_indices, -temporal_shift:])
+                templates[indices[sorted_indices], :temporal_shift-1, offset] = numpy.diff(tmp_templates[sorted_indices, -temporal_shift:])
             else:
-                templates[indices[sorted_indices], :, templates.shape[2]/2 + count_templates] = numpy.diff(tmp_templates[sorted_indices])
-            ''' 
+                templates[indices[sorted_indices], :-1, offset] = numpy.diff(tmp_templates[sorted_indices])
+            
             count_templates += 1
 
         if make_plots:
