@@ -304,12 +304,6 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
         amplitudes[count] = numpy.dot(local_chunk, template)
         
     return amplitudes/numpy.sum(template**2)
-=======
-
-        stas += 0.01*numpy.sign(local_chunk[:, sources].T - stas)
-
-    return stas
->>>>>>> thresholds
 
 
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
