@@ -528,6 +528,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 stas    = numpy.vstack((stas, stas_i))
 
         autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        #autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
         last_i   = -1
         last_j   = -1
 
@@ -572,7 +573,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #def myfunction(data):
         #    return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
 
-        print "Optimization for electrode", ielec, myfunction(stas)
+        print "Optimization for electrode", ielec
         local_waveforms = numpy.dot(scipy.linalg.inv(autocorr), stas).astype(numpy.float32)
         
         #print "Optimization for electrode", ielec, myfunction(local_waveforms)
