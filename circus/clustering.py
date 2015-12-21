@@ -512,10 +512,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
             electrodes[count_templates] = ielec
             myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
-            sub_data         = data[myslice]
-            first_component  = numpy.median(sub_data, axis=0)
-
-            tmp_templates    = numpy.dot(first_component.T, basis_rec)
+            #sub_data         = data[myslice]
+            #first_component  = numpy.median(sub_data, axis=0)
+            #tmp_templates    = numpy.dot(first_component.T, basis_rec)
+            tmp_templates    = io.get_stas(params, result['times_' + str(ielec)][mask], indices)
             #tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
@@ -526,6 +526,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
 
+            '''
             x, y, z          = sub_data.shape
             sub_data_flat    = sub_data.reshape(x, y*z)
             first_flat       = first_component.reshape(y*z, 1)
@@ -538,6 +539,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
             amps_lims[count_templates] = [amp_min, amp_max]
 
+
             for i in xrange(x):
                 sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
 
@@ -549,13 +551,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
             tmp_templates        = numpy.dot(second_component.T, basis_rec)
-            if temporal_shift > 0:
-                templates[indices[sorted_indices], temporal_shift:, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
-            elif temporal_shift < 0:
-                templates[indices[sorted_indices], :temporal_shift, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
-            else:
-                templates[indices[sorted_indices], :, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices]
+            '''
+            
+            amps_lims[count_templates] = [0.5, 1.5]
 
+            '''
+            if temporal_shift > 0:
+                templates[indices[sorted_indices], temporal_shift:, templates.shape[2]/2 + count_templates] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
+            elif temporal_shift < 0:
+                templates[indices[sorted_indices], :temporal_shift, templates.shape[2]/2 + count_templates] = numpy.diff(tmp_templates[sorted_indices, -temporal_shift:])
+            else:
+                templates[indices[sorted_indices], :, templates.shape[2]/2 + count_templates] = numpy.diff(tmp_templates[sorted_indices])
+            ''' 
             count_templates += 1
 
         if make_plots:
