@@ -507,7 +507,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             x_cc[d]    -= len(gsum)
         return x_cc
 
-    for ielec in range(comm.rank, N_e, comm.size):
+    if comm.rank == 0:
+        pbar = get_progressbar(len(numpy.arange(comm.rank, N_e, comm.size)))
+
+    for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
 
         n_neighb = inv_nodes[edges[nodes[ielec]]]
         elecs    = numpy.zeros(0, dtype=numpy.int32)
@@ -532,7 +535,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         last_i   = -1
         last_j   = -1
 
-        print "Computing crosscorr for electrode", ielec, "with %d templates" %len(elecs)
+        #print "Computing crosscorr for electrode", ielec, "with %d templates" %len(elecs)
         for ci in xrange(len(elecs)):
             i  = elecs[ci]
             li = labels[ci]
@@ -564,18 +567,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         autocorr += autocorr.T - numpy.diag(autocorr.diagonal())
 
-        #pylab.imshow(autocorr)
-        #tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.png' %ielec)
-        #pylab.savefig(tmp_file)
-        #tmp_file = os.path.join(tmp_path_loc, 'tmp_%d' %ielec)
-        #numpy.save(tmp_file, autocorr)
         stas     = stas.flatten()
         autocorr = autocorr.tocsc()
-        #def myfunction(data):
-        #    return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
 
-        print "Optimization for electrode", ielec
-        local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
+        #print "Optimization for electrode", ielec
+        local_waveforms = scipy.sparse.linalg.lgmres(autocorr, stas)[0]
         
         #print "Optimization for electrode", ielec, myfunction(local_waveforms)
 
@@ -586,6 +582,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         output   = tmpdata.create_dataset('waveforms', data=local_waveforms)
         limits   = tmpdata.create_dataset('limits', data=elecs)
         tmpdata.close()
+
+        if comm.rank == 0:
+            pbar.update(count)
+
+    if comm.rank == 0:
+        pbar.finish()
 
     callfile.close()
     comm.Barrier()
@@ -648,25 +650,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     hfile.close()
 
 
-    #if comm.rank == 0:
-    #    print "Merging similar templates..."
+    if comm.rank == 0:
+        print "Merging similar templates..."
     
-    #merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
+    merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
     
-    #comm.Barrier()
-    #if comm.rank == 0:
-    #    print "Removing mixtures..."
+    comm.Barrier()
+    if comm.rank == 0:
+        print "Removing mixtures..."
 
-    #remove_mixture = False
-    #if remove_mixture:
-    #    merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
-    #else:
-    #    merged2 = [0, 0]
+    if remove_mixture:
+        merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+    else:
+        merged2 = [0, 0]
 
-    #if comm.rank == 0:
+    if comm.rank == 0:
 
-    #    io.print_info(["Number of global merges    : %d" %merged1[1], 
-    #                   "Number of mixtures removed : %d" %merged2[1]])    
+        io.print_info(["Number of global merges    : %d" %merged1[1], 
+                       "Number of mixtures removed : %d" %merged2[1]])    
 
     comm.Barrier()
     io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
