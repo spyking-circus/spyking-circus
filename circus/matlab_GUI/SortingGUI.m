@@ -132,7 +132,7 @@ else
     end
     has_amptrend = false;
     for id=1:size(info.Groups, 1)
-        if strcmp(info.Groups(id).Name, '/amptrend')
+        if strcmp(info.Groups(id).Name, 'amptrend')
             has_amptrend = true;
         end
     end
@@ -200,6 +200,7 @@ if length(varargin)>=6
             handles.WhiteTemporal = h5read(tmpfile, '/temporal');
             ndim                  = numel(size(handles.WhiteTemporal));
             handles.WhiteTemporal = permute(handles.WhiteTemporal,[ndim:-1:1]);
+            handles.Thresholds    = h5read(tmpfile, '/thresholds');
         end
 
         b                  = load(varargin{4}, '-mat');
@@ -226,10 +227,10 @@ else
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
         data = h5read(tmpfile, ['/spiketimes/temp_' int2str(id - 1)]);
-        if size(data, 1) == 0 || (same(data, zeros(1)) > 0)
-            handles.SpikeTimes{id} = zeros(0, 1);
-        else
+        if any(data ~= 0)
             handles.SpikeTimes{id} = double(data)/(handles.SamplingRate/1000);
+        else
+            handles.SpikeTimes{id} = zeros(0, 1);
         end
     end
 end
@@ -240,6 +241,9 @@ if exist([handles.filename '.templates' handles.suffix],'file')
     b              = load([handles.filename '.templates' handles.suffix],'-mat');
     if isfield(b, 'AmpLim')
         handles.AmpLim = b.AmpLim;
+    else
+        b              = load([handles.filename '.limits.mat'],'-mat');
+        handles.AmpLim = b.limits;
     end
 elseif exist([handles.filename '.limits.mat'],'file')
     b              = load([handles.filename '.limits.mat'],'-mat');
@@ -322,14 +326,14 @@ else
     info    = h5info(tmpfile);
     for id = 1:size(info.Groups(1).Datasets, 1)
         data        = h5read(tmpfile, ['/amplitudes/temp_' int2str(id - 1)]);
-        if same(data, zeros(1))
-            handles.Amplitudes{id}  = [];
-            handles.Amplitudes2{id} = [];
-        else
+        if any(data ~= 0)
             ndim = numel(size(data));
             data = permute(data,[ndim:-1:1]);
             handles.Amplitudes{id}  = data(:, 1);
             handles.Amplitudes2{id} = data(:, 2);
+        else
+            handles.Amplitudes{id}  = [];
+            handles.Amplitudes2{id} = [];
         end
     end
 end
@@ -1716,8 +1720,8 @@ if ViewMode==2
     
     %Here it starts
 
-    t1b = floor(t1/BinSize);
-    t2b = floor(t2/BinSize);
+    t1b = round(t1/BinSize);
+    t2b = round(t2/BinSize);
     t1b = unique(t1b);
     t2b = unique(t2b);
 
@@ -1733,7 +1737,7 @@ else
     t1 = handles.SpikeTimes{CellNb};
 
     %Here it starts
-    t1b = floor(t1/BinSize);
+    t1b = round(t1/BinSize);
     t1b = unique(t1b);
     CorrCount = zeros(1,2*MaxDelay+1);
     for i=1:(2*MaxDelay+1)
@@ -2007,28 +2011,23 @@ choice = questdlg('Are you sure?', 'Kill All E', 'Yes', 'No way','No way');
 % Handle response
 switch choice
     case 'Yes'
-        CellNbs = find(handles.Tagged==1); % 1 corresponds to E
+        wdw = find(handles.Tagged==1); % 1 corresponds to E
 
-        for i=1:length(CellNbs)
-            CellNb          = CellNbs(i);
-            nb_templates    = length(handles.SpikeTimes);
-            myslice         = [(1:CellNb-1) (CellNb+1:nb_templates)];
-            handles.to_keep = handles.to_keep(myslice);
-            handles.SpikeTimes(CellNb)  = [];
-            handles.Amplitudes(CellNb)  = [];
-            handles.Amplitudes2(CellNb) = [];
-            handles.AmpLim(CellNb,:)    = [];
-            handles.AmpTrend(CellNb)    = [];
-            handles.clusters(CellNb)    = [];
-            handles.BestElec(CellNb)    = [];
-            handles.Tagged(CellNb)      = [];
-            handles.overlap(CellNb,:)   = [];
-            handles.overlap(:,CellNb)   = [];
+        if any(wdw)
+            handles.to_keep(wdw)     = [];
+            handles.SpikeTimes(wdw)  = [];
+            handles.Amplitudes(wdw)  = [];
+            handles.Amplitudes2(wdw) = [];
+            handles.AmpLim(wdw,:)    = [];
+            handles.AmpTrend(wdw)    = [];
+            handles.clusters(wdw)    = [];
+            handles.BestElec(wdw)    = [];
+            handles.Tagged(wdw)      = [];
+            handles.overlap(wdw,:)   = [];
+            handles.overlap(:,wdw)   = [];       
+            guidata(hObject, handles);
+            PlotData(handles)
         end
-        
-        guidata(hObject, handles);
-
-        PlotData(handles)
 end
 
 
@@ -2048,28 +2047,23 @@ function KillAllEmpty_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-CellNbs = find(cellfun('length',handles.SpikeTimes)==0); % 1 corresponds to E
+wdw = (cellfun('length',handles.SpikeTimes)==0);
 
-for i=1:length(CellNbs)
-    CellNb          = CellNbs(i);
-    nb_templates    = length(handles.SpikeTimes);
-    myslice         = [(1:CellNb-1) (CellNb+1:nb_templates)];
-    handles.to_keep = handles.to_keep(myslice);
-    handles.SpikeTimes(CellNb)  = [];
-    handles.Amplitudes(CellNb)  = [];
-    handles.Amplitudes2(CellNb) = [];
-    handles.AmpLim(CellNb,:)    = [];
-    handles.AmpTrend(CellNb)    = [];
-    handles.clusters(CellNb)    = [];
-    handles.BestElec(CellNb)    = [];
-    handles.Tagged(CellNb)      = [];
-    handles.overlap(CellNb,:)   = [];
-    handles.overlap(:,CellNb)   = [];
+if any(wdw)
+    handles.to_keep(wdw)     = [];
+    handles.SpikeTimes(wdw)  = [];
+    handles.Amplitudes(wdw)  = [];
+    handles.Amplitudes2(wdw) = [];
+    handles.AmpLim(wdw,:)    = [];
+    handles.AmpTrend(wdw)    = [];
+    handles.clusters(wdw)    = [];
+    handles.BestElec(wdw)    = [];
+    handles.Tagged(wdw)      = [];
+    handles.overlap(wdw,:)   = [];
+    handles.overlap(:,wdw)   = [];
+    guidata(hObject, handles);
+    PlotData(handles)
 end
-
-guidata(hObject, handles);
-
-PlotData(handles)
 
 
 % --- Executes on selection change in CrossCorrMaxBin.

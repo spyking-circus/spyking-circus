@@ -41,8 +41,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         to_average     = range(max_delay + 1 - delay_average, max_delay + 1 + delay_average)
     
     def reversed_corr(spike_1, spike_2, max_delay):
-        t1b     = numpy.unique(numpy.floor(spike_1/bin_size))
-        t2b     = numpy.unique(numpy.floor(spike_2/bin_size))
+        t1b     = numpy.unique(numpy.round(spike_1/bin_size))
+        t2b     = numpy.unique(numpy.round(spike_2/bin_size))
         t2b_inv = t2b[-1] + t2b[0] - t2b
 
         x_cc    = numpy.ones(2*max_delay+1)*(len(t1b) + len(t2b))

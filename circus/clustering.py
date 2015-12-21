@@ -14,8 +14,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
+    alignement     = params.getboolean('data', 'alignement')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
+    spike_thresh   = params.getfloat('data', 'spike_thresh')
+    stationary     = params.getboolean('data', 'stationary')
     if params.get('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     else:
@@ -62,6 +65,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
+
+    if alignement:
+        cdata = numpy.linspace(-template_shift/3., template_shift/3., 5*N_t)
+        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     comm.Barrier()
 
@@ -152,12 +159,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #print "Extracting the peaks..."
                 all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                 all_minimas   = numpy.zeros(0, dtype=numpy.int32)
+
+                if not stationary:
+                    for i in xrange(N_e):
+                        u             = numpy.median(local_chunk[:, i], 0)
+                        thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
+                    thresholds *= spike_thresh
+                    
                 for i in xrange(N_e):
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                     all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
                 #print "Removing the useless borders..."
-                local_borders   = (template_shift, local_shape - template_shift)
+                if alignement:
+                    local_borders = (2*template_shift, local_shape - 2*template_shift)
+                else:
+                    local_borders = (template_shift, local_shape - template_shift)
                 idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
                 all_peaktimes   = all_peaktimes[idx]
                 all_minimas     = all_minimas[idx]
@@ -219,8 +236,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     to_update = result['tmp_' + str(elec)]
 
                                 if len(to_update) < loop_max_elts_elec:
-                                    rsub_mat   = local_chunk[peak-template_shift:peak+template_shift+1, indices]
-                                    sub_mat    = numpy.dot(basis_rec, rsub_mat)
+                                    
+                                    if alignement:
+                                        idx   = numpy.where(indices == elec)[0]
+                                        zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
+                                        ydata = numpy.arange(len(indices))
+                                        f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
+                                        rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+                                        ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                        sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                    else:
+                                        sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
+
+                                    sub_mat    = numpy.dot(basis_rec, sub_mat)
                                     nx, ny     = sub_mat.shape
                                     sub_mat    = sub_mat.reshape((1, nx * ny))
 

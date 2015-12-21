@@ -14,7 +14,7 @@ else:
     data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
 
 setup(name='spyking-circus',
-      version='0.1',
+      version='0.2',
       description='Fast spike sorting by template matching',
       url='http://www.yger.net/software/spyking-circus',
       author='Pierre Yger and Olivier Marre',
@@ -31,7 +31,8 @@ setup(name='spyking-circus',
                                pjoin('matlab_GUI', 'SortingGUI.m'),
                                pjoin('matlab_GUI', 'SortingGUI.fig'),
                                pjoin('matlab_GUI', 'strjoin.m'),
-                               pjoin('matlab_GUI', 'strsplit.m')]},
+                               pjoin('matlab_GUI', 'strsplit.m'),
+			       pjoin('matlab_GUI', 'DATA_SortingGUI.m')]},
       data_files=[(data_path, [pjoin('circus', 'config.params')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'mea_252.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'small_mea_252.prb')]),

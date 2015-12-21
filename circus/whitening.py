@@ -189,7 +189,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
+    alignement     = params.getboolean('data', 'alignement')
     file_out       = params.get('data', 'file_out')
+    spike_thresh   = params.getfloat('data', 'spike_thresh')
+    stationary     = params.getboolean('data', 'stationary')
     nodes, edges   = io.get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -229,7 +232,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar = get_progressbar(nb_elts)
 
-
+    if alignement:
+        cdata = numpy.linspace(-template_shift/3., template_shift/3., 5*N_t)
+        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     for gcount, gidx in enumerate(chunks_to_load):
 
@@ -244,13 +249,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #print "Extracting the peaks..."
             all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
             all_minimas   = numpy.zeros(0, dtype=numpy.int32)
+            if not stationary:
+                for i in xrange(N_e):
+                    u             = numpy.median(local_chunk[:, i], 0)
+                    thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
+                thresholds *= spike_thresh
+
             for i in xrange(N_e):
                 peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
             #print "Removing the useless borders..."
-            local_borders   = (template_shift, local_shape - template_shift)
+            if alignement:
+                local_borders = (2*template_shift, local_shape - 2*template_shift)
+            else:
+                local_borders = (template_shift, local_shape - template_shift)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
             all_peaktimes   = all_peaktimes[idx]
             all_minimas     = all_minimas[idx]
@@ -279,7 +293,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     is_local_min = elec in all_minimas[all_peaktimes == peak]
                     if is_local_min and not myslice.any():
                         if groups[elec] < max_elts_elec:
+
                             elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+
+                            if alignement:
+                                ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
+                                f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
+                                rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                elts[:, elt_count] = f(ddata).astype(numpy.float32)
+
                             groups[elec]       += 1
                             elt_count          += 1
                         all_times[indices, min_times[idx]:max_times[idx]] = True
