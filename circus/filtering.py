@@ -58,7 +58,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_chunk  -= dtype_offset
             for i in xrange(N_total):
                 try:
-                    local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
+                    local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                    local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
                 except Exception:
                     pass
             local_chunk  += dtype_offset

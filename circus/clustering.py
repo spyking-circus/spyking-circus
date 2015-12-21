@@ -628,8 +628,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amps_lims[count_templates] = [amp_min, amp_max]
 
             offset = templates.shape[2]/2 + count_templates
-
-            
             if temporal_shift > 0:
                 templates[indices[sorted_indices], temporal_shift:-1, offset] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
             elif temporal_shift < 0:
