@@ -486,7 +486,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
         cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w')
-        io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
         for i in xrange(comm.size):
             for j in range(i, N_e, comm.size):
                 io.write_datasets(cfile, to_write, rs[i], j)
@@ -497,7 +496,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
-    electrodes = callfile.get('electrodes')[:]
 
     def cross_corr(spike_1, spike_2):
         x_cc    = numpy.ones(N_t, dtype=numpy.float32)*(len(spike_1) + len(spike_2))
@@ -589,8 +587,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
-    callfile.close()
     comm.Barrier()
+    callfile.close()
 
     if comm.rank == 0:
         pbar = get_progressbar(local_nb_clusters)
@@ -603,6 +601,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         sorted_indices = numpy.argsort(indices)
         for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
         
+            electrodes[count_templates] = ielec
             tmp_templates = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
             myslice       = numpy.where(cluster_results[ielec]['groups'] == group)[0]
             for count, i in enumerate(indices):
@@ -620,7 +619,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
             else:
                 templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
-
 
             amplitudes       = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], indices, tmp_templates, nodes)
             variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
@@ -647,8 +645,42 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
-    hfile.close()
+    if parallel_hdf5:
+        if comm.rank == 0:
+            cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r+')
+            io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]}) 
+            cfile.close()
+        hfile.close()
+    else:
+        hfile.close()
+        comm.Barrier()
+        if comm.rank == 0:
+            ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
+            n_clusters = numpy.sum([ts[i].get('templates').shape[2] for i in xrange(comm.size)])/2
+            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w')
+            templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True)
+            electrodes = hfile.create_dataset('electrodes', shape=(n_clusters, ), dtype=numpy.int32, chunks=True)
+            amplitudes = hfile.create_dataset('limits', shape=(n_clusters, 2), dtype=numpy.float32, chunks=True)
+            count      = 0
+            for i in xrange(comm.size):
+                loc_temp    = ts[i].get('templates')
+                middle      = loc_temp.shape[2]/2
+                templates[:,:,count:count+middle] = loc_temp[:,:,:middle]
+                templates[:,:,n_clusters+count:n_clusters+count+middle] = loc_temp[:,:,middle:]
+                electrodes[count:count+middle] = ts[i].get('electrodes')
+                amplitudes[count:count+middle] = ts[i].get('limits')
+                count      += middle
+                os.remove(file_out_suff + '.templates-%d.hdf5' %i)
+            io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
+            hfile.close()
+            cfile.close()
 
+    comm.Barrier()
+    if comm.rank == 0:
+        for i in xrange(N_e):
+            os.remove(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i))
+
+    comm.Barrier()
 
     if comm.rank == 0:
         print "Merging similar templates..."
