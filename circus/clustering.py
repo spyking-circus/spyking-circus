@@ -500,7 +500,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     electrodes = callfile.get('electrodes')[:]
 
     def cross_corr(spike_1, spike_2):
-        x_cc    = numpy.ones(N_t)*(len(spike_1) + len(spike_2))
+        x_cc    = numpy.ones(N_t, dtype=numpy.float32)*(len(spike_1) + len(spike_2))
         for d in xrange(N_t):
             spike_2_bis = spike_2 + (d - N_t/2)
             gsum        = numpy.unique(numpy.concatenate((spike_1, spike_2_bis)))
@@ -527,8 +527,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
                 stas    = numpy.vstack((stas, stas_i))
 
-        autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
-        #autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        #autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
         last_i   = -1
         last_j   = -1
 
@@ -559,8 +559,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 
                 for ii in range(N_t):
                     subidx = numpy.arange(ii, N_t)
-                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data_i[:N_t-ii]
-                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data_i[:N_t-ii]
+                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data_i[:N_t-ii].reshape(1, len(subidx))
+                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data_i[:N_t-ii].reshape(len(subidx), 1)
 
         autocorr += autocorr.T - numpy.diag(autocorr.diagonal())
 
@@ -569,18 +569,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #pylab.savefig(tmp_file)
         #tmp_file = os.path.join(tmp_path_loc, 'tmp_%d' %ielec)
         #numpy.save(tmp_file, autocorr)
-        stas = stas.flatten()
+        stas     = stas.flatten()
+        autocorr = autocorr.tocsc()
         #def myfunction(data):
         #    return numpy.sum((numpy.dot(autocorr, data) - stas)**2)
 
         print "Optimization for electrode", ielec
-        local_waveforms = numpy.dot(scipy.linalg.inv(autocorr), stas).astype(numpy.float32)
+        local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
         
         #print "Optimization for electrode", ielec, myfunction(local_waveforms)
 
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
 
-        
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
         tmpdata  = h5py.File(tmp_file, 'w')
         output   = tmpdata.create_dataset('waveforms', data=local_waveforms)
@@ -629,14 +629,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             offset = templates.shape[2]/2 + count_templates
 
-            '''
+            
             if temporal_shift > 0:
                 templates[indices[sorted_indices], temporal_shift:-1, offset] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
             elif temporal_shift < 0:
-                templates[indices[sorted_indices], :temporal_shift-1, offset] = numpy.diff([sorted_indices, -temporal_shift:])
+                templates[indices[sorted_indices], :temporal_shift-1, offset] = numpy.diff(tmp_templates[sorted_indices, -temporal_shift:])
             else:
                 templates[indices[sorted_indices], :-1, offset] = numpy.diff(tmp_templates[sorted_indices])
-            '''
+            
             count_templates += 1
 
         if comm.rank == 0:
