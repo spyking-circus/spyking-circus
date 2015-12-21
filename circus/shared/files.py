@@ -1,4 +1,4 @@
-import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys
+import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys, scipy.ndimage
 import ConfigParser as configparser
 from termcolor import colored
 import colorama
