@@ -634,7 +634,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if temporal_shift > 0:
                 templates[indices[sorted_indices], temporal_shift:, offset] = numpy.diff(tmp_templates[sorted_indices, :-temporal_shift])
             elif temporal_shift < 0:
-                templates[indices[sorted_indices], :temporal_shift, offset] = tmp_templatesnumpy.diff([sorted_indices, -temporal_shift:])
+                templates[indices[sorted_indices], :temporal_shift, offset] = numpy.diff([sorted_indices, -temporal_shift:])
             else:
                 templates[indices[sorted_indices], :, offset] = numpy.diff(tmp_templates[sorted_indices])
 
