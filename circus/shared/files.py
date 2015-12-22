@@ -663,7 +663,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
 
     if parallel_hdf5:
-        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm), libver='latest'
+        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm, libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         comm.Barrier()
     else:
