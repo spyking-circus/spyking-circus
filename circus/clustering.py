@@ -690,6 +690,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
             n_clusters = numpy.sum([ts[i].get('templates').shape[2] for i in xrange(comm.size)])/2
             hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
+            cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
             templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(n_clusters, ), dtype=numpy.int32, chunks=True)
             amplitudes = hfile.create_dataset('limits', shape=(n_clusters, 2), dtype=numpy.float32, chunks=True)
@@ -703,6 +704,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes[count:count+middle] = ts[i].get('limits')
                 count      += middle
                 os.remove(file_out_suff + '.templates-%d.hdf5' %i)
+            cfile.pop('electrodes')
             io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
             hfile.close()
             cfile.close()
