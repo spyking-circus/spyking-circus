@@ -1,4 +1,4 @@
-import numpy
+import numpy, scipy
 import pylab
 import os
 
@@ -583,9 +583,10 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
     if do_temporal_whitening: 
-        for i in xrange(N_e):
-            data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
+        data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
+    
+    for i in xrange(N_e):
+        peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
 
 
     pylab.figure()
@@ -633,9 +634,10 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
     if do_temporal_whitening: 
-        for i in xrange(N_e):
-            data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
+        data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
+    
+    for i in xrange(N_e):
+        peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
 
     if not numpy.iterable(n_elec):
         if square:
