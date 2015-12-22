@@ -665,7 +665,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 templates[sindices, :, count_templates] = tmp_templates[sorted_indices]
 
-            amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], sindices, templates[sindices, :, :], nodes)
+            amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], sindices, templates[sindices, :, count_templates], nodes)
             variations        = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
             physical_limit    = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
             amp_min           = max(physical_limit, numpy.median(amplitudes) - variations)

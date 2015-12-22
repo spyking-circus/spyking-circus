@@ -309,8 +309,9 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
         covariance += numpy.dot(snippet, snippet.T)
 
     covariance  /= len(times_i)
-    evals, evecs = scipy.sparse.linalg.eigs(covariance, k=1)
-    return amplitudes, evecs.reshape(len(sources), N_t) #evecs[:, 0].reshape(len(sources), N_t)
+    evals, evecs = scipy.sparse.linalg.eigs(covariance, k=1, which='LM')
+    evecs        = evecs.astype(numpy.float32)
+    return amplitudes, evecs.reshape(len(sources), N_t)
 
 
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
