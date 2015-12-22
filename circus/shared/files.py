@@ -522,12 +522,16 @@ def get_results(params, extension=''):
     myfile.close()
     return result
 
-def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
+def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, normalize=True, maxoverlap=True):
 
     file_out_suff  = params.get('data', 'file_out_suff')   
-    templates      = load_data(params, 'templates', extension=extension)
+    tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+    if maxoverlap:
+        templates  = load_data(params, 'templates', extension=extension)
+    else:
+        templates  = load_data(params, 'templates')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
-    filename_mpi   = file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank)
+    filename_mpi   = os.path.join(tmp_path, file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank))
     N_e, N_t, N_tm = templates.shape
 
     if os.path.exists(filename) and not erase:
@@ -560,9 +564,10 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
         cuda_string = 'using %d GPU...' %comm.size
 
     #print "Normalizing the templates..."
-    norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
-    for i in xrange(templates.shape[2]):
-        norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
+    if normalize:
+        norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+        for i in xrange(templates.shape[2]):
+            norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
     if comm.rank == 0:
         print "Computing the overlaps", cuda_string
@@ -584,14 +589,18 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     for count, idelay in enumerate(local_delays):
         size  = N_e*idelay
         for tc1  in range(0, N_tm, batch):
-            tmp_1 = templates[:, :idelay, tc1:tc1+batch]/norm_templates[tc1:tc1+batch]
+            tmp_1 = templates[:, :idelay, tc1:tc1+batch]
+            if normalize:
+                tmp_1 /= norm_templates[tc1:tc1+batch]
             lb_1  = tmp_1.shape[2]
             if HAVE_CUDA:
                 tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))
             else:
                 tmp_1 = tmp_1.reshape(size, lb_1)
             for tc2 in range(0, N_tm, batch):
-                tmp_2 = templates[:, -idelay:, tc2:tc2+batch]/norm_templates[tc2:tc2+batch]
+                tmp_2 = templates[:, -idelay:, tc2:tc2+batch]
+                if normalize:
+                    tmp_2 /= norm_templates[tc2:tc2+batch]
                 lb_2  = tmp_2.shape[2]
                 if HAVE_CUDA:
                     tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
@@ -633,7 +642,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
 
     comm.Barrier()
 
-    if comm.rank == 0:
+    if comm.rank == 0 and maxoverlap:
         myfile     = h5py.File(filename, 'r+')
         myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+')
         overlap    = myfile.get('overlap')
