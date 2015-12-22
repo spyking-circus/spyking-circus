@@ -526,16 +526,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
 
     def cross_corr(spike_1, spike_2):
-        x_cc = numpy.ones(N_t, dtype=numpy.int32)*(len(spike_1) + len(spike_2))
-        for count, d in enumerate(xrange(-N_t/2, N_t/2)):
-            gsum         = numpy.unique(numpy.concatenate((spike_1, spike_2 + d)))
-            x_cc[count] -= len(gsum)
+        x_cc   = numpy.ones(N_t, dtype=numpy.int32)*(len(spike_1) + len(spike_2))
+        for d in xrange(N_t):
+            gsum     = numpy.unique(numpy.concatenate((spike_1, spike_2 + d - template_shift)))
+            x_cc[d] -= len(gsum)
         return x_cc
 
     if comm.rank == 0:
         pbar = get_progressbar(len(numpy.arange(comm.rank, N_e, comm.size)))
-
-    
 
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
 
@@ -566,32 +564,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
 
         for ci in xrange(len(elecs)):
-            i  = elecs[ci]
-            li = labels[ci]
-
-            mask_i    = all_labels[i] == li
-            spikes_i  = all_times[i][mask_i]
+            i        = elecs[ci]
+            li       = labels[ci]
+            mask_i   = all_labels[i] == li
+            spikes_i = all_times[i][mask_i]
 
             for cj in xrange(ci, len(elecs)):
-                j  = elecs[cj]
-                lj = labels[cj]
-                
-                mask_j    = all_labels[j] == lj
-                spikes_j  = all_times[j][mask_j]
+                j        = elecs[cj]
+                lj       = labels[cj]
+                mask_j   = all_labels[j] == lj
+                spikes_j = all_times[j][mask_j]
 
-                data_i    = cross_corr(spikes_i-N_t/2, spikes_j)
+                data     = cross_corr(spikes_i-N_t/2, spikes_j)
                 
                 for ii in range(N_t):
                     subidx = numpy.arange(ii, N_t)
-                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data_i[:N_t-ii]#.reshape(1, len(subidx))
-                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data_i[:N_t-ii]#.reshape(len(subidx), 1)
+                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data[:N_t-ii]#.reshape(1, len(subidx))
+                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data[:N_t-ii]#.reshape(len(subidx), 1)
 
         autocorr += autocorr.T - numpy.diag(autocorr.diagonal())
 
         stas     = stas.flatten()
         
         #autocorr = autocorr.tocsr()
-
         
         #print "Optimization for electrode", ielec
         local_waveforms = scipy.linalg.inv(autocorr).dot(stas)
