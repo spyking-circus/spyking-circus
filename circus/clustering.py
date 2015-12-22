@@ -546,6 +546,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         all_labels = {}
         all_times  = {}
 
+        #import time
+        #print "Get Stas for electrode", ielec
+        #start = time.time()
         for i in n_neighb:
             if not all_labels.has_key(i):
                 all_labels[i] = callfile.get('clusters_%d' %i)[:]
@@ -560,9 +563,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
                 stas    = numpy.vstack((stas, stas_i))
 
-        autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
-        #autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        #print "Done", time.time() - start  
+        #autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
 
+        #print "CrossCorr for electrode", ielec
+        #start = time.time()
         for ci in xrange(len(elecs)):
             i        = elecs[ci]
             li       = labels[ci]
@@ -578,19 +584,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
                 data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
                 
-                for ii in range(N_t):
-                    subidx = numpy.arange(ii, N_t)
-                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data_i[:N_t-ii]#.reshape(1, len(subidx))
-                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data_j[:N_t-ii]#.reshape(len(subidx), 1)
+                autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t] += numpy.triu(scipy.linalg.circulant(data_i).T)
+                autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t] += numpy.tril(scipy.linalg.circulant(data_j), -1)
 
-        autocorr += autocorr.T - numpy.diag(autocorr.diagonal())
+                #for ii in range(N_t):
+                    #loc_diff = N_t - ii
+                    #subidx   = numpy.arange(ii, N_t)
+                    #autocorr[ci*N_t + ii, (cj*N_t + ii):(cj*N_t + N_t)] = data_i[:loc_diff].reshape(1, loc_diff)
+                    #autocorr[(ci*N_t + ii):(ci*N_t + N_t), cj*N_t + ii] = data_j[:loc_diff].reshape(loc_diff, 1)
+
+        #print "Done", time.time() - start
+
+        #print "Symmetry for electrode", ielec
+        #start = time.time()
+        autocorr = autocorr + autocorr.T - numpy.diag(autocorr.diagonal())
 
         stas     = stas.flatten()
-        
+        #print "Done", time.time() - start        
         #autocorr = autocorr.tocsr()
         
         #print "Optimization for electrode", ielec
+        #start = time.time()
         local_waveforms = scipy.linalg.inv(autocorr).dot(stas)
+        #print "Done", time.time() - start
         #local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
         
         #print "Optimization for electrode", ielec, myfunction(local_waveforms)
