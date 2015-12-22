@@ -585,7 +585,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         stas     = stas.flatten()
         
         #print "Optimization for electrode", ielec
-        local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
+        local_waveforms = scipy.sparse.linalg.minres(autocorr, stas)[0]
         #local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
 
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
