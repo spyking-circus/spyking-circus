@@ -575,12 +575,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mask_j   = all_labels[j] == lj
                 spikes_j = all_times[j][mask_j]
 
-                data     = cross_corr(spikes_i-N_t/2, spikes_j)
+                data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
+                data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
                 
                 for ii in range(N_t):
                     subidx = numpy.arange(ii, N_t)
-                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data[:N_t-ii]#.reshape(1, len(subidx))
-                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data[:N_t-ii]#.reshape(len(subidx), 1)
+                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data_i[:N_t-ii]#.reshape(1, len(subidx))
+                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data_j[:N_t-ii]#.reshape(len(subidx), 1)
 
         autocorr += autocorr.T - numpy.diag(autocorr.diagonal())
 
