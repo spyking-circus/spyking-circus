@@ -278,6 +278,8 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
     gain         = params.getfloat('data', 'gain')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     template     = template.flatten()
+    covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
+    norm_temp    = numpy.sum(template**2)
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -301,9 +303,14 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
         local_chunk = local_chunk[:, sources].T.flatten()
-        amplitudes[count] = numpy.dot(local_chunk, template)
+        amplitudes[count] = numpy.dot(local_chunk, template)/norm_temp
         
-    return amplitudes/numpy.sum(template**2)
+        snippet = (template - amplitudes[count]*local_chunk).reshape(len(template), 1)
+        covariance += numpy.dot(snippet, snippet.T)
+
+    covariance  /= len(times_i)
+    evals, evecs = scipy.sparse.linalg.eigs(covariance, k=1)
+    return amplitudes, evecs.reshape(len(sources), N_t) #evecs[:, 0].reshape(len(sources), N_t)
 
 
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
