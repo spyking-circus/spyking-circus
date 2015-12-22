@@ -491,19 +491,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         for i in xrange(comm.size-1):
             offsets[i+1] = comm.bcast(numpy.array([local_nb_clusters], dtype=numpy.float32), root=i)
         node_pad   = numpy.sum(offsets[:comm.rank+1])        
-        hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm)
+        hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
         templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*total_nb_clusters), dtype=numpy.float32, chunks=True)
         electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
         amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
     else:
         node_pad   = 0
-        hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w')
+        hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
         templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*local_nb_clusters), dtype=numpy.float32, chunks=True)
         electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
         amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
     
     comm.Barrier()
-    cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w')
+    cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
     count_templates = node_pad
 
     for ielec in range(comm.rank, N_e, comm.size):
@@ -512,8 +512,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
     
     if comm.rank == 0:
-        rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
-        cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w')
+        rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
+        cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='latest')
         for i in xrange(comm.size):
             for j in range(i, N_e, comm.size):
                 io.write_datasets(cfile, to_write, rs[i], j)
@@ -523,7 +523,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     comm.Barrier()
 
-    callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
+    callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='latest')
 
     def cross_corr(spike_1, spike_2):
         x_cc   = numpy.ones(N_t, dtype=numpy.int32)*(len(spike_1) + len(spike_2))
@@ -597,7 +597,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
 
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
-        tmpdata  = h5py.File(tmp_file, 'w')
+        tmpdata  = h5py.File(tmp_file, 'w', libver='latest')
         output   = tmpdata.create_dataset('waveforms', data=local_waveforms)
         limits   = tmpdata.create_dataset('limits', data=elecs)
         tmpdata.close()
@@ -627,7 +627,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             tmp_templates = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
             myslice       = numpy.where(cluster_results[ielec]['groups'] == group)[0]
             for count, i in enumerate(indices):
-                pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r')
+                pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r', libver='latest')
                 lmask = pfile.get('limits')[:] == inv_nodes[nodes[ielec]] 
                 data  = pfile.get('waveforms')[lmask, :][xcount]
                 tmp_templates[count] = data
@@ -685,7 +685,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if parallel_hdf5:
         if comm.rank == 0:
-            cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r+')
+            cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
             io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]}) 
             cfile.close()
         hfile.close()
@@ -693,9 +693,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         hfile.close()
         comm.Barrier()
         if comm.rank == 0:
-            ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r') for i in xrange(comm.size)]
+            ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
             n_clusters = numpy.sum([ts[i].get('templates').shape[2] for i in xrange(comm.size)])/2
-            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w')
+            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
             templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(n_clusters, ), dtype=numpy.int32, chunks=True)
             amplitudes = hfile.create_dataset('limits', shape=(n_clusters, 2), dtype=numpy.float32, chunks=True)

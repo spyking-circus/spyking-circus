@@ -55,7 +55,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             gdata      = gdata.reshape((comm.size, N_e))
             thresholds = numpy.mean(gdata, 0)
-            bfile      = h5py.File(file_out + '.basis.hdf5', 'w')
+            bfile      = h5py.File(file_out + '.basis.hdf5', 'w', libver='latest')
             io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
             bfile.close()
         comm.Barrier()
@@ -138,7 +138,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         print "We found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)
         spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
-        bfile = h5py.File(file_out + '.basis.hdf5', 'r+')
+        bfile = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, ['spatial', 'temporal'], {'spatial' : spatial_whitening, 'temporal' : temporal_whitening})
         bfile.close()
         print "Because of whitening, we need to recompute the thresholds..."
@@ -167,7 +167,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 gdata      = gdata.reshape((comm.size, N_e))
                 thresholds = numpy.mean(gdata, 0)
-                bfile      = h5py.File(file_out + '.basis.hdf5', 'r+')
+                bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
                 bfile.pop('thresholds')
                 io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
                 bfile.close()
@@ -324,7 +324,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         print "We found", gdata.shape[1], "spikes over", int(nb_elts*comm.size), "requested"
         pca      = mdp.nodes.PCANode(output_dim=output_dim)
         res_pca  = pca(elts.astype(numpy.double).T)
-        bfile    = h5py.File(file_out + '.basis.hdf5', 'r+')
+        bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, ['proj', 'rec'], {'proj' : pca.get_projmatrix().astype(numpy.float32), 
                                                     'rec' : pca.get_recmatrix().astype(numpy.float32)})
         io.print_info(["A basis with %s dimensions has been built" %pca.get_projmatrix().shape[1]])

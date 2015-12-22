@@ -207,7 +207,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if parallel_hdf5 or (comm.rank == 0):
-        myfile         = h5py.File(file_out_suff + '.templates.hdf5', 'r')
+        myfile         = h5py.File(file_out_suff + '.templates.hdf5', 'r', libver='latest')
         old_templates  = myfile.get('templates')
         old_limits     = myfile.get('limits')[:]
         N_e, N_t, N_tm = old_templates.shape
@@ -224,10 +224,10 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
         to_keep       = numpy.array(list(all_templates.difference(to_remove)))
 
     if parallel_hdf5:
-        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', driver='mpio', comm=comm)
+        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
         positions = numpy.arange(comm.rank, len(to_keep), comm.size)
     elif comm.rank == 0:
-        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w')
+        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', libver='latest')
         positions = numpy.arange(len(to_keep))
     
     if parallel_hdf5 or (comm.rank == 0):
@@ -264,7 +264,7 @@ def slice_clusters(comm, params, result):
     N_e            = params.getint('data', 'N_e')
 
     if comm.rank == 0:
-        cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w')
+        cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='latest')
         to_write = ['data_', 'clusters_', 'debug_', 'times_'] 
         for ielec in xrange(N_e):
             write_datasets(cfile, to_write, result, ielec)
@@ -359,11 +359,11 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
 
     if parallel_hdf5:
-        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
+        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm, libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         comm.Barrier()
     else:
-        myfile  = h5py.File(filename_mpi, 'w')
+        myfile  = h5py.File(filename_mpi, 'w', libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
         
     batch = 500
@@ -404,11 +404,11 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     templates.file.close()
 
     if not parallel_hdf5 and (comm.rank == 0):
-        myfile  = h5py.File(filename, 'w')
+        myfile  = h5py.File(filename, 'w', libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         for i in xrange(comm.size):
             filename_mpi = os.path.join(tmp_path, 'merging_cc-%d.hdf5' %i)
-            datafile     = h5py.File(filename_mpi, 'r')
+            datafile     = h5py.File(filename_mpi, 'r', libver='latest')
             data         = datafile.get('overlap')
             local_delays = all_delays[numpy.arange(i, len(all_delays), comm.size)] 
             for count, idelay in enumerate(local_delays):
@@ -425,7 +425,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         pair      = []
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        myfile    = h5py.File(filename, 'r')
+        myfile    = h5py.File(filename, 'r', libver='latest')
         overlap   = myfile.get('overlap')
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.max(overlap[i, i+1:nb_temp], 1)
@@ -506,11 +506,11 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
 
     if parallel_hdf5:
-        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
+        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm, libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         comm.Barrier()
     else:
-        myfile  = h5py.File(filename_mpi, 'w')
+        myfile  = h5py.File(filename_mpi, 'w', libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
         
     batch = 500
@@ -550,11 +550,11 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     comm.Barrier()
 
     if not parallel_hdf5 and (comm.rank == 0):
-        myfile  = h5py.File(filename, 'w')
+        myfile  = h5py.File(filename, 'w', libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         for i in xrange(comm.size):
             filename_mpi = os.path.join(tmp_path, 'mixtures-%d.hdf5' %i)
-            datafile     = h5py.File(filename_mpi, 'r')
+            datafile     = h5py.File(filename_mpi, 'r', libver='latest')
             data         = datafile.get('overlap')
             local_delays = all_delays[numpy.arange(i, len(all_delays), comm.size)] 
             for count, idelay in enumerate(local_delays):
@@ -574,7 +574,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         best_elec = load_data(params, 'electrodes')
         limits    = load_data(params, 'limits')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        myfile    = h5py.File(filename, 'r')
+        myfile    = h5py.File(filename, 'r', libver='latest')
         overlap   = myfile.get('overlap')
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)

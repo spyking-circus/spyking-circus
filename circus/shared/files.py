@@ -310,7 +310,7 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
 
     covariance  /= len(times_i)
     evals, evecs = scipy.sparse.linalg.eigs(covariance, k=1, which='LM')
-    evecs        = evecs.astype(numpy.float32)
+    evecs        = numpy.real(evecs).astype(numpy.float32)
     return amplitudes, evecs.reshape(len(sources), N_t)
 
 
@@ -395,13 +395,13 @@ def load_data(params, data, extension=''):
     if data == 'thresholds':
         spike_thresh = params.getfloat('data', 'spike_thresh')
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5')
+            myfile     = h5py.File(file_out + '.basis.hdf5', libver='latest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile  = h5py.File(file_out + '.basis.hdf5')
+            myfile  = h5py.File(file_out + '.basis.hdf5', libver='latest')
             spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
             myfile.close()
             return spatial
@@ -409,21 +409,21 @@ def load_data(params, data, extension=''):
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'temporal_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile   = h5py.File(file_out + '.basis.hdf5')
+            myfile   = h5py.File(file_out + '.basis.hdf5', libver='latest')
             temporal = myfile.get('temporal')[:]
             myfile.close() 
             return temporal
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'basis':
-        myfile     = h5py.File(file_out + '.basis.hdf5')
+        myfile     = h5py.File(file_out + '.basis.hdf5', libver='latest')
         basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension).get('templates')
+            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, libver='latest').get('templates')
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'spike-cluster':
@@ -439,12 +439,12 @@ def load_data(params, data, extension=''):
     elif data == 'spikedetekt':
         file_name = params.get('data', 'data_file_noext') + ".kwik"
         if os.path.exists(file_name):
-            return h5py.File(file_name).get('channel_groups/1/spikes/time_samples')[:].astype(numpy.int32)
+            return h5py.File(file_name).get('channel_groups/1/spikes/time_samples', libver='latest')[:].astype(numpy.int32)
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'clusters':
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension)
+            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, libver='latest')
             result = {}
             for key in myfile.keys():
                 result[str(key)] = myfile.get(key)[:]
@@ -454,7 +454,7 @@ def load_data(params, data, extension=''):
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'electrodes':
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile     = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension)
+            myfile     = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, libver='latest')
             electrodes = myfile.get('electrodes')[:]
             myfile.close()
             return electrodes
@@ -472,7 +472,7 @@ def load_data(params, data, extension=''):
             raise Exception('No overlaps found! Check suffix or run the fitting?')
     elif data == 'limits':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension)
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, libver='latest')
             limits = myfile.get('limits')[:]
             myfile.close()
             return limits
@@ -585,7 +585,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if with_voltages:
         keys += ['voltages']
 
-    mydata = h5py.File(file_out_suff + '.result.hdf5', 'w')
+    mydata = h5py.File(file_out_suff + '.result.hdf5', 'w', libver='latest')
     for key in keys:
         mydata.create_group(key)
         for temp in result[key].keys():
@@ -605,7 +605,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 def get_results(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
     result               = {}
-    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r')
+    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='latest')
     for key in myfile.keys():
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
@@ -622,7 +622,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     N_e, N_t, N_tm = templates.shape
 
     if os.path.exists(filename) and not erase:
-        return h5py.File(filename).get('overlap')
+        return h5py.File(filename, libver='latest').get('overlap')
     else:
         if os.path.exists(filename) and erase and (comm.rank == 0):
             os.remove(filename)
@@ -663,11 +663,11 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
 
     if parallel_hdf5:
-        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
+        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm), libver='latest'
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         comm.Barrier()
     else:
-        myfile  = h5py.File(filename_mpi, 'w')
+        myfile  = h5py.File(filename_mpi, 'w', libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
     
     batch = 500
@@ -708,11 +708,11 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     comm.Barrier()
 
     if not parallel_hdf5 and (comm.rank == 0):
-        myfile  = h5py.File(filename, 'w')
+        myfile  = h5py.File(filename, 'w', libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         for i in xrange(comm.size):
             filename_mpi = file_out_suff + '.overlap%s-%d.hdf5' %(extension, i)
-            datafile     = h5py.File(filename_mpi, 'r')
+            datafile     = h5py.File(filename_mpi, 'r', libver='latest')
             data         = datafile.get('overlap')
             local_delays = all_delays[numpy.arange(i, len(all_delays), comm.size)] 
             for count, idelay in enumerate(local_delays):
@@ -725,8 +725,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
     comm.Barrier()
 
     if comm.rank == 0:
-        myfile     = h5py.File(filename, 'r+')
-        myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+')
+        myfile     = h5py.File(filename, 'r+', libver='latest')
+        myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
         overlap    = myfile.get('overlap')
         if 'maxoverlap' in myfile2.keys():
             maxoverlap = myfile2.get('maxoverlap')
@@ -738,4 +738,4 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False):
         myfile2.close()
 
     comm.Barrier()
-    return h5py.File(filename).get('overlap')
+    return h5py.File(filename, libver='latest').get('overlap')
