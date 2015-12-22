@@ -522,7 +522,7 @@ def get_results(params, extension=''):
     myfile.close()
     return result
 
-def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, normalize=True, maxoverlap=True):
+def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, normalize=True, maxoverlap=True, verbose=True):
 
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
@@ -570,7 +570,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
     if comm.rank == 0:
-        print "Computing the overlaps", cuda_string
+        if verbose:
+            print "Computing the overlaps", cuda_string
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
     all_delays   = numpy.arange(1, N_t+1)

@@ -324,22 +324,21 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     to_merge       = []
     
     result   = []
-    myfile   = get_overlaps(comm, params, extension='-merging', erase=True, parallel_hdf5=parallel_hdf5, normalize=True, maxoverlap=False)
+    overlap  = get_overlaps(comm, params, extension='-merging', erase=True, parallel_hdf5=parallel_hdf5, normalize=True, maxoverlap=False, verbose=False)
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
     if comm.rank > 0:
-        myfile.close()
+        overlap.file.close()
     else:
         pair      = []
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        overlap   = myfile.get('overlap')
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.max(overlap[i, i+1:nb_temp], 1)
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
-        myfile.close()
+        overlap.file.close()
         to_merge, result = remove(result, distances, cc_merge)       
 
     to_merge = numpy.array(to_merge)
@@ -382,13 +381,13 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     mixtures       = []
     to_remove      = []
 
-    myfile   = get_overlaps(comm, params, extension='-mixtures', erase=True, parallel_hdf5=parallel_hdf5, normalize=False, maxoverlap=False)
+    overlap  = get_overlaps(comm, params, extension='-mixtures', erase=True, parallel_hdf5=parallel_hdf5, normalize=False, maxoverlap=False, verbose=False)
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     result   = []
 
     if comm.rank > 0:
         templates.file.close()
-        myfile.close()
+        overlap.file.close()
     else:
         norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
         for i in xrange(templates.shape[2]):
@@ -398,7 +397,6 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         best_elec = load_data(params, 'electrodes')
         limits    = load_data(params, 'limits')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        overlap   = myfile.get('overlap')
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
             distances[i+1:, i] = distances[i, i+1:]
@@ -447,7 +445,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         pbar.finish()
         templates.file.close()
         to_remove = numpy.array(mixtures)
-        myfile.close()
+        overlap.file.close()
 
     to_remove = comm.bcast(to_remove, root=0)
 
