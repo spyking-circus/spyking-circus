@@ -526,15 +526,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r')
 
     def cross_corr(spike_1, spike_2):
-        x_cc    = numpy.ones(N_t, dtype=numpy.float32)*(len(spike_1) + len(spike_2))
-        for d in xrange(N_t):
-            spike_2_bis = spike_2 + (d - N_t/2)
-            gsum        = numpy.unique(numpy.concatenate((spike_1, spike_2_bis)))
-            x_cc[d]    -= len(gsum)
+        x_cc = numpy.ones(N_t, dtype=numpy.int32)*(len(spike_1) + len(spike_2))
+        for count, d in enumerate(xrange(-N_t/2, N_t/2)):
+            gsum         = numpy.unique(numpy.concatenate((spike_1, spike_2 + d)))
+            x_cc[count] -= len(gsum)
         return x_cc
 
     if comm.rank == 0:
         pbar = get_progressbar(len(numpy.arange(comm.rank, N_e, comm.size)))
+
+    
 
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
 
@@ -544,13 +545,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         stas     = numpy.zeros((0, N_t), dtype=numpy.float32)
         src      = inv_nodes[nodes[ielec]]
 
+        all_labels = {}
+        all_times  = {}
+
         for i in n_neighb:
-            loc_lab   = callfile.get('clusters_%d' %i)[:]
-            mask      = numpy.where(loc_lab > -1)[0]
-            labels_i  = loc_lab[mask]
+            if not all_labels.has_key(i):
+                all_labels[i] = callfile.get('clusters_%d' %i)[:]
+                all_times[i]  = callfile.get('times_%d' %i)[:]
+            mask      = numpy.where(all_labels[i] > -1)[0]
+            labels_i  = all_labels[i][mask]
             unique_i  = numpy.unique(labels_i)
             if len(unique_i) > 0:
-                times_i = callfile.get('times_%d' %i)[:][mask]
+                times_i = all_times[i][mask]
                 elecs   = numpy.concatenate((elecs, i*numpy.ones(len(unique_i))))
                 labels  = numpy.concatenate((labels, unique_i))
                 stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
@@ -559,30 +565,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
         #autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
 
-        last_i   = -1
-        last_j   = -1
-
         for ci in xrange(len(elecs)):
             i  = elecs[ci]
             li = labels[ci]
 
-            if i != last_i:
-                loc_lab_i = callfile.get('clusters_%d' %i)[:]
-                times_i   = callfile.get('times_%d' %i)[:]
-            mask_i    = loc_lab_i == li
-            spikes_i  = times_i[mask_i]
-            last_i    = i
+            mask_i    = all_labels[i] == li
+            spikes_i  = all_times[i][mask_i]
 
             for cj in xrange(ci, len(elecs)):
                 j  = elecs[cj]
                 lj = labels[cj]
                 
-                if j != last_j:
-                    loc_lab_j = callfile.get('clusters_%d' %j)[:]
-                    times_j   = callfile.get('times_%d' %j)[:]
-                mask_j    = loc_lab_j == lj
-                spikes_j  = times_j[mask_j]
-                last_j    = j
+                mask_j    = all_labels[j] == lj
+                spikes_j  = all_times[j][mask_j]
 
                 data_i    = cross_corr(spikes_i-N_t/2, spikes_j)
                 
@@ -614,6 +609,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             pbar.update(count)
+
+        del all_labels, all_times
 
     if comm.rank == 0:
         pbar.finish()
