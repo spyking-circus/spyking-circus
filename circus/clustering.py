@@ -556,12 +556,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
                 stas    = numpy.vstack((stas, stas_i))
 
-        #autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
-        autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        autocorr = numpy.zeros((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        #autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+
         last_i   = -1
         last_j   = -1
 
-        #print "Computing crosscorr for electrode", ielec, "with %d templates" %len(elecs)
         for ci in xrange(len(elecs)):
             i  = elecs[ci]
             li = labels[ci]
@@ -588,16 +588,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 
                 for ii in range(N_t):
                     subidx = numpy.arange(ii, N_t)
-                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data_i[:N_t-ii].reshape(1, len(subidx))
-                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data_i[:N_t-ii].reshape(len(subidx), 1)
+                    autocorr[ci*N_t + ii, cj*N_t + subidx] = data_i[:N_t-ii]#.reshape(1, len(subidx))
+                    autocorr[ci*N_t + subidx, cj*N_t + ii] = data_i[:N_t-ii]#.reshape(len(subidx), 1)
 
         autocorr += autocorr.T - numpy.diag(autocorr.diagonal())
 
         stas     = stas.flatten()
-        autocorr = autocorr.tocsc()
+        
+        #autocorr = autocorr.tocsr()
 
+        
         #print "Optimization for electrode", ielec
-        local_waveforms = scipy.sparse.linalg.lgmres(autocorr, stas)[0]
+        local_waveforms = scipy.linalg.inv(autocorr).dot(stas)
+        #local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
         
         #print "Optimization for electrode", ielec, myfunction(local_waveforms)
 
@@ -624,7 +627,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for ielec in range(comm.rank, N_e, comm.size):
         
         mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
-        loc_pad  = count_templates
         indices  = inv_nodes[edges[nodes[ielec]]]
         sorted_indices = numpy.argsort(indices)
         for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
@@ -639,7 +641,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 tmp_templates[count] = data
                 pfile.close()
 
-            #Denoise the templates with PCA by shifting them
+            #Denoise the templates with PCA by shifting them then realign
+            
             argmins = numpy.argmin(tmp_templates, 1)
             for i in xrange(len(indices)):
                 temporal_shift = template_shift - argmins[i]
@@ -659,7 +662,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     tmp_templates[i, -temporal_shift:] = tmp_data[:temporal_shift]
                 else:
                     tmp_templates[i] = tmp_data
-
+            
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
             if temporal_shift > 0:

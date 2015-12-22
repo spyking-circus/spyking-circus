@@ -300,7 +300,7 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
-        local_chunk = local_chunk[:, sources].flatten()
+        local_chunk = local_chunk[:, sources].T.flatten()
         amplitudes[count] = numpy.dot(local_chunk, template)
         
     return amplitudes/numpy.sum(template**2)
