@@ -526,14 +526,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='latest')
 
     def cross_corr(spike_1, spike_2):
-        x_cc   = numpy.ones(N_t, dtype=numpy.int32)*(len(spike_1) + len(spike_2))
+        x_cc   = numpy.zeros(N_t, dtype=numpy.int32)
         for d in xrange(N_t):
-            gsum     = numpy.unique(numpy.concatenate((spike_1, spike_2 + d - template_shift)))
-            x_cc[d] -= len(gsum)
+            x_cc[d] += len(numpy.intersect1d(spike_1, spike_2 + d - template_shift, assume_unique=True))
         return x_cc
 
     if comm.rank == 0:
         pbar = get_progressbar(len(numpy.arange(comm.rank, N_e, comm.size)))
+
+    x, y = numpy.mgrid[0:N_t, 0:N_t]
+    x    = x.flatten()
+    y    = y.flatten()
 
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
 
@@ -546,6 +549,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         all_labels = {}
         all_times  = {}
 
+        import time
         for i in n_neighb:
             if not all_labels.has_key(i):
                 all_labels[i] = callfile.get('clusters_%d' %i)[:]
@@ -559,9 +563,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 labels  = numpy.concatenate((labels, unique_i))
                 stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
                 stas    = numpy.vstack((stas, stas_i))
+        
+        #autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
+        data = numpy.zeros(0, dtype=numpy.float32)
+        row  = numpy.zeros(0, dtype=numpy.int32)
+        col  = numpy.zeros(0, dtype=numpy.int32)
 
-        autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
-
+        start = time.time()
         for ci in xrange(len(elecs)):
             i        = elecs[ci]
             li       = labels[ci]
@@ -577,17 +585,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
                 data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
                 
-                autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t] += numpy.triu(scipy.linalg.circulant(data_i).T)
-                autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t] += numpy.tril(scipy.linalg.circulant(data_j), -1)
+                new_data = scipy.linalg.toeplitz(data_j, data_i).flatten()
+                idx      = new_data.nonzero()
+                data     = numpy.concatenate((data, new_data[idx]))
+                row      = numpy.concatenate((row, ci*N_t + x[idx]))
+                col      = numpy.concatenate((col, cj*N_t + y[idx]))
 
+        autocorr = scipy.sparse.bsr_matrix((data, (row, col)), shape=(len(elecs)*N_t, len(elecs)*N_t), blocksize=(N_t, N_t), dtype=numpy.float32)
         autocorr = autocorr + autocorr.T - scipy.sparse.diags(autocorr.diagonal(), 0)
-        autocorr = autocorr.tocsc()
         stas     = stas.flatten()
         
         #print "Optimization for electrode", ielec
         local_waveforms = scipy.sparse.linalg.minres(autocorr, stas)[0]
         #local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
-
+        
         local_waveforms = local_waveforms.reshape(len(elecs), N_t)
 
         tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
@@ -628,34 +639,35 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 pfile.close()
 
             #Denoise the templates with PCA by shifting them then realign
-            
+
             argmins = numpy.argmin(tmp_templates, 1)
             for i in xrange(len(indices)):
-                temporal_shift = template_shift - argmins[i]
-                tmp_data       = numpy.zeros(N_t, dtype=numpy.float32)
-                if temporal_shift > 0:
-                    tmp_data[temporal_shift:] = tmp_templates[i, :-temporal_shift]
-                elif temporal_shift < 0:
-                    tmp_data[:temporal_shift] = tmp_templates[i, -temporal_shift:]
+                shift    = template_shift - argmins[i]
+                tmp_data = numpy.zeros(N_t, dtype=numpy.float32)
+                if shift > 0:
+                    tmp_data[shift:] = tmp_templates[i, :-shift]
+                elif shift < 0:
+                    tmp_data[:shift] = tmp_templates[i, -shift:]
                 else:
                     tmp_data = tmp_templates[i]
 
                 tmp_data = numpy.dot(basis_proj, numpy.dot(basis_rec, tmp_data))
                 
-                if temporal_shift > 0:
-                    tmp_templates[i, :-temporal_shift] = tmp_data[temporal_shift:]
-                elif temporal_shift < 0:
-                    tmp_templates[i, -temporal_shift:] = tmp_data[:temporal_shift]
+                if shift > 0:
+                    tmp_templates[i, :-shift] = tmp_data[shift:]
+                elif shift < 0:
+                    tmp_templates[i, -shift:] = tmp_data[:shift]
                 else:
                     tmp_templates[i] = tmp_data
             
-            tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
-            temporal_shift   = template_shift - tmpidx[1]
-            sindices         = indices[sorted_indices]
-            if temporal_shift > 0:
-                templates[sindices, temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
-            elif temporal_shift < 0:
-                templates[sindices, :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
+
+            tmpidx    = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+            shift     = template_shift - tmpidx[1]
+            sindices  = indices[sorted_indices]
+            if shift > 0:
+                templates[sindices, shift:, count_templates] = tmp_templates[sorted_indices, :-shift]
+            elif shift < 0:
+                templates[sindices, :shift, count_templates] = tmp_templates[sorted_indices, -shift:]
             else:
                 templates[sindices, :, count_templates] = tmp_templates[sorted_indices]
 
