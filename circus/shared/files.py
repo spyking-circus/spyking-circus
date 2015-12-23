@@ -566,7 +566,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     #print "Normalizing the templates..."
     if normalize:
         norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
-        for i in xrange(templates.shape[2]):
+        for i in xrange(N_tm):
             norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
     if comm.rank == 0:
@@ -574,8 +574,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             print "Computing the overlaps", cuda_string
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
 
-    all_delays   = numpy.arange(1, N_t+1)
-    local_delays = all_delays[numpy.arange(comm.rank, len(all_delays), comm.size)] 
+    all_delays      = numpy.arange(1, N_t+1)
+    local_templates = numpy.arange(comm.rank, N_tm, comm.size)
 
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm)
@@ -583,38 +583,49 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         comm.Barrier()
     else:
         myfile  = h5py.File(filename_mpi, 'w')
-        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, len(local_delays)), dtype=numpy.float32, chunks=True)
+        overlap = myfile.create_dataset('overlap', shape=(len(local_templates), N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
     
-    batch = 500
+    batch = 200
 
-    for count, idelay in enumerate(local_delays):
-        size  = N_e*idelay
-        for tc1  in range(0, N_tm, batch):
-            tmp_1 = templates[:, :idelay, tc1:tc1+batch]
+    for count, tc1 in enumerate(local_templates):
+        
+        loc_templates = templates[:, :, tc1]
+
+        for idelay in all_delays:
+            
+            size  = N_e*idelay    
+            tmp_1 = loc_templates[:, :idelay]
             if normalize:
-                tmp_1 /= norm_templates[tc1:tc1+batch]
-            lb_1  = tmp_1.shape[2]
-            if HAVE_CUDA:
-                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, lb_1))
-            else:
-                tmp_1 = tmp_1.reshape(size, lb_1)
-            for tc2 in range(0, N_tm, batch):
-                tmp_2 = templates[:, -idelay:, tc2:tc2+batch]
-                if normalize:
-                    tmp_2 /= norm_templates[tc2:tc2+batch]
-                lb_2  = tmp_2.shape[2]
-                if HAVE_CUDA:
-                    tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
-                    data  = cmt.dot(tmp_1.T, tmp_2).asarray()
-                else:
-                    tmp_2 = tmp_2.reshape(size, lb_2)
-                    data  = numpy.dot(tmp_1.T, tmp_2)
+                tmp_1 /= norm_templates[tc1]
 
-                if parallel_hdf5:
-                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, idelay-1]           = data
-                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, 2*N_t - idelay - 1] = numpy.transpose(data)
-                else:
-                    overlap[tc1:tc1+lb_1, tc2:tc2+lb_2, count]              = data
+            if HAVE_CUDA:
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 1))
+            else:
+                tmp_1 = tmp_1.reshape(size, 1)
+            
+            tmp_2 = templates[:, -idelay:, tc1:]
+            if normalize:
+                tmp_2 /= norm_templates[tc1:]
+
+            lb_2  = tmp_2.shape[2]
+            
+            if HAVE_CUDA:
+                tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
+                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+            else:
+                tmp_2 = tmp_2.reshape(size, lb_2)
+                data  = numpy.dot(tmp_1.T, tmp_2).reshape(lb_2, 1)
+
+            if parallel_hdf5:
+                overlap[tc1, tc1:tc1+lb_2, idelay-1]           = data[:, 0]
+                overlap[tc1, tc1:tc1+lb_2, 2*N_t - idelay - 1] = data[:, 0]
+                overlap[tc1:tc1+lb_2, tc1, idelay-1]           = data[:, 0]
+                overlap[tc1:tc1+lb_2, tc1, 2*N_t - idelay - 1] = data[:, 0]
+            else:
+                overlap[count, tc1:tc1+lb_2, idelay-1]           = data[:, 0]
+                overlap[count, tc1:tc1+lb_2, 2*N_t - idelay - 1] = data[:, 0]
+                overlap[tc1:tc1+lb_2, count, idelay-1]           = data[:, 0]
+                overlap[tc1:tc1+lb_2, count, 2*N_t - idelay - 1] = data[:, 0]
 
         if comm.rank == 0:
             pbar.update(idelay)
@@ -630,13 +641,12 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         myfile  = h5py.File(filename, 'w')
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
         for i in xrange(comm.size):
-            filename_mpi = file_out_suff + '.overlap%s-%d.hdf5' %(extension, i)
-            datafile     = h5py.File(filename_mpi, 'r')
-            data         = datafile.get('overlap')
-            local_delays = all_delays[numpy.arange(i, len(all_delays), comm.size)] 
-            for count, idelay in enumerate(local_delays):
-                overlap[:, :, idelay-1]           = data[:, :, count]
-                overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(data[:, :, count])
+            filename_mpi    = file_out_suff + '.overlap%s-%d.hdf5' %(extension, i)
+            datafile        = h5py.File(filename_mpi, 'r')
+            data            = datafile.get('overlap')
+            local_templates = numpy.arange(i, N_tm, comm.size) 
+            for count, tmp in enumerate(local_templates):
+                overlap[tmp, :, :] = data[count, :, :]
             datafile.close()
             os.remove(filename_mpi)
         myfile.close()
