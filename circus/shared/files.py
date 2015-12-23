@@ -687,9 +687,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             tmp_1 = loc_templates[:, :idelay]
             
             if HAVE_CUDA:
-                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 1))
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(1, size))
             else:
-                tmp_1 = tmp_1.reshape(size, 1)
+                tmp_1 = tmp_1.reshape(1, size)
             
             tmp_2 = templates[:, -idelay:, :]
             if normalize:
@@ -699,15 +699,15 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             
             if HAVE_CUDA:
                 tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
-                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+                data  = cmt.dot(tmp_1, tmp_2).asarray()
             else:
                 tmp_2 = tmp_2.reshape(size, lb_2)
-                data  = numpy.dot(tmp_1.T, tmp_2).reshape(lb_2, 1)
+                data  = numpy.dot(tmp_1, tmp_2).reshape(1, lb_2)
 
             if parallel_hdf5:
-                overlap[tc1, :, idelay-1]   = data[:, 0]
+                overlap[tc1, :, idelay-1]   = data[0]
             else:
-                overlap[count, :, idelay-1] = data[:, 0]
+                overlap[count, :, idelay-1] = data[0]
 
         if comm.rank == 0:
             pbar.update(idelay)

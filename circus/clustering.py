@@ -526,9 +526,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='latest')
 
     def cross_corr(spike_1, spike_2):
+        x1, x2 = spike_1.min(), spike_2.min()
+        y1, y2 = spike_1.max(), spike_2.max()
         x_cc   = numpy.zeros(N_t, dtype=numpy.int32)
-        for d in xrange(N_t):
-            x_cc[d] += len(numpy.intersect1d(spike_1, spike_2 + d - template_shift, assume_unique=True))
+        if ((max(y1, y2) - min(x1, x2)) <= (y1 - x1) + (y2 - x2) + N_t):
+            for d in xrange(N_t):
+                x_cc[d] += len(numpy.intersect1d(spike_1, spike_2 + d - template_shift, assume_unique=True))
         return x_cc
 
     if comm.rank == 0:
@@ -585,11 +588,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
                 data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
                 
-                new_data = scipy.linalg.toeplitz(data_j, data_i).flatten()
-                idx      = new_data.nonzero()
-                data     = numpy.concatenate((data, new_data[idx]))
-                row      = numpy.concatenate((row, ci*N_t + x[idx]))
-                col      = numpy.concatenate((col, cj*N_t + y[idx]))
+                if (numpy.any(data_i != 0) or numpy.any(data_j != 0)):
+                    new_data = scipy.linalg.toeplitz(data_j, data_i).flatten()
+                    idx      = new_data.nonzero()
+                    data     = numpy.concatenate((data, new_data[idx]))
+                    row      = numpy.concatenate((row, ci*N_t + x[idx]))
+                    col      = numpy.concatenate((col, cj*N_t + y[idx]))
 
         autocorr = scipy.sparse.bsr_matrix((data, (row, col)), shape=(len(elecs)*N_t, len(elecs)*N_t), blocksize=(N_t, N_t), dtype=numpy.float32)
         autocorr = autocorr + autocorr.T - scipy.sparse.diags(autocorr.diagonal(), 0)
