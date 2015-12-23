@@ -49,8 +49,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         y_cc    = numpy.copy(x_cc)
 
         for d in xrange(2*max_delay+1):
-            x_cc[d] += len(numpy.intersect1d(t1b, t2b_shifted + d - max_delay, assume_unique=True))
-            y_cc[d] += len(numpy.intersect1d(t1b, t2b_inv_shifted + d - max_delay, assume_unique=True))
+            x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
+            y_cc[d] += len(numpy.intersect1d(t1b, t2b_inv + d - max_delay, assume_unique=True))
         return x_cc, y_cc
 
     def perform_merging(all_pairs, templates, clusters, overlap, result, limits):
