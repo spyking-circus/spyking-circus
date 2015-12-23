@@ -622,6 +622,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     else:
         templates  = load_data(params, 'templates')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
+    best_elec      = load_data(params, 'electrodes')
     filename_mpi   = os.path.join(tmp_path, file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank))
     N_e, N_t, N_tm = templates.shape
 
@@ -681,6 +682,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         if normalize:
             loc_templates /= norm_templates[tc1]
 
+        electrodes  = numpy.where(numpy.max(numpy.abs(loc_templates), axis=1) > 0)[0]
+        to_consider = numpy.arange(0, N_tm)[numpy.intersect1d(best_elec, electrodes)]
+
         for idelay in all_delays:
             
             size  = N_e*idelay    
@@ -691,9 +695,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             else:
                 tmp_1 = tmp_1.reshape(1, size)
             
-            tmp_2 = templates[:, -idelay:, :]
+            tmp_2 = templates[:, -idelay:, to_consider]
             if normalize:
-                tmp_2 /= norm_templates
+                tmp_2 /= norm_templates[to_consider]
 
             lb_2  = tmp_2.shape[2]
             
@@ -705,9 +709,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 data  = numpy.dot(tmp_1, tmp_2).reshape(1, lb_2)
 
             if parallel_hdf5:
-                overlap[tc1, :, idelay-1]   = data[0]
+                overlap[tc1, to_consider, idelay-1]   = data[0]
             else:
-                overlap[count, :, idelay-1] = data[0]
+                overlap[count, to_consider, idelay-1] = data[0]
 
         if comm.rank == 0:
             pbar.update(idelay)
