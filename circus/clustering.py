@@ -506,170 +506,78 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
     count_templates = node_pad
 
-    for ielec in range(comm.rank, N_e, comm.size):
-        io.write_datasets(cfile, to_write, result, ielec)
-    cfile.close()
-    comm.Barrier()
-    
-    if comm.rank == 0:
-        rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
-        cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='latest')
-        for i in xrange(comm.size):
-            for j in range(i, N_e, comm.size):
-                io.write_datasets(cfile, to_write, rs[i], j)
-            rs[i].close()
-            os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
-        cfile.close()
-    
-    comm.Barrier()
-
-    callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='latest')
-
-    def cross_corr(spike_1, spike_2):
-        x_cc   = numpy.ones(N_t, dtype=numpy.int32)*(len(spike_1) + len(spike_2))
-        for d in xrange(N_t):
-            gsum     = numpy.unique(numpy.concatenate((spike_1, spike_2 + d - template_shift)))
-            x_cc[d] -= len(gsum)
-        return x_cc
-
-    if comm.rank == 0:
-        pbar = get_progressbar(len(numpy.arange(comm.rank, N_e, comm.size)))
-
-    for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
-
-        n_neighb = inv_nodes[edges[nodes[ielec]]]
-        elecs    = numpy.zeros(0, dtype=numpy.int32)
-        labels   = numpy.zeros(0, dtype=numpy.int32)
-        stas     = numpy.zeros((0, N_t), dtype=numpy.float32)
-        src      = inv_nodes[nodes[ielec]]
-
-        all_labels = {}
-        all_times  = {}
-
-        for i in n_neighb:
-            if not all_labels.has_key(i):
-                all_labels[i] = callfile.get('clusters_%d' %i)[:]
-                all_times[i]  = callfile.get('times_%d' %i)[:]
-            mask      = numpy.where(all_labels[i] > -1)[0]
-            labels_i  = all_labels[i][mask]
-            unique_i  = numpy.unique(labels_i)
-            if len(unique_i) > 0:
-                times_i = all_times[i][mask]
-                elecs   = numpy.concatenate((elecs, i*numpy.ones(len(unique_i))))
-                labels  = numpy.concatenate((labels, unique_i))
-                stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
-                stas    = numpy.vstack((stas, stas_i))
-
-        autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
-
-        for ci in xrange(len(elecs)):
-            i        = elecs[ci]
-            li       = labels[ci]
-            mask_i   = all_labels[i] == li
-            spikes_i = all_times[i][mask_i]
-
-            for cj in xrange(ci, len(elecs)):
-                j        = elecs[cj]
-                lj       = labels[cj]
-                mask_j   = all_labels[j] == lj
-                spikes_j = all_times[j][mask_j]
-
-                data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
-                data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
-                
-                autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t] += numpy.triu(scipy.linalg.circulant(data_i).T)
-                autocorr[ci*N_t:(ci+1)*N_t, cj*N_t:(cj+1)*N_t] += numpy.tril(scipy.linalg.circulant(data_j), -1)
-
-        autocorr = autocorr + autocorr.T - scipy.sparse.diags(autocorr.diagonal(), 0)
-        autocorr = autocorr.tocsc()
-        stas     = stas.flatten()
-        
-        #print "Optimization for electrode", ielec
-        local_waveforms = scipy.sparse.linalg.minres(autocorr, stas)[0]
-        #local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
-
-        local_waveforms = local_waveforms.reshape(len(elecs), N_t)
-
-        tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
-        tmpdata  = h5py.File(tmp_file, 'w', libver='latest')
-        output   = tmpdata.create_dataset('waveforms', data=local_waveforms)
-        limits   = tmpdata.create_dataset('limits', data=elecs)
-        tmpdata.close()
-
-        if comm.rank == 0:
-            pbar.update(count)
-
-        del all_labels, all_times
-
-    if comm.rank == 0:
-        pbar.finish()
-
-    comm.Barrier()
-    callfile.close()
-
     if comm.rank == 0:
         pbar = get_progressbar(local_nb_clusters)
 
     for ielec in range(comm.rank, N_e, comm.size):
-        
+        #print "Dealing with cluster", ielec
+        n_data   = len(result['data_' + str(ielec)])
+        n_neighb = len(edges[nodes[ielec]])
+        data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
         mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
+        loc_pad  = count_templates
         indices  = inv_nodes[edges[nodes[ielec]]]
         sorted_indices = numpy.argsort(indices)
-        for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
-        
+        for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
             electrodes[count_templates] = ielec
-            tmp_templates = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
-            myslice       = numpy.where(cluster_results[ielec]['groups'] == group)[0]
-            for count, i in enumerate(indices):
-                pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r', libver='latest')
-                lmask = pfile.get('limits')[:] == inv_nodes[nodes[ielec]] 
-                data  = pfile.get('waveforms')[lmask, :][xcount]
-                tmp_templates[count] = data
-                pfile.close()
+            myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
+            sub_data         = data[myslice]
+            first_component  = numpy.median(sub_data, axis=0)
 
-            #Denoise the templates with PCA by shifting them then realign
-            
-            argmins = numpy.argmin(tmp_templates, 1)
-            for i in xrange(len(indices)):
-                temporal_shift = template_shift - argmins[i]
-                tmp_data       = numpy.zeros(N_t, dtype=numpy.float32)
-                if temporal_shift > 0:
-                    tmp_data[temporal_shift:] = tmp_templates[i, :-temporal_shift]
-                elif temporal_shift < 0:
-                    tmp_data[:temporal_shift] = tmp_templates[i, -temporal_shift:]
-                else:
-                    tmp_data = tmp_templates[i]
-
-                tmp_data = numpy.dot(basis_proj, numpy.dot(basis_rec, tmp_data))
-                
-                if temporal_shift > 0:
-                    tmp_templates[i, :-temporal_shift] = tmp_data[temporal_shift:]
-                elif temporal_shift < 0:
-                    tmp_templates[i, -temporal_shift:] = tmp_data[:temporal_shift]
-                else:
-                    tmp_templates[i] = tmp_data
-            
+            tmp_templates    = numpy.dot(first_component.T, basis_rec)
+            #tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
             tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
             temporal_shift   = template_shift - tmpidx[1]
-            sindices         = indices[sorted_indices]
             if temporal_shift > 0:
-                templates[sindices, temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
+                templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
             elif temporal_shift < 0:
-                templates[sindices, :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
+                templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
             else:
-                templates[sindices, :, count_templates] = tmp_templates[sorted_indices]
+                templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
 
-            amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], sindices, templates[sindices, :, count_templates], nodes)
-            variations        = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-            physical_limit    = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-            amp_min           = max(physical_limit, numpy.median(amplitudes) - variations)
-            amp_max           = min(amp_limits[1], numpy.median(amplitudes) + variations)
+            x, y, z          = sub_data.shape
+            sub_data_flat    = sub_data.reshape(x, y*z)
+            first_flat       = first_component.reshape(y*z, 1)
+            amplitudes       = numpy.dot(sub_data_flat, first_flat)
+            amplitudes      /= numpy.sum(first_flat**2)
+
+            variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+            physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
+            amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
+            amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
             amps_lims[count_templates] = [amp_min, amp_max]
 
-            offset                         = templates.shape[2]/2 + count_templates
-            templates[sindices, :, offset] = ortho
-            
+            for i in xrange(x):
+                sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
+
+            if len(sub_data_flat) > 1:
+                pca              = mdp.nodes.PCANode(output_dim=1)
+                res_pca          = pca(sub_data_flat.astype(numpy.double))
+                second_component     = pca.get_projmatrix().reshape(y, z)
+            else:
+                second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
+
+            tmp_templates        = numpy.dot(second_component.T, basis_rec)
+            if temporal_shift > 0:
+                templates[indices[sorted_indices], temporal_shift:, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
+            elif temporal_shift < 0:
+                templates[indices[sorted_indices], :temporal_shift, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
+            else:
+                templates[indices[sorted_indices], :, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices]
+
             count_templates += 1
+
+        if make_plots:
+            if n_data > 1:
+                save     = [plot_path, '%d' %ielec]
+                idx      = numpy.where(indices == ielec)[0][0]
+                sub_data = data[:,:,idx]
+                nb_temp  = cluster_results[ielec]['n_clus']
+                plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
+                    thresholds[ielec], templates[indices[idx], :, loc_pad:loc_pad+nb_temp],
+                    amps_lims[loc_pad:loc_pad+nb_temp], save=save)
+
+        io.write_datasets(cfile, to_write, result, ielec)
 
         if comm.rank == 0:
             pbar.update(count_templates)
@@ -677,10 +585,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
+    #At the end we should have a templates variable to store.
+    cfile.close()
+    del result, templates, amps_lims
+    comm.Barrier()
+    
     if parallel_hdf5:
         if comm.rank == 0:
-            cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
-            io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]}) 
+            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
+            cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='latest')
+            io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
+            for i in xrange(comm.size):
+                for j in range(i, N_e, comm.size):
+                    io.write_datasets(cfile, to_write, rs[i], j)
+                rs[i].close()
+                os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
             cfile.close()
         hfile.close()
     else:
@@ -688,9 +607,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         if comm.rank == 0:
             ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
+            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
+            result     = {}
             n_clusters = numpy.sum([ts[i].get('templates').shape[2] for i in xrange(comm.size)])/2
             hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
-            cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
+            cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='latest')
             templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(n_clusters, ), dtype=numpy.int32, chunks=True)
             amplitudes = hfile.create_dataset('limits', shape=(n_clusters, 2), dtype=numpy.float32, chunks=True)
@@ -703,16 +624,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 electrodes[count:count+middle] = ts[i].get('electrodes')
                 amplitudes[count:count+middle] = ts[i].get('limits')
                 count      += middle
+                for j in range(i, N_e, comm.size):
+                    io.write_datasets(cfile, to_write, rs[i], j)
+                ts[i].close()
+                rs[i].close()
                 os.remove(file_out_suff + '.templates-%d.hdf5' %i)
-            cfile.pop('electrodes')
+                os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
             io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
             hfile.close()
             cfile.close()
-
-    comm.Barrier()
-    if comm.rank == 0:
-        for i in xrange(N_e):
-            os.remove(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i))
 
     comm.Barrier()
 
