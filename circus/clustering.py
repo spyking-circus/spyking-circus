@@ -483,7 +483,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             lines += ["                              -increase sim_same_elec?"]
         io.print_info(lines)
 
-        print "Extracting the templates by least-square fitting..."
+        print "Extracting the templates by basic median..."
 
     if parallel_hdf5:
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.float32), root=0)[0])
