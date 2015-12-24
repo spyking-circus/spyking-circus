@@ -573,7 +573,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
                     stas    = numpy.vstack((stas, stas_i))
             
-            #autocorr = scipy.sparse.lil_matrix((len(elecs)*N_t, len(elecs)*N_t), dtype=numpy.float32)
             data = numpy.zeros(0, dtype=numpy.float32)
             row  = numpy.zeros(0, dtype=numpy.int32)
             col  = numpy.zeros(0, dtype=numpy.int32)

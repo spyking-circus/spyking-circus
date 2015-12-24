@@ -688,12 +688,17 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     for count, tc1 in enumerate(local_templates):
         
         loc_templates = templates[:, :, tc1]
-        if normalize:
-            loc_templates /= norm_templates[tc1]
+        if tc1 >= N_tm/2:
+            src = templates[:, :, tc1 - N_tm/2]
+        else:
+            src = loc_templates
 
-        electrodes  = numpy.where(numpy.max(numpy.abs(loc_templates), axis=1) > 0)[0]
+        electrodes  = numpy.where(numpy.max(numpy.abs(src), axis=1) > 0)[0]
         to_consider = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
         to_consider = numpy.concatenate((to_consider, to_consider + N_tm/2))
+
+        if normalize:
+            loc_templates /= norm_templates[tc1]
 
         for idelay in all_delays:
             
