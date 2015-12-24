@@ -66,7 +66,7 @@ def load_parameters(file_name):
     for section in sections:
         if parser.has_section(section):
             for (key, value) in parser.items(section):
-                parser.set(section, key, value.split('#')[0].replace(' ', '')) 
+                parser.set(section, key, value.split('#')[0].replace(' ', '').replace('\t', '')) 
         else:
             parser.add_section(section)
 
@@ -156,6 +156,7 @@ def load_parameters(file_name):
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
+                  ['clustering', 'extraction', 'string', 'quadratic'],
                   ['clustering', 'remove_mixture', 'bool', 'False'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
@@ -174,6 +175,8 @@ def load_parameters(file_name):
                 parser.getint(section, name)
             elif val_type is 'float':
                 parser.getfloat(section, name)
+            elif val_type is 'string':
+                parser.get(section, name)
         except Exception:
             parser.set(section, name, value)
 
@@ -181,6 +184,9 @@ def load_parameters(file_name):
     parser.set('data', 'chunk_size', str(chunk_size*sampling_rate))
     chunk_size = parser.getint('whitening', 'chunk_size')
     parser.set('whitening', 'chunk_size', str(chunk_size*sampling_rate))
+
+    test = (parser.get('clustering', 'extraction') in ['quadratic', 'median'])
+    assert test, colored("Only two extraction modes: quadratic or median!")
 
     return parser
 
@@ -209,7 +215,8 @@ def data_stats(params, show=True):
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Stationarity                : %s" %params.getboolean('data', 'stationary'),
-             "Waveform alignment          : %s" %params.getboolean('data', 'alignement')]
+             "Waveform alignment          : %s" %params.getboolean('data', 'alignement'),
+             "Template Extraction         : %s" %params.get('clustering', 'extraction')]
         
     if show:
         print_info(lines)
@@ -683,7 +690,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             loc_templates /= norm_templates[tc1]
 
         electrodes  = numpy.where(numpy.max(numpy.abs(loc_templates), axis=1) > 0)[0]
-        to_consider = numpy.arange(0, N_tm)[numpy.intersect1d(best_elec, electrodes)]
+        to_consider = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
+        to_consider = numpy.concatenate((to_consider, to_consider + N_tm/2))
 
         for idelay in all_delays:
             
@@ -738,7 +746,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 data            = datafile.get('overlap')
                 local_templates = numpy.arange(i, N_tm, comm.size) 
                 for count, tmp in enumerate(local_templates):
-                    overlap[tmp, :, 0:N_t] = data[count, :, 0:N_t]
+                    overlap[tmp, :, 0:N_t] = data[count, :, :]
                 datafile.close()
                 os.remove(filename_mpi)
 
