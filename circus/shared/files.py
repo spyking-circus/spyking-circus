@@ -66,7 +66,7 @@ def load_parameters(file_name):
     for section in sections:
         if parser.has_section(section):
             for (key, value) in parser.items(section):
-                parser.set(section, key, value.split('#')[0].replace(' ', '')) 
+                parser.set(section, key, value.split('#')[0].replace(' ', '').replace('\t', '')) 
         else:
             parser.add_section(section)
 
@@ -156,6 +156,7 @@ def load_parameters(file_name):
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
+                  ['clustering', 'extraction', 'string', 'quadratic'],
                   ['clustering', 'remove_mixture', 'bool', 'False'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
@@ -174,6 +175,8 @@ def load_parameters(file_name):
                 parser.getint(section, name)
             elif val_type is 'float':
                 parser.getfloat(section, name)
+            elif val_type is 'string':
+                parser.get(section, name)
         except Exception:
             parser.set(section, name, value)
 
@@ -181,6 +184,9 @@ def load_parameters(file_name):
     parser.set('data', 'chunk_size', str(chunk_size*sampling_rate))
     chunk_size = parser.getint('whitening', 'chunk_size')
     parser.set('whitening', 'chunk_size', str(chunk_size*sampling_rate))
+
+    test = (parser.get('clustering', 'extraction') in ['quadratic', 'median'])
+    assert test, colored("Only two extraction modes: quadratic or median!")
 
     return parser
 
@@ -209,7 +215,8 @@ def data_stats(params, show=True):
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Stationarity                : %s" %params.getboolean('data', 'stationary'),
-             "Waveform alignment          : %s" %params.getboolean('data', 'alignement')]
+             "Waveform alignment          : %s" %params.getboolean('data', 'alignement'),
+             "Template Extraction         : %s" %params.get('clustering', 'extraction')]
         
     if show:
         print_info(lines)
@@ -622,6 +629,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     else:
         templates  = load_data(params, 'templates')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
+    best_elec      = load_data(params, 'electrodes')
     filename_mpi   = os.path.join(tmp_path, file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank))
     N_e, N_t, N_tm = templates.shape
 
@@ -660,13 +668,13 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         for i in xrange(N_tm):
             norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
+    all_delays      = numpy.arange(1, N_t+1)
+    local_templates = numpy.arange(comm.rank, N_tm, comm.size)
+
     if comm.rank == 0:
         if verbose:
             print "Computing the overlaps", cuda_string
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_t).start()
-
-    all_delays      = numpy.arange(1, N_t+1)
-    local_templates = numpy.arange(comm.rank, N_tm, comm.size)
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(local_templates)).start()
 
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm, libver='latest')
@@ -681,36 +689,40 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         if normalize:
             loc_templates /= norm_templates[tc1]
 
+        electrodes  = numpy.where(numpy.max(numpy.abs(loc_templates), axis=1) > 0)[0]
+        to_consider = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
+        to_consider = numpy.concatenate((to_consider, to_consider + N_tm/2))
+
         for idelay in all_delays:
             
             size  = N_e*idelay    
             tmp_1 = loc_templates[:, :idelay]
             
             if HAVE_CUDA:
-                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 1))
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(1, size))
             else:
-                tmp_1 = tmp_1.reshape(size, 1)
+                tmp_1 = tmp_1.reshape(1, size)
             
-            tmp_2 = templates[:, -idelay:, :]
+            tmp_2 = templates[:, -idelay:, to_consider]
             if normalize:
-                tmp_2 /= norm_templates
+                tmp_2 /= norm_templates[to_consider]
 
             lb_2  = tmp_2.shape[2]
             
             if HAVE_CUDA:
                 tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
-                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+                data  = cmt.dot(tmp_1, tmp_2).asarray()
             else:
                 tmp_2 = tmp_2.reshape(size, lb_2)
-                data  = numpy.dot(tmp_1.T, tmp_2).reshape(lb_2, 1)
+                data  = numpy.dot(tmp_1, tmp_2).reshape(1, lb_2)
 
             if parallel_hdf5:
-                overlap[tc1, :, idelay-1]   = data[:, 0]
+                overlap[tc1, to_consider, idelay-1]   = data[0]
             else:
-                overlap[count, :, idelay-1] = data[:, 0]
+                overlap[count, to_consider, idelay-1] = data[0]
 
         if comm.rank == 0:
-            pbar.update(idelay)
+            pbar.update(count)
 
     myfile.close()
     if comm.rank == 0:
@@ -734,7 +746,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 data            = datafile.get('overlap')
                 local_templates = numpy.arange(i, N_tm, comm.size) 
                 for count, tmp in enumerate(local_templates):
-                    overlap[tmp, :, 0:N_t] = data[count, :, 0:N_t]
+                    overlap[tmp, :, 0:N_t] = data[count, :, :]
                 datafile.close()
                 os.remove(filename_mpi)
 

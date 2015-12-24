@@ -27,6 +27,7 @@ nb_elts        = 0.8       # Fraction of max_elts that should be obtained per el
 output_dim     = 5         # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 
 [clustering]
+extraction     = quadratic # How to extract templates. Can be either quadratic or median
 safety_space   = True      # If True, we exclude spikes in the vicinity of a selected spikes
 safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
 max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)

@@ -45,16 +45,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         t2b     = numpy.unique(numpy.round(spike_2/bin_size))
         t2b_inv = t2b[-1] + t2b[0] - t2b
 
-        x_cc    = numpy.ones(2*max_delay+1)*(len(t1b) + len(t2b))
+        x_cc    = numpy.zeros(2*max_delay+1)
         y_cc    = numpy.copy(x_cc)
 
         for d in xrange(2*max_delay+1):
-            t2b_shifted     = t2b + (d - max_delay)
-            gsum            = numpy.unique(numpy.concatenate((t1b, t2b_shifted)))
-            x_cc[d]        -= len(gsum)
-            t2b_inv_shifted = t2b_inv + (d - max_delay)
-            gsum            = numpy.unique(numpy.concatenate((t1b, t2b_inv_shifted)))
-            y_cc[d]        -= len(gsum)
+            x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
+            y_cc[d] += len(numpy.intersect1d(t1b, t2b_inv + d - max_delay, assume_unique=True))
         return x_cc, y_cc
 
     def perform_merging(all_pairs, templates, clusters, overlap, result, limits):
