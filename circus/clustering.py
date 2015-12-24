@@ -484,12 +484,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             lines += ["                              -increase sim_same_elec?"]
         io.print_info(lines)
 
-        if extraction is 'quadratic':
+        if extraction == 'quadratic':
             print "Extracting the templates by least-square fitting..."
-        elif extraction is 'median':
+        elif extraction == 'median':
             print "Extracting the templates by median components..."
 
-    if extraction is 'quadratic':
+    if extraction == 'quadratic':
 
         if parallel_hdf5:
             total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.float32), root=0)[0])
@@ -736,7 +736,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
                 os.remove(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i))
 
-    elif extraction is 'median':
+    elif extraction == 'median':
 
         if parallel_hdf5:
             total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.float32), root=0)[0])
