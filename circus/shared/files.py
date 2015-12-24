@@ -1,3 +1,5 @@
+import warnings
+warnings.simplefilter(action = "ignore", category = FutureWarning)
 import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 from termcolor import colored

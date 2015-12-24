@@ -606,6 +606,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             stas     = stas.flatten()
             
             #print "Optimization for electrode", ielec
+            #from sklearn.linear_model import Lasso
+            #optimizer        = Lasso(alpha=0.001)
+            #local_waveforms  = optimizer.fit(autocorr, stas.astype(numpy.double)).coef_.astype(numpy.float32)
             local_waveforms = scipy.sparse.linalg.minres(autocorr, stas)[0]
             #local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
             
