@@ -323,7 +323,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #DO PCA on elts and store the basis obtained.
         print "We found", gdata.shape[1], "spikes over", int(nb_elts*comm.size), "requested"
         pca      = mdp.nodes.PCANode(output_dim=output_dim)
-        res_pca  = pca(elts.astype(numpy.double).T)
+        numpy.save("pca", gdata)
+        res_pca  = pca(gdata.astype(numpy.double).T)
         bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, ['proj', 'rec'], {'proj' : pca.get_projmatrix().astype(numpy.float32), 
                                                     'rec' : pca.get_recmatrix().astype(numpy.float32)})
