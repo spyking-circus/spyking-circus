@@ -671,7 +671,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
     all_delays      = numpy.arange(1, N_t+1)
-    local_templates = numpy.arange(comm.rank, N_tm, comm.size)
+    local_templates = numpy.arange(comm.rank, N_tm/2, comm.size)
 
     if comm.rank == 0:
         if verbose:
@@ -687,18 +687,14 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     
     for count, tc1 in enumerate(local_templates):
         
-        loc_templates = templates[:, :, tc1]
-        if tc1 >= N_tm/2:
-            src = templates[:, :, tc1 - N_tm/2]
-        else:
-            src = loc_templates
+        loc_templates = templates[:, :, [tc1, tc1 + N_tm/2]]
 
-        electrodes  = numpy.where(numpy.max(numpy.abs(src), axis=1) > 0)[0]
+        electrodes  = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
         to_consider = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
         to_consider = numpy.concatenate((to_consider, to_consider + N_tm/2))
 
         if normalize:
-            loc_templates /= norm_templates[tc1]
+            loc_templates /= norm_templates[[tc1, tc1 + N_tm/2]]
 
         for idelay in all_delays:
             
@@ -706,9 +702,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             tmp_1 = loc_templates[:, :idelay]
             
             if HAVE_CUDA:
-                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(1, size))
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2))
             else:
-                tmp_1 = tmp_1.reshape(1, size)
+                tmp_1 = tmp_1.reshape(size, 2)
             
             tmp_2 = templates[:, -idelay:, to_consider]
             if normalize:
@@ -718,15 +714,17 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             
             if HAVE_CUDA:
                 tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
-                data  = cmt.dot(tmp_1, tmp_2).asarray()
+                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
             else:
                 tmp_2 = tmp_2.reshape(size, lb_2)
-                data  = numpy.dot(tmp_1, tmp_2).reshape(1, lb_2)
+                data  = numpy.dot(tmp_1.T, tmp_2).reshape(2, lb_2)
 
             if parallel_hdf5:
-                overlap[tc1, to_consider, idelay-1]   = data[0]
+                overlap[tc1, to_consider, idelay-1]        = data[0]
+                overlap[tc1+N_tm/2, to_consider, idelay-1] = data[1]
             else:
                 overlap[count, to_consider, idelay-1] = data[0]
+                overlap[count+N_tm/2, to_consider, idelay-1] = data[1]
 
         if comm.rank == 0:
             pbar.update(count)
