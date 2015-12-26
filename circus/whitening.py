@@ -317,14 +317,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
-    gdata = gather_array(elts[:, :elt_count], comm, 0)
+    gdata = gather_array(elts[:, :elt_count].T, comm, 0, 1)
 
     if comm.rank == 0:
         #DO PCA on elts and store the basis obtained.
-        print "We found", gdata.shape[1], "spikes over", int(nb_elts*comm.size), "requested"
+        print "We found", gdata.shape[0], "spikes over", int(nb_elts*comm.size), "requested"
         pca      = mdp.nodes.PCANode(output_dim=output_dim)
-        numpy.save("pca", gdata)
-        res_pca  = pca(gdata.astype(numpy.double).T)
+        res_pca  = pca(gdata.astype(numpy.double))
         bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, ['proj', 'rec'], {'proj' : pca.get_projmatrix().astype(numpy.float32), 
                                                     'rec' : pca.get_recmatrix().astype(numpy.float32)})
