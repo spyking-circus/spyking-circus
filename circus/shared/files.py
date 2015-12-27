@@ -723,7 +723,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 overlap[tc1, to_consider, idelay-1]        = data[0]
                 overlap[tc1+N_tm/2, to_consider, idelay-1] = data[1]
             else:
-                overlap[count, to_consider, idelay-1] = data[0]
+                overlap[count, to_consider, idelay-1]        = data[0]
                 overlap[count+N_tm/2, to_consider, idelay-1] = data[1]
 
         if comm.rank == 0:

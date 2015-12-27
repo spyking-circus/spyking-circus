@@ -558,7 +558,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_labels = {}
             all_times  = {}
 
-            import time
             for i in n_neighb:
                 if not all_labels.has_key(i):
                     all_labels[i] = callfile.get('clusters_%d' %i)[:]
@@ -635,9 +634,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         for ielec in range(comm.rank, N_e, comm.size):
             
+            n_data   = len(result['data_' + str(ielec)])
+            n_neighb = len(edges[nodes[ielec]])
+            data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             indices  = inv_nodes[edges[nodes[ielec]]]
             sorted_indices = numpy.argsort(indices)
+            loc_pad        = count_templates
             for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
             
                 electrodes[count_templates] = ielec
@@ -646,12 +649,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 for count, i in enumerate(indices):
                     pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r', libver='latest')
                     lmask = pfile.get('limits')[:] == inv_nodes[nodes[ielec]] 
-                    data  = pfile.get('waveforms')[lmask, :][xcount]
-                    tmp_templates[count] = data
+                    tmp_templates[count] = pfile.get('waveforms')[lmask, :][xcount]
                     pfile.close()
 
                 #Denoise the templates with PCA by shifting them then realign
-
+                '''
                 argmins = numpy.argmin(tmp_templates, 1)
                 for i in xrange(len(indices)):
                     shift    = template_shift - argmins[i]
@@ -671,7 +673,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         tmp_templates[i, -shift:] = tmp_data[:shift]
                     else:
                         tmp_templates[i] = tmp_data
-                
+                '''
 
                 tmpidx    = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift     = template_shift - tmpidx[1]
@@ -694,6 +696,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 templates[sindices, :, offset] = ortho
                 
                 count_templates += 1
+
+            if make_plots:
+                if n_data > 1:
+                    save     = [plot_path, '%d' %ielec]
+                    idx      = numpy.where(indices == ielec)[0][0]
+                    sub_data = data[:,:,idx]
+                    nb_temp  = cluster_results[ielec]['n_clus']
+                    plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
+                        thresholds[ielec], templates[indices[idx], :, loc_pad:loc_pad+nb_temp],
+                        amps_lims[loc_pad:loc_pad+nb_temp], save=save)
 
             if comm.rank == 0:
                 pbar.update(count_templates)
@@ -728,7 +740,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     amplitudes[count:count+middle] = ts[i].get('limits')
                     count      += middle
                     os.remove(file_out_suff + '.templates-%d.hdf5' %i)
-                cfile.pop('electrodes')
                 io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
                 hfile.close()
                 cfile.close()
@@ -780,15 +791,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 first_component  = numpy.median(sub_data, axis=0)
 
                 tmp_templates    = numpy.dot(first_component.T, basis_rec)
-                #tmpidx           = numpy.where(tmp_templates == tmp_templates.min())
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
-                temporal_shift   = template_shift - tmpidx[1]
-                if temporal_shift > 0:
-                    templates[indices[sorted_indices], temporal_shift:, count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
-                elif temporal_shift < 0:
-                    templates[indices[sorted_indices], :temporal_shift, count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
+                shift            = template_shift - tmpidx[1]
+                sindices         = indices[sorted_indices]
+                if shift > 0:
+                    templates[sindices, shift:, count_templates] = tmp_templates[sorted_indices, :-shift]
+                elif shift < 0:
+                    templates[sindices, :shift, count_templates] = tmp_templates[sorted_indices, -shift:]
                 else:
-                    templates[indices[sorted_indices], :, count_templates] = tmp_templates[sorted_indices]
+                    templates[sindices, :, count_templates] = tmp_templates[sorted_indices]
 
                 x, y, z          = sub_data.shape
                 sub_data_flat    = sub_data.reshape(x, y*z)
@@ -812,13 +823,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
-                tmp_templates        = numpy.dot(second_component.T, basis_rec)
-                if temporal_shift > 0:
-                    templates[indices[sorted_indices], temporal_shift:, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, :-temporal_shift]
-                elif temporal_shift < 0:
-                    templates[indices[sorted_indices], :temporal_shift, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices, -temporal_shift:]
+                tmp_templates = numpy.dot(second_component.T, basis_rec)
+                offset        = templates.shape[2]/2 + count_templates
+                if shift > 0:
+                    templates[sindices, shift:,offset ] = tmp_templates[sorted_indices, :-shift]
+                elif shift < 0:
+                    templates[sindices, :shift, offset] = tmp_templates[sorted_indices, -shift:]
                 else:
-                    templates[indices[sorted_indices], :, templates.shape[2]/2 + count_templates] = tmp_templates[sorted_indices]
+                    templates[sindices, :, offset] = tmp_templates[sorted_indices]
 
                 count_templates += 1
 
