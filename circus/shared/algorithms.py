@@ -328,7 +328,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     to_merge       = []
     
     result   = []
-    overlap  = get_overlaps(comm, params, extension='-merging', erase=True, parallel_hdf5=parallel_hdf5, normalize=True, maxoverlap=False, verbose=False)
+    overlap  = get_overlaps(comm, params, extension='-merging', erase=True, parallel_hdf5=parallel_hdf5, normalize=True, maxoverlap=False, verbose=False, half=True)
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
     if comm.rank > 0:
@@ -385,7 +385,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     mixtures       = []
     to_remove      = []
 
-    overlap  = get_overlaps(comm, params, extension='-mixtures', erase=True, parallel_hdf5=parallel_hdf5, normalize=False, maxoverlap=False, verbose=False)
+    overlap  = get_overlaps(comm, params, extension='-mixtures', erase=True, parallel_hdf5=parallel_hdf5, normalize=False, maxoverlap=False, verbose=False, half=True)
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     result   = []
 

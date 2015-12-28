@@ -189,7 +189,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
-    alignement     = params.getboolean('data', 'alignement')
+    alignment      = params.getboolean('data', 'alignment')
     file_out       = params.get('data', 'file_out')
     spike_thresh   = params.getfloat('data', 'spike_thresh')
     stationary     = params.getboolean('data', 'stationary')
@@ -232,8 +232,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar = get_progressbar(nb_elts)
 
-    if alignement:
-        cdata = numpy.linspace(-template_shift/3., template_shift/3., 5*N_t)
+    if alignment:
+        cdata = numpy.linspace(-template_shift/10., template_shift/10., 5*N_t)
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     for gcount, gidx in enumerate(chunks_to_load):
@@ -261,7 +261,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
             #print "Removing the useless borders..."
-            if alignement:
+            if alignment:
                 local_borders = (2*template_shift, local_shape - 2*template_shift)
             else:
                 local_borders = (template_shift, local_shape - template_shift)
@@ -296,7 +296,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                             elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
 
-                            if alignement:
+                            if alignment:
                                 ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
                                 f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
                                 rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.

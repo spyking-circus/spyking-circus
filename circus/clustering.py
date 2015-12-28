@@ -14,7 +14,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
-    alignement     = params.getboolean('data', 'alignement')
+    alignment      = params.getboolean('data', 'alignment')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     spike_thresh   = params.getfloat('data', 'spike_thresh')
@@ -67,8 +67,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
 
-    if alignement:
-        cdata = numpy.linspace(-template_shift/3., template_shift/3., 5*N_t)
+    if alignment:
+        cdata = numpy.linspace(-template_shift/10., template_shift/10., 5*N_t)
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     comm.Barrier()
@@ -172,7 +172,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                     all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
                 #print "Removing the useless borders..."
-                if alignement:
+                if alignment:
                     local_borders = (2*template_shift, local_shape - 2*template_shift)
                 else:
                     local_borders = (template_shift, local_shape - template_shift)
@@ -238,7 +238,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                                 if len(to_update) < loop_max_elts_elec:
                                     
-                                    if alignement:
+                                    if alignment:
                                         idx   = numpy.where(indices == elec)[0]
                                         zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
                                         ydata = numpy.arange(len(indices))
@@ -605,7 +605,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             #print "Optimization for electrode", ielec
             #from sklearn.linear_model import Lasso
-            #optimizer        = Lasso(alpha=0.001)
+            #optimizer        = Lasso(alpha=0.01)
             #local_waveforms  = optimizer.fit(autocorr, stas.astype(numpy.double)).coef_.astype(numpy.float32)
             local_waveforms = scipy.sparse.linalg.minres(autocorr, stas)[0]
             #local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
@@ -653,7 +653,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     pfile.close()
 
                 #Denoise the templates with PCA by shifting them then realign
-                '''
                 argmins = numpy.argmin(tmp_templates, 1)
                 for i in xrange(len(indices)):
                     shift    = template_shift - argmins[i]
@@ -673,7 +672,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         tmp_templates[i, -shift:] = tmp_data[:shift]
                     else:
                         tmp_templates[i] = tmp_data
-                '''
+                
 
                 tmpidx    = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift     = template_shift - tmpidx[1]

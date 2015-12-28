@@ -147,7 +147,7 @@ def load_parameters(file_name):
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'stationary', 'bool', 'True'],
-                  ['data', 'alignement', 'bool', 'True'],
+                  ['data', 'alignment', 'bool', 'True'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
@@ -217,7 +217,7 @@ def data_stats(params, show=True):
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Stationarity                : %s" %params.getboolean('data', 'stationary'),
-             "Waveform alignment          : %s" %params.getboolean('data', 'alignement'),
+             "Waveform alignment          : %s" %params.getboolean('data', 'alignment'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction')]
         
     if show:
@@ -548,30 +548,32 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             voltages_file  = file_out_suff + '.voltages-%d.data' %node
             voltages       = numpy.fromfile(voltages_file, dtype=numpy.float32)
 
-        amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
-        spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.int32)
-        templates  = numpy.fromfile(templates_file, dtype=numpy.int32)
-        N          = len(amplitudes)
-        amplitudes = amplitudes.reshape(N/2, 2)
-        min_size   = min([amplitudes.shape[0], spiketimes.shape[0], templates.shape[0]])
-        amplitudes = amplitudes[:min_size]
-        spiketimes = spiketimes[:min_size]
-        templates  = templates[:min_size]
-        if with_real_amps:
-            real_amps = real_amps[:min_size]
-        if with_voltages:
-            voltages = voltages[:min_size]
+        if os.path.exists(amplitudes_file):
 
-        local_temp = numpy.unique(templates)
-
-        for j in local_temp:
-            idx = numpy.where(templates == j)[0]
-            result['amplitudes']['temp_' + str(j)] = numpy.concatenate((amplitudes[idx], result['amplitudes']['temp_' + str(j)]))
-            result['spiketimes']['temp_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx])) 
+            amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
+            spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.int32)
+            templates  = numpy.fromfile(templates_file, dtype=numpy.int32)
+            N          = len(amplitudes)
+            amplitudes = amplitudes.reshape(N/2, 2)
+            min_size   = min([amplitudes.shape[0], spiketimes.shape[0], templates.shape[0]])
+            amplitudes = amplitudes[:min_size]
+            spiketimes = spiketimes[:min_size]
+            templates  = templates[:min_size]
             if with_real_amps:
-                result['real_amps']['temp_' + str(j)] = numpy.concatenate((result['real_amps']['temp_' + str(j)], real_amps[idx]))
+                real_amps = real_amps[:min_size]
             if with_voltages:
-                result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx])) 
+                voltages = voltages[:min_size]
+
+            local_temp = numpy.unique(templates)
+
+            for j in local_temp:
+                idx = numpy.where(templates == j)[0]
+                result['amplitudes']['temp_' + str(j)] = numpy.concatenate((amplitudes[idx], result['amplitudes']['temp_' + str(j)]))
+                result['spiketimes']['temp_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx])) 
+                if with_real_amps:
+                    result['real_amps']['temp_' + str(j)] = numpy.concatenate((result['real_amps']['temp_' + str(j)], real_amps[idx]))
+                if with_voltages:
+                    result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx])) 
 
         pbar.update(count)
 
@@ -622,7 +624,7 @@ def get_results(params, extension=''):
     myfile.close()
     return result
 
-def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, normalize=True, maxoverlap=True, verbose=True):
+def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, normalize=True, maxoverlap=True, verbose=True, half=False):
 
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
@@ -634,6 +636,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     best_elec      = load_data(params, 'electrodes')
     filename_mpi   = os.path.join(tmp_path, file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank))
     N_e, N_t, N_tm = templates.shape
+    if half:
+        N_tm /= 2
 
     if os.path.exists(filename) and not erase:
         return h5py.File(filename, libver='latest').get('overlap')
@@ -666,12 +670,15 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
     #print "Normalizing the templates..."
     if normalize:
-        norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+        norm_templates = numpy.zeros(N_tm, dtype=numpy.float32)
         for i in xrange(N_tm):
             norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
-    all_delays      = numpy.arange(1, N_t+1)
-    local_templates = numpy.arange(comm.rank, N_tm/2, comm.size)
+    all_delays           = numpy.arange(1, N_t+1)
+    if half:
+        local_templates = numpy.arange(comm.rank, N_tm, comm.size)
+    else:
+        local_templates = numpy.arange(comm.rank, N_tm/2, comm.size)
 
     if comm.rank == 0:
         if verbose:
@@ -687,14 +694,23 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     
     for count, tc1 in enumerate(local_templates):
         
-        loc_templates = templates[:, :, [tc1, tc1 + N_tm/2]]
-
-        electrodes  = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
-        to_consider = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
-        to_consider = numpy.concatenate((to_consider, to_consider + N_tm/2))
+        if not half:
+            loc_templates = templates[:, :, [tc1, tc1 + N_tm/2]]
+            electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
+            to_consider   = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
+            to_consider   = numpy.concatenate((to_consider, to_consider + N_tm/2))
+        else:
+            loc_templates = templates[:, :, tc1].reshape(N_e, N_t, 1)
+            electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates), axis=1) > 0)[0]
+            to_consider   = numpy.arange(0, N_tm)[numpy.in1d(best_elec, electrodes)] 
+ 
+        nb_elements = loc_templates.shape[2]
 
         if normalize:
-            loc_templates /= norm_templates[[tc1, tc1 + N_tm/2]]
+            if not half:
+                loc_templates /= norm_templates[[tc1, tc1 + N_tm/2]]
+            else:
+                loc_templates /= norm_templates[tc1]
 
         for idelay in all_delays:
             
@@ -702,9 +718,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             tmp_1 = loc_templates[:, :idelay]
             
             if HAVE_CUDA:
-                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, 2))
+                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_elements))
             else:
-                tmp_1 = tmp_1.reshape(size, 2)
+                tmp_1 = tmp_1.reshape(size, nb_elements)
             
             tmp_2 = templates[:, -idelay:, to_consider]
             if normalize:
@@ -717,14 +733,16 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 data  = cmt.dot(tmp_1.T, tmp_2).asarray()
             else:
                 tmp_2 = tmp_2.reshape(size, lb_2)
-                data  = numpy.dot(tmp_1.T, tmp_2).reshape(2, lb_2)
+                data  = numpy.dot(tmp_1.T, tmp_2).reshape(nb_elements, lb_2)
 
             if parallel_hdf5:
-                overlap[tc1, to_consider, idelay-1]        = data[0]
-                overlap[tc1+N_tm/2, to_consider, idelay-1] = data[1]
+                overlap[tc1, to_consider, idelay-1]            = data[0]
+                if not half:
+                    overlap[tc1+N_tm/2, to_consider, idelay-1] = data[1]
             else:
-                overlap[count, to_consider, idelay-1]        = data[0]
-                overlap[count+N_tm/2, to_consider, idelay-1] = data[1]
+                overlap[count, to_consider, idelay-1]            = data[0]
+                if not half:
+                    overlap[count+N_tm/2, to_consider, idelay-1] = data[1]
 
         if comm.rank == 0:
             pbar.update(count)
