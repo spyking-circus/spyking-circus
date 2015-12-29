@@ -394,7 +394,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         overlap.file.close()
     else:
         norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
-        for i in xrange(templates.shape[2]):
+        for i in xrange(nb_temp):
             norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
         result    = load_data(params, 'clusters')
