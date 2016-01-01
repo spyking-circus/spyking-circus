@@ -674,16 +674,19 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         for i in xrange(N_tm):
             norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
 
-    all_delays           = numpy.arange(1, N_t+1)
-    if half:
-        local_templates = numpy.arange(comm.rank, N_tm, comm.size)
-    else:
-        local_templates = numpy.arange(comm.rank, N_tm/2, comm.size)
+    all_delays      = numpy.arange(1, N_t+1)
+
+    local_templates = numpy.zeros(0, dtype=numpy.int32)
+    for ielec in range(comm.rank, N_e, comm.size):
+        local_templates = numpy.concatenate((local_templates, numpy.where(best_elec == ielec)[0]))
+
+    if not half:
+        local_templates = numpy.concatenate((local_templates, local_templates + N_tm/2))
 
     if comm.rank == 0:
         if verbose:
             print "Computing the overlaps", cuda_string
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(local_templates)).start()
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_e).start()
 
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm, libver='latest')
@@ -692,57 +695,71 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         myfile  = h5py.File(filename_mpi, 'w', libver='latest')
         overlap = myfile.create_dataset('overlap', shape=(len(local_templates), N_tm, N_t), dtype=numpy.float32, chunks=True)
     
-    for count, tc1 in enumerate(local_templates):
+    gcount = 0
+
+    for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
         
-        if not half:
-            loc_templates = templates[:, :, [tc1, tc1 + N_tm/2]]
-            electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
-            to_consider   = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
-            to_consider   = numpy.concatenate((to_consider, to_consider + N_tm/2))
-        else:
-            loc_templates = templates[:, :, tc1].reshape(N_e, N_t, 1)
-            electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates), axis=1) > 0)[0]
-            to_consider   = numpy.arange(0, N_tm)[numpy.in1d(best_elec, electrodes)] 
- 
-        nb_elements = loc_templates.shape[2]
+        local_idx = numpy.where(best_elec == ielec)[0]
 
-        if normalize:
+        if len(local_idx) > 0:
+
             if not half:
-                loc_templates /= norm_templates[[tc1, tc1 + N_tm/2]]
+                local_idx     = numpy.concatenate((local_idx, local_idx+N_tm/2))
+                loc_templates = templates[:, :, local_idx]
+                electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
+                to_consider   = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
+                to_consider   = numpy.concatenate((to_consider, to_consider + N_tm/2))
             else:
-                loc_templates /= norm_templates[tc1]
-
-        for idelay in all_delays:
+                loc_templates = templates[:, :, local_idx].reshape(N_e, N_t, len(local_idx))
+                electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
+                to_consider   = numpy.arange(0, N_tm)[numpy.in1d(best_elec, electrodes)] 
+     
+            nb_elements = loc_templates.shape[2]
             
-            size  = N_e*idelay    
-            tmp_1 = loc_templates[:, :idelay]
-            
-            if HAVE_CUDA:
-                tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_elements))
-            else:
-                tmp_1 = tmp_1.reshape(size, nb_elements)
-            
-            tmp_2 = templates[:, -idelay:, to_consider]
             if normalize:
-                tmp_2 /= norm_templates[to_consider]
+                loc_templates /= norm_templates[local_idx]
+                
+            for idelay in all_delays:
+                
+                size  = N_e*idelay    
+                tmp_1 = loc_templates[:, :idelay]
+                
+                if HAVE_CUDA:
+                    tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_elements))
+                else:
+                    tmp_1 = tmp_1.reshape(size, nb_elements)
+                
+                tmp_2 = templates[:, -idelay:, to_consider]
+                if normalize:
+                    tmp_2 /= norm_templates[to_consider]
 
-            lb_2  = tmp_2.shape[2]
-            
-            if HAVE_CUDA:
-                tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
-                data  = cmt.dot(tmp_1.T, tmp_2).asarray()
-            else:
-                tmp_2 = tmp_2.reshape(size, lb_2)
-                data  = numpy.dot(tmp_1.T, tmp_2).reshape(nb_elements, lb_2)
+                lb_2  = tmp_2.shape[2]
+                
+                if HAVE_CUDA:
+                    tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
+                    data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+                else:
+                    tmp_2 = tmp_2.reshape(size, lb_2)
+                    data  = numpy.dot(tmp_1.T, tmp_2).reshape(nb_elements, lb_2)
 
-            if parallel_hdf5:
-                overlap[tc1, to_consider, idelay-1]            = data[0]
-                if not half:
-                    overlap[tc1+N_tm/2, to_consider, idelay-1] = data[1]
-            else:
-                overlap[count, to_consider, idelay-1]            = data[0]
-                if not half:
-                    overlap[count+N_tm/2, to_consider, idelay-1] = data[1]
+                if parallel_hdf5:
+                    if not half:
+                        for lcount, idx in enumerate(local_idx[:nb_elements/2]):
+                            overlap[idx, to_consider, idelay-1]          = data[lcount]
+                            overlap[idx + N_tm/2, to_consider, idelay-1] = data[lcount + nb_elements/2]
+                    else:
+                        for lcount, idx in enumerate(local_idx):
+                            overlap[idx, to_consider, idelay-1]  = data[lcount]
+                else:
+                    if not half:
+                        for lcount in xrange(len(local_idx)/2):
+                            overlap[gcount + lcount, to_consider, idelay-1]                          = data[lcount]
+                            overlap[gcount + lcount + len(local_templates)/2, to_consider, idelay-1] = data[lcount + nb_elements/2]
+                    else:
+                        for lcount in xrange(len(local_idx)):
+                            overlap[gcount + lcount, to_consider, idelay-1] = data[lcount]
+        
+        gcount += len(local_idx)
 
         if comm.rank == 0:
             pbar.update(count)
@@ -767,9 +784,15 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 filename_mpi    = file_out_suff + '.overlap%s-%d.hdf5' %(extension, i)
                 datafile        = h5py.File(filename_mpi, 'r', libver='latest')
                 data            = datafile.get('overlap')
-                local_templates = numpy.arange(i, N_tm, comm.size) 
+
+                local_templates = numpy.zeros(0, dtype=numpy.int32)
+                for ielec in range(i, N_e, comm.size):
+                    local_templates = numpy.concatenate((local_templates, numpy.where(best_elec == ielec)[0]))
+
                 for count, tmp in enumerate(local_templates):
                     overlap[tmp, :, 0:N_t] = data[count, :, :]
+                    if not half:
+                        overlap[tmp+N_tm/2, :, 0:N_t] = data[count+len(local_templates), :, :]
                 datafile.close()
                 os.remove(filename_mpi)
 
