@@ -233,7 +233,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pbar = get_progressbar(nb_elts)
 
     if alignment:
-        cdata = numpy.linspace(-template_shift/10., template_shift/10., 5*N_t)
+        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     for gcount, gidx in enumerate(chunks_to_load):

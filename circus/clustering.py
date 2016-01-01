@@ -68,7 +68,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(tmp_path_loc)
 
     if alignment:
-        cdata = numpy.linspace(-template_shift/10., template_shift/10., 5*N_t)
+        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     comm.Barrier()
@@ -239,7 +239,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 if len(to_update) < loop_max_elts_elec:
                                     
                                     if alignment:
-                                        idx   = numpy.where(indices == elec)[0]
+                                        idx   = numpy.where(indices == inv_nodes[nodes[elec]])[0]
                                         zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
                                         ydata = numpy.arange(len(indices))
                                         f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
