@@ -50,11 +50,11 @@ def main(argv):
         config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
     header = '''
-###################################################################
-#####              Welcome to the SpyKING CIRCUS              #####
-#####                                                         #####
-#####              Written by P.Yger and O.Marre              #####
-###################################################################
+##################################################################
+#####              Welcome to the SpyKING CIRCUS             #####
+#####                                                        #####
+#####              Written by P.Yger and O.Marre             #####
+##################################################################
 '''
 
     message = '''   
