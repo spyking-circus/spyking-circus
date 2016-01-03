@@ -62,7 +62,7 @@ Syntax is spyking-circus datafile [options]
 
 Options are:
 -h or --help     : display the help
--m or --method   : by default, all 5 steps of the algorithm are
+-m or --method   : by default, all 4 steps of the algorithm are
                    performed, but a subset x,y can be done, 
                    using the syntax -m x,y. Steps are:
                      - filtering

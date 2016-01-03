@@ -680,8 +680,12 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     for ielec in range(comm.rank, N_e, comm.size):
         local_templates = numpy.concatenate((local_templates, numpy.where(best_elec == ielec)[0]))
 
-    if not half:
-        local_templates = numpy.concatenate((local_templates, local_templates + N_tm/2))
+    if half:
+        nb_total     = len(local_templates)
+        upper_bounds = N_tm
+    else:
+        nb_total     = 2*len(local_templates)
+        upper_bounds = N_tm/2
 
     if comm.rank == 0:
         if verbose:
@@ -693,26 +697,25 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
     else:
         myfile  = h5py.File(filename_mpi, 'w', libver='latest')
-        overlap = myfile.create_dataset('overlap', shape=(len(local_templates), N_tm, N_t), dtype=numpy.float32, chunks=True)
+        overlap = myfile.create_dataset('overlap', shape=(nb_total, N_tm, N_t), dtype=numpy.float32, chunks=True)
     
     gcount = 0
 
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
         
         local_idx = numpy.where(best_elec == ielec)[0]
+        len_local = len(local_idx)
 
-        if len(local_idx) > 0:
+        if not half:
+            local_idx = numpy.concatenate((local_idx, local_idx + upper_bounds))
 
+        if len_local > 0:
+
+            loc_templates = templates[:, :, local_idx].reshape(N_e, N_t, len(local_idx))
+            electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
+            to_consider   = numpy.arange(upper_bounds)[numpy.in1d(best_elec, electrodes)]
             if not half:
-                local_idx     = numpy.concatenate((local_idx, local_idx+N_tm/2))
-                loc_templates = templates[:, :, local_idx]
-                electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
-                to_consider   = numpy.arange(0, N_tm/2)[numpy.in1d(best_elec, electrodes)]
-                to_consider   = numpy.concatenate((to_consider, to_consider + N_tm/2))
-            else:
-                loc_templates = templates[:, :, local_idx].reshape(N_e, N_t, len(local_idx))
-                electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
-                to_consider   = numpy.arange(0, N_tm)[numpy.in1d(best_elec, electrodes)] 
+                to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
      
             nb_elements = loc_templates.shape[2]
             
@@ -743,23 +746,17 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                     data  = numpy.dot(tmp_1.T, tmp_2).reshape(nb_elements, lb_2)
 
                 if parallel_hdf5:
-                    if not half:
-                        for lcount, idx in enumerate(local_idx[:nb_elements/2]):
-                            overlap[idx, to_consider, idelay-1]          = data[lcount]
-                            overlap[idx + N_tm/2, to_consider, idelay-1] = data[lcount + nb_elements/2]
-                    else:
-                        for lcount, idx in enumerate(local_idx):
-                            overlap[idx, to_consider, idelay-1]  = data[lcount]
+                    for lcount, idx in enumerate(local_idx[:len_local]):
+                        overlap[idx, to_consider, idelay-1] = data[lcount]
+                        if not half:
+                            overlap[idx + upper_bounds, to_consider, idelay-1] = data[lcount + len_local]
                 else:
-                    if not half:
-                        for lcount in xrange(len(local_idx)/2):
-                            overlap[gcount + lcount, to_consider, idelay-1]                          = data[lcount]
-                            overlap[gcount + lcount + len(local_templates)/2, to_consider, idelay-1] = data[lcount + nb_elements/2]
-                    else:
-                        for lcount in xrange(len(local_idx)):
-                            overlap[gcount + lcount, to_consider, idelay-1] = data[lcount]
+                    for lcount in xrange(gcount, gcount + len_local):
+                        overlap[lcount, to_consider, idelay-1] = data[lcount]
+                        if not half:
+                            overlap[lcount + len(local_templates), to_consider, idelay-1] = data[lcount + len_local]
         
-        gcount += len(local_idx)
+        gcount += len_local
 
         if comm.rank == 0:
             pbar.update(count)
