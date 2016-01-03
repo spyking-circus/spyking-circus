@@ -751,10 +751,11 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                         if not half:
                             overlap[idx + upper_bounds, to_consider, idelay-1] = data[lcount + len_local]
                 else:
-                    for lcount in xrange(gcount, gcount + len_local):
-                        overlap[lcount, to_consider, idelay-1] = data[lcount]
+                    for lcount in xrange(len_local):
+                        offset = gcount + lcount
+                        overlap[offset, to_consider, idelay-1] = data[lcount]
                         if not half:
-                            overlap[lcount + len(local_templates), to_consider, idelay-1] = data[lcount + len_local]
+                            overlap[offset + len(local_templates), to_consider, idelay-1] = data[lcount + len_local]
         
         gcount += len_local
 
