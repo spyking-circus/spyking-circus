@@ -697,7 +697,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 offset                         = templates.shape[2]/2 + count_templates
                 templates[sindices, :, offset] = ortho
 
-                norms[count_templates]         = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,offset]**2,0),0))
+                norms[offset]                  = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,offset]**2,0),0))
 
                 count_templates += 1
 
