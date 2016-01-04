@@ -504,7 +504,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             node_pad   = 0
             hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
-            templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*local_nb_clusters), dtype=numpy.float32, chunks=True)
+            templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*local_nb_clusters), dtype=numpy.float32, chunks=True, compression='lzf')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
@@ -731,7 +731,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 n_clusters = numpy.sum([ts[i].get('templates').shape[2] for i in xrange(comm.size)])/2
                 hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
                 cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
-                templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True)
+                templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True, compression='lzf')
                 electrodes = hfile.create_dataset('electrodes', shape=(n_clusters, ), dtype=numpy.int32, chunks=True)
                 norms      = hfile.create_dataset('norms', shape=(2*n_clusters, ), dtype=numpy.float32, chunks=True)
                 amplitudes = hfile.create_dataset('limits', shape=(n_clusters, 2), dtype=numpy.float32, chunks=True)
@@ -773,7 +773,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             node_pad   = 0
             hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
-            templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*local_nb_clusters), dtype=numpy.float32, chunks=True)
+            templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*local_nb_clusters), dtype=numpy.float32, chunks=True, compression='lzf')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
@@ -893,7 +893,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 n_clusters = numpy.sum([ts[i].get('templates').shape[2] for i in xrange(comm.size)])/2
                 hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
                 cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='latest')
-                templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True)
+                templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*n_clusters), dtype=numpy.float32, chunks=True, compression='lzf')
                 electrodes = hfile.create_dataset('electrodes', shape=(n_clusters, ), dtype=numpy.int32, chunks=True)
                 norms      = hfile.create_dataset('norms', shape=(2*n_clusters, ), dtype=numpy.float32, chunks=True)
                 amplitudes = hfile.create_dataset('limits', shape=(n_clusters, 2), dtype=numpy.float32, chunks=True)

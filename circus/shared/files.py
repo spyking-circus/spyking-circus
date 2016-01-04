@@ -158,7 +158,7 @@ def load_parameters(file_name):
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
-                  ['clustering', 'extraction', 'string', 'quadratic'],
+                  ['clustering', 'extraction', 'string', 'median'],
                   ['clustering', 'remove_mixture', 'bool', 'False'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
@@ -720,7 +720,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
     else:
         myfile  = h5py.File(filename_mpi, 'w', libver='latest')
-        overlap = myfile.create_dataset('overlap', shape=(nb_total, N_tm, N_t), dtype=numpy.float32, chunks=True)
+        overlap = myfile.create_dataset('overlap', shape=(nb_total, N_tm, N_t), dtype=numpy.float32, chunks=True, compression='lzf')
     
     gcount = 0
 
@@ -796,7 +796,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     if comm.rank == 0:
         if not parallel_hdf5: 
             myfile  = h5py.File(filename, 'w', libver='latest')
-            overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True)
+            overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=True, compression='lzf')
         else:
             myfile  = h5py.File(filename, 'r+', libver='latest')
             overlap = myfile.get('overlap')
