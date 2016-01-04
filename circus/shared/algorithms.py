@@ -411,39 +411,36 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
 
         is_part_of_sum = []
         sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1]
+        M              = numpy.zeros((2, 2), dtype=numpy.float32)
+        V              = numpy.zeros((2, 1), dtype=numpy.float32)
         for count, k in enumerate(sorted_temp):
-            idx_1      = set(numpy.where(best_elec == best_elec[k])[0])
-            tmp_idx    = set(numpy.where(best_elec != best_elec[k])[0])
-            idx_1      = numpy.array(list(idx_1.difference(mixtures + [k])))
-            tmp_idx    = numpy.array(list(tmp_idx.difference(mixtures + [k])))
-            electrodes = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
-            idx_2      = []
-            overlap_k  = overlap[k]
-            for idx in tmp_idx:
-                if best_elec[idx] in electrodes:
-                    idx_2 += [idx]
-            for i in idx_1:
-                overlap_i = overlap[i]
-                t1_vs_t1  = overlap_0[i, i]
-                t_vs_t1   = overlap_k[i, distances[k, i]]
-                for j in idx_2:
-                    t2_vs_t2 = overlap_0[j, j]
-                    t1_vs_t2 = overlap_i[j, distances[k, i] - distances[k, j]]
-                    t_vs_t2  = overlap_k[j, distances[k, j]]
-                    M        = numpy.vstack((numpy.hstack((t1_vs_t1, t1_vs_t2)), numpy.hstack((t1_vs_t2, t2_vs_t2))))
-                    V        = numpy.hstack((t_vs_t1, t_vs_t2))
-                    try:
+
+            if not k in is_part_of_sum:
+                electrodes    = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
+                overlap_k     = overlap[k]
+                is_in_area    = numpy.in1d(best_elec, electrodes)
+                for item in (mixtures + [k]):
+                    is_in_area[item] = False
+                all_idx       = numpy.arange(len(best_elec))[is_in_area]
+
+                for i in all_idx:
+                    overlap_i = overlap[i]
+                    M[0, 0]   = overlap_0[i, i]
+                    V[0, 0]   = overlap_k[i, distances[k, i]]
+                    for j in all_idx[i+1:]:
+                        M[1, 1]  = overlap_0[j, j]
+                        M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
+                        M[0, 1]  = M[0, 1]
+                        V[1, 0]  = overlap_k[j, distances[k, j]]
                         [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                    except Exception:
-                        [a1, a2] = [0, 0]
-                    a1_lim = limits[i]
-                    a2_lim = limits[j]
-                    is_a1  = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
-                    is_a2  = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
-                    if is_a1 and is_a2:
-                        if k not in mixtures and k not in is_part_of_sum:
-                            mixtures       += [k]
-                            is_part_of_sum += [i, j]
+                        a1_lim   = limits[i]
+                        a2_lim   = limits[j]
+                        is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
+                        is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
+                        if is_a1 and is_a2:
+                            if k not in mixtures and k not in is_part_of_sum:
+                                mixtures       += [k]
+                                is_part_of_sum += [i, j]
             pbar.update(count)
 
         pbar.finish()
