@@ -419,7 +419,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                 electrodes    = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
                 overlap_k     = overlap[k]
                 is_in_area    = numpy.in1d(best_elec, electrodes)
-                for item in (mixtures + [k]):
+                for item in (mixtures + [k] + list(sorted_temp[:count])):
                     is_in_area[item] = False
                 all_idx       = numpy.arange(len(best_elec))[is_in_area]
 
