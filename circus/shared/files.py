@@ -755,7 +755,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 else:
                     tmp_1 = tmp_1.reshape(size, nb_elements)
                 
-                tmp_2 = templates[:, -idelay:, to_consider]
+                tmp_2 = templates[:, -idelay:, to_consider].reshape(N_e, idelay, len(to_consider))
                 if normalize:
                     tmp_2 /= norm_templates[to_consider]
 
