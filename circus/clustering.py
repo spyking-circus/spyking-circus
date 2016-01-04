@@ -208,12 +208,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     all_times[elec, min_times[t]:max_times[t]] = True
 
                     #print "Selection of the peaks with spatio-temporal masks..."
-                    for idx, sidx in zip(argmax_peak, all_idx):
+                    for idx, peak in zip(argmax_peak, all_idx):
 
                         if elt_count == loop_nb_elts:
                             break
 
-                        elec = numpy.argmin(local_chunk[sidx])
+                        elec = numpy.argmin(local_chunk[peak])
                         
                         if ((gpass != 1) or (numpy.mod(elec, comm.size) == comm.rank)):
 
@@ -224,7 +224,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 myslice = all_times[elec, min_times[idx]:max_times[idx]]
 
-                            peak         = local_peaktimes[idx]
                             is_local_min = elec in all_minimas[all_peaktimes == peak]
 
                             if is_local_min and not myslice.any():
@@ -239,7 +238,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 if len(to_update) < loop_max_elts_elec:
                                     
                                     if alignment:
-                                        idx   = numpy.where(indices == inv_nodes[nodes[elec]])[0]
+                                        idx   = numpy.where(indices == elec)[0]
                                         zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
                                         ydata = numpy.arange(len(indices))
                                         f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
@@ -553,7 +552,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             elecs    = numpy.zeros(0, dtype=numpy.int32)
             labels   = numpy.zeros(0, dtype=numpy.int32)
             stas     = numpy.zeros((0, N_t), dtype=numpy.float32)
-            src      = inv_nodes[nodes[ielec]]
+            src      = ielec
 
             all_labels = {}
             all_times  = {}
@@ -648,7 +647,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 myslice       = numpy.where(cluster_results[ielec]['groups'] == group)[0]
                 for count, i in enumerate(indices):
                     pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r', libver='latest')
-                    lmask = pfile.get('limits')[:] == inv_nodes[nodes[ielec]] 
+                    lmask = pfile.get('limits')[:] == ielec 
                     tmp_templates[count] = pfile.get('waveforms')[lmask, :][xcount]
                     pfile.close()
 
