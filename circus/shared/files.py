@@ -248,19 +248,30 @@ def get_stas(params, times_i, labels_i, src, nodes=None):
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
     gain         = params.getfloat('data', 'gain')
+    alignment    = params.getboolean('data', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+    template_shift        = params.getint('data', 'template_shift')
 
     if do_spatial_whitening or do_temporal_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
         temporal_whitening = load_data(params, 'temporal_whitening')
 
+    if alignment:
+        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
+        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
+
     for lb, time in zip(labels_i, times_i):
         padding      = N_total * time
-        local_chunk  = datablock[padding - (N_t/2)*N_total:padding + (N_t/2+1)*N_total]
-        local_chunk  = local_chunk.reshape(N_t, N_total)
+        if alignment:
+            local_chunk = datablock[padding - 2*template_shift*N_total:padding + (2*template_shift+1)*N_total]
+            local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
+        else:
+            local_chunk = datablock[padding - template_shift*N_total:padding + (template_shift+1)*N_total]
+            local_chunk = local_chunk.reshape(N_t, N_total)
+
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
         local_chunk *= gain
@@ -272,7 +283,16 @@ def get_stas(params, times_i, labels_i, src, nodes=None):
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
-        stas[lc, :] += local_chunk[:, src].T
+
+        local_chunk = local_chunk[:, src]
+
+        if alignment:
+            f     = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+            rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+            ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+            local_chunk = f(ddata).astype(numpy.float32)
+
+        stas[lc, :] += local_chunk.T
     return stas
 
 def get_amplitudes(params, times_i, sources, template, nodes=None):
