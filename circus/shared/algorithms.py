@@ -211,9 +211,8 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
         old_templates  = myfile.get('templates')
         old_limits     = myfile.get('limits')[:]
         N_e, N_t, N_tm = old_templates.shape
-        norm_templates = numpy.zeros(N_tm/2, dtype=numpy.float32)
-        for i in xrange(N_tm/2):
-            norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(old_templates[:,:,i]**2,0),0))
+        norm_templates = load_data(params, 'norm-templates')
+
         if to_merge is not None:
             to_remove = []
             for count in xrange(len(to_merge)):
@@ -233,10 +232,13 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
     if parallel_hdf5 or (comm.rank == 0):
         local_keep = to_keep[positions]
         templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*len(to_keep)), dtype=numpy.float32, chunks=True)
+        norms      = hfile.create_dataset('norms', shape=(2*len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         for count, keep in zip(positions, local_keep):
             templates[:, :, count]                = old_templates[:, :, keep]
             templates[:, :, count + len(to_keep)] = old_templates[:, :, keep + N_tm/2]
+            norms[count]                          = norm_templates[keep]
+            norms[count + len(to_keep)]           = norm_templates[keep + N_tm/2]
             if to_merge is None:
                 new_limits = old_limits[keep]
             else:
@@ -393,9 +395,8 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         templates.file.close()
         overlap.file.close()
     else:
-        norm_templates = numpy.zeros(templates.shape[2], dtype=numpy.float32)
-        for i in xrange(nb_temp):
-            norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
+
+        norm_templates = load_data(params, 'norm-templates')
 
         result    = load_data(params, 'clusters')
         best_elec = load_data(params, 'electrodes')
@@ -419,7 +420,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                 electrodes    = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
                 overlap_k     = overlap[k]
                 is_in_area    = numpy.in1d(best_elec, electrodes)
-                for item in (mixtures + [k] + list(sorted_temp[:count])):
+                for item in sorted_temp[:count]:
                     is_in_area[item] = False
                 all_idx       = numpy.arange(len(best_elec))[is_in_area]
 

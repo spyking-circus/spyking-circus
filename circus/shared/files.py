@@ -455,6 +455,11 @@ def load_data(params, data, extension=''):
             return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, libver='latest').get('templates')
         else:
             raise Exception('No templates found! Check suffix?')
+    elif data == 'norm-templates':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, libver='latest').get('norms')[:]
+        else:
+            raise Exception('No templates found! Check suffix?')
     elif data == 'spike-cluster':
         file_name = params.get('data', 'data_file_noext') + '.spike-cluster.mat'
         if os.path.exists(file_name):
@@ -690,9 +695,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
     #print "Normalizing the templates..."
     if normalize:
-        norm_templates = numpy.zeros(N_tm, dtype=numpy.float32)
-        for i in xrange(N_tm):
-            norm_templates[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
+        norm_templates = load_data(params, 'norm-templates')[:N_tm]
 
     all_delays      = numpy.arange(1, N_t+1)
 
