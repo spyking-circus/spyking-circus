@@ -18,17 +18,6 @@ def generate_data(n_data):
         one_data[np.abs(raw_lags) < one_ref] -= one_difference
     return raw_lags, np.clip(raw_data, 0, 1.2), np.clip(raw_data_control, 0, 1.2)
 
-def calc_scores(lags, data, control, lag):
-    data = data[:, abs(lags) <= lag]
-    control = control[:, abs(lags) <= lag]
-    norm_factor = control.mean()
-    score = (control/norm_factor-data/norm_factor).sum(axis=1)/(lag*2)
-    score2 = np.clip(score * (0.7 + np.random.rand(len(data))*0.6) +
-                     np.random.rand(len(data))*0.2-0.1, 0, 1)
-    score3 = np.clip(score * (0.3 + np.random.rand(len(data))*1.4) +
-                     np.random.rand(len(data))*0.4-0.2, 0, 1)
-    return score, score2, score3
-
 
 class ToggleButton(widgets.Button):
 
@@ -209,13 +198,13 @@ class MergeGUI(object):
         pick_button_ax = plt.subplot(buttons_gs[0, 2])
         self.toggle_group = []
         self.lasso_button = ToggleButton(lasso_button_ax, '',
-                                         image=mpl.image.imread('icons/gimp-tool-free-select.png'),
+                                         #image=mpl.image.imread('icons/gimp-tool-free-select.png'),
                                          toggle_group=self.toggle_group)
         self.rect_button = ToggleButton(rect_button_ax, '',
-                                        image=mpl.image.imread('icons/gimp-tool-rect-select.png'),
+                                        #image=mpl.image.imread('icons/gimp-tool-rect-select.png'),
                                         toggle_group=self.toggle_group)
         self.pick_button = ToggleButton(pick_button_ax, '',
-                                        image=mpl.image.imread('icons/gimp-tool-color-picker.png'),
+                                        #image=mpl.image.imread('icons/gimp-tool-color-picker.png'),
                                         toggle_group=self.toggle_group)
         self.toggle_group.extend([self.lasso_button,
                                   self.rect_button,
@@ -235,6 +224,16 @@ class MergeGUI(object):
         self.add_button = widgets.Button(add_button_ax, 'Select')
         merge_button_ax = plt.subplot(gs[14, 2])
         self.merge_button = widgets.Button(merge_button_ax, 'Merge')
+
+    def calc_scores(self, lags, data, control, lag):
+        data = data[:, abs(lags) <= lag]
+        control = control[:, abs(lags) <= lag]
+        norm_factor = control.mean()
+        score  = (control/norm_factor-data/norm_factor).sum(axis=1)/(lag*2)
+        score2 = (control - data).sum(axis=1)/(lag*2)
+        score3 = np.clip(score * (0.3 + np.random.rand(len(data))*1.4) +
+                         np.random.rand(len(data))*0.4-0.2, 0, 1)
+        return score, score2, score3
 
     def plot_scores(self):
         # Left: Scores
@@ -360,7 +359,7 @@ class MergeGUI(object):
     def update_lag(self, lag):
         actual_lag = self.raw_lags[np.argmin(np.abs(self.raw_lags - lag))]
         self.use_lag = actual_lag
-        self.score_x, self.score_y, self.score_z = calc_scores(self.raw_lags, self.raw_data,
+        self.score_x, self.score_y, self.score_z = self.calc_scores(self.raw_lags, self.raw_data,
                                                                self.raw_control,
                                                                lag=self.use_lag)
         self.points = [zip(self.score_x, self.score_y),
@@ -532,7 +531,7 @@ class MergeGUI(object):
         not_selected = np.array(sorted(set(np.arange(len(self.sort_idcs))).difference(self.selected_points)))
         self.raw_data = self.raw_data[not_selected, :]
         self.raw_control = self.raw_control[not_selected, :]
-        self.score_x, self.score_y, self.score_z = calc_scores(self.raw_lags, self.raw_data,
+        self.score_x, self.score_y, self.score_z = self.calc_scores(self.raw_lags, self.raw_data,
                                                                self.raw_control,
                                                                lag=self.use_lag)
         self.collections = None
@@ -543,18 +542,3 @@ class MergeGUI(object):
         self.update_data_sort_order()
         self.update_lag(self.use_lag)
         self.update_detail_plot()
-
-def run_gui():
-    plt.switch_backend('QT4Agg')
-    plt.style.use('ggplot')
-
-    raw_lags, raw_data, raw_data_control = generate_data(1000)
-
-    gui = MergeGUI(raw_lags, raw_data, raw_data_control)
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
-    plt.show()
-
-if __name__ == '__main__':
-    run_gui()
-    # TODO: Implement "Merge" and undo/redo
