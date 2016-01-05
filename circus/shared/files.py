@@ -659,8 +659,11 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         templates  = load_data(params, 'templates')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
     best_elec      = load_data(params, 'electrodes')
+    N_total        = params.getint('data', 'N_total')
+    nodes, edges   = get_nodes_and_edges(params)
     filename_mpi   = os.path.join(tmp_path, file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank))
     N_e, N_t, N_tm = templates.shape
+
     if half:
         N_tm /= 2
 
@@ -671,7 +674,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             os.remove(filename)
     
     comm.Barrier()
-    
+    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.argsort(nodes)
+
     cuda_string = 'using %d CPU...' %comm.size
     
     try:
@@ -735,7 +740,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         if len_local > 0:
 
             loc_templates = templates[:, :, local_idx].reshape(N_e, N_t, len(local_idx))
-            electrodes    = numpy.where(numpy.max(numpy.abs(loc_templates[:,:,0]), axis=1) > 0)[0]
+            electrodes    = inv_nodes[edges[nodes[ielec]]]
             to_consider   = numpy.arange(upper_bounds)[numpy.in1d(best_elec, electrodes)]
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))

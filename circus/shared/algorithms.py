@@ -401,6 +401,12 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         result    = load_data(params, 'clusters')
         best_elec = load_data(params, 'electrodes')
         limits    = load_data(params, 'limits')
+
+        N_total          = params.getint('data', 'N_total')
+        nodes, edges     = get_nodes_and_edges(params)
+        inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+        inv_nodes[nodes] = numpy.argsort(nodes)
+
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
         for i in xrange(nb_temp):
             distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
@@ -417,7 +423,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         for count, k in enumerate(sorted_temp):
 
             if not k in is_part_of_sum:
-                electrodes    = numpy.where(numpy.max(numpy.abs(templates[:, :, k]), axis=1) > 0)[0]
+                electrodes    = inv_nodes[edges[nodes[k]]]
                 overlap_k     = overlap[k]
                 is_in_area    = numpy.in1d(best_elec, electrodes)
                 for item in sorted_temp[:count]:
