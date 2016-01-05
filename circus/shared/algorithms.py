@@ -420,15 +420,15 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1]
         M              = numpy.zeros((2, 2), dtype=numpy.float32)
         V              = numpy.zeros((2, 1), dtype=numpy.float32)
-        for count, k, bk in zip(numpy.arange(nb_temp), sorted_temp, best_elec):
+        for count, k in enumerate(sorted_temp):
 
             if not k in is_part_of_sum:
-                electrodes    = inv_nodes[edges[nodes[bk]]]
+                electrodes    = inv_nodes[edges[nodes[best_elec[k]]]]
                 overlap_k     = overlap[k]
                 is_in_area    = numpy.in1d(best_elec, electrodes)
                 for item in sorted_temp[:count]:
                     is_in_area[item] = False
-                all_idx       = numpy.arange(nb_temp)[is_in_area]
+                all_idx       = numpy.arange(len(best_elec))[is_in_area]
 
                 for i in all_idx:
                     overlap_i = overlap[i]
