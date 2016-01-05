@@ -718,7 +718,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     if comm.rank == 0:
         if verbose:
             print "Computing the overlaps", cuda_string
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_e).start()
+        N_0  = len(range(comm.rank, N_e, comm.size))
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_0).start()
 
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm, libver='latest')
