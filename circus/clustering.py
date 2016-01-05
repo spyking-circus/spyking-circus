@@ -384,6 +384,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
                     result['rho_'  + str(ielec)] = numpy.zeros(len(result['data_' + str(ielec)]), dtype=numpy.float32)
                     result['norm_' + str(ielec)] = 0
+                    result['dc_' + str(ielec)]   = 1.
             else:
                 if len(result['tmp_' + str(ielec)]) > 1:
                     data  = numpy.dot(result['tmp_' + str(ielec)], result['pca_' + str(ielec)])
