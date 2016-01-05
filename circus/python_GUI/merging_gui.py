@@ -1,0 +1,560 @@
+import six
+
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import matplotlib.widgets as widgets
+from matplotlib.colors import colorConverter
+import matplotlib.gridspec as gridspec
+
+def generate_data(n_data):
+    raw_lags = np.arange(-50, 50, dtype=np.float32)
+    difference = np.random.rand(n_data)
+    noise_level = np.random.rand(n_data)
+    ref_period = np.random.rand(n_data)*4 + 1
+    raw_data_control = np.ones((n_data, len(raw_lags)))+np.random.rand(n_data, len(raw_lags))*noise_level[:, np.newaxis]
+    raw_data = np.ones((n_data, len(raw_lags)))+np.random.rand(n_data, len(raw_lags))*noise_level[:, np.newaxis]
+    for one_data, one_ref, one_difference in zip(raw_data, ref_period, difference):
+        one_data[np.abs(raw_lags) < one_ref] -= one_difference
+    return raw_lags, np.clip(raw_data, 0, 1.2), np.clip(raw_data_control, 0, 1.2)
+
+def calc_scores(lags, data, control, lag):
+    data = data[:, abs(lags) <= lag]
+    control = control[:, abs(lags) <= lag]
+    norm_factor = control.mean()
+    score = (control/norm_factor-data/norm_factor).sum(axis=1)/(lag*2)
+    score2 = np.clip(score * (0.7 + np.random.rand(len(data))*0.6) +
+                     np.random.rand(len(data))*0.2-0.1, 0, 1)
+    score3 = np.clip(score * (0.3 + np.random.rand(len(data))*1.4) +
+                     np.random.rand(len(data))*0.4-0.2, 0, 1)
+    return score, score2, score3
+
+
+class ToggleButton(widgets.Button):
+
+    def __init__(self, *args, **kwds):
+        self.toggle_group = kwds.pop('toggle_group')
+        super(ToggleButton, self).__init__(*args, **kwds)
+        self.toggled = False
+        [i.set_color('black') for i in self.ax.spines.itervalues()]
+        self.ax.set_frame_on(False)
+
+    def _release(self, event):
+        if self.ignore(event):
+            return
+        if event.canvas.mouse_grabber != self.ax:
+            return
+        event.canvas.release_mouse(self.ax)
+        if not self.eventson:
+            return
+        if event.inaxes != self.ax:
+            return
+        if self.toggled:
+            return
+        self.update_toggle(True)
+
+        for cid, func in six.iteritems(self.observers):
+            func(event)
+
+    def update_toggle(self, new_toggle):
+        self.toggled = new_toggle
+        if self.toggled:
+            c = self.hovercolor
+            frame = True
+            # unselect all other buttons
+            for b in self.toggle_group:
+                if b is not self:
+                    b.update_toggle(False)
+        else:
+            c = self.color
+            frame = False
+
+        self.ax.set_axis_bgcolor(c)
+        self.ax.set_frame_on(frame)
+        if self.drawon:
+            self.ax.figure.canvas.draw()
+
+    def _motion(self, event):
+        pass
+
+class SymmetricVCursor(widgets.AxesWidget):
+    '''Variant of matplotlib.widgets.Cursor, drawing two symmetric vertical
+    lines at -x and x'''
+    def __init__(self, ax, useblit=False, **lineprops):
+        """
+        Add a cursor to *ax*.  If ``useblit=True``, use the backend-
+        dependent blitting features for faster updates (GTKAgg
+        only for now).  *lineprops* is a dictionary of line properties.
+        """
+        # TODO: Is the GTKAgg limitation still true?
+        widgets.AxesWidget.__init__(self, ax)
+
+        self.connect_event('motion_notify_event', self.onmove)
+        self.connect_event('draw_event', self.clear)
+
+        self.visible = True
+        self.useblit = useblit and self.canvas.supports_blit
+
+        if self.useblit:
+            lineprops['animated'] = True
+        self.linev1 = ax.axvline(ax.get_ybound()[0], visible=False, **lineprops)
+        self.linev2 = ax.axvline(ax.get_xbound()[0], visible=False, **lineprops)
+
+        self.background = None
+        self.needclear = False
+
+    def clear(self, event):
+        """clear the cursor"""
+        if self.ignore(event):
+            return
+        if self.useblit:
+            self.background = self.canvas.copy_from_bbox(self.ax.bbox)
+        self.linev1.set_visible(False)
+        self.linev2.set_visible(False)
+
+    def onmove(self, event):
+        """on mouse motion draw the cursor if visible"""
+        if self.ignore(event):
+            return
+        if not self.canvas.widgetlock.available(self):
+            return
+        if event.inaxes != self.ax:
+            self.linev1.set_visible(False)
+            self.linev2.set_visible(False)
+
+            if self.needclear:
+                self.canvas.draw()
+                self.needclear = False
+            return
+        self.needclear = True
+        if not self.visible:
+            return
+        self.linev1.set_xdata((event.xdata, event.xdata))
+        self.linev2.set_xdata((-event.xdata, -event.xdata))
+
+        self.linev1.set_visible(self.visible)
+        self.linev2.set_visible(self.visible)
+
+        self._update()
+
+    def _update(self):
+
+        if self.useblit:
+            if self.background is not None:
+                self.canvas.restore_region(self.background)
+            self.ax.draw_artist(self.linev1)
+            self.ax.draw_artist(self.linev2)
+            self.canvas.blit(self.ax.bbox)
+        else:
+            self.canvas.draw_idle()
+
+        return False
+
+
+class MergeGUI(object):
+    def __init__(self, raw_lags, raw_data, raw_control):
+        self.init_gui_layout()
+        self.fig = self.score_ax1.figure
+        # Remove all buttons from the standard toolbar
+        toolbar = self.fig.canvas.toolbar
+        for action in toolbar.actions():
+            toolbar.removeAction(action)
+        self.raw_lags = raw_lags
+        self.raw_data = raw_data
+        self.raw_control = raw_control
+        self.selected_points = set()
+        self.inspect_points = set()
+        self.lasso_selector = None
+        self.rect_selectors = [widgets.RectangleSelector(ax,
+                                                         onselect=self.callback_rect,
+                                                         button=1,
+                                                         drawtype='box',
+                                                         spancoords='data')
+                               for ax in [self.score_ax1, self.score_ax2, self.score_ax3]]
+        for selector in self.rect_selectors:
+            selector.set_active(False)
+        self.pick_button.update_toggle(True)
+        self.lag_selector = SymmetricVCursor(self.data_ax, color='blue')
+        self.line_lag1 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
+                                              color='black')
+        self.line_lag2 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
+                                              color='black')
+        self.update_lag(5)
+        self.plot_data()
+
+        # Connect events
+        self.fig.canvas.mpl_connect('scroll_event', self.zoom)
+        self.fig.canvas.mpl_connect('button_press_event', self.on_mouse_press)
+        self.rect_button.on_clicked(self.update_rect_selector)
+        self.lasso_button.on_clicked(self.update_rect_selector)
+        self.pick_button.on_clicked(self.update_rect_selector)
+        self.add_button.on_clicked(self.add_to_selection)
+        self.sort_order.on_clicked(self.update_data_sort_order)
+        self.merge_button.on_clicked(self.do_merge)
+        self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
+        self.score_ax2.format_coord = lambda x, y: 'normalized cross-correlation metric: %.2f  cross-correlation metric %.2f' % (x, y)
+        self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized cross-correlation metric %.2f' % (x, y)
+        self.data_ax.format_coord = self.data_tooltip
+        # Select the best point at start
+        idx = np.argmax(self.score_y)
+        self.update_selection({idx})
+
+    def init_gui_layout(self):
+        gs = gridspec.GridSpec(15, 4, width_ratios=[2, 2, 1, 4])
+        # TOOLBAR
+        buttons_gs = gridspec.GridSpecFromSubplotSpec(1, 3,
+                                                      subplot_spec=gs[0, 0])
+        lasso_button_ax = plt.subplot(buttons_gs[0, 0])
+        rect_button_ax = plt.subplot(buttons_gs[0, 1])
+        pick_button_ax = plt.subplot(buttons_gs[0, 2])
+        self.toggle_group = []
+        self.lasso_button = ToggleButton(lasso_button_ax, '',
+                                         image=mpl.image.imread('icons/gimp-tool-free-select.png'),
+                                         toggle_group=self.toggle_group)
+        self.rect_button = ToggleButton(rect_button_ax, '',
+                                        image=mpl.image.imread('icons/gimp-tool-rect-select.png'),
+                                        toggle_group=self.toggle_group)
+        self.pick_button = ToggleButton(pick_button_ax, '',
+                                        image=mpl.image.imread('icons/gimp-tool-color-picker.png'),
+                                        toggle_group=self.toggle_group)
+        self.toggle_group.extend([self.lasso_button,
+                                  self.rect_button,
+                                  self.pick_button])
+        self.score_ax1 = plt.subplot(gs[1:8, 0])
+        self.score_ax2 = plt.subplot(gs[1:8, 1])
+        self.score_ax3 = plt.subplot(gs[8:, 0])
+        self.detail_ax = plt.subplot(gs[1:5, 3])
+        self.data_ax = plt.subplot(gs[5:13, 3])
+        sort_order_ax = plt.subplot(gs[14, 3])
+        sort_order_ax.set_axis_bgcolor('none')
+        self.sort_order = widgets.RadioButtons(sort_order_ax, ('template similarity',
+                                                               'cross-correlation',
+                                                               'normalized cross-correlation'))
+        self.current_order = 'template similarity'
+        add_button_ax = plt.subplot(gs[7, 2])
+        self.add_button = widgets.Button(add_button_ax, 'Select')
+        merge_button_ax = plt.subplot(gs[14, 2])
+        self.merge_button = widgets.Button(merge_button_ax, 'Merge')
+
+    def plot_scores(self):
+        # Left: Scores
+        if not getattr(self, 'collections', None):
+            # It is important to set one facecolor per point so that we can change
+            # it later
+            self.collections = []
+            for ax, x, y in [(self.score_ax1, self.score_x, self.score_y),
+                             (self.score_ax2, self.score_z, self.score_y),
+                             (self.score_ax3, self.score_x, self.score_z)]:
+                self.collections.append(ax.scatter(x, y,
+                                                   facecolor=['black' for _ in x]))
+            self.score_ax1.set_ylabel('cross-correlation metric')
+            self.score_ax1.set_xticklabels([])
+            self.score_ax2.set_xlabel('normalized cross-correlation metric')
+            self.score_ax2.set_yticklabels([])
+            self.score_ax3.set_xlabel('template similarity')
+            self.score_ax3.set_ylabel('normalized cross-correlation metric')
+        else:
+            for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
+                                                                 (self.score_z, self.score_y),
+                                                                 (self.score_x, self.score_z)]):
+                collection.set_offsets(np.hstack([x[np.newaxis, :].T,
+                                                  y[np.newaxis, :].T]))
+        self.score_ax1.set_ylim(min(self.score_y)-0.05, max(self.score_y)+0.05)
+        self.score_ax1.set_xlim(min(self.score_x)-0.05, max(self.score_x)+0.05)
+        self.score_ax2.set_ylim(min(self.score_y)-0.05, max(self.score_y)+0.05)
+        self.score_ax2.set_xlim(min(self.score_z)-0.05, max(self.score_z)+0.05)
+        self.score_ax3.set_ylim(min(self.score_z)-0.05, max(self.score_z)+0.05)
+        self.score_ax3.set_xlim(min(self.score_x)-0.05, max(self.score_x)+0.05)
+
+    def plot_data(self):
+        # Right: raw data
+        all_raw_data = self.raw_data-self.raw_control.mean(axis=1)[:, np.newaxis]
+        self.update_sort_idcs()
+        all_raw_data = all_raw_data[self.sort_idcs, :]
+        self.data_image = self.data_ax.imshow(all_raw_data,
+                                              interpolation='nearest', cmap='coolwarm',
+                                              extent=(self.raw_lags[0], self.raw_lags[-1],
+                                                      0, len(self.sort_idcs)), origin='lower')
+        self.data_ax.set_aspect('auto')
+        self.inspect_markers, = self.data_ax.plot([], [], 'bo',
+                                                  clip_on=False, ms=10)
+        self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
+                                                    width=self.raw_lags[-1] - self.raw_lags[0],
+                                                    height=0,
+                                                    color='white', alpha=0.75)
+        self.data_ax.add_patch(self.data_selection)
+        self.data_ax.set_xlim(self.raw_lags[0], self.raw_lags[-1])
+        self.data_ax.set_ylim(0, len(self.sort_idcs))
+        self.data_ax.set_yticks([])
+
+    def data_tooltip(self, x, y):
+        row = int(y)
+        if row >= 0 and row < len(self.raw_data):
+            all_raw_data = self.raw_data-self.raw_control.mean(axis=1)[:, np.newaxis]
+            data_idx = self.sort_idcs[row]
+            lag_diff = np.abs(x - self.raw_lags)
+            nearest_lag_idx = np.argmin(lag_diff)
+            nearest_lag = self.raw_lags[nearest_lag_idx]
+            value = all_raw_data[data_idx, nearest_lag_idx]
+            return ('%.2f - lag: %.2fms (template similarity: %.2f  '
+                    'cross-correlation metric %.2f)') % (value, nearest_lag,
+                                                         self.score_x[data_idx],
+                                                         self.score_y[data_idx])
+        else:
+            return ''
+
+    def callback_lasso(self, verts):
+        p = mpl.path.Path(verts)
+        in_selection = p.contains_points(self.lasso_selector.points)
+        indices = np.nonzero(in_selection)[0]
+        self.update_selection(indices, self.lasso_selector.add_or_remove)
+
+    def callback_rect(self, eclick, erelease):
+        xmin, xmax, ymin, ymax = eclick.xdata, erelease.xdata, eclick.ydata, erelease.ydata
+        if xmin > xmax:
+            xmin, xmax = xmax, xmin
+        if ymin > ymax:
+            ymin, ymax = ymax, ymin
+        in_selection = ((self.score_x >= xmin) &
+                        (self.score_x <= xmax) &
+                        (self.score_y >= ymin) &
+                        (self.score_y <= ymax))
+        indices = np.nonzero(in_selection)[0]
+        add_or_remove = None
+        if erelease.key == 'shift':
+            add_or_remove = 'add'
+        elif erelease.key == 'control':
+            add_or_remove = 'remove'
+        self.update_selection(indices, add_or_remove)
+
+    def zoom(self, event):
+        # only zoom in the score plot
+        if event.inaxes != self.score_ax:
+            return
+        # get the current x and y limits
+        cur_xlim = self.score_ax.get_xlim()
+        cur_ylim = self.score_ax.get_ylim()
+        cur_xrange = (cur_xlim[1] - cur_xlim[0])*.5
+        cur_yrange = (cur_ylim[1] - cur_ylim[0])*.5
+        xdata = event.xdata # get event x location
+        ydata = event.ydata # get event y location
+        if event.button == 'up':
+            # deal with zoom in
+            scale_factor = 1/2.0
+        elif event.button == 'down':
+            # deal with zoom out
+            scale_factor = 2.0
+        else:
+            # deal with something that should never happen
+            scale_factor = 1
+            print event.button
+        # set new limits
+        newxmin = np.clip(xdata - cur_xrange*scale_factor, np.min(self.score_x)-0.05, np.max(self.score_x)+0.05)
+        newxmax = np.clip(xdata + cur_xrange*scale_factor, np.min(self.score_x)-0.05, np.max(self.score_x)+0.05)
+        newymin = np.clip(ydata - cur_yrange*scale_factor, -0.025, 1.025)
+        newymax = np.clip(ydata + cur_yrange*scale_factor, -0.025, 1.025)
+        self.score_ax.set_xlim(newxmin, newxmax)
+        self.score_ax.set_ylim(newymin, newymax)
+        self.fig.canvas.draw_idle()
+
+    def update_lag(self, lag):
+        actual_lag = self.raw_lags[np.argmin(np.abs(self.raw_lags - lag))]
+        self.use_lag = actual_lag
+        self.score_x, self.score_y, self.score_z = calc_scores(self.raw_lags, self.raw_data,
+                                                               self.raw_control,
+                                                               lag=self.use_lag)
+        self.points = [zip(self.score_x, self.score_y),
+                       zip(self.score_z, self.score_y),
+                       zip(self.score_x, self.score_z)]
+        self.line_lag1.set_xdata((lag, lag))
+        self.line_lag2.set_xdata((-lag, -lag))
+        self.data_ax.set_xlabel('lag (ms) -- cutoff: %.2fms' % self.use_lag)
+        self.plot_scores()  # will also trigger a draw
+
+    def update_rect_selector(self, event):
+        for selector in self.rect_selectors:
+            selector.set_active(self.rect_button.toggled)
+        self.fig.canvas.draw_idle()
+
+    def update_detail_plot(self):
+        self.detail_ax.clear()
+        indices = sorted(self.inspect_points)
+        for idx in indices:
+            data_line, = self.detail_ax.plot(self.raw_lags,
+                                             self.raw_data[idx, :].T, lw=2)
+            self.detail_ax.plot(self.raw_lags, self.raw_control[idx, :].T, ':',
+                                color=data_line.get_color(), lw=2)
+        self.detail_ax.set_ylim(0, 1.5)
+        self.detail_ax.set_xticks([])
+
+    def update_sort_idcs(self):
+        # The selected points are sorted before all the other points -- an easy
+        # way to achieve this is to add the maximum score to their score
+        if self.current_order == 'template similarity':
+            score = self.score_x
+        elif self.current_order == 'cross-correlation':
+            score = self.score_y
+        elif self.current_order == 'normalized cross-correlation':
+            score = self.score_z
+        else:
+            raise AssertionError(self.current_order)
+        score = score.copy()
+        if len(self.selected_points):
+            score[np.array(sorted(self.selected_points))] += score.max()
+
+        self.sort_idcs = np.argsort(score)
+
+    def update_data_plot(self):
+        reverse_sort = np.argsort(self.sort_idcs)
+
+        if len(self.inspect_points):
+            inspect = reverse_sort[np.array(sorted(self.inspect_points))]
+            self.inspect_markers.set_xdata(np.ones(len(inspect))*self.raw_lags[-1])
+            self.inspect_markers.set_ydata(inspect+0.5)
+        else:
+            self.inspect_markers.set_xdata([])
+            self.inspect_markers.set_ydata([])
+
+        self.fig.canvas.draw_idle()
+
+    def update_data_sort_order(self, new_sort_order=None):
+        if new_sort_order is not None:
+            self.current_order = new_sort_order
+        self.update_sort_idcs()
+        self.data_image.set_extent((self.raw_lags[0], self.raw_lags[-1],
+                            0, len(self.sort_idcs)))
+        self.data_ax.set_ylim(0, len(self.sort_idcs))
+        all_raw_data = self.raw_data-self.raw_control.mean(axis=1)[:, np.newaxis]
+        all_raw_data = all_raw_data[self.sort_idcs, :]
+        self.data_image.set_data(all_raw_data)
+        self.data_selection.set_y(len(self.sort_idcs)-len(self.selected_points))
+        self.data_selection.set_height(len(self.selected_points))
+        self.update_data_plot()
+
+    def update_score_plot(self):
+        for collection in self.collections:
+            colors = collection.get_facecolors()
+            colorin = colorConverter.to_rgba('black', alpha=0.25)
+            colorout = colorConverter.to_rgba('black')
+            colorinspect = colorConverter.to_rgba('red')
+
+            colors[:] = colorout
+            for p in self.selected_points:
+                colors[p] = colorin
+            for p in self.inspect_points:
+                colors[p] = colorinspect
+
+    def update_selection(self, indices, add_or_remove=None, inspect=True):
+        if inspect:
+            selection_set = self.inspect_points
+        else:
+            selection_set = self.selected_points
+
+        if add_or_remove is None:
+            selection_set.clear()
+
+        if add_or_remove == 'remove':
+            selection_set.difference_update(set(indices))
+        else:
+            selection_set.update(set(indices))
+
+        self.update_score_plot()
+        self.update_detail_plot()
+        if not inspect:  # Selected points changed so we have to re-plot the data
+            self.update_data_sort_order()
+        else:
+            self.update_data_plot()
+
+    def add_to_selection(self, event):
+        to_add = set(self.inspect_points)
+        self.inspect_points = set()
+        self.update_selection(to_add, add_or_remove='add', inspect=False)
+
+    def on_mouse_press(self, event):
+        if event.inaxes in [self.score_ax1, self.score_ax2, self.score_ax3]:
+            if self.lasso_button.toggled:
+                # Select multiple points
+                self.start_lasso_select(event)
+            elif self.rect_button.toggled:
+                pass  # handled already by rect selector
+            elif self.pick_button.toggled:
+                # Select a single point for display
+                # Find the closest point
+                if event.inaxes == self.score_ax1:
+                    x = self.score_x
+                    y = self.score_y
+                elif event.inaxes == self.score_ax2:
+                    x = self.score_z
+                    y = self.score_y
+                elif event.inaxes == self.score_ax3:
+                    x = self.score_x
+                    y = self.score_z
+                else:
+                    raise AssertionError(str(event.inaxes))
+                distances = ((x - event.xdata)**2 +
+                             (y - event.ydata)**2)
+                min_idx, min_value = np.argmin(distances), np.min(distances)
+                # TODO: Minimum distance?
+                add_or_remove = None
+                if event.key == 'shift':
+                    add_or_remove = 'add'
+                elif event.key == 'control':
+                    add_or_remove = 'remove'
+                self.update_selection({min_idx}, add_or_remove)
+            else:
+                raise AssertionError('No tool active')
+        elif event.inaxes == self.data_ax:
+            # Update lag
+            self.update_lag(abs(event.xdata))
+        else:
+            return
+
+    def start_lasso_select(self, event):
+        self.lasso_selector = widgets.Lasso(event.inaxes,
+                                            (event.xdata, event.ydata),
+                                            self.callback_lasso)
+        add_or_remove = None
+        if event.key == 'shift':
+            add_or_remove = 'add'
+        elif event.key == 'control':
+            add_or_remove = 'remove'
+        self.lasso_selector.add_or_remove = add_or_remove
+        if event.inaxes == self.score_ax1:
+            self.lasso_selector.points = self.points[0]
+        elif event.inaxes == self.score_ax2:
+            self.lasso_selector.points = self.points[1]
+        else:
+            self.lasso_selector.points = self.points[2]
+
+    def do_merge(self, event):
+        # This simply removes the data points for now
+        print 'Data indices to merge: ', sorted(self.selected_points)
+        not_selected = np.array(sorted(set(np.arange(len(self.sort_idcs))).difference(self.selected_points)))
+        self.raw_data = self.raw_data[not_selected, :]
+        self.raw_control = self.raw_control[not_selected, :]
+        self.score_x, self.score_y, self.score_z = calc_scores(self.raw_lags, self.raw_data,
+                                                               self.raw_control,
+                                                               lag=self.use_lag)
+        self.collections = None
+        self.selected_points = set()
+        self.score_ax1.clear()
+        self.score_ax2.clear()
+        self.score_ax3.clear()
+        self.update_data_sort_order()
+        self.update_lag(self.use_lag)
+        self.update_detail_plot()
+
+def run_gui():
+    plt.switch_backend('QT4Agg')
+    plt.style.use('ggplot')
+
+    raw_lags, raw_data, raw_data_control = generate_data(1000)
+
+    gui = MergeGUI(raw_lags, raw_data, raw_data_control)
+    mng = plt.get_current_fig_manager()
+    mng.window.showMaximized()
+    plt.show()
+
+if __name__ == '__main__':
+    run_gui()
+    # TODO: Implement "Merge" and undo/redo
