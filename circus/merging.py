@@ -37,7 +37,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pylab.switch_backend('QT4Agg')
         pylab.style.use('ggplot')
 
-        mygui = gui.MergeGUI(params)
+        mygui = gui.MergeGUI(comm, params)
         mng   = pylab.get_current_fig_manager()
         mng.window.showMaximized()
         pylab.show()

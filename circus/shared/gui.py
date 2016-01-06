@@ -7,6 +7,7 @@ import matplotlib.widgets as widgets
 from matplotlib.colors import colorConverter
 import matplotlib.gridspec as gridspec
 from utils import *
+from algorithms import slice_templates
 
 class ToggleButton(widgets.Button):
 
@@ -131,7 +132,7 @@ class SymmetricVCursor(widgets.AxesWidget):
 
 class MergeGUI(object):
 
-    def __init__(self, params):
+    def __init__(self, comm, params):
         self.init_gui_layout()
         self.fig = self.score_ax1.figure
         # Remove all buttons from the standard toolbar
@@ -139,12 +140,14 @@ class MergeGUI(object):
         for action in toolbar.actions():
             toolbar.removeAction(action)
         
+        self.comm       = comm
+        self.params     = params
         sampling_rate   = params.getint('data', 'sampling_rate')
         file_out_suff   = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
-        cc_bin          = params.getfloat('merging', 'cc_bin')
+        self.cc_bin     = params.getfloat('merging', 'cc_bin')
         
-        self.bin_size   = int(cc_bin * sampling_rate * 1e-3)
+        self.bin_size   = int(self.cc_bin * sampling_rate * 1e-3)
         self.max_delay  = 50
 
         templates       = io.load_data(params, 'templates')
@@ -203,13 +206,13 @@ class MergeGUI(object):
         rect_button_ax = plt.subplot(buttons_gs[0, 1])
         pick_button_ax = plt.subplot(buttons_gs[0, 2])
         self.toggle_group = []
-        self.lasso_button = ToggleButton(lasso_button_ax, '',
+        self.lasso_button = ToggleButton(lasso_button_ax, 'Lasso',
                                          #image=mpl.image.imread('icons/gimp-tool-free-select.png'),
                                          toggle_group=self.toggle_group)
-        self.rect_button = ToggleButton(rect_button_ax, '',
+        self.rect_button = ToggleButton(rect_button_ax, 'Rectangle',
                                         #image=mpl.image.imread('icons/gimp-tool-rect-select.png'),
                                         toggle_group=self.toggle_group)
-        self.pick_button = ToggleButton(pick_button_ax, '',
+        self.pick_button = ToggleButton(pick_button_ax, 'Pick',
                                         #image=mpl.image.imread('icons/gimp-tool-color-picker.png'),
                                         toggle_group=self.toggle_group)
         self.toggle_group.extend([self.lasso_button,
@@ -243,28 +246,31 @@ class MergeGUI(object):
                 t2b     = numpy.unique(numpy.round(spike_2/self.bin_size))
                 t2b_inv = t2b[-1] + t2b[0] - t2b
                 for d in xrange(size):
-                    x_cc[d] += numpy.in1d(t1b, t2b + d - max_delay, assume_unique=True).sum()
-                    y_cc[d] += numpy.in1d(t1b, t2b_inv + d - max_delay, assume_unique=True).sum()
+                    x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
+                    y_cc[d] += len(numpy.intersect1d(t1b, t2b_inv + d - max_delay, assume_unique=True))
             return x_cc, y_cc
 
-        self.raw_lags    = numpy.arange(-self.max_delay, self.max_delay+1)
-        n_pairs          = len(self.indices)*(len(self.indices) - 1)/2.
+        self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
+        real_indices     = numpy.unique(self.indices)
+        n_pairs          = len(real_indices)*(len(real_indices) - 1)/2.
         n_size           = 2*self.max_delay + 1
 
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
-        for c1, temp_id1 in enumerate(self.indices):
-            for temp_id2 in self.indices[c1+1:]:
-                if self.overlap[temp_id1, temp_id2] > self.cc_overlap:
+        for c1, temp_id1 in enumerate(real_indices):
+            for temp_id2 in real_indices[c1+1:]:
+                if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
                     spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)]
                     a, b    = reversed_corr(spikes1, spikes2, self.max_delay)
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.vstack((self.raw_control, b))
                     self.pairs       = numpy.vstack((self.pairs, [temp_id1, temp_id2]))
-
+        
+        self.sort_idcs   = numpy.arange(len(self.pairs))
+        
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
         control = self.raw_control[:, abs(self.raw_lags) <= lag]
@@ -272,7 +278,7 @@ class MergeGUI(object):
         score  = ((control-data)/norm_factor).sum(axis=1)/(lag*2)
         score2 = (control - data).sum(axis=1)/(lag*2)
         score3 = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
-        return score, score2, score3
+        return score3, score, score2
 
     def plot_scores(self):
         # Left: Scores
@@ -306,15 +312,17 @@ class MergeGUI(object):
 
     def plot_data(self):
         # Right: raw data
-        all_raw_data = self.raw_data-self.raw_control.mean(axis=1)[:, np.newaxis]
+        all_raw_data = self.raw_data/(1 + self.raw_data.mean(1)[:, np.newaxis])
+        cmax         = 0.1*all_raw_data.max()
         self.update_sort_idcs()
         all_raw_data = all_raw_data[self.sort_idcs, :]
+
         self.data_image = self.data_ax.imshow(all_raw_data,
                                               interpolation='nearest', cmap='coolwarm',
                                               extent=(self.raw_lags[0], self.raw_lags[-1],
                                                       0, len(self.sort_idcs)), origin='lower')
         self.data_ax.set_aspect('auto')
-        self.data_image.set_clim(0, 5)
+        self.data_image.set_clim(0, cmax)
         self.inspect_markers, = self.data_ax.plot([], [], 'bo',
                                                   clip_on=False, ms=10)
         self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
@@ -416,12 +424,15 @@ class MergeGUI(object):
     def update_detail_plot(self):
         self.detail_ax.clear()
         indices = sorted(self.inspect_points)
+        norm    = self.raw_data.mean(1)[:, np.newaxis]
+        all_raw_data    = self.raw_data/(1 + norm)
+        all_raw_control = self.raw_control/(1 + norm)
         for idx in indices:
             data_line, = self.detail_ax.plot(self.raw_lags,
-                                             self.raw_data[idx, :].T, lw=2)
-            self.detail_ax.plot(self.raw_lags, self.raw_control[idx, :].T, ':',
+                                             all_raw_data[idx, :].T, lw=2)
+            self.detail_ax.plot(self.raw_lags, all_raw_control[idx, :].T, ':',
                                 color=data_line.get_color(), lw=2)
-        self.detail_ax.set_ylim(0, 1.5)
+        self.detail_ax.set_ylim(0, 3)
         self.detail_ax.set_xticks([])
 
     def update_sort_idcs(self):
@@ -461,9 +472,12 @@ class MergeGUI(object):
         self.data_image.set_extent((self.raw_lags[0], self.raw_lags[-1],
                             0, len(self.sort_idcs)))
         self.data_ax.set_ylim(0, len(self.sort_idcs))
-        all_raw_data = self.raw_data-self.raw_control.mean(axis=1)[:, np.newaxis]
-        all_raw_data = all_raw_data[self.sort_idcs, :]
+        all_raw_data  = self.raw_data
+        all_raw_data /= (1 + self.raw_data.mean(1)[:, np.newaxis])
+        cmax          = 0.1*all_raw_data.max()
+        all_raw_data  = all_raw_data[self.sort_idcs, :]
         self.data_image.set_data(all_raw_data)
+        self.data_image.set_clim(0, cmax)
         self.data_selection.set_y(len(self.sort_idcs)-len(self.selected_points))
         self.data_selection.set_height(len(self.selected_points))
         self.update_data_plot()
@@ -571,6 +585,8 @@ class MergeGUI(object):
 
             one_merge = [self.indices[pair[0]], self.indices[pair[1]]]
 
+            #print pair, one_merge
+            
             elec_ic1  = self.clusters['electrodes'][one_merge[0]]
             elec_ic2  = self.clusters['electrodes'][one_merge[1]]
             nic1      = one_merge[0] - numpy.where(self.clusters['electrodes'] == elec_ic1)[0][0]
@@ -593,67 +609,42 @@ class MergeGUI(object):
                 elec      = elec_ic1
                 elements  = elements1
 
-            self.clusters['data_' + str(elec)]     = numpy.delete(self.clusters['data_' + str(elec)], elements, axis=0)
-            self.clusters['clusters_' + str(elec)] = numpy.delete(self.clusters['clusters_' + str(elec)], elements) 
-            self.clusters['debug_' + str(elec)]    = numpy.delete(self.clusters['debug_' + str(elec)], elements, axis=1)   
-            self.clusters['times_' + str(elec)]    = numpy.delete(self.clusters['times_' + str(elec)], elements)
-            self.clusters['electrodes']            = numpy.delete(self.clusters['electrodes'], to_remove)
+            #self.clusters['data_' + str(elec)]     = numpy.delete(self.clusters['data_' + str(elec)], elements, axis=0)
+            #self.clusters['clusters_' + str(elec)] = numpy.delete(self.clusters['clusters_' + str(elec)], elements) 
+            #self.clusters['debug_' + str(elec)]    = numpy.delete(self.clusters['debug_' + str(elec)], elements, axis=1)   
+            #self.clusters['times_' + str(elec)]    = numpy.delete(self.clusters['times_' + str(elec)], elements)
+            #self.clusters['electrodes']            = numpy.delete(self.clusters['electrodes'], to_remove)
             
-            key        = 'temp_' + str(to_keep)
-            key2       = 'temp_' + str(to_remove)
-            spikes     = self.result['spiketimes'][key2]
-            amplitudes = self.result['amplitudes'][key2]
-            n1, n2     = len(self.result['amplitudes'][key2]), len(self.result['amplitudes'][key])
-            self.result['amplitudes'][key] = numpy.vstack((self.result['amplitudes'][key].reshape(n2, 2), amplitudes.reshape(n1, 2)))
-            self.result['spiketimes'][key] = numpy.concatenate((self.result['spiketimes'][key], spikes))
-            idx                            = numpy.argsort(self.result['spiketimes'][key])
-            self.result['spiketimes'][key] = self.result['spiketimes'][key][idx]
-            self.result['amplitudes'][key] = self.result['amplitudes'][key][idx]
-        
-            self.all_merges         = numpy.vstack((self.all_merges, [self.indices[to_keep], self.indices[to_remove]]))
-            self.indices[to_remove] = self.indices[to_keep]
-            print self.indices, len(self.all_merges)
-
-        
-        self.indices = numpy.unique(self.indices)
-        
-        #not_selected = np.array(sorted(set(np.arange(len(self.sort_idcs))).difference(self.selected_points)))
-        #self.raw_data = self.raw_data[not_selected, :]
-        #self.raw_control = self.raw_control[not_selected, :]
-        #self.score_x, self.score_y, self.score_z = self.calc_scores(lag=self.use_lag)
+            if to_keep != to_remove:
+                key        = 'temp_' + str(to_keep)
+                key2       = 'temp_' + str(to_remove)
+                spikes     = self.result['spiketimes'][key2]
+                amplitudes = self.result['amplitudes'][key2]
+                n1, n2     = len(self.result['amplitudes'][key2]), len(self.result['amplitudes'][key])
+                self.result['amplitudes'][key] = numpy.vstack((self.result['amplitudes'][key].reshape(n2, 2), amplitudes.reshape(n1, 2)))
+                self.result['spiketimes'][key] = numpy.concatenate((self.result['spiketimes'][key], spikes))
+                idx                            = numpy.argsort(self.result['spiketimes'][key])
+                self.result['spiketimes'][key] = self.result['spiketimes'][key][idx]
+                self.result['amplitudes'][key] = self.result['amplitudes'][key][idx]
+                self.result['spiketimes'].pop(key2)
+                self.result['amplitudes'].pop(key2)
+            
+                self.all_merges   = numpy.vstack((self.all_merges, [self.indices[to_keep], self.indices[to_remove]]))
+                idx               = numpy.where(self.indices == to_remove)[0]
+                self.indices[idx] = self.indices[to_keep]
+                print "Merging template", to_remove, "into", to_keep
         
         self.generate_data()
-        self.calc_scores(lag=self.use_lag)
-
         self.collections = None
         self.selected_points = set()
         self.score_ax1.clear()
         self.score_ax2.clear()
         self.score_ax3.clear()
-        self.update_data_sort_order()
         self.update_lag(self.use_lag)
+        self.update_data_sort_order()
         self.update_detail_plot()
 
     def finalize():
 
-        #slice_templates(comm, params, to_merge=self.pairs)
+        slice_templates(self.comm, self.params, to_merge=self.all_merges)
 
-        keys   = ['spiketimes', 'amplitudes']
-        mydata = h5py.File(self.file_out_suff + '.result-merged.hdf5', 'w', libver='latest')
-        for key in keys:
-            mydata.create_group(key)
-            for temp in result[key].keys():
-                tmp_path = '%s/%s' %(key, temp)
-                mydata.create_dataset(tmp_path, data=result[key][temp])
-        mydata.close()
-
-        hfile = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'w', libver='latest')
-        cfile = h5py.File(self.file_out_suff + '.clusters-merged.hdf5', 'w', libver='latest')
-        io.write_datasets(hfile, ['templates', 'limits'], {'templates' : templates, 'limits' : limits})
-        hfile.close()
-        to_write = ['data_', 'clusters_', 'debug_', 'times_']
-        for ielec in xrange(N_e):
-            io.write_datasets(cfile, to_write, clusters, ielec)
-        io.write_datasets(cfile, ['electrodes'], clusters)
-        cfile.close()
-        
