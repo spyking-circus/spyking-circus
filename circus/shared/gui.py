@@ -615,11 +615,16 @@ class MergeGUI(object):
             print self.indices, len(self.all_merges)
 
         
-        not_selected = np.array(sorted(set(np.arange(len(self.sort_idcs))).difference(self.selected_points)))
+        self.indices = numpy.unique(self.indices)
+        
+        #not_selected = np.array(sorted(set(np.arange(len(self.sort_idcs))).difference(self.selected_points)))
+        #self.raw_data = self.raw_data[not_selected, :]
+        #self.raw_control = self.raw_control[not_selected, :]
+        #self.score_x, self.score_y, self.score_z = self.calc_scores(lag=self.use_lag)
+        
+        self.generate_data()
+        self.calc_scores(lag=self.use_lag)
 
-        self.raw_data = self.raw_data[not_selected, :]
-        self.raw_control = self.raw_control[not_selected, :]
-        self.score_x, self.score_y, self.score_z = self.calc_scores(lag=self.use_lag)
         self.collections = None
         self.selected_points = set()
         self.score_ax1.clear()
