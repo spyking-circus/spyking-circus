@@ -187,8 +187,10 @@ class MergeGUI(object):
         self.lasso_button.on_clicked(self.update_rect_selector)
         self.pick_button.on_clicked(self.update_rect_selector)
         self.add_button.on_clicked(self.add_to_selection)
+        self.remove_button.on_clicked(self.remove_selection)
         self.sort_order.on_clicked(self.update_data_sort_order)
         self.merge_button.on_clicked(self.do_merge)
+        self.finalize_button.on_clicked(self.finalize)
         self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
         self.score_ax2.format_coord = lambda x, y: 'normalized cross-correlation metric: %.2f  cross-correlation metric %.2f' % (x, y)
         self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized cross-correlation metric %.2f' % (x, y)
@@ -229,10 +231,15 @@ class MergeGUI(object):
                                                                'cross-correlation',
                                                                'normalized cross-correlation'))
         self.current_order = 'template similarity'
-        add_button_ax = plt.subplot(gs[7, 2])
-        self.add_button = widgets.Button(add_button_ax, 'Select')
-        merge_button_ax = plt.subplot(gs[14, 2])
-        self.merge_button = widgets.Button(merge_button_ax, 'Merge')
+        add_button_ax      = plt.subplot(gs[7, 2])
+        self.add_button    = widgets.Button(add_button_ax, 'Select')
+        remove_button_ax   = plt.subplot(gs[8, 2])
+        self.remove_button = widgets.Button(remove_button_ax, 'Unselect')
+        merge_button_ax    = plt.subplot(gs[9, 2])
+        self.merge_button  = widgets.Button(merge_button_ax, 'Merge')
+        finalize_button_ax = plt.subplot(gs[14, 2])
+        self.finalize_button = widgets.Button(finalize_button_ax, 'Finalize')
+
 
     def generate_data(self):
 
@@ -274,9 +281,9 @@ class MergeGUI(object):
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
         control = self.raw_control[:, abs(self.raw_lags) <= lag]
-        norm_factor = (control.mean() + data.mean() + 1)
-        score  = ((control-data)/norm_factor).sum(axis=1)/(lag*2)
-        score2 = (control - data).sum(axis=1)/(lag*2)
+        norm_factor = (control.mean(1) + data.mean(1) + 1)[:, np.newaxis]
+        score  = ((control - data)/norm_factor).mean(axis=1)
+        score2 = (control - data).mean(axis=1)
         score3 = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
         return score3, score, score2
 
@@ -521,6 +528,10 @@ class MergeGUI(object):
         self.inspect_points = set()
         self.update_selection(to_add, add_or_remove='add', inspect=False)
 
+    def remove_selection(self, event):
+        self.inspect_points = set()
+        self.update_selection(self.selected_points, add_or_remove='remove', inspect=False)
+
     def on_mouse_press(self, event):
         if event.inaxes in [self.score_ax1, self.score_ax2, self.score_ax3]:
             if self.lasso_button.toggled:
@@ -644,7 +655,7 @@ class MergeGUI(object):
         self.update_data_sort_order()
         self.update_detail_plot()
 
-    def finalize():
+    def finalize(self, event):
 
-        slice_templates(self.comm, self.params, to_merge=self.all_merges)
+        slice_templates(self.comm, self.params, to_merge=self.all_merges, extension='-merged')
 

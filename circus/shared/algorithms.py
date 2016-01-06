@@ -200,7 +200,7 @@ def merging(groups, sim_same_elec, data):
             merged[1] += 1
     return groups, merged
 
-def slice_templates(comm, params, to_remove=None, to_merge=None):
+def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
 
     import h5py, shutil
     parallel_hdf5  = h5py.get_config().mpi
@@ -255,8 +255,9 @@ def slice_templates(comm, params, to_remove=None, to_merge=None):
     
     comm.Barrier()
     if comm.rank == 0:
-        os.remove(file_out_suff + '.templates.hdf5')
-        shutil.move(file_out_suff + '.templates-new.hdf5', file_out_suff + '.templates.hdf5')
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+            os.remove(file_out_suff + '.templates%s.hdf5' %extension)
+        shutil.move(file_out_suff + '.templates-new.hdf5', file_out_suff + '.templates%s.hdf5' %extension)
     
 
 def slice_clusters(comm, params, result):
