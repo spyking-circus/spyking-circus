@@ -260,11 +260,20 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
         shutil.move(file_out_suff + '.templates-new.hdf5', file_out_suff + '.templates%s.hdf5' %extension)
     
 
-def slice_clusters(comm, params, result):
+def slice_clusters(comm, params, result, to_remove=None, to_merge=None, extension=''):
     comm.Barrier()
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
+
+    if to_merge is not None:
+        to_remove = []
+        for count in xrange(len(to_merge)):
+            remove     = to_merge[count][1]
+            to_remove += [remove]
+
+    all_templates = set(numpy.arange(N_tm/2))
+    to_keep       = numpy.array(list(all_templates.difference(to_remove)))
 
     if comm.rank == 0:
         cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='latest')
@@ -274,8 +283,9 @@ def slice_clusters(comm, params, result):
        
         write_datasets(cfile, ['electrodes'], result)
         cfile.close()
-        os.remove(file_out_suff + '.clusters.hdf5')
-        shutil.move(file_out_suff + '.clusters-new.hdf5', file_out_suff + '.clusters.hdf5')
+        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
+            os.remove(file_out_suff + '.clusters.hdf5')
+        shutil.move(file_out_suff + '.clusters-new.hdf5', file_out_suff + '.clusters%s.hdf5' %extension)
 
 def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 

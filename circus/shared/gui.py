@@ -143,7 +143,7 @@ class MergeGUI(object):
         self.comm       = comm
         self.params     = params
         sampling_rate   = params.getint('data', 'sampling_rate')
-        file_out_suff   = params.get('data', 'file_out_suff')
+        self.file_out_suff = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
         
@@ -153,7 +153,7 @@ class MergeGUI(object):
         templates       = io.load_data(params, 'templates')
         self.clusters   = io.load_data(params, 'clusters')
         self.result     = io.load_data(params, 'results')
-        self.overlap    = h5py.File(file_out_suff + '.templates.hdf5', libver='latest').get('maxoverlap')[:]
+        self.overlap    = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('maxoverlap')[:]
         self.shape      = templates.shape
         self.indices    = numpy.arange(self.shape[2]/2)
         self.overlap   /= self.shape[0] * self.shape[1]
@@ -596,8 +596,6 @@ class MergeGUI(object):
 
             one_merge = [self.indices[pair[0]], self.indices[pair[1]]]
 
-            #print pair, one_merge
-            
             elec_ic1  = self.clusters['electrodes'][one_merge[0]]
             elec_ic2  = self.clusters['electrodes'][one_merge[1]]
             nic1      = one_merge[0] - numpy.where(self.clusters['electrodes'] == elec_ic1)[0][0]
@@ -658,4 +656,20 @@ class MergeGUI(object):
     def finalize(self, event):
 
         slice_templates(self.comm, self.params, to_merge=self.all_merges, extension='-merged')
+        slice_clusters(self.comm, params, self.clusters, extension='-merged')
+        new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
+        for count, temp_id in enumerate(numpy.unique(self.indices)):
+            key_before = 'temp_' + str(temp_id)
+            key_after  = 'temp_' + str(count)
+            new_result['spiketimes'][key_after] = self.result['spiketimes'].pop(key_before)
+            new_result['amplitudes'][key_after] = self.result['amplitudes'].pop(key_before)
+        
+        keys = ['spiketimes', 'amplitudes']
+        mydata = h5py.File(self.file_out_suff + '.result-merged.hdf5', 'w', libver='latest')
+        for key in keys:
+            mydata.create_group(key)
+            for temp in new_result[key].keys():
+                tmp_path = '%s/%s' %(key, temp)
+                mydata.create_dataset(tmp_path, data=new_result[key][temp])
+        mydata.close()
 
