@@ -1,4 +1,4 @@
-import six, h5py
+import six, h5py, pkg_resources
 
 import numpy as np
 import matplotlib as mpl
@@ -212,14 +212,17 @@ class MergeGUI(object):
         rect_button_ax = plt.subplot(buttons_gs[0, 1])
         pick_button_ax = plt.subplot(buttons_gs[0, 2])
         self.toggle_group = []
-        self.lasso_button = ToggleButton(lasso_button_ax, 'Lasso',
-                                         #image=mpl.image.imread('icons/gimp-tool-free-select.png'),
+        pick_icon  = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-color-picker.png'))
+        lasso_icon = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-free-select.png'))
+        rect_icon  = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-rect-select.png'))
+        self.lasso_button = ToggleButton(lasso_button_ax, '',
+                                         image=mpl.image.imread(lasso_icon),
                                          toggle_group=self.toggle_group)
-        self.rect_button = ToggleButton(rect_button_ax, 'Rectangle',
-                                        #image=mpl.image.imread('icons/gimp-tool-rect-select.png'),
+        self.rect_button = ToggleButton(rect_button_ax, '',
+                                        image=mpl.image.imread(rect_icon),
                                         toggle_group=self.toggle_group)
-        self.pick_button = ToggleButton(pick_button_ax, 'Pick',
-                                        #image=mpl.image.imread('icons/gimp-tool-color-picker.png'),
+        self.pick_button = ToggleButton(pick_button_ax, '',
+                                        image=mpl.image.imread(pick_icon),
                                         toggle_group=self.toggle_group)
         self.toggle_group.extend([self.lasso_button,
                                   self.rect_button,

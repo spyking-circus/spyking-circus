@@ -51,7 +51,7 @@ elif len(sys.argv) == 3:
 
 gui_params = [sampling_rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
 
-gui_file = pkg_resources.resource_filename('circus', 'matlab_GUI/SortingGUI.m')
+gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
 # Change to the directory of the matlab file
 os.chdir(os.path.abspath(os.path.dirname(gui_file)))
 
