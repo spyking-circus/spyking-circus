@@ -159,7 +159,7 @@ def load_parameters(file_name):
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
                   ['clustering', 'extraction', 'string', 'median'],
-                  ['clustering', 'remove_mixture', 'bool', 'False'],
+                  ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
                   ['merging', 'cc_gap', 'float', '0.02'],

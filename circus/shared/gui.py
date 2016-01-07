@@ -618,12 +618,6 @@ class MergeGUI(object):
                 elec      = elec_ic1
                 elements  = elements1
 
-            #self.clusters['data_' + str(elec)]     = numpy.delete(self.clusters['data_' + str(elec)], elements, axis=0)
-            #self.clusters['clusters_' + str(elec)] = numpy.delete(self.clusters['clusters_' + str(elec)], elements) 
-            #self.clusters['debug_' + str(elec)]    = numpy.delete(self.clusters['debug_' + str(elec)], elements, axis=1)   
-            #self.clusters['times_' + str(elec)]    = numpy.delete(self.clusters['times_' + str(elec)], elements)
-            #self.clusters['electrodes']            = numpy.delete(self.clusters['electrodes'], to_remove)
-            
             if to_keep != to_remove:
                 key        = 'temp_' + str(to_keep)
                 key2       = 'temp_' + str(to_remove)
@@ -641,7 +635,6 @@ class MergeGUI(object):
                 self.all_merges   = numpy.vstack((self.all_merges, [self.indices[to_keep], self.indices[to_remove]]))
                 idx               = numpy.where(self.indices == to_remove)[0]
                 self.indices[idx] = self.indices[to_keep]
-                print "Merging template", to_remove, "into", to_keep
         
         self.generate_data()
         self.collections = None

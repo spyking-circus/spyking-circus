@@ -928,10 +928,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
     
     comm.Barrier()
-    if comm.rank == 0:
-        print "Removing mixtures..."
 
     if remove_mixture:
+        if comm.rank == 0:
+            print "Removing mixtures..."
         merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
     else:
         merged2 = [0, 0]
