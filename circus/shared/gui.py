@@ -369,10 +369,21 @@ class MergeGUI(object):
             xmin, xmax = xmax, xmin
         if ymin > ymax:
             ymin, ymax = ymax, ymin
-        in_selection = ((self.score_x >= xmin) &
-                        (self.score_x <= xmax) &
-                        (self.score_y >= ymin) &
-                        (self.score_y <= ymax))
+
+        #score_x, score_y = self.
+        self.score_ax = eclick.inaxes
+
+        if self.score_ax == self.score_ax1:
+            score_x, score_y = self.score_x, self.score_y
+        elif self.score_ax == self.score_ax2:
+            score_x, score_y = self.score_z, self.score_y
+        elif self.score_ax == self.score_ax3:
+            score_x, score_y = self.score_x, self.score_z
+
+        in_selection = ((score_x >= xmin) &
+                        (score_x <= xmax) &
+                        (score_y >= ymin) &
+                        (score_y <= ymax))
         indices = np.nonzero(in_selection)[0]
         add_or_remove = None
         if erelease.key == 'shift':
@@ -387,7 +398,7 @@ class MergeGUI(object):
             return
         # get the current x and y limits
         self.score_ax = event.inaxes
-        
+
         cur_xlim = self.score_ax.get_xlim()
         cur_ylim = self.score_ax.get_ylim()
         cur_xrange = (cur_xlim[1] - cur_xlim[0])*.5
