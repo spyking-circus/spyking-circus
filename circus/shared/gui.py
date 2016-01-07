@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
 from matplotlib.colors import colorConverter
 import matplotlib.gridspec as gridspec
+import matplotlib.colors as colors
+
 from utils import *
 from algorithms import slice_templates, slice_clusters
 
@@ -133,6 +135,7 @@ class SymmetricVCursor(widgets.AxesWidget):
 class MergeGUI(object):
 
     def __init__(self, comm, params):
+        self.cmap = plt.get_cmap('winter')
         self.init_gui_layout()
         self.fig = self.score_ax1.figure
         # Remove all buttons from the standard toolbar
@@ -198,6 +201,7 @@ class MergeGUI(object):
         # Select the best point at start
         idx = np.argmax(self.score_y)
         self.update_selection({idx})
+            
 
     def init_gui_layout(self):
         gs = gridspec.GridSpec(15, 4, width_ratios=[2, 2, 1, 4])
@@ -330,8 +334,9 @@ class MergeGUI(object):
                                                       0, len(self.sort_idcs)), origin='lower')
         self.data_ax.set_aspect('auto')
         self.data_image.set_clim(0, cmax)
-        self.inspect_markers, = self.data_ax.plot([], [], 'bo',
-                                                  clip_on=False, ms=10)
+        #self.inspect_markers, = self.data_ax.plot([], [], 'bo',
+        #                                          clip_on=False, ms=10)
+        self.inspect_markers = self.data_ax.scatter([], [], marker='<', clip_on=False)
         self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
                                                     width=self.raw_lags[-1] - self.raw_lags[0],
                                                     height=0,
@@ -344,9 +349,9 @@ class MergeGUI(object):
     def data_tooltip(self, x, y):
         row = int(y)
         if row >= 0 and row < len(self.raw_data):
-            all_raw_data = self.raw_data-self.raw_control.mean(axis=1)[:, np.newaxis]
-            data_idx = self.sort_idcs[row]
-            lag_diff = np.abs(x - self.raw_lags)
+            all_raw_data = self.raw_data/(1 + self.raw_data.mean(axis=1)[:, np.newaxis])
+            data_idx     = self.sort_idcs[row]
+            lag_diff     = np.abs(x - self.raw_lags)
             nearest_lag_idx = np.argmin(lag_diff)
             nearest_lag = self.raw_lags[nearest_lag_idx]
             value = all_raw_data[data_idx, nearest_lag_idx]
@@ -444,14 +449,18 @@ class MergeGUI(object):
     def update_detail_plot(self):
         self.detail_ax.clear()
         indices = sorted(self.inspect_points)
-        norm    = self.raw_data.mean(1)[:, np.newaxis]
-        all_raw_data    = self.raw_data/(1 + norm)
-        all_raw_control = self.raw_control/(1 + norm)
-        for idx in indices:
+        all_raw_data    = self.raw_data/(1 + self.raw_data.mean(1)[:, np.newaxis])
+        all_raw_control = self.raw_control/(1 + self.raw_control.mean(1)[:, np.newaxis])
+        cNorm           = colors.Normalize(vmin=0, vmax=len(indices))
+        scalarMap       = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
+
+
+        for count, idx in enumerate(indices):
+            colorVal   = scalarMap.to_rgba(count)
             data_line, = self.detail_ax.plot(self.raw_lags,
-                                             all_raw_data[idx, :].T, lw=2)
+                                             all_raw_data[idx, :].T, lw=2, color=colorVal)
             self.detail_ax.plot(self.raw_lags, all_raw_control[idx, :].T, ':',
-                                color=data_line.get_color(), lw=2)
+                                color=colorVal, lw=2)
         self.detail_ax.set_ylim(0, 3)
         self.detail_ax.set_xticks([])
 
@@ -477,8 +486,14 @@ class MergeGUI(object):
 
         if len(self.inspect_points):
             inspect = reverse_sort[np.array(sorted(self.inspect_points))]
-            self.inspect_markers.set_xdata(np.ones(len(inspect))*self.raw_lags[-1])
-            self.inspect_markers.set_ydata(inspect+0.5)
+            #self.inspect_markers.set_xdata(np.ones(len(inspect))*self.raw_lags[-1])
+            #self.inspect_markers.set_ydata(inspect+0.5)
+            
+            data = numpy.vstack((np.ones(len(inspect))*self.raw_lags[-1], inspect+0.5)).T
+            cNorm     = colors.Normalize(vmin=0, vmax=len(inspect))
+            scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
+            self.inspect_markers.set_offsets(data)
+            self.inspect_markers.set_color([scalarMap.to_rgba(i) for i in xrange(len(inspect))])
         else:
             self.inspect_markers.set_xdata([])
             self.inspect_markers.set_ydata([])
