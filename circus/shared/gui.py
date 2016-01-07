@@ -383,9 +383,11 @@ class MergeGUI(object):
 
     def zoom(self, event):
         # only zoom in the score plot
-        if event.inaxes != self.score_ax:
+        if event.inaxes not in [self.score_ax1, self.score_ax2, self.score_ax3]:
             return
         # get the current x and y limits
+        self.score_ax = event.inaxes
+        
         cur_xlim = self.score_ax.get_xlim()
         cur_ylim = self.score_ax.get_ylim()
         cur_xrange = (cur_xlim[1] - cur_xlim[0])*.5
