@@ -658,7 +658,10 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     else:
         templates  = load_data(params, 'templates')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
-    best_elec      = load_data(params, 'electrodes')
+    if extension == '-merged':
+        best_elec  = load_data(params, 'electrodes', extension)
+    else:
+        best_elec  = load_data(params, 'electrodes')
     N_total        = params.getint('data', 'N_total')
     nodes, edges   = get_nodes_and_edges(params)
     filename_mpi   = os.path.join(tmp_path, file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank))

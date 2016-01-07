@@ -7,7 +7,7 @@ import matplotlib.widgets as widgets
 from matplotlib.colors import colorConverter
 import matplotlib.gridspec as gridspec
 from utils import *
-from algorithms import slice_templates
+from algorithms import slice_templates, slice_clusters
 
 class ToggleButton(widgets.Button):
 
@@ -656,7 +656,7 @@ class MergeGUI(object):
     def finalize(self, event):
 
         slice_templates(self.comm, self.params, to_merge=self.all_merges, extension='-merged')
-        slice_clusters(self.comm, params, self.clusters, extension='-merged')
+        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, extension='-merged')
         new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
         for count, temp_id in enumerate(numpy.unique(self.indices)):
             key_before = 'temp_' + str(temp_id)

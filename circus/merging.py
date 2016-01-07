@@ -43,4 +43,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pylab.show()
         
     comm.Barrier()
-    io.get_overlaps(comm, params, extension='-merged', parallel_hdf5=parallel_hdf5)
+    io.get_overlaps(comm, params, extension='-merged', erase=True, parallel_hdf5=parallel_hdf5)
