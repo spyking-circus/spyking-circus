@@ -41,6 +41,3 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         mng   = pylab.get_current_fig_manager()
         mng.window.showMaximized()
         pylab.show()
-        
-    comm.Barrier()
-    io.get_overlaps(comm, params, extension='-merged', erase=True, parallel_hdf5=parallel_hdf5)

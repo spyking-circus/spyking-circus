@@ -498,8 +498,10 @@ class MergeGUI(object):
             self.inspect_markers.set_offsets(data)
             self.inspect_markers.set_color([scalarMap.to_rgba(i) for i in xrange(len(inspect))])
         else:
-            self.inspect_markers.set_xdata([])
-            self.inspect_markers.set_ydata([])
+            #self.inspect_markers.set_xdata([])
+            #self.inspect_markers.set_ydata([])
+            self.inspect_markers.set_offsets([])
+            self.inspect_markers.set_color([])
 
         self.fig.canvas.draw_idle()
 
@@ -697,3 +699,7 @@ class MergeGUI(object):
                 mydata.create_dataset(tmp_path, data=new_result[key][temp])
         mydata.close()
 
+        mydata  = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'r+', libver='latest')
+        to_keep = numpy.unique(self.all_merges[:, 1])
+        mydata.create_dataset('maxoverlap', data=self.overlap[to_keep, to_keep]*self.shape[0] * self.shape[1])
+        mydata.close()
