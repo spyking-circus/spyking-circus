@@ -1,4 +1,5 @@
 from .shared.utils import *
+import h5py
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     numpy.random.seed(451235)
@@ -73,7 +74,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     nodes, edges     = io.get_nodes_and_edges(params)
     N_t              = params.getint('data', 'N_t')
-    clusters         = io.load_data(params, 'clusters')
     gain             = params.getfloat('data', 'gain')
     N_total          = params.getint('data', 'N_total')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
@@ -83,6 +83,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     N_tm_init             = templates.shape[2]/2
     thresholds            = io.load_data(params, 'thresholds')
     limits                = io.load_data(params, 'limits')
+    best_elecs            = io.load_data(params, 'electrodes')
 
     if comm.rank == 0:
         if not os.path.exists(file_out):
@@ -106,7 +107,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_dtype     = params.get('data', 'data_dtype')
     myfile         = MPI.File()
     scalings       = []
-    best_elecs     = []
     data_mpi       = get_mpi_type(data_dtype)
     if comm.rank == 0:
         file = open(file_name, 'w')
@@ -118,11 +118,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     g.Set_view(data_offset, data_mpi, data_mpi)
 
     for gcount, cell_id in enumerate(cells):
-        best_elec   = clusters['electrodes'][cell_id]
+        best_elec   = best_elecs[cell_id]
         indices     = inv_nodes[edges[nodes[best_elec]]]
         count       = 0
         new_indices = []
-        best_elecs += [0]
         all_elecs   = numpy.random.permutation(numpy.arange(N_e))
         reference   = templates[:, :, cell_id]
         while len(new_indices) != len(indices) or (similarity >= sim_same_elec):
@@ -133,7 +132,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 sys.exit(0)
             else:
                 n_elec = all_elecs[count]
-                best_elecs[-1] = n_elec
                 if benchmark is not 'synchrony':
                     local_test = n_elec != best_elec
                 else:
@@ -167,6 +165,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         templates     = numpy.dstack((templates, old_templates[:, :, N_tm:]))
         templates     = numpy.dstack((templates, new_line))
         limits        = numpy.vstack((limits, limits[cell_id]))
+        best_elecs    = numpy.concatenate((best_elecs, [n_elec]))
 
         scalings                       += [scaling]
         templates[new_indices, :, N_tm] = scaling*amplitude[gcount]*old_templates[indices, :, cell_id]
@@ -283,26 +282,34 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             os.makedirs(result_path)
 
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
-        shutil.copy2(params.get('data', 'file_out') + name, os.path.join(result_path, data_suff + '.basis.hdf5'))
+        shutil.copy2(params.get('data', 'file_out') + '.basis.hdf5', os.path.join(result_path, data_suff + '.basis.hdf5'))
 
-        mydata = h5py.File(os.path.join(result_path, data_suff + '.templates.hdf5'), 'w')
+        mydata = h5py.File(os.path.join(file_out, data_suff + '.templates.hdf5'), 'w')
         mydata.create_dataset('templates', data=templates)
         mydata.create_dataset('limits', data=limits)
+        norms = numpy.zeros(templates.shape[2], dtype=numpy.float32)
+        for i in xrange(templates.shape[2]):
+            norms[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
+        mydata.create_dataset('norms', data=norms)
         mydata.close()
+
+        mydata = h5py.File(os.path.join(file_out, data_suff + '.clusters.hdf5'), 'w')
+        mydata.create_dataset('electrodes', data=best_elecs)
+        mydata.close()
+
 
     comm.Barrier()
     if comm.rank == 0:
         io.collect_data(comm.size, io.load_parameters(file_params), erase=True, with_real_amps=True, with_voltages=True)
         io.change_flag(file_name, 'temporal', 'False')
         io.change_flag(file_name, 'spatial', 'False')
-        shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'), os.path.join(result_path, '.result.hdf5'))
+        shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'), os.path.join(result_path, data_suff + '.result.hdf5'))
                 
         numpy.save(os.path.join(result_path, data_suff + '.scalings'), scalings)
-        numpy.save(os.path.join(result_path, 'elecs'), best_elecs)
 
         file_name_noext, ext = os.path.splitext(file_name)
 
         shutil.copy2(os.path.join(result_path, data_suff + '.basis.hdf5'), os.path.join(file_out, data_suff + '.basis.hdf5'))
 
-        if benchmark in ['fitting', 'synchrony']:
-            shutil.copy2(os.path.join(result_path, 'templates.hdf5'), os.path.join(file_out,data_suff + '.templates.hdf5'))
+        if benchmark not in ['fitting', 'synchrony']:
+            shutil.move(os.path.join(file_out, data_suff + '.templates.hdf5'), os.path.join(result_path, 'templates.hdf5'))
