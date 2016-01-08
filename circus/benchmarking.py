@@ -22,7 +22,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         to_write['sampling']   = sampling
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
-    templates = io.load_data(params, 'templates')
+    templates = io.load_data(params, 'templates')[:]
     sim_same_elec   = 0.8
 
     if benchmark == 'fitting':
@@ -82,6 +82,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     N_tm_init             = templates.shape[2]/2
     thresholds            = io.load_data(params, 'thresholds')
+    limits                = io.load_data(params, 'limits')
 
     if comm.rank == 0:
         if not os.path.exists(file_out):
@@ -123,6 +124,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         new_indices = []
         best_elecs += [0]
         all_elecs   = numpy.random.permutation(numpy.arange(N_e))
+        reference   = templates[:, :, cell_id]
         while len(new_indices) != len(indices) or (similarity >= sim_same_elec):
             similarity  = 0
             if count == len(all_elecs):
@@ -143,10 +145,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                     new_indices[idx] = numpy.random.permutation(new_indices[idx])
 
                     if len(new_indices) == len(indices):
-                        new_temp                 = templates[:, :, cell_id].copy()
-                        new_temp[:, :]           = 0
-                        new_temp[new_indices, :] = templates[indices, :, cell_id]
-                        gmin = new_temp[:, :].min()
+                        new_temp                 = numpy.zeros(reference.shape, dtype=numpy.float32)
+                        new_temp[new_indices, :] = reference[indices, :]
+                        gmin = new_temp.min()
                         data = numpy.where(new_temp == gmin)
                         scaling = -thresholds[data[0][0]]/gmin
                         for i in xrange(templates.shape[2]/2):
@@ -165,6 +166,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         templates     = numpy.dstack((old_templates[:, :, :N_tm], new_line))
         templates     = numpy.dstack((templates, old_templates[:, :, N_tm:]))
         templates     = numpy.dstack((templates, new_line))
+        limits        = numpy.vstack((limits, limits[cell_id]))
 
         scalings                       += [scaling]
         templates[new_indices, :, N_tm] = scaling*amplitude[gcount]*old_templates[indices, :, cell_id]
@@ -206,8 +208,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
-            for i in xrange(N_e):
-                local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
+            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
         if benchmark is 'synchrony':
             mips = numpy.random.rand(chunk_size) < rate[0]/float(sampling_rate)
@@ -282,30 +283,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             os.makedirs(result_path)
 
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
+        shutil.copy2(params.get('data', 'file_out') + name, os.path.join(result_path, data_suff + '.basis.hdf5'))
 
-        for name in ['.basis.npz', '.thresholds.npy', '.limits.mat', '.whitening.mat']:
-            shutil.copy2(params.get('data', 'file_out') + name, os.path.join(result_path, data_suff + name))
-
-        hdf5storage.savemat(os.path.join(file_out,data_suff + '.templates'), {'templates' : templates})
+        mydata = h5py.File(os.path.join(result_path, data_suff + '.templates.hdf5'), 'w')
+        mydata.create_dataset('templates', data=templates)
+        mydata.create_dataset('limits', data=limits)
+        mydata.close()
 
     comm.Barrier()
     if comm.rank == 0:
         io.collect_data(comm.size, io.load_parameters(file_params), erase=True, with_real_amps=True, with_voltages=True)
         io.change_flag(file_name, 'temporal', 'False')
         io.change_flag(file_name, 'spatial', 'False')
-        for name in ['templates', 'spiketimes', 'real_amps', 'amplitudes', 'voltages']:
-            shutil.move(os.path.join(file_out, data_suff + '.%s.mat' %name), os.path.join(result_path, '%s.mat' %name))
-        data = hdf5storage.loadmat(os.path.join(result_path, data_suff+'.limits.mat'))['limits']
-        for count, cell in enumerate(cells):
-            data = numpy.vstack((data, data[cell]))
-        hdf5storage.savemat(os.path.join(result_path, data_suff+'.limits.mat'), {'limits' : data})
+        shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'), os.path.join(result_path, '.result.hdf5'))
+                
         numpy.save(os.path.join(result_path, data_suff + '.scalings'), scalings)
         numpy.save(os.path.join(result_path, 'elecs'), best_elecs)
 
         file_name_noext, ext = os.path.splitext(file_name)
 
-        for name in ['.basis.npz', '.thresholds.npy', '.limits.mat', '.whitening.mat']:
-            shutil.copy2(os.path.join(result_path, data_suff + name), os.path.join(file_out, data_suff+name))
+        shutil.copy2(os.path.join(result_path, data_suff + '.basis.hdf5'), os.path.join(file_out, data_suff + '.basis.hdf5'))
 
         if benchmark in ['fitting', 'synchrony']:
-            shutil.copy2(os.path.join(result_path, 'templates.mat'), os.path.join(file_out,data_suff + '.templates.mat'))
+            shutil.copy2(os.path.join(result_path, 'templates.hdf5'), os.path.join(file_out,data_suff + '.templates.hdf5'))
