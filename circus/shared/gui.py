@@ -190,6 +190,7 @@ class MergeGUI(object):
         # Connect events
         self.fig.canvas.mpl_connect('scroll_event', self.zoom)
         self.fig.canvas.mpl_connect('button_press_event', self.on_mouse_press)
+        self.fig.canvas.mpl_connect('close_event', self.handle_close)
         self.rect_button.on_clicked(self.update_rect_selector)
         self.lasso_button.on_clicked(self.update_rect_selector)
         self.pick_button.on_clicked(self.update_rect_selector)
@@ -208,9 +209,13 @@ class MergeGUI(object):
             
 
     def listen(self):
-        print self.comm.rank, "Listening"
-        while True:
+        while len(self.indices) > 0:
             self.generate_data()
+        
+        self.finalize(None)
+
+    def handle_close(self):
+        sys.exit(0)
 
     def init_gui_layout(self):
         gs = gridspec.GridSpec(15, 4, width_ratios=[2, 2, 1, 4])
@@ -274,13 +279,14 @@ class MergeGUI(object):
             return x_cc, y_cc
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
-
         self.indices     = self.comm.bcast(self.indices, root=0)
-        print self.comm.rank, 'Computing...'
+
+        if len(self.indices) == 0:
+            return
 
         real_indices     = numpy.unique(self.indices)
         sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
-
+        
         n_pairs          = len(sub_real_indices)*(len(real_indices) - 1)/2.
         n_size           = 2*self.max_delay + 1
 
@@ -288,8 +294,8 @@ class MergeGUI(object):
         self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
-        for c1, temp_id1 in enumerate(sub_real_indices):
-            for temp_id2 in real_indices[c1+1:]:
+        for temp_id1 in sub_real_indices:
+            for temp_id2 in real_indices[real_indices > temp_id1]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
                     spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)]
@@ -298,10 +304,9 @@ class MergeGUI(object):
                     self.raw_control = numpy.vstack((self.raw_control, b))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
         
-        print "Gathering..."
-        self.pairs       = all_gather_array(self.pairs, self.comm, 0, dtype='int32')
-        self.raw_control = all_gather_array(self.raw_control, self.comm, 0)
-        self.raw_data    = all_gather_array(self.raw_data, self.comm, 0)
+        self.pairs       = gather_array(self.pairs, self.comm, 0, 1, dtype='int32')
+        self.raw_control = gather_array(self.raw_control, self.comm, 0, 1)
+        self.raw_data    = gather_array(self.raw_data, self.comm, 0, 1)
         self.sort_idcs   = numpy.arange(len(self.pairs))
         
     def calc_scores(self, lag):
@@ -704,25 +709,35 @@ class MergeGUI(object):
 
     def finalize(self, event):
 
+        if self.comm.rank == 0:
+            all_indices      = self.indices.copy()
+            self.indices     = self.comm.bcast(numpy.zeros(0, dtype=numpy.float32), root=0)
+
+        self.all_merges = self.comm.bcast(self.all_merges, root=0)
+        
         slice_templates(self.comm, self.params, to_merge=self.all_merges, extension='-merged')
         slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, extension='-merged')
-        new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
-        for count, temp_id in enumerate(numpy.unique(self.indices)):
-            key_before = 'temp_' + str(temp_id)
-            key_after  = 'temp_' + str(count)
-            new_result['spiketimes'][key_after] = self.result['spiketimes'].pop(key_before)
-            new_result['amplitudes'][key_after] = self.result['amplitudes'].pop(key_before)
-        
-        keys = ['spiketimes', 'amplitudes']
-        mydata = h5py.File(self.file_out_suff + '.result-merged.hdf5', 'w', libver='latest')
-        for key in keys:
-            mydata.create_group(key)
-            for temp in new_result[key].keys():
-                tmp_path = '%s/%s' %(key, temp)
-                mydata.create_dataset(tmp_path, data=new_result[key][temp])
-        mydata.close()
 
-        mydata  = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'r+', libver='latest')
-        to_keep = numpy.unique(self.all_merges[:, 1])
-        mydata.create_dataset('maxoverlap', data=self.overlap[to_keep, to_keep]*self.shape[0] * self.shape[1])
-        mydata.close()
+        if self.comm.rank == 0:
+            new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
+            for count, temp_id in enumerate(numpy.unique(all_indices)):
+                key_before = 'temp_' + str(temp_id)
+                key_after  = 'temp_' + str(count)
+                new_result['spiketimes'][key_after] = self.result['spiketimes'].pop(key_before)
+                new_result['amplitudes'][key_after] = self.result['amplitudes'].pop(key_before)
+            
+            keys = ['spiketimes', 'amplitudes']
+            mydata = h5py.File(self.file_out_suff + '.result-merged.hdf5', 'w', libver='latest')
+            for key in keys:
+                mydata.create_group(key)
+                for temp in new_result[key].keys():
+                    tmp_path = '%s/%s' %(key, temp)
+                    mydata.create_dataset(tmp_path, data=new_result[key][temp])
+            mydata.close()
+            
+            mydata  = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'r+', libver='latest')
+            to_keep = numpy.unique(self.all_merges[:, 1])
+            mydata.create_dataset('maxoverlap', data=self.overlap[to_keep, to_keep]*self.shape[0] * self.shape[1])
+            mydata.close()
+
+        sys.exit(0)
