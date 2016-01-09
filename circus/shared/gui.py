@@ -736,7 +736,7 @@ class MergeGUI(object):
             mydata.close()
             
             mydata  = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'r+', libver='latest')
-            to_keep = numpy.unique(self.all_merges[:, 1])
+            to_keep = numpy.unique(all_indices)
             mydata.create_dataset('maxoverlap', data=self.overlap[to_keep, to_keep]*self.shape[0] * self.shape[1])
             mydata.close()
 
