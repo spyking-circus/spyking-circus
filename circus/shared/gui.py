@@ -135,14 +135,7 @@ class SymmetricVCursor(widgets.AxesWidget):
 class MergeGUI(object):
 
     def __init__(self, comm, params):
-        self.cmap = plt.get_cmap('winter')
-        self.init_gui_layout()
-        self.fig = self.score_ax1.figure
-        # Remove all buttons from the standard toolbar
-        toolbar = self.fig.canvas.toolbar
-        for action in toolbar.actions():
-            toolbar.removeAction(action)
-        
+
         self.comm       = comm
         self.params     = params
         sampling_rate   = params.getint('data', 'sampling_rate')
@@ -162,6 +155,17 @@ class MergeGUI(object):
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
 
+        if self.comm.rank > 0:
+            self.listen()
+
+        self.cmap = plt.get_cmap('winter')
+        self.init_gui_layout()
+        self.fig = self.score_ax1.figure
+        # Remove all buttons from the standard toolbar
+        toolbar = self.fig.canvas.toolbar
+        for action in toolbar.actions():
+            toolbar.removeAction(action)
+        
         self.generate_data()
         self.selected_points = set()
         self.inspect_points = set()
@@ -202,6 +206,11 @@ class MergeGUI(object):
         idx = np.argmax(self.score_y)
         self.update_selection({idx})
             
+
+    def listen(self):
+        print self.comm.rank, "Listening"
+        while True:
+            self.generate_data()
 
     def init_gui_layout(self):
         gs = gridspec.GridSpec(15, 4, width_ratios=[2, 2, 1, 4])
@@ -265,15 +274,21 @@ class MergeGUI(object):
             return x_cc, y_cc
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
+
+        self.indices     = self.comm.bcast(self.indices, root=0)
+        print self.comm.rank, 'Computing...'
+
         real_indices     = numpy.unique(self.indices)
-        n_pairs          = len(real_indices)*(len(real_indices) - 1)/2.
+        sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
+
+        n_pairs          = len(sub_real_indices)*(len(real_indices) - 1)/2.
         n_size           = 2*self.max_delay + 1
 
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
-        for c1, temp_id1 in enumerate(real_indices):
+        for c1, temp_id1 in enumerate(sub_real_indices):
             for temp_id2 in real_indices[c1+1:]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
@@ -281,8 +296,12 @@ class MergeGUI(object):
                     a, b    = reversed_corr(spikes1, spikes2, self.max_delay)
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.vstack((self.raw_control, b))
-                    self.pairs       = numpy.vstack((self.pairs, [temp_id1, temp_id2]))
+                    self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
         
+        print "Gathering..."
+        self.pairs       = all_gather_array(self.pairs, self.comm, 0, dtype='int32')
+        self.raw_control = all_gather_array(self.raw_control, self.comm, 0)
+        self.raw_data    = all_gather_array(self.raw_data, self.comm, 0)
         self.sort_idcs   = numpy.arange(len(self.pairs))
         
     def calc_scores(self, lag):
@@ -524,16 +543,20 @@ class MergeGUI(object):
 
     def update_score_plot(self):
         for collection in self.collections:
-            colors = collection.get_facecolors()
+            fcolors = collection.get_facecolors()
             colorin = colorConverter.to_rgba('black', alpha=0.25)
             colorout = colorConverter.to_rgba('black')
             colorinspect = colorConverter.to_rgba('red')
 
-            colors[:] = colorout
+            cNorm     = colors.Normalize(vmin=0, vmax=len(self.inspect_points))
+            scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
+            
+
+            fcolors[:] = colorout
             for p in self.selected_points:
-                colors[p] = colorin
-            for p in self.inspect_points:
-                colors[p] = colorinspect
+                fcolors[p] = colorin
+            for c, p in enumerate(self.inspect_points):
+                fcolors[p] = scalarMap.to_rgba(p)
 
     def update_selection(self, indices, add_or_remove=None, inspect=True):
         if inspect:
