@@ -230,7 +230,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
     
     if parallel_hdf5 or (comm.rank == 0):
         local_keep = to_keep[positions]
-        templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*len(to_keep)), dtype=numpy.float32, chunks=True)
+        templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*len(to_keep)), dtype=numpy.float32, chunks=(N_e, N_t, 1))
         norms      = hfile.create_dataset('norms', shape=(2*len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         for count, keep in zip(positions, local_keep):
