@@ -2,7 +2,7 @@ import numpy, scipy
 import pylab
 import os
 
-from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results
+from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results, read_probe
 import numpy, pylab
 from circus.shared import algorithms as algo
 
@@ -452,13 +452,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     if templates is None:
         templates    = load_data(params, 'templates')
     clusters         = load_data(params, 'clusters')
-    probe            = {}
-    probetext        = file(params.get('data', 'mapping'), 'r')
-    try:
-        exec probetext in probe
-    except Exception:
-        print "Something wrong with the probe file!"
-    probetext.close()
+    probe            = read_probe(params)
 
     positions = {}
     for i in probe['channel_groups'].keys():

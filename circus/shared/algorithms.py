@@ -417,7 +417,6 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if comm.rank == 0:
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(all_temp)).start()
 
-    is_part_of_sum = []
     sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1][all_temp]
     M              = numpy.zeros((2, 2), dtype=numpy.float32)
     V              = numpy.zeros((2, 1), dtype=numpy.float32)

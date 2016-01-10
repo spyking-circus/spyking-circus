@@ -57,6 +57,23 @@ def change_flag(file_name, flag, value, avoid_flag=None):
             f.write(line)
     f.close()
 
+def read_probe(parser):
+    probe = {}
+    try:
+        probetext = file(parser.get('data', 'mapping'), 'r')
+        exec probetext in probe
+        probetext.close()
+    except Exception:
+        print_error(["Something wrong with the syntax of the probe file!"])
+        sys.exit(0)
+
+    key_flags = ['total_nb_channels', 'radius', 'channel_groups']
+    for key in key_flags:
+        if not probe.has_key(key):
+            print_error(["%s is missing in the probe file" %key])
+            sys.exit(0)
+    return probe
+
 def load_parameters(file_name):
 
     f_next, extension = os.path.splitext(os.path.abspath(file_name))
@@ -86,14 +103,8 @@ def load_parameters(file_name):
     data_offset, nb_channels = detect_header(file_name+extension, data_offset)
     parser.set('data', 'data_offset', str(data_offset))
     
-    probe = {}
-    try:
-        probetext = file(parser.get('data', 'mapping'), 'r')
-        exec probetext in probe
-        probetext.close()
-    except Exception:
-        print_error(["Something wrong with the probe file!"])
-    
+    probe = read_probe(parser)
+
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
     N_e = 0
     for key in probe['channel_groups'].keys():
@@ -383,17 +394,9 @@ def analyze_data(params, chunk_size=None):
 
 def get_nodes_and_edges(parameters):
     
-    edges     = {}
-    nodes     = []
-    probe     = {}
-    probetext = file(parameters.get('data', 'mapping'), 'r')
-
-    try:
-        exec probetext in probe
-    except Exception:
-        print_error(["Something wrong with the probe file!"])
-    probetext.close()
-
+    edges  = {}
+    nodes  = []
+    probe  = read_probe(parameters)
     radius = parameters.getint('data', 'radius')
 
     def get_edges(i, channel_groups):
