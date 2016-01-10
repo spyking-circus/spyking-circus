@@ -162,11 +162,8 @@ def load_parameters(file_name):
                   ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
-                  ['merging', 'cc_gap', 'float', '0.02'],
-                  ['merging', 'cc_overlap', 'float', '0.75'],
-                  ['merging', 'cc_bin', 'float', '2'],
-                  ['merging', 'cc_average', 'float', '40'],
-                  ['merging', 'make_plots', 'bool', 'True']]
+                  ['merging', 'cc_overlap', 'float', '0.25'],
+                  ['merging', 'cc_bin', 'float', '2']]
 
     for item in new_values:
         section, name, val_type, value = item
@@ -424,13 +421,13 @@ def load_data(params, data, extension=''):
     if data == 'thresholds':
         spike_thresh = params.getfloat('data', 'spike_thresh')
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5', libver='latest')
+            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile  = h5py.File(file_out + '.basis.hdf5', libver='latest')
+            myfile  = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
             spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
             myfile.close()
             return spatial
@@ -438,26 +435,26 @@ def load_data(params, data, extension=''):
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'temporal_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
-            myfile   = h5py.File(file_out + '.basis.hdf5', libver='latest')
+            myfile   = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
             temporal = myfile.get('temporal')[:]
             myfile.close() 
             return temporal
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'basis':
-        myfile     = h5py.File(file_out + '.basis.hdf5', libver='latest')
+        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
         basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, libver='latest').get('templates')
+            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('templates')
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'norm-templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, libver='latest').get('norms')[:]
+            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms')[:]
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'spike-cluster':
@@ -473,12 +470,12 @@ def load_data(params, data, extension=''):
     elif data == 'spikedetekt':
         file_name = params.get('data', 'data_file_noext') + ".kwik"
         if os.path.exists(file_name):
-            return h5py.File(file_name).get('channel_groups/1/spikes/time_samples', libver='latest')[:].astype(numpy.int32)
+            return h5py.File(file_name).get('channel_groups/1/spikes/time_samples', 'r', libver='latest')[:].astype(numpy.int32)
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'clusters':
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, libver='latest')
+            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
             result = {}
             for key in myfile.keys():
                 result[str(key)] = myfile.get(key)[:]
@@ -488,7 +485,7 @@ def load_data(params, data, extension=''):
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'electrodes':
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile     = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, libver='latest')
+            myfile     = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
             electrodes = myfile.get('electrodes')[:]
             myfile.close()
             return electrodes
@@ -506,7 +503,7 @@ def load_data(params, data, extension=''):
             raise Exception('No overlaps found! Check suffix or run the fitting?')
     elif data == 'limits':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, libver='latest')
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
             limits = myfile.get('limits')[:]
             myfile.close()
             return limits
@@ -847,4 +844,4 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         myfile2.close()
 
     comm.Barrier()
-    return h5py.File(filename, libver='latest').get('overlap')
+    return h5py.File(filename, 'r', libver='latest').get('overlap')
