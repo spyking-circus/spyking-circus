@@ -726,10 +726,10 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
     if parallel_hdf5:
         myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm, libver='latest')
-        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=(N_tm, N_tm, 1))
+        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=(1, N_tm, 2*N_t-1))
     else:
         myfile  = h5py.File(filename_mpi, 'w', libver='latest')
-        overlap = myfile.create_dataset('overlap', shape=(nb_total, N_tm, N_t), dtype=numpy.float32, chunks=(N_tm, N_tm, 1), compression='lzf')
+        overlap = myfile.create_dataset('overlap', shape=(nb_total, N_tm, N_t), dtype=numpy.float32, chunks=(1, N_tm, 2*N_t-1), compression='lzf')
     
     gcount = 0
 
