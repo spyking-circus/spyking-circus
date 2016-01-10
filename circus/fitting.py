@@ -3,6 +3,7 @@ try:
 except ImportError:
     cmt = None
 
+import circus.shared.algorithms as algo
 from .shared.utils import *
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):

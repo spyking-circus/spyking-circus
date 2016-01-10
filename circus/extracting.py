@@ -1,4 +1,5 @@
 from .shared.utils import *
+import circus.shared.algorithms as algo
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(426236)

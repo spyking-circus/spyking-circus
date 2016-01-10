@@ -4,6 +4,7 @@ import os
 os.environ['MDP_DISABLE_SKLEARN']='yes'
 import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
 from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges
+from circus.shared.utils import all_gather_array
 
 def distancematrix(data, weight=None):
     
@@ -395,69 +396,69 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     overlap  = get_overlaps(comm, params, extension='-mixtures', erase=True, parallel_hdf5=parallel_hdf5, normalize=False, maxoverlap=False, verbose=False, half=True)
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     result   = []
+    
+    norm_templates   = load_data(params, 'norm-templates')
+    result           = load_data(params, 'clusters')
+    best_elec        = load_data(params, 'electrodes')
+    limits           = load_data(params, 'limits')
+    N_total          = params.getint('data', 'N_total')
+    nodes, edges     = get_nodes_and_edges(params)
+    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.argsort(nodes)
 
-    if comm.rank > 0:
-        templates.file.close()
-        overlap.file.close()
-    else:
-        norm_templates   = load_data(params, 'norm-templates')
-        result           = load_data(params, 'clusters')
-        best_elec        = load_data(params, 'electrodes')
-        limits           = load_data(params, 'limits')
-        N_total          = params.getint('data', 'N_total')
-        nodes, edges     = get_nodes_and_edges(params)
-        inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-        inv_nodes[nodes] = numpy.argsort(nodes)
+    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    for i in xrange(nb_temp):
+        distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
+        distances[i+1:, i] = distances[i, i+1:]
 
-        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        for i in xrange(nb_temp):
-            distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
-            distances[i+1:, i] = distances[i, i+1:]
+    import scipy.linalg
+    all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
+    overlap_0 = overlap[:, :, N_t]
+    if comm.rank == 0:
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(all_temp)).start()
 
-        import scipy.linalg
-        overlap_0 = overlap[:, :, N_t]
-        pbar      = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_temp).start()
+    is_part_of_sum = []
+    sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1][all_temp]
+    M              = numpy.zeros((2, 2), dtype=numpy.float32)
+    V              = numpy.zeros((2, 1), dtype=numpy.float32)
 
-        is_part_of_sum = []
-        sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1]
-        M              = numpy.zeros((2, 2), dtype=numpy.float32)
-        V              = numpy.zeros((2, 1), dtype=numpy.float32)
-        for count, k in enumerate(sorted_temp):
+    for count, k in enumerate(sorted_temp):
 
-            if not k in is_part_of_sum:
-                electrodes    = inv_nodes[edges[nodes[best_elec[k]]]]
-                overlap_k     = overlap[k]
-                is_in_area    = numpy.in1d(best_elec, electrodes)
-                for item in sorted_temp[:count]:
-                    is_in_area[item] = False
-                all_idx       = numpy.arange(len(best_elec))[is_in_area]
+        electrodes    = inv_nodes[edges[nodes[best_elec[k]]]]
+        overlap_k     = overlap[k]
+        is_in_area    = numpy.in1d(best_elec, electrodes)
+        for item in sorted_temp[:count]:
+            is_in_area[item] = False
+        all_idx       = numpy.arange(len(best_elec))[is_in_area]
 
-                for i in all_idx:
-                    overlap_i = overlap[i]
-                    M[0, 0]   = overlap_0[i, i]
-                    V[0, 0]   = overlap_k[i, distances[k, i]]
-                    for j in all_idx[i+1:]:
-                        M[1, 1]  = overlap_0[j, j]
-                        M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
-                        M[0, 1]  = M[0, 1]
-                        V[1, 0]  = overlap_k[j, distances[k, j]]
-                        [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                        a1_lim   = limits[i]
-                        a2_lim   = limits[j]
-                        is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
-                        is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
-                        if is_a1 and is_a2:
-                            if k not in mixtures and k not in is_part_of_sum:
-                                mixtures       += [k]
-                                is_part_of_sum += [i, j]
+        for i in all_idx:
+            overlap_i = overlap[i]
+            M[0, 0]   = overlap_0[i, i]
+            V[0, 0]   = overlap_k[i, distances[k, i]]
+            for j in all_idx[i+1:]:
+                M[1, 1]  = overlap_0[j, j]
+                M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
+                M[0, 1]  = M[0, 1]
+                V[1, 0]  = overlap_k[j, distances[k, j]]
+                [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                a1_lim   = limits[i]
+                a2_lim   = limits[j]
+                is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
+                is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
+                if is_a1 and is_a2:
+                    mixtures += [k]
+
+        if comm.rank == 0:
             pbar.update(count)
 
+    if comm.rank == 0:
         pbar.finish()
-        templates.file.close()
-        to_remove = numpy.array(mixtures)
-        overlap.file.close()
+    
+    templates.file.close()
+    overlap.file.close()
 
-    to_remove = comm.bcast(to_remove, root=0)
+    to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    
+    to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
     
     if len(to_remove) > 0:
         slice_templates(comm, params, to_remove)
@@ -466,7 +467,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if comm.rank == 0:
         os.remove(filename)
 
-    return [nb_temp, len(mixtures)]
+    return [nb_temp, len(to_remove)]
 
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False, show=False, ax=None):
 

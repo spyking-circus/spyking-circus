@@ -7,8 +7,6 @@ import numpy, pylab, os, mpi4py, hdf5storage, mdp, progressbar, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
-
-from circus.shared import algorithms as algo
 from circus.shared import files as io
 
 def get_progressbar(size):

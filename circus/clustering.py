@@ -1,5 +1,7 @@
 from .shared.utils import *
+import circus.shared.algorithms as algo
 from .shared import plot
+
 
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
