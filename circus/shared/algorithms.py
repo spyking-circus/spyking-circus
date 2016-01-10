@@ -63,7 +63,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
     N    = len(data)
     rho  = numpy.zeros(N, dtype=numpy.float32)
-    dist = numpy.zeros(N, dtype=numpy.float32)
+    dist = numpy.zeros(0, dtype=numpy.float32)
         
     if update is None:
         dist = distancematrix(data, weight=weight)
