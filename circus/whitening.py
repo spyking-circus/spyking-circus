@@ -37,7 +37,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if nb_chunks < comm.size:
 
         if comm.rank == 0:
-            io.print_info(["Too much cores, reducing size of the data chunks..."])
+            io.print_info(["Too much cores, reducing size of the data chunks"])
         res        = io.data_stats(params, show=False)
         chunk_size = res*sampling_rate/comm.size
         borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
