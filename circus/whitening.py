@@ -96,58 +96,73 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     all_times_Ne   = numpy.any(all_times, 0)
     subset         = numpy.where(all_times_Ne == False)[0]
-    local_silences = local_chunk[subset, :][:max_silence_1]
-    all_silences   = gather_array(local_silences, comm, 0, 1)
+    
+    if do_spatial_whitening:
+        local_silences = local_chunk[subset, :][:max_silence_1]
+        all_silences   = gather_array(local_silences, comm, 0, 1)
+    
     local_res      = []
 
-    for elec in all_electrodes[numpy.arange(comm.rank, nb_temp_white, comm.size)]:
-        res            = numpy.zeros((0, N_t), dtype=numpy.float32)
-        scount         = 0
-        indices        = inv_nodes[edges[nodes[elec]]]
-        all_times_elec = numpy.any(all_times[indices], 0)
-        esubset        = numpy.where(all_times_elec == False)[0]
-        bound          = len(esubset) - N_t
-        while (scount < bound) and (len(res) < max_silence_2):
-            myslice = esubset[scount:scount + N_t]
-            if numpy.all((myslice - esubset[scount]) == numpy.arange(N_t)):
-                scount += N_t
-                res     = numpy.vstack((res, local_chunk[myslice, elec]))
-            else:
-                scount += 1
-        if len(res) > 5:
-            local_res += [numpy.cov(res.T)]
+    if do_temporal_whitening:
 
-    nb_elecs  = numpy.array([len(local_res)], dtype=numpy.float32)
-    local_res = numpy.array(local_res, dtype=numpy.float32)
-    if len(local_res) == 0:
-        local_res = numpy.zeros(0, dtype=numpy.float32)
-    else:
-        local_res = numpy.sum(local_res, 0)
-    all_res   = gather_array(local_res.flatten(), comm, 0, 1)
-    all_elecs = gather_array(nb_elecs, comm, 0, 1)
+        for elec in all_electrodes[numpy.arange(comm.rank, nb_temp_white, comm.size)]:
+            res            = numpy.zeros((0, N_t), dtype=numpy.float32)
+            scount         = 0
+            indices        = inv_nodes[edges[nodes[elec]]]
+            all_times_elec = numpy.any(all_times[indices], 0)
+            esubset        = numpy.where(all_times_elec == False)[0]
+            bound          = len(esubset) - N_t
+            while (scount < bound) and (len(res) < max_silence_2):
+                myslice = esubset[scount:scount + N_t]
+                if numpy.all((myslice - esubset[scount]) == numpy.arange(N_t)):
+                    scount += N_t
+                    res     = numpy.vstack((res, local_chunk[myslice, elec]))
+                else:
+                    scount += 1
+            if len(res) > 5:
+                local_res += [numpy.cov(res.T)]
 
-    if comm.rank == 0 and (do_spatial_whitening or do_temporal_whitening):
-        try:
-            nb_silences     = numpy.sum(all_elecs > 0)
-            all_res         = all_res.reshape((nb_silences, N_t**2))
-        except Exception:
-            print io.print_info(["No silent periods detected: something wrong with the parameters?"])
-        all_res             = numpy.sum(all_res, 0)
-        all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
-        temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
-        temporal_whitening /= temporal_whitening.sum()
+        nb_elecs  = numpy.array([len(local_res)], dtype=numpy.float32)
+        local_res = numpy.array(local_res, dtype=numpy.float32)
+        if len(local_res) == 0:
+            local_res = numpy.zeros(0, dtype=numpy.float32)
+        else:
+            local_res = numpy.sum(local_res, 0)
+        all_res   = gather_array(local_res.flatten(), comm, 0, 1)
+        all_elecs = gather_array(nb_elecs, comm, 0, 1)
 
-        print "We found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)
-        spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
+    if comm.rank == 0:
+        
+        to_write = {}
+
+        if do_temporal_whitening:
+            try:
+                nb_silences     = numpy.sum(all_elecs > 0)
+                all_res         = all_res.reshape((nb_silences, N_t**2))
+            except Exception:
+                print io.print_info(["No silent periods detected: something wrong with the parameters?"])
+            all_res             = numpy.sum(all_res, 0)
+            all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
+            temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
+            temporal_whitening /= temporal_whitening.sum()
+            to_write['temporal'] = temporal_whitening
+
+        if do_spatial_whitening:
+            spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
+            to_write['spatial'] = spatial_whitening
+            print "We found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)
+        
         bfile = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
-        io.write_datasets(bfile, ['spatial', 'temporal'], {'spatial' : spatial_whitening, 'temporal' : temporal_whitening})
+        io.write_datasets(bfile, to_write.keys(), to_write)
         bfile.close()
-        print "Because of whitening, we need to recompute the thresholds..."
 
     del all_res, all_silences
     comm.Barrier()
 
     if do_spatial_whitening or do_temporal_whitening:
+
+        if comm.rank == 0:
+            print "Because of whitening, we need to recompute the thresholds..."
 
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
         temporal_whitening = io.load_data(params, 'temporal_whitening')
