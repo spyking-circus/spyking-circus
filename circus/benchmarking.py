@@ -156,7 +156,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 else:
                     new_indices = []
             count += 1
-            
+
         #if comm.rank == 0:
         #    print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
 
@@ -314,4 +314,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         shutil.copy2(os.path.join(result_path, data_suff + '.basis.hdf5'), os.path.join(file_out, data_suff + '.basis.hdf5'))
 
         if benchmark not in ['fitting', 'synchrony']:
-            shutil.move(os.path.join(file_out, data_suff + '.templates.hdf5'), os.path.join(result_path, 'templates.hdf5'))
+            shutil.move(os.path.join(file_out, data_suff + '.templates.hdf5'), os.path.join(result_path, data_suff + '.templates.hdf5'))

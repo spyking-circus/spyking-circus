@@ -1,4 +1,4 @@
-import numpy, hdf5storage, pylab, cPickle
+import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -19,7 +19,8 @@ def get_performance(file_name, name):
     thresh          = int(sampling*2*1e-3)
     sim_templates   = 0.8
 
-    inj_templates   = hdf5storage.loadmat(os.path.join(result_name, '.templates.hdf5')).get('templates')[:]
+    print os.path.join(result_name, '.templates.hdf5')
+    inj_templates   = h5py.File(os.path.join(result_name, '%s.templates.hdf5' %a)).get('templates')[:]
     templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
     
     result          = h5py.File(file_out + '.result.hdf5')
@@ -103,9 +104,11 @@ def get_performance(file_name, name):
     pylab.savefig(output)
     pylab.savefig(output)
 
+
 class TestCompleteWorkflow(unittest.TestCase):
 
     def setUp(self):
+        dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
