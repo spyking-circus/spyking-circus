@@ -551,6 +551,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         x, y = numpy.mgrid[0:N_t, 0:N_t]
         x    = x.flatten()
         y    = y.flatten()
+        cdic = {}
 
         for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
 
@@ -592,8 +593,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     mask_j   = all_labels[j] == lj
                     spikes_j = all_times[j][mask_j]
 
-                    data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
-                    data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
+                    if cdic.has_key((i,j,li,lj)):
+                        data_i   = cdic[i, j, li, lj][0]
+                        data_j   = cdic[i, j, li, lj][1]
+                    elif cdic.has_key((j,i,lj,li)):
+                        data_i   = cdic[j, i, lj, li][1]
+                        data_j   = cdic[j, i, lj, li][0]
+                    else:
+                        data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
+                        data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
+                        cdic[i,j,li,lj] = [data_i, data_j]
                     
                     if (numpy.any(data_i != 0) or numpy.any(data_j != 0)):
                         new_data = scipy.linalg.toeplitz(data_j, data_i).flatten()
