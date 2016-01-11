@@ -21,9 +21,10 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
 
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
     data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
@@ -237,9 +238,10 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
     
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     try:
         result    = load_data(params, 'results')
@@ -286,9 +288,10 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
 
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
     data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
@@ -336,9 +339,10 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
     
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
    
     thresholds = load_data(params, 'thresholds')    
     
@@ -408,10 +412,11 @@ def view_performance(file_name, triggers, lims=(150,150)):
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
     
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
-   
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
+
     thresholds       = load_data(params, 'thresholds')    
     
     try:
@@ -564,9 +569,10 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     inv_nodes[nodes] = numpy.argsort(nodes)
     safety_time      = int(params.getfloat('clustering', 'safety_time')*sampling_rate*1e-3)
 
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
     data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
@@ -616,9 +622,10 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
 
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
     data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)

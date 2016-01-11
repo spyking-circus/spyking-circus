@@ -40,8 +40,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     inv_clusters                         = numpy.zeros(clusters.max()+1, dtype=numpy.int32)
     inv_clusters[numpy.unique(clusters)] = numpy.argsort(numpy.unique(clusters))
 
-    if do_spatial_whitening or do_temporal_whitening:
+    if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     result         = {}

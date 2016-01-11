@@ -92,8 +92,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.purge(file_out_suff, '.data')
 
 
-    if do_spatial_whitening or do_temporal_whitening:
+    if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     if spikedetekt:

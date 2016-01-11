@@ -156,7 +156,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.write_datasets(bfile, to_write.keys(), to_write)
         bfile.close()
 
-    del all_res, all_silences
+    del all_silences
     comm.Barrier()
 
     if do_spatial_whitening or do_temporal_whitening:
@@ -164,8 +164,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             print "Because of whitening, we need to recompute the thresholds..."
 
-        spatial_whitening  = io.load_data(params, 'spatial_whitening')
-        temporal_whitening = io.load_data(params, 'temporal_whitening')
+        if do_spatial_whitening:
+            spatial_whitening  = io.load_data(params, 'spatial_whitening')
+        if do_temporal_whitening:
+            temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         for gidx in [all_chunks[comm.rank]]:
             local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
@@ -226,8 +228,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print "Searching spikes to construct the PCA basis..."
 
-    if do_spatial_whitening or do_temporal_whitening:
+    if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)

@@ -95,8 +95,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     comm.Barrier()
 
-    if do_spatial_whitening or do_temporal_whitening:
+    if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     N_total        = params.getint('data', 'N_total')

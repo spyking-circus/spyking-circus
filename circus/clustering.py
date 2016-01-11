@@ -56,8 +56,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     basis_proj, basis_rec = io.load_data(params, 'basis')
     thresholds = io.load_data(params, 'thresholds')
-    if do_spatial_whitening or do_temporal_whitening:
+    if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     result   = {}

@@ -194,13 +194,22 @@ if length(varargin)>=6
             handles.WhiteTemporal = a.temporal;
         else
             tmpfile = [handles.filename '.basis.hdf5'];
-            handles.WhiteSpatial  = h5read(tmpfile, '/spatial');
-            ndim                  = numel(size(handles.WhiteSpatial));
-            handles.WhiteSpatial  = permute(handles.WhiteSpatial,[ndim:-1:1]);
-            handles.WhiteTemporal = h5read(tmpfile, '/temporal');
-            ndim                  = numel(size(handles.WhiteTemporal));
-            handles.WhiteTemporal = permute(handles.WhiteTemporal,[ndim:-1:1]);
-            handles.Thresholds    = h5read(tmpfile, '/thresholds');
+            info     = h5info(tmpfile);
+            for id=1:size(info.Datasets, 1)
+                if strcmp(info.Datasets(id).Name, 'spatial')
+                    handles.WhiteSpatial  = h5read(tmpfile, '/spatial');
+                    ndim                  = numel(size(handles.WhiteSpatial));
+                    handles.WhiteSpatial  = permute(handles.WhiteSpatial,[ndim:-1:1]);
+                end
+                if strcmp(info.Datasets(id).Name, 'temporal')
+                    handles.WhiteTemporal = h5read(tmpfile, '/temporal');
+                    ndim                  = numel(size(handles.WhiteTemporal));
+                    handles.WhiteTemporal = permute(handles.WhiteTemporal,[ndim:-1:1]);
+                end
+                if strcmp(info.Datasets(id).Name, 'thresholds')
+                    handles.Thresholds    = h5read(tmpfile, '/thresholds');
+                end
+            end     
         end
 
         b                  = load(varargin{4}, '-mat');
@@ -1965,9 +1974,13 @@ if get(handles.EnableWaveforms,'Value')==1
 
     data = data(handles.ElecPermut + 1,:);
 
-    data = handles.WhiteSpatial*data;
-    for i=1:size(data,1)
-        data(i,:) = conv(data(i,:),handles.WhiteTemporal,'same');
+    if isfield(handles, 'WhiteSpatial')
+        data = handles.WhiteSpatial*data;
+    end
+    if isfield(handles, 'WhiteTemporal')
+        for i=1:size(data,1)
+            data(i,:) = conv(data(i,:),handles.WhiteTemporal,'same');
+        end
     end
 
     %% Reduce the data to the portion of interest - remove also the unnecessary
