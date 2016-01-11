@@ -213,13 +213,13 @@ class MergeGUI(object):
 
         while self.mpi_wait[0] == 0:
             self.generate_data()
-        print self.mpi_wait
+
         if self.mpi_wait[0] == 1:
             self.finalize(None)
         elif self.mpi_wait[0] == 2:
             sys.exit(0)
 
-    def handle_close(self):
+    def handle_close(self, event):
         if self.comm.rank == 0:
             self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
         sys.exit(0)
