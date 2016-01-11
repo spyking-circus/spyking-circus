@@ -60,7 +60,6 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
 
 
 def get_dataset(self):
-    datafile = urllib2.urlopen("http://www.yger.net/wp-content/uploads/silico_0.dat")
     dirname  = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
     filename = os.path.join(dirname, 'data') 
     if not os.path.exists(filename):
@@ -68,6 +67,7 @@ def get_dataset(self):
     filename = os.path.join(filename, 'data.dat')
     if not os.path.exists(filename): 
         print "Downloading a test dataset..."
+        datafile = urllib2.urlopen("http://www.yger.net/wp-content/uploads/silico_0.dat")
         output   = open(filename,'wb')
         output.write(datafile.read())
         output.close()
@@ -88,11 +88,11 @@ def get_dataset(self):
     file_out = os.path.join(os.path.abspath(c), a)
 
     mpi_launch('filtering', filename, 2, 0, 'False')
-    if not os.path.exists(file_out + '.whitening.mat'):
+    if not os.path.exists(file_out + '.basis.hdf5'):
         mpi_launch('whitening', filename, 2, 0, 'False')
-    if not os.path.exists(file_out + '.templates.mat'):
+    if not os.path.exists(file_out + '.templates.hdf5'):
         mpi_launch('clustering', filename, 2, 0, 'False')
-    if not os.path.exists(file_out + '.spiketimes.mat'):
+    if not os.path.exists(file_out + '.result.hdf5'):
         mpi_launch('fitting', filename, 2, 0, 'False')    
     return filename
 

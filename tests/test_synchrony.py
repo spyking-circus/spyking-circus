@@ -1,4 +1,4 @@
-import numpy, hdf5storage, pylab, cPickle
+import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -22,11 +22,25 @@ def get_performance(file_name, t_stop, name):
     bin_cc          = 10
     t_stop          = t_stop*1000
 
-    fitted_spikes   = hdf5storage.loadmat(file_out + '.spiketimes.mat')
-    fitted_amps     = hdf5storage.loadmat(file_out + '.amplitudes.mat')
-    spikes          = hdf5storage.loadmat(os.path.join(result_name, 'spiketimes.mat'))
-    templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']
-    clusters        = numpy.load(os.path.join(result_name, 'elecs.npy'))
+    result          = h5py.File(file_out + '.result.hdf5')
+    fitted_spikes   = {}
+    fitted_amps     = {}
+    for key in result.get('spiketimes').keys():
+        fitted_spikes[key] = result.get('spiketimes/%s' %key)[:]
+    for key in result.get('amplitudes').keys():
+        fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
+
+    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
+
+    spikes          = {}
+    real_amps       = {}
+    result          = h5py.File(os.path.join(result_name, '%s.result.hdf5' %a))
+    for key in result.get('spiketimes').keys():
+        spikes[key] = result.get('spiketimes/%s' %key)[:]
+    for key in result.get('real_amps').keys():
+        real_amps[key]   = result.get('real_amps/%s' %key)[:]
+
+    clusters        = h5py.File(file_out + '.clusters.hdf5').get('electrodes')[:]
 
     N_t             = templates.shape[1]
     n_tm            = templates.shape[2]/2
@@ -174,7 +188,8 @@ class TestSynchrony(unittest.TestCase):
     def setUp(self):
         self.all_matches    = None
         self.all_templates  = None
-        self.max_chunk      = '100'
+        self.max_chunk      = '20'
+        dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)

@@ -1,4 +1,4 @@
-import numpy, hdf5storage, pylab, cPickle
+import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -19,12 +19,24 @@ def get_performance(file_name, name):
     thresh          = int(sampling*2*1e-3)
     truncate        = True
 
-    fitted_spikes   = hdf5storage.loadmat(file_out + '.spiketimes.mat')
-    fitted_amps     = hdf5storage.loadmat(file_out + '.amplitudes.mat')
-    templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']
-    spikes          = hdf5storage.loadmat(os.path.join(result_name, 'spiketimes.mat'))
-    real_amps       = hdf5storage.loadmat(os.path.join(result_name, 'real_amps.mat'))
-    voltages        = hdf5storage.loadmat(os.path.join(result_name, 'voltages.mat'))
+    result          = h5py.File(file_out + '.result.hdf5')
+    fitted_spikes   = {}
+    fitted_amps     = {}
+    for key in result.get('spiketimes').keys():
+        fitted_spikes[key] = result.get('spiketimes/%s' %key)[:]
+    for key in result.get('amplitudes').keys():
+        fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
+
+    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
+
+    spikes          = {}
+    real_amps       = {}
+    result          = h5py.File(os.path.join(result_name, '%s.result.hdf5' %a))
+    for key in result.get('spiketimes').keys():
+        spikes[key] = result.get('spiketimes/%s' %key)[:]
+    for key in result.get('real_amps').keys():
+        real_amps[key]   = result.get('real_amps/%s' %key)[:]
+
     n_tm            = templates.shape[2]/2
     res             = numpy.zeros((len(n_cells), 2))
     res2            = numpy.zeros((len(n_cells), 2))
@@ -108,7 +120,7 @@ class TestFitting(unittest.TestCase):
     
     def setUp(self):
         self.all_spikes     = None
-        self.max_chunk      = '100'
+        self.max_chunk      = '20'
         dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
@@ -127,6 +139,7 @@ class TestFitting(unittest.TestCase):
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
+    
     
     def test_fitting_two_CPUs(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)

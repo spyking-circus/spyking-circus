@@ -1,4 +1,4 @@
-import numpy, hdf5storage, pylab, cPickle
+import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -20,11 +20,11 @@ def get_performance(file_name, name):
     probe_file      = data['probe']
     sim_templates   = 0.8
 
-    inj_templates   = hdf5storage.loadmat(os.path.join(result_name, 'templates.mat'))['templates']
-    templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']
-    amplitudes      = hdf5storage.loadmat(file_out + '.limits.mat')['limits']
-    clusters        = hdf5storage.loadmat(file_out + '.clusters.mat')
-    real_amps       = hdf5storage.loadmat(os.path.join(result_name, 'real_amps.mat'))
+    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
+    print os.path.join(result_name, 'templates.hdf5')
+    inj_templates   = h5py.File(os.path.join(result_name, 'templates.hdf5')).get('templates')[:]
+    amplitudes      = h5py.File(file_out + '.templates.hdf5').get('limits')[:]
+
     n_tm            = inj_templates.shape[2]/2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
@@ -108,6 +108,7 @@ class TestClustering(unittest.TestCase):
     def setUp(self):
         self.all_matches    = None
         self.all_templates  = None
+        dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
@@ -117,6 +118,7 @@ class TestClustering(unittest.TestCase):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
         io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
 
+    '''
     def test_clustering_one_CPU(self):
         mpi_launch('clustering', self.file_name, 1, 0, 'False')
         res = get_performance(self.file_name, 'one_CPU')
@@ -172,3 +174,4 @@ class TestClustering(unittest.TestCase):
             self.all_templates = res[0]
             self.all_matches   = res[1]
         assert res[0].shape[2]/2 <= self.all_templates.shape[2]/2
+    '''

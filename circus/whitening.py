@@ -99,7 +99,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     all_times_Ne   = numpy.any(all_times, 0)
     subset         = numpy.where(all_times_Ne == False)[0]
-    
+    all_silences   = []
+
     if do_spatial_whitening:
         local_silences = local_chunk[subset, :][:max_silence_1]
         all_silences   = gather_array(local_silences, comm, 0, 1)
@@ -114,7 +115,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             indices        = inv_nodes[edges[nodes[elec]]]
             all_times_elec = numpy.any(all_times[indices], 0)
             esubset        = numpy.where(all_times_elec == False)[0]
-            bound          = len(esubset) - N_t
+            bound          = len(esubset) - N
             while (scount < bound) and (len(res) < max_silence_2):
                 myslice = esubset[scount:scount + N_t]
                 if numpy.all((myslice - esubset[scount]) == numpy.arange(N_t)):
