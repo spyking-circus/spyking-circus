@@ -263,8 +263,9 @@ def get_stas(params, times_i, labels_i, src, nodes=None):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     template_shift        = params.getint('data', 'template_shift')
 
-    if do_spatial_whitening or do_temporal_whitening:
+    if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:     
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
@@ -321,8 +322,9 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
 
-    if do_spatial_whitening or do_temporal_whitening:
+    if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     for count, time in enumerate(times_i):

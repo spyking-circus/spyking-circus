@@ -558,7 +558,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             elecs    = numpy.zeros(0, dtype=numpy.int32)
             labels   = numpy.zeros(0, dtype=numpy.int32)
             stas     = numpy.zeros((0, N_t), dtype=numpy.float32)
-            src      = ielec
 
             all_labels = {}
             all_times  = {}
@@ -574,14 +573,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     times_i = all_times[i][mask]
                     elecs   = numpy.concatenate((elecs, i*numpy.ones(len(unique_i))))
                     labels  = numpy.concatenate((labels, unique_i))
-                    stas_i  = io.get_stas(params, times_i, labels_i, src, nodes)
+                    stas_i  = io.get_stas(params, times_i, labels_i, ielec, nodes)
                     stas    = numpy.vstack((stas, stas_i))
             
             data = numpy.zeros(0, dtype=numpy.float32)
             row  = numpy.zeros(0, dtype=numpy.int32)
             col  = numpy.zeros(0, dtype=numpy.int32)
 
-            start = time.time()
             for ci in xrange(len(elecs)):
                 i        = elecs[ci]
                 li       = labels[ci]
