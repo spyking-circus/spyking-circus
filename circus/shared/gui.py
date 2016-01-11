@@ -154,6 +154,7 @@ class MergeGUI(object):
         self.indices    = numpy.arange(self.shape[2]/2)
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
+        self.mpi_wait   = numpy.array([0], dtype=numpy.int32)
 
         if self.comm.rank > 0:
             self.listen()
@@ -209,13 +210,20 @@ class MergeGUI(object):
             
 
     def listen(self):
-        while len(self.indices) > 0:
+
+        while self.mpi_wait[0] == 0:
             self.generate_data()
-        
-        self.finalize(None)
+        print self.mpi_wait
+        if self.mpi_wait[0] == 1:
+            self.finalize(None)
+        elif self.mpi_wait[0] == 2:
+            sys.exit(0)
 
     def handle_close(self):
+        if self.comm.rank == 0:
+            self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
         sys.exit(0)
+
 
     def init_gui_layout(self):
         gs = gridspec.GridSpec(15, 4, width_ratios=[2, 2, 1, 4])
@@ -279,10 +287,13 @@ class MergeGUI(object):
             return x_cc, y_cc
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
-        self.indices     = self.comm.bcast(self.indices, root=0)
-
-        if len(self.indices) == 0:
+        
+        self.mpi_wait    = self.comm.bcast(self.mpi_wait, root=0)
+        
+        if self.mpi_wait[0] > 0:
             return
+
+        self.indices     = self.comm.bcast(self.indices, root=0)
 
         real_indices     = numpy.unique(self.indices)
         sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
@@ -709,10 +720,10 @@ class MergeGUI(object):
 
     def finalize(self, event):
 
-        if self.comm.rank == 0:
-            all_indices      = self.indices.copy()
-            self.indices     = self.comm.bcast(numpy.zeros(0, dtype=numpy.float32), root=0)
+        if comm.rank == 0:
+            self.mpi_wait = self.comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
 
+        comm.Barrier()
         self.all_merges = self.comm.bcast(self.all_merges, root=0)
         
         slice_templates(self.comm, self.params, to_merge=self.all_merges, extension='-merged')
@@ -720,7 +731,7 @@ class MergeGUI(object):
 
         if self.comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
-            for count, temp_id in enumerate(numpy.unique(all_indices)):
+            for count, temp_id in enumerate(numpy.unique(self.indices)):
                 key_before = 'temp_' + str(temp_id)
                 key_after  = 'temp_' + str(count)
                 new_result['spiketimes'][key_after] = self.result['spiketimes'].pop(key_before)
@@ -736,7 +747,7 @@ class MergeGUI(object):
             mydata.close()
             
             mydata  = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'r+', libver='latest')
-            to_keep = numpy.unique(all_indices)
+            to_keep = numpy.unique(self.indices)
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
             for c, i in enumerate(to_keep):
                 maxoverlaps[c, :] = self.overlap[i, to_keep]*self.shape[0] * self.shape[1]
