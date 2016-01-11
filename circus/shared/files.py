@@ -208,11 +208,15 @@ def data_stats(params, show=True):
     N_total        = params.getint('data', 'N_total')
     N_e            = params.getint('data', 'N_e')
     sampling_rate  = params.getint('data', 'sampling_rate')
-    datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    N              = len(datablock)
-    chunk_len      = N_total * (60 * sampling_rate)
-    nb_chunks      = N / chunk_len
-    last_chunk_len = (N - nb_chunks * chunk_len)/(N_total*sampling_rate)
+    try:
+        datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+        N              = len(datablock)
+        chunk_len      = N_total * (60 * sampling_rate)
+        nb_chunks      = N / chunk_len
+        last_chunk_len = (N - nb_chunks * chunk_len)/(N_total*sampling_rate)
+    except Exception:
+        nb_chunks      = 0
+        last_chunk_len = 0
 
     N_t             = params.getint('data', 'N_t')
     N_t             = numpy.round(1000.*N_t/sampling_rate, 1)

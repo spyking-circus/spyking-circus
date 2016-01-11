@@ -35,9 +35,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     if nb_chunks < comm.size:
+
         if comm.rank == 0:
-            io.print_error(["More nodes than chunks to load: decrease n_cpu or chunk_size"])
-        sys.exit(0)
+            io.print_info(["Too much cores, reducing size of the data chunks..."])
+        res        = io.data_stats(params, show=False)
+        chunk_size = res*sampling_rate/comm.size
+        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
