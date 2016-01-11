@@ -19,13 +19,25 @@ def get_performance(file_name, name):
     thresh          = int(sampling*2*1e-3)
     sim_templates   = 0.8
 
-    inj_templates   = hdf5storage.loadmat(os.path.join(result_name, 'templates.mat'))['templates']
-    templates       = hdf5storage.loadmat(file_out + '.templates.mat')['templates']
-    amplitudes      = hdf5storage.loadmat(file_out + '.limits.mat')['limits']
-    clusters        = hdf5storage.loadmat(file_out + '.clusters.mat')
-    fitted_spikes   = hdf5storage.loadmat(file_out + '.spiketimes.mat')
-    fitted_amps     = hdf5storage.loadmat(file_out + '.amplitudes.mat')
-    spikes          = hdf5storage.loadmat(os.path.join(result_name, 'spiketimes.mat'))
+    inj_templates   = hdf5storage.loadmat(os.path.join(result_name, '.templates.hdf5')).get('templates')[:]
+    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
+    
+    result          = h5py.File(file_out + '.result.hdf5')
+    fitted_spikes   = {}
+    fitted_amps     = {}
+    for key in result.get('spiketimes').keys():
+        fitted_spikes[key] = result.get('spiketimes/%s' %key)[:]
+    for key in result.get('amplitudes').keys():
+        fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
+
+    spikes          = {}
+    real_amps       = {}
+    result          = h5py.File(os.path.join(result_name, '%s.result.hdf5' %a))
+    for key in result.get('spiketimes').keys():
+        spikes[key] = result.get('spiketimes/%s' %key)[:]
+    for key in result.get('real_amps').keys():
+        real_amps[key]   = result.get('real_amps/%s' %key)[:]
+    
     n_tm            = inj_templates.shape[2]/2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
@@ -101,11 +113,6 @@ class TestCompleteWorkflow(unittest.TestCase):
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
-
-    #def tearDown(self):
-    #    data_path = '.'.join(self.file_name.split('.')[:-1])
-    #    shutil.rmtree(data_path)
-
 
     def test_all_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')

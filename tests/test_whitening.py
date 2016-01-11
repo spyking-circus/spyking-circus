@@ -9,7 +9,6 @@ def get_performance(file_name, name):
     file_name, ext  = os.path.splitext(file_name)
     file_out        = os.path.join(os.path.abspath(file_name), a)
     data            = {}
-    print file_out + '.basis.hdf5'
     result          = h5py.File(file_out + '.basis.hdf5')
     data['spatial']  = result.get('spatial')[:]
     data['temporal'] = result.get('temporal')[:]
@@ -51,6 +50,8 @@ class TestWhitening(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')   
         io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
+        io.change_flag(self.file_name, 'spatial', 'True')
+        io.change_flag(self.file_name, 'temporal', 'True')
 
     def test_whitening_one_CPU(self):
         mpi_launch('whitening', self.file_name, 1, 0, 'False')

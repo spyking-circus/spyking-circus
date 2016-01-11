@@ -115,7 +115,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             indices        = inv_nodes[edges[nodes[elec]]]
             all_times_elec = numpy.any(all_times[indices], 0)
             esubset        = numpy.where(all_times_elec == False)[0]
-            bound          = len(esubset) - N
+            bound          = len(esubset) - N_t
             while (scount < bound) and (len(res) < max_silence_2):
                 myslice = esubset[scount:scount + N_t]
                 if numpy.all((myslice - esubset[scount]) == numpy.arange(N_t)):
