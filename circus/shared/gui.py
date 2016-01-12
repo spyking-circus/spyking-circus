@@ -182,6 +182,7 @@ class MergeGUI(object):
             selector.set_active(False)
         self.pick_button.update_toggle(True)
         self.lag_selector = SymmetricVCursor(self.data_ax, color='blue')
+        self.lag_selector.active = False
         self.line_lag1 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
                                               color='black')
         self.line_lag2 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
@@ -199,6 +200,7 @@ class MergeGUI(object):
         self.add_button.on_clicked(self.add_to_selection)
         self.remove_button.on_clicked(self.remove_selection)
         self.sort_order.on_clicked(self.update_data_sort_order)
+        self.set_range_button.on_clicked(lambda event: setattr(self.lag_selector, 'active', True))
         self.merge_button.on_clicked(self.do_merge)
         self.finalize_button.on_clicked(self.finalize)
         self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
@@ -208,7 +210,6 @@ class MergeGUI(object):
         # Select the best point at start
         idx = np.argmax(self.score_y)
         self.update_inspect({idx})
-            
 
     def listen(self):
 
@@ -227,7 +228,7 @@ class MergeGUI(object):
 
 
     def init_gui_layout(self):
-        gs = gridspec.GridSpec(15, 4, width_ratios=[2, 2, 1, 4])
+        gs = gridspec.GridSpec(15, 5, width_ratios=[2, 2, 1, 2, 2])
         # TOOLBAR
         buttons_gs = gridspec.GridSpecFromSubplotSpec(1, 3,
                                                       subplot_spec=gs[0, 0])
@@ -253,14 +254,16 @@ class MergeGUI(object):
         self.score_ax1 = plt.subplot(gs[1:8, 0])
         self.score_ax2 = plt.subplot(gs[1:8, 1])
         self.score_ax3 = plt.subplot(gs[8:, 0])
-        self.detail_ax = plt.subplot(gs[1:5, 3])
-        self.data_ax = plt.subplot(gs[5:13, 3])
+        self.detail_ax = plt.subplot(gs[1:5, 3:])
+        self.data_ax = plt.subplot(gs[5:13, 3:])
         sort_order_ax = plt.subplot(gs[14, 3])
         sort_order_ax.set_axis_bgcolor('none')
         self.sort_order = widgets.RadioButtons(sort_order_ax, ('template similarity',
                                                                'cross-correlation',
                                                                'normalized cross-correlation'))
         self.current_order = 'template similarity'
+        set_range_ax = plt.subplot(gs[14, 4])
+        self.set_range_button = widgets.Button(set_range_ax, 'Set range')
         add_button_ax      = plt.subplot(gs[7, 2])
         self.add_button    = widgets.Button(add_button_ax, 'Select')
         remove_button_ax   = plt.subplot(gs[8, 2])
@@ -677,8 +680,23 @@ class MergeGUI(object):
             else:
                 raise AssertionError('No tool active')
         elif event.inaxes == self.data_ax:
-            # Update lag
-            self.update_lag(abs(event.xdata))
+            if self.lag_selector.active:
+                # Update lag
+                self.update_lag(abs(event.xdata))
+                self.lag_selector.active = False
+            else:  # select a line
+                if event.ydata < 0 or event.ydata >= len(self.sort_idcs):
+                    return
+                index = self.sort_idcs[int(event.ydata)]
+                if index in self.selected_points:
+                    return
+                if event.key == 'shift':
+                    add_or_remove = 'add'
+                elif event.key == 'control':
+                    add_or_remove = 'remove'
+                else:
+                    add_or_remove = None
+                self.update_inspect({index}, add_or_remove)
         else:
             return
 
