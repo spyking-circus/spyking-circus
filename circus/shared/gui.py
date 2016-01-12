@@ -625,16 +625,25 @@ class MergeGUI(object):
                     y = self.score_z
                 else:
                     raise AssertionError(str(event.inaxes))
-                distances = ((x - event.xdata)**2 +
-                             (y - event.ydata)**2)
+
+                # Transform data coordinates to display coordinates
+                data = event.inaxes.transData.transform(zip(x, y))
+
+                distances = ((data[:, 0] - event.x)**2 +
+                             (data[:, 1] - event.y)**2)
                 min_idx, min_value = np.argmin(distances), np.min(distances)
-                # TODO: Minimum distance?
+                if min_value > 50:
+                    # Don't select anything if the mouse cursor is more than
+                    # 50 pixels away from a point
+                    selection = {}
+                else:
+                    selection = {min_idx}
                 add_or_remove = None
                 if event.key == 'shift':
                     add_or_remove = 'add'
                 elif event.key == 'control':
                     add_or_remove = 'remove'
-                self.update_selection({min_idx}, add_or_remove)
+                self.update_selection(selection, add_or_remove)
             else:
                 raise AssertionError('No tool active')
         elif event.inaxes == self.data_ax:
