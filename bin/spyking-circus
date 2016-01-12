@@ -28,6 +28,7 @@ def main(argv):
     nb_cpu     = 1
     output     = None
     benchmark  = None
+    preview    = False
 
     if not os.path.exists(user_path):
         os.makedirs(user_path)
@@ -79,6 +80,7 @@ Options are:
 -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
 -b or --batch    : datafile is a list of commands to launch, in a batch mode
 -o or --output   : output file [for generation of synthetic benchmarks]
+-p or --preview  : Display the first second filtered with thresholds
 -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
     noparams='''The parameter file %s is not present!'''
@@ -124,7 +126,7 @@ Options are:
             elif (('-b' in argv) or ('--batch' in argv)):
                 tasks_list = filename
 
-            opts, args  = getopt.getopt(argv[2:], "hvbm:H:c:g:o:t:", ["help", "method=", "hostfile=", "cpu=", "gpu=", "output=", "type="])
+            opts, args  = getopt.getopt(argv[2:], "hvbpm:H:c:g:o:t:", ["help", "method=", "hostfile=", "cpu=", "gpu=", "output=", "type="])
 
     for opt, arg in opts:
         if opt in ('-h', '--help'):
@@ -150,10 +152,20 @@ Options are:
             output = arg
         elif opt in ('-t', '--type'):
             benchmark = arg
+        elif opt in ('-p', '--preview'):
+            preview = True
 
     # Print info
     params = circus.shared.utils.io.load_parameters(filename)
-    stationary = params.getboolean('data', 'stationary')
+    if preview:
+        print_info(['Preview mode is enabled, showing first second of the recording'])
+        tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+        filename     = os.path.join(tmp_path_loc, 'preview.dat')
+        shutil.copyfile(file_params, filename.replace('.dat', '.params'))
+        steps        = ['filtering']
+        circus.shared.utils.io.prepare_preview(params, filename)
+    else:    
+        stationary = params.getboolean('data', 'stationary')
 
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
@@ -266,6 +278,15 @@ Options are:
                     except:
                         print_error(['Step "%s" failed!' % subtask])
                         raise
+
+    if preview:
+        import numpy, pylab
+        N_e    = params.getint('data', 'N_e')
+        n_elec = min(int(numpy.sqrt(N_e)), 5)
+        pylab.style.use('ggplot')
+        pylab.switch_backend('QT4Agg')
+        circus.shared.plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True, n_elec=n_elec)
+        mng   = pylab.get_current_fig_manager()
 
 
 if __name__ == '__main__':

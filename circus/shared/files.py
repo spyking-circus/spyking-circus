@@ -59,6 +59,9 @@ def change_flag(file_name, flag, value, avoid_flag=None):
 
 def read_probe(parser):
     probe = {}
+    if not os.path.exists(parser.get('data', 'mapping')):
+        print_error(["The probe file can not be found"])
+        sys.exit(0)
     try:
         probetext = file(parser.get('data', 'mapping'), 'r')
         exec probetext in probe
@@ -398,6 +401,19 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
         if not numpy.all(nodes == numpy.arange(N_total)):
             local_chunk = local_chunk[:, nodes]
     return numpy.ascontiguousarray(local_chunk), local_shape
+
+
+def prepare_preview(params, preview_filename):
+    chunk_size   = 2*params.getint('data', 'sampling_rate')
+    data_file    = params.get('data', 'data_file')
+    data_offset  = params.getint('data', 'data_offset')
+    dtype_offset = params.getint('data', 'dtype_offset')
+    data_dtype   = params.get('data', 'data_dtype')
+    N_total      = params.getint('data', 'N_total')
+    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    chunk_len    = N_total * chunk_size
+    local_chunk  = datablock[0:chunk_len]
+    local_chunk.tofile(preview_filename)
 
 def analyze_data(params, chunk_size=None):
 

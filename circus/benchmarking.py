@@ -148,7 +148,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                         new_temp[new_indices, :] = reference[indices, :]
                         gmin = new_temp.min()
                         data = numpy.where(new_temp == gmin)
-                        scaling = -thresholds[data[0][0]]/gmin
+                        scaling = -thresholds[new_indices[data[0][0]]]/gmin
                         for i in xrange(templates.shape[2]/2):
                             d = numpy.corrcoef(templates[:, :, i].flatten(), scaling*new_temp.flatten())[0, 1]
                             if d > similarity:

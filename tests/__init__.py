@@ -78,10 +78,11 @@ def get_dataset(self):
         io.change_flag(filename, 'data_offset', '0')
         io.change_flag(filename, 'data_dtype', 'int16')
         io.change_flag(filename, 'dtype_offset', '0')
+        io.change_flag(filename, 'temporal', 'True')
         user_path  = os.path.join(os.path.expanduser('~'), 'spyking-circus')
         probe_file = os.path.join(os.path.join(user_path, 'probes'), 'dan.prb')
         io.change_flag(filename, 'mapping', probe_file)
-
+        io.change_flag(filename, 'make_plots', 'False')
 
     a, b     = os.path.splitext(os.path.basename(filename))
     c, d     = os.path.splitext(filename)
