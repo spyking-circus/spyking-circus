@@ -92,6 +92,12 @@ def load_parameters(file_name):
     file_path       = os.path.dirname(os.path.abspath(file_name))
     file_name       = f_next
     N_t             = parser.getfloat('data', 'N_t')
+
+    for key in ['whitening', 'clustering']:
+        safety_time = parser.get(key, 'safety_time')
+        if safety_time == 'auto':
+            parser.set(key, 'safety_time', '%g' %(N_t/2.))
+
     sampling_rate   = parser.getint('data', 'sampling_rate')
     N_t             = int(sampling_rate*N_t*1e-3)
     if numpy.mod(N_t, 2) == 0:
@@ -153,7 +159,7 @@ def load_parameters(file_name):
             parser.set('data', 'dtype_offset', '0')        
         elif parser.get('data', 'data_dtype') == 'uint8':
             parser.set('data', 'dtype_offset', '127')
-    
+
     try: 
         parser.get('data', 'radius')
     except Exception:
