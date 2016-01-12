@@ -353,12 +353,15 @@ class MergeGUI(object):
                                                                  (self.score_x, self.score_z)]):
                 collection.set_offsets(np.hstack([x[np.newaxis, :].T,
                                                   y[np.newaxis, :].T]))
-        self.score_ax1.set_ylim(min(self.score_y)-0.05, max(self.score_y)+0.05)
-        self.score_ax1.set_xlim(min(self.score_x)-0.05, max(self.score_x)+0.05)
-        self.score_ax2.set_ylim(min(self.score_y)-0.05, max(self.score_y)+0.05)
-        self.score_ax2.set_xlim(min(self.score_z)-0.05, max(self.score_z)+0.05)
-        self.score_ax3.set_ylim(min(self.score_z)-0.05, max(self.score_z)+0.05)
-        self.score_ax3.set_xlim(min(self.score_x)-0.05, max(self.score_x)+0.05)
+        for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
+                                     (self.score_ax2, self.score_y, self.score_z),
+                                     (self.score_ax3, self.score_z, self.score_x)]:
+            ymin, ymax = min(score_y), max(score_y)
+            yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
+            ax.set_ylim((ymax + ymin)*0.5 - yrange, (ymax + ymin)*0.5 + yrange)
+            xmin, xmax = min(score_x), max(score_x)
+            xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
+            ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
 
     def plot_data(self):
         # Right: raw data
@@ -418,7 +421,6 @@ class MergeGUI(object):
         if ymin > ymax:
             ymin, ymax = ymax, ymin
 
-        #score_x, score_y = self.
         self.score_ax = eclick.inaxes
 
         if self.score_ax == self.score_ax1:
@@ -441,14 +443,23 @@ class MergeGUI(object):
         self.update_inspect(indices, add_or_remove)
 
     def zoom(self, event):
+        if event.inaxes == self.score_ax1:
+            x = self.score_x
+            y = self.score_y
+        elif event.inaxes == self.score_ax2:
+            x = self.score_z
+            y = self.score_y
+        elif event.inaxes == self.score_ax3:
+            x = self.score_x
+            y = self.score_z
+        else:
         # only zoom in the score plot
-        if event.inaxes not in [self.score_ax1, self.score_ax2, self.score_ax3]:
             return
-        # get the current x and y limits
-        self.score_ax = event.inaxes
 
-        cur_xlim = self.score_ax.get_xlim()
-        cur_ylim = self.score_ax.get_ylim()
+        score_ax = event.inaxes
+        # get the current x and y limits
+        cur_xlim = score_ax.get_xlim()
+        cur_ylim = score_ax.get_ylim()
         cur_xrange = (cur_xlim[1] - cur_xlim[0])*.5
         cur_yrange = (cur_ylim[1] - cur_ylim[0])*.5
         xdata = event.xdata # get event x location
@@ -464,12 +475,18 @@ class MergeGUI(object):
             scale_factor = 1
             print event.button
         # set new limits
-        newxmin = np.clip(xdata - cur_xrange*scale_factor, np.min(self.score_x)-0.05, np.max(self.score_x)+0.05)
-        newxmax = np.clip(xdata + cur_xrange*scale_factor, np.min(self.score_x)-0.05, np.max(self.score_x)+0.05)
-        newymin = np.clip(ydata - cur_yrange*scale_factor, -0.025, 1.025)
-        newymax = np.clip(ydata + cur_yrange*scale_factor, -0.025, 1.025)
-        self.score_ax.set_xlim(newxmin, newxmax)
-        self.score_ax.set_ylim(newymin, newymax)
+        newxmin = np.clip(xdata - cur_xrange*scale_factor, np.min(x), np.max(x))
+        newxmax = np.clip(xdata + cur_xrange*scale_factor, np.min(x), np.max(x))
+        new_xrange = (newxmax - newxmin)*0.5 * 1.05  # stretch everything a bit
+        newxmin = (newxmax + newxmin)*0.5 -new_xrange
+        newxmax = (newxmax + newxmin)*0.5 +new_xrange
+        newymin = np.clip(ydata - cur_yrange*scale_factor, np.min(y), np.max(y))
+        newymax = np.clip(ydata + cur_yrange*scale_factor, np.min(y), np.max(y))
+        new_yrange = (newymax - newymin)*0.5 * 1.05  # stretch everything a bit
+        newymin = (newymax + newymin)*0.5 -new_yrange
+        newymax = (newymax + newymin)*0.5 +new_yrange
+        score_ax.set_xlim(newxmin, newxmax)
+        score_ax.set_ylim(newymin, newymax)
         self.fig.canvas.draw_idle()
 
     def update_lag(self, lag):
