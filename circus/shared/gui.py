@@ -446,12 +446,18 @@ class MergeGUI(object):
         if event.inaxes == self.score_ax1:
             x = self.score_x
             y = self.score_y
+            link_with_x = self.score_ax3.set_xlim
+            link_with_y = self.score_ax2.set_ylim
         elif event.inaxes == self.score_ax2:
             x = self.score_z
             y = self.score_y
+            link_with_x = self.score_ax3.set_ylim
+            link_with_y = self.score_ax1.set_ylim
         elif event.inaxes == self.score_ax3:
             x = self.score_x
             y = self.score_z
+            link_with_x = self.score_ax1.set_xlim
+            link_with_y = self.score_ax2.set_xlim
         else:
         # only zoom in the score plot
             return
@@ -487,6 +493,9 @@ class MergeGUI(object):
         newymax = (newymax + newymin)*0.5 +new_yrange
         score_ax.set_xlim(newxmin, newxmax)
         score_ax.set_ylim(newymin, newymax)
+        # Update the linked axes in the other plots as well
+        link_with_x(newxmin, newxmax)
+        link_with_y(newymin, newymax)
         self.fig.canvas.draw_idle()
 
     def update_lag(self, lag):
