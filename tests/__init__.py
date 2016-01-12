@@ -83,6 +83,9 @@ def get_dataset(self):
         probe_file = os.path.join(os.path.join(user_path, 'probes'), 'dan.prb')
         io.change_flag(filename, 'mapping', probe_file)
         io.change_flag(filename, 'make_plots', 'False')
+        io.change_flag(filename, 'nb_repeats', '1')
+        io.change_flag(filename, 'smart_search', '1')
+        io.change_flag(filename, 'max_elts', '1000')
 
     a, b     = os.path.splitext(os.path.basename(filename))
     c, d     = os.path.splitext(filename)
