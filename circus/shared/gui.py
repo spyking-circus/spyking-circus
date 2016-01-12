@@ -169,7 +169,8 @@ class MergeGUI(object):
         
         self.generate_data()
         self.selected_points = set()
-        self.inspect_points = set()
+        self.inspect_points = []
+        self.inspect_colors = []
         self.lasso_selector = None
         self.rect_selectors = [widgets.RectangleSelector(ax,
                                                          onselect=self.callback_rect,
@@ -206,7 +207,7 @@ class MergeGUI(object):
         self.data_ax.format_coord = self.data_tooltip
         # Select the best point at start
         idx = np.argmax(self.score_y)
-        self.update_selection({idx})
+        self.update_inspect({idx})
             
 
     def listen(self):
@@ -404,7 +405,7 @@ class MergeGUI(object):
         p = mpl.path.Path(verts)
         in_selection = p.contains_points(self.lasso_selector.points)
         indices = np.nonzero(in_selection)[0]
-        self.update_selection(indices, self.lasso_selector.add_or_remove)
+        self.update_inspect(indices, self.lasso_selector.add_or_remove)
 
     def callback_rect(self, eclick, erelease):
         xmin, xmax, ymin, ymax = eclick.xdata, erelease.xdata, eclick.ydata, erelease.ydata
@@ -433,7 +434,7 @@ class MergeGUI(object):
             add_or_remove = 'add'
         elif erelease.key == 'control':
             add_or_remove = 'remove'
-        self.update_selection(indices, add_or_remove)
+        self.update_inspect(indices, add_or_remove)
 
     def zoom(self, event):
         # only zoom in the score plot
@@ -486,19 +487,16 @@ class MergeGUI(object):
 
     def update_detail_plot(self):
         self.detail_ax.clear()
-        indices = sorted(self.inspect_points)
+        indices = self.inspect_points
         all_raw_data    = self.raw_data/(1 + self.raw_data.mean(1)[:, np.newaxis])
         all_raw_control = self.raw_control/(1 + self.raw_control.mean(1)[:, np.newaxis])
-        cNorm           = colors.Normalize(vmin=0, vmax=len(indices))
-        scalarMap       = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
 
 
         for count, idx in enumerate(indices):
-            colorVal   = scalarMap.to_rgba(count)
             data_line, = self.detail_ax.plot(self.raw_lags,
-                                             all_raw_data[idx, :].T, lw=2, color=colorVal)
+                                             all_raw_data[idx, :].T, lw=2, color=self.inspect_colors[count])
             self.detail_ax.plot(self.raw_lags, all_raw_control[idx, :].T, ':',
-                                color=colorVal, lw=2)
+                                color=self.inspect_colors[count], lw=2)
         self.detail_ax.set_ylim(0, 3)
         self.detail_ax.set_xticks([])
 
@@ -528,10 +526,8 @@ class MergeGUI(object):
             #self.inspect_markers.set_ydata(inspect+0.5)
             
             data = numpy.vstack((np.ones(len(inspect))*self.raw_lags[-1], inspect+0.5)).T
-            cNorm     = colors.Normalize(vmin=0, vmax=len(inspect))
-            scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
             self.inspect_markers.set_offsets(data)
-            self.inspect_markers.set_color([scalarMap.to_rgba(i) for i in xrange(len(inspect))])
+            self.inspect_markers.set_color(self.inspect_colors)
         else:
             #self.inspect_markers.set_xdata([])
             #self.inspect_markers.set_ydata([])
@@ -562,47 +558,51 @@ class MergeGUI(object):
             fcolors = collection.get_facecolors()
             colorin = colorConverter.to_rgba('black', alpha=0.25)
             colorout = colorConverter.to_rgba('black')
-            colorinspect = colorConverter.to_rgba('red')
-
-            cNorm     = colors.Normalize(vmin=0, vmax=len(self.inspect_points))
-            scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
-            
 
             fcolors[:] = colorout
             for p in self.selected_points:
                 fcolors[p] = colorin
-            for c, p in enumerate(self.inspect_points):
-                fcolors[p] = scalarMap.to_rgba(p)
+            for idx, p in enumerate(self.inspect_points):
+                fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
 
-    def update_selection(self, indices, add_or_remove=None, inspect=True):
-        if inspect:
-            selection_set = self.inspect_points
-        else:
-            selection_set = self.selected_points
+    def update_inspect(self, indices, add_or_remove=None):
+        all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
-        if add_or_remove is None:
-            selection_set.clear()
+        if add_or_remove is 'add':
+            indices = set(self.inspect_points) | set(indices)
+        elif add_or_remove is 'remove':
+            indices = set(self.inspect_points) - set(indices)
 
-        if add_or_remove == 'remove':
-            selection_set.difference_update(set(indices))
-        else:
-            selection_set.update(set(indices))
+        self.inspect_points = sorted(indices)
+        # We use a deterministic mapping to colors, based on their index
+        self.inspect_colors = [all_colors[idx % len(all_colors)]
+                               for idx in self.inspect_points]
 
         self.update_score_plot()
         self.update_detail_plot()
-        if not inspect:  # Selected points changed so we have to re-plot the data
-            self.update_data_sort_order()
+        self.update_data_plot()
+
+    def update_selection(self, indices, add_or_remove=None):
+        if add_or_remove is None:
+            self.selected_points.clear()
+
+        if add_or_remove == 'remove':
+            self.selected_points.difference_update(set(indices))
         else:
-            self.update_data_plot()
+            self.selected_points.update(set(indices))
+
+        self.update_score_plot()
+        self.update_detail_plot()
+        self.update_data_sort_order()
 
     def add_to_selection(self, event):
         to_add = set(self.inspect_points)
         self.inspect_points = set()
-        self.update_selection(to_add, add_or_remove='add', inspect=False)
+        self.update_selection(to_add, add_or_remove='add')
 
     def remove_selection(self, event):
         self.inspect_points = set()
-        self.update_selection(self.selected_points, add_or_remove='remove', inspect=False)
+        self.update_selection(self.selected_points, add_or_remove='remove')
 
     def on_mouse_press(self, event):
         if event.inaxes in [self.score_ax1, self.score_ax2, self.score_ax3]:
@@ -643,7 +643,7 @@ class MergeGUI(object):
                     add_or_remove = 'add'
                 elif event.key == 'control':
                     add_or_remove = 'remove'
-                self.update_selection(selection, add_or_remove)
+                self.update_inspect(selection, add_or_remove)
             else:
                 raise AssertionError('No tool active')
         elif event.inaxes == self.data_ax:
