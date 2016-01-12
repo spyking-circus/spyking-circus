@@ -169,7 +169,8 @@ class MergeGUI(object):
         
         self.generate_data()
         self.selected_points = set()
-        self.inspect_points = set()
+        self.inspect_points = []
+        self.inspect_colors = []
         self.lasso_selector = None
         self.rect_selectors = [widgets.RectangleSelector(ax,
                                                          onselect=self.callback_rect,
@@ -181,6 +182,7 @@ class MergeGUI(object):
             selector.set_active(False)
         self.pick_button.update_toggle(True)
         self.lag_selector = SymmetricVCursor(self.data_ax, color='blue')
+        self.lag_selector.active = False
         self.line_lag1 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
                                               color='black')
         self.line_lag2 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
@@ -198,6 +200,7 @@ class MergeGUI(object):
         self.add_button.on_clicked(self.add_to_selection)
         self.remove_button.on_clicked(self.remove_selection)
         self.sort_order.on_clicked(self.update_data_sort_order)
+        self.set_range_button.on_clicked(lambda event: setattr(self.lag_selector, 'active', True))
         self.merge_button.on_clicked(self.do_merge)
         self.finalize_button.on_clicked(self.finalize)
         self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
@@ -206,8 +209,7 @@ class MergeGUI(object):
         self.data_ax.format_coord = self.data_tooltip
         # Select the best point at start
         idx = np.argmax(self.score_y)
-        self.update_selection({idx})
-            
+        self.update_inspect({idx})
 
     def listen(self):
 
@@ -226,7 +228,7 @@ class MergeGUI(object):
 
 
     def init_gui_layout(self):
-        gs = gridspec.GridSpec(15, 4, width_ratios=[2, 2, 1, 4])
+        gs = gridspec.GridSpec(15, 5, width_ratios=[2, 2, 1, 2, 2])
         # TOOLBAR
         buttons_gs = gridspec.GridSpecFromSubplotSpec(1, 3,
                                                       subplot_spec=gs[0, 0])
@@ -252,14 +254,16 @@ class MergeGUI(object):
         self.score_ax1 = plt.subplot(gs[1:8, 0])
         self.score_ax2 = plt.subplot(gs[1:8, 1])
         self.score_ax3 = plt.subplot(gs[8:, 0])
-        self.detail_ax = plt.subplot(gs[1:5, 3])
-        self.data_ax = plt.subplot(gs[5:13, 3])
+        self.detail_ax = plt.subplot(gs[1:5, 3:])
+        self.data_ax = plt.subplot(gs[5:13, 3:])
         sort_order_ax = plt.subplot(gs[14, 3])
         sort_order_ax.set_axis_bgcolor('none')
         self.sort_order = widgets.RadioButtons(sort_order_ax, ('template similarity',
                                                                'cross-correlation',
                                                                'normalized cross-correlation'))
         self.current_order = 'template similarity'
+        set_range_ax = plt.subplot(gs[14, 4])
+        self.set_range_button = widgets.Button(set_range_ax, 'Set range')
         add_button_ax      = plt.subplot(gs[7, 2])
         self.add_button    = widgets.Button(add_button_ax, 'Select')
         remove_button_ax   = plt.subplot(gs[8, 2])
@@ -352,12 +356,15 @@ class MergeGUI(object):
                                                                  (self.score_x, self.score_z)]):
                 collection.set_offsets(np.hstack([x[np.newaxis, :].T,
                                                   y[np.newaxis, :].T]))
-        self.score_ax1.set_ylim(min(self.score_y)-0.05, max(self.score_y)+0.05)
-        self.score_ax1.set_xlim(min(self.score_x)-0.05, max(self.score_x)+0.05)
-        self.score_ax2.set_ylim(min(self.score_y)-0.05, max(self.score_y)+0.05)
-        self.score_ax2.set_xlim(min(self.score_z)-0.05, max(self.score_z)+0.05)
-        self.score_ax3.set_ylim(min(self.score_z)-0.05, max(self.score_z)+0.05)
-        self.score_ax3.set_xlim(min(self.score_x)-0.05, max(self.score_x)+0.05)
+        for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
+                                     (self.score_ax2, self.score_y, self.score_z),
+                                     (self.score_ax3, self.score_z, self.score_x)]:
+            ymin, ymax = min(score_y), max(score_y)
+            yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
+            ax.set_ylim((ymax + ymin)*0.5 - yrange, (ymax + ymin)*0.5 + yrange)
+            xmin, xmax = min(score_x), max(score_x)
+            xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
+            ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
 
     def plot_data(self):
         # Right: raw data
@@ -371,17 +378,21 @@ class MergeGUI(object):
                                               extent=(self.raw_lags[0], self.raw_lags[-1],
                                                       0, len(self.sort_idcs)), origin='lower')
         self.data_ax.set_aspect('auto')
+        self.data_ax.spines['right'].set_visible(False)
+        self.data_ax.spines['left'].set_visible(False)
+        self.data_ax.spines['top'].set_visible(False)
         self.data_image.set_clim(0, cmax)
         #self.inspect_markers, = self.data_ax.plot([], [], 'bo',
         #                                          clip_on=False, ms=10)
-        self.inspect_markers = self.data_ax.scatter([], [], marker='<', clip_on=False)
+        self.inspect_markers = self.data_ax.scatter([], [], marker='<',
+                                                    clip_on=False, s=40)
         self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
                                                     width=self.raw_lags[-1] - self.raw_lags[0],
                                                     height=0,
                                                     color='white', alpha=0.75)
         self.data_ax.add_patch(self.data_selection)
         self.data_ax.set_xlim(self.raw_lags[0], self.raw_lags[-1])
-        self.data_ax.set_ylim(0, len(self.sort_idcs))
+        self.data_ax.set_ylim(0, len(self.sort_idcs)+1)
         self.data_ax.set_yticks([])
 
     def data_tooltip(self, x, y):
@@ -404,7 +415,7 @@ class MergeGUI(object):
         p = mpl.path.Path(verts)
         in_selection = p.contains_points(self.lasso_selector.points)
         indices = np.nonzero(in_selection)[0]
-        self.update_selection(indices, self.lasso_selector.add_or_remove)
+        self.update_inspect(indices, self.lasso_selector.add_or_remove)
 
     def callback_rect(self, eclick, erelease):
         xmin, xmax, ymin, ymax = eclick.xdata, erelease.xdata, eclick.ydata, erelease.ydata
@@ -413,7 +424,6 @@ class MergeGUI(object):
         if ymin > ymax:
             ymin, ymax = ymax, ymin
 
-        #score_x, score_y = self.
         self.score_ax = eclick.inaxes
 
         if self.score_ax == self.score_ax1:
@@ -433,17 +443,32 @@ class MergeGUI(object):
             add_or_remove = 'add'
         elif erelease.key == 'control':
             add_or_remove = 'remove'
-        self.update_selection(indices, add_or_remove)
+        self.update_inspect(indices, add_or_remove)
 
     def zoom(self, event):
+        if event.inaxes == self.score_ax1:
+            x = self.score_x
+            y = self.score_y
+            link_with_x = self.score_ax3.set_xlim
+            link_with_y = self.score_ax2.set_ylim
+        elif event.inaxes == self.score_ax2:
+            x = self.score_z
+            y = self.score_y
+            link_with_x = self.score_ax3.set_ylim
+            link_with_y = self.score_ax1.set_ylim
+        elif event.inaxes == self.score_ax3:
+            x = self.score_x
+            y = self.score_z
+            link_with_x = self.score_ax1.set_xlim
+            link_with_y = self.score_ax2.set_xlim
+        else:
         # only zoom in the score plot
-        if event.inaxes not in [self.score_ax1, self.score_ax2, self.score_ax3]:
             return
-        # get the current x and y limits
-        self.score_ax = event.inaxes
 
-        cur_xlim = self.score_ax.get_xlim()
-        cur_ylim = self.score_ax.get_ylim()
+        score_ax = event.inaxes
+        # get the current x and y limits
+        cur_xlim = score_ax.get_xlim()
+        cur_ylim = score_ax.get_ylim()
         cur_xrange = (cur_xlim[1] - cur_xlim[0])*.5
         cur_yrange = (cur_ylim[1] - cur_ylim[0])*.5
         xdata = event.xdata # get event x location
@@ -459,12 +484,21 @@ class MergeGUI(object):
             scale_factor = 1
             print event.button
         # set new limits
-        newxmin = np.clip(xdata - cur_xrange*scale_factor, np.min(self.score_x)-0.05, np.max(self.score_x)+0.05)
-        newxmax = np.clip(xdata + cur_xrange*scale_factor, np.min(self.score_x)-0.05, np.max(self.score_x)+0.05)
-        newymin = np.clip(ydata - cur_yrange*scale_factor, -0.025, 1.025)
-        newymax = np.clip(ydata + cur_yrange*scale_factor, -0.025, 1.025)
-        self.score_ax.set_xlim(newxmin, newxmax)
-        self.score_ax.set_ylim(newymin, newymax)
+        newxmin = np.clip(xdata - cur_xrange*scale_factor, np.min(x), np.max(x))
+        newxmax = np.clip(xdata + cur_xrange*scale_factor, np.min(x), np.max(x))
+        new_xrange = (newxmax - newxmin)*0.5 * 1.05  # stretch everything a bit
+        newxmin = (newxmax + newxmin)*0.5 -new_xrange
+        newxmax = (newxmax + newxmin)*0.5 +new_xrange
+        newymin = np.clip(ydata - cur_yrange*scale_factor, np.min(y), np.max(y))
+        newymax = np.clip(ydata + cur_yrange*scale_factor, np.min(y), np.max(y))
+        new_yrange = (newymax - newymin)*0.5 * 1.05  # stretch everything a bit
+        newymin = (newymax + newymin)*0.5 -new_yrange
+        newymax = (newymax + newymin)*0.5 +new_yrange
+        score_ax.set_xlim(newxmin, newxmax)
+        score_ax.set_ylim(newymin, newymax)
+        # Update the linked axes in the other plots as well
+        link_with_x(newxmin, newxmax)
+        link_with_y(newymin, newymax)
         self.fig.canvas.draw_idle()
 
     def update_lag(self, lag):
@@ -486,21 +520,18 @@ class MergeGUI(object):
 
     def update_detail_plot(self):
         self.detail_ax.clear()
-        indices = sorted(self.inspect_points)
+        indices = self.inspect_points
         all_raw_data    = self.raw_data/(1 + self.raw_data.mean(1)[:, np.newaxis])
         all_raw_control = self.raw_control/(1 + self.raw_control.mean(1)[:, np.newaxis])
-        cNorm           = colors.Normalize(vmin=0, vmax=len(indices))
-        scalarMap       = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
-
 
         for count, idx in enumerate(indices):
-            colorVal   = scalarMap.to_rgba(count)
             data_line, = self.detail_ax.plot(self.raw_lags,
-                                             all_raw_data[idx, :].T, lw=2, color=colorVal)
+                                             all_raw_data[idx, :].T, lw=2, color=self.inspect_colors[count])
             self.detail_ax.plot(self.raw_lags, all_raw_control[idx, :].T, ':',
-                                color=colorVal, lw=2)
+                                color=self.inspect_colors[count], lw=2)
         self.detail_ax.set_ylim(0, 3)
-        self.detail_ax.set_xticks([])
+        self.detail_ax.set_xticks(self.data_ax.get_xticks())
+        self.detail_ax.set_xticklabels([])
 
     def update_sort_idcs(self):
         # The selected points are sorted before all the other points -- an easy
@@ -527,11 +558,9 @@ class MergeGUI(object):
             #self.inspect_markers.set_xdata(np.ones(len(inspect))*self.raw_lags[-1])
             #self.inspect_markers.set_ydata(inspect+0.5)
             
-            data = numpy.vstack((np.ones(len(inspect))*self.raw_lags[-1], inspect+0.5)).T
-            cNorm     = colors.Normalize(vmin=0, vmax=len(inspect))
-            scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
+            data = numpy.vstack((np.ones(len(inspect))*(2*self.raw_lags[-1]-self.raw_lags[-2]), inspect+0.5)).T
             self.inspect_markers.set_offsets(data)
-            self.inspect_markers.set_color([scalarMap.to_rgba(i) for i in xrange(len(inspect))])
+            self.inspect_markers.set_color(self.inspect_colors)
         else:
             #self.inspect_markers.set_xdata([])
             #self.inspect_markers.set_ydata([])
@@ -562,47 +591,51 @@ class MergeGUI(object):
             fcolors = collection.get_facecolors()
             colorin = colorConverter.to_rgba('black', alpha=0.25)
             colorout = colorConverter.to_rgba('black')
-            colorinspect = colorConverter.to_rgba('red')
-
-            cNorm     = colors.Normalize(vmin=0, vmax=len(self.inspect_points))
-            scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=self.cmap)
-            
 
             fcolors[:] = colorout
             for p in self.selected_points:
                 fcolors[p] = colorin
-            for c, p in enumerate(self.inspect_points):
-                fcolors[p] = scalarMap.to_rgba(p)
+            for idx, p in enumerate(self.inspect_points):
+                fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
 
-    def update_selection(self, indices, add_or_remove=None, inspect=True):
-        if inspect:
-            selection_set = self.inspect_points
-        else:
-            selection_set = self.selected_points
+    def update_inspect(self, indices, add_or_remove=None):
+        all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
-        if add_or_remove is None:
-            selection_set.clear()
+        if add_or_remove is 'add':
+            indices = set(self.inspect_points) | set(indices)
+        elif add_or_remove is 'remove':
+            indices = set(self.inspect_points) - set(indices)
 
-        if add_or_remove == 'remove':
-            selection_set.difference_update(set(indices))
-        else:
-            selection_set.update(set(indices))
+        self.inspect_points = sorted(indices)
+        # We use a deterministic mapping to colors, based on their index
+        self.inspect_colors = [all_colors[idx % len(all_colors)]
+                               for idx in self.inspect_points]
 
         self.update_score_plot()
         self.update_detail_plot()
-        if not inspect:  # Selected points changed so we have to re-plot the data
-            self.update_data_sort_order()
+        self.update_data_plot()
+
+    def update_selection(self, indices, add_or_remove=None):
+        if add_or_remove is None:
+            self.selected_points.clear()
+
+        if add_or_remove == 'remove':
+            self.selected_points.difference_update(set(indices))
         else:
-            self.update_data_plot()
+            self.selected_points.update(set(indices))
+
+        self.update_score_plot()
+        self.update_detail_plot()
+        self.update_data_sort_order()
 
     def add_to_selection(self, event):
         to_add = set(self.inspect_points)
         self.inspect_points = set()
-        self.update_selection(to_add, add_or_remove='add', inspect=False)
+        self.update_selection(to_add, add_or_remove='add')
 
     def remove_selection(self, event):
         self.inspect_points = set()
-        self.update_selection(self.selected_points, add_or_remove='remove', inspect=False)
+        self.update_selection(self.selected_points, add_or_remove='remove')
 
     def on_mouse_press(self, event):
         if event.inaxes in [self.score_ax1, self.score_ax2, self.score_ax3]:
@@ -625,21 +658,45 @@ class MergeGUI(object):
                     y = self.score_z
                 else:
                     raise AssertionError(str(event.inaxes))
-                distances = ((x - event.xdata)**2 +
-                             (y - event.ydata)**2)
+
+                # Transform data coordinates to display coordinates
+                data = event.inaxes.transData.transform(zip(x, y))
+
+                distances = ((data[:, 0] - event.x)**2 +
+                             (data[:, 1] - event.y)**2)
                 min_idx, min_value = np.argmin(distances), np.min(distances)
-                # TODO: Minimum distance?
+                if min_value > 50:
+                    # Don't select anything if the mouse cursor is more than
+                    # 50 pixels away from a point
+                    selection = {}
+                else:
+                    selection = {min_idx}
                 add_or_remove = None
                 if event.key == 'shift':
                     add_or_remove = 'add'
                 elif event.key == 'control':
                     add_or_remove = 'remove'
-                self.update_selection({min_idx}, add_or_remove)
+                self.update_inspect(selection, add_or_remove)
             else:
                 raise AssertionError('No tool active')
         elif event.inaxes == self.data_ax:
-            # Update lag
-            self.update_lag(abs(event.xdata))
+            if self.lag_selector.active:
+                # Update lag
+                self.update_lag(abs(event.xdata))
+                self.lag_selector.active = False
+            else:  # select a line
+                if event.ydata < 0 or event.ydata >= len(self.sort_idcs):
+                    return
+                index = self.sort_idcs[int(event.ydata)]
+                if index in self.selected_points:
+                    return
+                if event.key == 'shift':
+                    add_or_remove = 'add'
+                elif event.key == 'control':
+                    add_or_remove = 'remove'
+                else:
+                    add_or_remove = None
+                self.update_inspect({index}, add_or_remove)
         else:
             return
 
