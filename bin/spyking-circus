@@ -158,11 +158,11 @@ Options are:
     # Print info
     params = circus.shared.utils.io.load_parameters(filename)
     if preview:
-        print_info(['Preview mode is enabled, showing first second of the recording'])
+        print_info(['Preview mode, showing only first second of the recording'])
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
         filename     = os.path.join(tmp_path_loc, 'preview.dat')
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
-        steps        = ['filtering']
+        steps        = ['filtering', 'whitening']
         circus.shared.utils.io.prepare_preview(params, filename)
     else:    
         stationary = params.getboolean('data', 'stationary')
@@ -184,10 +184,11 @@ Options are:
         print colored("##################################################################", 'green')
         print ""        
 
-        length = circus.shared.utils.io.data_stats(params)
+        if not preview:
+            length = circus.shared.utils.io.data_stats(params)
 
-        if length >= 3600 and stationary:
-            print_info(['Long recording detected: maybe turn off the stationary mode'])
+            if length >= 3600 and stationary:
+                print_info(['Long recording detected: maybe turn off the stationary mode'])
 
         # Launch the subtasks
         subtasks = [('filtering', 'mpirun'),
