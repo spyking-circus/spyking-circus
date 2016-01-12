@@ -141,6 +141,19 @@ def load_parameters(file_name):
     parser.set('fitting', 'space_explo', '1')
     parser.set('fitting', 'nb_chances', '3')
 
+    dtype_offset = parser.get('data', 'dtype_offset')
+    if dtype_offset == 'auto':
+        if parser.get('data', 'data_dtype') == 'uint16':
+            parser.set('data', 'dtype_offset', '32767')
+        elif parser.get('data', 'data_dtype') == 'int16':
+            parser.set('data', 'dtype_offset', '0')
+        elif parser.get('data', 'data_dtype') == 'float32':
+            parser.set('data', 'dtype_offset', '0')
+        elif parser.get('data', 'data_dtype') == 'int8':
+            parser.set('data', 'dtype_offset', '0')        
+        elif parser.get('data', 'data_dtype') == 'uint8':
+            parser.set('data', 'dtype_offset', '127')
+    
     try: 
         parser.get('data', 'radius')
     except Exception:
