@@ -372,17 +372,21 @@ class MergeGUI(object):
                                               extent=(self.raw_lags[0], self.raw_lags[-1],
                                                       0, len(self.sort_idcs)), origin='lower')
         self.data_ax.set_aspect('auto')
+        self.data_ax.spines['right'].set_visible(False)
+        self.data_ax.spines['left'].set_visible(False)
+        self.data_ax.spines['top'].set_visible(False)
         self.data_image.set_clim(0, cmax)
         #self.inspect_markers, = self.data_ax.plot([], [], 'bo',
         #                                          clip_on=False, ms=10)
-        self.inspect_markers = self.data_ax.scatter([], [], marker='<', clip_on=False)
+        self.inspect_markers = self.data_ax.scatter([], [], marker='<',
+                                                    clip_on=False, s=40)
         self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
                                                     width=self.raw_lags[-1] - self.raw_lags[0],
                                                     height=0,
                                                     color='white', alpha=0.75)
         self.data_ax.add_patch(self.data_selection)
         self.data_ax.set_xlim(self.raw_lags[0], self.raw_lags[-1])
-        self.data_ax.set_ylim(0, len(self.sort_idcs))
+        self.data_ax.set_ylim(0, len(self.sort_idcs)+1)
         self.data_ax.set_yticks([])
 
     def data_tooltip(self, x, y):
@@ -491,14 +495,14 @@ class MergeGUI(object):
         all_raw_data    = self.raw_data/(1 + self.raw_data.mean(1)[:, np.newaxis])
         all_raw_control = self.raw_control/(1 + self.raw_control.mean(1)[:, np.newaxis])
 
-
         for count, idx in enumerate(indices):
             data_line, = self.detail_ax.plot(self.raw_lags,
                                              all_raw_data[idx, :].T, lw=2, color=self.inspect_colors[count])
             self.detail_ax.plot(self.raw_lags, all_raw_control[idx, :].T, ':',
                                 color=self.inspect_colors[count], lw=2)
         self.detail_ax.set_ylim(0, 3)
-        self.detail_ax.set_xticks([])
+        self.detail_ax.set_xticks(self.data_ax.get_xticks())
+        self.detail_ax.set_xticklabels([])
 
     def update_sort_idcs(self):
         # The selected points are sorted before all the other points -- an easy
@@ -525,7 +529,7 @@ class MergeGUI(object):
             #self.inspect_markers.set_xdata(np.ones(len(inspect))*self.raw_lags[-1])
             #self.inspect_markers.set_ydata(inspect+0.5)
             
-            data = numpy.vstack((np.ones(len(inspect))*self.raw_lags[-1], inspect+0.5)).T
+            data = numpy.vstack((np.ones(len(inspect))*(2*self.raw_lags[-1]-self.raw_lags[-2]), inspect+0.5)).T
             self.inspect_markers.set_offsets(data)
             self.inspect_markers.set_color(self.inspect_colors)
         else:
