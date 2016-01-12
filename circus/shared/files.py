@@ -82,6 +82,9 @@ def load_parameters(file_name):
     f_next, extension = os.path.splitext(os.path.abspath(file_name))
     file_params       = os.path.abspath(file_name.replace(extension, '.params'))
     parser            = configparser.SafeConfigParser()
+    if not os.path.exists(file_params):
+        print_error(["%s does not exist" %file_params])
+        sys.exit(0)
     parser.read(file_params)
 
     sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits']
@@ -99,7 +102,7 @@ def load_parameters(file_name):
     for key in ['whitening', 'clustering']:
         safety_time = parser.get(key, 'safety_time')
         if safety_time == 'auto':
-            parser.set(key, 'safety_time', '%g' %(N_t/2.))
+            parser.set(key, 'safety_time', '%g' %(N_t/3.))
 
     sampling_rate   = parser.getint('data', 'sampling_rate')
     N_t             = int(sampling_rate*N_t*1e-3)
@@ -128,10 +131,14 @@ def load_parameters(file_name):
 
     for section in ['whitening', 'clustering']:
         test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
-        assert test, colored("nb_elts in %s should be in [0,1]" %section, 'red')
+        if not test: 
+            print_error(["nb_elts in %s should be in [0,1]" %section])
+            sys.exit(0)
 
     test = (parser.getfloat('clustering', 'nclus_min') > 0) and (parser.getfloat(section, 'nclus_min') <= 1)
-    assert test, colored("nclus_min in clustering should be in [0,1]", 'red')
+    if not test:
+        print_error(["nclus_min in clustering should be in [0,1]"])
+        sys.exit(0)
 
     try:
         os.makedirs(file_name)
@@ -218,7 +225,9 @@ def load_parameters(file_name):
     parser.set('whitening', 'chunk_size', str(chunk_size*sampling_rate))
 
     test = (parser.get('clustering', 'extraction') in ['quadratic', 'median'])
-    assert test, colored("Only two extraction modes: quadratic or median!")
+    if not test:
+        print_error(["Only two extraction modes: quadratic or median!"])
+        sys.exit(0)
 
     return parser
 
@@ -240,8 +249,8 @@ def data_stats(params, show=True):
         nb_chunks      = 0
         last_chunk_len = 0
 
-    N_t             = params.getint('data', 'N_t')
-    N_t             = numpy.round(1000.*N_t/sampling_rate, 1)
+    N_t = params.getint('data', 'N_t')
+    N_t = numpy.round(1000.*N_t/sampling_rate, 1)
 
     lines = ["Number of recorded channels : %d" %N_total,
              "Number of analyzed channels : %d" %N_e,

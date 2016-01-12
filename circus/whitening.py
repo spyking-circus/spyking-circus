@@ -351,7 +351,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             res_pca     = pca(gdata.astype(numpy.double))
             res['proj'] = pca.get_projmatrix().astype(numpy.float32)
         else:
-            res['proj'] = numpy.identity(N_t)
+            res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
         res['rec']  = res['proj'].T
         bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
