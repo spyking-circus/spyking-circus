@@ -808,10 +808,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 electrodes[count_templates] = ielec
                 myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
-                sub_data         = data[myslice]
-                first_component  = numpy.median(sub_data, axis=0)
+                #sub_data         = data[myslice]
+                #first_component  = numpy.median(sub_data, axis=0)
+                #tmp_templates    = numpy.dot(first_component.T, basis_rec)
+                
+                times_i          = result['times_' + str(ielec)][myslice]
+                labels_i         = myslice 
+                sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
+                from skimage.restoration import denoise_nl_means
+                x, y, z          = sub_data.shape
+                sub_data         = sub_data.reshape(x, y*z)
+                sub_data         = denoise_nl_means(sub_data, h=0.5*sub_data.std())
+                sub_data         = sub_data.reshape(x, y, z)
+                first_component  = numpy.median(sub_data, 0)
+                tmp_templates    = first_component
 
-                tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift            = template_shift - tmpidx[1]
                 sindices         = indices[sorted_indices]
@@ -842,11 +853,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if len(sub_data_flat) > 1:
                     pca              = mdp.nodes.PCANode(output_dim=1)
                     res_pca          = pca(sub_data_flat.astype(numpy.double))
-                    second_component     = pca.get_projmatrix().reshape(y, z)
+                    second_component = pca.get_projmatrix().reshape(y, z)
                 else:
                     second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
-                tmp_templates = numpy.dot(second_component.T, basis_rec)
+                tmp_templates = second_component
+                #tmp_templates = numpy.dot(second_component.T, basis_rec)
+                
                 offset        = templates.shape[2]/2 + count_templates
                 if shift > 0:
                     templates[sindices, shift:, offset] = tmp_templates[sorted_indices, :-shift]

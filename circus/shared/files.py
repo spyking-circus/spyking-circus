@@ -281,11 +281,15 @@ def print_error(lines):
     print colored("------------------------------------------------------------------", 'red')
 
 
-def get_stas(params, times_i, labels_i, src, nodes=None):
+def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None):
 
-    nb_labels    = numpy.unique(labels_i)
+    
     N_t          = params.getint('data', 'N_t')
-    stas         = numpy.zeros((len(nb_labels), N_t), dtype=numpy.float32)
+    if neighs is not None:
+        stas     = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
+    else:
+        nb_labels= numpy.unique(labels_i)
+        stas     = numpy.zeros((len(nb_labels), N_t), dtype=numpy.float32)
     data_file    = params.get('data', 'data_file')
     data_offset  = params.getint('data', 'data_offset')
     dtype_offset = params.getint('data', 'dtype_offset')
@@ -308,6 +312,7 @@ def get_stas(params, times_i, labels_i, src, nodes=None):
         cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
+    count = 0
     for lb, time in zip(labels_i, times_i):
         padding      = N_total * time
         if alignment:
@@ -320,7 +325,7 @@ def get_stas(params, times_i, labels_i, src, nodes=None):
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
         local_chunk *= gain
-        lc           = numpy.where(nb_labels == lb)[0]
+        
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
                 local_chunk = local_chunk[:, nodes]
@@ -329,15 +334,36 @@ def get_stas(params, times_i, labels_i, src, nodes=None):
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        local_chunk = local_chunk[:, src]
+        if neighs is None:
+            local_chunk = local_chunk[:, src]
+        else:
+            local_chunk = local_chunk[:, neighs]
 
         if alignment:
-            f     = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-            rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-            ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-            local_chunk = f(ddata).astype(numpy.float32)
+            if neighs is not None:
+                idx   = numpy.where(neighs == src)[0]
+                ydata = numpy.arange(len(neighs))
+                f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
+                rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                local_chunk = f(ddata, ydata).astype(numpy.float32)
+            else:
+                f     = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+                rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                local_chunk = f(ddata).astype(numpy.float32)
 
-        stas[lc, :] += local_chunk.T
+        if neighs is None:
+            lc                = numpy.where(nb_labels == lb)[0]
+            stas[lc, :]      += local_chunk.T
+        else:
+            stas[count, :, :] = local_chunk.T
+            count            += 1
+        
+    #if neighs is not None:
+        #from skimage.restoration import denoise_nl_means
+    #    stas = numpy.median(stas, 0)
+    
     return stas
 
 def get_amplitudes(params, times_i, sources, template, nodes=None):
