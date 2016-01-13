@@ -160,6 +160,8 @@ Options are:
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+        if not os.path.exists(tmp_path_loc):
+            os.makedirs(tmp_path_loc)
         filename     = os.path.join(tmp_path_loc, 'preview.dat')
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
         steps        = ['filtering', 'whitening']
