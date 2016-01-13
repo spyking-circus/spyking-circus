@@ -169,11 +169,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         u             = numpy.median(local_chunk[:, i], 0)
                         thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
                     thresholds *= spike_thresh
-                    
-                for i in xrange(N_e):
+                
+                if gpass != 1:
+                    search_from = numpy.arange(N_e)
+                else:
+                    search_from = numpy.arange(comm.rank, N_e, comm.size)    
+
+                for i in search_from:
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                     all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
+
                 #print "Removing the useless borders..."
                 if alignment:
                     local_borders = (2*template_shift, local_shape - 2*template_shift)
@@ -812,13 +818,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #first_component  = numpy.median(sub_data, axis=0)
                 #tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 
+                idx              = numpy.random.permutation(myslice)[:max(len(myslice), 1000)]
                 times_i          = result['times_' + str(ielec)][myslice]
                 labels_i         = myslice 
                 sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
                 from skimage.restoration import denoise_nl_means
                 x, y, z          = sub_data.shape
                 sub_data         = sub_data.reshape(x, y*z)
-                sub_data         = denoise_nl_means(sub_data, h=0.5*sub_data.std())
+                sub_data         = denoise_nl_means(sub_data, h=0.1*sub_data.std())
                 sub_data         = sub_data.reshape(x, y, z)
                 first_component  = numpy.median(sub_data, 0)
                 tmp_templates    = first_component
