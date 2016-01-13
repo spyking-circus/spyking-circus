@@ -822,11 +822,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 times_i          = result['times_' + str(ielec)][myslice]
                 labels_i         = myslice 
                 sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
-                from skimage.restoration import denoise_nl_means
-                x, y, z          = sub_data.shape
-                sub_data         = sub_data.reshape(x, y*z)
-                sub_data         = denoise_nl_means(sub_data, h=0.1*sub_data.std())
-                sub_data         = sub_data.reshape(x, y, z)
+                #from skimage.restoration import denoise_nl_means
+                #x, y, z          = sub_data.shape
+                #sub_data         = sub_data.reshape(x, y*z)
+                #sub_data         = denoise_nl_means(sub_data, h=0.1*sub_data.std())
+                #sub_data         = sub_data.reshape(x, y, z)
                 first_component  = numpy.median(sub_data, 0)
                 tmp_templates    = first_component
 
