@@ -449,6 +449,16 @@ def prepare_preview(params, preview_filename):
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     chunk_len    = N_total * chunk_size
     local_chunk  = datablock[0:chunk_len]
+
+    output = open(preview_filename, 'wb')
+    fid    = open(data_file, 'r')
+    # We copy the header 
+    for i in xrange(data_offset):
+        output.write(fid.read(1))
+    
+    fid.close()
+
+    #Then the datafile
     local_chunk.tofile(preview_filename)
 
 def analyze_data(params, chunk_size=None):
