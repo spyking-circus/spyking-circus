@@ -814,7 +814,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             loc_pad  = count_templates
             indices  = inv_nodes[edges[nodes[ielec]]]
-            sorted_indices = numpy.argsort(indices)
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 electrodes[count_templates] = ielec
                 myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
@@ -831,7 +830,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift            = template_shift - tmpidx[1]
-                sindices         = indices[sorted_indices]
                 templates        = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                 if shift > 0:
                     templates[indices, shift:] = tmp_templates[:, :-shift]
@@ -881,7 +879,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 elif shift < 0:
                     templates[indices, :shift] = tmp_templates[:, -shift:]
                 else:
-                    templates[indices, :] = tmp_templates[sorted_indices]
+                    templates[indices, :] = tmp_templates
 
                 templates  = templates.flatten()
                 dx         = templates.nonzero()[0]
@@ -919,9 +917,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         #We need to gather the sparse arrays
-        temp_x    = all_gather_array(temp_x, comm, dtype='int32')
-        temp_y    = all_gather_array(temp_y, comm, dtype='int32')
-        temp_data = all_gather_array(temp_data, comm)
+        temp_x    = gather_array(temp_x, comm, dtype='int32')
+        temp_y    = gather_array(temp_y, comm, dtype='int32')
+        temp_data = gather_array(temp_data, comm)
         
         if parallel_hdf5:
             if comm.rank == 0:
@@ -970,7 +968,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             hfile.create_dataset('temp_y', data=temp_y)
             hfile.create_dataset('temp_data', data=temp_data)
             hfile.close()
-
+    '''
     comm.Barrier()
 
     if comm.rank == 0:
@@ -991,6 +989,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         io.print_info(["Number of global merges    : %d" %merged1[1], 
                        "Number of mixtures removed : %d" %merged2[1]])    
-
+    
+    '''
     comm.Barrier()
     io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
