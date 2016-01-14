@@ -889,7 +889,7 @@ class PreviewGUI(object):
 
 
     def handle_close(self, event):
-        sys.exit(0)
+        pass
 
 
     def init_gui_layout(self):
@@ -1080,7 +1080,7 @@ class PreviewGUI(object):
         for count, idx in enumerate(indices):
             data_line, = self.detail_ax.plot(self.time,
                                              self.data[:, idx], lw=1, color=self.inspect_colors[count])
-            thr = self.spike_thresh * self.thresholds[idx]
+            thr = self.thresholds[idx]
             self.detail_ax.plot([0, 1], [-thr, -thr], ':',
                                 color=self.inspect_colors[count], lw=2)
 

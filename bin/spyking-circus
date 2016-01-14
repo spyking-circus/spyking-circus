@@ -290,6 +290,7 @@ Options are:
         PreviewGUI(circus.shared.utils.io.load_parameters(filename))
         mng   = pylab.get_current_fig_manager()
         pylab.show()
+        shutil.rmtree(tmp_path_loc)
 
 
 if __name__ == '__main__':
