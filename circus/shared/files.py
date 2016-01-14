@@ -823,7 +823,6 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     
     gcount = 0
 
-    print templates.shape
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
         
         local_idx = numpy.where(best_elec == ielec)[0]
@@ -834,22 +833,20 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
         if len_local > 0:
 
-            loc_templates = templates[:, local_idx].todense()
-            print local_templates.shape, local_idx.shape
+            loc_templates = numpy.array(templates[:, local_idx].todense())
             loc_templates = loc_templates.reshape(N_e, N_t, len(local_idx))
             electrodes    = inv_nodes[edges[nodes[ielec]]]
             to_consider   = numpy.arange(upper_bounds)[numpy.in1d(best_elec, electrodes)]
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
             
-            print local_templates.shape
             nb_elements = loc_templates.shape[2]
             
             if normalize:
                 loc_templates /= norm_templates[local_idx]
-                
+            
             for idelay in all_delays:
-                
+
                 size  = N_e*idelay    
                 tmp_1 = loc_templates[:, :idelay]
                 
@@ -858,8 +855,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 else:
                     tmp_1 = tmp_1.reshape(size, nb_elements)
                 
-                loc_templates = templates[:, to_consider].todense().reshape(N_e, N_t, len(to_consider))
-                tmp_2         = loc_templates[:, -idelay:, :].reshape(N_e, idelay, len(to_consider))
+                loc_templates2 = numpy.array(templates[:, to_consider].todense()).reshape(N_e, N_t, len(to_consider))
+                tmp_2          = loc_templates2[:, -idelay:, :]
                 if normalize:
                     tmp_2 /= norm_templates[to_consider]
 
@@ -893,7 +890,6 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     if comm.rank == 0:
         pbar.finish()
 
-    templates.file.close()
     comm.Barrier()
 
 

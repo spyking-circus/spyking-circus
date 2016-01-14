@@ -206,11 +206,12 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
     parallel_hdf5  = h5py.get_config().mpi
     file_out_suff  = params.get('data', 'file_out_suff')
 
-    if parallel_hdf5 or (comm.rank == 0):
-        myfile         = h5py.File(file_out_suff + '.templates.hdf5', 'r', libver='latest')
-        old_templates  = myfile.get('templates')
-        old_limits     = myfile.get('limits')[:]
-        N_e, N_t, N_tm = old_templates.shape
+    if comm.rank == 0:
+        old_templates  = load_data(params, 'templates')
+        old_limits     = load_data(params, 'limits')
+        N_e            = params.getint('data', 'N_e')
+        N_t            = params.getint('data', 'N_t')
+        x, N_tm        = old_templates.shape
         norm_templates = load_data(params, 'norm-templates')
 
         if to_merge is not None:
@@ -221,24 +222,20 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
 
         all_templates = set(numpy.arange(N_tm/2))
         to_keep       = numpy.array(list(all_templates.difference(to_remove)))
-
-    if parallel_hdf5:
-        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
-        positions = numpy.arange(comm.rank, len(to_keep), comm.size)
-    elif comm.rank == 0:
-        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', libver='latest')
-        positions = numpy.arange(len(to_keep))
     
-    if parallel_hdf5 or (comm.rank == 0):
+        positions = numpy.arange(len(to_keep))
+
         local_keep = to_keep[positions]
-        templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*len(to_keep)), dtype=numpy.float32, chunks=(N_e, N_t, 1))
+        templates  = scipy.sparse.lil_matrix((N_e*N_t, 2*len(to_keep)), dtype=numpy.float32)
+        hfile      = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', libver='latest')
         norms      = hfile.create_dataset('norms', shape=(2*len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         for count, keep in zip(positions, local_keep):
-            templates[:, :, count]                = old_templates[:, :, keep]
-            templates[:, :, count + len(to_keep)] = old_templates[:, :, keep + N_tm/2]
-            norms[count]                          = norm_templates[keep]
-            norms[count + len(to_keep)]           = norm_templates[keep + N_tm/2]
+
+            templates[:, count]                = old_templates[:, keep]
+            templates[:, count + len(to_keep)] = old_templates[:, keep + N_tm/2]
+            norms[count]                       = norm_templates[keep]
+            norms[count + len(to_keep)]        = norm_templates[keep + N_tm/2]
             if to_merge is None:
                 new_limits = old_limits[keep]
             else:
@@ -250,8 +247,16 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
                 else:
                     new_limits = old_limits[keep]
             limits[count]  = new_limits
+        
+
+        templates = templates.tocoo()
+        hfile = h5py.File(file_out_suff + '.templates-new.hdf5', 'r+', libver='latest')
+        hfile.create_dataset('temp_x', data=templates.row)
+        hfile.create_dataset('temp_y', data=templates.col)
+        hfile.create_dataset('temp_data', data=templates.data)
+
         hfile.close()
-        myfile.close()
+
     
     comm.Barrier()
     if comm.rank == 0:
@@ -390,7 +395,10 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 def delete_mixtures(comm, params, parallel_hdf5=False):
         
     templates      = load_data(params, 'templates')
-    N_e, N_t, N_tm = templates.shape
+    templates      = load_data(params, 'templates')
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
+    x,        N_tm = templates.shape
     nb_temp        = N_tm/2
     merged         = [nb_temp, 0]
     mixtures       = []
@@ -456,7 +464,6 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if comm.rank == 0:
         pbar.finish()
     
-    templates.file.close()
     overlap.file.close()
 
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    
