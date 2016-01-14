@@ -629,9 +629,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     file_out_suff  = params.get('data', 'file_out_suff')
     min_rate       = params.get('fitting', 'min_rate')
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
     duration       = data_stats(params, show=False)
     templates      = load_data(params, 'templates')
-    N_e, N_t, N_tm = templates.shape
+    x, N_tm        = templates.shape
 
     print "Gathering data from %d nodes..." %nb_threads
 

@@ -45,10 +45,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    templates  = io.load_data(params, 'templates')
-    if not low_memory:
-        templates  = templates[:]
-    N_e, N_t, N_tm = templates.shape
+    templates      = io.load_data(params, 'templates').tocsr()
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
+    x,        N_tm = templates.shape
     template_shift = int((N_t-1)/2)
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
@@ -189,16 +189,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             try:
                 for itime in xrange(temp_2_shift+1):
+                    rows = numpy.arange(itime, templates.shape[0], N_t)
                     if use_gpu:
                         cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
                         cloc.select_columns(cu_slice, sub_mat)
                         sub_mat_transpose = sub_mat.transpose()
-                        sub_templates     = cmt.CUDAMatrix(templates[:, itime, :]/norm_templates)
+                        sub_templates     = cmt.CUDAMatrix(numpy.array(templates[rows, :].todense())/norm_templates)
                         b.add_dot(sub_mat_transpose, sub_templates)
                         del sub_templates, sub_mat_transpose
                     else:
                         sub_mat = local_chunk[local_peaktimes+itime-template_shift, :]
-                        b      += numpy.dot(sub_mat, templates[:, itime, :]/norm_templates)
+                        b      += numpy.dot(sub_mat, numpy.array(templates[rows, :].todense())/norm_templates)
             except Exception:
                 if comm.rank == 0:
                     lines = ["There may be a GPU memory error: -set gpu_only to False",
