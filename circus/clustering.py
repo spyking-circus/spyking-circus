@@ -839,7 +839,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     templates[indices, :] = tmp_templates
 
                 templates  = templates.flatten()
-                dx         = templates.nonzero()[0]
+                dx         = templates.nonzero()[0].astype(numpy.int32)
 
                 temp_x     = numpy.concatenate((temp_x, dx))
                 temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
@@ -873,22 +873,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #tmp_templates = numpy.dot(second_component.T, basis_rec)
                 
                 offset        = total_nb_clusters + count_templates
-                templates     = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                 if shift > 0:
-                    templates[indices, shift:] = tmp_templates[:, :-shift]
+                    sub_templates[indices, shift:] = tmp_templates[:, :-shift]
                 elif shift < 0:
-                    templates[indices, :shift] = tmp_templates[:, -shift:]
+                    sub_templates[indices, :shift] = tmp_templates[:, -shift:]
                 else:
-                    templates[indices, :] = tmp_templates
+                    sub_templates[indices, :] = tmp_templates
 
-                templates  = templates.flatten()
-                dx         = templates.nonzero()[0]
+                sub_templates = sub_templates.flatten()
+                dx            = sub_templates.nonzero()[0].astype(numpy.int32)
 
                 temp_x     = numpy.concatenate((temp_x, dx))
                 temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.int32)))
-                temp_data  = numpy.concatenate((temp_data, templates[dx]))
+                temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
 
-                norms[offset] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
+                norms[offset] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
 
                 count_templates += 1
 
@@ -917,10 +917,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         #We need to gather the sparse arrays
-        temp_x    = gather_array(temp_x, comm, dtype='int32')
+        temp_x    = gather_array(temp_x, comm, dtype='int32')        
         temp_y    = gather_array(temp_y, comm, dtype='int32')
         temp_data = gather_array(temp_data, comm)
-        
+
         if parallel_hdf5:
             if comm.rank == 0:
                 rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
@@ -968,7 +968,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             hfile.create_dataset('temp_y', data=temp_y)
             hfile.create_dataset('temp_data', data=temp_data)
             hfile.close()
-    '''
+    
     comm.Barrier()
 
     if comm.rank == 0:
@@ -990,6 +990,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_info(["Number of global merges    : %d" %merged1[1], 
                        "Number of mixtures removed : %d" %merged2[1]])    
     
-    '''
+    
     comm.Barrier()
     io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
