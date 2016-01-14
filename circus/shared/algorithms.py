@@ -350,7 +350,9 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         return to_merge, result
             
     templates      = load_data(params, 'templates')
-    N_e, N_t, N_tm = templates.shape
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
+    x,        N_tm = templates.shape
     nb_temp        = N_tm/2
     to_merge       = []
     

@@ -533,8 +533,14 @@ def load_data(params, data, extension=''):
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'templates':
+        N_e = params.getint('data', 'N_e')
+        N_t = params.getint('data', 'N_t')
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('templates')
+            temp_x = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
+            temp_y = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
+            temp_data = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]
+            nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms').shape[0]
+            return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'norm-templates':
@@ -747,7 +753,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     N_total        = params.getint('data', 'N_total')
     nodes, edges   = get_nodes_and_edges(params)
     filename_mpi   = os.path.join(tmp_path, file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank))
-    N_e, N_t, N_tm = templates.shape
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
+    x,        N_tm = templates.shape
 
     if half:
         N_tm /= 2
@@ -815,6 +823,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     
     gcount = 0
 
+    print templates.shape
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
         
         local_idx = numpy.where(best_elec == ielec)[0]
@@ -825,12 +834,15 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
         if len_local > 0:
 
-            loc_templates = templates[:, :, local_idx].reshape(N_e, N_t, len(local_idx))
+            loc_templates = templates[:, local_idx].todense()
+            print local_templates.shape, local_idx.shape
+            loc_templates = loc_templates.reshape(N_e, N_t, len(local_idx))
             electrodes    = inv_nodes[edges[nodes[ielec]]]
             to_consider   = numpy.arange(upper_bounds)[numpy.in1d(best_elec, electrodes)]
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
-     
+            
+            print local_templates.shape
             nb_elements = loc_templates.shape[2]
             
             if normalize:
@@ -846,7 +858,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 else:
                     tmp_1 = tmp_1.reshape(size, nb_elements)
                 
-                tmp_2 = templates[:, -idelay:, to_consider].reshape(N_e, idelay, len(to_consider))
+                loc_templates = templates[:, to_consider].todense().reshape(N_e, N_t, len(to_consider))
+                tmp_2         = loc_templates[:, -idelay:, :].reshape(N_e, idelay, len(to_consider))
                 if normalize:
                     tmp_2 /= norm_templates[to_consider]
 
