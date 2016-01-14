@@ -295,7 +295,6 @@ def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None):
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    gain         = params.getfloat('data', 'gain')
     alignment    = params.getboolean('data', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
@@ -324,7 +323,6 @@ def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None):
 
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
-        local_chunk *= gain
         
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
@@ -375,7 +373,6 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    gain         = params.getfloat('data', 'gain')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     template     = template.flatten()
     covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
@@ -395,7 +392,6 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
         local_chunk  = local_chunk.reshape(N_t, N_total)
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
-        local_chunk *= gain
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
                 local_chunk = local_chunk[:, nodes]
@@ -424,7 +420,6 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    gain         = params.getfloat('data', 'gain')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     local_chunk  = datablock[idx*chunk_len+padding[0]:(idx+1)*chunk_len+padding[1]]
     del datablock
@@ -432,7 +427,6 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     local_chunk  = local_chunk.reshape(local_shape, N_total)
     local_chunk  = local_chunk.astype(numpy.float32)
     local_chunk -= dtype_offset
-    local_chunk *= gain
     if nodes is not None:
         if not numpy.all(nodes == numpy.arange(N_total)):
             local_chunk = local_chunk[:, nodes]

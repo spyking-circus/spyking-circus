@@ -74,7 +74,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     nodes, edges     = io.get_nodes_and_edges(params)
     N_t              = params.getint('data', 'N_t')
-    gain             = params.getfloat('data', 'gain')
     N_total          = params.getint('data', 'N_total')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
@@ -250,7 +249,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         voltages_file.write(voltages_to_write.tostring())
 
         #print count, 'spikes inserted...'
-        local_chunk /= gain
         local_chunk += dtype_offset
         local_chunk  = local_chunk.astype(data_dtype)
         new_chunk    = numpy.zeros((chunk_size, N_total), dtype=data_dtype)

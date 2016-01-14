@@ -4,7 +4,6 @@ mapping        = probes/mea_252.prb     # Mapping of the electrode (see http://s
 suffix         =                        # Suffix to add to generated files
 data_dtype     = uint16                 # Type of the data
 dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
-gain           = 0.01                   # Gain for spike detection
 spike_thresh   = 6                      # Threshold for spike detection
 sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 N_t            = 5                      # Width of the templates [in ms]

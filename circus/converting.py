@@ -150,7 +150,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                      dtype=None,
                      sample_rate=None,
                      dc_offset=0,
-                     gain=0.01,
                      offset_value=0
                      ):
 
@@ -234,7 +233,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   self._wl = WaveformLoader(traces=self.traces_f,
                                             n_samples=self.n_samples_w,
                                             dc_offset=dc_offset,
-                                            scale_factor=gain,
                                             channels=nodes
                                             )
                 else:
@@ -243,7 +241,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             filter=filter,
                                             filter_margin=filter_margin,
                                             dc_offset=dc_offset,
-                                            scale_factor=gain,
                                             channels=nodes
                                             )
 
@@ -436,7 +433,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sample_rate      = params.getint('data', 'sampling_rate')
     dtype            = params.get('data', 'data_dtype')
     dc_offset        = params.getint('data', 'dtype_offset')
-    gain             = params.getfloat('data', 'gain')
     data_offset      = params.get('data', 'data_offset')
 
     c = Converter(basename, filename, N_t,
@@ -446,7 +442,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   prb_file=prb_file,
                   sample_rate=sample_rate,
                   dtype=dtype,
-                  gain=gain,
                   offset_value=data_offset
                   )
 
