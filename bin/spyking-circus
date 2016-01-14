@@ -284,12 +284,12 @@ Options are:
 
     if preview:
         import numpy, pylab
-        N_e    = params.getint('data', 'N_e')
-        n_elec = min(int(numpy.sqrt(N_e)), 5)
+        from circus.shared.gui import PreviewGUI
         pylab.style.use('ggplot')
         pylab.switch_backend('QT4Agg')
-        circus.shared.plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True, n_elec=n_elec)
+        PreviewGUI(circus.shared.utils.io.load_parameters(filename))
         mng   = pylab.get_current_fig_manager()
+        pylab.show()
 
 
 if __name__ == '__main__':
