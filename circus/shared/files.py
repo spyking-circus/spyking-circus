@@ -258,7 +258,7 @@ def data_stats(params, show=True):
              "Sampling rate               : %d kHz" %(sampling_rate/1000.),
              "Header offset for the data  : %d" %data_offset,
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
-             "Width of the templates      : %g ms" %N_t,
+             "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Stationarity                : %s" %params.getboolean('data', 'stationary'),
              "Waveform alignment          : %s" %params.getboolean('data', 'alignment'),
@@ -459,7 +459,8 @@ def prepare_preview(params, preview_filename):
     fid.close()
 
     #Then the datafile
-    local_chunk.tofile(preview_filename)
+    local_chunk.tofile(output)
+    output.close()
 
 def analyze_data(params, chunk_size=None):
 

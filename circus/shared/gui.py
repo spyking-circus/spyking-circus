@@ -811,3 +811,211 @@ class MergeGUI(object):
             mydata.close()
 
         sys.exit(0)
+
+
+
+
+class PreviewGUI(object):
+
+    def __init__(self, params):
+
+        self.init_gui_layout()
+        self.probe = io.read_probe(params)
+        self.fig = self.score_ax1.figure
+        # Remove all buttons from the standard toolbar
+        toolbar = self.fig.canvas.toolbar
+        for action in toolbar.actions():
+            toolbar.removeAction(action)
+        
+        self.selected_points = set()
+        self.inspect_points = []
+        self.inspect_colors = []
+        self.lasso_selector = None
+        self.rect_selectors = [widgets.RectangleSelector(ax,
+                                                         onselect=self.callback_rect,
+                                                         button=1,
+                                                         drawtype='box',
+                                                         spancoords='data')
+                               for ax in [self.score_ax1, self.score_ax2, self.score_ax3]]
+        for selector in self.rect_selectors:
+            selector.set_active(False)
+        self.pick_button.update_toggle(True)
+        self.plot_data()
+
+        # Connect events
+        self.fig.canvas.mpl_connect('scroll_event', self.zoom)
+        self.fig.canvas.mpl_connect('button_press_event', self.on_mouse_press)
+        self.fig.canvas.mpl_connect('close_event', self.handle_close)
+        self.rect_button.on_clicked(self.update_rect_selector)
+        self.lasso_button.on_clicked(self.update_rect_selector)
+        self.pick_button.on_clicked(self.update_rect_selector)
+        self.add_button.on_clicked(self.add_to_selection)
+        self.remove_button.on_clicked(self.remove_selection)
+        self.sort_order.on_clicked(self.update_data_sort_order)
+        self.set_range_button.on_clicked(lambda event: setattr(self.lag_selector, 'active', True))
+        self.merge_button.on_clicked(self.do_merge)
+        self.finalize_button.on_clicked(self.finalize)
+        self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
+        self.score_ax2.format_coord = lambda x, y: 'normalized cross-correlation metric: %.2f  cross-correlation metric %.2f' % (x, y)
+        self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized cross-correlation metric %.2f' % (x, y)
+        self.data_ax.format_coord = self.data_tooltip
+        # Select the best point at start
+        idx = np.argmax(self.score_y)
+        self.update_inspect({idx})
+
+
+    def handle_close(self, event):
+        sys.exit(0)
+
+
+    def init_gui_layout(self):
+        gs = gridspec.GridSpec(15, 5, width_ratios=[2, 2, 1, 2, 2])
+        # TOOLBAR
+        buttons_gs = gridspec.GridSpecFromSubplotSpec(1, 3,
+                                                      subplot_spec=gs[0, 0])
+        lasso_button_ax = plt.subplot(buttons_gs[0, 0])
+        rect_button_ax = plt.subplot(buttons_gs[0, 1])
+        pick_button_ax = plt.subplot(buttons_gs[0, 2])
+        self.toggle_group = []
+        pick_icon  = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-color-picker.png'))
+        lasso_icon = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-free-select.png'))
+        rect_icon  = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-rect-select.png'))
+        self.lasso_button = ToggleButton(lasso_button_ax, '',
+                                         image=mpl.image.imread(lasso_icon),
+                                         toggle_group=self.toggle_group)
+        self.rect_button = ToggleButton(rect_button_ax, '',
+                                        image=mpl.image.imread(rect_icon),
+                                        toggle_group=self.toggle_group)
+        self.pick_button = ToggleButton(pick_button_ax, '',
+                                        image=mpl.image.imread(pick_icon),
+                                        toggle_group=self.toggle_group)
+        self.toggle_group.extend([self.lasso_button,
+                                  self.rect_button,
+                                  self.pick_button])
+        self.score_ax1 = plt.subplot(gs[1:15, 0:2])
+        self.score_ax2 = plt.subplot(gs[1:15, 2:5])
+        
+        '''
+        self.set_range_button = widgets.Button(set_range_ax, 'Set range')
+        add_button_ax      = plt.subplot(gs[7, 2])
+        self.add_button    = widgets.Button(add_button_ax, 'Select')
+        remove_button_ax   = plt.subplot(gs[8, 2])
+        self.remove_button = widgets.Button(remove_button_ax, 'Unselect')
+        merge_button_ax    = plt.subplot(gs[9, 2])
+        self.merge_button  = widgets.Button(merge_button_ax, 'Merge')
+        finalize_button_ax = plt.subplot(gs[14, 2])
+        self.finalize_button = widgets.Button(finalize_button_ax, 'Finalize')
+        '''
+
+    def plot_data(self):
+        if not getattr(self, 'collections', None):
+            # It is important to set one facecolor per point so that we can change
+            # it later
+            self.collections = []
+            for ax, x, y in [(self.score_ax1, self.score_x, self.score_y),
+                             (self.score_ax2, self.score_z, self.score_y),
+                             (self.score_ax3, self.score_x, self.score_z)]:
+                self.collections.append(ax.scatter(x, y,
+                                                   facecolor=['black' for _ in x]))
+            self.score_ax1.set_ylabel('cross-correlation metric')
+            self.score_ax1.set_xticklabels([])
+            self.score_ax2.set_xlabel('normalized cross-correlation metric')
+            self.score_ax2.set_yticklabels([])
+            self.score_ax3.set_xlabel('template similarity')
+            self.score_ax3.set_ylabel('normalized cross-correlation metric')
+        else:
+            for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
+                                                                 (self.score_z, self.score_y),
+                                                                 (self.score_x, self.score_z)]):
+                collection.set_offsets(np.hstack([x[np.newaxis, :].T,
+                                                  y[np.newaxis, :].T]))
+        for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
+                                     (self.score_ax2, self.score_y, self.score_z),
+                                     (self.score_ax3, self.score_z, self.score_x)]:
+            ymin, ymax = min(score_y), max(score_y)
+            yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
+            ax.set_ylim((ymax + ymin)*0.5 - yrange, (ymax + ymin)*0.5 + yrange)
+            xmin, xmax = min(score_x), max(score_x)
+            xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
+            ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
+
+    def start_lasso_select(self, event):
+        self.lasso_selector = widgets.Lasso(event.inaxes,
+                                            (event.xdata, event.ydata),
+                                            self.callback_lasso)
+        add_or_remove = None
+        if event.key == 'shift':
+            add_or_remove = 'add'
+        elif event.key == 'control':
+            add_or_remove = 'remove'
+        self.lasso_selector.add_or_remove = add_or_remove
+        if event.inaxes == self.score_ax1:
+            self.lasso_selector.points = self.points[0]
+        elif event.inaxes == self.score_ax2:
+            self.lasso_selector.points = self.points[1]
+        else:
+            self.lasso_selector.points = self.points[2]
+
+    def on_mouse_press(self, event):
+        if event.inaxes in [self.score_ax1]:
+            if self.lasso_button.toggled:
+                # Select multiple points
+                self.start_lasso_select(event)
+            elif self.rect_button.toggled:
+                pass  # handled already by rect selector
+            elif self.pick_button.toggled:
+                # Select a single point for display
+                # Find the closest point
+                if event.inaxes == self.score_ax1:
+                    x = self.score_x
+                    y = self.score_y
+                elif event.inaxes == self.score_ax2:
+                    x = self.score_z
+                    y = self.score_y
+                elif event.inaxes == self.score_ax3:
+                    x = self.score_x
+                    y = self.score_z
+                else:
+                    raise AssertionError(str(event.inaxes))
+
+                # Transform data coordinates to display coordinates
+                data = event.inaxes.transData.transform(zip(x, y))
+
+                distances = ((data[:, 0] - event.x)**2 +
+                             (data[:, 1] - event.y)**2)
+                min_idx, min_value = np.argmin(distances), np.min(distances)
+                if min_value > 50:
+                    # Don't select anything if the mouse cursor is more than
+                    # 50 pixels away from a point
+                    selection = {}
+                else:
+                    selection = {min_idx}
+                add_or_remove = None
+                if event.key == 'shift':
+                    add_or_remove = 'add'
+                elif event.key == 'control':
+                    add_or_remove = 'remove'
+                self.update_inspect(selection, add_or_remove)
+            else:
+                raise AssertionError('No tool active')
+        elif event.inaxes == self.data_ax:
+            if self.lag_selector.active:
+                # Update lag
+                self.update_lag(abs(event.xdata))
+                self.lag_selector.active = False
+            else:  # select a line
+                if event.ydata < 0 or event.ydata >= len(self.sort_idcs):
+                    return
+                index = self.sort_idcs[int(event.ydata)]
+                if index in self.selected_points:
+                    return
+                if event.key == 'shift':
+                    add_or_remove = 'add'
+                elif event.key == 'control':
+                    add_or_remove = 'remove'
+                else:
+                    add_or_remove = None
+                self.update_inspect({index}, add_or_remove)
+        else:
+            return
+
