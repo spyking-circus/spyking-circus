@@ -820,8 +820,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     temp_y    = numpy.zeros(0, dtype=numpy.int32)
     temp_data = numpy.zeros(0, dtype=numpy.float32)
     
-    gcount = 0
-
+    print upper_bounds,  N_tm, nb_total
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
         
         local_idx = numpy.where(best_elec == ielec)[0]
@@ -832,8 +831,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
         if len_local > 0:
 
-            loc_templates = templates[:, local_idx].toarray()
-            loc_templates = loc_templates.reshape(N_e, N_t, len(local_idx))
+            loc_templates = templates[:, local_idx].toarray().reshape(N_e, N_t, len(local_idx))
             electrodes    = inv_nodes[edges[nodes[ielec]]]
             to_consider   = numpy.arange(upper_bounds)[numpy.in1d(best_elec, electrodes)]
             if not half:
@@ -880,9 +878,6 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                     temp_x     = numpy.concatenate((temp_x, ddy*N_tm + ddx))
                     temp_y     = numpy.concatenate((temp_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                     temp_data  = numpy.concatenate((temp_data, data[dd]))
-
-
-        gcount += len_local
 
         if comm.rank == 0:
             pbar.update(count)
