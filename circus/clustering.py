@@ -810,12 +810,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+            g_count    = node_pad
         else:
-            node_pad   = 0
             hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+            g_count    = 0
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
         temp_y     = numpy.zeros(0, dtype=numpy.int32)
@@ -824,6 +825,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
         count_templates = node_pad
+
 
         if comm.rank == 0:
             pbar = get_progressbar(local_nb_clusters)
@@ -837,7 +839,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loc_pad  = count_templates
             indices  = inv_nodes[edges[nodes[ielec]]]
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
-                electrodes[count_templates] = ielec
+                electrodes[g_count] = ielec
                 myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
                 #sub_data         = data[myslice]
                 #first_component  = numpy.median(sub_data, axis=0)
@@ -867,7 +869,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
-                norms[count_templates] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
+                norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
 
                 x, y, z          = sub_data.shape
                 sub_data_flat    = sub_data.reshape(x, y*z)
@@ -879,7 +881,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
                 amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
                 amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
-                amps_lims[count_templates] = [amp_min, amp_max]
+                amps_lims[g_count] = [amp_min, amp_max]
 
                 for i in xrange(x):
                     sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
@@ -910,9 +912,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
 
-                norms[offset] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
+                norms[g_count + local_nb_clusters] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
 
                 count_templates += 1
+                g_count         += 1
 
             if make_plots:
                 if n_data > 1:

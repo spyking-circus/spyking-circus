@@ -203,8 +203,7 @@ def merging(groups, sim_same_elec, data):
 
 def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
 
-    import h5py, shutil
-    parallel_hdf5  = h5py.get_config().mpi
+    import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if comm.rank == 0:
@@ -251,34 +250,33 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
         
 
         templates = templates.tocoo()
-        hfile = h5py.File(file_out_suff + '.templates-new.hdf5', 'r+', libver='latest')
         hfile.create_dataset('temp_x', data=templates.row)
         hfile.create_dataset('temp_y', data=templates.col)
         hfile.create_dataset('temp_data', data=templates.data)
 
         hfile.close()
 
-    
-    comm.Barrier()
-    if comm.rank == 0:
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             os.remove(file_out_suff + '.templates%s.hdf5' %extension)
         shutil.move(file_out_suff + '.templates-new.hdf5', file_out_suff + '.templates%s.hdf5' %extension)
+
+    comm.Barrier()
+
     
 
 def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''):
-    comm.Barrier()
+    
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
 
-    if to_merge != []:
-        to_remove = []
-        for count in xrange(len(to_merge)):
-            remove     = to_merge[count][1]
-            to_remove += [remove]
-
     if comm.rank == 0:
+
+        if to_merge != []:
+            to_remove = []
+            for count in xrange(len(to_merge)):
+                remove     = to_merge[count][1]
+                to_remove += [remove]
 
         all_elements = [[] for i in xrange(N_e)]
         for target in numpy.unique(to_remove):
@@ -306,6 +304,8 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
             os.remove(file_out_suff + '.clusters%s.hdf5' %extension)
         shutil.move(file_out_suff + '.clusters-new.hdf5', file_out_suff + '.clusters%s.hdf5' %extension)
+
+    comm.Barrier()
 
 def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 

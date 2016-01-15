@@ -110,13 +110,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if full_gpu:
         try:
-            N_over    = numpy.sqrt(c_overlap.shape[0])
+            N_over    = int(numpy.sqrt(c_overlap.shape[0]))
             S_over    = c_overlap.shape[1]
             c_overs   = {}
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
                 rows       = numpy.arange(i*N_over, (i+1)*N_over)
-                data       = c_overlap[:, i].toarray().reshape(N_over, S_over)
+                data       = c_overlap[rows, :].toarray().reshape(N_over, S_over)
                 c_overs[i] = cmt.CUDAMatrix(-data)
             del c_overlap
         except Exception:
@@ -201,16 +201,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             try:
                 for itime in xrange(temp_2_shift+1):
                     rows = numpy.arange(itime, templates.shape[0], N_t)
+                    slice_templates = numpy.array(templates[rows, :]/norm_templates)
                     if use_gpu:
                         cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
                         cloc.select_columns(cu_slice, sub_mat)
                         sub_mat_transpose = sub_mat.transpose()
-                        sub_templates     = cmt.CUDAMatrix(templates[rows, :]/norm_templates)
+                        sub_templates     = cmt.CUDAMatrix(slice_templates)
                         b.add_dot(sub_mat_transpose, sub_templates)
                         del sub_templates, sub_mat_transpose
                     else:
                         sub_mat = local_chunk[local_peaktimes+itime-template_shift, :]
-                        b      += numpy.dot(sub_mat, templates[rows, :]/norm_templates)
+                        b      += numpy.dot(sub_mat, slice_templates)
             except Exception:
                 if comm.rank == 0:
                     lines = ["There may be a GPU memory error: -set gpu_only to False",
