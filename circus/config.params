@@ -49,7 +49,6 @@ amp_limits     = (0.3, 30) # Amplitudes for the templates during spike detection
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
 refractory     = 0         # Refractory period, in ms [0 is None]
 max_chunk      = inf       # Fit only up to max_chunk   
-spike_range    = 0         # Jitter allowed around each spike time to fit the templates (in ms)
 low_memory     = False     # For large number of templates only
 
 [merging]

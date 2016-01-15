@@ -223,7 +223,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
         all_templates = set(numpy.arange(N_tm/2))
         to_keep       = numpy.array(list(all_templates.difference(to_remove)))
     
-        positions = numpy.arange(len(to_keep))
+        positions  = numpy.arange(len(to_keep))
 
         local_keep = to_keep[positions]
         templates  = scipy.sparse.lil_matrix((N_e*N_t, 2*len(to_keep)), dtype=numpy.float32)
@@ -375,14 +375,12 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         over_shape = overlap.get('over_shape')[:]
         overlap.close()
 
-        overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
-
-        pair      = []
+        overlap   = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
         for i in xrange(nb_temp):
             rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
-            distances[i, i+1:] = numpy.argmax(overlap[rows, :].toarray(), 1)
+            distances[i, i+1:] = numpy.max(overlap[rows, :].toarray(), 1)
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
