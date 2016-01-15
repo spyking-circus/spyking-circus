@@ -84,7 +84,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     c_overlap     = io.get_overlaps(comm, params)
-    
+
+    over_x     = c_overlap.get('over_x')[:]
+    over_y     = c_overlap.get('over_y')[:]
+    over_data  = c_overlap.get('over_data')[:]
+    over_shape = c_overlap.get('over_shape')[:]
+    c_overlap.close()
+
+    c_overlap = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
+
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string
         io.purge(file_out_suff, '.data')
@@ -108,7 +116,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
                 rows       = numpy.arange(i*N_over, (i+1)*N_over)
-                data       = c_overlap[:, i].todense().reshape(N_over, S_over)
+                data       = c_overlap[:, i].toarray().reshape(N_over, S_over)
                 c_overs[i] = cmt.CUDAMatrix(-data)
             del c_overlap
         except Exception:
@@ -197,12 +205,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
                         cloc.select_columns(cu_slice, sub_mat)
                         sub_mat_transpose = sub_mat.transpose()
-                        sub_templates     = cmt.CUDAMatrix(numpy.array(templates[rows, :].todense())/norm_templates)
+                        sub_templates     = cmt.CUDAMatrix(templates[rows, :]/norm_templates)
                         b.add_dot(sub_mat_transpose, sub_templates)
                         del sub_templates, sub_mat_transpose
                     else:
                         sub_mat = local_chunk[local_peaktimes+itime-template_shift, :]
-                        b      += numpy.dot(sub_mat, numpy.array(templates[rows, :].todense())/norm_templates)
+                        b      += numpy.dot(sub_mat, templates[rows, :]/norm_templates)
             except Exception:
                 if comm.rank == 0:
                     lines = ["There may be a GPU memory error: -set gpu_only to False",
@@ -368,12 +376,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             myslice      = x == count
                             idx_b        = y[myslice]
-                            tmp1         = c_overlap[inds_temp[keep], :,  itmp[myslice]]
-                            tmp2         = c_overlap[inds_temp_2[count], :,  itmp[myslice]]
-                            if not low_memory:
-                                tmp1     = tmp1.T
-                                tmp2     = tmp2.T
-                            elif itmp[myslice].shape[0] == 1:
+                            rows         = numpy.arange(inds_temp[keep]*N_tm, (inds_temp[keep]+1)*N_tm)
+                            tmp1         = c_overlap[rows, :]
+                            tmp1         = tmp1[:, itmp[myslice]].toarray()
+
+                            rows         = numpy.arange(inds_temp_2[count]*N_tm, (inds_temp_2[count]+1)*N_tm)
+                            tmp2         = c_overlap[rows, :]
+                            tmp2         = tmp2[:, itmp[myslice]].toarray()
+                                                        
+                            #tmp1         = c_overlap[inds_temp[keep], :,  itmp[myslice]]
+                            #tmp2         = c_overlap[inds_temp_2[count], :,  itmp[myslice]]
+                            if itmp[myslice].shape[0] == 1:
                                 tmp1     = tmp1.reshape(tmp1.shape[0], 1)
                                 tmp2     = tmp2.reshape(tmp2.shape[0], 1)
 
@@ -444,7 +457,3 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         io.collect_data(comm.size, params, erase=True)
-
-    if low_memory:
-        templates.file.close()
-        c_overlap.file.close()

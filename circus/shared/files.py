@@ -763,13 +763,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         N_tm /= 2
 
     if os.path.exists(filename) and not erase:
-        myfile     = h5py.File(filename, 'r')
-        over_x     = myfile.get('over_x')[:]
-        over_y     = myfile.get('over_y')[:]
-        over_data  = myfile.get('over_data')[:]
-        over_shape = myfile.get('over_shape')[:]
-        myfile.close()
-        return scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
+        return h5py.File(filename, 'r')
     else:
         if os.path.exists(filename) and erase and (comm.rank == 0):
             os.remove(filename)
@@ -838,7 +832,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
         if len_local > 0:
 
-            loc_templates = numpy.array(templates[:, local_idx].todense())
+            loc_templates = templates[:, local_idx].toarray()
             loc_templates = loc_templates.reshape(N_e, N_t, len(local_idx))
             electrodes    = inv_nodes[edges[nodes[ielec]]]
             to_consider   = numpy.arange(upper_bounds)[numpy.in1d(best_elec, electrodes)]
@@ -860,7 +854,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 else:
                     tmp_1 = tmp_1.reshape(size, nb_elements)
                 
-                loc_templates2 = numpy.array(templates[:, to_consider].todense()).reshape(N_e, N_t, len(to_consider))
+                loc_templates2 = templates[:, to_consider].toarray().reshape(N_e, N_t, len(to_consider))
                 tmp_2          = loc_templates2[:, -idelay:, :]
                 if normalize:
                     tmp_2 /= norm_templates[to_consider]
@@ -914,18 +908,19 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
         del temp_x, temp_y, temp_data
 
-    myfile     = h5py.File(filename, 'r')
-    over_x     = myfile.get('over_x')[:]
-    over_y     = myfile.get('over_y')[:]
-    over_data  = myfile.get('over_data')[:]
-    over_shape = myfile.get('over_shape')[:]
-    myfile.close()
-
-    overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
-
     comm.Barrier()
 
     if comm.rank == 0 and maxoverlap:
+
+        myfile     = h5py.File(filename, 'r')
+        over_x     = myfile.get('over_x')[:]
+        over_y     = myfile.get('over_y')[:]
+        over_data  = myfile.get('over_data')[:]
+        over_shape = myfile.get('over_shape')[:]
+        myfile.close()
+
+        overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
+
         myfile     = h5py.File(filename, 'r+', libver='latest')
         myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
         if 'maxoverlap' in myfile2.keys():

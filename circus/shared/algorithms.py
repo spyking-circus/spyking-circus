@@ -5,6 +5,7 @@ os.environ['MDP_DISABLE_SKLEARN']='yes'
 import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
 from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges
 from circus.shared.mpi import all_gather_array
+import scipy.linalg, scipy.sparse
 
 def distancematrix(data, weight=None):
     
@@ -380,9 +381,8 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
         for i in xrange(nb_temp):
-            rows               = numpy.arange(i*nb_temp+i, (i+1)*nb_temp)
-            sub_c              = overlap[rows, :].todense()
-            distances[i, i+1:] = sub_c.max()
+            rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
+            distances[i, i+1:] = numpy.argmax(overlap[rows, :].toarray(), 1)
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
@@ -427,13 +427,22 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     inv_nodes[nodes] = numpy.argsort(nodes)
 
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+
+    over_x     = overlap.get('over_x')[:]
+    over_y     = overlap.get('over_y')[:]
+    over_data  = overlap.get('over_data')[:]
+    over_shape = overlap.get('over_shape')[:]
+    overlap.close()
+
+    overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape).tolil()
+
     for i in xrange(nb_temp):
-        distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
+        rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
+        distances[i, i+1:] = numpy.argmax(overlap[rows, :].toarray(), 1)
         distances[i+1:, i] = distances[i, i+1:]
 
-    import scipy.linalg
     all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
-    overlap_0 = overlap[:, :, N_t]
+    overlap_0 = overlap[:, N_t].toarray().reshape(nb_temp, nb_temp)
     if comm.rank == 0:
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(all_temp)).start()
 
@@ -444,14 +453,16 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     for count, k in enumerate(sorted_temp):
 
         electrodes    = inv_nodes[edges[nodes[best_elec[k]]]]
-        overlap_k     = overlap[k]
+        rows          = numpy.arange(k*nb_temp, (k+1)*nb_temp)
+        overlap_k     = overlap[rows, :]
         is_in_area    = numpy.in1d(best_elec, electrodes)
         for item in sorted_temp[:count]:
             is_in_area[item] = False
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
 
         for i in all_idx:
-            overlap_i = overlap[i]
+            rows          = numpy.arange(i*nb_temp, (i+1)*nb_temp)
+            overlap_i = overlap[rows, :]
             M[0, 0]   = overlap_0[i, i]
             V[0, 0]   = overlap_k[i, distances[k, i]]
             for j in all_idx[i+1:]:
@@ -473,8 +484,6 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if comm.rank == 0:
         pbar.finish()
     
-    overlap.file.close()
-
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
     
