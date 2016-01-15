@@ -395,8 +395,9 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         slice_templates(comm, params, to_merge=to_merge)
         slice_clusters(comm, params, result)
 
-    if comm.rank == 0:
-        os.remove(filename)
+
+    #if comm.rank == 0:
+    #    os.remove(filename)
 
     return [nb_temp, len(to_merge)]
 
@@ -491,8 +492,8 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         slice_templates(comm, params, to_remove)
         slice_clusters(comm, params, result, to_remove=to_remove)
 
-    if comm.rank == 0:
-        os.remove(filename)
+    #if comm.rank == 0:
+    #    os.remove(filename)
 
     return [nb_temp, len(to_remove)]
 
