@@ -395,7 +395,6 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         slice_templates(comm, params, to_merge=to_merge)
         slice_clusters(comm, params, result)
 
-
     #if comm.rank == 0:
     #    os.remove(filename)
 

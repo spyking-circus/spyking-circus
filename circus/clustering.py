@@ -811,12 +811,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = node_pad
+            g_offset   = total_nb_clusters
         else:
             hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
+            g_offset   = local_nb_clusters
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
         temp_y     = numpy.zeros(0, dtype=numpy.int32)
@@ -912,7 +914,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
 
-                norms[g_count + local_nb_clusters] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
+                norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
 
                 count_templates += 1
                 g_count         += 1
@@ -972,8 +974,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
                 count      = 0
                 for i in xrange(comm.size):
-                    norms[count:count+middle]                               = loc_norms[:middle]
-                    norms[n_clusters+count:n_clusters+count+middle]         = loc_norms[middle:]
+                    norms[count:count+middle]                       = loc_norms[:middle]
+                    norms[n_clusters+count:n_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')
                     amplitudes[count:count+middle] = ts[i].get('limits')
                     count      += middle
@@ -998,6 +1000,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         print "Merging similar templates..."
+    
     
     merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
     

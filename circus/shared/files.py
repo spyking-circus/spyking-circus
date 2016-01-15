@@ -820,7 +820,6 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     temp_y    = numpy.zeros(0, dtype=numpy.int32)
     temp_data = numpy.zeros(0, dtype=numpy.float32)
     
-    print upper_bounds,  N_tm, nb_total
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
         
         local_idx = numpy.where(best_elec == ielec)[0]
