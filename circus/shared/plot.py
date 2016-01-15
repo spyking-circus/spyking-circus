@@ -10,6 +10,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
     
     params          = load_parameters(file_name)
     N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('data', 'N_t')
     N_total         = params.getint('data', 'N_total')
     sampling_rate   = params.getint('data', 'sampling_rate')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -54,7 +55,10 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
             for spike, (amp1, amp2) in zip(result['spiketimes'][key][idx], result['amplitudes'][key][idx]):
                 count += 1
                 spike -= t_start*sampling_rate
-                curve[:, spike-template_shift:spike+template_shift+1] += amp1*templates[:, :, elec] + amp2*templates[:, :, elec+templates.shape[2]/2]
+                tmp1   = templates[:, elec].toarray().reshape(N_e, N_t)
+                tmp2   = templates[:, elec+templates.shape[1]/2].toarray().reshape(N_e, N_t)
+                
+                curve[:, spike-template_shift:spike+template_shift+1] += amp1*tmp1 + amp2*tmp2
         print "Number of spikes", count
 
     if not numpy.iterable(n_elec):
