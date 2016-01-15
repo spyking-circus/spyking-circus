@@ -84,9 +84,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     c_overlap     = io.get_overlaps(comm, params)
-    if not low_memory:
-        c_overlap = c_overlap[:]
-
+    
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string
         io.purge(file_out_suff, '.data')
@@ -100,13 +98,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if spikedetekt:
         spiketimes = io.load_data(params, 'spikedetekt')
 
+    # To be faster, we rearrange the overlaps into a dictionnary
+
     if full_gpu:
         try:
-            N_over    = c_overlap.shape[0]
+            N_over    = numpy.sqrt(c_overlap.shape[0])
+            S_over    = c_overlap.shape[1]
             c_overs   = {}
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
-                c_overs[i] = cmt.CUDAMatrix(-c_overlap[i])
+                rows       = numpy.arange(i*N_over, (i+1)*N_over)
+                data       = c_overlap[:, i].todense().reshape(N_over, S_over)
+                c_overs[i] = cmt.CUDAMatrix(-data)
             del c_overlap
         except Exception:
             if comm.rank == 0:

@@ -4,7 +4,7 @@ import os
 os.environ['MDP_DISABLE_SKLEARN']='yes'
 import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
 from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges
-from circus.shared.utils import all_gather_array
+from circus.shared.mpi import all_gather_array
 
 def distancematrix(data, weight=None):
     
@@ -368,15 +368,24 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     if comm.rank > 0:
         overlap.file.close()
     else:
+        over_x     = overlap.get('over_x')[:]
+        over_y     = overlap.get('over_y')[:]
+        over_data  = overlap.get('over_data')[:]
+        over_shape = overlap.get('over_shape')[:]
+        overlap.close()
+
+        overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
+
         pair      = []
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
         for i in xrange(nb_temp):
-            distances[i, i+1:] = numpy.max(overlap[i, i+1:nb_temp], 1)
+            rows               = numpy.arange(i*nb_temp+i, (i+1)*nb_temp)
+            sub_c              = overlap[rows, :].todense()
+            distances[i, i+1:] = sub_c.max()
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
-        overlap.file.close()
         to_merge, result = remove(result, distances, cc_merge)       
 
     to_merge = numpy.array(to_merge)

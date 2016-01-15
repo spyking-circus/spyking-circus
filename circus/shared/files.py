@@ -4,6 +4,7 @@ import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 from termcolor import colored
 import colorama
+from circus.shared.mpi import gather_array
 colorama.init()
 
 def purge(file, pattern):
@@ -754,7 +755,6 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         best_elec  = load_data(params, 'electrodes')
     N_total        = params.getint('data', 'N_total')
     nodes, edges   = get_nodes_and_edges(params)
-    filename_mpi   = os.path.join(tmp_path, file_out_suff + '.overlap%s-%d.hdf5' %(extension, comm.rank))
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     x,        N_tm = templates.shape
@@ -763,7 +763,13 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         N_tm /= 2
 
     if os.path.exists(filename) and not erase:
-        return h5py.File(filename, libver='latest').get('overlap')
+        myfile     = h5py.File(filename, 'r')
+        over_x     = myfile.get('over_x')[:]
+        over_y     = myfile.get('over_y')[:]
+        over_data  = myfile.get('over_data')[:]
+        over_shape = myfile.get('over_shape')[:]
+        myfile.close()
+        return scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
     else:
         if os.path.exists(filename) and erase and (comm.rank == 0):
             os.remove(filename)
@@ -816,12 +822,9 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         N_0  = len(range(comm.rank, N_e, comm.size))
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_0).start()
 
-    if parallel_hdf5:
-        myfile  = h5py.File(filename, 'w', driver='mpio', comm=comm, libver='latest')
-        overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t-1), dtype=numpy.float32, chunks=(1, N_tm, 2*N_t-1))
-    else:
-        myfile  = h5py.File(filename_mpi, 'w', libver='latest')
-        overlap = myfile.create_dataset('overlap', shape=(nb_total, N_tm, N_t), dtype=numpy.float32, chunks=(1, N_tm, N_t), compression='lzf')
+    temp_x    = numpy.zeros(0, dtype=numpy.int32)
+    temp_y    = numpy.zeros(0, dtype=numpy.int32)
+    temp_data = numpy.zeros(0, dtype=numpy.float32)
     
     gcount = 0
 
@@ -871,73 +874,69 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                     tmp_2 = tmp_2.reshape(size, lb_2)
                     data  = numpy.dot(tmp_1.T, tmp_2).reshape(nb_elements, lb_2)
 
-                if parallel_hdf5:
-                    for lcount, idx in enumerate(local_idx[:len_local]):
-                        overlap[idx, to_consider, idelay-1] = data[lcount]
-                        if not half:
-                            overlap[idx + upper_bounds, to_consider, idelay-1] = data[lcount + len_local]
-                else:
-                    for lcount in xrange(len_local):
-                        offset = gcount + lcount
-                        overlap[offset, to_consider, idelay-1] = data[lcount]
-                        if not half:
-                            overlap[offset + len(local_templates), to_consider, idelay-1] = data[lcount + len_local]
-        
+                dx, dy     = data.nonzero()
+                ddx        = local_idx[dx].astype(numpy.int32)
+                ddy        = to_consider[dy].astype(numpy.int32)
+                data       = data.flatten()
+                dd         = data.nonzero()[0].astype(numpy.int32)
+                temp_x     = numpy.concatenate((temp_x, ddx*N_tm + ddy))
+                temp_y     = numpy.concatenate((temp_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                temp_data  = numpy.concatenate((temp_data, data[dd]))
+                temp_x     = numpy.concatenate((temp_x, ddy*N_tm + ddx))
+                temp_y     = numpy.concatenate((temp_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                temp_data  = numpy.concatenate((temp_data, data[dd]))
+
+
         gcount += len_local
 
         if comm.rank == 0:
             pbar.update(count)
 
-    myfile.close()
     if comm.rank == 0:
         pbar.finish()
 
     comm.Barrier()
 
+    #We need to gather the sparse arrays
+    temp_x    = gather_array(temp_x, comm, dtype='int32')        
+    temp_y    = gather_array(temp_y, comm, dtype='int32')
+    temp_data = gather_array(temp_data, comm)
+
+    #We need to add the transpose matrices
 
     if comm.rank == 0:
-        if not parallel_hdf5: 
-            myfile  = h5py.File(filename, 'w', libver='latest')
-            overlap = myfile.create_dataset('overlap', shape=(N_tm, N_tm, 2*N_t - 1), dtype=numpy.float32, chunks=(1, N_tm, 2*N_t-1), compression='lzf')
-        else:
-            myfile  = h5py.File(filename, 'r+', libver='latest')
-            overlap = myfile.get('overlap')
-        if not parallel_hdf5:        
-            for i in xrange(comm.size):
-                filename_mpi    = file_out_suff + '.overlap%s-%d.hdf5' %(extension, i)
-                datafile        = h5py.File(filename_mpi, 'r', libver='latest')
-                data            = datafile.get('overlap')
+        hfile      = h5py.File(filename, 'w', libver='latest')
+        hfile.create_dataset('over_x', data=temp_x)
+        hfile.create_dataset('over_y', data=temp_y)
+        hfile.create_dataset('over_data', data=temp_data)
+        hfile.create_dataset('over_shape', data=numpy.array([N_tm**2, 2*N_t - 1], dtype=numpy.int32))
+        hfile.close()
 
-                local_templates = numpy.zeros(0, dtype=numpy.int32)
-                for ielec in range(i, N_e, comm.size):
-                    local_templates = numpy.concatenate((local_templates, numpy.where(best_elec == ielec)[0]))
+        del temp_x, temp_y, temp_data
 
-                for count, tmp in enumerate(local_templates):
-                    overlap[tmp, :, 0:N_t] = data[count, :, :]
-                    if not half:
-                        overlap[tmp+N_tm/2, :, 0:N_t] = data[count+len(local_templates), :, :]
-                datafile.close()
-                os.remove(filename_mpi)
+    myfile     = h5py.File(filename, 'r')
+    over_x     = myfile.get('over_x')[:]
+    over_y     = myfile.get('over_y')[:]
+    over_data  = myfile.get('over_data')[:]
+    over_shape = myfile.get('over_shape')[:]
+    myfile.close()
 
-        for idelay in all_delays:
-            overlap[:, :, 2*N_t - idelay - 1] = numpy.transpose(overlap[:, :, idelay-1])
-
-        myfile.close()
+    overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
 
     comm.Barrier()
 
     if comm.rank == 0 and maxoverlap:
         myfile     = h5py.File(filename, 'r+', libver='latest')
         myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
-        overlap    = myfile.get('overlap')
         if 'maxoverlap' in myfile2.keys():
             maxoverlap = myfile2.get('maxoverlap')
         else:
             maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
         for i in xrange(N_tm):
-            maxoverlap[i] = numpy.max(overlap[i], 1)
+            rows          = numpy.arange(i*N_tm, (i+1)*N_tm)
+            maxoverlap[i] = overlap[rows, :].max()
         myfile.close()  
         myfile2.close()
 
     comm.Barrier()
-    return h5py.File(filename, 'r', libver='latest').get('overlap')
+    return h5py.File(filename, 'r')
