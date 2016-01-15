@@ -511,12 +511,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+            g_count    = node_pad
+            g_offset   = total_nb_clusters
         else:
             node_pad   = 0
             hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+            g_count    = 0
+            g_offset   = local_nb_clusters
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
         temp_y     = numpy.zeros(0, dtype=numpy.int32)
@@ -629,8 +633,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #optimizer        = Lasso(alpha=0.01)
             #local_waveforms  = optimizer.fit(autocorr, stas.astype(numpy.double)).coef_.astype(numpy.float32)
             local_waveforms = scipy.sparse.linalg.minres(autocorr, stas)[0]
-            #local_waveforms = scipy.sparse.linalg.inv(autocorr).dot(stas)
-            
             local_waveforms = local_waveforms.reshape(len(elecs), N_t)
 
             tmp_file = os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %ielec)
@@ -663,7 +665,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loc_pad        = count_templates
             for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
             
-                electrodes[count_templates] = ielec
+                electrodes[g_count] = ielec
                 tmp_templates = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
                 myslice       = numpy.where(cluster_results[ielec]['groups'] == group)[0]
                 for count, i in enumerate(indices):
@@ -673,6 +675,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     pfile.close()
 
                 #Denoise the templates with PCA by shifting them then realign
+                '''
                 argmins = numpy.argmin(tmp_templates, 1)
                 for i in xrange(len(indices)):
                     shift    = template_shift - argmins[i]
@@ -692,7 +695,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         tmp_templates[i, -shift:] = tmp_data[:shift]
                     else:
                         tmp_templates[i] = tmp_data
-                
+                '''
 
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift            = template_shift - tmpidx[1]
@@ -711,14 +714,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
-                norms[count_templates] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
+                norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
 
                 amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], indices, templates[indices, :, count_templates], nodes)
                 variations        = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit    = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
                 amp_min           = max(physical_limit, numpy.median(amplitudes) - variations)
                 amp_max           = min(amp_limits[1], numpy.median(amplitudes) + variations)
-                amps_lims[count_templates] = [amp_min, amp_max]
+                amps_lims[g_count] = [amp_min, amp_max]
 
                 offset        = total_nb_clusters + count_templates
                 sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
@@ -730,9 +733,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
 
-                norms[offset] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
+                norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
 
                 count_templates += 1
+                g_count         += 1
 
             if make_plots:
                 if n_data > 1:
@@ -740,8 +744,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     idx      = numpy.where(indices == ielec)[0][0]
                     sub_data = data[:,:,idx]
                     nb_temp  = cluster_results[ielec]['n_clus']
+                    vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0] 
+                    sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
+                    sub_tmp  = sub_tmp[numpy.arange(ielec*N_t, (ielec+1)*N_t), :]
+                    sub_tmp  = sub_tmp.toarray().reshape(N_t, nb_temp)
                     plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
-                        thresholds[ielec], templates[indices[idx], :, loc_pad:loc_pad+nb_temp],
+                        thresholds[ielec], sub_tmp,
                         amps_lims[loc_pad:loc_pad+nb_temp], save=save)
 
             if comm.rank == 0:
@@ -925,8 +933,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     idx      = numpy.where(indices == ielec)[0][0]
                     sub_data = data[:,:,idx]
                     nb_temp  = cluster_results[ielec]['n_clus']
+                    vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0] 
+                    sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
+                    sub_tmp  = sub_tmp[numpy.arange(ielec*N_t, (ielec+1)*N_t), :]
+                    sub_tmp  = sub_tmp.toarray().reshape(N_t, nb_temp)
                     plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
-                        thresholds[ielec], templates[indices[idx], :, loc_pad:loc_pad+nb_temp],
+                        thresholds[ielec], sub_tmp,
                         amps_lims[loc_pad:loc_pad+nb_temp], save=save)
 
             io.write_datasets(cfile, to_write, result, ielec)
