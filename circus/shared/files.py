@@ -876,9 +876,10 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 temp_x     = numpy.concatenate((temp_x, ddx*N_tm + ddy))
                 temp_y     = numpy.concatenate((temp_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, data[dd]))
-                temp_x     = numpy.concatenate((temp_x, ddy*N_tm + ddx))
-                temp_y     = numpy.concatenate((temp_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                temp_data  = numpy.concatenate((temp_data, data[dd]))
+                if idelay < N_t:
+                    temp_x     = numpy.concatenate((temp_x, ddy*N_tm + ddx))
+                    temp_y     = numpy.concatenate((temp_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                    temp_data  = numpy.concatenate((temp_data, data[dd]))
 
 
         gcount += len_local
