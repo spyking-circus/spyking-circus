@@ -32,7 +32,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     spike_range    = int(params.getfloat('fitting', 'spike_range')*sampling_rate*1e-3)
-    low_memory     = params.getboolean('fitting', 'low_memory')
     #################################################################
 
     if use_gpu:
@@ -379,18 +378,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             idx_b        = y[myslice]
                             rows         = numpy.arange(inds_temp[keep]*N_tm, (inds_temp[keep]+1)*N_tm)
                             tmp1         = c_overlap[rows, :]
-                            tmp1         = tmp1[:, itmp[myslice]].toarray()
-
+                            tmp1         = tmp1[:, itmp[myslice]]
                             rows         = numpy.arange(inds_temp_2[count]*N_tm, (inds_temp_2[count]+1)*N_tm)
                             tmp2         = c_overlap[rows, :]
-                            tmp2         = tmp2[:, itmp[myslice]].toarray()
-                                                        
-                            #tmp1         = c_overlap[inds_temp[keep], :,  itmp[myslice]]
-                            #tmp2         = c_overlap[inds_temp_2[count], :,  itmp[myslice]]
-                            if itmp[myslice].shape[0] == 1:
-                                tmp1     = tmp1.reshape(tmp1.shape[0], 1)
-                                tmp2     = tmp2.reshape(tmp2.shape[0], 1)
-
+                            tmp2         = tmp2[:, itmp[myslice]]
                             b[:, idx_b] -= best_amp[keep]*tmp1
                             best_amp2    = b[inds_temp_2[count], inds_t[keep]]/n_scalar
                             b[:, idx_b] -= best_amp2*tmp2

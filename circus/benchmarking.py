@@ -150,7 +150,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                         data = numpy.where(new_temp == gmin)
                         scaling = -thresholds[data[0][0]]/gmin
                         for i in xrange(templates.shape[1]/2):
-                            match = templates[:, i].toarray()
+                            match = templates[:, i].toarray().reshape(N_e, N_t)
                             d = numpy.corrcoef(match.flatten(), scaling*new_temp.flatten())[0, 1]
                             if d > similarity:
                                 similarity = d
@@ -158,8 +158,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                     new_indices = []
             count += 1
 
-        #if comm.rank == 0:
-        #    print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
+        if comm.rank == 0:
+            print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
 
         N_tm           = templates.shape[1]/2
         to_insert      = numpy.zeros(reference.shape, dtype=numpy.float32)

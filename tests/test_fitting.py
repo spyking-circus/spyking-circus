@@ -27,7 +27,8 @@ def get_performance(file_name, name):
     for key in result.get('amplitudes').keys():
         fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
 
-    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
+    templates       = h5py.File(file_out + '.templates.hdf5').get('temp_shape')[:]
+    print templates
 
     spikes          = {}
     real_amps       = {}
@@ -37,7 +38,7 @@ def get_performance(file_name, name):
     for key in result.get('real_amps').keys():
         real_amps[key]   = result.get('real_amps/%s' %key)[:]
 
-    n_tm            = templates.shape[2]/2
+    n_tm            = templates[2]/2
     res             = numpy.zeros((len(n_cells), 2))
     res2            = numpy.zeros((len(n_cells), 2))
     real_amplitudes = []
@@ -87,8 +88,6 @@ def get_performance(file_name, name):
         
         real_amplitudes += [numpy.mean(real_amps[key])]
 
-        print key, len(spikes[key]), len(fitted_spikes[key]), res[gcount]
-
     pylab.figure()
     ax = pylab.subplot(211)
     pylab.plot(amplitude, 100*(1 - res[:, 0]))
@@ -130,7 +129,6 @@ class TestFitting(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
 
-    
     def test_fitting_one_CPU(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 1, 0, 'False')
@@ -140,7 +138,7 @@ class TestFitting(unittest.TestCase):
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
     
-    
+    '''
     def test_fitting_two_CPUs(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
@@ -187,14 +185,4 @@ class TestFitting(unittest.TestCase):
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
-
-    def test_fitting_spike_range(self):
-        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
-        io.change_flag(self.file_name, 'spike_range', '1')
-        mpi_launch('fitting', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'spike_range', '0')
-        io.change_flag(self.file_name, 'max_chunk', 'inf')
-        res = get_performance(self.file_name, 'spike_range')
-        if self.all_spikes is None:
-            self.all_spikes = res
-        assert numpy.all(self.all_spikes == res)
+    '''
