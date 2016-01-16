@@ -378,7 +378,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         overlap   = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        for i in xrange(nb_temp):
+        for i in xrange(nb_temp-1):
             rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
             distances[i, i+1:] = numpy.max(overlap[rows, :].toarray(), 1)
             distances[i+1:, i] = distances[i, i+1:]
@@ -434,7 +434,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
 
     overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape).tolil()
 
-    for i in xrange(nb_temp):
+    for i in xrange(nb_temp-1):
         rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
         distances[i, i+1:] = numpy.argmax(overlap[rows, :].toarray(), 1)
         distances[i+1:, i] = distances[i, i+1:]

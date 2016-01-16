@@ -922,7 +922,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             maxoverlap = myfile2.get('maxoverlap')
         else:
             maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
-        for i in xrange(N_tm):
+        for i in xrange(N_tm-1):
             rows                = numpy.arange(i*N_tm+i+1, (i+1)*N_tm)
             maxoverlap[i, i+1:] = numpy.max(overlap[rows, :].toarray(), 1)
             maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
