@@ -798,6 +798,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             hfile.create_dataset('temp_x', data=temp_x)
             hfile.create_dataset('temp_y', data=temp_y)
             hfile.create_dataset('temp_data', data=temp_data)
+            hfile.create_dataset('temp_shape', data=numpy.array([N_e * N_t, 2*total_nb_clusters], dtype=numpy.int32))
             hfile.close()
 
         comm.Barrier()
@@ -1006,6 +1007,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             hfile.create_dataset('temp_x', data=temp_x)
             hfile.create_dataset('temp_y', data=temp_y)
             hfile.create_dataset('temp_data', data=temp_data)
+            hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2*total_nb_clusters], dtype=numpy.int32))
             hfile.close()
     
     comm.Barrier()

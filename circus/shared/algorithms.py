@@ -253,7 +253,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
         hfile.create_dataset('temp_x', data=templates.row)
         hfile.create_dataset('temp_y', data=templates.col)
         hfile.create_dataset('temp_data', data=templates.data)
-
+        hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2*len(to_keep)], dtype=numpy.int32))
         hfile.close()
 
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
