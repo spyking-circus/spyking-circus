@@ -90,7 +90,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     over_shape = c_overlap.get('over_shape')[:]
     c_overlap.close()
 
-    c_overlap = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
+    #c_overlap = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
 
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string
@@ -125,6 +125,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if c_overs.has_key(i):
                     del c_overs[i]
             full_gpu = False
+    elif not use_gpu:
+        N_over    = int(numpy.sqrt(over_shape[0]))
+        c_overs   = {}
+        # If memory on the GPU is large enough, we load the overlaps onto it
+        for i in xrange(N_over):
+            idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
+            c_overs[i] = scipy.sparse.csc_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_tm, over_shape[1]))
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
     nb_chunks                                     = int(min(nb_chunks, max_chunk))
@@ -376,12 +383,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             myslice      = x == count
                             idx_b        = y[myslice]
-                            rows         = numpy.arange(inds_temp[keep]*N_tm, (inds_temp[keep]+1)*N_tm)
-                            tmp1         = c_overlap[rows, :]
-                            tmp1         = tmp1[:, itmp[myslice]]
-                            rows         = numpy.arange(inds_temp_2[count]*N_tm, (inds_temp_2[count]+1)*N_tm)
-                            tmp2         = c_overlap[rows, :]
-                            tmp2         = tmp2[:, itmp[myslice]]
+                            tmp1         = c_overs[inds_temp[keep]][:, itmp[myslice]]
+                            tmp2         = c_overs[inds_temp_2[count]][:, itmp[myslice]]
                             b[:, idx_b] -= best_amp[keep]*tmp1
                             best_amp2    = b[inds_temp_2[count], inds_t[keep]]/n_scalar
                             b[:, idx_b] -= best_amp2*tmp2
