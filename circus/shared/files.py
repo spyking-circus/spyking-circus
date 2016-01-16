@@ -358,10 +358,6 @@ def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None):
         else:
             stas[count, :, :] = local_chunk.T
             count            += 1
-        
-    #if neighs is not None:
-        #from skimage.restoration import denoise_nl_means
-    #    stas = numpy.median(stas, 0)
     
     return stas
 

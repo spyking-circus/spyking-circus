@@ -674,29 +674,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     tmp_templates[count] = pfile.get('waveforms')[lmask, :][xcount]
                     pfile.close()
 
-                #Denoise the templates with PCA by shifting them then realign
-                '''
-                argmins = numpy.argmin(tmp_templates, 1)
-                for i in xrange(len(indices)):
-                    shift    = template_shift - argmins[i]
-                    tmp_data = numpy.zeros(N_t, dtype=numpy.float32)
-                    if shift > 0:
-                        tmp_data[shift:] = tmp_templates[i, :-shift]
-                    elif shift < 0:
-                        tmp_data[:shift] = tmp_templates[i, -shift:]
-                    else:
-                        tmp_data = tmp_templates[i]
-
-                    tmp_data = numpy.dot(basis_proj, numpy.dot(basis_rec, tmp_data))
-                    
-                    if shift > 0:
-                        tmp_templates[i, :-shift] = tmp_data[shift:]
-                    elif shift < 0:
-                        tmp_templates[i, -shift:] = tmp_data[:shift]
-                    else:
-                        tmp_templates[i] = tmp_data
-                '''
-
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift            = template_shift - tmpidx[1]
                 templates        = numpy.zeros((N_e, N_t), dtype=numpy.float32)
