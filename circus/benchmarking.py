@@ -23,24 +23,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         to_write['sampling']   = sampling
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
-    templates = io.load_data(params, 'templates')[:]
+    templates = io.load_data(params, 'templates')
     sim_same_elec   = 0.8
 
     if benchmark == 'fitting':
         nb_insert       = 25
-        n_cells         = numpy.random.random_integers(0, templates.shape[2]/2-1, nb_insert)
+        n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, nb_insert)
         rate            = nb_insert*[10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
     if benchmark == 'clustering':
         n_point         = 5
-        n_cells         = numpy.random.random_integers(0, templates.shape[2]/2-1, n_point**2)
+        n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, n_point**2)
         x, y            = numpy.mgrid[0:n_point,0:n_point]
         rate            = numpy.linspace(0.5, 20, n_point)[x.flatten()]
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
     if benchmark == 'synchrony':
         nb_insert       = 5
         corrcoef        = 0.2
-        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[2]/2-1, 1)[0]]
+        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
         rate            = 10./corrcoef
         amplitude       = 2
 
@@ -79,10 +79,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    N_tm_init             = templates.shape[2]/2
+    N_tm_init             = templates.shape[1]/2
     thresholds            = io.load_data(params, 'thresholds')
     limits                = io.load_data(params, 'limits')
     best_elecs            = io.load_data(params, 'electrodes')
+    norms                 = io.load_data(params, 'norm-templates')
 
     if comm.rank == 0:
         if not os.path.exists(file_out):
@@ -123,7 +124,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         count       = 0
         new_indices = []
         all_elecs   = numpy.random.permutation(numpy.arange(N_e))
-        reference   = templates[:, :, cell_id]
+        reference   = templates[:, cell_id].toarray().reshape(N_e, N_t)
         while len(new_indices) != len(indices) or (similarity >= sim_same_elec):
             similarity  = 0
             if count == len(all_elecs):
@@ -147,9 +148,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                         new_temp[new_indices, :] = reference[indices, :]
                         gmin = new_temp.min()
                         data = numpy.where(new_temp == gmin)
-                        scaling = -thresholds[new_indices[data[0][0]]]/gmin
-                        for i in xrange(templates.shape[2]/2):
-                            d = numpy.corrcoef(templates[:, :, i].flatten(), scaling*new_temp.flatten())[0, 1]
+                        scaling = -thresholds[data[0][0]]/gmin
+                        for i in xrange(templates.shape[1]/2):
+                            match = templates[:, i].toarray()
+                            d = numpy.corrcoef(match.flatten(), scaling*new_temp.flatten())[0, 1]
                             if d > similarity:
                                 similarity = d
                 else:
@@ -159,18 +161,38 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         #if comm.rank == 0:
         #    print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
 
-        old_templates = templates.copy()
-        N_tm          = old_templates.shape[2]/2
-        new_line      = numpy.zeros((old_templates.shape[0], old_templates.shape[1]))
-        templates     = numpy.dstack((old_templates[:, :, :N_tm], new_line))
-        templates     = numpy.dstack((templates, old_templates[:, :, N_tm:]))
-        templates     = numpy.dstack((templates, new_line))
-        limits        = numpy.vstack((limits, limits[cell_id]))
-        best_elecs    = numpy.concatenate((best_elecs, [n_elec]))
+        N_tm           = templates.shape[1]/2
+        to_insert      = numpy.zeros(reference.shape, dtype=numpy.float32)
+        to_insert[new_indices] = scaling*amplitude[gcount]*templates[:, cell_id].toarray().reshape(N_e, N_t)[indices]
+        to_insert2     = numpy.zeros(reference.shape, dtype=numpy.float32)
+        to_insert2[new_indices] = scaling*amplitude[gcount]*templates[:, cell_id + N_tm].toarray().reshape(N_e, N_t)[indices]
+        to_insert      = to_insert.flatten()
+        to_insert2     = to_insert2.flatten()
 
-        scalings                       += [scaling]
-        templates[new_indices, :, N_tm] = scaling*amplitude[gcount]*old_templates[indices, :, cell_id]
-        templates[new_indices, :, -1]   = scaling*amplitude[gcount]*old_templates[indices, :, cell_id + N_tm]
+        limits     = numpy.vstack((limits, limits[cell_id]))
+        best_elecs = numpy.concatenate((best_elecs, [n_elec]))
+        norms      = numpy.insert(norms, N_tm, norms[cell_id])
+        norms      = numpy.insert(norms, 2*N_tm+1, norms[cell_id+N_tm+1])
+        scalings  += [scaling]
+        
+        templates = templates.tocoo()
+        xdata     = templates.row
+        ydata     = templates.col
+        zdata     = templates.data
+        idx       = numpy.where(ydata >= N_tm)[0]
+        ydata[idx] += 1
+
+        dx    = to_insert.nonzero()[0].astype(numpy.int32)
+        xdata = numpy.concatenate((xdata, dx))
+        ydata = numpy.concatenate((ydata, N_tm*numpy.ones(len(dx), dtype=numpy.int32)))
+        zdata = numpy.concatenate((zdata, to_insert[dx]))
+
+        dx    = to_insert2.nonzero()[0].astype(numpy.int32)
+        xdata = numpy.concatenate((xdata, dx))
+        ydata = numpy.concatenate((ydata, (2*N_tm + 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+        zdata = numpy.concatenate((zdata, to_insert2[dx]))
+
+        templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e*N_t, 2*(N_tm+1)))
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
     if last_chunk_len > 0:
@@ -224,10 +246,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             spikes[-N_t:]  = False
             spikes         = numpy.where(spikes == True)[0]
             n_template     = N_tm_init + idx
-            first_flat     = templates[:, :, n_template].T.flatten()
+            loc_template   = templates[:, n_template].toarray().reshape(N_e, N_t)
+            first_flat     = loc_template.T.flatten()
             norm_flat      = numpy.sum(first_flat**2)
             for scount, spike in enumerate(spikes):
-                local_chunk[spike-template_shift:spike+template_shift+1, :] += templates[:, :, n_template].T
+                local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
                 amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
                 amp       /= norm_flat
                 result['real_amps']  += [amp]
@@ -285,11 +308,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         shutil.copy2(params.get('data', 'file_out') + '.basis.hdf5', os.path.join(result_path, data_suff + '.basis.hdf5'))
 
         mydata = h5py.File(os.path.join(file_out, data_suff + '.templates.hdf5'), 'w')
-        mydata.create_dataset('templates', data=templates)
+
+        templates = templates.tocoo()
+        mydata.create_dataset('temp_x', data=templates.row)
+        mydata.create_dataset('temp_y', data=templates.col)
+        mydata.create_dataset('temp_data', data=templates.data)
+        mydata.create_dataset('temp_shape', data=numpy.array([N_e, N_t, templates.shape[1]], dtype=numpy.int32))
         mydata.create_dataset('limits', data=limits)
-        norms = numpy.zeros(templates.shape[2], dtype=numpy.float32)
-        for i in xrange(templates.shape[2]):
-            norms[i] = numpy.sqrt(numpy.mean(numpy.mean(templates[:,:,i]**2,0),0))
         mydata.create_dataset('norms', data=norms)
         mydata.close()
 
