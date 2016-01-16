@@ -587,7 +587,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     times_i = all_times[i][mask]
                     elecs   = numpy.concatenate((elecs, i*numpy.ones(len(unique_i))))
                     labels  = numpy.concatenate((labels, unique_i))
-                    stas_i  = io.get_stas(params, times_i, labels_i, ielec, nodes)
+                    stas_i  = io.get_stas(params, times_i, labels_i, ielec, nodes=nodes)
                     stas    = numpy.vstack((stas, stas_i))
             
             data = numpy.zeros(0, dtype=numpy.float32)
@@ -707,6 +707,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     templates[indices, :] = tmp_templates
 
+                slice_temp = templates[indices]
                 templates  = templates.flatten()
                 dx         = templates.nonzero()[0].astype(numpy.int32)
 
@@ -716,7 +717,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
 
-                amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], indices, templates[indices, :, count_templates], nodes)
+                amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], indices, slice_temp, nodes)
                 variations        = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit    = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
                 amp_min           = max(physical_limit, numpy.median(amplitudes) - variations)
@@ -725,7 +726,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 offset        = total_nb_clusters + count_templates
                 sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-                sub_templates[indices, :] = orho
+                sub_templates[indices, :] = ortho
                 sub_templates = sub_templates.flatten()
                 dx            = sub_templates.nonzero()[0].astype(numpy.int32)
 
