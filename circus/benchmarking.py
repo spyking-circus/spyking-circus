@@ -250,7 +250,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             first_flat     = loc_template.T.flatten()
             norm_flat      = numpy.sum(first_flat**2)
             for scount, spike in enumerate(spikes):
-                local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
+                #local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
                 amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
                 amp       /= norm_flat
                 result['real_amps']  += [amp]
@@ -277,7 +277,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         new_chunk    = numpy.zeros((chunk_size, N_total), dtype=data_dtype)
         new_chunk[:, nodes] = local_chunk
 
-        new_chunk   = new_chunk.reshape(local_shape * N_total)
+        new_chunk   = new_chunk.flatten()
         g.Write_at(gidx*chunk_len, new_chunk)
 
         if comm.rank == 0:

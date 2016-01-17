@@ -125,7 +125,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if c_overs.has_key(i):
                     del c_overs[i]
             full_gpu = False
-    elif not use_gpu:
+    else:
         N_over    = int(numpy.sqrt(over_shape[0]))
         c_overs   = {}
         # If memory on the GPU is large enough, we load the overlaps onto it
