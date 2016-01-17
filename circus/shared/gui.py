@@ -146,11 +146,10 @@ class MergeGUI(object):
         self.bin_size   = int(self.cc_bin * sampling_rate * 1e-3)
         self.max_delay  = 50
 
-        templates       = io.load_data(params, 'templates')
         self.clusters   = io.load_data(params, 'clusters')
         self.result     = io.load_data(params, 'results')
         self.overlap    = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('maxoverlap')[:]
-        self.shape      = templates.shape
+        self.shape      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('temp_shape')[:]
         self.indices    = numpy.arange(self.shape[2]/2)
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
@@ -203,9 +202,9 @@ class MergeGUI(object):
         self.set_range_button.on_clicked(lambda event: setattr(self.lag_selector, 'active', True))
         self.merge_button.on_clicked(self.do_merge)
         self.finalize_button.on_clicked(self.finalize)
-        self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
-        self.score_ax2.format_coord = lambda x, y: 'normalized cross-correlation metric: %.2f  cross-correlation metric %.2f' % (x, y)
-        self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized cross-correlation metric %.2f' % (x, y)
+        self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  CC metric %.2f' % (x, y)
+        self.score_ax2.format_coord = lambda x, y: 'normalized CC metric: %.2f  CC metric %.2f' % (x, y)
+        self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized CC metric %.2f' % (x, y)
         self.data_ax.format_coord = self.data_tooltip
         # Select the best point at start
         idx = np.argmax(self.score_y)
@@ -344,12 +343,12 @@ class MergeGUI(object):
                              (self.score_ax3, self.score_x, self.score_z)]:
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
-            self.score_ax1.set_ylabel('cross-correlation metric')
+            self.score_ax1.set_ylabel('CC metric')
             self.score_ax1.set_xticklabels([])
-            self.score_ax2.set_xlabel('normalized cross-correlation metric')
+            self.score_ax2.set_xlabel('normalized CC metric')
             self.score_ax2.set_yticklabels([])
             self.score_ax3.set_xlabel('template similarity')
-            self.score_ax3.set_ylabel('normalized cross-correlation metric')
+            self.score_ax3.set_ylabel('normalized CC metric')
         else:
             for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
                                                                  (self.score_z, self.score_y),
@@ -405,7 +404,7 @@ class MergeGUI(object):
             nearest_lag = self.raw_lags[nearest_lag_idx]
             value = all_raw_data[data_idx, nearest_lag_idx]
             return ('%.2f - lag: %.2fms (template similarity: %.2f  '
-                    'cross-correlation metric %.2f)') % (value, nearest_lag,
+                    'CC metric %.2f)') % (value, nearest_lag,
                                                          self.score_x[data_idx],
                                                          self.score_y[data_idx])
         else:
