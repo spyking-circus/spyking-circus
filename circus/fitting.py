@@ -90,8 +90,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     over_shape = c_overlap.get('over_shape')[:]
     c_overlap.close()
 
-    #c_overlap = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
-
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string
         io.purge(file_out_suff, '.data')

@@ -838,6 +838,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 times_i          = result['times_' + str(ielec)][myslice]
                 labels_i         = myslice 
                 sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
+                #sub_data         = scipy.ndimage.median_filter(sub_data, 3)
                 first_component  = numpy.median(sub_data, 0)
                 tmp_templates    = first_component
 
