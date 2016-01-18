@@ -125,8 +125,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         new_indices = []
         all_elecs   = numpy.random.permutation(numpy.arange(N_e))
         reference   = templates[:, cell_id].toarray().reshape(N_e, N_t)
-        while len(new_indices) != len(indices) or (similarity >= sim_same_elec):
-            similarity  = 0
+        similarity  = 0
+        while len(new_indices) != len(indices) or (similarity >= sim_same_elec):   
             if count == len(all_elecs):
                 if comm.rank == 0:
                     io.print_error(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)])
@@ -191,7 +191,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         xdata = numpy.concatenate((xdata, dx))
         ydata = numpy.concatenate((ydata, (2*N_tm + 1)*numpy.ones(len(dx), dtype=numpy.int32)))
         zdata = numpy.concatenate((zdata, to_insert2[dx]))
-
         templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e*N_t, 2*(N_tm+1)))
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)

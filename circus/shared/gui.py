@@ -816,14 +816,15 @@ class MergeGUI(object):
 
 class PreviewGUI(object):
 
-    def __init__(self, params):
+    def __init__(self, params, show_fit=False):
 
         self.init_gui_layout()
-        self.probe      = io.read_probe(params)
-        N_e             = params.getint('data', 'N_e')
-        N_total         = params.getint('data', 'N_total')
-        sampling_rate   = params.getint('data', 'sampling_rate')
-        chunk_size      = sampling_rate
+        self.probe            = io.read_probe(params)
+        self.N_e              = params.getint('data', 'N_e')
+        self.N_t              = params.getint('data', 'N_t')
+        self.N_total          = params.getint('data', 'N_total')
+        self.sampling_rate    = params.getint('data', 'sampling_rate')
+        self.template_shift   = params.getint('data', 'template_shift')
         do_temporal_whitening = params.getboolean('whitening', 'temporal')
         do_spatial_whitening  = params.getboolean('whitening', 'spatial')
         self.spike_thresh = params.getfloat('data', 'spike_thresh')
@@ -835,7 +836,12 @@ class PreviewGUI(object):
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         self.thresholds       = io.load_data(params, 'thresholds')
-        self.data, data_shape = io.load_chunk(params, 0, chunk_size*N_total, padding=(0,0), chunk_size=chunk_size, nodes=nodes)
+        self.t_start          = 0
+        self.t_stop           = 1
+        self.chunk_size       = (self.t_stop - self.t_start)*self.sampling_rate
+        self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
+        self.data, data_shape = io.load_chunk(params, 0, self.t_stop*self.chunk_size*self.N_total, 
+            padding=self.padding, chunk_size=self.chunk_size, nodes=nodes)
         
         if do_spatial_whitening:
             self.data = numpy.dot(self.data, spatial_whitening)
@@ -853,10 +859,27 @@ class PreviewGUI(object):
         self.fig    = self.score_ax1.figure
         self.points = zip(self.score_x, self.score_y)
         # Remove all buttons from the standard toolbar
-        #toolbar = self.fig.canvas.toolbar
-        #for action in toolbar.actions():
-        #    toolbar.removeAction(action)
+        toolbar = self.fig.canvas.toolbar
+        for action in toolbar.actions():
+            toolbar.removeAction(action)
         
+        self.show_fit        = show_fit
+        if self.show_fit:
+            self.templates = io.load_data(params, 'templates')
+            self.result    = io.load_data(params, 'results')
+
+            self.curve     = numpy.zeros((self.N_e, (self.t_stop-self.t_start)*self.sampling_rate), dtype=numpy.float32)
+            limit          = (self.t_stop-self.t_start)*self.sampling_rate-self.template_shift+1
+            for key in self.result['spiketimes'].keys():
+                elec  = int(key.split('_')[1])
+                lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
+                idx   = numpy.where((self.result['spiketimes'][key] > lims[0]) & (self.result['spiketimes'][key] < lims[1]))
+                for spike, (amp1, amp2) in zip(self.result['spiketimes'][key][idx], self.result['amplitudes'][key][idx]):
+                    spike -= self.t_start*self.sampling_rate
+                    tmp1   = self.templates[:, elec].toarray().reshape(self.N_e, self.N_t)
+                    tmp2   = self.templates[:, elec+self.templates.shape[1]/2].toarray().reshape(self.N_e, self.N_t)
+                    self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
+
         self.selected_points = set()
         self.inspect_points = []
         self.inspect_colors = []
@@ -1029,7 +1052,6 @@ class PreviewGUI(object):
                         (score_x <= xmax) &
                         (score_y >= ymin) &
                         (score_y <= ymax))
-        print in_selection, score_x, score_y, xmin, xmax, ymin, ymax
         indices = np.nonzero(in_selection)[0]
         add_or_remove = None
         if erelease.key == 'shift':
@@ -1076,12 +1098,23 @@ class PreviewGUI(object):
         self.detail_ax.clear()
         indices         = self.inspect_points
         
-        for count, idx in enumerate(indices):
-            data_line, = self.detail_ax.plot(self.time,
-                                             self.data[:, idx], lw=1, color=self.inspect_colors[count])
-            thr = self.thresholds[idx]
-            self.detail_ax.plot([0, 1], [-thr, -thr], ':',
-                                color=self.inspect_colors[count], lw=2)
+        if not self.show_fit:
+            for count, idx in enumerate(indices):
+                data_line, = self.detail_ax.plot(self.time,
+                                                 self.data[:, idx], lw=1, color=self.inspect_colors[count])
+                thr = self.thresholds[idx]
+                self.detail_ax.plot([0, 1], [-thr, -thr], ':',
+                                    color=self.inspect_colors[count], lw=2)
+        else:
+            yspacing = numpy.max(self.data)
+            for count, idx in enumerate(indices):
+                data_line, = self.detail_ax.plot(self.time,
+                                                 count*yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
+                data_line, = self.detail_ax.plot(self.time,
+                                                 count*yspacing + self.curve[idx, :], lw=1, color='k')
+                thr = self.thresholds[idx]
+                self.detail_ax.plot([0, 1], [-thr+count*yspacing, -thr+count*yspacing], ':',
+                                    color=self.inspect_colors[count], lw=2)
 
         self.detail_ax.set_yticklabels([])
         self.detail_ax.set_xlabel('Time [s]')
