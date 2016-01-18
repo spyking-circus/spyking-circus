@@ -130,6 +130,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         for i in xrange(N_over):
             idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
             c_overs[i] = scipy.sparse.csc_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_tm, over_shape[1]))
+        del over_x, over_y, over_data
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
     nb_chunks                                     = int(min(nb_chunks, max_chunk))

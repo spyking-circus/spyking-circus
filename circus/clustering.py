@@ -695,7 +695,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
 
                 amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], indices, slice_temp, nodes)
-                variations        = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                variations        = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit    = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
                 amp_min           = max(physical_limit, numpy.median(amplitudes) - variations)
                 amp_max           = min(amp_limits[1], numpy.median(amplitudes) + variations)
@@ -834,7 +834,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #first_component  = numpy.median(sub_data, axis=0)
                 #tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 
-                idx              = numpy.random.permutation(myslice)[:max(len(myslice), 1000)]
+                idx              = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                 times_i          = result['times_' + str(ielec)][myslice]
                 labels_i         = myslice 
                 sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
@@ -867,7 +867,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes       = numpy.dot(sub_data_flat, first_flat)
                 amplitudes      /= numpy.sum(first_flat**2)
 
-                variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                variations       = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
                 amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
                 amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)

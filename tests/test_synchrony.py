@@ -30,7 +30,13 @@ def get_performance(file_name, t_stop, name):
     for key in result.get('amplitudes').keys():
         fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
 
-    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
+    temp_file       = file_out + '.templates.hdf5'
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    templates       = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=temp_shape)
+
 
     spikes          = {}
     real_amps       = {}
@@ -42,8 +48,8 @@ def get_performance(file_name, t_stop, name):
 
     clusters        = h5py.File(file_out + '.clusters.hdf5').get('electrodes')[:]
 
-    N_t             = templates.shape[1]
-    n_tm            = templates.shape[2]/2
+    N_t             = temp_shape[1]
+    n_tm            = temp_shape[2]/2
     res             = numpy.zeros((len(n_cells), 2))
     res2            = numpy.zeros((len(n_cells), 2))
     real_amplitudes = []
@@ -114,7 +120,8 @@ def get_performance(file_name, t_stop, name):
     nodes            = numpy.arange(N_e)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    scaling = 10*numpy.max(numpy.abs(templates[:,:,temp_id]))
+    mytemplate       = templates[:,temp_id].toarray().reshape(temp_shape[0], temp_shape[1]) 
+    scaling = 10*numpy.max(numpy.abs(mytemplate))
     for i in xrange(N_e):
         if positions[i][0] < xmin:
             xmin = positions[i][0]
@@ -134,7 +141,7 @@ def get_performance(file_name, t_stop, name):
             ypadding = ((y - ymin)/float(ymax - ymin))*scaling
             if i == best_elec and gcount == 0:
                 pylab.axvspan(xpadding, xpadding+N_t, 0.8, 1, color='0.5', alpha=0.5)
-            pylab.plot(xpadding + numpy.arange(0, N_t), ypadding + templates[i, :, temp_id], color=colors[gcount])
+            pylab.plot(xpadding + numpy.arange(0, N_t), ypadding + mytemplate[i, :], color=colors[gcount])
 
 
     pylab.setp(pylab.gca(), xticks=[], yticks=[])

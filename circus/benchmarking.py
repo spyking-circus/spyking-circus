@@ -158,8 +158,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                     new_indices = []
             count += 1
 
-        if comm.rank == 0:
-            print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
+        #if comm.rank == 0:
+        #    print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
 
         N_tm           = templates.shape[1]/2
         to_insert      = numpy.zeros(reference.shape, dtype=numpy.float32)
@@ -250,7 +250,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             first_flat     = loc_template.T.flatten()
             norm_flat      = numpy.sum(first_flat**2)
             for scount, spike in enumerate(spikes):
-                #local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
+                local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
                 amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
                 amp       /= norm_flat
                 result['real_amps']  += [amp]
@@ -272,9 +272,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         voltages_file.write(voltages_to_write.tostring())
 
         #print count, 'spikes inserted...'
-        local_chunk += dtype_offset
-        local_chunk  = local_chunk.astype(data_dtype)
-        new_chunk    = numpy.zeros((chunk_size, N_total), dtype=data_dtype)
+        #local_chunk += dtype_offset
+        #local_chunk  = local_chunk.astype(data_dtype)
+        new_chunk    = numpy.zeros((chunk_size, N_total), dtype=numpy.float32)
         new_chunk[:, nodes] = local_chunk
 
         new_chunk   = new_chunk.flatten()
@@ -328,6 +328,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.collect_data(comm.size, io.load_parameters(file_params), erase=True, with_real_amps=True, with_voltages=True)
         io.change_flag(file_name, 'temporal', 'False')
         io.change_flag(file_name, 'spatial', 'False')
+        io.change_flag(file_name, 'data_dtype', 'float32')
+        io.change_flag(file_name, 'dtype_offset', 'auto')
         shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'), os.path.join(result_path, data_suff + '.result.hdf5'))
                 
         numpy.save(os.path.join(result_path, data_suff + '.scalings'), scalings)

@@ -20,22 +20,34 @@ def get_performance(file_name, name):
     probe_file      = data['probe']
     sim_templates   = 0.8
 
-    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
-    inj_templates   = h5py.File(os.path.join(result_name, '%s.templates.hdf5' %a)).get('templates')[:]
+    temp_file       = file_out + '.templates.hdf5'
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    templates       = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=temp_shape)
+
+    temp_file       = os.path.join(result_name, '%s.templates.hdf5' %a)
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    inj_templates   = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=temp_shape)
+
     amplitudes      = h5py.File(file_out + '.templates.hdf5').get('limits')[:]
 
-    n_tm            = inj_templates.shape[2]/2
+    n_tm            = inj_templates.shape[1]/2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
     res3            = numpy.zeros(len(n_cells))
 
     for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
-        source_temp = inj_templates[:, :, temp_id]
+        source_temp = inj_templates[:, temp_id].toarray()
         similarity  = []
         temp_match  = None
         dmax        = 0
         for i in xrange(templates.shape[2]/2):
-            d = numpy.corrcoef(templates[:, :, i].flatten(), source_temp.flatten())[0, 1]
+            d = numpy.corrcoef(templates[:, i].toarray(), source_temp)[0, 1]
             similarity += [d]
             if d > dmax:
                 temp_match = i
@@ -172,4 +184,4 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert res[0].shape[2]/2 <= self.all_templates.shape[2]/2
+        assert res[0].shape[1] <= self.all_templates.shape[1]

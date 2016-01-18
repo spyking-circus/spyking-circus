@@ -138,7 +138,7 @@ class TestFitting(unittest.TestCase):
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
     
-    '''
+    
     def test_fitting_two_CPUs(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
@@ -185,4 +185,3 @@ class TestFitting(unittest.TestCase):
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
-    '''

@@ -39,7 +39,6 @@ sim_same_elec  = 3         # Distance within clusters under which they are re-me
 cc_merge       = 0.95      # If CC between two templates is higher, they are merged
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 make_plots     = False     # Generate sanity plots of the clustering
-test_clusters  = False     # Should be False. Only to plot injection of synthetic clusters
 remove_mixture = True      # At the end of the clustering, we remove mixtures of templates
 
 [fitting]
@@ -49,7 +48,6 @@ amp_limits     = (0.3, 30) # Amplitudes for the templates during spike detection
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
 refractory     = 0         # Refractory period, in ms [0 is None]
 max_chunk      = inf       # Fit only up to max_chunk   
-low_memory     = False     # For large number of templates only
 
 [merging]
 cc_overlap     = 0.25      # Only templates with CC higher than cc_overlap may be merged
