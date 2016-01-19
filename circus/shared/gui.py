@@ -856,9 +856,9 @@ class PreviewGUI(object):
         self.fig    = self.score_ax1.figure
         self.points = zip(self.score_x, self.score_y)
         # Remove all buttons from the standard toolbar
-        toolbar = self.fig.canvas.toolbar
-        for action in toolbar.actions():
-            toolbar.removeAction(action)
+        #toolbar = self.fig.canvas.toolbar
+        #for action in toolbar.actions():
+        #    toolbar.removeAction(action)
 
         self.selected_points = set()
         self.inspect_points = []
@@ -950,9 +950,11 @@ class PreviewGUI(object):
         self.score_ax1 = plt.subplot(gs[1:15, 0:2])
         self.detail_ax = plt.subplot(gs[1:15, 2:5])
         if self.show_fit:
-            next_button_ax    = plt.subplot(gs[0, 4])
+            nbuttons_gs = gridspec.GridSpecFromSubplotSpec(1, 2,
+                                                      subplot_spec=gs[0, 4])
+            next_button_ax    = plt.subplot(nbuttons_gs[0, 1])
             self.next_button  = widgets.Button(next_button_ax, '->')
-            prev_button_ax    = plt.subplot(gs[0, 2])
+            prev_button_ax    = plt.subplot(nbuttons_gs[0, 0])
             self.prev_button  = widgets.Button(prev_button_ax, '<-')
             self.next_button.on_clicked(self.increase_time)
             self.prev_button.on_clicked(self.decrease_time)
@@ -1136,6 +1138,7 @@ class PreviewGUI(object):
 
         self.detail_ax.set_yticklabels([])
         self.detail_ax.set_xlabel('Time [s]')
+        self.detail_ax.set_xlim(self.t_start, self.t_stop)
         
         self.fig.canvas.draw_idle()
 
