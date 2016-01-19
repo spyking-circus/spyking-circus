@@ -108,7 +108,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_dtype     = params.get('data', 'data_dtype')
     myfile         = MPI.File()
     scalings       = []
-    data_mpi       = get_mpi_type(data_dtype)
+    data_mpi       = get_mpi_type('float32')
     if comm.rank == 0:
         file = open(file_name, 'w')
         for i in xrange(data_offset):
@@ -166,13 +166,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         to_insert[new_indices] = scaling*amplitude[gcount]*templates[:, cell_id].toarray().reshape(N_e, N_t)[indices]
         to_insert2     = numpy.zeros(reference.shape, dtype=numpy.float32)
         to_insert2[new_indices] = scaling*amplitude[gcount]*templates[:, cell_id + N_tm].toarray().reshape(N_e, N_t)[indices]
-        to_insert      = to_insert.flatten()
-        to_insert2     = to_insert2.flatten()
+
+        mynorm     = numpy.sqrt(numpy.sum(to_insert.flatten()**2)/(N_e*N_t))
+        mynorm2    = numpy.sqrt(numpy.sum(to_insert2.flatten()**2)/(N_e*N_t))
+        to_insert  = to_insert.flatten()
+        to_insert2 = to_insert2.flatten()
 
         limits     = numpy.vstack((limits, limits[cell_id]))
         best_elecs = numpy.concatenate((best_elecs, [n_elec]))
-        norms      = numpy.insert(norms, N_tm, norms[cell_id])
-        norms      = numpy.insert(norms, 2*N_tm+1, norms[cell_id+N_tm+1])
+
+        norms      = numpy.insert(norms, N_tm, mynorm)
+        norms      = numpy.insert(norms, 2*N_tm+1, mynorm2)
         scalings  += [scaling]
         
         templates = templates.tocoo()
@@ -264,15 +268,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         real_amps_to_write  = numpy.array(result['real_amps'], dtype=numpy.float32)
         voltages_to_write   = numpy.array(result['voltages'], dtype=numpy.float32)
 
-        spiketimes_file.write(spikes_to_write.tostring())
+        spiketimes_file.write(spikes_to_write.tostring())   
         amplitudes_file.write(amplitudes_to_write.tostring())
         templates_file.write(templates_to_write.tostring())
         real_amps_file.write(real_amps_to_write.tostring())
         voltages_file.write(voltages_to_write.tostring())
 
         #print count, 'spikes inserted...'
-        #local_chunk += dtype_offset
-        #local_chunk  = local_chunk.astype(data_dtype)
         new_chunk    = numpy.zeros((chunk_size, N_total), dtype=numpy.float32)
         new_chunk[:, nodes] = local_chunk
 

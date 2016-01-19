@@ -891,9 +891,9 @@ class PreviewGUI(object):
 
 
     def get_data(self):
-        self.chunk_size       = (self.t_stop - self.t_start)*self.sampling_rate
+        self.chunk_size       = self.sampling_rate
         self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
-        self.data, data_shape = io.load_chunk(self.params, int(self.t_start), self.chunk_size*self.N_total, 
+        self.data, data_shape = io.load_chunk(self.params, self.t_start, self.chunk_size*self.N_total, 
             padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
         
         if self.do_spatial_whitening:
@@ -901,13 +901,13 @@ class PreviewGUI(object):
         if self.do_temporal_whitening:
             self.data = scipy.ndimage.filters.convolve1d(self.data, self.temporal_whitening, axis=0, mode='constant')
 
-        self.time    = numpy.linspace(0, 1, self.data.shape[0])
+        self.time    = numpy.linspace(self.t_start, self.t_stop, self.data.shape[0])
         if self.show_fit:
             self.templates = io.load_data(self.params, 'templates')
             self.result    = io.load_data(self.params, 'results')
 
-            self.curve     = numpy.zeros((self.N_e, (self.t_stop-self.t_start)*self.sampling_rate), dtype=numpy.float32)
-            limit          = (self.t_stop-self.t_start)*self.sampling_rate-self.template_shift+1
+            self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
+            limit          = self.sampling_rate-self.template_shift+1
             for key in self.result['spiketimes'].keys():
                 elec  = int(key.split('_')[1])
                 lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
@@ -1121,7 +1121,7 @@ class PreviewGUI(object):
                 data_line, = self.detail_ax.plot(self.time,
                                                  self.data[:, idx], lw=1, color=self.inspect_colors[count])
                 thr = self.thresholds[idx]
-                self.detail_ax.plot([0, 1], [-thr, -thr], ':',
+                self.detail_ax.plot([self.t_start, self.t_stop], [-thr, -thr], ':',
                                     color=self.inspect_colors[count], lw=2)
         else:
             yspacing = numpy.max(self.data)
@@ -1131,7 +1131,7 @@ class PreviewGUI(object):
                 data_line, = self.detail_ax.plot(self.time,
                                                  count*yspacing + self.curve[idx, :], lw=1, color='k')
                 thr = self.thresholds[idx]
-                self.detail_ax.plot([0, 1], [-thr+count*yspacing, -thr+count*yspacing], ':',
+                self.detail_ax.plot([self.t_start, self.t_stop], [-thr+count*yspacing, -thr+count*yspacing], ':',
                                     color=self.inspect_colors[count], lw=2)
 
         self.detail_ax.set_yticklabels([])
