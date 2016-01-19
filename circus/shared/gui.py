@@ -818,6 +818,8 @@ class PreviewGUI(object):
 
     def __init__(self, params, show_fit=False):
 
+        self.show_fit         = show_fit
+        self.params           = params
         self.init_gui_layout()
         self.probe            = io.read_probe(params)
         self.N_e              = params.getint('data', 'N_e')
@@ -825,30 +827,25 @@ class PreviewGUI(object):
         self.N_total          = params.getint('data', 'N_total')
         self.sampling_rate    = params.getint('data', 'sampling_rate')
         self.template_shift   = params.getint('data', 'template_shift')
-        do_temporal_whitening = params.getboolean('whitening', 'temporal')
-        do_spatial_whitening  = params.getboolean('whitening', 'spatial')
         self.spike_thresh = params.getfloat('data', 'spike_thresh')
         nodes, edges      = io.get_nodes_and_edges(params)
-        
-        if do_spatial_whitening:
-            spatial_whitening  = io.load_data(params, 'spatial_whitening')
-        if do_temporal_whitening:
-            temporal_whitening = io.load_data(params, 'temporal_whitening')
+        self.nodes        = nodes
+        self.edges        = edges
+
+        self.do_temporal_whitening = params.getboolean('whitening', 'temporal')
+        self.do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+
+        if self.do_spatial_whitening:
+            self.spatial_whitening  = io.load_data(params, 'spatial_whitening')
+        if self.do_temporal_whitening:
+            self.temporal_whitening = io.load_data(params, 'temporal_whitening')
+
 
         self.thresholds       = io.load_data(params, 'thresholds')
         self.t_start          = 0
         self.t_stop           = 1
-        self.chunk_size       = (self.t_stop - self.t_start)*self.sampling_rate
-        self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
-        self.data, data_shape = io.load_chunk(params, 0, self.t_stop*self.chunk_size*self.N_total, 
-            padding=self.padding, chunk_size=self.chunk_size, nodes=nodes)
         
-        if do_spatial_whitening:
-            self.data = numpy.dot(self.data, spatial_whitening)
-        if do_temporal_whitening:
-            self.data = scipy.ndimage.filters.convolve1d(self.data, temporal_whitening, axis=0, mode='constant')
-
-        self.time    = numpy.linspace(0, 1, self.data.shape[0])
+        self.get_data()
         self.score_x = []
         self.score_y = []
         self.order   = []
@@ -862,23 +859,6 @@ class PreviewGUI(object):
         toolbar = self.fig.canvas.toolbar
         for action in toolbar.actions():
             toolbar.removeAction(action)
-        
-        self.show_fit        = show_fit
-        if self.show_fit:
-            self.templates = io.load_data(params, 'templates')
-            self.result    = io.load_data(params, 'results')
-
-            self.curve     = numpy.zeros((self.N_e, (self.t_stop-self.t_start)*self.sampling_rate), dtype=numpy.float32)
-            limit          = (self.t_stop-self.t_start)*self.sampling_rate-self.template_shift+1
-            for key in self.result['spiketimes'].keys():
-                elec  = int(key.split('_')[1])
-                lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
-                idx   = numpy.where((self.result['spiketimes'][key] > lims[0]) & (self.result['spiketimes'][key] < lims[1]))
-                for spike, (amp1, amp2) in zip(self.result['spiketimes'][key][idx], self.result['amplitudes'][key][idx]):
-                    spike -= self.t_start*self.sampling_rate
-                    tmp1   = self.templates[:, elec].toarray().reshape(self.N_e, self.N_t)
-                    tmp2   = self.templates[:, elec+self.templates.shape[1]/2].toarray().reshape(self.N_e, self.N_t)
-                    self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
 
         self.selected_points = set()
         self.inspect_points = []
@@ -908,6 +888,35 @@ class PreviewGUI(object):
         # Select the best point at start
         idx = np.argmax(self.score_y)
         self.update_inspect({idx})
+
+
+    def get_data(self):
+        self.chunk_size       = (self.t_stop - self.t_start)*self.sampling_rate
+        self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
+        self.data, data_shape = io.load_chunk(self.params, int(self.t_start), self.chunk_size*self.N_total, 
+            padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
+        
+        if self.do_spatial_whitening:
+            self.data = numpy.dot(self.data, self.spatial_whitening)
+        if self.do_temporal_whitening:
+            self.data = scipy.ndimage.filters.convolve1d(self.data, self.temporal_whitening, axis=0, mode='constant')
+
+        self.time    = numpy.linspace(0, 1, self.data.shape[0])
+        if self.show_fit:
+            self.templates = io.load_data(self.params, 'templates')
+            self.result    = io.load_data(self.params, 'results')
+
+            self.curve     = numpy.zeros((self.N_e, (self.t_stop-self.t_start)*self.sampling_rate), dtype=numpy.float32)
+            limit          = (self.t_stop-self.t_start)*self.sampling_rate-self.template_shift+1
+            for key in self.result['spiketimes'].keys():
+                elec  = int(key.split('_')[1])
+                lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
+                idx   = numpy.where((self.result['spiketimes'][key] > lims[0]) & (self.result['spiketimes'][key] < lims[1]))
+                for spike, (amp1, amp2) in zip(self.result['spiketimes'][key][idx], self.result['amplitudes'][key][idx]):
+                    spike -= self.t_start*self.sampling_rate
+                    tmp1   = self.templates[:, elec].toarray().reshape(self.N_e, self.N_t)
+                    tmp2   = self.templates[:, elec+self.templates.shape[1]/2].toarray().reshape(self.N_e, self.N_t)
+                    self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
 
 
     def handle_close(self, event):
@@ -940,18 +949,27 @@ class PreviewGUI(object):
                                   self.pick_button])
         self.score_ax1 = plt.subplot(gs[1:15, 0:2])
         self.detail_ax = plt.subplot(gs[1:15, 2:5])
-        
-        '''
-        self.set_range_button = widgets.Button(set_range_ax, 'Set range')
-        add_button_ax      = plt.subplot(gs[7, 2])
-        self.add_button    = widgets.Button(add_button_ax, 'Select')
-        remove_button_ax   = plt.subplot(gs[8, 2])
-        self.remove_button = widgets.Button(remove_button_ax, 'Unselect')
-        merge_button_ax    = plt.subplot(gs[9, 2])
-        self.merge_button  = widgets.Button(merge_button_ax, 'Merge')
-        finalize_button_ax = plt.subplot(gs[14, 2])
-        self.finalize_button = widgets.Button(finalize_button_ax, 'Finalize')
-        '''
+        if self.show_fit:
+            next_button_ax    = plt.subplot(gs[0, 4])
+            self.next_button  = widgets.Button(next_button_ax, '->')
+            prev_button_ax    = plt.subplot(gs[0, 2])
+            self.prev_button  = widgets.Button(prev_button_ax, '<-')
+            self.next_button.on_clicked(self.increase_time)
+            self.prev_button.on_clicked(self.decrease_time)
+
+
+    def increase_time(self, event):
+        self.t_start += 1
+        self.t_stop  += 1
+        self.get_data()
+        self.update_detail_plot()
+
+    def decrease_time(self, event):
+        if self.t_start > 0:
+            self.t_start -= 1
+            self.t_stop  -= 1
+            self.get_data()
+            self.update_detail_plot()
 
     def plot_data(self):
         if not getattr(self, 'collections', None):

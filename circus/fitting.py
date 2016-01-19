@@ -104,18 +104,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spiketimes = io.load_data(params, 'spikedetekt')
 
     # To be faster, we rearrange the overlaps into a dictionnary
+    N_over    = int(numpy.sqrt(over_shape[0]))
+    S_over    = over_shape[1]
+    c_overs   = {}
+    for i in xrange(N_over):
+        idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
+        c_overs[i] = scipy.sparse.csc_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
+    del over_x, over_y, over_data
 
     if full_gpu:
         try:
-            N_over    = int(numpy.sqrt(c_overlap.shape[0]))
-            S_over    = c_overlap.shape[1]
-            c_overs   = {}
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
-                rows       = numpy.arange(i*N_over, (i+1)*N_over)
-                data       = c_overlap[rows, :].toarray().reshape(N_over, S_over)
+                data       = c_overs[i].toarray()
                 c_overs[i] = cmt.CUDAMatrix(-data)
-            del c_overlap
         except Exception:
             if comm.rank == 0:
                 io.print_info(["Not enough memory on GPUs: GPUs are used for projection only"])
@@ -123,14 +125,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if c_overs.has_key(i):
                     del c_overs[i]
             full_gpu = False
-    else:
-        N_over    = int(numpy.sqrt(over_shape[0]))
-        c_overs   = {}
-        # If memory on the GPU is large enough, we load the overlaps onto it
-        for i in xrange(N_over):
-            idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
-            c_overs[i] = scipy.sparse.csc_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_tm, over_shape[1]))
-        del over_x, over_y, over_data
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
     nb_chunks                                     = int(min(nb_chunks, max_chunk))
