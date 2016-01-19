@@ -76,13 +76,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    thresholds    = io.load_data(params, 'thresholds')
-    
-    if comm.rank == 0 and not os.path.exists(file_out_suff + '.overlap.hdf5'):
-        c_overlap = io.get_overlaps(comm, params)
-
-    comm.Barrier()
-    c_overlap     = io.get_overlaps(comm, params)
+    thresholds = io.load_data(params, 'thresholds')
+    c_overlap  = io.get_overlaps(comm, params)
 
     over_x     = c_overlap.get('over_x')[:]
     over_y     = c_overlap.get('over_y')[:]

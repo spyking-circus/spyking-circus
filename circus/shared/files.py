@@ -883,7 +883,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     comm.Barrier()
 
     #We need to gather the sparse arrays
-    over_x    = gather_array(over_x, comm, dtype='int32')        
+    over_x    = gather_array(over_x, comm, dtype='int32')            
     over_y    = gather_array(over_y, comm, dtype='int32')
     over_data = gather_array(over_data, comm)
 

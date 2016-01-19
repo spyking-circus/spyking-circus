@@ -28,8 +28,7 @@ def get_performance(file_name, name):
         fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
 
     templates       = h5py.File(file_out + '.templates.hdf5').get('temp_shape')[:]
-    print templates
-
+    
     spikes          = {}
     real_amps       = {}
     result          = h5py.File(os.path.join(result_name, '%s.result.hdf5' %a))
@@ -119,7 +118,7 @@ class TestFitting(unittest.TestCase):
     
     def setUp(self):
         self.all_spikes     = None
-        self.max_chunk      = '20'
+        self.max_chunk      = '2'
         dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
@@ -147,6 +146,7 @@ class TestFitting(unittest.TestCase):
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
+    
     
     def test_fitting_one_GPU(self):
         HAVE_CUDA = False

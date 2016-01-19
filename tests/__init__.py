@@ -77,15 +77,14 @@ def get_dataset(self):
         shutil.copyfile(config_file, file_params)
         io.change_flag(filename, 'data_offset', '0')
         io.change_flag(filename, 'data_dtype', 'int16')
-        io.change_flag(filename, 'dtype_offset', '0')
         io.change_flag(filename, 'temporal', 'True')
         user_path  = os.path.join(os.path.expanduser('~'), 'spyking-circus')
         probe_file = os.path.join(os.path.join(user_path, 'probes'), 'dan.prb')
         io.change_flag(filename, 'mapping', probe_file)
         io.change_flag(filename, 'make_plots', 'False')
         io.change_flag(filename, 'nb_repeats', '1')
-        io.change_flag(filename, 'smart_search', '1')
-        io.change_flag(filename, 'max_elts', '1000')
+        io.change_flag(filename, 'smart_search', '3')
+        io.change_flag(filename, 'max_elts', '1000', 'Fraction')
 
     a, b     = os.path.splitext(os.path.basename(filename))
     c, d     = os.path.splitext(filename)
@@ -99,6 +98,7 @@ def get_dataset(self):
     if not os.path.exists(file_out + '.result.hdf5'):
         mpi_launch('fitting', filename, 2, 0, 'False')    
     return filename
+
 
 if __name__=='__main__':
     run()

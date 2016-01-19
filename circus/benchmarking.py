@@ -125,8 +125,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         new_indices = []
         all_elecs   = numpy.random.permutation(numpy.arange(N_e))
         reference   = templates[:, cell_id].toarray().reshape(N_e, N_t)
-        similarity  = 0
         while len(new_indices) != len(indices) or (similarity >= sim_same_elec):   
+            similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
                     io.print_error(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)])
