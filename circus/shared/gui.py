@@ -893,7 +893,7 @@ class PreviewGUI(object):
     def get_data(self):
         self.chunk_size       = self.sampling_rate
         self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
-        self.data, data_shape = io.load_chunk(self.params, self.t_start, self.chunk_size*self.N_total, 
+        self.data, data_shape = io.load_chunk(self.params, 0, self.chunk_size*self.N_total, 
             padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
         
         if self.do_spatial_whitening:
