@@ -827,6 +827,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             loc_pad  = count_templates
             indices  = inv_nodes[edges[nodes[ielec]]]
+            locidx   = numpy.where(indices == ielec)[0]
+                    
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 electrodes[g_count] = ielec
                 myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
@@ -834,6 +836,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     sub_data         = data[myslice]
                     first_component  = numpy.median(sub_data, axis=0)
                     tmp_templates    = numpy.dot(first_component.T, basis_rec)
+                    tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+                    energy_loss      = tmp_templates[locidx, template_shift]/(-thresholds[ielec])
+                    if energy_loss[0] < 1:
+                        first_component /= energy_loss[0]
+                        sub_data        /= energy_loss[0]
+                        tmp_templates   /= energy_loss[0]
+
                 elif extraction == 'median-raw':                
                     idx              = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                     times_i          = result['times_' + str(ielec)][myslice]
