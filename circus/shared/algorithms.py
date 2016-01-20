@@ -433,7 +433,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     over_shape = overlap.get('over_shape')[:]
     overlap.close()
 
-    overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape).tolil()
+    overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
 
     for i in xrange(nb_temp-1):
         rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
@@ -453,15 +453,15 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
 
         electrodes    = inv_nodes[edges[nodes[best_elec[k]]]]
         rows          = numpy.arange(k*nb_temp, (k+1)*nb_temp)
-        overlap_k     = overlap[rows, :]
+        overlap_k     = overlap[rows, :].tolil()
         is_in_area    = numpy.in1d(best_elec, electrodes)
         for item in sorted_temp[:count]:
             is_in_area[item] = False
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
 
         for i in all_idx:
-            rows          = numpy.arange(i*nb_temp, (i+1)*nb_temp)
-            overlap_i = overlap[rows, :]
+            rows      = numpy.arange(i*nb_temp, (i+1)*nb_temp)
+            overlap_i = overlap[rows, :].tolil()
             M[0, 0]   = overlap_0[i, i]
             V[0, 0]   = overlap_k[i, distances[k, i]]
             for j in all_idx[i+1:]:
