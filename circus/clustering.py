@@ -760,9 +760,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count      = 0
                 for i in xrange(comm.size):
                     loc_norms   = ts[i].get('norms')
-                    middle      = loc_temp.shape[2]/2
-                    norms[count:count+middle]                               = loc_norms[:middle]
-                    norms[n_clusters+count:n_clusters+count+middle]         = loc_norms[middle:]
+                    middle      = len(loc_norms)/2
+                    norms[count:count+middle]                                     = loc_norms[:middle]
+                    norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')
                     amplitudes[count:count+middle] = ts[i].get('limits')
                     count      += middle
@@ -829,8 +829,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             indices  = inv_nodes[edges[nodes[ielec]]]
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 electrodes[g_count] = ielec
+                myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
                 if extraction == 'median-pca':
-                    myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
                     sub_data         = data[myslice]
                     first_component  = numpy.median(sub_data, axis=0)
                     tmp_templates    = numpy.dot(first_component.T, basis_rec)
@@ -970,9 +970,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count      = 0
                 for i in xrange(comm.size):
                     loc_norms   = ts[i].get('norms')
-                    middle      = loc_temp.shape[2]/2
-                    norms[count:count+middle]                       = loc_norms[:middle]
-                    norms[n_clusters+count:n_clusters+count+middle] = loc_norms[middle:]
+                    middle      = len(loc_norms)/2
+                    norms[count:count+middle]                                     = loc_norms[:middle]
+                    norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')
                     amplitudes[count:count+middle] = ts[i].get('limits')
                     count      += middle
