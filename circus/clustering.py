@@ -969,6 +969,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
                 count      = 0
                 for i in xrange(comm.size):
+                    loc_norms   = ts[i].get('norms')
+                    middle      = loc_temp.shape[2]/2
                     norms[count:count+middle]                       = loc_norms[:middle]
                     norms[n_clusters+count:n_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')
