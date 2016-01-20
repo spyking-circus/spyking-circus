@@ -830,17 +830,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 electrodes[g_count] = ielec
                 myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
-                #sub_data         = data[myslice]
-                #first_component  = numpy.median(sub_data, axis=0)
-                #tmp_templates    = numpy.dot(first_component.T, basis_rec)
+                sub_data         = data[myslice]
+                first_component  = numpy.median(sub_data, axis=0)
+                tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 
-                idx              = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                times_i          = result['times_' + str(ielec)][myslice]
-                labels_i         = myslice 
-                sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
+                #idx              = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
+                #times_i          = result['times_' + str(ielec)][myslice]
+                #labels_i         = myslice 
+                #sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
                 #sub_data         = scipy.ndimage.median_filter(sub_data, 3)
-                first_component  = numpy.median(sub_data, 0)
-                tmp_templates    = first_component
+                #first_component  = numpy.median(sub_data, 0)
+                #tmp_templates    = first_component
 
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift            = template_shift - tmpidx[1]
@@ -883,8 +883,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
-                tmp_templates = second_component
-                #tmp_templates = numpy.dot(second_component.T, basis_rec)
+                #tmp_templates = second_component
+                tmp_templates = numpy.dot(second_component.T, basis_rec)
                 
                 offset        = total_nb_clusters + count_templates
                 sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
