@@ -226,6 +226,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     elt_count        = 0
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
+    take_all         = False
     #################################################################
 
 
@@ -315,19 +316,42 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     peak    = local_peaktimes[idx]
                     is_local_min = elec in all_minimas[all_peaktimes == peak]
                     if is_local_min and not myslice.any():
-                        if groups[elec] < max_elts_elec:
+                        upper_bounds = max_elts_elec
+                        if take_all:
+                            upper_bounds /= len(indices)
 
-                            elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+                        if groups[elec] < upper_bounds:
 
-                            if alignment:
-                                ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
-                                f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
-                                rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-                                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                            if take_all:
+                                if alignment:
+                                    idx   = numpy.where(indices == elec)[0]
+                                    zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
+                                    ydata = numpy.arange(len(indices))
+                                    f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
+                                    rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+                                    ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                    sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                else:
+                                    sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
+
+                                for count, elec in enumerate(indices):
+                                    if elt_count < nb_elts:
+                                        elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, count]
+                                        elt_count          += 1
+                            else:
+
+                                elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+
+                                if alignment:
+                                    ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
+                                    f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
+                                    rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                                    ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+
                                 elts[:, elt_count] = f(ddata).astype(numpy.float32)
+                                elt_count         += 1
 
-                            groups[elec]       += 1
-                            elt_count          += 1
+                        groups[elec] += 1
                         all_times[indices, min_times[idx]:max_times[idx]] = True
 
             if comm.rank == 0:
@@ -344,7 +368,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         #DO PCA on elts and store the basis obtained.
-        print "We found", gdata.shape[0], "spikes over", int(nb_elts*comm.size), "requested"
+        print "We found", gdata.shape[0], "waveforms over", int(nb_elts*comm.size), "requested"
         pca = mdp.nodes.PCANode(output_dim=output_dim)
         res = {}     
         if len(gdata) > 0:

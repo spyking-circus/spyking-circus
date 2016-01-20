@@ -199,7 +199,7 @@ def load_parameters(file_name):
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
-                  ['clustering', 'extraction', 'string', 'median'],
+                  ['clustering', 'extraction', 'string', 'median-pca'],
                   ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
@@ -225,9 +225,9 @@ def load_parameters(file_name):
     chunk_size = parser.getint('whitening', 'chunk_size')
     parser.set('whitening', 'chunk_size', str(chunk_size*sampling_rate))
 
-    test = (parser.get('clustering', 'extraction') in ['quadratic', 'median'])
+    test = (parser.get('clustering', 'extraction') in ['quadratic', 'median-raw', 'median-pca'])
     if not test:
-        print_error(["Only two extraction modes: quadratic or median!"])
+        print_error(["Only two extraction modes: quadratic, median-raw, median-pca!"])
         sys.exit(0)
 
     return parser

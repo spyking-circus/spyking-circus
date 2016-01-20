@@ -784,7 +784,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
                 os.remove(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i))
 
-    elif extraction == 'median':
+    elif extraction in ['median-raw', 'median-pca']:
 
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.float32), root=0)[0])
         offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
@@ -829,18 +829,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             indices  = inv_nodes[edges[nodes[ielec]]]
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 electrodes[g_count] = ielec
-                myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
-                sub_data         = data[myslice]
-                first_component  = numpy.median(sub_data, axis=0)
-                tmp_templates    = numpy.dot(first_component.T, basis_rec)
-                
-                #idx              = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                #times_i          = result['times_' + str(ielec)][myslice]
-                #labels_i         = myslice 
-                #sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
-                #sub_data         = scipy.ndimage.median_filter(sub_data, 3)
-                #first_component  = numpy.median(sub_data, 0)
-                #tmp_templates    = first_component
+                if extraction == 'median-pca':
+                    myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
+                    sub_data         = data[myslice]
+                    first_component  = numpy.median(sub_data, axis=0)
+                    tmp_templates    = numpy.dot(first_component.T, basis_rec)
+                elif extraction == 'median-raw':                
+                    idx              = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
+                    times_i          = result['times_' + str(ielec)][myslice]
+                    labels_i         = myslice 
+                    sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
+                    #sub_data         = scipy.ndimage.median_filter(sub_data, 3)
+                    first_component  = numpy.median(sub_data, 0)
+                    tmp_templates    = first_component
 
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift            = template_shift - tmpidx[1]
@@ -883,8 +884,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
-                #tmp_templates = second_component
-                tmp_templates = numpy.dot(second_component.T, basis_rec)
+                if extraction == 'median-pca':
+                    tmp_templates = numpy.dot(second_component.T, basis_rec)
+                elif extraction == 'median-raw':
+                    tmp_templates = second_component
                 
                 offset        = total_nb_clusters + count_templates
                 sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
