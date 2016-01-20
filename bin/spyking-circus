@@ -295,11 +295,13 @@ Options are:
         if preview:
             PreviewGUI(circus.shared.utils.io.load_parameters(filename))
             mng   = pylab.get_current_fig_manager()
+            pylab.tight_layout()
             pylab.show()
             shutil.rmtree(tmp_path_loc)
         elif result:
             PreviewGUI(circus.shared.utils.io.load_parameters(filename), show_fit=True)
             mng   = pylab.get_current_fig_manager()
+            pylab.tight_layout()
             pylab.show()
 
 if __name__ == '__main__':
