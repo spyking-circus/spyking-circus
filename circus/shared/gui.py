@@ -827,10 +827,12 @@ class PreviewGUI(object):
         self.N_total          = params.getint('data', 'N_total')
         self.sampling_rate    = params.getint('data', 'sampling_rate')
         self.template_shift   = params.getint('data', 'template_shift')
-        self.spike_thresh = params.getfloat('data', 'spike_thresh')
-        nodes, edges      = io.get_nodes_and_edges(params)
-        self.nodes        = nodes
-        self.edges        = edges
+        self.spike_thresh     = params.getfloat('data', 'spike_thresh')
+        nodes, edges          = io.get_nodes_and_edges(params)
+        self.nodes            = nodes
+        self.edges            = edges
+        self.inv_nodes        = numpy.zeros(self.N_total, dtype=numpy.int32)
+        self.inv_nodes[nodes] = numpy.argsort(nodes)
 
         self.do_temporal_whitening = params.getboolean('whitening', 'temporal')
         self.do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -1094,7 +1096,7 @@ class PreviewGUI(object):
         elif add_or_remove is 'remove':
             indices = set(self.inspect_points) - set(indices)
 
-        self.inspect_points = sorted(indices)
+        self.inspect_points = self.inv_nodes[sorted(indices)]
         # We use a deterministic mapping to colors, based on their index
         self.inspect_colors = [all_colors[idx % len(all_colors)]
                                for idx in self.inspect_points]
