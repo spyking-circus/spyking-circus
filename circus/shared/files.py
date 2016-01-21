@@ -282,12 +282,15 @@ def print_error(lines):
     print colored("------------------------------------------------------------------", 'red')
 
 
-def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None):
+def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None, mean_mode=False):
 
     
     N_t          = params.getint('data', 'N_t')
     if neighs is not None:
-        stas     = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
+        if not mean_mode:
+            stas = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
+        else:
+            stas = numpy.zeros((len(neighs), N_t), dtype=numpy.float32)
     else:
         nb_labels= numpy.unique(labels_i)
         stas     = numpy.zeros((len(nb_labels), N_t), dtype=numpy.float32)
@@ -356,9 +359,12 @@ def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None):
             lc                = numpy.where(nb_labels == lb)[0]
             stas[lc, :]      += local_chunk.T
         else:
-            stas[count, :, :] = local_chunk.T
-            count            += 1
-    
+            if not mean_mode:
+                stas[count, :, :] = local_chunk.T
+                count            += 1
+            else:
+                stas += local_chunk.T
+
     return stas
 
 def get_amplitudes(params, times_i, sources, template, nodes=None):

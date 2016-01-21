@@ -549,6 +549,47 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='latest')
 
+        # First we get the mean templates from raw data
+        for ielec in range(comm.rank, N_e, comm.size):
+            #print "Dealing with cluster", ielec
+            n_data   = len(result['data_' + str(ielec)])
+            n_neighb = len(edges[nodes[ielec]])
+            data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
+            mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
+            loc_pad  = count_templates
+            indices  = inv_nodes[edges[nodes[ielec]]]
+            locidx   = numpy.where(indices == ielec)[0]
+                    
+            for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
+                labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
+                times_i          = result['times_' + str(ielec)][labels_i]
+                tmp_templates    = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, mean_mode=True)
+
+                tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+                shift            = template_shift - tmpidx[1]
+                templates        = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                if shift > 0:
+                    templates[indices, shift:] = tmp_templates[:, :-shift]
+                elif shift < 0:
+                    templates[indices, :shift] = tmp_templates[:, -shift:]
+                else:
+                    templates[indices, :] = tmp_templates
+
+                slice_temp = templates[indices]
+                templates  = templates.flatten()
+                dx         = templates.nonzero()[0].astype(numpy.int32)
+
+                temp_x     = numpy.concatenate((temp_x, dx))
+                temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
+                temp_data  = numpy.concatenate((temp_data, templates[dx]))
+                count_templates += 1
+
+
+
+
+
+        
+
         def cross_corr(spike_1, spike_2):
             x1, x2 = spike_1.min(), spike_2.min()
             y1, y2 = spike_1.max(), spike_2.max()
@@ -844,9 +885,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         tmp_templates   /= energy_loss[0]
 
                 elif extraction == 'median-raw':                
-                    idx              = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                    times_i          = result['times_' + str(ielec)][myslice]
-                    labels_i         = myslice 
+                    labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
+                    times_i          = result['times_' + str(ielec)][labels_i]
                     sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
                     #sub_data         = scipy.ndimage.median_filter(sub_data, 3)
                     first_component  = numpy.median(sub_data, 0)
