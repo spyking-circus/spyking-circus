@@ -493,10 +493,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             lines += ["                              -increase sim_same_elec?"]
         io.print_info(lines)
 
-        if extraction == 'quadratic':
-            print "Extracting the templates by least-square fitting..."
-        elif extraction == 'median':
-            print "Extracting the templates by median components..."
+        print "Extracting the templates with the %s procedure ..." %extraction
 
     if extraction == 'quadratic':
 
@@ -561,6 +558,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             locidx   = numpy.where(indices == ielec)[0]
                     
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
+                myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
+
                 labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                 times_i          = result['times_' + str(ielec)][labels_i]
                 tmp_templates    = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, mean_mode=True)
@@ -585,10 +584,51 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count_templates += 1
 
 
+        comm.Barrier()
 
+        #We need to gather the sparse arrays
+        temp_x    = gather_array(temp_x, comm, dtype='int32')        
+        temp_y    = gather_array(temp_y, comm, dtype='int32')
+        temp_data = gather_array(temp_data, comm)
 
+        if parallel_hdf5:
+            if comm.rank == 0:
+                cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
+                io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]}) 
+                cfile.close()
+            hfile.close()
+        else:
+            hfile.close()
+            comm.Barrier()
+            if comm.rank == 0:
+                ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
+                hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
+                cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
+                electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
+                norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
+                amplitudes = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+                count      = 0
+                for i in xrange(comm.size):
+                    loc_norms   = ts[i].get('norms')
+                    middle      = len(loc_norms)/2
+                    norms[count:count+middle]                                     = loc_norms[:middle]
+                    norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
+                    electrodes[count:count+middle] = ts[i].get('electrodes')
+                    amplitudes[count:count+middle] = ts[i].get('limits')
+                    count      += middle
+                    os.remove(file_out_suff + '.templates-%d.hdf5' %i)
+                io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
+                hfile.close()
+                cfile.close()
 
-        
+        if comm.rank == 0:
+            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'r+', libver='latest')
+            hfile.create_dataset('temp_x', data=temp_x)
+            hfile.create_dataset('temp_y', data=temp_y)
+            hfile.create_dataset('temp_data', data=temp_data)
+            hfile.create_dataset('temp_shape', data=numpy.array([N_e * N_t, 2*total_nb_clusters], dtype=numpy.int32))
+            hfile.close()
+
 
         def cross_corr(spike_1, spike_2):
             x1, x2 = spike_1.min(), spike_2.min()
@@ -825,7 +865,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
                 os.remove(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i))
 
-    elif extraction in ['median-raw', 'median-pca']:
+    elif extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
 
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.float32), root=0)[0])
         offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
@@ -868,7 +908,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             loc_pad  = count_templates
             indices  = inv_nodes[edges[nodes[ielec]]]
-            locidx   = numpy.where(indices == ielec)[0]
                     
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 electrodes[g_count] = ielec
@@ -877,19 +916,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     sub_data         = data[myslice]
                     first_component  = numpy.median(sub_data, axis=0)
                     tmp_templates    = numpy.dot(first_component.T, basis_rec)
-                    tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
-                    energy_loss      = tmp_templates[locidx, template_shift]/(-thresholds[ielec])
-                    if energy_loss[0] < 1:
-                        first_component /= energy_loss[0]
-                        sub_data        /= energy_loss[0]
-                        tmp_templates   /= energy_loss[0]
-
+                elif extraction == 'mean-pca':
+                    sub_data         = data[myslice]
+                    first_component  = numpy.mean(sub_data, axis=0)
+                    tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 elif extraction == 'median-raw':                
                     labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                     times_i          = result['times_' + str(ielec)][labels_i]
                     sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
-                    #sub_data         = scipy.ndimage.median_filter(sub_data, 3)
                     first_component  = numpy.median(sub_data, 0)
+                    tmp_templates    = first_component
+                elif extraction == 'mean-raw':                
+                    labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
+                    times_i          = result['times_' + str(ielec)][labels_i]
+                    sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
+                    first_component  = numpy.mean(sub_data, 0)
                     tmp_templates    = first_component
 
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])

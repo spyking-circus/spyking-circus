@@ -225,9 +225,9 @@ def load_parameters(file_name):
     chunk_size = parser.getint('whitening', 'chunk_size')
     parser.set('whitening', 'chunk_size', str(chunk_size*sampling_rate))
 
-    test = (parser.get('clustering', 'extraction') in ['quadratic', 'median-raw', 'median-pca'])
+    test = (parser.get('clustering', 'extraction') in ['quadratic', 'median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
     if not test:
-        print_error(["Only two extraction modes: quadratic, median-raw, median-pca!"])
+        print_error(["Only 5 extraction modes: quadratic, median-raw, median-pca, mean-raw or mean-pca!"])
         sys.exit(0)
 
     return parser
