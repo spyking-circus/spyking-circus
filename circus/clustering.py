@@ -504,18 +504,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         node_pad   = numpy.sum(offsets[:comm.rank+1])        
 
         if parallel_hdf5:
-            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
-            norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
-            electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
-            amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = node_pad
             g_offset   = total_nb_clusters
         else:
             node_pad   = 0
-            hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
-            electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
-            norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
-            amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
             g_offset   = local_nb_clusters
     
@@ -549,13 +541,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         # First we get the mean templates from raw data
         for ielec in range(comm.rank, N_e, comm.size):
             #print "Dealing with cluster", ielec
-            n_data   = len(result['data_' + str(ielec)])
-            n_neighb = len(edges[nodes[ielec]])
-            data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             loc_pad  = count_templates
             indices  = inv_nodes[edges[nodes[ielec]]]
-            locidx   = numpy.where(indices == ielec)[0]
                     
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
@@ -567,12 +555,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift            = template_shift - tmpidx[1]
                 templates        = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-                if shift > 0:
-                    templates[indices, shift:] = tmp_templates[:, :-shift]
-                elif shift < 0:
-                    templates[indices, :shift] = tmp_templates[:, -shift:]
-                else:
-                    templates[indices, :] = tmp_templates
 
                 slice_temp = templates[indices]
                 templates  = templates.flatten()
@@ -584,51 +566,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count_templates += 1
 
 
-        comm.Barrier()
-
         #We need to gather the sparse arrays
         temp_x    = gather_array(temp_x, comm, dtype='int32')        
         temp_y    = gather_array(temp_y, comm, dtype='int32')
         temp_data = gather_array(temp_data, comm)
 
-        if parallel_hdf5:
-            if comm.rank == 0:
-                cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
-                io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]}) 
-                cfile.close()
-            hfile.close()
-        else:
-            hfile.close()
-            comm.Barrier()
-            if comm.rank == 0:
-                ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
-                hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
-                cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'r+', libver='latest')
-                electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
-                norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
-                amplitudes = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
-                count      = 0
-                for i in xrange(comm.size):
-                    loc_norms   = ts[i].get('norms')
-                    middle      = len(loc_norms)/2
-                    norms[count:count+middle]                                     = loc_norms[:middle]
-                    norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
-                    electrodes[count:count+middle] = ts[i].get('electrodes')
-                    amplitudes[count:count+middle] = ts[i].get('limits')
-                    count      += middle
-                    os.remove(file_out_suff + '.templates-%d.hdf5' %i)
-                io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
-                hfile.close()
-                cfile.close()
-
         if comm.rank == 0:
-            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'r+', libver='latest')
+            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
             hfile.create_dataset('temp_x', data=temp_x)
             hfile.create_dataset('temp_y', data=temp_y)
             hfile.create_dataset('temp_data', data=temp_data)
+            hfile.create_dataset('norms', data=numpy.ones(total_nb_clusters, dtype=numpy.float32))
             hfile.create_dataset('temp_shape', data=numpy.array([N_e * N_t, 2*total_nb_clusters], dtype=numpy.int32))
             hfile.close()
+        
+        comm.Barrier()
 
+        templates = io.load_data(params, 'templates')
+        print "Mean Templates loaded"
 
         def cross_corr(spike_1, spike_2):
             x1, x2 = spike_1.min(), spike_2.min()
@@ -647,6 +602,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         y    = y.flatten()
         cdic = {}
 
+        import time
+
         for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
 
             n_neighb = inv_nodes[edges[nodes[ielec]]]
@@ -657,6 +614,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_labels = {}
             all_times  = {}
 
+            start = time.time()
             for i in n_neighb:
                 if not all_labels.has_key(i):
                     all_labels[i] = callfile.get('clusters_%d' %i)[:]
@@ -670,11 +628,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     labels  = numpy.concatenate((labels, unique_i))
                     stas_i  = io.get_stas(params, times_i, labels_i, ielec, nodes=nodes)
                     stas    = numpy.vstack((stas, stas_i))
-            
+            print "1", time.time() - start
+
             data = numpy.zeros(0, dtype=numpy.float32)
             row  = numpy.zeros(0, dtype=numpy.int32)
             col  = numpy.zeros(0, dtype=numpy.int32)
 
+            start = time.time()
             for ci in xrange(len(elecs)):
                 i        = elecs[ci]
                 li       = labels[ci]
@@ -708,6 +668,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             autocorr = scipy.sparse.bsr_matrix((data, (row, col)), shape=(len(elecs)*N_t, len(elecs)*N_t), blocksize=(N_t, N_t), dtype=numpy.float32)
             autocorr = autocorr + autocorr.T - scipy.sparse.diags(autocorr.diagonal(), 0)
             stas     = stas.flatten()
+            print "2", start -  time.time()
             
             #print "Optimization for electrode", ielec
             #from sklearn.linear_model import Lasso
