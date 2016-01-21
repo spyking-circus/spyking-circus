@@ -81,6 +81,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         result['dc_' + str(i)]        = None
         result['pca_' + str(i)]       = None
+        result['snipet_' + str(i)]    = None
+        if extraction in ['median-raw', 'mean-raw', 'quadratic']:
+            if numpy.mod(i, comm.size) == comm.rank:
+                result['snipet_' + str(i)] = open(os.path.join(tmp_path_loc, 'snipet-%d.data' %i), 'wb')
 
 
     max_elts_elec /= comm.size
@@ -253,11 +257,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
                                         rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
                                         ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                        sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                        snipet = f(ddata, ydata).astype(numpy.float32)
                                     else:
-                                        sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
+                                        snipet = local_chunk[peak-template_shift:peak+template_shift+1, indices]
 
-                                    sub_mat    = numpy.dot(basis_rec, sub_mat)
+                                    sub_mat    = numpy.dot(basis_rec, snipet)
                                     nx, ny     = sub_mat.shape
                                     sub_mat    = sub_mat.reshape((1, nx * ny))
 
@@ -278,9 +282,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         else:
                                             to_accept = True
                                         if to_accept:
+
                                             result['data_' + str(elec)] = numpy.vstack((result['data_' + str(elec)], sub_mat))
                                             if smart_search[elec] > 0:
                                                 result['sub_' + str(elec)] = numpy.vstack((result['sub_' + str(elec)], sub_sub_mat))
+                                            if result['snipet_' + str(elec)] is not None:
+                                                result['snipet_' + str(elec)].write(snipet.T.flatten().tostring())
                                     else:
                                         to_accept  = True
                                         result['tmp_' + str(elec)] = numpy.vstack((result['tmp_' + str(elec)], sub_mat))
@@ -339,6 +346,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         elif gpass == 1:
             for ielec in xrange(comm.rank, N_e, comm.size):
                 result['times_' + str(ielec)] = numpy.copy(result['loc_times_' + str(ielec)])
+                if result['snipet_' + str(ielec)] is not None:
+                    result['snipet_' + str(ielec)].close()
                 if numpy.any(smart_search > 0):
                     result.pop('sub_' + str(ielec))
 
@@ -538,53 +547,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         callfile   = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='latest')
 
-        # First we get the mean templates from raw data
-        for ielec in range(comm.rank, N_e, comm.size):
-            #print "Dealing with cluster", ielec
-            mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
-            loc_pad  = count_templates
-            indices  = inv_nodes[edges[nodes[ielec]]]
-                    
-            for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
-                myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
-
-                labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                times_i          = result['times_' + str(ielec)][labels_i]
-                tmp_templates    = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, mean_mode=True)
-
-                tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
-                shift            = template_shift - tmpidx[1]
-                templates        = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-
-                slice_temp = templates[indices]
-                templates  = templates.flatten()
-                dx         = templates.nonzero()[0].astype(numpy.int32)
-
-                temp_x     = numpy.concatenate((temp_x, dx))
-                temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
-                temp_data  = numpy.concatenate((temp_data, templates[dx]))
-                count_templates += 1
-
-
-        #We need to gather the sparse arrays
-        temp_x    = gather_array(temp_x, comm, dtype='int32')        
-        temp_y    = gather_array(temp_y, comm, dtype='int32')
-        temp_data = gather_array(temp_data, comm)
-
-        if comm.rank == 0:
-            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
-            hfile.create_dataset('temp_x', data=temp_x)
-            hfile.create_dataset('temp_y', data=temp_y)
-            hfile.create_dataset('temp_data', data=temp_data)
-            hfile.create_dataset('norms', data=numpy.ones(total_nb_clusters, dtype=numpy.float32))
-            hfile.create_dataset('temp_shape', data=numpy.array([N_e * N_t, 2*total_nb_clusters], dtype=numpy.int32))
-            hfile.close()
-        
-        comm.Barrier()
-
-        templates = io.load_data(params, 'templates')
-        print "Mean Templates loaded"
-
         def cross_corr(spike_1, spike_2):
             x1, x2 = spike_1.min(), spike_2.min()
             y1, y2 = spike_1.max(), spike_2.max()
@@ -668,7 +630,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             autocorr = scipy.sparse.bsr_matrix((data, (row, col)), shape=(len(elecs)*N_t, len(elecs)*N_t), blocksize=(N_t, N_t), dtype=numpy.float32)
             autocorr = autocorr + autocorr.T - scipy.sparse.diags(autocorr.diagonal(), 0)
             stas     = stas.flatten()
-            print "2", start -  time.time()
+            print "2", time.time() - start
             
             #print "Optimization for electrode", ielec
             #from sklearn.linear_model import Lasso
@@ -699,23 +661,31 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         for ielec in range(comm.rank, N_e, comm.size):
             
-            n_data   = len(result['data_' + str(ielec)])
             n_neighb = len(edges[nodes[ielec]])
-            data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
+            n_data   = len(result['data_' + str(ielec)])
+            snipet_file = os.path.join(tmp_path_loc, 'snipet-%d.data' %ielec)
+            data = numpy.fromfile(snipet_file, dtype=numpy.float32)
+            data = data.reshape(n_data, n_neighb, N_t)
+            os.remove(snipet_file)
+            
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             indices  = inv_nodes[edges[nodes[ielec]]]
-            loc_pad        = count_templates
+            loc_pad  = count_templates
+
             for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
             
                 electrodes[g_count] = ielec
-                tmp_templates = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
-                myslice       = numpy.where(cluster_results[ielec]['groups'] == group)[0]
+                myslice             = numpy.where(cluster_results[ielec]['groups'] == group)[0]
+                sub_data            = data[myslice]
+                tmp_templates       = numpy.zeros((len(indices), N_t), dtype=numpy.float32)
+                
                 for count, i in enumerate(indices):
                     pfile = h5py.File(os.path.join(tmp_path_loc, 'tmp_%d.hdf5' %i), 'r', libver='latest')
                     lmask = pfile.get('limits')[:] == ielec 
                     tmp_templates[count] = pfile.get('waveforms')[lmask, :][xcount]
                     pfile.close()
 
+                first_component  = tmp_templates
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                 shift            = template_shift - tmpidx[1]
                 templates        = numpy.zeros((N_e, N_t), dtype=numpy.float32)
@@ -726,7 +696,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     templates[indices, :] = tmp_templates
 
-                slice_temp = templates[indices]
                 templates  = templates.flatten()
                 dx         = templates.nonzero()[0].astype(numpy.int32)
 
@@ -736,7 +705,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
 
-                amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], indices, slice_temp, nodes)
+                x, y, z          = sub_data.shape
+                sub_data_flat    = sub_data.reshape(x, y*z)
+                first_flat       = first_component.reshape(y*z, 1)
+                amplitudes       = numpy.dot(sub_data_flat, first_flat)
+                amplitudes      /= numpy.sum(first_flat**2)
+
                 variations        = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit    = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
                 amp_min           = max(physical_limit, numpy.median(amplitudes) - variations)
@@ -865,33 +839,34 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #print "Dealing with cluster", ielec
             n_data   = len(result['data_' + str(ielec)])
             n_neighb = len(edges[nodes[ielec]])
-            data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
+            if extraction in ['median-pca', 'mean-pca']:
+                data = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
+            elif extraction in ['median-raw', 'mean-raw']:
+                snipet_file = os.path.join(tmp_path_loc, 'snipet-%d.data' %ielec)
+                data = numpy.fromfile(snipet_file, dtype=numpy.float32)
+                data = data.reshape(n_data, n_neighb, N_t)
+                os.remove(snipet_file)
+
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             loc_pad  = count_templates
             indices  = inv_nodes[edges[nodes[ielec]]]
                     
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
                 electrodes[g_count] = ielec
-                myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
+                myslice             = numpy.where(cluster_results[ielec]['groups'] == group)[0]
+                sub_data            = data[myslice]
+                
                 if extraction == 'median-pca':
-                    sub_data         = data[myslice]
                     first_component  = numpy.median(sub_data, axis=0)
                     tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 elif extraction == 'mean-pca':
-                    sub_data         = data[myslice]
                     first_component  = numpy.mean(sub_data, axis=0)
                     tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 elif extraction == 'median-raw':                
-                    labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                    times_i          = result['times_' + str(ielec)][labels_i]
-                    sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
-                    first_component  = numpy.median(sub_data, 0)
+                    first_component  = numpy.median(sub_data, axis=0)
                     tmp_templates    = first_component
                 elif extraction == 'mean-raw':                
-                    labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                    times_i          = result['times_' + str(ielec)][labels_i]
-                    sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
-                    first_component  = numpy.mean(sub_data, 0)
+                    first_component  = numpy.mean(sub_data, axis=0)
                     tmp_templates    = first_component
 
                 tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
@@ -971,7 +946,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
                     sub_tmp  = sub_tmp[numpy.arange(ielec*N_t, (ielec+1)*N_t), :]
                     sub_tmp  = sub_tmp.toarray().reshape(N_t, nb_temp)
-                    plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
+                    if extraction in ['mean-raw', 'median-raw']:
+                        waveforms = sub_data
+                    elif extraction in ['median-pca', 'median-raw']:
+                        waveforms = numpy.dot(sub_data, basis_rec)
+
+                    plot.view_waveforms_clusters(waveforms, cluster_results[ielec]['groups'],
                         thresholds[ielec], sub_tmp,
                         amps_lims[loc_pad:loc_pad+nb_temp], save=save)
 
