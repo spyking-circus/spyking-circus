@@ -513,13 +513,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         node_pad   = numpy.sum(offsets[:comm.rank+1])        
 
         if parallel_hdf5:
+            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
+            norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
+            electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
+            amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = node_pad
             g_offset   = total_nb_clusters
         else:
-            node_pad   = 0
+            hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
+            electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
+            norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
+            amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
             g_offset   = local_nb_clusters
-    
+        
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
         temp_y     = numpy.zeros(0, dtype=numpy.int32)
         temp_data  = numpy.zeros(0, dtype=numpy.float32)
@@ -717,9 +724,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amp_max           = min(amp_limits[1], numpy.median(amplitudes) + variations)
                 amps_lims[g_count] = [amp_min, amp_max]
 
+                for i in xrange(x):
+                    sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
+
+                if len(sub_data_flat) > 1:
+                    pca              = mdp.nodes.PCANode(output_dim=1)
+                    res_pca          = pca(sub_data_flat.astype(numpy.double))
+                    second_component = pca.get_projmatrix().reshape(y, z)
+                else:
+                    second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
+
+                tmp_templates = second_component
+                
                 offset        = total_nb_clusters + count_templates
                 sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-                sub_templates[indices, :] = ortho
+                if shift > 0:
+                    sub_templates[indices, shift:] = tmp_templates[:, :-shift]
+                elif shift < 0:
+                    sub_templates[indices, :shift] = tmp_templates[:, -shift:]
+                else:
+                    sub_templates[indices, :] = tmp_templates
+
                 sub_templates = sub_templates.flatten()
                 dx            = sub_templates.nonzero()[0].astype(numpy.int32)
 
