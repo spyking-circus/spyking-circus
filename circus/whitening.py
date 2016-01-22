@@ -226,7 +226,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     elt_count        = 0
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    take_all         = True
+    take_all         = False
     #################################################################
 
 

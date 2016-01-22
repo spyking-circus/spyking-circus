@@ -455,8 +455,6 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         rows          = numpy.arange(k*nb_temp, (k+1)*nb_temp)
         overlap_k     = overlap[rows, :].tolil()
         is_in_area    = numpy.in1d(best_elec, electrodes)
-        for item in sorted_temp[:count]:
-            is_in_area[item] = False
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
 
         for i in all_idx:
@@ -465,9 +463,11 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
             M[0, 0]   = overlap_0[i, i]
             V[0, 0]   = overlap_k[i, distances[k, i]]
             for j in all_idx[i+1:]:
+                rows      = numpy.arange(j*nb_temp, (j+1)*nb_temp)
+                overlap_j = overlap[rows, :].tolil()
                 M[1, 1]  = overlap_0[j, j]
-                M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
-                M[0, 1]  = M[0, 1]
+                M[1, 0]  = overlap_i[j, distances[k, j] - distances[k, i]]
+                M[0, 1]  = overlap_j[i, distances[k, i] - distances[k, j]]
                 V[1, 0]  = overlap_k[j, distances[k, j]]
                 [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
                 a1_lim   = limits[i]
@@ -476,6 +476,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                 is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                 if is_a1 and is_a2:
                     mixtures += [k]
+                    print comm.rank, "has found that", k, "is sum of (%d, %s) and (%d, %s)" %(i, a1, j, a2)
 
         if comm.rank == 0:
             pbar.update(count)
@@ -483,9 +484,11 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if comm.rank == 0:
         pbar.finish()
     
+    #print mixtures
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
     
+    #print to_remove, len(to_remove)
     if len(to_remove) > 0:
         slice_templates(comm, params, to_remove)
         slice_clusters(comm, params, result, to_remove=to_remove)
