@@ -376,6 +376,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+    template_shift        = params.getint('data', 'template_shift')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -424,7 +425,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
     covariance  /= len(times_i)
     evals, evecs = scipy.sparse.linalg.eigs(covariance, k=1, which='LM')
     evecs        = numpy.real(evecs).astype(numpy.float32)
-    return amplitudes, evecs.reshape(len(sources), N_t)
+    return amplitudes, evecs.reshape(len(neighs), N_t)
 
 
 def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
