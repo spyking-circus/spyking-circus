@@ -282,18 +282,19 @@ def print_error(lines):
     print colored("------------------------------------------------------------------", 'red')
 
 
-def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None, mean_mode=False):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
 
     
     N_t          = params.getint('data', 'N_t')
-    if neighs is not None:
+    if not all_labels:
         if not mean_mode:
             stas = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
         else:
             stas = numpy.zeros((len(neighs), N_t), dtype=numpy.float32)
     else:
-        nb_labels= numpy.unique(labels_i)
-        stas     = numpy.zeros((len(nb_labels), N_t), dtype=numpy.float32)
+        nb_labels = numpy.unique(labels_i)
+        stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
+
     data_file    = params.get('data', 'data_file')
     data_offset  = params.getint('data', 'data_offset')
     dtype_offset = params.getint('data', 'dtype_offset')
@@ -336,28 +337,19 @@ def get_stas(params, times_i, labels_i, src, neighs=None, nodes=None, mean_mode=
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        if neighs is None:
-            local_chunk = local_chunk[:, src]
-        else:
-            local_chunk = local_chunk[:, neighs]
+        local_chunk = local_chunk[:, neighs]
 
         if alignment:
-            if neighs is not None:
-                idx   = numpy.where(neighs == src)[0]
-                ydata = numpy.arange(len(neighs))
-                f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
-                rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
-                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata, ydata).astype(numpy.float32)
-            else:
-                f     = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata).astype(numpy.float32)
+            idx   = numpy.where(neighs == src)[0]
+            ydata = numpy.arange(len(neighs))
+            f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
+            rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+            ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+            local_chunk = f(ddata, ydata).astype(numpy.float32)
 
-        if neighs is None:
-            lc                = numpy.where(nb_labels == lb)[0]
-            stas[lc, :]      += local_chunk.T
+        if all_labels:
+            lc        = numpy.where(nb_labels == lb)[0]
+            stas[lc] += local_chunk.T
         else:
             if not mean_mode:
                 stas[count, :, :] = local_chunk.T
