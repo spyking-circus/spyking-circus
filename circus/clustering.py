@@ -517,6 +517,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
+            node_pad   = 0
             g_offset   = local_nb_clusters
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
@@ -815,6 +816,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
+            node_pad   = 0
             g_offset   = local_nb_clusters
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)

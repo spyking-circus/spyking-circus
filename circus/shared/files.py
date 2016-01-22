@@ -183,7 +183,6 @@ def load_parameters(file_name):
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
                   ['fitting', 'spike_range', 'float', '0'],
                   ['fitting', 'min_rate', 'float', '0'],
-                  ['fitting', 'low_memory', 'bool', 'False'],
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
