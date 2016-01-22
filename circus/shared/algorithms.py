@@ -476,7 +476,6 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                 is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                 if is_a1 and is_a2:
                     mixtures += [k]
-                    print comm.rank, "has found that", k, "is sum of (%d, %s) and (%d, %s)" %(i, a1, j, a2)
 
         if comm.rank == 0:
             pbar.update(count)
@@ -488,7 +487,6 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
     
-    #print to_remove, len(to_remove)
     if len(to_remove) > 0:
         slice_templates(comm, params, to_remove)
         slice_clusters(comm, params, result, to_remove=to_remove)
