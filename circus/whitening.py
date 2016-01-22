@@ -347,8 +347,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
                                     rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
                                     ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-
-                                elts[:, elt_count] = f(ddata).astype(numpy.float32)
+                                    elts[:, elt_count] = f(ddata).astype(numpy.float32)
+                                
                                 elt_count         += 1
 
                         groups[elec] += 1
