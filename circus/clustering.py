@@ -673,7 +673,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             indices  = inv_nodes[edges[nodes[ielec]]]
-            loc_pad        = count_templates
+            loc_pad  = count_templates
             for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
             
                 electrodes[g_count] = ielec
@@ -905,9 +905,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
-                if extraction == 'median-pca':
+                if extraction in ['median-pca', 'mean-pca']:
                     tmp_templates = numpy.dot(second_component.T, basis_rec)
-                elif extraction == 'median-raw':
+                elif extraction in ['median-raw', 'mean-raw']:
                     tmp_templates = second_component
                 
                 offset        = total_nb_clusters + count_templates
