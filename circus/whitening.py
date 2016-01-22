@@ -15,7 +15,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_thresh   = params.getfloat('data', 'spike_thresh')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
-    file_out       = params.get('data', 'file_out')
+    file_out_suff  = params.get('data', 'file_out_suff')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size       = params.getint('whitening', 'chunk_size')
@@ -59,7 +59,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             gdata      = gdata.reshape((comm.size, N_e))
             thresholds = numpy.mean(gdata, 0)
-            bfile      = h5py.File(file_out + '.basis.hdf5', 'w', libver='latest')
+            bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'w', libver='latest')
             io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
             bfile.close()
         comm.Barrier()
@@ -155,8 +155,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
             print "We found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)
-        
-        bfile = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+
+        bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, to_write.keys(), to_write)
         bfile.close()
 
@@ -189,7 +189,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 gdata      = gdata.reshape((comm.size, N_e))
                 thresholds = numpy.mean(gdata, 0)
-                bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+                bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
                 bfile.pop('thresholds')
                 io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
                 bfile.close()
@@ -199,7 +199,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if not os.path.exists(plot_path):
             os.makedirs(plot_path)
         n_elec = min(int(numpy.sqrt(N_e)), 5)
-        plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True, n_elec=n_elec, save=[plot_path, 'electrodes'])
+        plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True,
+                      n_elec=n_elec, save=[plot_path, 'electrodes'])
 
     # Part 2: Basis
     numpy.random.seed(422)
@@ -212,7 +213,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
-    file_out       = params.get('data', 'file_out')
+    file_out_suff  = params.get('data', 'file_out_suff')
     spike_thresh   = params.getfloat('data', 'spike_thresh')
     stationary     = params.getboolean('data', 'stationary')
     nodes, edges   = io.get_nodes_and_edges(params)
@@ -377,7 +378,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
         res['rec']  = res['proj'].T
-        bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+        bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
         io.print_info(["A basis with %s dimensions has been built" %res['proj'].shape[1]])
         bfile.close()

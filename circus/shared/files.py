@@ -496,35 +496,34 @@ def get_nodes_and_edges(parameters):
 
 def load_data(params, data, extension=''):
 
-    file_out        = params.get('data', 'file_out')
     file_out_suff   = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
 
     if data == 'thresholds':
         spike_thresh = params.getfloat('data', 'spike_thresh')
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
     elif data == 'spatial_whitening':
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile  = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile  = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
             myfile.close()
             return spatial
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'temporal_whitening':
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile   = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile   = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             temporal = myfile.get('temporal')[:]
             myfile.close() 
             return temporal
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'basis':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
