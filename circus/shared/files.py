@@ -359,7 +359,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
     return stas
 
-def get_amplitudes(params, times_i, sources, template, nodes=None):
+def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
 
     N_t          = params.getint('data', 'N_t')
     amplitudes   = numpy.zeros(len(times_i), dtype=numpy.float32)
@@ -368,6 +368,7 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
+    alignment    = params.getboolean('data', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     template     = template.flatten()
     covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
@@ -381,12 +382,22 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
+    if alignment:
+        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
+        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
+
     for count, time in enumerate(times_i):
         padding      = N_total * time
-        local_chunk  = datablock[padding - (N_t/2)*N_total:padding + (N_t/2+1)*N_total]
-        local_chunk  = local_chunk.reshape(N_t, N_total)
+        if alignment:
+            local_chunk = datablock[padding - 2*template_shift*N_total:padding + (2*template_shift+1)*N_total]
+            local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
+        else:
+            local_chunk = datablock[padding - template_shift*N_total:padding + (template_shift+1)*N_total]
+            local_chunk = local_chunk.reshape(N_t, N_total)
+
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
+
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
                 local_chunk = local_chunk[:, nodes]
@@ -394,10 +405,20 @@ def get_amplitudes(params, times_i, sources, template, nodes=None):
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
-        local_chunk = local_chunk[:, sources].T.flatten()
-        amplitudes[count] = numpy.dot(local_chunk, template)/norm_temp
         
-        snippet = (template - amplitudes[count]*local_chunk).reshape(len(template), 1)
+        local_chunk = local_chunk[:, neighs]
+
+        if alignment:
+            idx   = numpy.where(neighs == src)[0]
+            ydata = numpy.arange(len(neighs))
+            f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
+            rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+            ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+            local_chunk = f(ddata, ydata).astype(numpy.float32)
+
+        local_chunk       = local_chunk.T.flatten()
+        amplitudes[count] = numpy.dot(local_chunk, template)/norm_temp
+        snippet     = (template - amplitudes[count]*local_chunk).reshape(len(template), 1)
         covariance += numpy.dot(snippet, snippet.T)
 
     covariance  /= len(times_i)

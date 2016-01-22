@@ -588,9 +588,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     elecs   = numpy.concatenate((elecs, i*numpy.ones(len(unique_i))))
                     labels  = numpy.concatenate((labels, unique_i))
                     indices = inv_nodes[edges[nodes[i]]]
+                    myfilt  = numpy.mod(indices, comm.size) == comm.rank
+                    indices = indices[myfilt]
+                    subidx  = numpy.where(indices == ielec)[0]
                     if not all_stas.has_key(i):
                         all_stas[i] = io.get_stas(params, times_i, labels_i, i, indices, nodes=nodes, all_labels=True)
-                    subidx  = numpy.where(indices == ielec)[0]
                     a, b, c = all_stas[i][:, subidx, :].shape
                     data    = all_stas[i][:, subidx, :].reshape(a, c)
                     stas    = numpy.vstack((stas, data))
@@ -700,7 +702,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
 
-                amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], indices, slice_temp, nodes)
+                amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], src, indices, slice_temp, nodes)
                 variations        = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit    = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
                 amp_min           = max(physical_limit, numpy.median(amplitudes) - variations)
