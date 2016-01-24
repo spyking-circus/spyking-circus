@@ -517,7 +517,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
-            node_pad   = 0
             g_offset   = local_nb_clusters
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
@@ -673,7 +672,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             indices  = inv_nodes[edges[nodes[ielec]]]
-            loc_pad  = count_templates
+            loc_pad  = g_count
             for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
             
                 electrodes[g_count] = ielec
@@ -816,7 +815,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
-            node_pad   = 0
             g_offset   = local_nb_clusters
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
@@ -837,7 +835,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             n_neighb = len(edges[nodes[ielec]])
             data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
-            loc_pad  = count_templates
+            loc_pad  = g_count
             indices  = inv_nodes[edges[nodes[ielec]]]
                     
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):

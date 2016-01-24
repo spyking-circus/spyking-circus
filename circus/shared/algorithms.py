@@ -389,7 +389,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
     to_merge = numpy.array(to_merge)
     to_merge = comm.bcast(to_merge, root=0)
-
+    
     if len(to_merge) > 0:
         slice_templates(comm, params, to_merge=to_merge)
         slice_clusters(comm, params, result)
