@@ -417,6 +417,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     result   = []
     
     norm_templates   = load_data(params, 'norm-templates')
+    templates        = load_data(params, 'templates')
     result           = load_data(params, 'clusters')
     best_elec        = load_data(params, 'electrodes')
     limits           = load_data(params, 'limits')
@@ -456,16 +457,16 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         overlap_k     = overlap[rows, :].tolil()
         is_in_area    = numpy.in1d(best_elec, electrodes)
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
-
+        
         for i in all_idx:
             rows      = numpy.arange(i*nb_temp, (i+1)*nb_temp)
             overlap_i = overlap[rows, :].tolil()
-            M[0, 0]   = overlap_0[i, i]
+            M[0, 0]   = overlap_i[i, distances[k, i]]
             V[0, 0]   = overlap_k[i, distances[k, i]]
             for j in all_idx[i+1:]:
                 rows      = numpy.arange(j*nb_temp, (j+1)*nb_temp)
                 overlap_j = overlap[rows, :].tolil()
-                M[1, 1]  = overlap_0[j, j]
+                M[1, 1]  = overlap_j[j, distances[k, j]]
                 M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
                 M[0, 1]  = overlap_j[i, distances[k, i] - distances[k, j]]
                 V[1, 0]  = overlap_k[j, distances[k, j]]
@@ -475,7 +476,14 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                 is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
                 is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                 if is_a1 and is_a2:
-                    mixtures += [k]
+
+                    new_template = a1*templates[:, i].toarray() + a2*templates[:, j].toarray()
+                    similarity   = numpy.corrcoef(templates[:, k].toarray().flatten(), new_template.flatten())[0, 1]
+                    
+                    if similarity > 0.8:
+                        if k not in mixtures:
+                            mixtures += [k]
+                            #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
 
         if comm.rank == 0:
             pbar.update(count)
