@@ -480,7 +480,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                     if is_a1 and is_a2:
                         new_template = a1*templates[:, i].toarray() + a2*templates[:, j].toarray()
                         similarity   = numpy.corrcoef(templates[:, k].toarray().flatten(), new_template.flatten())[0, 1]
-                        if similarity > 0.8:
+                        if similarity > 0.9:
                             if k not in mixtures:
                                 mixtures  += [k]
                                 been_found = True 
