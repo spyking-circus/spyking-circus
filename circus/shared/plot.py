@@ -20,6 +20,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
+    suff             = params.get('data', 'suffix')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -101,7 +102,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.ylim(-2*thresholds[i], 2*thresholds[i])
     pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], save[1] + '.pdf'))
+        pylab.savefig(os.path.join(save[0], save[1] + suff +'.pdf'))
         pylab.close()
     else:
         pylab.show()
@@ -206,15 +207,15 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
         pylab.plot(templates[:, count], 'r')
         
 ##### TODO: remove debug zone
-        print("# Print `amps_lim` size")
-        print(numpy.size(amps_lim))
-        print("# Print `count`")
-        print(count)
-        print("# Print `amps_lim[count]` size")
-        try:
-            print(numpy.size(amps_lim[count]))
-        except:
-            print("Error (index is out of bounds)")
+        # print("# Print `amps_lim` size")
+        # print(numpy.size(amps_lim))
+        # print("# Print `count`")
+        # print(count)
+        # print("# Print `amps_lim[count]` size")
+        # try:
+        #     print(numpy.size(amps_lim[count]))
+        # except:
+        #     print("Error (index is out of bounds)")
 ##### end debug zone
         
         pylab.plot(amps_lim[count][0]*templates[:, count], 'b', alpha=0.5)

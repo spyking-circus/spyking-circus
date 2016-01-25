@@ -40,6 +40,7 @@ def detect_header(filename, value='MCS'):
         return value, None
 
 def change_flag(file_name, flag, value, avoid_flag=None):
+    """Set a new value to a flag of a given parameter file."""
     f_next, extension = os.path.splitext(os.path.abspath(file_name))
     file_params       = os.path.abspath(file_name.replace(extension, '.params'))
     f     = open(file_params, 'r')
@@ -270,12 +271,14 @@ def data_stats(params, show=True):
     return nb_chunks*60 + last_chunk_len
 
 def print_info(lines):
+    """Prints informations messages, enhanced graphical aspects."""
     print colored("-------------------------  Informations  -------------------------", 'yellow')
     for line in lines:
         print colored("| " + line, 'yellow')
     print colored("------------------------------------------------------------------", 'yellow')
 
 def print_error(lines):
+    """Prints errors messages, enhanced graphical aspects."""
     print colored("----------------------------  Error  -----------------------------", 'red')
     for line in lines:
         print colored("| " + line, 'red')
@@ -472,6 +475,22 @@ def analyze_data(params, chunk_size=None):
     return borders, nb_chunks, chunk_len, last_chunk_len
 
 def get_nodes_and_edges(parameters):
+    """
+    Retrieve the topology of the probe.
+    
+    Other parameters
+    ----------------
+    radius : integer
+    
+    Returns
+    -------
+    nodes : ndarray of integers
+        Array of channel ids retrieved from the description of the probe.
+    edges : dictionary
+        Dictionary which link each channel id to the ids of the channels whose
+        distance is less or equal than radius.
+    
+    """
     
     edges  = {}
     nodes  = []
@@ -532,6 +551,22 @@ def load_data(params, data, extension=''):
         N_e = params.getint('data', 'N_e')
         N_t = params.getint('data', 'N_t')
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+##### TODO: remove debug zone
+# Problem is probably an interrupted execution
+#            print("#####")
+#            temp_x_bis = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
+#            print(temp_x_bis)
+#            for cmd in dir(temp_x_bis):
+#                print(cmd)
+#            print("#####")
+#            print(temp_x_bis.keys())
+#            temp_x_ter = temp_x_bis.get('templates')
+#            print(temp_x_ter)
+#            temp_x_ter = temp_x_bis.get('temp_x')
+#            print(temp_x_ter)
+#            temp_x_qua = temp_x_ter[:]
+#            print("#####")
+##### end debug zone
             temp_x = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
             temp_y = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
             temp_data = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]
@@ -622,7 +657,10 @@ def write_datasets(h5file, to_write, result, electrode=None):
         h5file.get(mykey)[:] = result[mykey]
 
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False):
+    # TODO: complete
+    #""""""
 
+    # Retrieve the key parameters.
     file_out_suff  = params.get('data', 'file_out_suff')
     min_rate       = params.get('fitting', 'min_rate')
     N_e            = params.getint('data', 'N_e')
@@ -633,6 +671,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     print "Gathering data from %d nodes..." %nb_threads
 
+    # Initialize data collection.
     result = {'spiketimes' : {}, 'amplitudes' : {}}
     if with_real_amps:
         result['real_amps'] = {}
@@ -648,6 +687,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_threads).start()
 
+    # For each thread/process collect data.
     for count, node in enumerate(xrange(nb_threads)):
         spiketimes_file = file_out_suff + '.spiketimes-%d.data' %node
         amplitudes_file = file_out_suff + '.amplitudes-%d.data' %node
@@ -690,6 +730,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     pbar.finish()
 
+    # TODO: find a programmer comment.
     for key in result['spiketimes']:
         result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.int32)
         idx                       = numpy.argsort(result['spiketimes'][key])
@@ -707,6 +748,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if with_voltages:
         keys += ['voltages']
 
+    # Save results into `<dataset>/<dataset>.result.hdf5`.
     mydata = h5py.File(file_out_suff + '.result.hdf5', 'w', libver='latest')
     for key in keys:
         mydata.create_group(key)
@@ -714,13 +756,15 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             tmp_path = '%s/%s' %(key, temp)
             mydata.create_dataset(tmp_path, data=result[key][temp])
     mydata.close()        
-    
+
+    # Count and print the number of spikes.
     count = 0
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
     print_info(["Number of spikes fitted : %d" %count])
 
+    # TODO: find a programmer comment
     if erase:
         purge(file_out_suff, '.data')
 
