@@ -461,14 +461,14 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         for i in all_idx:
             rows      = numpy.arange(i*nb_temp, (i+1)*nb_temp)
             overlap_i = overlap[rows, :].tolil()
-            M[0, 0]   = overlap_i[i, distances[k, i]]
+            M[0, 0]   = overlap_0[i, i]
             V[0, 0]   = overlap_k[i, distances[k, i]]
             for j in all_idx[i+1:]:
                 rows      = numpy.arange(j*nb_temp, (j+1)*nb_temp)
                 overlap_j = overlap[rows, :].tolil()
-                M[1, 1]  = overlap_j[j, distances[k, j]]
+                M[1, 1]  = overlap_0[j, j]
                 M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
-                M[0, 1]  = overlap_j[i, distances[k, i] - distances[k, j]]
+                M[0, 1]  = overlap_j[i, distances[k, j] - distances[k, i]]
                 V[1, 0]  = overlap_k[j, distances[k, j]]
                 [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
                 a1_lim   = limits[i]
