@@ -10,16 +10,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
     file_out, ext  = os.path.splitext(os.path.abspath(file_name))
 
-##### TODO: remove test zone
-    # if benchmark not in ['fitting', 'clustering', 'synchrony']:
-    #     if comm.rank == 0:
-    #         io.print_error(['Benchmark need to be in [fitting, clustering, synchrony]'])
-    #     sys.exit(0)
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'pca-validation']:
         if comm.rank == 0:
             io.print_error(['Benchmark need to be in [fitting, clustering, synchrony, pca-validation]'])
         sys.exit(0)
-##### end test zone
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
     # see: http://stackoverflow.com/questions/4530111/python-saving-objects-and-using-pickle-extension-of-filename
@@ -35,40 +29,45 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         to_write['sampling']   = sampling
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
+    # Retrieve some key parameters.
     templates = io.load_data(params, 'templates')
+    N_tm = templates.shape[1] / 2
     sim_same_elec   = 0.8
 
+    # Normalize some variables.
     if benchmark == 'fitting':
         nb_insert       = 25
-        n_cells         = numpy.random.random_integers(0, templates.shape[1] / 2 - 1, nb_insert)
+        n_cells         = numpy.random.random_integers(0, N_tm - 1, nb_insert)
         rate            = nb_insert * [10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
     if benchmark == 'clustering':
         n_point         = 5
-        n_cells         = numpy.random.random_integers(0, templates.shape[1] / 2 - 1, n_point ** 2)
+        n_cells         = numpy.random.random_integers(0, N_tm - 1, n_point ** 2)
         x, y            = numpy.mgrid[0:n_point, 0:n_point]
         rate            = numpy.linspace(0.5, 20, n_point)[x.flatten()]
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
     if benchmark == 'synchrony':
         nb_insert       = 5
         corrcoef        = 0.2
-        n_cells         = nb_insert * [numpy.random.random_integers(0, templates.shape[1] / 2 - 1, 1)[0]]
+        n_cells         = nb_insert * [numpy.random.random_integers(0, N_tm - 1, 1)[0]]
         rate            = 10. / corrcoef
         amplitude       = 2
-##### TODO: remove test zone
     if benchmark == 'pca-validation':
         nb_insert       = 10
-        n_cells         = numpy.random.random_integers(0, templates.shape[1] / 2 - 1, nb_insert)
-        rate            = numpy.random.random_sample(0.5, 20.0, nb_insert)
-        amplitude       = numpy.random.random_sample(0.5, 5.0, nb_insert)
-        assert(False)
-##### end test zone
+        n_cells         = numpy.random.random_integers(0, N_tm - 1, nb_insert)
+        rate_min        = 0.5
+        rate_max        = 20.0
+        rate            = rate_min + (rate_max - rate_min) * numpy.random.random_sample(nb_insert)
+        amplitude_min   = 0.5
+        amplitude_max   = 5.0
+        amplitude       = amplitude_min + (amplitude_max - amplitude_min) * numpy.random.random_sample(nb_insert)
 
     # Delete the output directory tree if this output directory exists.
     if comm.rank == 0:
         if os.path.exists(file_out):
             shutil.rmtree(file_out)
 
+    # Check and normalize some variables.
     if n_cells is None:
         n_cells    = 1
         cells      = [numpy.random.permutation(numpy.arange(n_cells))[0]]
@@ -89,7 +88,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     else:
         amplitude = [amplitude] * len(cells)
 
-    # Retrieve the key parameters.
+    # Retrieve some additional key parameters.
     N_e             = params.getint('data', 'N_e')
     sampling_rate   = params.getint('data', 'sampling_rate')
     nodes, edges     = io.get_nodes_and_edges(params)
@@ -99,7 +98,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    N_tm_init             = templates.shape[1]/2
+    N_tm_init             = templates.shape[1] / 2
     thresholds            = io.load_data(params, 'thresholds')
     limits                = io.load_data(params, 'limits')
     best_elecs            = io.load_data(params, 'electrodes')
@@ -112,7 +111,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     # Save benchmark parameters in a file to remember them.
     if comm.rank == 0:
-        write_benchmark(file_out, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'))
+        write_benchmark(file_out, benchmark, cells, rate, amplitude,
+                        sampling_rate, params.get('data', 'mapping'))
 
     # Synchronize all the threads/processes.
     comm.Barrier()
@@ -122,7 +122,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
-    # Retrieve the additional key parameters.
+    # Retrieve some additional key parameters.
     chunk_size     = params.getint('data', 'chunk_size')
     data_offset    = params.getint('data', 'data_offset')
     dtype_offset   = params.getint('data', 'dtype_offset')
@@ -132,63 +132,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_mpi       = get_mpi_type('float32')
     if comm.rank == 0:
         file = open(file_name, 'w')
-##### TODO: correct bug zone (`f` is not defined, `file` instead ?)
         for i in xrange(data_offset):
-            f.write('1')
-##### end bug zone
+            file.write('1')
         file.close()
     
     # Synchronize all the threads/processes.
     comm.Barrier()
 
+    # Open the file for collective I/O.
+    # TODO: Move this piece of code at the bottom of the file ?
     g              = myfile.Open(comm, file_name, MPI.MODE_RDWR)
     g.Set_view(data_offset, data_mpi, data_mpi)
 
-    # For each cell ... TODO: complete
-##### TODO: remove print zone
-    # if comm.rank == 0:
-    #     print("#####")
-    #     print("# cells")
-    #     print(cells.shape)
-    #     print(cells)
-    #     print("# best_elecs")
-    #     print(best_elecs.shape)
-    #     print(best_elecs)
-    #     print(best_elecs[cells])
-    #     print("# nodes")
-    #     print(nodes.shape)
-    #     print(nodes)
-    #     print("# edges")
-    #     print(len(edges))
-    #     print(edges)
-    #     print("# inv_nodes")
-    #     print(inv_nodes.shape)
-    #     print(inv_nodes)
-##### end print zone
-    # For each synthesized cell... TODO: complete.
+    # For each wanted synthesized cell insert a generated template in the set of
+    # existing template.
     for gcount, cell_id in enumerate(cells):
         best_elec   = best_elecs[cell_id]
         indices     = inv_nodes[edges[nodes[best_elec]]]
-##### TODO: remove plot zone
-        # import matplotlib.pyplot as plt
-        # import numpy as np
-        # x = np.arange(0, N_t, 1)
-        # z = templates[:, cell_id].toarray().reshape(N_e, N_t)
-        # fig = plt.figure()
-        # ax = fig.gca()
-        # for e in xrange(N_e):
-        #     y = z[e, :]
-        #     ax.plot(x, y)
-        # fig_filename = "/tmp/templates-%d.png" %cell_id
-        # fig.savefig(fig_filename)
-##### end plot zone
-##### TODO: remove print zone
-        # print("# Test")
-        # print(type(nodes[best_elec]))
-        # print(nodes[best_elec])
-        # print(type(edges[nodes[best_elec]]))
-        # print(edges[nodes[best_elec]])
-##### end print zone
         count       = 0
         new_indices = []
         all_elecs   = numpy.random.permutation(numpy.arange(N_e))
@@ -197,6 +157,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         # # The `similarity` variable has not been initialized...#
         # similarity = 0.0
 ##### end proposition zone
+        # Find the first eligible template for the wanted synthesized cell.
         while len(new_indices) != len(indices) or (similarity >= sim_same_elec):   
             similarity  = 0
             if count == len(all_elecs):
@@ -225,10 +186,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
                     if len(new_indices) == len(indices):
                         # Shuffle the templates on the neighboring electrodes.
-                        new_temp                 = numpy.zeros(reference.shape,
-                                                               dtype=numpy.float32)
+                        new_temp = numpy.zeros(reference.shape,
+                                               dtype=numpy.float32)
                         new_temp[new_indices, :] = reference[indices, :]
-                        # TODO: find a programmer comment.
+                        # Compute the scaling factor which normalize the
+                        # shuffled template.
                         gmin = new_temp.min()
                         data = numpy.where(new_temp == gmin)
                         scaling = - thresholds[data[0][0]] / gmin
@@ -246,46 +208,95 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             # Go to the next shuffled electrode.
             count += 1
 
-        # if comm.rank == 0:
-        #     print("Template", cell_id, "is shuffled from electrode", best_elec,
-        #           "to", n_elec, "(max similarity is %g)" %similarity)
+        # Display information about the selected template.
+        if comm.rank == 0:
+            print("Template %d is shuffled from electrode %d to %d (max similarity is %g)"
+                  %(cell_id, best_elec, n_elec, similarity))
 
+        ## Insert the selected template.
+        
+        # Retrieve the number of existing templates in the dataset.
         N_tm           = templates.shape[1] / 2
-        to_insert      = numpy.zeros(reference.shape, dtype=numpy.float32)
-        to_insert[new_indices] = scaling * amplitude[gcount] * templates[:, cell_id].toarray().reshape(N_e, N_t)[indices]
-        to_insert2     = numpy.zeros(reference.shape, dtype=numpy.float32)
-        to_insert2[new_indices] = scaling * amplitude[gcount] * templates[:, cell_id + N_tm].toarray().reshape(N_e, N_t)[indices]
 
-        mynorm     = numpy.sqrt(numpy.sum(to_insert.flatten() ** 2) / (N_e * N_t))
-        mynorm2    = numpy.sqrt(numpy.sum(to_insert2.flatten() ** 2) / (N_e * N_t))
-        to_insert  = to_insert.flatten()
+        # Generate the template of the synthesized cell from the selected
+        # template, the target amplitude and the rescaling (i.e. threshold of
+        # the target electrode).
+        to_insert = numpy.zeros(reference.shape, dtype=numpy.float32)
+        to_insert[new_indices] = scaling * amplitude[gcount] * templates[:, cell_id].toarray().reshape(N_e, N_t)[indices]
+        to_insert = to_insert.flatten()
+        to_insert2 = numpy.zeros(reference.shape, dtype=numpy.float32)
+        to_insert2[new_indices] = scaling * amplitude[gcount] * templates[:, cell_id + N_tm].toarray().reshape(N_e, N_t)[indices]
         to_insert2 = to_insert2.flatten()
 
+        # Compute the norm of the generated template.
+        mynorm     = numpy.sqrt(numpy.sum(to_insert ** 2) / (N_e * N_t))
+        mynorm2    = numpy.sqrt(numpy.sum(to_insert2 ** 2) / (N_e * N_t))
+
+        # TODO: find a programmer comment.
         limits     = numpy.vstack((limits, limits[cell_id]))
+        # Insert the best electrode of the generated template.
         best_elecs = numpy.concatenate((best_elecs, [n_elec]))
 
+        # Insert the norm of the template of the generated template (i.e.
+        # central component and orthogonal component).
         norms      = numpy.insert(norms, N_tm, mynorm)
         norms      = numpy.insert(norms, 2 * N_tm + 1, mynorm2)
+        # TODO: find a programmer comment.
         scalings  += [scaling]
-        
+
+        # Retrieve the data about the existing templates.
         templates = templates.tocoo()
         xdata     = templates.row
         ydata     = templates.col
         zdata     = templates.data
+
+        # Shift by one the orthogonal components of the existing templates.
         idx       = numpy.where(ydata >= N_tm)[0]
         ydata[idx] += 1
 
+        # Insert the central component of the selected template.
         dx    = to_insert.nonzero()[0].astype(numpy.int32)
         xdata = numpy.concatenate((xdata, dx))
         ydata = numpy.concatenate((ydata, N_tm * numpy.ones(len(dx), dtype=numpy.int32)))
         zdata = numpy.concatenate((zdata, to_insert[dx]))
 
+        # Insert the orthogonal component of the selected template.
         dx    = to_insert2.nonzero()[0].astype(numpy.int32)
         xdata = numpy.concatenate((xdata, dx))
         ydata = numpy.concatenate((ydata, (2 * N_tm + 1) * numpy.ones(len(dx), dtype=numpy.int32)))
         zdata = numpy.concatenate((zdata, to_insert2[dx]))
+
+        # Recontruct the matrix of templates.
         templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * (N_tm + 1)))
 
+##### TODO: check additional piece of code...
+    # Remove all the expired data.
+    if benchmark == 'pca-validation':
+        #limits = ?
+        #best_elecs = ?
+        #norms = ?
+        #scalings = ?
+        N_tm = templates.shape[1] / 2
+        templates = templates.tocoo()
+        xdata = templates.row
+        ydata = templates.col
+        zdata = templates.data
+        # TODO: check the ranges used to create these logical arrays.
+        idx_cen = numpy.logical_and(N_tm - nb_insert <= ydata, ydata < N_tm)
+        idx_cen = numpy.where(idx_cen)[0]
+        idx_ort = 2 * N_tm - nb_insert <= ydata
+        idx_cen = numpy.where(idx_ort)[0]
+        # TODO: ValueError negative column index found...
+        ydata[idx_cen] = ydata[idx_cen] - (N_tm - nb_insert)
+        ydata[idx_ort] = ydata[idx_ort] - 2 * (N_tm - nb_insert)
+        idx = numpy.concatenate((idx_cen, idx_ort))
+        xdata = xdata[idx]
+        ydata = ydata[idx]
+        zdata = zdata[idx]
+        templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * nb_insert))
+#####
+        
+    # TODO: find a programmer comment.
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
     if last_chunk_len > 0:
         nb_chunks += 1
@@ -295,16 +306,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.print_info(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)])
         io.purge(file_out, '.data')
 
+    # TODO: find a programmer comment.
     template_shift = int((N_t - 1) / 2)
+    # Distribute the chunks of data to process among the threads/processes.
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)
     numpy.random.seed(comm.rank)
 
+    # Initialize the progress bar about the generation of the benchmark.
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
 
-##### TODO: remove test zone (try to verbosely fit in 80 columns).
+    # Open the thread/process' files to collect the results.
     spiketimes_filename = os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank)
     spiketimes_file = open(spiketimes_filename, 'wb')
     amplitude_filename = os.path.join(file_out, data_suff + '.amplitudes-%d.data' %comm.rank)
@@ -315,13 +329,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     real_amps_file = open(real_amps_filename, 'wb')
     voltages_filename = os.path.join(file_out, data_suff + '.voltages-%d.data' %comm.rank)
     voltages_file = open(voltages_filename, 'wb')
-    # spiketimes_file     = open(os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank), 'wb')
-    # amplitudes_file     = open(os.path.join(file_out, data_suff + '.amplitudes-%d.data' %comm.rank), 'wb')
-    # templates_file      = open(os.path.join(file_out, data_suff + '.templates-%d.data' %comm.rank), 'wb')
-    # real_amps_file      = open(os.path.join(file_out, data_suff + '.real_amps-%d.data' %comm.rank), 'wb')
-    # voltages_file       = open(os.path.join(file_out, data_suff + '.voltages-%d.data' %comm.rank), 'wb')
-##### end test zone
 
+    # For each chunk of data associate to the current thread/process generate
+    # the new chunk of data (i.e. with considering the added synthesized cells).
     for count, gidx in enumerate(to_process):
 
         if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
@@ -332,33 +342,64 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                           'templates' : [], 'real_amps' : [],
                           'voltages' : []}
         offset         = gidx * chunk_size
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len,
+                                                 chunk_size, nodes=nodes)
 
+##### TODO: check additional piece of code...
+        if benchmark == 'pca-validation':
+            # Clear the current data chunk.
+            local_chunk = numpy.zeros(local_chunk.shape, dtype=local_chunk.dtype)
+            # print("# pca-validation")
+            # print(type(local_chunk))
+            # print(local_chunk.shape)
+            # print(local_chunk.dtype)
+            # Notes: need to remove templates and every other expired data.
+#####
+
+        # TODO: find programmer comment.
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
-            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk,
+                                                           temporal_whitening,
+                                                           axis=0,
+                                                           mode='constant')
 
         if benchmark is 'synchrony':
+            # Generate some spike indices (i.e. times) at the given rate for
+            # 'synchrony' mode. Each synthesized cell will use a subset of this
+            # spike times.
             mips = numpy.random.rand(chunk_size) < rate[0] / float(sampling_rate)
 
+        # For each synthesized cell generate its spike indices (i.e.times) and
+        # add them to the dataset.
         for idx in xrange(len(cells)):
             if benchmark is 'synchrony':
+                # Choose a subset of the spike indices generated before. The
+                # size of this subset is parameterized by the target correlation
+                # coefficients.
                 sidx       = numpy.where(mips == True)[0]
                 spikes     = numpy.zeros(chunk_size, dtype=numpy.bool)
                 spikes[sidx[numpy.random.rand(len(sidx)) < corrcoef]] = True
             else:
-                spikes     = numpy.random.rand(chunk_size) < rate[idx]/float(sampling_rate)
+                # Generate some spike indices at the given rate.
+                spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(sampling_rate)
+            # Padding with `False` to avoid the insertion of partial spikes at
+            # the edges of the signal.
             spikes[:N_t]   = False
             spikes[-N_t:]  = False
+            # Find the indices of the spike samples.
             spikes         = numpy.where(spikes == True)[0]
             n_template     = N_tm_init + idx
             loc_template   = templates[:, n_template].toarray().reshape(N_e, N_t)
             first_flat     = loc_template.T.flatten()
-            norm_flat      = numpy.sum(first_flat**2)
+            norm_flat      = numpy.sum(first_flat ** 2)
+            # For each index (i.e. spike sample location) add the spike to the
+            # chunk of data.
             for scount, spike in enumerate(spikes):
-                local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
-                amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
+                window = numpy.arange(spike - template_shift, spike + template_shift + 1, 1)
+                local_chunk[window, :] += loc_template.T
+                amp        = numpy.dot(local_chunk[window, :].flatten(), first_flat)
                 amp       /= norm_flat
                 result['real_amps']  += [amp]
                 result['spiketimes'] += [spike + offset]
@@ -366,6 +407,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 result['templates']  += [n_template]
                 result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
 
+        # Write the results into the thread/process' files.
         spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
         amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
         templates_to_write  = numpy.array(result['templates'], dtype=numpy.int32)
@@ -382,21 +424,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         new_chunk    = numpy.zeros((chunk_size, N_total), dtype=numpy.float32)
         new_chunk[:, nodes] = local_chunk
 
+        # Overwrite the new chunk of data using explicit offset. 
         new_chunk   = new_chunk.flatten()
-        g.Write_at(gidx*chunk_len, new_chunk)
+        g.Write_at(gidx * chunk_len, new_chunk)
 
+        # Update the progress bar about the generation of the benchmark.
         if comm.rank == 0:
             pbar.update(count)
 
+    # Close the thread/process' files.
     spiketimes_file.close()
     amplitudes_file.close()
     templates_file.close()
     real_amps_file.close()
     voltages_file.close()
 
+    # Finish the progress bar about the generation of the benchmark.
     if comm.rank == 0:
         pbar.finish()
 
+    # Close the file for collective I/O.
     g.Close()
 
     
@@ -440,12 +487,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         mydata.create_dataset('electrodes', data=best_elecs)
         mydata.close()
 
-##### TODO: remove quarantine zone (not immediately deleted because of possible side effects)
-    # # Synchronize all the threads/processes.
-    # comm.Barrier()
-    
-    # if comm.rank == 0:
-##### end quanrantine zone
         # Gather data from all threads/processes.
         io.collect_data(comm.size, io.load_parameters(file_params), erase=True,
                         with_real_amps=True, with_voltages=True)
