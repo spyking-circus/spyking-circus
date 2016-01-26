@@ -710,3 +710,56 @@ def raster_plot(file_name):
         times     += result['spiketimes'][key].tolist()
         templates += [template]*len(result['spiketimes'][key])
     return numpy.array(times), numpy.array(templates)
+
+
+def view_norms(file_name, save=True):
+    """
+    Sanity plot of the norms of the templates.
+    
+    Parameters
+    ----------
+    file_name : string
+    
+    """
+
+    # Retrieve the key parameters.
+    params = load_parameters(file_name)
+    norms = load_data(params, 'norm-templates')
+    N_tm = norms.shape[0] / 2
+    y_margin = 0.1
+
+    # Plot the figure.
+    fig, ax = pylab.subplots(2, sharex=True)
+    x = numpy.arange(0, N_tm, 1)
+    y_cen = norms[0:N_tm]
+    y_ort = norms[N_tm:2*N_tm]
+    x_min = -1
+    x_max = N_tm
+    y_cen_dif = numpy.amax(y_cen) - numpy.amin(y_cen)
+    y_cen_min = numpy.amin(y_cen) - y_margin * y_cen_dif
+    y_cen_max = numpy.amax(y_cen) + y_margin * y_cen_dif
+    y_ort_dif = numpy.amax(y_ort) - numpy.amin(y_ort)
+    y_ort_min = numpy.amin(y_ort) - y_margin * y_ort_dif
+    y_ort_max = numpy.amax(y_ort) + y_margin * y_ort_dif
+    ax[0].plot(x, y_cen, 'o')
+    ax[0].set_xlim([x_min, x_max])
+    ax[0].set_ylim([y_cen_min, y_cen_max])
+    ax[0].grid()
+    ax[0].set_title("Norms of the %d templates in %s" %(N_tm, file_name))
+    ax[0].set_xlabel("template (central component)")
+    ax[0].set_ylabel("norm")
+    ax[1].plot(x, y_ort, 'o')
+    ax[1].set_ylim([y_ort_min, y_ort_max])
+    ax[1].grid()
+    ax[1].set_xlabel("template (orthogonal component)")
+    ax[1].set_ylabel("norm")
+
+    # Display figure.
+    if save:
+        fig.savefig("/tmp/norms-templates.pdf")
+        pylab.close(fig)
+    else:
+        fig_cen.show()
+        fig_ort.show()
+
+    return
