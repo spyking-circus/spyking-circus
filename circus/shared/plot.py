@@ -126,11 +126,12 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
             colorVal = scalarMap.to_rgba(halo[i])
             ax.plot(rho[i], delta[i], 'o', color=colorVal)
 
-    pca = PCA(3)
-    visu_data = pca.fit_transform(data.astype(numpy.double))
-    assigned  = numpy.where(halo > -1)[0]
-
     try:
+
+        pca = PCA(3)
+        visu_data = pca.fit_transform(data.astype(numpy.double))
+        assigned  = numpy.where(halo > -1)[0]
+
         ax = fig.add_subplot(232)
         ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0)
         ax.set_xlabel('Dim 0')
