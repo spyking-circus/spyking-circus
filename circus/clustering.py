@@ -15,6 +15,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
     file_out       = params.get('data', 'file_out')
@@ -177,6 +178,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 for i in search_from:
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                    if skip_artefact:
+                        values    = local_chunk[peaktimes, i]
+                        idx       = numpy.where(values >= -10*thresholds[i])[0]
+                        peaktimes = peaktimes[idx]
                     all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                     all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 

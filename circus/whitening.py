@@ -12,6 +12,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     spike_thresh   = params.getfloat('data', 'spike_thresh')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
@@ -69,6 +70,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
         for i in xrange(N_e):
             peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
+            if skip_artefact:
+                values    = numpy.abs(local_chunk[peaktimes, i])
+                idx       = numpy.where(values <= 10*thresholds[i])[0]
+                peaktimes = peaktimes[idx]
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
         local_peaktimes = numpy.unique(local_peaktimes)
@@ -178,8 +183,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
-                for i in xrange(N_e):
-                    local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
+                local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
             thresholds = numpy.zeros(N_e, dtype=numpy.float32)
             for i in xrange(N_e):
@@ -209,6 +213,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
@@ -281,6 +286,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             for i in xrange(N_e):
                 peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                if skip_artefact:
+                    values    = local_chunk[peaktimes, i]
+                    idx       = numpy.where(values >= -10*thresholds[i])[0]
+                    peaktimes = peaktimes[idx]
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 

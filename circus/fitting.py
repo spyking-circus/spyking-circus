@@ -13,6 +13,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -164,6 +165,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
             for i in xrange(N_e):
                 peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                if skip_artefact:
+                    values    = local_chunk[peaktimes, i]
+                    idx       = numpy.where(values >= -10*thresholds[i])[0]
+                    peaktimes = peaktimes[idx]
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
             idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
