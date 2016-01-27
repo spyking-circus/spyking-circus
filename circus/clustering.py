@@ -364,7 +364,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if gpass == 0:
                 if len(result['tmp_' + str(ielec)]) > 1:
                     pca                          = PCA(sub_output_dim)
-                    result['tmp_' + str(ielec)]  = pca.fit(result['tmp_' + str(ielec)]).transform(result['tmp_' + str(ielec)])
+                    result['tmp_' + str(ielec)]  = pca.fit_transform(result['tmp_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                     result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=None, compute_rho=False)
@@ -379,8 +379,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if len(result['data_' + str(ielec)]) > 1:
 
                     pca                          = PCA(sub_output_dim)
-                    data                         = result['data_' + str(ielec)].astype(numpy.double)
-                    data                         = pca.fit(data).transform(data).astype(numpy.float32)
+                    data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                     result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], compute_rho=True)
@@ -903,9 +902,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
 
                 if len(sub_data_flat) > 1:
-                    pca              = mdp.nodes.PCANode(output_dim=1)
-                    res_pca          = pca(sub_data_flat.astype(numpy.double))
-                    second_component = pca.get_projmatrix().reshape(y, z)
+                    pca              = PCA(1)
+                    res_pca          = pca.fit_transform(sub_data_flat.astype(numpy.double)).astype(numpy.float32)
+                    second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
                 else:
                     second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 

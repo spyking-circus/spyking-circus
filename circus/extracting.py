@@ -221,9 +221,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amps_lims[g_count] = [amp_min, amp_max]
 
             if len(data_flat) > 1:
-                pca              = mdp.nodes.PCANode(output_dim=1)
-                res_pca          = pca(data_flat.astype(numpy.double))
-                second_component = pca.get_projmatrix().reshape(y, z)
+                pca              = PCA(1)
+                res_pca          = pca.fit_transform(data_flat.astype(numpy.double))
+                second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
             else:
                 second_component = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
             

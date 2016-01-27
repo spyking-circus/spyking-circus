@@ -1,8 +1,7 @@
 import matplotlib
 matplotlib.use('Agg')
 import os
-os.environ['MDP_DISABLE_SKLEARN']='yes'
-import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
+import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats, progressbar
 from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges
 from circus.shared.mpi import all_gather_array
 import scipy.linalg, scipy.sparse

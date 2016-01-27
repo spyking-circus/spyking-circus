@@ -7,6 +7,7 @@ import scipy.sparse as sp
 from math import log, sqrt
 from scipy import linalg
 from scipy.special import gammaln
+import scipy.interpolate
 import numpy, pylab, os, mpi4py, progressbar, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters
 from circus.shared import files as io

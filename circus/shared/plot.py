@@ -1,10 +1,8 @@
-import numpy, scipy
-import pylab
-import os
-
+import numpy, scipy, pylab, os
 from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results, read_probe
 import numpy, pylab
 from circus.shared import algorithms as algo
+from circus.shared.utils import *
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
@@ -110,7 +108,6 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
 
 def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=False):
 
-    import mdp
     fig = pylab.figure(figsize=(15, 10))
     ax  = fig.add_subplot(231)
     ax.set_xlabel(r'$\rho$')
@@ -129,8 +126,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
             colorVal = scalarMap.to_rgba(halo[i])
             ax.plot(rho[i], delta[i], 'o', color=colorVal)
 
-    pca = mdp.nodes.PCANode(output_dim=3)
-    visu_data = pca(data.astype(numpy.double))
+    pca = PCA(output_dim=3)
+    visu_data = pca.fit_transform(data.astype(numpy.double))
     assigned  = numpy.where(halo > -1)[0]
 
     try:
