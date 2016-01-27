@@ -126,7 +126,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
             colorVal = scalarMap.to_rgba(halo[i])
             ax.plot(rho[i], delta[i], 'o', color=colorVal)
 
-    pca = PCA(output_dim=3)
+    pca = PCA(3)
     visu_data = pca.fit_transform(data.astype(numpy.double))
     assigned  = numpy.where(halo > -1)[0]
 
