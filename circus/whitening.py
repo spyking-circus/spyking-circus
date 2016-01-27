@@ -89,8 +89,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_idx         = local_peaktimes[argmax_peak]
 
             #print "Selection of the peaks with spatio-temporal masks..."
-            for idx, sidx in zip(argmax_peak, all_idx):
-                elec    = numpy.argmax(numpy.abs(local_chunk[sidx]))
+            for idx, peak in zip(argmax_peak, all_idx):
+                elec    = numpy.argmax(numpy.abs(local_chunk[peak]))
                 indices = inv_nodes[edges[nodes[elec]]]
                 myslice = all_times[indices, min_times[idx]:max_times[idx]]
                 peak    = local_peaktimes[idx]
@@ -312,13 +312,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_idx         = local_peaktimes[argmax_peak]
 
                 #print "Selection of the peaks with spatio-temporal masks..."
-                for midx, sidx in zip(argmax_peak, all_idx):
+                for midx, peak in zip(argmax_peak, all_idx):
                     if elt_count == nb_elts:
                         break
-                    elec    = numpy.argmin(local_chunk[sidx])
+                    elec    = numpy.argmin(local_chunk[peak])
                     indices = inv_nodes[edges[nodes[elec]]]
                     myslice = all_times[indices, min_times[midx]:max_times[midx]]
-                    peak    = local_peaktimes[midx]
                     is_local_min = elec in all_minimas[all_peaktimes == peak]
                     if is_local_min and not myslice.any():
                         upper_bounds = max_elts_elec
