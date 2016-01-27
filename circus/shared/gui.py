@@ -7,56 +7,16 @@ import matplotlib.widgets as widgets
 from matplotlib.colors import colorConverter
 import matplotlib.gridspec as gridspec
 import matplotlib.colors as colors
+from matplotlib.backends import qt_compat
+use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
+if use_pyside:
+    from PySide import QtGui, QtCore, uic
+else:
+    from PyQt4 import QtGui, QtCore, uic
 
 from utils import *
 from algorithms import slice_templates, slice_clusters
 
-class ToggleButton(widgets.Button):
-
-    def __init__(self, *args, **kwds):
-        self.toggle_group = kwds.pop('toggle_group')
-        super(ToggleButton, self).__init__(*args, **kwds)
-        self.toggled = False
-        [i.set_color('black') for i in self.ax.spines.itervalues()]
-        self.ax.set_frame_on(False)
-
-    def _release(self, event):
-        if self.ignore(event):
-            return
-        if event.canvas.mouse_grabber != self.ax:
-            return
-        event.canvas.release_mouse(self.ax)
-        if not self.eventson:
-            return
-        if event.inaxes != self.ax:
-            return
-        if self.toggled:
-            return
-        self.update_toggle(True)
-
-        for cid, func in six.iteritems(self.observers):
-            func(event)
-
-    def update_toggle(self, new_toggle):
-        self.toggled = new_toggle
-        if self.toggled:
-            c = self.hovercolor
-            frame = True
-            # unselect all other buttons
-            for b in self.toggle_group:
-                if b is not self:
-                    b.update_toggle(False)
-        else:
-            c = self.color
-            frame = False
-
-        self.ax.set_axis_bgcolor(c)
-        self.ax.set_frame_on(frame)
-        if self.drawon:
-            self.ax.figure.canvas.draw()
-
-    def _motion(self, event):
-        pass
 
 class SymmetricVCursor(widgets.AxesWidget):
     '''Variant of matplotlib.widgets.Cursor, drawing two symmetric vertical
@@ -132,9 +92,10 @@ class SymmetricVCursor(widgets.AxesWidget):
         return False
 
 
-class MergeGUI(object):
+class MergeWindow(QtGui.QMainWindow):
 
     def __init__(self, comm, params):
+        super(MergeWindow, self).__init__()
 
         self.comm       = comm
         self.params     = params
@@ -160,11 +121,7 @@ class MergeGUI(object):
 
         self.cmap = plt.get_cmap('winter')
         self.init_gui_layout()
-        self.fig = self.score_ax1.figure
-        # Remove all buttons from the standard toolbar
-        toolbar = self.fig.canvas.toolbar
-        for action in toolbar.actions():
-            toolbar.removeAction(action)
+
         
         self.generate_data()
         self.selected_points = set()
@@ -179,7 +136,7 @@ class MergeGUI(object):
                                for ax in [self.score_ax1, self.score_ax2, self.score_ax3]]
         for selector in self.rect_selectors:
             selector.set_active(False)
-        self.pick_button.update_toggle(True)
+
         self.lag_selector = SymmetricVCursor(self.data_ax, color='blue')
         self.lag_selector.active = False
         self.line_lag1 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
@@ -188,24 +145,30 @@ class MergeGUI(object):
                                               color='black')
         self.update_lag(5)
         self.plot_data()
+        self.plot_scores()
+        #
+        # # Connect matplotlib events
+        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3,
+                    self.ui.detail, self.ui.data_overview]:
+            fig.mpl_connect('scroll_event', self.zoom)
+            fig.mpl_connect('button_press_event', self.on_mouse_press)
 
-        # Connect events
-        self.fig.canvas.mpl_connect('scroll_event', self.zoom)
-        self.fig.canvas.mpl_connect('button_press_event', self.on_mouse_press)
-        self.fig.canvas.mpl_connect('close_event', self.handle_close)
-        self.rect_button.on_clicked(self.update_rect_selector)
-        self.lasso_button.on_clicked(self.update_rect_selector)
-        self.pick_button.on_clicked(self.update_rect_selector)
-        self.add_button.on_clicked(self.add_to_selection)
-        self.remove_button.on_clicked(self.remove_selection)
-        self.sort_order.on_clicked(self.update_data_sort_order)
-        self.set_range_button.on_clicked(lambda event: setattr(self.lag_selector, 'active', True))
-        self.merge_button.on_clicked(self.do_merge)
-        self.finalize_button.on_clicked(self.finalize)
-        self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  CC metric %.2f' % (x, y)
-        self.score_ax2.format_coord = lambda x, y: 'normalized CC metric: %.2f  CC metric %.2f' % (x, y)
-        self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized CC metric %.2f' % (x, y)
-        self.data_ax.format_coord = self.data_tooltip
+        # self.fig.canvas.mpl_connect('close_event', self.handle_close)
+        self.ui.btn_rectangle.clicked.connect(self.update_rect_selector)
+        self.ui.btn_lasso.clicked.connect(self.update_rect_selector)
+        self.ui.btn_picker.clicked.connect(self.update_rect_selector)
+        self.ui.btn_select.clicked.connect(self.add_to_selection)
+
+        self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
+        self.ui.btn_merge.clicked.connect(self.do_merge)
+        self.ui.btn_finalize.clicked.connect(self.finalize)
+        self.ui.btn_set_lag.clicked.connect(lambda event: setattr(self.lag_selector,
+                                                                  'active', True))
+        # TODO: Tooltips
+        # self.score_ax1.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
+        # self.score_ax2.format_coord = lambda x, y: 'normalized cross-correlation metric: %.2f  cross-correlation metric %.2f' % (x, y)
+        # self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized cross-correlation metric %.2f' % (x, y)
+        # self.data_ax.format_coord = self.data_tooltip
         # Select the best point at start
         idx = np.argmax(self.score_y)
         self.update_inspect({idx})
@@ -225,53 +188,16 @@ class MergeGUI(object):
             self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
         sys.exit(0)
 
-
     def init_gui_layout(self):
-        gs = gridspec.GridSpec(15, 5, width_ratios=[2, 2, 1, 2, 2])
-        # TOOLBAR
-        buttons_gs = gridspec.GridSpecFromSubplotSpec(1, 3,
-                                                      subplot_spec=gs[0, 0])
-        lasso_button_ax = plt.subplot(buttons_gs[0, 0])
-        rect_button_ax = plt.subplot(buttons_gs[0, 1])
-        pick_button_ax = plt.subplot(buttons_gs[0, 2])
-        self.toggle_group = []
-        pick_icon  = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-color-picker.png'))
-        lasso_icon = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-free-select.png'))
-        rect_icon  = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-rect-select.png'))
-        self.lasso_button = ToggleButton(lasso_button_ax, '',
-                                         image=mpl.image.imread(lasso_icon),
-                                         toggle_group=self.toggle_group)
-        self.rect_button = ToggleButton(rect_button_ax, '',
-                                        image=mpl.image.imread(rect_icon),
-                                        toggle_group=self.toggle_group)
-        self.pick_button = ToggleButton(pick_button_ax, '',
-                                        image=mpl.image.imread(pick_icon),
-                                        toggle_group=self.toggle_group)
-        self.toggle_group.extend([self.lasso_button,
-                                  self.rect_button,
-                                  self.pick_button])
-        self.score_ax1 = plt.subplot(gs[1:8, 0])
-        self.score_ax2 = plt.subplot(gs[1:8, 1])
-        self.score_ax3 = plt.subplot(gs[8:, 0])
-        self.detail_ax = plt.subplot(gs[1:5, 3:])
-        self.data_ax = plt.subplot(gs[5:13, 3:])
-        sort_order_ax = plt.subplot(gs[14, 3])
-        sort_order_ax.set_axis_bgcolor('none')
-        self.sort_order = widgets.RadioButtons(sort_order_ax, ('template similarity',
-                                                               'cross-correlation',
-                                                               'normalized cross-correlation'))
-        self.current_order = 'template similarity'
-        set_range_ax = plt.subplot(gs[14, 4])
-        self.set_range_button = widgets.Button(set_range_ax, 'Set range')
-        add_button_ax      = plt.subplot(gs[7, 2])
-        self.add_button    = widgets.Button(add_button_ax, 'Select')
-        remove_button_ax   = plt.subplot(gs[8, 2])
-        self.remove_button = widgets.Button(remove_button_ax, 'Unselect')
-        merge_button_ax    = plt.subplot(gs[9, 2])
-        self.merge_button  = widgets.Button(merge_button_ax, 'Merge')
-        finalize_button_ax = plt.subplot(gs[14, 2])
-        self.finalize_button = widgets.Button(finalize_button_ax, 'Finalize')
-
+        self.ui = uic.loadUi(os.path.join(os.path.dirname(__file__), './qt_merge.ui'), self)
+        # print dir(self.ui)
+        self.score_ax1 = self.ui.score_1.axes
+        self.score_ax2 = self.ui.score_2.axes
+        self.score_ax3 = self.ui.score_3.axes
+        self.detail_ax = self.ui.detail.axes
+        self.data_ax = self.ui.data_overview.axes
+        self.current_order = self.ui.cmb_sorting.currentIndex()
+        self.ui.show()
 
     def generate_data(self):
 
@@ -364,6 +290,8 @@ class MergeGUI(object):
             xmin, xmax = min(score_x), max(score_x)
             xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
             ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
+        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3]:
+            fig.draw_idle()
 
     def plot_data(self):
         # Right: raw data
@@ -381,8 +309,6 @@ class MergeGUI(object):
         self.data_ax.spines['left'].set_visible(False)
         self.data_ax.spines['top'].set_visible(False)
         self.data_image.set_clim(0, cmax)
-        #self.inspect_markers, = self.data_ax.plot([], [], 'bo',
-        #                                          clip_on=False, ms=10)
         self.inspect_markers = self.data_ax.scatter([], [], marker='<',
                                                     clip_on=False, s=40)
         self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
@@ -393,6 +319,7 @@ class MergeGUI(object):
         self.data_ax.set_xlim(self.raw_lags[0], self.raw_lags[-1])
         self.data_ax.set_ylim(0, len(self.sort_idcs)+1)
         self.data_ax.set_yticks([])
+        self.ui.data_overview.draw()
 
     def data_tooltip(self, x, y):
         row = int(y)
@@ -498,7 +425,10 @@ class MergeGUI(object):
         # Update the linked axes in the other plots as well
         link_with_x(newxmin, newxmax)
         link_with_y(newymin, newymax)
-        self.fig.canvas.draw_idle()
+
+        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3]:
+            fig.draw_idle()
+
 
     def update_lag(self, lag):
         actual_lag = self.raw_lags[np.argmin(np.abs(self.raw_lags - lag))]
@@ -510,12 +440,10 @@ class MergeGUI(object):
         self.line_lag1.set_xdata((lag, lag))
         self.line_lag2.set_xdata((-lag, -lag))
         self.data_ax.set_xlabel('lag (ms) -- cutoff: %.2fms' % self.use_lag)
-        self.plot_scores()  # will also trigger a draw
 
     def update_rect_selector(self, event):
         for selector in self.rect_selectors:
-            selector.set_active(self.rect_button.toggled)
-        self.fig.canvas.draw_idle()
+            selector.set_active(self.ui.btn_rectangle.isChecked())
 
     def update_detail_plot(self):
         self.detail_ax.clear()
@@ -531,15 +459,16 @@ class MergeGUI(object):
         self.detail_ax.set_ylim(0, 3)
         self.detail_ax.set_xticks(self.data_ax.get_xticks())
         self.detail_ax.set_xticklabels([])
+        self.ui.detail.draw_idle()
 
     def update_sort_idcs(self):
         # The selected points are sorted before all the other points -- an easy
         # way to achieve this is to add the maximum score to their score
-        if self.current_order == 'template similarity':
+        if self.current_order == 0:
             score = self.score_x
-        elif self.current_order == 'cross-correlation':
+        elif self.current_order == 1:
             score = self.score_y
-        elif self.current_order == 'normalized cross-correlation':
+        elif self.current_order == 2:
             score = self.score_z
         else:
             raise AssertionError(self.current_order)
@@ -566,7 +495,7 @@ class MergeGUI(object):
             self.inspect_markers.set_offsets([])
             self.inspect_markers.set_color([])
 
-        self.fig.canvas.draw_idle()
+        self.ui.data_overview.draw_idle()
 
     def update_data_sort_order(self, new_sort_order=None):
         if new_sort_order is not None:
@@ -596,6 +525,8 @@ class MergeGUI(object):
                 fcolors[p] = colorin
             for idx, p in enumerate(self.inspect_points):
                 fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3]:
+            fig.draw_idle()
 
     def update_inspect(self, indices, add_or_remove=None):
         all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
@@ -609,7 +540,6 @@ class MergeGUI(object):
         # We use a deterministic mapping to colors, based on their index
         self.inspect_colors = [all_colors[idx % len(all_colors)]
                                for idx in self.inspect_points]
-
         self.update_score_plot()
         self.update_detail_plot()
         self.update_data_plot()
@@ -638,12 +568,12 @@ class MergeGUI(object):
 
     def on_mouse_press(self, event):
         if event.inaxes in [self.score_ax1, self.score_ax2, self.score_ax3]:
-            if self.lasso_button.toggled:
+            if self.ui.btn_lasso.isChecked():
                 # Select multiple points
                 self.start_lasso_select(event)
-            elif self.rect_button.toggled:
+            elif self.ui.btn_rectangle.isChecked():
                 pass  # handled already by rect selector
-            elif self.pick_button.toggled:
+            elif self.ui.btn_picker.isChecked():
                 # Select a single point for display
                 # Find the closest point
                 if event.inaxes == self.score_ax1:
@@ -683,6 +613,8 @@ class MergeGUI(object):
                 # Update lag
                 self.update_lag(abs(event.xdata))
                 self.lag_selector.active = False
+                self.plot_scores()
+                self.update_data_plot()
             else:  # select a line
                 if event.ydata < 0 or event.ydata >= len(self.sort_idcs):
                     return
@@ -846,7 +778,7 @@ class PreviewGUI(object):
         self.thresholds       = io.load_data(params, 'thresholds')
         self.t_start          = 0
         self.t_stop           = 1
-        
+
         self.get_data()
         self.score_x = []
         self.score_y = []
@@ -895,9 +827,9 @@ class PreviewGUI(object):
     def get_data(self):
         self.chunk_size       = self.sampling_rate
         self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
-        self.data, data_shape = io.load_chunk(self.params, 0, self.chunk_size*self.N_total, 
+        self.data, data_shape = io.load_chunk(self.params, 0, self.chunk_size*self.N_total,
             padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
-        
+
         if self.do_spatial_whitening:
             self.data = numpy.dot(self.data, self.spatial_whitening)
         if self.do_temporal_whitening:
@@ -1012,7 +944,7 @@ class PreviewGUI(object):
         self.lasso_selector.add_or_remove = add_or_remove
         if event.inaxes == self.score_ax1:
             self.lasso_selector.points = self.points
-    
+
     def on_mouse_press(self, event):
         if event.inaxes in [self.score_ax1]:
             if self.lasso_button.toggled:
@@ -1066,10 +998,10 @@ class PreviewGUI(object):
                 ymin, ymax = ymax, ymin
 
         self.score_ax = eclick.inaxes
-        
+
         if self.score_ax == self.score_ax1:
             score_x, score_y = self.score_x, self.score_y
-        
+
         in_selection = ((score_x >= xmin) &
                         (score_x <= xmax) &
                         (score_y >= ymin) &
@@ -1141,7 +1073,7 @@ class PreviewGUI(object):
         self.detail_ax.set_yticklabels([])
         self.detail_ax.set_xlabel('Time [s]')
         self.detail_ax.set_xlim(self.t_start, self.t_stop)
-        
+
         self.fig.canvas.draw_idle()
 
     def zoom(self, event):
@@ -1180,7 +1112,7 @@ class PreviewGUI(object):
         newxmin = (newxmax + newxmin)*0.5 -new_xrange
         newxmax = (newxmax + newxmin)*0.5 +new_xrange
         score_ax.set_xlim(newxmin, newxmax)
-    
+
         if event.inaxes == self.score_ax1:
             newymin = np.clip(ydata - cur_yrange*scale_factor, np.min(y), np.max(y))
             newymax = np.clip(ydata + cur_yrange*scale_factor, np.min(y), np.max(y))
