@@ -222,7 +222,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     all_times[elec, min_times[t]:max_times[t]] = True
 
                     #print "Selection of the peaks with spatio-temporal masks..."
-                    for idx, peak in zip(argmax_peak, all_idx):
+                    for midx, peak in zip(argmax_peak, all_idx):
 
                         if elt_count == loop_nb_elts:
                             break
@@ -234,9 +234,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             indices = inv_nodes[edges[nodes[elec]]]
 
                             if safety_space:
-                                myslice = all_times[indices, min_times[idx]:max_times[idx]]
+                                myslice = all_times[indices, min_times[midx]:max_times[midx]]
                             else:
-                                myslice = all_times[elec, min_times[idx]:max_times[idx]]
+                                myslice = all_times[elec, min_times[midx]:max_times[midx]]
 
                             is_local_min = elec in all_minimas[all_peaktimes == peak]
 
@@ -297,9 +297,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         to_add = numpy.array([peak + local_offset], dtype=numpy.int32)
                                         result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
                                     if safety_space:
-                                        all_times[indices, min_times[idx]:max_times[idx]] = True
+                                        all_times[indices, min_times[midx]:max_times[midx]] = True
                                     else:
-                                        all_times[elec, min_times[idx]:max_times[idx]] = True
+                                        all_times[elec, min_times[midx]:max_times[midx]] = True
 
                 if comm.rank == 0:
                     pbar.update(elt_count)
