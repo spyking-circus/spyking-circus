@@ -2,8 +2,15 @@ from .shared.utils import *
 import h5py
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
-    # TODO: complete
-    #""""""
+    """
+    Useful tool to create synthetic datasets for benchmarking.
+    
+    Arguments
+    ---------
+    benchmark : {'fitting', 'clustering', 'synchrony', 'pca-validation'}
+        
+    """
+    
     numpy.random.seed(451235)
 
     data_path      = os.path.dirname(os.path.abspath(file_name))
@@ -139,11 +146,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # Synchronize all the threads/processes.
     comm.Barrier()
 
-    # Open the file for collective I/O.
-    # TODO: Move this piece of code at the bottom of the file ?
-    g              = myfile.Open(comm, file_name, MPI.MODE_RDWR)
-    g.Set_view(data_offset, data_mpi, data_mpi)
-
     # For each wanted synthesized cell insert a generated template in the set of
     # existing template.
     for gcount, cell_id in enumerate(cells):
@@ -153,10 +155,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         new_indices = []
         all_elecs   = numpy.random.permutation(numpy.arange(N_e))
         reference   = templates[:, cell_id].toarray().reshape(N_e, N_t)
-##### TODO: remove proposition zone
-        # # The `similarity` variable has not been initialized...#
-        # similarity = 0.0
-##### end proposition zone
+        # Initialize the similarity (i.e. default value).
+        similarity = 1.0
         # Find the first eligible template for the wanted synthesized cell.
         while len(new_indices) != len(indices) or (similarity >= sim_same_elec):   
             similarity  = 0
@@ -232,16 +232,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         mynorm     = numpy.sqrt(numpy.sum(to_insert ** 2) / (N_e * N_t))
         mynorm2    = numpy.sqrt(numpy.sum(to_insert2 ** 2) / (N_e * N_t))
 
-        # TODO: find a programmer comment.
+        # Insert the limits of the generated template.
         limits     = numpy.vstack((limits, limits[cell_id]))
         # Insert the best electrode of the generated template.
         best_elecs = numpy.concatenate((best_elecs, [n_elec]))
 
-        # Insert the norm of the template of the generated template (i.e.
-        # central component and orthogonal component).
+        # Insert the norm of the generated template (i.e. central component and
+        # orthogonal component).
         norms      = numpy.insert(norms, N_tm, mynorm)
         norms      = numpy.insert(norms, 2 * N_tm + 1, mynorm2)
-        # TODO: find a programmer comment.
+        # Insert the scaling of the generated template.
         scalings  += [scaling]
 
         # Retrieve the data about the existing templates.
@@ -269,24 +269,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         # Recontruct the matrix of templates.
         templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * (N_tm + 1)))
 
-##### TODO: check additional piece of code...
     # Remove all the expired data.
     if benchmark == 'pca-validation':
-        #limits = ?
-        #best_elecs = ?
-        #norms = ?
-        #scalings = ?
+        # Remove all the expired data.
+        N_tm_init = 0
         N_tm = templates.shape[1] / 2
+
+        limits = limits[N_tm - nb_insert:, :]
+        best_elecs = best_elecs[N_tm - nb_insert:]
+        norms = numpy.concatenate((norms[N_tm-nb_insert:N_tm], norms[2*N_tm-nb_insert:2*N_tm]))
+        scalings = scalings
+        
         templates = templates.tocoo()
         xdata = templates.row
         ydata = templates.col
         zdata = templates.data
-        # TODO: check the ranges used to create these logical arrays.
+        
         idx_cen = numpy.logical_and(N_tm - nb_insert <= ydata, ydata < N_tm)
         idx_cen = numpy.where(idx_cen)[0]
-        idx_ort = 2 * N_tm - nb_insert <= ydata
-        idx_cen = numpy.where(idx_ort)[0]
-        # TODO: ValueError negative column index found...
+        idx_ort = numpy.logical_and(2 * N_tm - nb_insert <= ydata, ydata < 2 * N_tm)
+        idx_ort = numpy.where(idx_ort)[0]
         ydata[idx_cen] = ydata[idx_cen] - (N_tm - nb_insert)
         ydata[idx_ort] = ydata[idx_ort] - 2 * (N_tm - nb_insert)
         idx = numpy.concatenate((idx_cen, idx_ort))
@@ -294,9 +296,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         ydata = ydata[idx]
         zdata = zdata[idx]
         templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * nb_insert))
-#####
         
-    # TODO: find a programmer comment.
+    # Retrieve the information about the organisation of the chunks of data.
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
     if last_chunk_len > 0:
         nb_chunks += 1
@@ -306,7 +307,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.print_info(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)])
         io.purge(file_out, '.data')
 
-    # TODO: find a programmer comment.
+    # Compute the shift to center template.
     template_shift = int((N_t - 1) / 2)
     # Distribute the chunks of data to process among the threads/processes.
     all_chunks     = numpy.arange(nb_chunks)
@@ -317,6 +318,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # Initialize the progress bar about the generation of the benchmark.
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
+
+    # Open the file for collective I/O.
+    g = myfile.Open(comm, file_name, MPI.MODE_RDWR)
+    g.Set_view(data_offset, data_mpi, data_mpi)
 
     # Open the thread/process' files to collect the results.
     spiketimes_filename = os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank)
@@ -345,18 +350,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len,
                                                  chunk_size, nodes=nodes)
 
-##### TODO: check additional piece of code...
         if benchmark == 'pca-validation':
             # Clear the current data chunk.
             local_chunk = numpy.zeros(local_chunk.shape, dtype=local_chunk.dtype)
-            # print("# pca-validation")
-            # print(type(local_chunk))
-            # print(local_chunk.shape)
-            # print(local_chunk.dtype)
-            # Notes: need to remove templates and every other expired data.
-#####
 
-        # TODO: find programmer comment.
+        # Handle whitening if necessary.
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
