@@ -70,10 +70,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
         for i in xrange(N_e):
             peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
-            if skip_artefact:
-                values    = numpy.abs(local_chunk[peaktimes, i])
-                idx       = numpy.where(values <= 10*thresholds[i])[0]
-                peaktimes = peaktimes[idx]
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
         local_peaktimes = numpy.unique(local_peaktimes)
