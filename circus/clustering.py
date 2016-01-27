@@ -194,7 +194,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_peaktimes   = all_peaktimes[idx]
                 all_minimas     = all_minimas[idx]
 
-                local_peaktimes = numpy.lib.arraysetops.unique(all_peaktimes)
+                local_peaktimes = numpy.unique(all_peaktimes)
                 local_offset    = gidx*chunk_size
 
                 if len(local_peaktimes) > 0:
@@ -212,7 +212,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         for elec in xrange(N_e):
                             subset  = result['all_times_' + str(elec)] - local_offset
                             peaks   = subset[numpy.where((subset >= 0) & (subset < (local_shape)))[0]]
-                            inter   = numpy.lib.arraysetops.in1d(local_peaktimes, peaks)
+                            inter   = numpy.in1d(local_peaktimes, peaks)
                             indices = inv_nodes[edges[nodes[elec]]]
                             remove  = numpy.where(inter == True)[0]
                             for t in remove:

@@ -1,6 +1,6 @@
 import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
-import numpy, hdf5storage, h5py, os, progressbar, platform, re, sys, scipy
+import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 from termcolor import colored
 import colorama
@@ -567,12 +567,12 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'spike-cluster':
-        file_name = params.get('data', 'data_file_noext') + '.spike-cluster.mat'
+        file_name = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
         if os.path.exists(file_name):
-            data       = hdf5storage.loadmat(file_name)
-            clusters   = data['clusters'].flatten()
+            data       = h5py.File(file_name, 'r')
+            clusters   = data.get('clusters').flatten()
             N_clusters = len(numpy.unique(clusters))
-            spiketimes = data['spikes'].flatten()
+            spiketimes = data.get('spikes').flatten()
             return clusters, spiketimes, N_clusters
         else:
             raise Exception('Need to provide a spike-cluster file!')
@@ -620,7 +620,7 @@ def load_data(params, data, extension=''):
             raise Exception('No templates found! Check suffix?')
     elif data == 'injected_spikes':
         try:
-            spikes = hdf5storage.loadmat(data_file_noext + '/injected/spiketimes.mat')
+            spikes = h5py.File(data_file_noext + '/injected/result.hdf5').get('spiketimes')
             elecs  = numpy.load(data_file_noext + '/injected/elecs.npy')
             N_tm   = len(spikes)
             count  = 0
