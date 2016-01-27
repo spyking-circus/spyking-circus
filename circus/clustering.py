@@ -363,11 +363,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if gpass == 0:
                 if len(result['tmp_' + str(ielec)]) > 1:
-                    pca  = mdp.nodes.PCANode(output_dim=sub_output_dim)
-                    data = pca(result['tmp_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
-                    result['w_' + str(ielec)]    = pca.d/pca.d.sum()
-                    result['pca_' + str(ielec)]  = pca.get_projmatrix().astype(numpy.float32)
-                    result['tmp_' + str(ielec)]  = data
+                    pca                          = PCA(sub_output_dim)
+                    result['tmp_' + str(ielec)]  = pca.fit(result['tmp_' + str(ielec)]).transform(result['tmp_' + str(ielec)])
+                    result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
+                    result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=None, compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
                 else:
@@ -378,10 +377,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= 0.9*max_elts_elec*comm.size)
             elif gpass == 1:
                 if len(result['data_' + str(ielec)]) > 1:
-                    pca  = mdp.nodes.PCANode(output_dim=sub_output_dim)
-                    data = pca(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
-                    result['w_' + str(ielec)]    = pca.d/pca.d.sum()
-                    result['pca_' + str(ielec)]  = pca.get_projmatrix().astype(numpy.float32)
+
+                    pca                          = PCA(sub_output_dim)
+                    data                         = result['data_' + str(ielec)].astype(numpy.double)
+                    data                         = pca.fit(data).transform(data).astype(numpy.float32)
+                    result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
+                    result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], compute_rho=True)
                     dist_file = tempfile.NamedTemporaryFile(delete=False)
                     tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))

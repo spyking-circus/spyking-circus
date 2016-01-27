@@ -1,4 +1,4 @@
-import numpy, pylab, os, mpi4py, mdp, progressbar, tempfile
+import numpy, pylab, os, mpi4py, progressbar, tempfile
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 

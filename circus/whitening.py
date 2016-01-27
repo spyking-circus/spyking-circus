@@ -374,11 +374,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         #DO PCA on elts and store the basis obtained.
         print "We found", gdata.shape[0], "waveforms over", int(nb_elts*comm.size), "requested"
-        pca = mdp.nodes.PCANode(output_dim=output_dim)
+        pca = PCA(output_dim, copy=False)
         res = {}     
         if len(gdata) > 0:
-            res_pca     = pca(gdata.astype(numpy.double))
-            res['proj'] = pca.get_projmatrix().astype(numpy.float32)
+            res_pca     = pca.fit_transform(gdata.astype(numpy.double)).astype(numpy.float32)
+            res['proj'] = pca.components_.T.astype(numpy.float32)
         else:
             res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
         res['rec']  = res['proj'].T
