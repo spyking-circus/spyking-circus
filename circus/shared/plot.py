@@ -759,7 +759,36 @@ def view_norms(file_name, save=True):
         fig.savefig("/tmp/norms-templates.pdf")
         pylab.close(fig)
     else:
-        fig_cen.show()
-        fig_ort.show()
+        fig.show()
 
+    return
+
+def view_triggers(file_name, save=True):
+    """
+    Sanity plot of the triggers of a given dataset.
+    
+    Parameters
+    ----------
+    file_name : string
+    save : boolean
+    
+    """
+    # Retrieve the key parameters.
+    params = load_parameters(file_name)
+    spikes = load_data(params, 'triggers')
+
+    fig, ax = pylab.subplots(4, 4)
+    fig.suptitle("Spikes")
+    for k in xrange(16):
+        i = k / 4
+        j = k % 4
+        ax[i, j].imshow(spikes[:, :, i])
+
+    # Display figure.
+    if save:
+        fig.savefig("/tmp/spikes.pdf")
+        pylab.close(fig)
+    else:
+        fig.show()
+    
     return

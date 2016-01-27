@@ -514,6 +514,17 @@ def get_nodes_and_edges(parameters):
     return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
 
 def load_data(params, data, extension=''):
+    """
+    Load data from a dataset.
+    
+    Parameters
+    ----------
+    data : {'thresholds', 'spatial_whitening', 'temporal_whitening', 'basis',
+            'templates', 'norm-templates', 'spike-cluster', 'spikedetekt',
+            'clusters', 'electrodes', 'results', 'overlaps', 'limits',
+            'injected_spikes', 'triggers'}
+    
+    """
 
     file_out_suff   = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
@@ -646,6 +657,48 @@ def load_data(params, data, extension=''):
             return result
         except Exception:
             return None
+##### TODO: remove test zone
+    elif data == 'triggers':
+        filename = file_out_suff + '.triggers%s.npy' %extension
+        if os.path.exists(filename):
+            triggers = numpy.load(filename)
+            numpy.random.seed(seed=0)
+            N_tr = min(triggers.shape[0], 16)
+            triggers = numpy.random.choice(triggers, N_tr, replace=False)
+
+            data_file = params.get('data', 'data_file')
+            data_offset = params.getint('data', 'data_offset')
+            data_dtype = params.get('data', 'data_dtype')
+            chunk_size = params.getint('data', 'chunk_size')
+            N_total = params.getint('data', 'N_total')
+            N_t = params.getint('data', 'N_t')
+            dtype_offset = params.getint('data', 'dtype_offset')
+            
+            datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+            template_shift = int((N_t - 1) / 2)
+
+            spikes = numpy.zeros((N_t, N_total, N_tr))
+            for (count, idx) in enumerate(triggers):
+                chunk_len = chunk_size * N_total
+                chunk_start = (idx - template_shift) * N_total
+                chunk_end = (idx + template_shift + 1)  * N_total
+                local_chunk = datablock[chunk_start:chunk_end]
+
+                local_chunk = local_chunk.reshape(N_t, N_total)
+                local_chunk = local_chunk.astype(numpy.float32)
+                local_chunk -= dtype_offset
+
+                spikes[:, :, count] = local_chunk
+            # TODO: load the corresponding spike for each trigger.
+            # TODO: compute the amplitude of for each spike.
+            # TODO: estimate the sampling distribution.
+            # TODO: plot the estimated distribution.
+            # TODO: fit binary, gaussian, power-law or spyking-circus distribution.
+            return spikes
+        else:
+            raise Exception('No triggers found! Check suffix or check if file `%s` exists ?' %filename)
+##### end test zone
+        
 
 def write_datasets(h5file, to_write, result, electrode=None):
     for key in to_write:
