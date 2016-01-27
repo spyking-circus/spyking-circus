@@ -466,11 +466,9 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                 M[0, 0]   = overlap_0[i, i]
                 V[0, 0]   = overlap_k[i, distances[k, i]]
                 for j in all_idx[i+1:]:
-                    rows      = numpy.arange(j*nb_temp, (j+1)*nb_temp)
-                    overlap_j = overlap[rows, :].tolil()
                     M[1, 1]  = overlap_0[j, j]
                     M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
-                    M[0, 1]  = overlap_j[i, distances[k, j] - distances[k, i]]
+                    M[0, 1]  = M[1, 0]
                     V[1, 0]  = overlap_k[j, distances[k, j]]
                     [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
                     a1_lim   = limits[i]
@@ -480,7 +478,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                     if is_a1 and is_a2:
                         new_template = a1*templates[:, i].toarray() + a2*templates[:, j].toarray()
                         similarity   = numpy.corrcoef(templates[:, k].toarray().flatten(), new_template.flatten())[0, 1]
-                        if similarity > 0.9:
+                        if similarity > 0.95:
                             if k not in mixtures:
                                 mixtures  += [k]
                                 been_found = True 

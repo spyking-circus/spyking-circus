@@ -213,6 +213,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                              "                                 -reduce N_t",
                              "                                 -increase mergings"]
                     io.print_info(lines)
+                sys.exit(0)
 
             if use_gpu:
                 del sub_mat, cloc
