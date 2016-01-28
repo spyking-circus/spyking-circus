@@ -330,6 +330,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     if full_gpu:
                         best_amp  = sub_b.asarray()[inds_temp, inds_t]/n_scalar
+                        best_amp2 = b.asarray()[inds_temp + n_tm, inds_t]/n_scalar
                         sub_mask  = numpy.ones((sub_b.shape), dtype=numpy.float32)
                         sub_mask[inds_temp, inds_t] = 0
                         sub_mask  = cmt.CUDAMatrix(sub_mask)
@@ -337,22 +338,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         del sub_mask
                     else:
                         mask[inds_temp, inds_t] = 0
-                        best_amp = sub_b[inds_temp, inds_t]/n_scalar
+                        best_amp  = sub_b[inds_temp, inds_t]/n_scalar
+                        best_amp2 = b[inds_temp + n_tm, inds_t]/n_scalar
 
                     best_amp_n   = best_amp/norm_templates[inds_temp]
+                    best_amp2_n  = best_amp2/norm_templates[inds_temp + n_tm]
+
                     all_idx      = ((best_amp_n >= amp_limits[inds_temp, 0]) & (best_amp_n <= amp_limits[inds_temp, 1]))
                     to_keep      = numpy.where(all_idx == True)[0]
                     to_reject    = numpy.where(all_idx == False)[0]
                     ts           = local_peaktimes[inds_t[to_keep]]
-                    inds_temp_2  = (inds_temp[to_keep] + n_tm)
                     good         = (ts >= local_bounds[0]) & (ts < local_bounds[1])
 
+                    # We reduce to only the good times that will be kept
+                    to_keep      = to_keep[good]
+                    ts           = ts[good]
+                    
                     tmp          = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
                     tmp         -= ts.reshape((len(ts), 1))
                     x, y         = numpy.where(numpy.abs(tmp) <= temp_2_shift)
                     itmp         = tmp[x, y].astype(numpy.int32) + temp_2_shift
 
-                    for count, keep, t in zip(range(len(to_keep)), to_keep, ts):
+                    for count, keep in enumerate(to_keep):
 
                         if full_gpu:
                             myslice  = x == count
@@ -379,32 +386,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             myslice      = x == count
                             idx_b        = y[myslice]
                             tmp1         = c_overs[inds_temp[keep]][:, itmp[myslice]]
-                            tmp2         = c_overs[inds_temp_2[count]][:, itmp[myslice]]
+                            tmp2         = c_overs[inds_temp[keep] + n_tm][:, itmp[myslice]]
                             b[:, idx_b] -= best_amp[keep]*tmp1
-                            best_amp2    = b[inds_temp_2[count], inds_t[keep]]/n_scalar
-                            b[:, idx_b] -= best_amp2*tmp2
+                            b[:, idx_b] -= best_amp2[keep]*tmp2
 
-                        if good[count]:
-                            normed_2 = norm_templates[inds_temp_2[count]]
-                            t_spike  = t + local_offset
-                            result['spiketimes'] += [t_spike]
-                            result['amplitudes'] += [(best_amp_n[keep], best_amp2/normed_2)]
-                            result['templates']  += [inds_temp[keep]]
-                            nb_fitted            += 1
-                            if refractory > 0:
-                                last_spike                   = last_spikes[inds_temp[keep]]
-                                sidx                         = numpy.where(all_spikes >= t_spike)[0]
-                                last_spikes[inds_temp[keep]] = t_spike
-                                values                       = numpy.ones(n_t)
-                                values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
-                                if full_gpu:
-                                    values   = cmt.CUDAMatrix(values.reshape(1, n_t))
-                                    sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
-                                    sub_mask.mult(values)
-                                    mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
-                                    del values, sub_mask
-                                else:
-                                    mask[inds_temp[keep]] = mask[inds_temp[keep]] * values
+                        t_spike               = ts[count] + local_offset
+                        result['spiketimes'] += [t_spike]
+                        result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
+                        result['templates']  += [inds_temp[keep]]
+                        nb_fitted            += 1
+                        if refractory > 0:
+                            last_spike                   = last_spikes[inds_temp[keep]]
+                            sidx                         = numpy.where(all_spikes >= t_spike)[0]
+                            last_spikes[inds_temp[keep]] = t_spike
+                            values                       = numpy.ones(n_t)
+                            values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
+                            if full_gpu:
+                                values   = cmt.CUDAMatrix(values.reshape(1, n_t))
+                                sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
+                                sub_mask.mult(values)
+                                mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
+                                del values, sub_mask
+                            else:
+                                mask[inds_temp[keep]] = mask[inds_temp[keep]] * values
 
                     myslice           = inds_t[to_reject]
                     failure[myslice] += 1
