@@ -361,9 +361,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     for count, keep in enumerate(to_keep):
 
-                        if full_gpu:
-                            myslice  = x == count
-                            idx_b    = y[myslice]
+                        myslice  = x == count
+                        idx_b    = y[myslice]
+
+                        if full_gpu:                          
                             cu_slice = cmt.CUDAMatrix(itmp[myslice].reshape(1, len(itmp[myslice])))
                             c        = cmt.empty((N_over, len(itmp[myslice])))
                             if patch_gpu:
@@ -377,14 +378,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 sub_mat   = b.get_col_slice(0, b.shape[0])
                             else:
                                 sub_mat   = b.get_col_slice(inds_t[keep], inds_t[keep]+1)
-                            best_amp2 = sub_mat.asarray()[inds_temp_2[count],0]/n_scalar
-                            c_overs[inds_temp_2[count]].select_columns(cu_slice, c)
-                            c.mult_by_scalar(best_amp2)
+                            c_overs[inds_temp[keep] + n_tm].select_columns(cu_slice, c)
+                            c.mult_by_scalar(best_amp2[keep])
                             b_lines.add(c)
                             del cu_slice, b_lines, sub_mat, c
                         else:
-                            myslice      = x == count
-                            idx_b        = y[myslice]
                             tmp1         = c_overs[inds_temp[keep]][:, itmp[myslice]]
                             tmp2         = c_overs[inds_temp[keep] + n_tm][:, itmp[myslice]]
                             b[:, idx_b] -= best_amp[keep]*tmp1
