@@ -39,6 +39,37 @@ def detect_header(filename, value='MCS'):
     else:
         return value, None
 
+
+def get_multi_files(params):
+    file_name   = params.get('data', 'data_file')
+    dirname     = os.path.abspath(os.path.dirname(file_name))
+    all_files   = os.listdir(dirname)
+    pattern     = os.path.basename(file_name)
+    to_process  = []
+    count       = 0
+
+    while pattern in all_files:
+        to_process += [os.path.join(os.path.abspath(dirname), pattern)]
+        pattern     = pattern.replace(str(count), str(count+1))
+        count      += 1
+
+    return to_process
+
+
+def get_multi_size(params, file_name):
+    
+    all_files   = get_multi_files(file_name)
+    data_offset = params.getint('data', 'data_offset')
+    data_dtype  = params.get('data', 'data_dtype')
+    N_total     = params.getint('data', 'N_total')
+    sizes       = []
+
+    for f in all_files:
+        params.set('data', 'data_file', f)
+        sizes   += [data_stats(params, show=False)]
+    return sizes
+
+
 def change_flag(file_name, flag, value, avoid_flag=None):
     f_next, extension = os.path.splitext(os.path.abspath(file_name))
     file_params       = os.path.abspath(file_name.replace(extension, '.params'))
@@ -189,6 +220,7 @@ def load_parameters(file_name):
                   ['data', 'stationary', 'bool', 'True'],
                   ['data', 'alignment', 'bool', 'True'],
                   ['data', 'skip_artefact', 'bool', 'False'],
+                  ['data', 'multi-files', 'bool', 'False'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
@@ -240,15 +272,24 @@ def data_stats(params, show=True):
     N_total        = params.getint('data', 'N_total')
     N_e            = params.getint('data', 'N_e')
     sampling_rate  = params.getint('data', 'sampling_rate')
-    try:
+    multi_files    = params.getboolean('data', 'multi-files')
+    chunk_len      = N_total * (60 * sampling_rate)
+        
+    if not multi_files:
         datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
         N              = len(datablock)
-        chunk_len      = N_total * (60 * sampling_rate)
         nb_chunks      = N / chunk_len
         last_chunk_len = (N - nb_chunks * chunk_len)/(N_total*sampling_rate)
-    except Exception:
+    else:
+        all_files      = get_multi_files(params)
+        N              = 0
         nb_chunks      = 0
         last_chunk_len = 0
+        for f in all_files:
+            datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
+            N              += len(datablock)
+            nb_chunks      += N / chunk_len
+            last_chunk_len += (N - nb_chunks * chunk_len)/(N_total*sampling_rate)
 
     N_t = params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/sampling_rate, 1)
@@ -265,7 +306,10 @@ def data_stats(params, show=True):
              "Waveform alignment          : %s" %params.getboolean('data', 'alignment'),
              "Skip strong artefacts       : %s" %params.getboolean('data', 'skip_artefact'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction')]
-        
+    
+    if multi_files:
+        lines+= ["Multi-files activated       : %s files" %len(all_files)]    
+
     if show:
         print_info(lines)
     return nb_chunks*60 + last_chunk_len
@@ -483,13 +527,25 @@ def analyze_data(params, chunk_size=None):
     data_dtype     = params.get('data', 'data_dtype')
     N_total        = params.getint('data', 'N_total')
     template_shift = params.getint('data', 'template_shift')
-    datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    N              = len(datablock)
+    multi_files    = params.getboolean('data', 'multi-files')
     chunk_len      = N_total * chunk_size
-    nb_chunks      = N / chunk_len
-    last_chunk_len = N - nb_chunks * chunk_len
-    last_chunk_len = N_total * int(last_chunk_len/N_total)
-    borders        = N_total * template_shift
+        
+    if not multi-files:
+        datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+        N              = len(datablock)
+        nb_chunks      = N / chunk_len
+        last_chunk_len = N - nb_chunks * chunk_len
+        last_chunk_len = N_total * int(last_chunk_len/N_total)
+        borders        = N_total * template_shift
+    else:
+        all_files = get_multi_files(params)
+        for f in all_files:
+            N             += len(datablock)
+            nb_chunks     += N / chunk_len
+            last_chunk_len = N - nb_chunks * chunk_len
+            last_chunk_len = N_total * int(last_chunk_len/N_total)
+            borders        = N_total * template_shift
+
     return borders, nb_chunks, chunk_len, last_chunk_len
 
 def get_nodes_and_edges(parameters):

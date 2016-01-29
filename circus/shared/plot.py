@@ -360,6 +360,7 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
             data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
         
         curve[count] = data.T
+
     pylab.subplot(111)
     pylab.imshow(numpy.mean(curve, 0), aspect='auto') 
 
@@ -372,6 +373,7 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         idx    = n_elec
         n_elec = numpy.sqrt(len(idx))
     pylab.figure()
+
     for count, i in enumerate(idx):
         if square:
             pylab.subplot(n_elec, n_elec, count + 1)

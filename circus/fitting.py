@@ -190,13 +190,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."
             if use_gpu:
-                b    = cmt.CUDAMatrix(numpy.zeros((n_t, N_tm)))
-                cloc = cmt.CUDAMatrix(local_chunk.T)
+                b       = cmt.CUDAMatrix(numpy.zeros((n_t, N_tm)))
+                cloc    = cmt.CUDAMatrix(local_chunk.T)
+                sub_mat = cmt.empty((N_e, n_t))
             else:
-                b    = numpy.zeros((n_t, N_tm), dtype=numpy.float32)
-
-            if use_gpu:
-                sub_mat  = cmt.empty((N_e, n_t))
+                b    = numpy.zeros((n_t, N_tm), dtype=numpy.float32)                
 
             try:
                 for itime in xrange(temp_2_shift+1):

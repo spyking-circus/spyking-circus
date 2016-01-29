@@ -118,7 +118,7 @@ class TestFitting(unittest.TestCase):
     
     def setUp(self):
         self.all_spikes     = None
-        self.max_chunk      = '2'
+        self.max_chunk      = '40'
         dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):

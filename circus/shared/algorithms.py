@@ -307,6 +307,23 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
 
     comm.Barrier()
 
+
+def slice_result(result, times):
+
+    sub_results    = []
+
+    nb_temp = len(result['spiketimes'])
+    for t in times:
+        sub_result = {'spiketimes' : {}, 'amplitudes' : {}}
+        for temp in xrange(nb_temp):
+            key = 'temp_%d' %temp
+            idx = numpy.where((result['spiketimes'][key] >= t[0]) & (result['spiketimes'][key] <= t[1]))[0]
+            sub_result['spiketimes'][key] = result['spiketimes'][key][idx]
+            sub_result['amplitudes'][key] = result['amplitudes'][key][idx]                
+        sub_results += [sub_result]
+
+    return sub_results
+
 def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
     def remove(result, distances, cc_merge):
