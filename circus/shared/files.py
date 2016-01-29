@@ -530,7 +530,7 @@ def analyze_data(params, chunk_size=None):
     multi_files    = params.getboolean('data', 'multi-files')
     chunk_len      = N_total * chunk_size
         
-    if not multi-files:
+    if not multi_files:
         datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
         N              = len(datablock)
         nb_chunks      = N / chunk_len
