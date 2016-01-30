@@ -114,7 +114,7 @@ Options are:
             sys.exit()
         else:
             f_next, extension = os.path.splitext(filename)
-            file_params       = os.path.abspath(filename.replace(extension, '.params'))
+            file_params       = f_next + '.params'
             if not os.path.exists(file_params) and not (('-b' in argv) or ('--batch' in argv)):
                 print noparams %file_params
                 key = ''

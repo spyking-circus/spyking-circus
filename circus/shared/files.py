@@ -108,7 +108,7 @@ def load_parameters(file_name):
     file_name         = os.path.abspath(file_name)
     f_next, extension = os.path.splitext(file_name)
     file_path         = os.path.dirname(file_name)
-    file_params       = os.path.abspath(file_name.replace(extension, '.params'))
+    file_params       = f_next + '.params'
     parser            = configparser.SafeConfigParser()
     if not os.path.exists(file_params):
         print_error(["%s does not exist" %file_params])
