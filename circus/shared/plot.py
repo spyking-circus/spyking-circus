@@ -361,9 +361,6 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         
         curve[count] = data.T
 
-    pylab.subplot(111)
-    pylab.imshow(numpy.mean(curve, 0), aspect='auto') 
-
     if not numpy.iterable(n_elec):
         if square:
             idx = numpy.random.permutation(numpy.arange(N_e))[:n_elec**2]
@@ -391,10 +388,10 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         xmin, xmax = pylab.xlim()
         pylab.plot([xmin, xmax], [-thresholds[i], -thresholds[i]], 'k--')
         pylab.plot([xmin, xmax], [thresholds[i], thresholds[i]], 'k--')
-        pylab.title('Electrode %d' %i)
+        pylab.title('Elec %d' %i)
         if xzoom:
             pylab.xlim(xzoom[0], xzoom[1])
-        pylab.ylim(-2*thresholds[i], 2*thresholds[i])
+        #pylab.ylim(-5*thresholds[i], 5*thresholds[i])
         if yzoom:
             pylab.ylim(yzoom[0], yzoom[1])
     pylab.tight_layout()

@@ -110,10 +110,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     scalings       = []
     data_mpi       = get_mpi_type('float32')
     if comm.rank == 0:
-        file = open(file_name, 'w')
-        for i in xrange(data_offset):
-            f.write('1')
-        file.close()
+        io.copy_header(data_offset, params.get('data', 'data_file'), file_name)
+
     comm.Barrier()
     g              = myfile.Open(comm, file_name, MPI.MODE_RDWR)
     g.Set_view(data_offset, data_mpi, data_mpi)
