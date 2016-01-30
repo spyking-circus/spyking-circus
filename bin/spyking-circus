@@ -86,8 +86,9 @@ Options are:
     -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
     noparams='''The parameter file %s is not present!'''
+    batch_mode = (('-b' in argv) or ('--batch' in argv))
 
-    if not (('-b' in argv) or ('--batch' in argv)):
+    if not batch_mode:
         print colored(header, 'green')
 
     if len(argv) < 2:
@@ -115,7 +116,7 @@ Options are:
         else:
             f_next, extension = os.path.splitext(filename)
             file_params       = f_next + '.params'
-            if not os.path.exists(file_params) and not (('-b' in argv) or ('--batch' in argv)):
+            if not os.path.exists(file_params) and not batch_mode:
                 print noparams %file_params
                 key = ''
                 while key not in ['y', 'n']:
@@ -125,7 +126,7 @@ Options are:
                     print "Fill it properly before launching the code! (see documentation)"
                     shutil.copyfile(config_file, file_params)
                 sys.exit()
-            elif (('-b' in argv) or ('--batch' in argv)):
+            elif batch_mode:
                 tasks_list = filename
 
             opts, args  = getopt.getopt(argv[2:], "hvbprm:H:c:g:o:t:", ["help", "method=", "hostfile=", "cpu=", "gpu=", "output=", "type="])
@@ -160,7 +161,9 @@ Options are:
             result = True
 
     # Print info
-    params = circus.shared.utils.io.load_parameters(filename)
+    if not batch_mode:
+    	params = circus.shared.utils.io.load_parameters(filename)
+
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
@@ -170,8 +173,11 @@ Options are:
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
         steps        = ['filtering', 'whitening']
         circus.shared.utils.io.prepare_preview(params, filename)
-    else:    
-        stationary = params.getboolean('data', 'stationary')
+    else: 
+	if not batch_mode: 	  
+            stationary = params.getboolean('data', 'stationary')
+        else:
+             stationary = False
 
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
