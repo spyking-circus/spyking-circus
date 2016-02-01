@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+import os
+import sys
+import subprocess
+import pkg_resources
+import circus
+import tempfile
+import h5py
+import numpy
+from circus.shared.files import print_error
+from circus.shared.algorithms import slice_result
+
+filename       = os.path.abspath(sys.argv[1])
+params         = circus.shared.utils.io.load_parameters(filename)
+file_out_suff  = params.get('data', 'file_out_suff')
+
+if not params.get('data', 'multi-files'):
+    print_error(['Not a multi-file!'])
+    sys.exit(0)
+
+to_process  = circus.shared.files.get_multi_files(params)
+result      = circus.shared.files.get_results(params)
+times       = circus.shared.files.data_stats(params, show=False, export_times=True)
+sub_results = slice_result(result, times)
+
+for count, result in enumerate(sub_results):
+    keys   = ['spiketimes', 'amplitudes']
+    mydata = h5py.File(file_out_suff + '.result_%d.hdf5' %count, 'w', libver='latest')
+    for key in keys:
+        mydata.create_group(key)
+        for temp in result[key].keys():
+            tmp_path = '%s/%s' %(key, temp)
+            mydata.create_dataset(tmp_path, data=result[key][temp])
+    mydata.close()      
+

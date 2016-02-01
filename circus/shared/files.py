@@ -265,7 +265,7 @@ def load_parameters(file_name):
     return parser
 
 
-def data_stats(params, show=True):
+def data_stats(params, show=True, export_times=False):
     data_file      = params.get('data', 'data_file')
     data_offset    = params.getint('data', 'data_offset')
     data_dtype     = params.get('data', 'data_dtype')
@@ -285,12 +285,16 @@ def data_stats(params, show=True):
         N              = 0
         nb_chunks      = 0
         last_chunk_len = 0
+        t_start        = 0
+        times          = []
         for f in all_files:
             datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
             loc_N           = len(datablock)
             loc_nb_chunks   = loc_N / chunk_len
             nb_chunks      += loc_nb_chunks
             last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)/(N_total*sampling_rate)
+            times   += [[t_start, t_start + len(datablock)/N_total]]
+            t_start  = t_start + len(datablock)/N_total
 
     N_t = params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/sampling_rate, 1)
@@ -313,7 +317,11 @@ def data_stats(params, show=True):
 
     if show:
         print_info(lines)
-    return nb_chunks*60 + last_chunk_len
+
+    if not export_times:
+        return nb_chunks*60 + last_chunk_len
+    else:
+        return times
 
 def print_info(lines):
     print colored("-------------------------  Informations  -------------------------", 'yellow')
