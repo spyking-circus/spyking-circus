@@ -63,7 +63,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 ##### TODO: remove plot zone
         if comm.rank == 0:
             from .shared.plot import view_triggers
-            view_triggers(filename)
+            view_triggers(filename, mode='maximal')
 ##### end plot zone
         nb_insert       = 10
         n_cells         = numpy.random.random_integers(0, N_tm - 1, nb_insert)

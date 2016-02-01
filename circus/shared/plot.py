@@ -754,7 +754,7 @@ def view_norms(file_name, save=True):
     ax[1].set_xlabel("template (orthogonal component)")
     ax[1].set_ylabel("norm")
 
-    # Display figure.
+    # Display the figure.
     if save:
         fig.savefig("/tmp/norms-templates.pdf")
         pylab.close(fig)
@@ -763,7 +763,7 @@ def view_norms(file_name, save=True):
 
     return
 
-def view_triggers(file_name, save=True):
+def view_triggers(file_name, mode='random', save=True):
     """
     Sanity plot of the triggers of a given dataset.
     
@@ -773,22 +773,111 @@ def view_triggers(file_name, save=True):
     save : boolean
     
     """
+    
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    import scipy as sp
+
+    # Set global settings.
+    plt.rcParams['font.size'] = 10
+    plt.rcParams['figure.titlesize'] = plt.rcParams['font.size'] + 2
+    plt.rcParams['axes.labelsize'] = plt.rcParams['font.size'] - 2
+    plt.rcParams['axes.titlesize'] = plt.rcParams['font.size']
+    plt.rcParams['xtick.labelsize'] = plt.rcParams['font.size'] - 2
+    plt.rcParams['ytick.labelsize'] = plt.rcParams['font.size'] - 2
+    plt.rcParams['axes.linewidth'] = 1
+    
     # Retrieve the key parameters.
     params = load_parameters(file_name)
-    spikes = load_data(params, 'triggers')
+    triggers, spikes = load_data(params, 'triggers')
+    
+    mean_spike = numpy.mean(spikes, axis=2)
 
-    fig, ax = pylab.subplots(4, 4)
-    fig.suptitle("Spikes")
-    for k in xrange(16):
-        i = k / 4
-        j = k % 4
-        ax[i, j].imshow(spikes[:, :, i])
+    mean_norm = numpy.linalg.norm(mean_spike)
+    spikes_bis = spikes.reshape(spikes.shape[0] * spikes.shape[1], spikes.shape[2])
+    mean_spike_bis = mean_spike.reshape(mean_spike.shape[0] * mean_spike.shape[1], 1)
+    mean_spike_bis = mean_spike_bis[::-1, :]
+    spike_amplitudes = (1.0 / (mean_norm ** 2)) * sp.signal.convolve(spikes_bis, mean_spike_bis, mode='valid').flatten()
 
-    # Display figure.
+    N_tr = triggers.shape[0]
+    N = min(N_tr, 15)
+    if 'random' == mode:
+        numpy.random.seed(seed=0)
+        idxs = numpy.random.choice(N_tr, size=N, replace=False)
+        idxs = numpy.sort(idxs)
+    elif 'minimal' == mode:
+        idxs = numpy.argsort(spike_amplitudes)
+        idxs = idxs[:N]
+        # idxs = numpy.sort(idxs)
+    elif 'maximal' == mode:
+        idxs = numpy.argsort(spike_amplitudes)
+        idxs = idxs[-N:]
+        # idxs = numpy.sort(idxs)
+    
+    v_min = min(numpy.amin(spikes[:, :, idxs]), numpy.amax(spikes[:, :, idxs]))
+    v_max = - v_min
+    
+    # Plot the figure.
+    fig = plt.figure()
+    gs = gridspec.GridSpec(4, 4)
+    fig.suptitle("Ground truth triggers from `%s`" %file_name)
+    for (k, ss) in enumerate(gs):
+        ax = fig.add_subplot(ss)
+        if 0 == k:
+            ax.imshow(mean_spike.T, cmap='seismic', interpolation='nearest',
+                      vmin=v_min, vmax=v_max)
+            ax.set_title("mean spike")
+        else:
+            idx = idxs[k-1]
+            ax.imshow(spikes[:, :, idx].T, cmap='seismic', interpolation='nearest',
+                      vmin=v_min, vmax=v_max)
+            ax.set_title("spike %d (%f)" %(idx, spike_amplitudes[idx]))
+    gs.tight_layout(fig, pad=0.5, h_pad=0.5, w_pad=0.5, rect=[0.0, 0.0, 1.0, 0.95])
+    
+    xmin = -1
+    xmax = numpy.amax(triggers) + 1
+    ydiff = numpy.amax(spike_amplitudes) - numpy.amin(spike_amplitudes)
+    ymin = min(0.0, numpy.amin(spike_amplitudes)) - 0.1 * ydiff
+    ymax = max(0.0, numpy.amax(spike_amplitudes)) + 0.1 * ydiff
+    
+    # Plot the second figure.
+    fig2 = plt.figure()
+    gs = gridspec.GridSpec(1, 1)
+    fig2.suptitle("Ground truth triggers from `%s`" %file_name)
+    ax = fig2.add_subplot(gs[0])
+    ax.plot(triggers, spike_amplitudes, 'o')
+    ax.set_xlim([xmin, xmax])
+    ax.set_ylim([ymin, ymax])
+    ax.grid()
+
+    plt.rcParams['xtick.labelsize'] = plt.rcParams['font.size']
+    plt.rcParams['ytick.labelsize'] = plt.rcParams['font.size']
+    weights = (1.0 / spike_amplitudes.shape[0]) * numpy.ones(spike_amplitudes.shape[0])
+    q75, q25 = numpy.percentile(spike_amplitudes, [75 ,25])
+    iqr = q75 - q25
+    h = 2.0 * iqr * float(spike_amplitudes.shape[0]) ** (- 1.0 / 3.0)
+    bins = int(numpy.amax(spike_amplitudes) - numpy.amin(spike_amplitudes) / h)
+
+    # Plot the third figure.
+    fig3 = plt.figure()
+    gs = gridspec.GridSpec(1, 1)
+    fig3.suptitle("Ground truth triggers from `%s`" %file_name)
+    ax = fig3.add_subplot(gs[0])
+    ax.hist(spike_amplitudes, bins=bins, weights=weights)
+    ax.grid()
+    ax.set_xlabel("Amplitudes")
+    ax.set_ylabel("Probability")
+    
+    # Display the figure.
     if save:
-        fig.savefig("/tmp/spikes.pdf")
+        fig.savefig("/tmp/triggers-" + mode + ".png")
+        fig2.savefig("/tmp/triggers-amplitudes.png")
+        fig3.savefig("/tmp/triggers-amplitudes-hist.png")
         pylab.close(fig)
+        pylab.close(fig2)
     else:
         fig.show()
+        fig2.show()
+        fig3.show()
     
     return

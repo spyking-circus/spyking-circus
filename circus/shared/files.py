@@ -662,9 +662,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.triggers%s.npy' %extension
         if os.path.exists(filename):
             triggers = numpy.load(filename)
-            numpy.random.seed(seed=0)
-            N_tr = min(triggers.shape[0], 16)
-            triggers = numpy.random.choice(triggers, N_tr, replace=False)
+            N_tr = triggers.shape[0]
 
             data_file = params.get('data', 'data_file')
             data_offset = params.getint('data', 'data_offset')
@@ -690,11 +688,12 @@ def load_data(params, data, extension=''):
 
                 spikes[:, :, count] = local_chunk
             # TODO: load the corresponding spike for each trigger.
-            # TODO: compute the amplitude of for each spike.
-            # TODO: estimate the sampling distribution.
+            # TODO: compute the underlying template
+            # TODO: compute the amplitude of for each spike (i.e. scalar product with the template).
+            # TODO: estimate the sampling distribution of these amplitudes.
             # TODO: plot the estimated distribution.
             # TODO: fit binary, gaussian, power-law or spyking-circus distribution.
-            return spikes
+            return triggers, spikes
         else:
             raise Exception('No triggers found! Check suffix or check if file `%s` exists ?' %filename)
 ##### end test zone
