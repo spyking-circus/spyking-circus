@@ -279,8 +279,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             max_time     = local_peaktimes.max()
             local_len    = max_time - min_time + 1
             nb_fitted    = 0
-            min_times    = numpy.maximum(local_peaktimes - min_time - temp_2_shift, 0)
-            max_times    = numpy.minimum(local_peaktimes - min_time + temp_2_shift + 1, max_time-min_time)
+            min_times    = numpy.maximum(local_peaktimes - temp_2_shift, min_time)
+            max_times    = numpy.minimum(local_peaktimes + temp_2_shift + 1, max_time)
             max_n_t      = int(space_explo*(max_time-min_time+1)/(2*temp_2_shift + 1))
 
             while (numpy.mean(failure) < nb_chances):
@@ -372,19 +372,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             c_overs[inds_temp[keep]].select_columns(cu_slice, c)
                             c.mult_by_scalar(best_amp[keep])
                             b_lines.add(c)
-                            if patch_gpu:
-                                sub_mat   = b.get_col_slice(0, b.shape[0])
-                            else:
-                                sub_mat   = b.get_col_slice(inds_t[keep], inds_t[keep]+1)
                             c_overs[inds_temp[keep] + n_tm].select_columns(cu_slice, c)
                             c.mult_by_scalar(best_amp2[keep])
                             b_lines.add(c)
-                            del cu_slice, b_lines, sub_mat, c
+                            del cu_slice, b_lines, c
                         else:
                             tmp1         = c_overs[inds_temp[keep]][:, itmp[myslice]]
                             tmp2         = c_overs[inds_temp[keep] + n_tm][:, itmp[myslice]]
-                            b[:, idx_b] -= best_amp[keep]*tmp1
-                            b[:, idx_b] -= best_amp2[keep]*tmp2
+                            b[:, idx_b] -= (best_amp[keep]*tmp1 + best_amp2[keep]*tmp2)
 
                         t_spike               = ts[count] + local_offset
                         result['spiketimes'] += [t_spike]
