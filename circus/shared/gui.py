@@ -1119,16 +1119,16 @@ class PreviewGUI(object):
     def update_detail_plot(self):
         self.detail_ax.clear()
         indices         = self.inspect_points
-        
+        yspacing        = numpy.max(self.data)
+
         if not self.show_fit:
             for count, idx in enumerate(indices):
                 data_line, = self.detail_ax.plot(self.time,
-                                                 self.data[:, idx], lw=1, color=self.inspect_colors[count])
+                                                 count*yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
                 thr = self.thresholds[idx]
-                self.detail_ax.plot([self.t_start, self.t_stop], [-thr, -thr], ':',
+                self.detail_ax.plot([self.t_start, self.t_stop], [-thr+count*yspacing , -thr+count*yspacing ], ':',
                                     color=self.inspect_colors[count], lw=2)
         else:
-            yspacing = numpy.max(self.data)
             for count, idx in enumerate(indices):
                 data_line, = self.detail_ax.plot(self.time,
                                                  count*yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
