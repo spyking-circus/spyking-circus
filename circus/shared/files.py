@@ -138,6 +138,10 @@ def load_parameters(file_name):
     parser.set('data', 'template_shift', str(int((N_t-1)/2)))
 
     data_offset              = parser.get('data', 'data_offset')
+    if data_offset == 'MCS':
+        parser.set('data', 'MCS', 'True')
+    else:
+        parser.set('data', 'MCS', 'False')
     data_offset, nb_channels = detect_header(file_name, data_offset)
     parser.set('data', 'data_offset', str(data_offset))
     
@@ -288,6 +292,8 @@ def data_stats(params, show=True, export_times=False):
         t_start        = 0
         times          = []
         for f in all_files:
+            if params.get('data', 'MCS'):
+                data_offset, nb_channels = detect_header(f, 'MCS')
             datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
             loc_N           = len(datablock)
             loc_nb_chunks   = loc_N / chunk_len
