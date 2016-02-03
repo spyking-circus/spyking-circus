@@ -98,6 +98,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             for data_file in all_files:
                 mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDWR)
+                if params.get('data', 'MCS'):
+                    data_offset, nb_channels = detect_header(data_file, 'MCS')
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
                 filter_file(params, comm, mpi_in, mpi_out, offset)
