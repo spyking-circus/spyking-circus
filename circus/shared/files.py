@@ -610,6 +610,11 @@ def load_data(params, data, extension=''):
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
+    elif data == 'waveforms':
+        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        waveforms  = myfile.get('waveforms')[:]
+        myfile.close()
+        return waveforms
     elif data == 'templates':
         N_e = params.getint('data', 'N_e')
         N_t = params.getint('data', 'N_t')
