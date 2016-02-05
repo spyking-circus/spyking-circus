@@ -296,7 +296,10 @@ Options are:
     if preview or result:
         import numpy, pylab
         from circus.shared.gui import PreviewGUI
-        pylab.style.use('ggplot')
+        try:
+            pylab.style.use('ggplot')
+        except Exception:
+            pass
         pylab.switch_backend('QT4Agg')
         if preview:
             PreviewGUI(circus.shared.utils.io.load_parameters(filename))
