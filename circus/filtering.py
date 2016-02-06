@@ -103,7 +103,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
                 filter_file(params, comm, mpi_in, mpi_out, offset)
-                offset += mpi_in.size                
+                offset += (mpi_in.size/data_mpi.size)               
                 mpi_in.Close()
 
             mpi_out.Close()
