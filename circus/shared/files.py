@@ -494,6 +494,8 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
         chunk_size = params.getint('data', 'chunk_size')
     data_file    = params.get('data', 'data_file')
     data_offset  = params.getint('data', 'data_offset')
+    if params.get('data', 'MCS'):
+        data_offset, nb_channels = detect_header(data_file, 'MCS')
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
@@ -539,6 +541,8 @@ def analyze_data(params, chunk_size=None):
         chunk_size = params.getint('data', 'chunk_size')
     data_file      = params.get('data', 'data_file')
     data_offset    = params.getint('data', 'data_offset')
+    if params.get('data', 'MCS'):
+        data_offset, nb_channels = detect_header(data_file, 'MCS')
     data_dtype     = params.get('data', 'data_dtype')
     N_total        = params.getint('data', 'N_total')
     template_shift = params.getint('data', 'template_shift')
