@@ -958,7 +958,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         #At the end we should have a templates variable to store.
         cfile.close()
-        del result, templates, amps_lims
+        del result, amps_lims
         
         comm.Barrier()
 
