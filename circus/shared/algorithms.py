@@ -316,7 +316,7 @@ def slice_result(result, times):
         sub_result = {'spiketimes' : {}, 'amplitudes' : {}}
         for key in result['spiketimes'].keys():
             idx = numpy.where((result['spiketimes'][key] >= t[0]) & (result['spiketimes'][key] <= t[1]))[0]
-            sub_result['spiketimes'][key] = result['spiketimes'][key][idx]
+            sub_result['spiketimes'][key] = result['spiketimes'][key][idx] - t[0]
             sub_result['amplitudes'][key] = result['amplitudes'][key][idx]                
         sub_results += [sub_result]
 
