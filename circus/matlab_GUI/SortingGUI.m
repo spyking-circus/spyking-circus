@@ -1,6 +1,6 @@
 function varargout = SortingGUI(varargin)
 
-% SortingGUI(20000,'/Users/olivier/ownCloud/SpikeSorting/kenneth/20141202_all/20141202_all','-final.mat','../mappings/kenneth.mapping.mat',2,'int16',0,0.1)
+% SortingGUI(20000,'mydata/mydata','.mat','../mappings.mat',2,'int16',0,0.1)
 %SamplingRate, filename, extension, mappingfile, RPVlimit, format,
 %HeaderSize, Gain
 
@@ -84,7 +84,7 @@ if size(strfind(varargin{4}, '.mat')) > 0
     handles.NelecTot   = b.nb_total;
     handles.ElecPermut = b.Permutation;
 else
-    handles.Positions  = double(h5read(varargin{4}, '/positions'))';
+    handles.Positions  = double(transpose(h5read(varargin{4}, '/positions')));
     handles.ElecPermut = h5read(varargin{4}, '/permutation');
     handles.NelecTot   = h5read(varargin{4}, '/nb_total');
 end
