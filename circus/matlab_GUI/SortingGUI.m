@@ -78,13 +78,17 @@ set(handles.Xscale, 'String', '2');
 set(handles.XYratio, 'String', '2');
 set(handles.CrossCorrMaxBin,'String','2');
 
-if length(varargin)<=3
-    load('../mappings/mea_252.mapping.mat','-mat')
+if size(strfind(varargin{4}, '.mat')) > 0
+    b                  = load(varargin{4}, '-mat');
+    handles.Positions  = double(b.Positions);
+    handles.NelecTot   = b.nb_total;
+    handles.ElecPermut = b.Permutation;
 else
-    load(varargin{4},'-mat')
+    handles.Positions  = double(h5read(varargin{4}, '/positions'))';
+    handles.ElecPermut = h5read(varargin{4}, '/permutation');
+    handles.NelecTot   = h5read(varargin{4}, '/nb_total');
 end
 
-handles.Positions   = double(Positions);
 handles.H.MaxdiffX  = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
 handles.H.MaxdiffY  = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
 handles.H.zoom_coef = max(handles.H.MaxdiffX,handles.H.MaxdiffY);
@@ -227,10 +231,6 @@ if length(varargin)>=6
                 end
             end     
         end
-
-        b                  = load(varargin{4}, '-mat');
-        handles.NelecTot   = b.nb_total;
-        handles.ElecPermut = b.Permutation;
     end
 end
 

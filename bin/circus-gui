@@ -5,9 +5,8 @@ import subprocess
 import pkg_resources
 import circus
 import tempfile
-import hdf5storage
-import numpy
-from circus.shared.files import print_error
+import numpy, h5py
+from circus.shared.files import print_error, write_datasets
 
 filename       = os.path.abspath(sys.argv[1])
 params         = circus.shared.utils.io.load_parameters(filename)
@@ -37,8 +36,11 @@ def generate_matlab_mapping(probe):
     idx       = numpy.argsort(nodes)
     positions = numpy.array(positions)[idx]
         
-    t = tempfile.NamedTemporaryFile().name + '.mat'
-    hdf5storage.savemat(t, {'Positions' : positions/10., 'Permutation' : numpy.sort(nodes), 'nb_total' : probe['total_nb_channels']})
+    t     = tempfile.NamedTemporaryFile().name + '.hdf5'
+    cfile = h5py.File(t, 'w')
+    to_write = {'positions' : positions/10., 'permutation' : numpy.sort(nodes), 'nb_total' : numpy.array([probe['total_nb_channels']])}
+    write_datasets(cfile, to_write.keys(), to_write) 
+    cfile.close()
     return t
 
 mapping    = generate_matlab_mapping(probe)
