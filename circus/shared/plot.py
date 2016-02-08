@@ -792,6 +792,30 @@ def view_triggers(file_name, mode='random', save=True):
     triggers, spikes = load_data(params, 'triggers')
     
     mean_spike = numpy.mean(spikes, axis=2)
+    
+##### TODO: remove print zone
+    print("# best_elec")
+    
+    K = mean_spike.shape[1]
+    wf_ind = numpy.arange(0, K)
+    wf_dif = numpy.zeros(K)
+    for k in xrange(0, K):
+        wf = mean_spike[:, k]
+        wf_min = numpy.amin(wf)
+        wf_max = numpy.amax(wf)
+        wf_dif[k] = wf_max - wf_min
+    wf_agm = numpy.argsort(wf_dif)
+    #####
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    fig.suptitle("Best elec (%d, %d, %d, ...)" %(wf_agm[-1], wf_agm[-2], wf_agm[-3]))
+    ax = fig.gca()
+    ax.plot(wf_ind, wf_dif, 'o')
+    ax.grid()
+    plt.savefig("/tmp/best-elec.png")
+    #####
+    print(mean_spike.shape)
+##### end print zone
 
     mean_norm = numpy.linalg.norm(mean_spike)
     spikes_bis = spikes.reshape(spikes.shape[0] * spikes.shape[1], spikes.shape[2])
