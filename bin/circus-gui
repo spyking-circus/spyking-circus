@@ -6,7 +6,7 @@ import pkg_resources
 import circus
 import tempfile
 import numpy, h5py
-from circus.shared.files import print_error, write_datasets
+from circus.shared.files import print_error, write_datasets, read_probe
 
 filename       = os.path.abspath(sys.argv[1])
 params         = circus.shared.utils.io.load_parameters(filename)
@@ -16,14 +16,7 @@ data_dtype     = params.get('data', 'data_dtype')
 gain           = 1
 file_out_suff  = params.get('data', 'file_out_suff')
 data_offset    = params.getint('data', 'data_offset')
-
-probe     = {}
-probetext = file(params.get('data', 'mapping'), 'r')
-try:
-    exec probetext in probe
-except Exception:
-    print_error(["Something wrong with the probe file!"])
-probetext.close()
+probe          = read_probe(params)
 
 def generate_matlab_mapping(probe):
     p         = {}
@@ -63,7 +56,10 @@ arguments = ', '.join(["'%s'" % arg if s else "%s" % arg
                        for arg, s in zip(gui_params, is_string)])
 matlab_command = 'SortingGUI(%s)' % arguments
 
-sys.exit(subprocess.call(['matlab',
+try:
+    sys.exit(subprocess.call(['matlab',
                           '-nodesktop',
                           '-nosplash',
                           '-r', matlab_command]))
+except Exception:
+    print_error(["Something wrong with MATLAB. Try circus-gui-python instead?"])
