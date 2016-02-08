@@ -817,7 +817,7 @@ end
 
 comp     = max(comp,[],1);
 [val,id] = sort(comp,'descend');
-IdTempl  = id(SimilarNb+1);%The first one is the template with itself. 
+IdTempl  = id(SimilarNb);%The first one is the template with itself. 
 
 if get(handles.SameElec,'Value')~=0 & val(SimilarNb+1)==0
     disp('No more templates to compare in the same electrode')
