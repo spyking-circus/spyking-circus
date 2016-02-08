@@ -180,7 +180,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_peaktimes = numpy.concatenate((local_peaktimes, numpy.arange(spike-spike_range, spike+spike_range)))
 
         local_peaktimes = numpy.unique(local_peaktimes)
-
+        
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])

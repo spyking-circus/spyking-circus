@@ -119,9 +119,10 @@ def get_dataset(self):
     
     if not os.path.exists(result):
         os.makedirs(result)
-        shutil.copy(os.path.join(dirname, 'test.basis.hdf5'), os.path.join(result, 'data.basis.hdf5'))
-        shutil.copy(os.path.join(dirname, 'test.templates.hdf5'), os.path.join(result, 'data.templates.hdf5'))
-        shutil.copy(os.path.join(dirname, 'test.clusters.hdf5'), os.path.join(result, 'data.clusters.hdf5'))
+        src_path = os.path.join(dirname, 'snippet')
+        shutil.copy(os.path.join(src_path, 'test.basis.hdf5'), os.path.join(result, 'data.basis.hdf5'))
+        shutil.copy(os.path.join(src_path, 'test.templates.hdf5'), os.path.join(result, 'data.templates.hdf5'))
+        shutil.copy(os.path.join(src_path, 'test.clusters.hdf5'), os.path.join(result, 'data.clusters.hdf5'))
 
     config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
     file_params = os.path.abspath(filename.replace('.dat', '.params'))
