@@ -917,8 +917,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         if len_local > 0:
 
             loc_templates = templates[:, local_idx].toarray().reshape(N_e, N_t, len(local_idx))
-            electrodes    = inv_nodes[edges[nodes[ielec]]]
-            to_consider   = numpy.arange(upper_bounds)[numpy.in1d(best_elec, electrodes)]
+            to_consider   = numpy.arange(upper_bounds)
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
             

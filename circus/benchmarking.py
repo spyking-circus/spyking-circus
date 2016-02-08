@@ -27,7 +27,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     sim_same_elec   = 0.8
 
     if benchmark == 'fitting':
-        nb_insert       = 25
+        nb_insert       = 1
         n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, nb_insert)
         rate            = nb_insert*[10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
@@ -250,15 +250,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             loc_template   = templates[:, n_template].toarray().reshape(N_e, N_t)
             first_flat     = loc_template.T.flatten()
             norm_flat      = numpy.sum(first_flat**2)
+            refractory     = int(5*1e-3*sampling_rate)         
+            t_last         = -refractory
             for scount, spike in enumerate(spikes):
-                local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
-                amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
-                amp       /= norm_flat
-                result['real_amps']  += [amp]
-                result['spiketimes'] += [spike + offset]
-                result['amplitudes'] += [(1, 0)]
-                result['templates']  += [n_template]
-                result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
+                if (spike - t_last) > refractory:
+                    local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
+                    amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
+                    amp       /= norm_flat
+                    result['real_amps']  += [amp]
+                    result['spiketimes'] += [spike + offset]
+                    result['amplitudes'] += [(1, 0)]
+                    result['templates']  += [n_template]
+                    result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
+                    t_last                = spike
 
         spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
         amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
