@@ -279,8 +279,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             max_time     = local_peaktimes.max()
             local_len    = max_time - min_time + 1
             nb_fitted    = 0
-            min_times    = numpy.maximum(local_peaktimes - temp_2_shift, min_time)
-            max_times    = numpy.minimum(local_peaktimes + temp_2_shift + 1, max_time)
+            min_times    = numpy.maximum(local_peaktimes - min_time - temp_2_shift, 0)
+            max_times    = numpy.minimum(local_peaktimes - min_time + temp_2_shift + 1, max_time - min_time)
             max_n_t      = int(space_explo*(max_time-min_time+1)/(2*temp_2_shift + 1))
 
             while (numpy.mean(failure) < nb_chances):
@@ -349,8 +349,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     good         = (ts >= local_bounds[0]) & (ts < local_bounds[1])
 
                     # We reduce to only the good times that will be kept
-                    to_keep      = to_keep[good]
-                    ts           = ts[good]
+                    #to_keep      = to_keep[good]
+                    #ts           = ts[good]
                     
                     tmp          = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
                     tmp         -= ts.reshape((len(ts), 1))
@@ -381,25 +381,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             tmp2         = c_overs[inds_temp[keep] + n_tm][:, itmp[myslice]]
                             b[:, idx_b] -= (best_amp[keep]*tmp1 + best_amp2[keep]*tmp2)
 
-                        t_spike               = ts[count] + local_offset
-                        result['spiketimes'] += [t_spike]
-                        result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
-                        result['templates']  += [inds_temp[keep]]
-                        nb_fitted            += 1
-                        if refractory > 0:
-                            last_spike                   = last_spikes[inds_temp[keep]]
-                            sidx                         = numpy.where(all_spikes >= t_spike)[0]
-                            last_spikes[inds_temp[keep]] = t_spike
-                            values                       = numpy.ones(n_t)
-                            values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
-                            if full_gpu:
-                                values   = cmt.CUDAMatrix(values.reshape(1, n_t))
-                                sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
-                                sub_mask.mult(values)
-                                mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
-                                del values, sub_mask
-                            else:
-                                mask[inds_temp[keep]] = mask[inds_temp[keep]] * values
+                        if good[count]:
+
+                            t_spike               = ts[count] + local_offset
+                            result['spiketimes'] += [t_spike]
+                            result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
+                            result['templates']  += [inds_temp[keep]]
+                            nb_fitted            += 1
+                            if refractory > 0:
+                                last_spike                   = last_spikes[inds_temp[keep]]
+                                sidx                         = numpy.where(all_spikes >= t_spike)[0]
+                                last_spikes[inds_temp[keep]] = t_spike
+                                values                       = numpy.ones(n_t)
+                                values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
+                                if full_gpu:
+                                    values   = cmt.CUDAMatrix(values.reshape(1, n_t))
+                                    sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
+                                    sub_mask.mult(values)
+                                    mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
+                                    del values, sub_mask
+                                else:
+                                    mask[inds_temp[keep]] = mask[inds_temp[keep]] * values
 
                     myslice           = inds_t[to_reject]
                     failure[myslice] += 1

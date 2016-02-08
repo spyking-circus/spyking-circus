@@ -241,7 +241,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
                 subset     = numpy.where(to_merge[:, 0] == keep)[0]
                 if len(subset) > 0:
                     idx        = numpy.unique(to_merge[subset].flatten())
-                    ratios     = norm_templates[keep]/norm_templates[idx]
+                    ratios     = norm_templates[idx]/norm_templates[keep]
                     new_limits = [numpy.min(ratios*old_limits[idx][:, 0]), numpy.max(ratios*old_limits[idx][:, 1])]
                 else:
                     new_limits = old_limits[keep]
