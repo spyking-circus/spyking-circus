@@ -149,7 +149,7 @@ class TestClustering(unittest.TestCase):
     def test_clustering_quadratic(self):
         io.change_flag(self.file_name, 'extraction', 'quadratic')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'extraction', 'median')
+        io.change_flag(self.file_name, 'extraction', 'median-raw')
         res = get_performance(self.file_name, 'quadratic')
         if self.all_templates is None:
             self.all_templates = res[0]

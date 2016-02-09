@@ -314,7 +314,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
-        gdata2      = all_gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
+        gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = int(numpy.sum(gdata))
         nb_rejected = int(numpy.sum(gdata2))
         nb_total    = int(nb_elts*comm.size)
