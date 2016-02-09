@@ -27,7 +27,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     sim_same_elec   = 0.8
 
     if benchmark == 'fitting':
-        nb_insert       = 1
+        nb_insert       = 25
         n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, nb_insert)
         rate            = nb_insert*[10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)

@@ -111,7 +111,7 @@ def get_dataset(self):
         print "Generating a synthetic dataset of 30 channels, 5min at 20kHz..."
         sampling_rate = 20000
         N_total       = 30
-        gain          = 0.1
+        gain          = 0.5
         data          = (gain * numpy.random.randn(sampling_rate * N_total * 5 * 60)).astype(numpy.float32)
         myfile        = open(filename, 'w')
         myfile.write(data.tostring())
