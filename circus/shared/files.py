@@ -305,6 +305,10 @@ def data_stats(params, show=True, export_times=False):
     N_t = params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/sampling_rate, 1)
 
+    nb_extra        = last_chunk_len/60
+    nb_chunks      += nb_extra
+    last_chunk_len -= nb_extra*60
+
     lines = ["Number of recorded channels : %d" %N_total,
              "Number of analyzed channels : %d" %N_e,
              "Data type                   : %s" %str(data_dtype),
