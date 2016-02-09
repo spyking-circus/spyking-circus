@@ -278,7 +278,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             min_time     = local_peaktimes.min()
             max_time     = local_peaktimes.max()
             local_len    = max_time - min_time + 1
-            nb_fitted    = 0
             min_times    = numpy.maximum(local_peaktimes - min_time - temp_2_shift, 0)
             max_times    = numpy.minimum(local_peaktimes - min_time + temp_2_shift + 1, max_time - min_time)
             max_n_t      = int(space_explo*(max_time-min_time+1)/(2*temp_2_shift + 1))
@@ -387,7 +386,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             result['spiketimes'] += [t_spike]
                             result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
                             result['templates']  += [inds_temp[keep]]
-                            nb_fitted            += 1
                             if refractory > 0:
                                 last_spike                   = last_spikes[inds_temp[keep]]
                                 sidx                         = numpy.where(all_spikes >= t_spike)[0]
