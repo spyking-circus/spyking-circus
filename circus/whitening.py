@@ -12,6 +12,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     spike_thresh   = params.getfloat('data', 'spike_thresh')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
@@ -88,8 +89,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_idx         = local_peaktimes[argmax_peak]
 
             #print "Selection of the peaks with spatio-temporal masks..."
-            for idx, sidx in zip(argmax_peak, all_idx):
-                elec    = numpy.argmax(numpy.abs(local_chunk[sidx]))
+            for idx, peak in zip(argmax_peak, all_idx):
+                elec    = numpy.argmax(numpy.abs(local_chunk[peak]))
                 indices = inv_nodes[edges[nodes[elec]]]
                 myslice = all_times[indices, min_times[idx]:max_times[idx]]
                 peak    = local_peaktimes[idx]
@@ -178,8 +179,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
-                for i in xrange(N_e):
-                    local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
+                local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
             thresholds = numpy.zeros(N_e, dtype=numpy.float32)
             for i in xrange(N_e):
@@ -209,6 +209,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
@@ -226,6 +227,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     elt_count        = 0
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
+    take_all         = False
     #################################################################
 
 
@@ -280,6 +282,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             for i in xrange(N_e):
                 peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                if skip_artefact:
+                    values    = local_chunk[peaktimes, i]
+                    idx       = numpy.where(values >= -10*thresholds[i])[0]
+                    peaktimes = peaktimes[idx]
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
@@ -306,29 +312,51 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_idx         = local_peaktimes[argmax_peak]
 
                 #print "Selection of the peaks with spatio-temporal masks..."
-                for idx, sidx in zip(argmax_peak, all_idx):
+                for midx, peak in zip(argmax_peak, all_idx):
                     if elt_count == nb_elts:
                         break
-                    elec    = numpy.argmin(local_chunk[sidx])
+                    elec    = numpy.argmin(local_chunk[peak])
                     indices = inv_nodes[edges[nodes[elec]]]
-                    myslice = all_times[indices, min_times[idx]:max_times[idx]]
-                    peak    = local_peaktimes[idx]
+                    myslice = all_times[indices, min_times[midx]:max_times[midx]]
                     is_local_min = elec in all_minimas[all_peaktimes == peak]
                     if is_local_min and not myslice.any():
-                        if groups[elec] < max_elts_elec:
+                        upper_bounds = max_elts_elec
+                        if take_all:
+                            upper_bounds /= len(indices)
 
-                            elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+                        if groups[elec] < upper_bounds:
 
-                            if alignment:
-                                ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
-                                f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
-                                rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-                                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                elts[:, elt_count] = f(ddata).astype(numpy.float32)
+                            if take_all:
+                                if alignment:
+                                    idx   = numpy.where(indices == elec)[0]
+                                    zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
+                                    ydata = numpy.arange(len(indices))
+                                    f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
+                                    rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+                                    ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                    sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                else:
+                                    sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
 
-                            groups[elec]       += 1
-                            elt_count          += 1
-                        all_times[indices, min_times[idx]:max_times[idx]] = True
+                                for count, elec in enumerate(indices):
+                                    if elt_count < nb_elts:
+                                        elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, count]
+                                        elt_count          += 1
+                            else:
+
+                                elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+
+                                if alignment:
+                                    ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
+                                    f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
+                                    rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                                    ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                    elts[:, elt_count] = f(ddata).astype(numpy.float32)
+                                
+                                elt_count         += 1
+
+                        groups[elec] += 1
+                        all_times[indices, min_times[midx]:max_times[midx]] = True
 
             if comm.rank == 0:
                 pbar.update(elt_count)
@@ -344,14 +372,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         #DO PCA on elts and store the basis obtained.
-        print "We found", gdata.shape[0], "spikes over", int(nb_elts*comm.size), "requested"
-        pca = mdp.nodes.PCANode(output_dim=output_dim)
+        print "We found", gdata.shape[0], "waveforms over", int(nb_elts*comm.size), "requested"
+        pca = PCA(output_dim, copy=False)
         res = {}     
         if len(gdata) > 0:
-            res_pca     = pca(gdata.astype(numpy.double))
-            res['proj'] = pca.get_projmatrix().astype(numpy.float32)
+            res_pca     = pca.fit_transform(gdata.astype(numpy.double)).astype(numpy.float32)
+            res['proj'] = pca.components_.T.astype(numpy.float32)
         else:
-            res['proj'] = numpy.identity(N_t)
+            res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
         res['rec']  = res['proj'].T
         bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)

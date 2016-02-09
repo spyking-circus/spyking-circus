@@ -20,22 +20,34 @@ def get_performance(file_name, name):
     probe_file      = data['probe']
     sim_templates   = 0.8
 
-    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
-    inj_templates   = h5py.File(os.path.join(result_name, '%s.templates.hdf5' %a)).get('templates')[:]
+    temp_file       = file_out + '.templates.hdf5'
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    templates       = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(temp_shape[0]*temp_shape[1], temp_shape[2]))
+
+    temp_file       = os.path.join(result_name, '%s.templates.hdf5' %a)
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    inj_templates   = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(temp_shape[0]*temp_shape[1], temp_shape[2]))
+
     amplitudes      = h5py.File(file_out + '.templates.hdf5').get('limits')[:]
 
-    n_tm            = inj_templates.shape[2]/2
+    n_tm            = inj_templates.shape[1]/2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
     res3            = numpy.zeros(len(n_cells))
 
     for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
-        source_temp = inj_templates[:, :, temp_id]
+        source_temp = inj_templates[:, temp_id].toarray()
         similarity  = []
         temp_match  = None
         dmax        = 0
-        for i in xrange(templates.shape[2]/2):
-            d = numpy.corrcoef(templates[:, :, i].flatten(), source_temp.flatten())[0, 1]
+        for i in xrange(templates.shape[1]/2):
+            d = numpy.corrcoef(templates[:, i].toarray(), source_temp)[0, 1]
             similarity += [d]
             if d > dmax:
                 temp_match = i
@@ -117,7 +129,6 @@ class TestClustering(unittest.TestCase):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
         io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
 
-    
     def test_clustering_one_CPU(self):
         mpi_launch('clustering', self.file_name, 1, 0, 'False')
         res = get_performance(self.file_name, 'one_CPU')
@@ -129,6 +140,16 @@ class TestClustering(unittest.TestCase):
     def test_clustering_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         res = get_performance(self.file_name, 'two_CPU')
+        if self.all_templates is None:
+            self.all_templates = res[0]
+            self.all_matches   = res[1]
+        assert numpy.all(self.all_templates == res[0])
+
+    def test_clustering_quadratic(self):
+        io.change_flag(self.file_name, 'extraction', 'quadratic')
+        mpi_launch('clustering', self.file_name, 2, 0, 'False')
+        io.change_flag(self.file_name, 'extraction', 'median')
+        res = get_performance(self.file_name, 'quadratic')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
@@ -167,9 +188,19 @@ class TestClustering(unittest.TestCase):
     def test_clustering_cc_merge(self):
         io.change_flag(self.file_name, 'cc_merge', '0.8')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'cc_merge', '0.975')
+        io.change_flag(self.file_name, 'cc_merge', '0.95')
         res = get_performance(self.file_name, 'cc_merge')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert res[0].shape[2]/2 <= self.all_templates.shape[2]/2
+        assert res[0].shape[1] <= self.all_templates.shape[1]
+
+    def test_remove_mixtures(self):
+        io.change_flag(self.file_name, 'remove_mixtures', 'False')
+        mpi_launch('clustering', self.file_name, 2, 0, 'False')
+        io.change_flag(self.file_name, 'remove_mixtures', 'True')
+        res = get_performance(self.file_name, 'cc_merge')
+        if self.all_templates is None:
+            self.all_templates = res[0]
+            self.all_matches   = res[1]
+        assert res[0].shape[1] >= self.all_templates.shape[1]

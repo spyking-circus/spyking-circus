@@ -51,13 +51,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     def _read_templates(basename, probe, n_total_channels, n_channels):
-        with open_h5(basename + '.templates.hdf5', 'r') as f:
-            templates        = f.read('/templates')
-            n_templates, n_samples, n_channels = templates.shape[2], templates.shape[1], templates.shape[0] 
-            n_templates    //= 2
-            templates        = templates[:, :, :n_templates].T
-            masks            = np.zeros((n_templates, n_channels))
-            electrodes       = np.argmax(np.abs(templates).max(1), 1)
+        with h5py.File(basename + '.templates.hdf5', 'r') as f:
+            if 'templates' in f.keys():
+              templates        = f.get('templates')
+              n_templates, n_samples, n_channels = templates.shape[2], templates.shape[1], templates.shape[0] 
+              n_templates    //= 2
+              templates        = templates[:, :, :n_templates].T
+              masks            = np.zeros((n_templates, n_channels))
+              electrodes       = np.argmax(np.abs(templates).max(1), 1)
+            else:
+              n_channels, n_samples, n_templates = f.get('temp_shape')
+              n_templates    //= 2
+              masks            = np.zeros((n_templates, n_channels))
+              temp_x           = f.get('temp_x')[:]
+              temp_y           = f.get('temp_y')[:]
+              temp_data        = f.get('temp_data')[:]
+              idx              = numpy.where(temp_y < n_templates)[0]
+              templates        = scipy.sparse.csc_matrix((temp_data[idx], (temp_x[idx],temp_y[idx])), 
+                shape=(n_channels*n_samples, n_templates))
+              electrodes       = numpy.zeros(n_templates, dtype=np.int32)
+              for i in xrange(n_templates):
+                temp = templates[:, i].toarray().reshape(n_channels, n_samples)
+                electrodes[i] = np.argmax(np.abs(temp).max(1))
+
             inv_nodes        = np.zeros(n_total_channels, dtype=np.int32)
             nodes            = []
             for key in probe['channel_groups'].keys():
@@ -150,7 +166,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                      dtype=None,
                      sample_rate=None,
                      dc_offset=0,
-                     gain=0.01,
                      offset_value=0
                      ):
 
@@ -205,7 +220,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             # Load templates and masks.
             self.templates, self.template_masks = _read_templates(basename, self.probe, self.n_total_channels, self.n_channels)
-            self.n_templates = len(self.templates)
+            if len(self.templates.shape) == 3:
+              self.n_templates = len(self.templates)
+            else:
+              self.n_templates = self.templates.shape[1]
+
             info("Loaded templates: {}.".format(self.templates.shape))
 
             # Load amplitudes.
@@ -234,7 +253,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   self._wl = WaveformLoader(traces=self.traces_f,
                                             n_samples=self.n_samples_w,
                                             dc_offset=dc_offset,
-                                            scale_factor=gain,
                                             channels=nodes
                                             )
                 else:
@@ -243,7 +261,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             filter=filter,
                                             filter_margin=filter_margin,
                                             dc_offset=dc_offset,
-                                            scale_factor=gain,
                                             channels=nodes
                                             )
 
@@ -436,7 +453,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sample_rate      = params.getint('data', 'sampling_rate')
     dtype            = params.get('data', 'data_dtype')
     dc_offset        = params.getint('data', 'dtype_offset')
-    gain             = params.getfloat('data', 'gain')
     data_offset      = params.get('data', 'data_offset')
 
     c = Converter(basename, filename, N_t,
@@ -446,7 +462,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   prb_file=prb_file,
                   sample_rate=sample_rate,
                   dtype=dtype,
-                  gain=gain,
                   offset_value=data_offset
                   )
 

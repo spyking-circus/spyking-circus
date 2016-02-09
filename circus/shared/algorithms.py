@@ -1,10 +1,10 @@
 import matplotlib
 matplotlib.use('Agg')
 import os
-os.environ['MDP_DISABLE_SKLEARN']='yes'
-import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
+import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats, progressbar
 from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges
-from circus.shared.utils import all_gather_array
+from circus.shared.mpi import all_gather_array
+import scipy.linalg, scipy.sparse
 
 def distancematrix(data, weight=None):
     
@@ -202,15 +202,15 @@ def merging(groups, sim_same_elec, data):
 
 def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
 
-    import h5py, shutil
-    parallel_hdf5  = h5py.get_config().mpi
+    import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
-    if parallel_hdf5 or (comm.rank == 0):
-        myfile         = h5py.File(file_out_suff + '.templates.hdf5', 'r', libver='latest')
-        old_templates  = myfile.get('templates')
-        old_limits     = myfile.get('limits')[:]
-        N_e, N_t, N_tm = old_templates.shape
+    if comm.rank == 0:
+        old_templates  = load_data(params, 'templates')
+        old_limits     = load_data(params, 'limits')
+        N_e            = params.getint('data', 'N_e')
+        N_t            = params.getint('data', 'N_t')
+        x, N_tm        = old_templates.shape
         norm_templates = load_data(params, 'norm-templates')
 
         if to_merge is not None:
@@ -221,24 +221,20 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
 
         all_templates = set(numpy.arange(N_tm/2))
         to_keep       = numpy.array(list(all_templates.difference(to_remove)))
-
-    if parallel_hdf5:
-        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
-        positions = numpy.arange(comm.rank, len(to_keep), comm.size)
-    elif comm.rank == 0:
-        hfile     = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', libver='latest')
-        positions = numpy.arange(len(to_keep))
     
-    if parallel_hdf5 or (comm.rank == 0):
+        positions  = numpy.arange(len(to_keep))
+
         local_keep = to_keep[positions]
-        templates  = hfile.create_dataset('templates', shape=(N_e, N_t, 2*len(to_keep)), dtype=numpy.float32, chunks=(N_e, N_t, 1))
+        templates  = scipy.sparse.lil_matrix((N_e*N_t, 2*len(to_keep)), dtype=numpy.float32)
+        hfile      = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', libver='latest')
         norms      = hfile.create_dataset('norms', shape=(2*len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         for count, keep in zip(positions, local_keep):
-            templates[:, :, count]                = old_templates[:, :, keep]
-            templates[:, :, count + len(to_keep)] = old_templates[:, :, keep + N_tm/2]
-            norms[count]                          = norm_templates[keep]
-            norms[count + len(to_keep)]           = norm_templates[keep + N_tm/2]
+
+            templates[:, count]                = old_templates[:, keep]
+            templates[:, count + len(to_keep)] = old_templates[:, keep + N_tm/2]
+            norms[count]                       = norm_templates[keep]
+            norms[count + len(to_keep)]        = norm_templates[keep + N_tm/2]
             if to_merge is None:
                 new_limits = old_limits[keep]
             else:
@@ -250,29 +246,36 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
                 else:
                     new_limits = old_limits[keep]
             limits[count]  = new_limits
+        
+
+        templates = templates.tocoo()
+        hfile.create_dataset('temp_x', data=templates.row)
+        hfile.create_dataset('temp_y', data=templates.col)
+        hfile.create_dataset('temp_data', data=templates.data)
+        hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2*len(to_keep)], dtype=numpy.int32))
         hfile.close()
-        myfile.close()
-    
-    comm.Barrier()
-    if comm.rank == 0:
+
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             os.remove(file_out_suff + '.templates%s.hdf5' %extension)
         shutil.move(file_out_suff + '.templates-new.hdf5', file_out_suff + '.templates%s.hdf5' %extension)
+
+    comm.Barrier()
+
     
 
 def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''):
-    comm.Barrier()
+    
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
 
-    if to_merge != []:
-        to_remove = []
-        for count in xrange(len(to_merge)):
-            remove     = to_merge[count][1]
-            to_remove += [remove]
-
     if comm.rank == 0:
+
+        if to_merge != []:
+            to_remove = []
+            for count in xrange(len(to_merge)):
+                remove     = to_merge[count][1]
+                to_remove += [remove]
 
         all_elements = [[] for i in xrange(N_e)]
         for target in numpy.unique(to_remove):
@@ -300,6 +303,24 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
             os.remove(file_out_suff + '.clusters%s.hdf5' %extension)
         shutil.move(file_out_suff + '.clusters-new.hdf5', file_out_suff + '.clusters%s.hdf5' %extension)
+
+    comm.Barrier()
+
+
+def slice_result(result, times):
+
+    sub_results = []
+
+    nb_temp = len(result['spiketimes'])
+    for t in times:
+        sub_result = {'spiketimes' : {}, 'amplitudes' : {}}
+        for key in result['spiketimes'].keys():
+            idx = numpy.where((result['spiketimes'][key] >= t[0]) & (result['spiketimes'][key] <= t[1]))[0]
+            sub_result['spiketimes'][key] = result['spiketimes'][key][idx]
+            sub_result['amplitudes'][key] = result['amplitudes'][key][idx]                
+        sub_results += [sub_result]
+
+    return sub_results
 
 def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
@@ -350,7 +371,9 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
         return to_merge, result
             
     templates      = load_data(params, 'templates')
-    N_e, N_t, N_tm = templates.shape
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
+    x,        N_tm = templates.shape
     nb_temp        = N_tm/2
     to_merge       = []
     
@@ -361,20 +384,26 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     if comm.rank > 0:
         overlap.file.close()
     else:
-        pair      = []
+        over_x     = overlap.get('over_x')[:]
+        over_y     = overlap.get('over_y')[:]
+        over_data  = overlap.get('over_data')[:]
+        over_shape = overlap.get('over_shape')[:]
+        overlap.close()
+
+        overlap   = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-        for i in xrange(nb_temp):
-            distances[i, i+1:] = numpy.max(overlap[i, i+1:nb_temp], 1)
+        for i in xrange(nb_temp-1):
+            rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
+            distances[i, i+1:] = numpy.max(overlap[rows, :].toarray(), 1)
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
-        overlap.file.close()
         to_merge, result = remove(result, distances, cc_merge)       
 
     to_merge = numpy.array(to_merge)
     to_merge = comm.bcast(to_merge, root=0)
-
+    
     if len(to_merge) > 0:
         slice_templates(comm, params, to_merge=to_merge)
         slice_clusters(comm, params, result)
@@ -388,7 +417,10 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 def delete_mixtures(comm, params, parallel_hdf5=False):
         
     templates      = load_data(params, 'templates')
-    N_e, N_t, N_tm = templates.shape
+    templates      = load_data(params, 'templates')
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
+    x,        N_tm = templates.shape
     nb_temp        = N_tm/2
     merged         = [nb_temp, 0]
     mixtures       = []
@@ -399,6 +431,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     result   = []
     
     norm_templates   = load_data(params, 'norm-templates')
+    templates        = load_data(params, 'templates')
     result           = load_data(params, 'clusters')
     best_elec        = load_data(params, 'electrodes')
     limits           = load_data(params, 'limits')
@@ -408,13 +441,22 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     inv_nodes[nodes] = numpy.argsort(nodes)
 
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-    for i in xrange(nb_temp):
-        distances[i, i+1:] = numpy.argmax(overlap[i, i+1:nb_temp], 1)
+
+    over_x     = overlap.get('over_x')[:]
+    over_y     = overlap.get('over_y')[:]
+    over_data  = overlap.get('over_data')[:]
+    over_shape = overlap.get('over_shape')[:]
+    overlap.close()
+
+    overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
+
+    for i in xrange(nb_temp-1):
+        rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
+        distances[i, i+1:] = numpy.argmax(overlap[rows, :].toarray(), 1)
         distances[i+1:, i] = distances[i, i+1:]
 
-    import scipy.linalg
     all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
-    overlap_0 = overlap[:, :, N_t]
+    overlap_0 = overlap[:, N_t].toarray().reshape(nb_temp, nb_temp)
     if comm.rank == 0:
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(all_temp)).start()
 
@@ -425,28 +467,37 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     for count, k in enumerate(sorted_temp):
 
         electrodes    = inv_nodes[edges[nodes[best_elec[k]]]]
-        overlap_k     = overlap[k]
+        rows          = numpy.arange(k*nb_temp, (k+1)*nb_temp)
+        overlap_k     = overlap[rows, :].tolil()
         is_in_area    = numpy.in1d(best_elec, electrodes)
-        for item in sorted_temp[:count]:
-            is_in_area[item] = False
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
+        been_found    = False
 
         for i in all_idx:
-            overlap_i = overlap[i]
-            M[0, 0]   = overlap_0[i, i]
-            V[0, 0]   = overlap_k[i, distances[k, i]]
-            for j in all_idx[i+1:]:
-                M[1, 1]  = overlap_0[j, j]
-                M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
-                M[0, 1]  = M[0, 1]
-                V[1, 0]  = overlap_k[j, distances[k, j]]
-                [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                a1_lim   = limits[i]
-                a2_lim   = limits[j]
-                is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
-                is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
-                if is_a1 and is_a2:
-                    mixtures += [k]
+            if not been_found:
+                rows      = numpy.arange(i*nb_temp, (i+1)*nb_temp)
+                overlap_i = overlap[rows, :].tolil()
+                M[0, 0]   = overlap_0[i, i]
+                V[0, 0]   = overlap_k[i, distances[k, i]]
+                for j in all_idx[i+1:]:
+                    M[1, 1]  = overlap_0[j, j]
+                    M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
+                    M[0, 1]  = M[1, 0]
+                    V[1, 0]  = overlap_k[j, distances[k, j]]
+                    [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                    a1_lim   = limits[i]
+                    a2_lim   = limits[j]
+                    is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
+                    is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
+                    if is_a1 and is_a2:
+                        new_template = a1*templates[:, i].toarray() + a2*templates[:, j].toarray()
+                        similarity   = numpy.corrcoef(templates[:, k].toarray().flatten(), new_template.flatten())[0, 1]
+                        if similarity > 0.95:
+                            if k not in mixtures:
+                                mixtures  += [k]
+                                been_found = True 
+                                break
+                                #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
 
         if comm.rank == 0:
             pbar.update(count)
@@ -454,9 +505,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if comm.rank == 0:
         pbar.finish()
     
-    templates.file.close()
-    overlap.file.close()
-
+    #print mixtures
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
     

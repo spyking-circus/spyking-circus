@@ -1,4 +1,4 @@
-import os, sys, nose
+import os, sys, nose, h5py
 import circus
 import subprocess
 from termcolor import colored
@@ -77,12 +77,14 @@ def get_dataset(self):
         shutil.copyfile(config_file, file_params)
         io.change_flag(filename, 'data_offset', '0')
         io.change_flag(filename, 'data_dtype', 'int16')
-        io.change_flag(filename, 'dtype_offset', '0')
         io.change_flag(filename, 'temporal', 'True')
         user_path  = os.path.join(os.path.expanduser('~'), 'spyking-circus')
         probe_file = os.path.join(os.path.join(user_path, 'probes'), 'dan.prb')
         io.change_flag(filename, 'mapping', probe_file)
         io.change_flag(filename, 'make_plots', 'False')
+        io.change_flag(filename, 'nb_repeats', '1')
+        io.change_flag(filename, 'smart_search', '3')
+        io.change_flag(filename, 'max_elts', '1000', 'Fraction')
 
     a, b     = os.path.splitext(os.path.basename(filename))
     c, d     = os.path.splitext(filename)
@@ -96,6 +98,61 @@ def get_dataset(self):
     if not os.path.exists(file_out + '.result.hdf5'):
         mpi_launch('fitting', filename, 2, 0, 'False')    
     return filename
+
+'''
+def get_dataset(self):
+    dirname  = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+    filename = os.path.join(dirname, 'data') 
+    if not os.path.exists(filename):
+        os.makedirs(filename)
+    result   = os.path.join(filename, 'data')
+    filename = os.path.join(filename, 'data.dat')
+    if not os.path.exists(filename):
+        print "Generating a synthetic dataset of 30 channels, 2min at 20kHz..."
+        sampling_rate = 20000
+        N_total       = 30
+        gain          = 0.5
+        data          = (gain * numpy.random.randn(sampling_rate * N_total * 2 * 60)).astype(numpy.float32)
+        myfile        = open(filename, 'w')
+        myfile.write(data.tostring())
+        myfile.close()
+    
+    if not os.path.exists(result):
+        os.makedirs(result)
+        shutil.copy(os.path.join(dirname, 'test.basis.hdf5'), os.path.join(result, 'data.basis.hdf5'))
+        shutil.copy(os.path.join(dirname, 'test.templates.hdf5'), os.path.join(result, 'data.templates.hdf5'))
+        shutil.copy(os.path.join(dirname, 'test.clusters.hdf5'), os.path.join(result, 'data.clusters.hdf5'))
+
+    config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
+    file_params = os.path.abspath(filename.replace('.dat', '.params'))
+    if not os.path.exists(file_params):
+        shutil.copyfile(config_file, file_params)
+        io.change_flag(filename, 'data_offset', '0')
+        io.change_flag(filename, 'data_dtype', 'float32')
+        io.change_flag(filename, 'temporal', 'False')
+        user_path  = os.path.join(os.path.expanduser('~'), 'spyking-circus')
+        probe_file = os.path.join(os.path.join(user_path, 'probes'), 'dan.prb')
+        io.change_flag(filename, 'mapping', probe_file)
+        io.change_flag(filename, 'make_plots', 'False')
+        io.change_flag(filename, 'nb_repeats', '3')
+        io.change_flag(filename, 'smart_search', '3')
+        io.change_flag(filename, 'max_elts', '1000', 'Fraction')
+        io.change_flag(filename, 'filter_done', 'True')
+        io.change_flag(filename, 'extraction', 'median-pca')
+
+    a, b     = os.path.splitext(os.path.basename(filename))
+    c, d     = os.path.splitext(filename)
+    file_out = os.path.join(os.path.abspath(c), a)
+
+#    mpi_launch('filtering', filename, 2, 0, 'False')
+#    if not os.path.exists(file_out + '.basis.hdf5'):
+#        mpi_launch('whitening', filename, 2, 0, 'False')
+#    if not os.path.exists(file_out + '.templates.hdf5'):
+#        mpi_launch('clustering', filename, 2, 0, 'False')
+#    if not os.path.exists(file_out + '.result.hdf5'):
+#        mpi_launch('fitting', filename, 2, 0, 'False')    
+    return filename
+'''
 
 if __name__=='__main__':
     run()

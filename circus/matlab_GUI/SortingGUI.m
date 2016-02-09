@@ -115,18 +115,34 @@ else
     tmpfile  = [handles.filename '.templates' handles.suffix];
     tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
     info     = h5info(tmpfile);
-    handles.has_hdf5 = true;
-    template = h5read(tmpfile, '/templates');
-    has_tagged = false;
+    handles.has_hdf5  = true;
+    handles.is_dense  = true;
+    has_tagged        = false;
     for id=1:size(info.Datasets, 1)
+        if strcmp(info.Datasets(id).Name, 'temp_x')
+            handles.is_dense = false;
+        end
         if strcmp(info.Datasets(id).Name, 'tagged')
             has_tagged = true;
         end
-        if strcmp(info.Datasets(id).Name, 'templates')
-            handles.templates_size = info.Datasets(id).Dataspace.Size;
-            handles.templates_size = [handles.templates_size(3) handles.templates_size(2) handles.templates_size(1)/2];
-        end
     end
+    if handles.is_dense
+        template = h5read(tmpfile, '/templates');
+        for id=1:size(info.Datasets, 1)    
+            if strcmp(info.Datasets(id).Name, 'templates')
+                handles.templates_size = info.Datasets(id).Dataspace.Size;
+                handles.templates_size = [handles.templates_size(3) handles.templates_size(2) handles.templates_size(1)/2];
+            end
+        end
+    else
+        handles.templates_size = double(h5read(tmpfile, '/temp_shape'));
+        temp_x = double(h5read(tmpfile, '/temp_x') + 1);
+        temp_y = double(h5read(tmpfile, '/temp_y') + 1); 
+        temp_z = double(h5read(tmpfile, '/temp_data'));
+        handles.templates = sparse(temp_x, temp_y, temp_z, handles.templates_size(1)*handles.templates_size(2), handles.templates_size(3));
+        handles.templates_size = [handles.templates_size(1) handles.templates_size(2) handles.templates_size(3)/2];
+    end
+
     if has_tagged
         handles.Tagged = h5read(tmpfile, '/tagged');
     end
@@ -1074,14 +1090,19 @@ ViewMode = 1 + get(handles.TwoView,'Value');
 
 %% PLOT TEMPLATE
 if handles.has_hdf5
-    tmpfile  = [handles.filename '.templates' handles.suffix];
-    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
-    handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    handles.local_template2 = h5read(tmpfile, '/templates', [RCellNb2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    ndim                    = numel(size(handles.local_template));
-    handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
-    ndim                    = numel(size(handles.local_template2));
-    handles.local_template2 = permute(handles.local_template2,[ndim:-1:1]);
+    if handles.is_dense
+        tmpfile  = [handles.filename '.templates' handles.suffix];
+        tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
+        handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+        handles.local_template2 = h5read(tmpfile, '/templates', [RCellNb2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+        ndim                    = numel(size(handles.local_template));
+        handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
+        ndim                    = numel(size(handles.local_template2));
+        handles.local_template2 = permute(handles.local_template2,[ndim:-1:1]);
+    else
+        handles.local_template  = full(reshape(handles.templates(:, RCellNb), handles.templates_size(2), handles.templates_size(1)))';
+        handles.local_template2 = full(reshape(handles.templates(:, RCellNb2), handles.templates_size(2), handles.templates_size(1)))';
+    end
 else
     handles.local_template  = handles.templates(:, :, RCellNb);
     handles.local_template2 = handles.templates(:, :, RCellNb2);
@@ -1497,44 +1518,61 @@ overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(
 output_file_temp = [handles.filename '.templates' suffix '.hdf5'];
 nb_templates     = size(handles.to_keep, 2);
 tmp_templates    = [handles.filename '.templates-tmp' suffix '.hdf5'];
+tmpfile          = [handles.filename '.templates' handles.suffix];
 
 if exist(tmp_templates,'file')
     delete(tmp_templates);
 end
 
-h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
-
-nb_to_write = 100;
-tmp_count   = 1;
-differences = [diff(handles.to_keep) 0];
-
-while tmp_count <= nb_templates
-    contiguous  = find(differences(tmp_count:nb_templates) ~= 1);
-    if isempty(contiguous)
-        local_write = min(nb_to_write, nb_templates - tmp_count);
-    else
-        local_write = min(nb_to_write, contiguous(1));
-    end
-
-    temp_1 = handles.to_keep(tmp_count:tmp_count + local_write - 1);
-    temp_2 = handles.to_keep(tmp_count:tmp_count + local_write - 1) + handles.templates_size(3);
-    
-    if handles.has_hdf5
-        tmpfile    = [handles.filename '.templates' handles.suffix];
-        tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
-        to_write_1 = h5read(tmpfile, '/templates', [temp_1(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
-        to_write_2 = h5read(tmpfile, '/templates', [temp_2(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
-    else
-        to_write_1 = handles.templates(:, :, temp_1);
-        to_write_2 = handles.templates(:, :, temp_2);
-        ndim       = numel(size(to_write_1));
-        to_write_1 = permute(to_write_1,[ndim:-1:1]);
-        to_write_2 = permute(to_write_2,[ndim:-1:1]);
-    end
-    h5write(tmp_templates, '/templates', to_write_1, [tmp_count 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
-    h5write(tmp_templates, '/templates', to_write_2, [tmp_count+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
-    tmp_count = tmp_count + local_write;
+mysize = int32([handles.templates_size(1) handles.templates_size(2) 2*nb_templates])
+h5create(tmp_templates, '/temp_shape', size(mysize))
+h5write(tmp_templates, '/temp_shape', mysize)
+new_templates = sparse(handles.templates_size(1)*handles.templates_size(2), 2*nb_templates);
+for count=1:nb_templates
+    new_templates(:, count)                = handles.templates(:, handles.to_keep(count));
+    new_templates(:, count + nb_templates) = handles.templates(:, handles.to_keep(count) + handles.templates_size(3));
 end
+
+[x, y, z] = find(new_templates);
+h5create(tmp_templates, '/temp_x', size(x));
+h5create(tmp_templates, '/temp_y', size(y));
+h5create(tmp_templates, '/temp_data', size(z));
+h5write(tmp_templates, '/temp_x', int32(x) - 1);
+h5write(tmp_templates, '/temp_y', int32(y) - 1);
+h5write(tmp_templates, '/temp_data', single(z));
+
+
+
+
+%h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
+%nb_to_write = 100;
+%tmp_count   = 1;
+%differences = [diff(handles.to_keep) 0];
+%while tmp_count <= nb_templates
+%    contiguous  = find(differences(tmp_count:nb_templates) ~= 1);
+%    if isempty(contiguous)
+%        local_write = min(nb_to_write, nb_templates - tmp_count);
+%    else
+%        local_write = min(nb_to_write, contiguous(1));
+%    end
+%    temp_1 = handles.to_keep(tmp_count:tmp_count + local_write - 1);
+%    temp_2 = handles.to_keep(tmp_count:tmp_count + local_write - 1) + handles.templates_size(3);
+%    if handles.has_hdf5
+%        tmpfile    = [handles.filename '.templates' handles.suffix];
+%        tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
+%        to_write_1 = h5read(tmpfile, '/templates', [temp_1(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+%        to_write_2 = h5read(tmpfile, '/templates', [temp_2(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+%    else
+%        to_write_1 = handles.templates(:, :, temp_1);
+%        to_write_2 = handles.templates(:, :, temp_2);
+%        ndim       = numel(size(to_write_1));
+%        to_write_1 = permute(to_write_1,[ndim:-1:1]);
+%        to_write_2 = permute(to_write_2,[ndim:-1:1]);
+%    end
+%    h5write(tmp_templates, '/templates', to_write_1, [tmp_count 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+%    h5write(tmp_templates, '/templates', to_write_2, [tmp_count+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
+%    tmp_count = tmp_count + local_write;
+%end
 
 delete(output_file_temp);
 movefile(tmp_templates, output_file_temp)

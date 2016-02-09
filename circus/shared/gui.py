@@ -107,11 +107,10 @@ class MergeWindow(QtGui.QMainWindow):
         self.bin_size   = int(self.cc_bin * sampling_rate * 1e-3)
         self.max_delay  = 50
 
-        templates       = io.load_data(params, 'templates')
         self.clusters   = io.load_data(params, 'clusters')
         self.result     = io.load_data(params, 'results')
         self.overlap    = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('maxoverlap')[:]
-        self.shape      = templates.shape
+        self.shape      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('temp_shape')[:]
         self.indices    = numpy.arange(self.shape[2]/2)
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
@@ -270,12 +269,12 @@ class MergeWindow(QtGui.QMainWindow):
                              (self.score_ax3, self.score_x, self.score_z)]:
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
-            self.score_ax1.set_ylabel('cross-correlation metric')
+            self.score_ax1.set_ylabel('CC metric')
             self.score_ax1.set_xticklabels([])
-            self.score_ax2.set_xlabel('normalized cross-correlation metric')
+            self.score_ax2.set_xlabel('normalized CC metric')
             self.score_ax2.set_yticklabels([])
             self.score_ax3.set_xlabel('template similarity')
-            self.score_ax3.set_ylabel('normalized cross-correlation metric')
+            self.score_ax3.set_ylabel('normalized CC metric')
         else:
             for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
                                                                  (self.score_z, self.score_y),
@@ -332,7 +331,7 @@ class MergeWindow(QtGui.QMainWindow):
             nearest_lag = self.raw_lags[nearest_lag_idx]
             value = all_raw_data[data_idx, nearest_lag_idx]
             return ('%.2f - lag: %.2fms (template similarity: %.2f  '
-                    'cross-correlation metric %.2f)') % (value, nearest_lag,
+                    'CC metric %.2f)') % (value, nearest_lag,
                                                          self.score_x[data_idx],
                                                          self.score_y[data_idx])
         else:
@@ -743,3 +742,381 @@ class MergeWindow(QtGui.QMainWindow):
             mydata.close()
 
         sys.exit(0)
+
+
+class PreviewGUI(object):
+
+    def __init__(self, params, show_fit=False):
+
+        self.show_fit         = show_fit
+        self.params           = params
+        self.init_gui_layout()
+        self.probe            = io.read_probe(params)
+        self.N_e              = params.getint('data', 'N_e')
+        self.N_t              = params.getint('data', 'N_t')
+        self.N_total          = params.getint('data', 'N_total')
+        self.sampling_rate    = params.getint('data', 'sampling_rate')
+        self.template_shift   = params.getint('data', 'template_shift')
+        self.spike_thresh     = params.getfloat('data', 'spike_thresh')
+        nodes, edges          = io.get_nodes_and_edges(params)
+        self.nodes            = nodes
+        self.edges            = edges
+        self.inv_nodes        = numpy.zeros(self.N_total, dtype=numpy.int32)
+        self.inv_nodes[nodes] = numpy.argsort(nodes)
+
+        self.do_temporal_whitening = params.getboolean('whitening', 'temporal')
+        self.do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+
+        if self.do_spatial_whitening:
+            self.spatial_whitening  = io.load_data(params, 'spatial_whitening')
+        if self.do_temporal_whitening:
+            self.temporal_whitening = io.load_data(params, 'temporal_whitening')
+
+
+        self.thresholds       = io.load_data(params, 'thresholds')
+        self.t_start          = 0
+        self.t_stop           = 1
+
+        self.get_data()
+        self.score_x = []
+        self.score_y = []
+        self.order   = []
+        for key in self.probe['channel_groups'].keys():
+            for item in self.probe['channel_groups'][key]['geometry'].keys():
+                self.score_x += [self.probe['channel_groups'][key]['geometry'][item][0]]
+                self.score_y += [self.probe['channel_groups'][key]['geometry'][item][1]]
+        self.fig    = self.score_ax1.figure
+        self.points = zip(self.score_x, self.score_y)
+        # Remove all buttons from the standard toolbar
+        #toolbar = self.fig.canvas.toolbar
+        #for action in toolbar.actions():
+        #    toolbar.removeAction(action)
+
+        self.selected_points = set()
+        self.inspect_points = []
+        self.inspect_colors = []
+        self.lasso_selector = None
+        self.rect_selectors = [widgets.RectangleSelector(ax,
+                                                         onselect=self.callback_rect,
+                                                         button=1,
+                                                         drawtype='box',
+                                                         spancoords='data')
+                               for ax in [self.score_ax1]]
+        for selector in self.rect_selectors:
+            selector.set_active(False)
+        self.pick_button.update_toggle(True)
+        self.plot_data()
+
+        # Connect events
+        #self.fig.canvas.mpl_connect('scroll_event', self.zoom)
+        self.fig.canvas.mpl_connect('button_press_event', self.on_mouse_press)
+        self.fig.canvas.mpl_connect('close_event', self.handle_close)
+        self.fig.canvas.mpl_connect('scroll_event', self.zoom)
+        self.rect_button.on_clicked(self.update_rect_selector)
+        self.lasso_button.on_clicked(self.update_rect_selector)
+        self.pick_button.on_clicked(self.update_rect_selector)
+        self.score_ax1.format_coord = lambda x, y: 'Space [um] %.2f  Space [um] %.2f' % (x, y)
+        #self.data_ax.format_coord = self.data_tooltip
+        # Select the best point at start
+        idx = np.argmax(self.score_y)
+        self.update_inspect({idx})
+
+
+    def get_data(self):
+        self.chunk_size       = self.sampling_rate
+        self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
+        self.data, data_shape = io.load_chunk(self.params, 0, self.chunk_size*self.N_total,
+            padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
+
+        if self.do_spatial_whitening:
+            self.data = numpy.dot(self.data, self.spatial_whitening)
+        if self.do_temporal_whitening:
+            self.data = scipy.ndimage.filters.convolve1d(self.data, self.temporal_whitening, axis=0, mode='constant')
+
+        self.time    = numpy.linspace(self.t_start, self.t_stop, self.data.shape[0])
+        if self.show_fit:
+            self.templates = io.load_data(self.params, 'templates')
+            self.result    = io.load_data(self.params, 'results')
+
+            self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
+            limit          = self.sampling_rate-self.template_shift+1
+            for key in self.result['spiketimes'].keys():
+                elec  = int(key.split('_')[1])
+                lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
+                idx   = numpy.where((self.result['spiketimes'][key] > lims[0]) & (self.result['spiketimes'][key] < lims[1]))
+                for spike, (amp1, amp2) in zip(self.result['spiketimes'][key][idx], self.result['amplitudes'][key][idx]):
+                    spike -= self.t_start*self.sampling_rate
+                    tmp1   = self.templates[:, elec].toarray().reshape(self.N_e, self.N_t)
+                    tmp2   = self.templates[:, elec+self.templates.shape[1]/2].toarray().reshape(self.N_e, self.N_t)
+                    self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
+
+
+    def handle_close(self, event):
+        pass
+
+
+    def init_gui_layout(self):
+        gs = gridspec.GridSpec(15, 5, width_ratios=[2, 2, 1, 2, 2])
+        # TOOLBAR
+        buttons_gs = gridspec.GridSpecFromSubplotSpec(1, 3,
+                                                      subplot_spec=gs[0, 0])
+        lasso_button_ax = plt.subplot(buttons_gs[0, 0])
+        rect_button_ax = plt.subplot(buttons_gs[0, 1])
+        pick_button_ax = plt.subplot(buttons_gs[0, 2])
+        self.toggle_group = []
+        pick_icon  = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-color-picker.png'))
+        lasso_icon = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-free-select.png'))
+        rect_icon  = pkg_resources.resource_filename('circus', os.path.join('icons', 'gimp-tool-rect-select.png'))
+        self.lasso_button = ToggleButton(lasso_button_ax, '',
+                                         image=mpl.image.imread(lasso_icon),
+                                         toggle_group=self.toggle_group)
+        self.rect_button = ToggleButton(rect_button_ax, '',
+                                        image=mpl.image.imread(rect_icon),
+                                        toggle_group=self.toggle_group)
+        self.pick_button = ToggleButton(pick_button_ax, '',
+                                        image=mpl.image.imread(pick_icon),
+                                        toggle_group=self.toggle_group)
+        self.toggle_group.extend([self.lasso_button,
+                                  self.rect_button,
+                                  self.pick_button])
+        self.score_ax1 = plt.subplot(gs[1:15, 0:2])
+        self.detail_ax = plt.subplot(gs[1:15, 2:5])
+        if self.show_fit:
+            nbuttons_gs = gridspec.GridSpecFromSubplotSpec(1, 2,
+                                                      subplot_spec=gs[0, 4])
+            next_button_ax    = plt.subplot(nbuttons_gs[0, 1])
+            self.next_button  = widgets.Button(next_button_ax, '->')
+            prev_button_ax    = plt.subplot(nbuttons_gs[0, 0])
+            self.prev_button  = widgets.Button(prev_button_ax, '<-')
+            self.next_button.on_clicked(self.increase_time)
+            self.prev_button.on_clicked(self.decrease_time)
+
+
+    def increase_time(self, event):
+        self.t_start += 1
+        self.t_stop  += 1
+        self.get_data()
+        self.update_detail_plot()
+
+    def decrease_time(self, event):
+        if self.t_start > 0:
+            self.t_start -= 1
+            self.t_stop  -= 1
+            self.get_data()
+            self.update_detail_plot()
+
+    def plot_data(self):
+        if not getattr(self, 'collections', None):
+            # It is important to set one facecolor per point so that we can change
+            # it later
+            self.collections = []
+            for ax, x, y in [(self.score_ax1, self.score_x, self.score_y)]:
+                self.collections.append(ax.scatter(x, y,
+                                                   facecolor=['black' for _ in x]))
+            self.score_ax1.set_xlabel('Space [um]')
+            self.score_ax1.set_xticklabels([])
+            self.score_ax1.set_ylabel('Space [um]')
+            self.score_ax1.set_yticklabels([])
+        else:
+            for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y)]):
+                collection.set_offsets(np.hstack([x[np.newaxis, :].T,
+                                                  y[np.newaxis, :].T]))
+        for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x)]:
+
+            ymin, ymax = min(score_y), max(score_y)
+            yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
+            ax.set_ylim((ymax + ymin)*0.5 - yrange, (ymax + ymin)*0.5 + yrange)
+            xmin, xmax = min(score_x), max(score_x)
+            xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
+            ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
+
+    def start_lasso_select(self, event):
+        self.lasso_selector = widgets.Lasso(event.inaxes,
+                                            (event.xdata, event.ydata),
+                                            self.callback_lasso)
+        add_or_remove = None
+        if event.key == 'shift':
+            add_or_remove = 'add'
+        elif event.key == 'control':
+            add_or_remove = 'remove'
+        self.lasso_selector.add_or_remove = add_or_remove
+        if event.inaxes == self.score_ax1:
+            self.lasso_selector.points = self.points
+
+    def on_mouse_press(self, event):
+        if event.inaxes in [self.score_ax1]:
+            if self.lasso_button.toggled:
+                # Select multiple points
+                self.start_lasso_select(event)
+            elif self.rect_button.toggled:
+                pass  # handled already by rect selector
+            elif self.pick_button.toggled:
+                # Select a single point for display
+                # Find the closest point
+                if event.inaxes == self.score_ax1:
+                    x = self.score_x
+                    y = self.score_y
+                else:
+                    raise AssertionError(str(event.inaxes))
+
+                # Transform data coordinates to display coordinates
+                data = event.inaxes.transData.transform(zip(x, y))
+
+                distances = ((data[:, 0] - event.x)**2 +
+                             (data[:, 1] - event.y)**2)
+                min_idx, min_value = np.argmin(distances), np.min(distances)
+                if min_value > 50:
+                    # Don't select anything if the mouse cursor is more than
+                    # 50 pixels away from a point
+                    selection = {}
+                else:
+                    selection = {min_idx}
+                add_or_remove = None
+                if event.key == 'shift':
+                    add_or_remove = 'add'
+                elif event.key == 'control':
+                    add_or_remove = 'remove'
+                self.update_inspect(selection, add_or_remove)
+            else:
+                raise AssertionError('No tool active')
+        else:
+            return
+
+    def callback_lasso(self, verts):
+        p = mpl.path.Path(verts)
+        in_selection = p.contains_points(self.lasso_selector.points)
+        indices = np.nonzero(in_selection)[0]
+        self.update_inspect(indices, self.lasso_selector.add_or_remove)
+
+    def callback_rect(self, eclick, erelease):
+        xmin, xmax, ymin, ymax = eclick.xdata, erelease.xdata, eclick.ydata, erelease.ydata
+        if xmin > xmax:
+            xmin, xmax = xmax, xmin
+            if ymin > ymax:
+                ymin, ymax = ymax, ymin
+
+        self.score_ax = eclick.inaxes
+
+        if self.score_ax == self.score_ax1:
+            score_x, score_y = self.score_x, self.score_y
+
+        in_selection = ((score_x >= xmin) &
+                        (score_x <= xmax) &
+                        (score_y >= ymin) &
+                        (score_y <= ymax))
+        indices = np.nonzero(in_selection)[0]
+        add_or_remove = None
+        if erelease.key == 'shift':
+            add_or_remove = 'add'
+        elif erelease.key == 'control':
+            add_or_remove = 'remove'
+        self.update_inspect(indices, add_or_remove)
+
+    def update_rect_selector(self, event):
+        for selector in self.rect_selectors:
+            selector.set_active(self.rect_button.toggled)
+        self.fig.canvas.draw_idle()
+
+    def update_inspect(self, indices, add_or_remove=None):
+
+        all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
+
+        if add_or_remove is 'add':
+            indices = set(self.inspect_points) | set(indices)
+        elif add_or_remove is 'remove':
+            indices = set(self.inspect_points) - set(indices)
+
+        self.inspect_points = self.inv_nodes[sorted(indices)]
+        # We use a deterministic mapping to colors, based on their index
+        self.inspect_colors = [all_colors[idx % len(all_colors)]
+                               for idx in self.inspect_points]
+
+        self.update_score_plot()
+        self.update_detail_plot()
+
+    def update_score_plot(self):
+        for collection in self.collections:
+            fcolors = collection.get_facecolors()
+            colorin = colorConverter.to_rgba('black', alpha=0.25)
+            colorout = colorConverter.to_rgba('black')
+
+            fcolors[:] = colorout
+            for p in self.selected_points:
+                fcolors[p] = colorin
+            for idx, p in enumerate(self.inspect_points):
+                fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+
+    def update_detail_plot(self):
+        self.detail_ax.clear()
+        indices         = self.inspect_points
+        yspacing        = numpy.max(self.data)
+
+        if not self.show_fit:
+            for count, idx in enumerate(indices):
+                data_line, = self.detail_ax.plot(self.time,
+                                                 count*yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
+                thr = self.thresholds[idx]
+                self.detail_ax.plot([self.t_start, self.t_stop], [-thr+count*yspacing , -thr+count*yspacing ], ':',
+                                    color=self.inspect_colors[count], lw=2)
+        else:
+            for count, idx in enumerate(indices):
+                data_line, = self.detail_ax.plot(self.time,
+                                                 count*yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
+                data_line, = self.detail_ax.plot(self.time,
+                                                 count*yspacing + self.curve[idx, :], lw=1, color='k')
+                thr = self.thresholds[idx]
+                self.detail_ax.plot([self.t_start, self.t_stop], [-thr+count*yspacing, -thr+count*yspacing], ':',
+                                    color=self.inspect_colors[count], lw=2)
+
+        self.detail_ax.set_yticklabels([])
+        self.detail_ax.set_xlabel('Time [s]')
+        self.detail_ax.set_xlim(self.t_start, self.t_stop)
+
+        self.fig.canvas.draw_idle()
+
+    def zoom(self, event):
+        if event.inaxes == self.score_ax1:
+            x = self.score_x
+            y = self.score_y
+        elif event.inaxes == self.detail_ax:
+            x = self.time
+            y = self.data[:, self.inspect_points]
+        else:
+        # only zoom in the score plot
+            return
+
+        score_ax = event.inaxes
+        # get the current x and y limits
+        cur_xlim = score_ax.get_xlim()
+        cur_ylim = score_ax.get_ylim()
+        cur_xrange = (cur_xlim[1] - cur_xlim[0])*.5
+        cur_yrange = (cur_ylim[1] - cur_ylim[0])*.5
+        xdata = event.xdata # get event x location
+        ydata = event.ydata # get event y location
+        if event.button == 'up':
+            # deal with zoom in
+            scale_factor = 1/2.0
+        elif event.button == 'down':
+            # deal with zoom out
+            scale_factor = 2.0
+        else:
+            # deal with something that should never happen
+            scale_factor = 1
+            print event.button
+        # set new limits
+        newxmin = np.clip(xdata - cur_xrange*scale_factor, np.min(x), np.max(x))
+        newxmax = np.clip(xdata + cur_xrange*scale_factor, np.min(x), np.max(x))
+        new_xrange = (newxmax - newxmin)*0.5 * 1.05  # stretch everything a bit
+        newxmin = (newxmax + newxmin)*0.5 -new_xrange
+        newxmax = (newxmax + newxmin)*0.5 +new_xrange
+        score_ax.set_xlim(newxmin, newxmax)
+
+        if event.inaxes == self.score_ax1:
+            newymin = np.clip(ydata - cur_yrange*scale_factor, np.min(y), np.max(y))
+            newymax = np.clip(ydata + cur_yrange*scale_factor, np.min(y), np.max(y))
+            new_yrange = (newymax - newymin)*0.5 * 1.05  # stretch everything a bit
+            newymin = (newymax + newymin)*0.5 -new_yrange
+            newymax = (newymax + newymin)*0.5 +new_yrange
+            score_ax.set_ylim(newymin, newymax)
+        # Update the linked axes in the other plots as well
+        self.fig.canvas.draw_idle()

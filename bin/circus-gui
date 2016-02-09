@@ -14,7 +14,7 @@ params         = circus.shared.utils.io.load_parameters(filename)
 
 sampling_rate  = params.getint('data', 'sampling_rate')
 data_dtype     = params.get('data', 'data_dtype')
-gain           = params.getfloat('data', 'gain')
+gain           = 1
 file_out_suff  = params.get('data', 'file_out_suff')
 data_offset    = params.getint('data', 'data_offset')
 

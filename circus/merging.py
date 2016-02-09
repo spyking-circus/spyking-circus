@@ -18,6 +18,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.purge(file_out_suff, '-merged')
 
     app = QtGui.QApplication([])
-    pylab.style.use('ggplot')
+    try:
+        pylab.style.use('ggplot')
+    except Exception:
+        pass
     mygui = gui.MergeWindow(comm, params)
     sys.exit(app.exec_())

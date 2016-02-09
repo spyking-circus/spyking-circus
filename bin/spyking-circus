@@ -29,6 +29,7 @@ def main(argv):
     output     = None
     benchmark  = None
     preview    = False
+    result     = False
 
     if not os.path.exists(user_path):
         os.makedirs(user_path)
@@ -62,30 +63,32 @@ def main(argv):
 Syntax is spyking-circus datafile [options]
 
 Options are:
--h or --help     : display the help
--m or --method   : by default, all 4 steps of the algorithm are
-                   performed, but a subset x,y can be done, 
-                   using the syntax -m x,y. Steps are:
-                     - filtering
-                     - whitening
-                     - clustering
-                     - fitting
-                     - (extra) merging [merging obvious pairs]
-                     - (extra) gathering [to collect results]
-                     - (extra) extracting [templates from spike times]
-                     - (extra) converting [to export to phy format]
-                     - (extra) benchmarking [with -o and -t]
--c or --cpu      : number of CPU (default 1)
--g or --gpu      : number of GPU (default 1 if CUDA available)
--H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
--b or --batch    : datafile is a list of commands to launch, in a batch mode
--o or --output   : output file [for generation of synthetic benchmarks]
--p or --preview  : Display the first second filtered with thresholds
--t or --type     : benchmark type [fitting, clustering, synchrony]'''
+    -h or --help     : display the help
+    -m or --method   : by default, all 4 steps of the algorithm are
+                       performed, but a subset x,y can be done, 
+                       using the syntax -m x,y. Steps are:
+                         - filtering
+                         - whitening
+                         - clustering
+                         - fitting
+                         - (extra) merging [meta merging]
+                         - (extra) gathering [to collect results]
+                         - (extra) extracting [templates from spike times]
+                         - (extra) converting [to export to phy format]
+                         - (extra) benchmarking [with -o and -t]
+    -c or --cpu      : number of CPU (default 1)
+    -g or --gpu      : number of GPU (default 1 if CUDA available)
+    -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
+    -b or --batch    : datafile is a list of commands to launch, in a batch mode
+    -o or --output   : output file [for generation of synthetic benchmarks]
+    -p or --preview  : GUI to display the first second filtered with thresholds
+    -r or --result   : GUI to display the results on top of raw data 
+    -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
     noparams='''The parameter file %s is not present!'''
+    batch_mode = (('-b' in argv) or ('--batch' in argv))
 
-    if not (('-b' in argv) or ('--batch' in argv)):
+    if not batch_mode:
         print colored(header, 'green')
 
     if len(argv) < 2:
@@ -112,8 +115,8 @@ Options are:
             sys.exit()
         else:
             f_next, extension = os.path.splitext(filename)
-            file_params       = os.path.abspath(filename.replace(extension, '.params'))
-            if not os.path.exists(file_params) and not (('-b' in argv) or ('--batch' in argv)):
+            file_params       = f_next + '.params'
+            if not os.path.exists(file_params) and not batch_mode:
                 print noparams %file_params
                 key = ''
                 while key not in ['y', 'n']:
@@ -123,10 +126,10 @@ Options are:
                     print "Fill it properly before launching the code! (see documentation)"
                     shutil.copyfile(config_file, file_params)
                 sys.exit()
-            elif (('-b' in argv) or ('--batch' in argv)):
+            elif batch_mode:
                 tasks_list = filename
 
-            opts, args  = getopt.getopt(argv[2:], "hvbpm:H:c:g:o:t:", ["help", "method=", "hostfile=", "cpu=", "gpu=", "output=", "type="])
+            opts, args  = getopt.getopt(argv[2:], "hvbprm:H:c:g:o:t:", ["help", "method=", "hostfile=", "cpu=", "gpu=", "output=", "type="])
 
     for opt, arg in opts:
         if opt in ('-h', '--help'):
@@ -154,18 +157,27 @@ Options are:
             benchmark = arg
         elif opt in ('-p', '--preview'):
             preview = True
+        elif opt in ('-r', '--result'):
+            result = True
 
     # Print info
-    params = circus.shared.utils.io.load_parameters(filename)
+    if not batch_mode:
+    	params = circus.shared.utils.io.load_parameters(filename)
+
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+        if not os.path.exists(tmp_path_loc):
+            os.makedirs(tmp_path_loc)
         filename     = os.path.join(tmp_path_loc, 'preview.dat')
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
         steps        = ['filtering', 'whitening']
         circus.shared.utils.io.prepare_preview(params, filename)
-    else:    
-        stationary = params.getboolean('data', 'stationary')
+    else: 
+	if not batch_mode: 	  
+            stationary = params.getboolean('data', 'stationary')
+        else:
+             stationary = False
 
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
@@ -206,89 +218,100 @@ Options are:
         else:
             use_gpu = 'False'
 
-        for subtask, command in subtasks:
-            if subtask in steps:
-                if command == 'python':
-                    # Directly call the launcher
-                    try:
-                        circus.launch(subtask, filename, nb_cpu, nb_gpu, use_gpu)
-                    except:
-                        print_error(['Step "%s" failed!' % subtask])
-                        raise
-                elif command == 'mpirun':
-                    # Use mpirun to make the call
+        if not result:
+            for subtask, command in subtasks:
+                if subtask in steps:
+                    if command == 'python':
+                        # Directly call the launcher
+                        try:
+                            circus.launch(subtask, filename, nb_cpu, nb_gpu, use_gpu)
+                        except:
+                            print_error(['Step "%s" failed!' % subtask])
+                            raise
+                    elif command == 'mpirun':
+                        # Use mpirun to make the call
 
-                    from mpi4py import MPI
-                    vendor = MPI.get_vendor()
-                    if vendor[0] == 'Open MPI':
-                        args  = ['mpirun']
-                        if os.getenv('LD_LIBRARY_PATH'):
-                            args += ['-x', 'LD_LIBRARY_PATH']
-                        if os.getenv('PATH'):
-                            args += ['-x', 'PATH']
-                        if os.getenv('PYTHONPATH'):
-                            args += ['-x', 'PYTHONPATH']
-                        if os.path.exists(hostfile):
-                            args += ['-hostfile', hostfile]
-                    elif vendor[0] == 'Microsoft MPI':
-                        args  = ['mpiexec']
-                        if os.path.exists(hostfile):
-                            args += ['-gmachinefile', hostfile]
-                    elif vendor[0] == 'MPICH2':
-                        args  = ['mpiexec']
-                        if os.path.exists(hostfile):
-                            args += ['-f', hostfile]
-                    else: 
-                        print_error(['%s may not be yet properly implemented: contact developpers' %vendor[0]])
-                        args  = ['mpirun']
-                        if os.path.exists(hostfile):
-                            args += ['-hostfile', hostfile]
+                        from mpi4py import MPI
+                        vendor = MPI.get_vendor()
+                        if vendor[0] == 'Open MPI':
+                            args  = ['mpirun']
+                            if os.getenv('LD_LIBRARY_PATH'):
+                                args += ['-x', 'LD_LIBRARY_PATH']
+                            if os.getenv('PATH'):
+                                args += ['-x', 'PATH']
+                            if os.getenv('PYTHONPATH'):
+                                args += ['-x', 'PYTHONPATH']
+                            if os.path.exists(hostfile):
+                                args += ['-hostfile', hostfile]
+                        elif vendor[0] == 'Microsoft MPI':
+                            args  = ['mpiexec']
+                            if os.path.exists(hostfile):
+                                args += ['-gmachinefile', hostfile]
+                        elif vendor[0] == 'MPICH2':
+                            args  = ['mpiexec']
+                            if os.path.exists(hostfile):
+                                args += ['-f', hostfile]
+                        else: 
+                            print_error(['%s may not be yet properly implemented: contact developpers' %vendor[0]])
+                            args  = ['mpirun']
+                            if os.path.exists(hostfile):
+                                args += ['-hostfile', hostfile]
 
-                    if subtask != 'fitting':
-                        nb_tasks = str(max(nb_cpu, nb_gpu))
-                    else:
-                        if use_gpu == 'True':
-                            nb_tasks = str(nb_gpu)
+                        if subtask != 'fitting':
+                            nb_tasks = str(max(nb_cpu, nb_gpu))
                         else:
-                            nb_tasks = str(nb_cpu)
+                            if use_gpu == 'True':
+                                nb_tasks = str(nb_gpu)
+                            else:
+                                nb_tasks = str(nb_cpu)
 
-                    if subtask != 'benchmarking':
-                        if platform.system() == 'Windows':
-                            args += ['-np', nb_tasks, sys.executable,
-                                   'spyking-circus-subtask.py',
-                                   subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
-                        else:                
-                            args += ['-np', nb_tasks,
-                                   'spyking-circus-subtask.py',
-                                   subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
-                    else:
-                        if (output is None) or (benchmark is None):
-                            print_error(["To generate synthetic datasets, you must provide output and type"])
-                            sys.exit()
-                        if platform.system() == 'Windows':
-                            args += ['-np', nb_tasks, sys.executable,
-                                   'spyking-circus-subtask.py',
-                                   subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                        if subtask != 'benchmarking':
+                            if platform.system() == 'Windows':
+                                args += ['-np', nb_tasks, sys.executable,
+                                       'spyking-circus-subtask.py',
+                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
+                            else:                
+                                args += ['-np', nb_tasks,
+                                       'spyking-circus-subtask.py',
+                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                         else:
-                            args += ['-np', nb_tasks,
-                                   'spyking-circus-subtask.py',
-                                   subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                            if (output is None) or (benchmark is None):
+                                print_error(["To generate synthetic datasets, you must provide output and type"])
+                                sys.exit()
+                            if platform.system() == 'Windows':
+                                args += ['-np', nb_tasks, sys.executable,
+                                       'spyking-circus-subtask.py',
+                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                            else:
+                                args += ['-np', nb_tasks,
+                                       'spyking-circus-subtask.py',
+                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
 
-                    try:
-                        subprocess.check_call(args)
-                    except:
-                        print_error(['Step "%s" failed!' % subtask])
-                        raise
+                        try:
+                            subprocess.check_call(args)
+                        except:
+                            print_error(['Step "%s" failed!' % subtask])
+                            raise
 
-    if preview:
+    if preview or result:
         import numpy, pylab
-        N_e    = params.getint('data', 'N_e')
-        n_elec = min(int(numpy.sqrt(N_e)), 5)
-        pylab.style.use('ggplot')
+        from circus.shared.gui import PreviewGUI
+        try:
+            pylab.style.use('ggplot')
+        except Exception:
+            pass
         pylab.switch_backend('QT4Agg')
-        circus.shared.plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True, n_elec=n_elec)
-        mng   = pylab.get_current_fig_manager()
-
+        if preview:
+            PreviewGUI(circus.shared.utils.io.load_parameters(filename))
+            mng   = pylab.get_current_fig_manager()
+            pylab.tight_layout()
+            pylab.show()
+            shutil.rmtree(tmp_path_loc)
+        elif result:
+            PreviewGUI(circus.shared.utils.io.load_parameters(filename), show_fit=True)
+            mng   = pylab.get_current_fig_manager()
+            pylab.tight_layout()
+            pylab.show()
 
 if __name__ == '__main__':
     main(sys.argv)

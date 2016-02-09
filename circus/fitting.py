@@ -13,6 +13,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -32,7 +33,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     spike_range    = int(params.getfloat('fitting', 'spike_range')*sampling_rate*1e-3)
-    low_memory     = params.getboolean('fitting', 'low_memory')
     #################################################################
 
     if use_gpu:
@@ -45,10 +45,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    templates  = io.load_data(params, 'templates')
-    if not low_memory:
-        templates  = templates[:]
-    N_e, N_t, N_tm = templates.shape
+    templates      = io.load_data(params, 'templates').tocsr()
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
+    x,        N_tm = templates.shape
     template_shift = int((N_t-1)/2)
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
@@ -77,15 +77,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    thresholds    = io.load_data(params, 'thresholds')
-    
-    if comm.rank == 0 and not os.path.exists(file_out_suff + '.overlap.hdf5'):
-        c_overlap = io.get_overlaps(comm, params)
+    thresholds = io.load_data(params, 'thresholds')
+    c_overlap  = io.get_overlaps(comm, params)
 
-    comm.Barrier()
-    c_overlap     = io.get_overlaps(comm, params)
-    if not low_memory:
-        c_overlap = c_overlap[:]
+    over_x     = c_overlap.get('over_x')[:]
+    over_y     = c_overlap.get('over_y')[:]
+    over_data  = c_overlap.get('over_data')[:]
+    over_shape = c_overlap.get('over_shape')[:]
+    c_overlap.close()
 
     if comm.rank == 0:
         print "Here comes the SpyKING CIRCUS %s..." %info_string
@@ -100,14 +99,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if spikedetekt:
         spiketimes = io.load_data(params, 'spikedetekt')
 
+    # To be faster, we rearrange the overlaps into a dictionnary
+    N_over    = int(numpy.sqrt(over_shape[0]))
+    S_over    = over_shape[1]
+    c_overs   = {}
+    
+    for i in xrange(N_over):
+        idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
+        c_overs[i] = scipy.sparse.csc_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
+    del over_x, over_y, over_data
+
     if full_gpu:
         try:
-            N_over    = c_overlap.shape[0]
-            c_overs   = {}
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
-                c_overs[i] = cmt.CUDAMatrix(-c_overlap[i])
-            del c_overlap
+                data       = c_overs[i].toarray()
+                c_overs[i] = cmt.CUDAMatrix(-data)
         except Exception:
             if comm.rank == 0:
                 io.print_info(["Not enough memory on GPUs: GPUs are used for projection only"])
@@ -158,6 +165,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
             for i in xrange(N_e):
                 peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                if skip_artefact:
+                    values    = local_chunk[peaktimes, i]
+                    idx       = numpy.where(values >= -10*thresholds[i])[0]
+                    peaktimes = peaktimes[idx]
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
             idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
@@ -179,32 +190,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."
             if use_gpu:
-                b    = cmt.CUDAMatrix(numpy.zeros((n_t, N_tm)))
-                cloc = cmt.CUDAMatrix(local_chunk.T)
+                b       = cmt.CUDAMatrix(numpy.zeros((n_t, N_tm)))
+                cloc    = cmt.CUDAMatrix(local_chunk.T)
+                sub_mat = cmt.empty((N_e, n_t))
             else:
-                b    = numpy.zeros((n_t, N_tm), dtype=numpy.float32)
-
-            if use_gpu:
-                sub_mat  = cmt.empty((N_e, n_t))
+                b    = numpy.zeros((n_t, N_tm), dtype=numpy.float32)                
 
             try:
                 for itime in xrange(temp_2_shift+1):
+                    rows = numpy.arange(itime, templates.shape[0], N_t)
+                    slice_templates = numpy.array(templates[rows, :]/norm_templates)
                     if use_gpu:
                         cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
                         cloc.select_columns(cu_slice, sub_mat)
                         sub_mat_transpose = sub_mat.transpose()
-                        sub_templates     = cmt.CUDAMatrix(templates[:, itime, :]/norm_templates)
+                        sub_templates     = cmt.CUDAMatrix(slice_templates)
                         b.add_dot(sub_mat_transpose, sub_templates)
                         del sub_templates, sub_mat_transpose
                     else:
                         sub_mat = local_chunk[local_peaktimes+itime-template_shift, :]
-                        b      += numpy.dot(sub_mat, templates[:, itime, :]/norm_templates)
+                        b      += numpy.dot(sub_mat, slice_templates)
             except Exception:
                 if comm.rank == 0:
                     lines = ["There may be a GPU memory error: -set gpu_only to False",
                              "                                 -reduce N_t",
                              "                                 -increase mergings"]
                     io.print_info(lines)
+                sys.exit(0)
 
             if use_gpu:
                 del sub_mat, cloc
@@ -267,8 +279,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             max_time     = local_peaktimes.max()
             local_len    = max_time - min_time + 1
             nb_fitted    = 0
-            min_times    = numpy.maximum(local_peaktimes - min_time - temp_2_shift, 0)
-            max_times    = numpy.minimum(local_peaktimes - min_time + temp_2_shift + 1, max_time-min_time)
+            min_times    = numpy.maximum(local_peaktimes - temp_2_shift, min_time)
+            max_times    = numpy.minimum(local_peaktimes + temp_2_shift + 1, max_time)
             max_n_t      = int(space_explo*(max_time-min_time+1)/(2*temp_2_shift + 1))
 
             while (numpy.mean(failure) < nb_chances):
@@ -316,6 +328,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     if full_gpu:
                         best_amp  = sub_b.asarray()[inds_temp, inds_t]/n_scalar
+                        best_amp2 = b.asarray()[inds_temp + n_tm, inds_t]/n_scalar
                         sub_mask  = numpy.ones((sub_b.shape), dtype=numpy.float32)
                         sub_mask[inds_temp, inds_t] = 0
                         sub_mask  = cmt.CUDAMatrix(sub_mask)
@@ -323,26 +336,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         del sub_mask
                     else:
                         mask[inds_temp, inds_t] = 0
-                        best_amp = sub_b[inds_temp, inds_t]/n_scalar
+                        best_amp  = sub_b[inds_temp, inds_t]/n_scalar
+                        best_amp2 = b[inds_temp + n_tm, inds_t]/n_scalar
 
                     best_amp_n   = best_amp/norm_templates[inds_temp]
+                    best_amp2_n  = best_amp2/norm_templates[inds_temp + n_tm]
+
                     all_idx      = ((best_amp_n >= amp_limits[inds_temp, 0]) & (best_amp_n <= amp_limits[inds_temp, 1]))
                     to_keep      = numpy.where(all_idx == True)[0]
                     to_reject    = numpy.where(all_idx == False)[0]
                     ts           = local_peaktimes[inds_t[to_keep]]
-                    inds_temp_2  = (inds_temp[to_keep] + n_tm)
                     good         = (ts >= local_bounds[0]) & (ts < local_bounds[1])
 
+                    # We reduce to only the good times that will be kept
+                    to_keep      = to_keep[good]
+                    ts           = ts[good]
+                    
                     tmp          = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
                     tmp         -= ts.reshape((len(ts), 1))
                     x, y         = numpy.where(numpy.abs(tmp) <= temp_2_shift)
                     itmp         = tmp[x, y].astype(numpy.int32) + temp_2_shift
 
-                    for count, keep, t in zip(range(len(to_keep)), to_keep, ts):
+                    for count, keep in enumerate(to_keep):
 
-                        if full_gpu:
-                            myslice  = x == count
-                            idx_b    = y[myslice]
+                        myslice  = x == count
+                        idx_b    = y[myslice]
+
+                        if full_gpu:                          
                             cu_slice = cmt.CUDAMatrix(itmp[myslice].reshape(1, len(itmp[myslice])))
                             c        = cmt.empty((N_over, len(itmp[myslice])))
                             if patch_gpu:
@@ -352,52 +372,34 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             c_overs[inds_temp[keep]].select_columns(cu_slice, c)
                             c.mult_by_scalar(best_amp[keep])
                             b_lines.add(c)
-                            if patch_gpu:
-                                sub_mat   = b.get_col_slice(0, b.shape[0])
-                            else:
-                                sub_mat   = b.get_col_slice(inds_t[keep], inds_t[keep]+1)
-                            best_amp2 = sub_mat.asarray()[inds_temp_2[count],0]/n_scalar
-                            c_overs[inds_temp_2[count]].select_columns(cu_slice, c)
-                            c.mult_by_scalar(best_amp2)
+                            c_overs[inds_temp[keep] + n_tm].select_columns(cu_slice, c)
+                            c.mult_by_scalar(best_amp2[keep])
                             b_lines.add(c)
-                            del cu_slice, b_lines, sub_mat, c
+                            del cu_slice, b_lines, c
                         else:
-                            myslice      = x == count
-                            idx_b        = y[myslice]
-                            tmp1         = c_overlap[inds_temp[keep], :,  itmp[myslice]]
-                            tmp2         = c_overlap[inds_temp_2[count], :,  itmp[myslice]]
-                            if not low_memory:
-                                tmp1     = tmp1.T
-                                tmp2     = tmp2.T
-                            elif itmp[myslice].shape[0] == 1:
-                                tmp1     = tmp1.reshape(tmp1.shape[0], 1)
-                                tmp2     = tmp2.reshape(tmp2.shape[0], 1)
+                            tmp1         = c_overs[inds_temp[keep]][:, itmp[myslice]]
+                            tmp2         = c_overs[inds_temp[keep] + n_tm][:, itmp[myslice]]
+                            b[:, idx_b] -= (best_amp[keep]*tmp1 + best_amp2[keep]*tmp2)
 
-                            b[:, idx_b] -= best_amp[keep]*tmp1
-                            best_amp2    = b[inds_temp_2[count], inds_t[keep]]/n_scalar
-                            b[:, idx_b] -= best_amp2*tmp2
-
-                        if good[count]:
-                            normed_2 = norm_templates[inds_temp_2[count]]
-                            t_spike  = t + local_offset
-                            result['spiketimes'] += [t_spike]
-                            result['amplitudes'] += [(best_amp_n[keep], best_amp2/normed_2)]
-                            result['templates']  += [inds_temp[keep]]
-                            nb_fitted            += 1
-                            if refractory > 0:
-                                last_spike                   = last_spikes[inds_temp[keep]]
-                                sidx                         = numpy.where(all_spikes >= t_spike)[0]
-                                last_spikes[inds_temp[keep]] = t_spike
-                                values                       = numpy.ones(n_t)
-                                values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
-                                if full_gpu:
-                                    values   = cmt.CUDAMatrix(values.reshape(1, n_t))
-                                    sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
-                                    sub_mask.mult(values)
-                                    mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
-                                    del values, sub_mask
-                                else:
-                                    mask[inds_temp[keep]] = mask[inds_temp[keep]] * values
+                        t_spike               = ts[count] + local_offset
+                        result['spiketimes'] += [t_spike]
+                        result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
+                        result['templates']  += [inds_temp[keep]]
+                        nb_fitted            += 1
+                        if refractory > 0:
+                            last_spike                   = last_spikes[inds_temp[keep]]
+                            sidx                         = numpy.where(all_spikes >= t_spike)[0]
+                            last_spikes[inds_temp[keep]] = t_spike
+                            values                       = numpy.ones(n_t)
+                            values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
+                            if full_gpu:
+                                values   = cmt.CUDAMatrix(values.reshape(1, n_t))
+                                sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
+                                sub_mask.mult(values)
+                                mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
+                                del values, sub_mask
+                            else:
+                                mask[inds_temp[keep]] = mask[inds_temp[keep]] * values
 
                     myslice           = inds_t[to_reject]
                     failure[myslice] += 1
@@ -440,7 +442,3 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         io.collect_data(comm.size, params, erase=True)
-
-    if low_memory:
-        templates.file.close()
-        c_overlap.file.close()
