@@ -42,12 +42,12 @@ def get_performance(file_name, name):
     res3            = numpy.zeros(len(n_cells))
 
     for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
-        source_temp = inj_templates[:, temp_id].toarray()
+        source_temp = inj_templates[:, temp_id].toarray().flatten()
         similarity  = []
         temp_match  = None
         dmax        = 0
         for i in xrange(templates.shape[1]/2):
-            d = numpy.corrcoef(templates[:, i].toarray(), source_temp)[0, 1]
+            d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
             if d > dmax:
                 temp_match = i
