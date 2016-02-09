@@ -49,6 +49,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
         value   *= mask
         subidx   = numpy.argsort(value)[::-1]
 
+
         if display:
             ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
             if save:
@@ -112,7 +113,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
                 nneigh[ordrho[ii]] = ordrho[jj]
     
     delta[ordrho[0]] = delta.ravel().max()  
-    threshold        = n_min * numpy.exp(-max(smart_search, 4)**2)
+    threshold        = numpy.exp(-3**2)
     clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
     
     def assign_halo(idx):
@@ -241,7 +242,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
                 subset     = numpy.where(to_merge[:, 0] == keep)[0]
                 if len(subset) > 0:
                     idx        = numpy.unique(to_merge[subset].flatten())
-                    ratios     = norm_templates[idx]/norm_templates[keep]
+                    ratios     = norm_templates[keep]/norm_templates[idx]
                     new_limits = [numpy.min(ratios*old_limits[idx][:, 0]), numpy.max(ratios*old_limits[idx][:, 1])]
                 else:
                     new_limits = old_limits[keep]

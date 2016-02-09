@@ -422,8 +422,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                                                               result['dc_' + str(ielec)],
                                                                               smart_search=smart_search[ielec],
                                                                               n_min=n_min,
-                                                                              max_clusters=max_clusters, 
-                                                                              nb_points=result['norm_' + str(ielec)])
+                                                                              max_clusters=max_clusters)
 
                     # Now we perform a merging step, for clusters that look too similar
                     data = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
