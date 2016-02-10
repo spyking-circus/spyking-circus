@@ -70,7 +70,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sampling_rate  = params.getint('data', 'sampling_rate')
     
     
-    ##### GROUND TRUTH CELL'S SAMPLES
+    ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
     # Retrieve the spikes of the "ground truth cell".
     spike_times_gt, spikes_gt = io.load_data(params, 'triggers')
@@ -89,7 +89,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Reshape data.
     X_gt = X_gt.reshape(X_gt.shape[0] / shape_gt[1], X_gt.shape[1] * shape_gt[1])
     # Define the outputs.
-    y_gt = numpy.ones((X_gt.shape[0], 1))
+    y_gt = numpy.zeros((X_gt.shape[0], 1))
     
     print("# X_gt.shape")
     print(X_gt.shape)
@@ -105,7 +105,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_fbd = numpy.unique(spike_times_fbd)
     
     
-    ##### NON GROUND TRUTH CELL'S SAMPLES
+    ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
     
     # Retrieve the spikes of all the "non ground truth cells".
     clusters = io.load_data(params, 'clusters')
@@ -117,7 +117,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
-    alpha = 2
+    alpha = 5
     print(spike_times_ngt_tmp.size)
     print(alpha * spike_times_gt.shape[0])
     idxs_ngt = numpy.random.choice(spike_times_ngt_tmp.size,
@@ -139,13 +139,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Reshape data.
     X_ngt = X_ngt.reshape(X_ngt.shape[0] / shape_gt[1], X_ngt.shape[1] * shape_gt[1])
     # Define the outputs.
-    y_ngt = numpy.zeros((X_ngt.shape[0], 1))
+    y_ngt = numpy.ones((X_ngt.shape[0], 1))
     
     print("# X_ngt.shape")
     print(X_ngt.shape)
     
     
-    ##### NOISE SAMPLES
+    ##### NOISE SAMPLES ########################################################
     
     # Compute the PCA coordinates of each "non-spike" sample.
     # TODO: replace temporary solution for 'low' and 'high'.
@@ -155,7 +155,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_noi = numpy.random.random_integers(low, high, size)
     spike_times_noi = numpy.unique(spike_times_noi)
     spike_times_noi = numpy.setdiff1d(spike_times_noi, spike_times_fbd)
-    alpha = 2
+    alpha = 5
     print(spike_times_noi.size)
     print(alpha * spike_times_gt.shape[0])
     idxs_noi = numpy.random.choice(spike_times_noi.size, size=alpha*spike_times_gt.shape[0], replace=False)
@@ -177,13 +177,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Reshape data.
     X_noi = X_noi.reshape(X_noi.shape[0] / shape_noi[1], X_noi.shape[1] * shape_noi[1])
     # Define outputs.
-    y_noi = numpy.zeros((X_noi.shape[0], 1))
+    y_noi = numpy.ones((X_noi.shape[0], 1))
     
     print("# X_noi.shape")
     print(X_noi.shape)
     
     
-    ##### SANITY PLOTS
+    ##### SANITY PLOTS #########################################################
     
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
@@ -217,7 +217,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
 
-    ##### SAMPLES
+    ##### SAMPLES ##############################################################
     
     # Option to include the pairwise product of feature vector elements.
     pairwise = True
@@ -240,15 +240,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     print("# X.shape")
     print(X.shape)
     
-    # Add the pairwise product of feature vector elements.
-    k = 0
-    for i in xrange(0, N):
-        for j in xrange(i, N):
-            X[:, N + k] = numpy.multiply(X[:, i], X[:, j])
-            k = k + 1
+    if pairwise:
+        # Add the pairwise product of feature vector elements.
+        k = 0
+        for i in xrange(0, N):
+            for j in xrange(i, N):
+                X[:, N + k] = numpy.multiply(X[:, i], X[:, j])
+                k = k + 1
     
-    print("# X.shape (with pairwise product of feature vector element")
-    print(X.shape)
+        print("# X.shape (with pairwise product of feature vector element")
+        print(X.shape)
     
     ## Create the output dataset.
     y_raw = numpy.vstack((y_gt, y_ngt, y_noi))
@@ -256,19 +257,254 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     y = y_raw
     
     
-    ##### LEARNING
     
-    mode = 'decision'
-    mode = 'prediction'
+    ##### INITIAL PARAMETER ####################################################
+    
+    # TODO: compute the covariance matrix of 
+    # TODO: compute coef of the ellipse
+    
+    # Useful function to convert an ellispoid in standard form to an ellispoid
+    # in general form.
+    def ellipsoid_standard_to_general(t, s, O):
+        # Translation from standard matrix to general matrix.
+        d = numpy.divide(1.0, numpy.power(s, 2.0))
+        D = numpy.diag(d)
+        A = O * D * O.T
+        ##### TODO: remove test zone
+        w, v = numpy.linalg.eigh(A)
+        #print("# det(A)")
+        #print(numpy.linalg.det(A))
+        print("# Eigenvalues")
+        print(w)
+        ##### end test zone
+        b = - 2.0 * numpy.dot(t, A)
+        c = numpy.dot(t, numpy.dot(A, t)) - 1
+        # Translation from general matrix to coefficients.
+        N = t.size
+        coefs = numpy.zeros(1 + N + (N + 1) * N / 2)
+        coefs[0] = c
+        for i in xrange(0, N):
+            coefs[1 + i] = b[i]
+        k = 0
+        for i in xrange(0, N):
+            coefs[1 + N + k] = A[i, i]
+            k = k + 1
+            for j in xrange(i + 1, N):
+                # TODO: remove test zone
+                # coefs[1 + N + k] = A[i, j]
+                # coefs[1 + N + k] = A[j, i]
+                coefs[1 + N + k] = A[i, j] + A[j, i]
+                # end test zone
+                k = k + 1
+        return coefs
+    
+    def ellipsoid_matrix_to_coefs(A, b, c):
+        N = b.size
+        K = 1 + N + (N + 1) * N / 2
+        coefs = numpy.zeros(K)
+        coefs[0] = c
+        coefs[1:1+N] = b
+        k = 0
+        for i in xrange(0, N):
+            coefs[1 + N + k] = A[i, i]
+            k = k + 1
+            for j in xrange(i + 1, N):
+                coefs[1 + N + k] = A[i, j] + A[j, i]
+                k = k + 1
+        coefs = coefs.reshape(-1, 1)
+        return coefs
+    
+    def ellipsoid_coefs_to_matrix(coefs):
+        K = coefs.size
+        # Retrieve the number of dimension (i.e. N).
+        # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
+        N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
+        # Retrieve A.
+        A = numpy.zeros((N, N))
+        k = 0
+        for i in xrange(0, N):
+            A[i, i] = coefs[1 + N + k]
+            k = k + 1
+            for j in xrange(i + 1, N):
+                A[i, j] = coefs[1 + N + k] / 2.0
+                A[j, i] = coefs[1 + N + k] / 2.0
+                k = k + 1
+        # Retrieve b.
+        b = coefs[1:1+N, 0]
+        # Retrieve c.
+        c = coefs[0]
+        return A, b, c
+    
+    
+    method = 'covariance'
+    #method = 'geometric'
+    
+    print("")
+    
+    if method is 'covariance':
+        
+        mu = numpy.mean(X_gt.T, axis=1)
+        sigma = numpy.cov(X_gt.T )
+        k = 1.0
+        
+        sigma_inv = numpy.linalg.inv(sigma)
+        
+        A_init = sigma_inv
+        b_init = - 2.0 * numpy.dot(mu, sigma_inv)
+        c_init = numpy.dot(mu, numpy.dot(sigma_inv, mu)) - k * k
+        
+        coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
+        
+    elif method is 'geometric':
+        
+        t = numpy.mean(X_gt.T, axis=1)
+        c = numpy.cov(X_gt.T)
+        
+        #####
+        fig = plt.figure()
+        ax = fig.gca()
+        cax = ax.imshow(c, interpolation='nearest')
+        ax.set_title("Covariance matrix of ground truth")
+        fig.colorbar(cax)
+        fig.savefig("/tmp/covariance-matrix-gt.png")
+        #####
+        
+        s, O = numpy.linalg.eigh(c)
+        coefs_init = ellipsoid_standard_to_general(t, s, O)
+        
+    else:
+        raise(Exception)
+    
+    print("# coefs_init")
+    print(coefs_init)
+    
+    print("")
+    
+    
+    #A_init, b_init, c_init = ellipsoid_coefs_to_matrix(coefs_init)
+    
+    
+    
+    # SANITY PLOT (ELLIPSE PROJECTION) #########################################
+    
+    from sklearn.decomposition import PCA
+    
+    
+    # Compute PCA with two components.
+    n_components = 2
+    pca = PCA(n_components)
+    _ = pca.fit(X_raw)
+    
+    # Data transformation.
+    X_raw_ = pca.transform(X_raw)
+    X_gt_ = pca.transform(X_gt)
+    X_ngt_ = pca.transform(X_ngt)
+    X_noi_ = pca.transform(X_noi)
+    
+    # Mean transformation.
+    mu_gt = numpy.mean(X_gt, axis=0)
+    mu_gt_ = pca.transform(mu_gt)
+    mu_ngt = numpy.mean(X_ngt, axis=0)
+    mu_ngt_ = pca.transform(mu_ngt)
+    mu_noi = numpy.mean(X_noi, axis=0)
+    mu_noi_ = pca.transform(mu_noi)
+    
+    # Ellipse transformation.
+    t = - 0.5 * numpy.dot(numpy.linalg.inv(A_init), b_init)
+    f = 1.0 / (0.25 * numpy.dot(b_init, numpy.dot(numpy.linalg.inv(A_init), b_init)) - c_init)
+    s, O = numpy.linalg.eigh(numpy.linalg.inv(f * A_init))
+    s = numpy.sqrt(s)
+    O_ = pca.transform(t + numpy.multiply(s, O).T)
+    
+    # Find plot limits.
+    pad = 0.1
+    x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
+    x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
+    x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
+    y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
+    y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
+    y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
+    
+    # Plot.
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid()
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    # Plot datasets.
+    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g')
+    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b')
+    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r')
+    # Plot ellipse transformation.
+    ax.scatter(O_[:, 0], O_[:, 1], c='y', s=50)
+    # Plot means of datasets.
+    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=100)
+    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=100)
+    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=100)
+    fig.savefig("/tmp/sanity-ellipse-projection-init.png")
+    
+    ############################################################################
+    
+    # # Compute the Mahalanobis distance.
+    # def evaluate_ellipse(A, b, c, X):
+    #     x2 = numpy.sum(numpy.multiply(X.T, numpy.dot(A, X.T)), axis=0)
+    #     x1 = numpy.dot(b, X.T)
+    #     x0 = c
+    #     return numpy.sqrt(x2 + x1 + x0)
+    # def Mahalanobis_distance(A, mu, X):
+    #     X_ = X - mu
+    #     #X_ = X
+    #     return numpy.sqrt(numpy.sum(numpy.multiply(X_.T, numpy.dot(A, X_.T)), axis=0))
+    # mu = numpy.mean(X_gt, axis=0)
+    # Mhlnb_gt = Mahalanobis_distance(A_init, mu, X_gt)
+    # Mhlnb_ngt = Mahalanobis_distance(A_init, mu, X_ngt)
+    # Mhlnb_noi = Mahalanobis_distance(A_init, mu, X_noi)
+    # Ell_gt = evaluate_ellipse(A_init, b_init, c_init, X_gt)
+    # #####
+    # fig = plt.figure()
+    # ax = fig.gca()
+    # ax.grid()
+    # ax.hist(Ell_gt, bins=500)
+    # fig.savefig("/tmp/ellipse-values.png")
+    # #####
+    # #####
+    # fig = plt.figure()
+    # ax = fig.gca()
+    # ax.grid()
+    # ax.hist(Mhlnb_noi, bins=50, color='r')
+    # ax.hist(Mhlnb_ngt, bins=50, color='b')
+    # ax.hist(Mhlnb_gt, bins=75, color='g')
+    # fig.savefig("/tmp/mahalanobis-init.png")
+    # #####
+    
+    # def project_ellipse(A, b, c, v1, v2):
+    #     pass
+    #     return
+    
+    ############################################################################
+    
+    
+    ##### TODO: compute the False Positive and False Negative for this initial
+    #####       ellipse.
+    
+    
+    ##### LEARNING #############################################################
     
     from sklearn.model_selection import train_test_split
     from sklearn.neural_network import MLPClassifier
     from sklearn.preprocessing import StandardScaler
     
-    x_component = 0
-    y_component = 2
     
-    X = StandardScaler().fit_transform(X)
+    # mode = 'decision'
+    mode = 'prediction'
+    
+    x_component = 0
+    y_component = 1
+    
+    # Standardize features by removing the mean and scaling to unit variance.
+    # X = StandardScaler().fit_transform(X)
     
     pad = 0.5 # padding coefficient
     x_dif = numpy.amax(X[:, x_component]) - numpy.amin(X[:, x_component])
@@ -277,22 +513,49 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     y_dif = numpy.amax(X[:, y_component]) - numpy.amin(X[:, y_component])
     y_min = numpy.amin(X[:, y_component]) - pad * y_dif
     y_max = numpy.amax(X[:, y_component]) + pad * y_dif
-    h = 0.1 # step size in the mesh
+    h = max(x_dif, y_dif) / 100.0 # step size in the mesh
     xx, yy = numpy.meshgrid(numpy.arange(x_min, x_max, h),
                             numpy.arange(y_min, y_max, h))
     
     # Preprocess dataset.
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    
+    print("# X_train.shape")
+    print(X_train.shape)
+    print("# X_test.shape")
+    print(X_test.shape)
+    
     # Declare model.
+    # clf = MLPClassifier(hidden_layer_sizes=(),
+    #                     activation='logistic',
+    #                     algorithm='l-bfgs',
+    #                     alpha=1e-12, # L2 penalty parameter (regularization)
+    #                     learning_rate='adaptive',
+    #                     max_iter=2000,
+    #                     random_state=1,
+    #                     tol=1e-5,
+    #                     warm_start=True)
     clf = MLPClassifier(hidden_layer_sizes=(),
                         activation='logistic',
-                        algorithm="l-bfgs",
-                        alpha=1e-12, # L2 penalty parameter (regularization)
-                        learning_rate='adaptive',
-                        random_state=1,
-                        tol=1e-5)
-    # Train model.
+                        algorithm='sgd',
+                        learning_rate='constant',
+                        momentum=0.9,
+                        nesterovs_momentum=True,
+                        learning_rate_init=0.2,
+                        warm_start=True)
+    
+    # Initialize model (i.e. fake launch + weights initialization).
+    clf.set_params(max_iter=5)
+    clf.set_params(warm_start=False)
     clf.fit(X_train, y_train)
+    clf.coefs_ = [coefs_init[1:, :]]
+    clf.intercepts_ = [coefs_init[:1, :]]
+    
+    # Train model.
+    clf.set_params(max_iter=400)
+    clf.set_params(warm_start=True)
+    clf.fit(X_train, y_train)
+    
     
     # Print the current loss computed with the loss function.
     print("# clf._loss_")
@@ -303,11 +566,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Print the score on the test set.
     print("# clf.score(X_test, y_test)")
     print(clf.score(X_test, y_test))
-    # Test of the 'score' method.
-    y_test_pred = clf.predict(X_test)
-    print("# clf.score(X_test, y_test_pred) (i.e. best possible score)")
-    print(clf.score(X_test, y_test_pred))
-    
     # Print prediction at (0, 0).
     print("# clf.predict([? * [0.0]])")
     if pairwise:
@@ -315,17 +573,141 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     else:
         print(clf.predict([N * [0.0]]))
     
+    
+    # Retrieve the coefficients of the ellipsoid.
+    weights = clf.coefs_[0].flatten() # weight vector
+    bias = clf.intercepts_[0].flatten() # bias vector
+    # Concatenate the coefficients.
+    coefs = numpy.concatenate((bias, weights))
+    coefs = coefs.reshape(-1, 1)
+    
+    
+    A, b, c = ellipsoid_coefs_to_matrix(coefs)
+    
+    ############################################################################
+    from sklearn.decomposition import PCA
+    
+    
+    # Compute PCA with two components.
+    n_components = 2
+    pca = PCA(n_components)
+    _ = pca.fit(X_raw)
+    
+    # Data transformation.
+    X_raw_ = pca.transform(X_raw)
+    X_gt_ = pca.transform(X_gt)
+    X_ngt_ = pca.transform(X_ngt)
+    X_noi_ = pca.transform(X_noi)
+    
+    # Mean transformation.
+    mu_gt = numpy.mean(X_gt, axis=0)
+    mu_gt_ = pca.transform(mu_gt)
+    mu_ngt = numpy.mean(X_ngt, axis=0)
+    mu_ngt_ = pca.transform(mu_ngt)
+    mu_noi = numpy.mean(X_noi, axis=0)
+    mu_noi_ = pca.transform(mu_noi)
+    
+    # Ellipse transformation.
+    t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b)
+    f = 1.0 / (0.25 * numpy.dot(b, numpy.dot(numpy.linalg.inv(A), b)) - c)
+    print("# f")
+    print(f)
+    s, O = numpy.linalg.eigh(numpy.linalg.inv(f * A))
+    print("# s")
+    print(s)
+    #s = numpy.sqrt(s)
+    #O_ = pca.transform(t + numpy.multiply(s, O).T)
+    
+    # Find plot limits.
+    pad = 0.1
+    x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
+    x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
+    x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
+    y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
+    y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
+    y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
+    
+    # Plot.
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid()
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    # Plot datasets.
+    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g')
+    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b')
+    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r')
+    # # Plot ellipse transformation.
+    # ax.scatter(O_[:, 0], O_[:, 1], c='y', s=50)
+    # Plot means of datasets.
+    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=100)
+    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=100)
+    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=100)
+    fig.savefig("/tmp/sanity-ellipse-projection.png")
+    
+    import sys
+    sys.exit(0)
+    
+    ############################################################################
+    
+    # Compute the Mahalanobis distance.
+    def Mahalanobis_distance(A, mu, X):
+        X_ = X - mu
+        return numpy.sum(numpy.multiply(X_.T, numpy.dot(A, X_.T)), axis=0)
+    print(A.shape)
+    print(X_gt.shape)
+    print(X_ngt.shape)
+    print(X_noi.shape)
+    mu = numpy.mean(X_gt, axis=0)
+    Mhlnb_gt = Mahalanobis_distance(-A, mu, X_gt)
+    Mhlnb_ngt = Mahalanobis_distance(-A, mu, X_ngt)
+    Mhlnb_noi = Mahalanobis_distance(-A, mu, X_noi)
+    #####
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid()
+    ax.hist(Mhlnb_ngt, bins=25, color='b')
+    ax.hist(Mhlnb_gt, bins=75, color='g')
+    ax.hist(Mhlnb_noi, bins=25, color='r')
+    fig.savefig("/tmp/mahalanobis.png")
+    #####
+    
+    ##### TODO: compute the Mahalanobis distance.
+    
+    import sys
+    sys.exit(0)
+    
+    
     # Compute prediction on a grid of the input space for plotting.
     shape_pre = (xx.shape[0] * xx.shape[1], X_train.shape[1])
+    print("# Coefficients ellipse")
     X_pre = numpy.zeros(shape_pre)
+    print("# 1")
+    print(coefs[0])
     X_pre[:, x_component] = xx.ravel()
+    print("# x")
+    print(coefs[1 + x_component])
     X_pre[:, y_component] = yy.ravel()
+    print("# y")
+    print(coefs[1 + y_component])
     if pairwise:
         k = 0
         for i in xrange(0, N):
             for j in xrange(i, N):
-                if i == x_component and j == y_component:
+                if i == x_component and j == x_component:
+                    X_pre[:, N + k] = numpy.multiply(xx.ravel(), xx.ravel())
+                    print("# x * x")
+                    print(coefs[1 + N + k])
+                elif i == x_component and j == y_component:
                     X_pre[:, N + k] = numpy.multiply(xx.ravel(), yy.ravel())
+                    print("# x * y")
+                    print(coefs[1 + N + k])
+                elif i == y_component and j == y_component:
+                    X_pre[:, N + k] = numpy.multiply(yy.ravel(), yy.ravel())
+                    print("# y * y")
+                    print(coefs[1 + N + k])
                 else:
                     pass
                 k = k + 1
@@ -337,9 +719,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         raise(Exception)
     zz = zz.reshape(xx.shape)
     
-
+    
     ##### SANITY PLOT
-
+    
     fig = plt.figure()
     fig.suptitle("Dataset and decision boundaries")
     gs = gridspec.GridSpec(1, 1)
@@ -356,8 +738,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         raise(Exception)
     cs = ax.contourf(xx, yy, zz, 20, alpha=0.8, cmap='bwr', vmin=vmin, vmax=vmax)
 ##### TODO: remove test zone
-    #ax.scatter(X_train[:, x_component], X_train[:, y_component], c=y_train, cmap='bwr')
+    # Comment scatter to see the prediction boundary only.
     ax.scatter(X_test[:, x_component], X_test[:, y_component], c=y_test, cmap='bwr', alpha=0.6)
+    ax.scatter(X_train[:, x_component], X_train[:, y_component], c=y_train, cmap='bwr')
 ##### end test zone
     ax.hold(False)
     fig.colorbar(cs)
@@ -376,9 +759,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     from sklearn.decomposition import PCA
     
-    n_components = 2
     
-    # Compute PCA.
+    # Compute PCA with two components.
+    n_components = 2
     pca = PCA(n_components)
     _ = pca.fit(X_raw)
     X_raw_r = pca.transform(X_raw)
@@ -403,40 +786,230 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     # TODO: compute the projection of the ellipsoid on Vect(pca1, pca2).
     # Retrieve pca1 and pca2.
-    v1 = numpy.array([1.0, 0.0])
-    v2 = numpy.array([0.0, 1.0])
-    pca1 = pca.inverse_transform(v1)
-    pca2 = pca.inverse_transform(v2)
-    print("# Norms of pca1 and pca2")
-    print(numpy.linalg.norm(pca1))
-    print(numpy.linalg.norm(pca2))
-    # Retrieve the parameters of the ellipsoid.
-    coefs = clf.coefs_[0].flatten() # weight vector
-    intercepts = clf.intercepts_[0] # bias vector
+    vpca = pca.components_
+    
+    print("# Shapes of the components")
+    print(vpca.shape)
+    
+    v = numpy.array([[1.0, 0.0], [0.0, 1.0]])
+    vpca = pca.inverse_transform(v)
+    
+    print("# Shapes after inverse transform of v (i.e. vpca)")
+    print(vpca.shape)
+    print("# Shapes X_raw")
+    print(X_raw.shape)
+    print("# Norms of vpca0 and vpca1")
+    print(numpy.linalg.norm(vpca, axis=1))
+    
+    # Retrieve the coefficients of the ellipsoid.
+    weights = clf.coefs_[0].flatten() # weight vector
+    bias = clf.intercepts_[0].flatten() # bias vector
+    # Concatenate the coefficients.
+    coefs = numpy.concatenate((bias, weights))
+    
     print("#####")
+    print("# Weights")
+    print(weights)
+    print(type(weights))
+    print(weights.shape)
+    print("# Bias")
+    print(bias)
+    print(type(bias))
+    print(bias.shape)
+    print("# Coefs")
     print(coefs)
     print(type(coefs))
     print(coefs.shape)
-    print(intercepts)
-    print(type(intercepts))
-    print(intercepts.shape)
+    
+    # Check if ellipsoid.
+    # TODO: complete (i.e. check if det(A) > 0 which is the criterion for ellipse).
+        
+    # Useful function to convert an ellispoid in general form to an ellispoid in
+    # standard form.
+    def ellipsoid_general_to_standard(coefs):
+        """
+        Convert an ellipsoid in general form:
+            a_{0}
+            + a_{1} x1 + ... + a_{m} xm
+            + a_{1, 1} * x1 * x1 + ... + a_{1, m} * x1 * xm
+            + ...
+            + a_{m, m} xm * xm
+            = 0
+        To standard form (TODO: check validity):
+            (x1 - x1') * phi1(t_{1, 2}, ..., t_{m-1, m})
+            + ...
+            + (xm - xm') * phim(t_{1, 2}, ..., t_{m-1, m})
+        The ellipse has center [x1', ..., xm']^T, semi-axes b1, ... and bm, and
+        the angle to the semi-major axis is t.
+        """
+        # Convert to float.
+        coefs = coefs.astype('float')
+        K = coefs.size
+        # Retrieve the number of dimension (i.e. N).
+        # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
+        N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
+        print("# K")
+        print(K)
+        print("# N")
+        print(N)
+        # Retrieve the matrix representation.
+        A = numpy.zeros((N, N))
+        k = 0
+        for i in xrange(0, N):
+            A[i, i] = coefs[1 + N + k]
+            k = k + 1
+            for j in xrange(i + 1, N):
+                A[i, j] = coefs[1 + N + k] / 2.0
+                A[j, i] = coefs[1 + N + k] / 2.0
+                k = k + 1
+        b = coefs[1:1+N]
+        c = coefs[0]
+        # Compute the center of the ellipsoid.
+        center = - 0.5 * numpy.dot(numpy.linalg.inv(A), b)
+        
+        ##### TODO: remove test zone
+        print("# Test of symmetry")
+        print(numpy.all(A == A.T))
+        ##### end test zone
+        ##### TODO: remove plot zone
+        fig = plt.figure()
+        ax = fig.gca()
+        cax = ax.imshow(A, interpolation='nearest', cmap='jet')
+        fig.colorbar(cax)
+        fig.savefig("/tmp/ellipse.png")
+        ##### end plot zone
+        
+        # Each eigenvector of A lies along one of the axes.
+        evals, evecs = numpy.linalg.eigh(A)
+        
+        ##### TODO: remove print zone.
+        print("# Semi-axes computation")
+        print("## det(A)")
+        print(numpy.linalg.det(A))
+        print("## evals")
+        print(evals)
+        ##### end print zone.
+        
+        # Semi-axes from reduced canonical equation.
+        eaxis = numpy.sqrt(- c / evals)
+        return center, eaxis, evecs
+    
+    
+##### TODO: remove test zone (standard -> genral -> standard)
+    # print("")
+    # # Test.
+    # t = numpy.array([1.0, 2.0])
+    # s = numpy.array([0.5, 0.2])
+    # O = numpy.array([[1.0, 0.0], [0.0, 1.0]])
+    
+    # print("# t")
+    # print(t)
+    # print("# s")
+    # print(s)
+    # print("# O")
+    # print(O)
+    
+    # coefs_bis = ellipsoid_standard_to_general(t, s, O)
+    
+    # print("# coefs_bis")
+    # print(coefs_bis)
+    
+    # t_bis, s_bis, O_bis = ellipsoid_general_to_standard(coefs_bis)
+    
+    # print("# t_bis")
+    # print(t_bis)
+    # print("# s_bis")
+    # print(s_bis)
+    # print("# O_bis")
+    # print(O_bis)
+    
+    # print("")
+    
+    # import sys
+    # sys.exit(0)
+##### end test zone
+    
+    center, eaxis, evecs = ellipsoid_general_to_standard(coefs)
+        
+    print("# Conversion")
+    print("# Center")
+    print(center)
+    print(center.shape)
+    print("# Eigenaxis")
+    print(eaxis)
+    print(eaxis.shape)
+    print("# Eigenvectors")
+    print(evecs)
+    print(evecs.shape)
+    
+    coefs_bis = ellipsoid_standard_to_general(center, eaxis, evecs)
+    
+    print("# Transform and untransfrom")
+    print("# coefs")
+    print(coefs)
+    print("# coefs_bis")
+    print(coefs_bis)
+    
+    
+    # TODO: compute the projection of the eigenvectors on Vect(vpca[0, :], vpca[1, :]).
+    # Projection of the center.
+    shape = (1, 2)
+    cprojs = pca.transform(center)
+    # Projection of the eigenvectors.
+    shape = (evecs.shape[1], 2)
+    eprojs = numpy.zeros(shape)
+    for j in xrange(evecs.shape[1]):
+        # eprojs[j, :] = pca.transform(eaxis[j] * evecs[:, j])
+        vec = numpy.add(pca.mean_, 300.0 * evecs[:, j])
+        vec = vec.reshape(1, -1)
+        eprojs[j, :] = pca.transform(vec)
+        #eprojs[j, :] = pca.transform(pca.mean_ + evecs[:, j])
+        pass
+        # import math
+        # if math.isnan(eaxis[j]):
+        #     print("Pass")
+        #     vec = numpy.add(pca.mean_, evecs[:, j])
+        #     eprojs[j, :] = pca.transform(vec)
+        # else:
+        #     # print("#####")
+        #     # print(pca.mean_)
+        #     # print(eaxis[j])
+        #     # print(evecs[:, j])
+        #     vec = numpy.add(pca.mean_, eaxis[j] * evecs[:, j])
+        #     eprojs[j, :] = pca.transform(vec)
+        
+        # TODO: remove incorrect projection on the PCA space.
+        # eprojs[j, 0] = numpy.dot(eaxis[j] * evecs[:, j], vpca[0, :])
+        # eprojs[j, 1] = numpy.dot(eaxis[j] * evecs[:, j], vpca[1, :])
+    
+    
+    print("# Center projection")
+    print(cprojs)
+    print(cprojs.shape)
+    # print("# Eigenprojections")
+    # print(eprojs)
+    # print(eprojs.shape)
+    
+    
+    
     
 ##### TODO: remove plot zone.
     fig = plt.figure()
     ax = fig.gca()
-    ax.plot(pca1)
+    ax.plot(vpca[0, :])
+    fig.savefig("/tmp/plot0.png")
+    
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.plot(vpca[1, :])
     fig.savefig("/tmp/plot1.png")
     
     fig = plt.figure()
     ax = fig.gca()
-    ax.plot(pca2)
+    ax.plot(vpca[1, :] - vpca[0, :])
     fig.savefig("/tmp/plot2.png")
-    
-    fig = plt.figure()
-    ax = fig.gca()
-    ax.plot(pca2 - pca1)
-    fig.savefig("/tmp/plot3.png")
 ##### end plot zone
+
     
 ##### TODO: remove experimental zone.
     # h = 0.1 # step size in the mesh
@@ -470,8 +1043,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     filename = "/tmp/reduced-dataset.png"
     fig = plt.figure()
     ax = fig.gca()
-    ax.scatter(X_raw_r[:, 0], X_raw_r[:, 1], c=y, cmap='bwr')
     ax.grid()
+    ax.scatter(X_raw_r[:, 0], X_raw_r[:, 1], c=y, cmap='bwr', zorder=1)
+    # Plot the projection of the ellipsoid.
+    ax.scatter(cprojs[0, 0], cprojs[0, 1], c='y', s=100, zorder=3)
+    for j in xrange(0, eprojs.shape[0]):
+        xp = cprojs[0, 0] + [0.0, eprojs[j, 0]]
+        yp = cprojs[0, 1] + [0.0, eprojs[j, 1]]
+        ax.plot(xp, yp, 'y-', zorder=2)
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
     ax.set_title("Plot PCA-reduced dataset")
@@ -483,8 +1062,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     filename = "/tmp/reduced-dataset-true.png"
     fig = plt.figure()
     ax = fig.gca()
-    ax.scatter(X_raw_r[y == 1, 0], X_raw_r[y == 1, 1], c='r')
     ax.grid()
+    ax.scatter(X_raw_r[y == 1, 0], X_raw_r[y == 1, 1], c='r', zorder=1)
+    # Plot the projection of the ellipsoid.
+    ax.scatter(cprojs[0, 0], cprojs[0, 1], c='y', s=100, zorder=3)
+    for j in xrange(0, eprojs.shape[0]):
+        xp = cprojs[0, 0] + [0.0, eprojs[j, 0]]
+        yp = cprojs[0, 1] + [0.0, eprojs[j, 1]]
+        ax.plot(xp, yp, 'y-', zorder=2)
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
     ax.set_title("Plot PCA-reduced dataset restricted to the ground truth cell")
@@ -496,8 +1081,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     filename = "/tmp/reduced-dataset-false.png"
     fig = plt.figure()
     ax = fig.gca()
-    ax.scatter(X_raw_r[y == 0, 0], X_raw_r[y == 0, 1], c='b')
     ax.grid()
+    ax.scatter(X_raw_r[y == 0, 0], X_raw_r[y == 0, 1], c='b', zorder=1)
+    # Plot the projection of the ellipsoid.
+    ax.scatter(cprojs[0, 0], cprojs[0, 1], c='y', s=100, zorder=3)
+    for j in xrange(0, eprojs.shape[0]):
+        xp = cprojs[0, 0] + [0.0, eprojs[j, 0]]
+        yp = cprojs[0, 1] + [0.0, eprojs[j, 1]]
+        ax.plot(xp, yp, 'y-', zorder=2)
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
     ax.set_title("Plot PCA-reduced dataset restricted to the non ground truth cells and noise")
