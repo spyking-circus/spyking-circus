@@ -455,13 +455,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result.pop('all_times_' + str(ielec))
                     result.pop('rho_' + str(ielec))
                     result.pop('norm_' + str(ielec))
-                    result.pop('dc_' + str(ielec))
                     result.pop('dist_' + str(ielec))
                     result['debug_' + str(ielec)]       = numpy.array([r, d], dtype=numpy.float32)
                     mask                                = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
                     cluster_results[ielec]['n_clus']    = len(numpy.unique(cluster_results[ielec]['groups'][mask]))
                     n_clusters                          = []
                     result['clusters_' + str(ielec)]    = cluster_results[ielec]['groups']
+                    result['dc_' + str(ielec)]          = [result.pop('dc_' + str(ielec))]
                     for i in numpy.unique(cluster_results[ielec]['groups'][mask]):
                         n_clusters += [numpy.sum(cluster_results[ielec]['groups'][mask] == i)]
                     print "Node %d:" %comm.rank, '%d-%d' %(merged[0], merged[1]), "templates on electrode", ielec, "with", n_data, "spikes:", n_clusters

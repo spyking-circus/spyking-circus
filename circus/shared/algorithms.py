@@ -15,18 +15,19 @@ def distancematrix(data, weight=None):
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
-    gamma = xdata * ydata
+    gamma  = xdata * ydata
+    gidx   = numpy.where(xdata > threshold)[0]
+    xmdata = xdata[gidx]
+    ymdata = ydata[gidx]
 
     def powerlaw(x, a, b, k): 
         with numpy.errstate(all='ignore'):
             return a*(x**k) + b
 
     try:
-        sort_idx     = numpy.argsort(xdata)    
-        result, pcov = scipy.optimize.curve_fit(powerlaw, xdata, numpy.log(ydata), [1, 1, 0])
-        data_fit     = numpy.exp(powerlaw(xdata[sort_idx], result[0], result[1], result[2]))
-        xaxis        = numpy.linspace(xdata.min(), xdata.max(), 1000)
-        padding      = threshold
+        sort_idx     = numpy.argsort(xmdata)    
+        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, 1, 0])
+        data_fit     = numpy.exp(powerlaw(xmdata[sort_idx], result[0], result[1], result[2]))
     except Exception:
         return numpy.argsort(gamma)
 
@@ -34,30 +35,29 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
         fig      = pylab.figure(figsize=(15, 5))
         ax       = fig.add_subplot(111)
         
+        sort_idx = numpy.argsort(xdata)
         ax.plot(xdata, ydata, 'k.')
         ax.plot(xdata[sort_idx], data_fit)
         ax.set_yscale('log')
         ax.set_ylabel(r'$\delta$')
         ax.set_xlabel(r'$\rho$')
 
-    idx      = numpy.where((xdata > padding) & (ydata > data_fit))[0]
+    idx      = numpy.where(ymdata > data_fit)[0]
+
     if len(idx) == 0:
         subidx = numpy.argsort(gamma)
-    with numpy.errstate(all='ignore'):
-        mask     = (xdata > padding).astype(int)
-        value    = ydata - numpy.exp(powerlaw(xdata, result[0], result[1], result[2]))
-        value   *= mask
-        subidx   = numpy.argsort(value)[::-1]
 
+    value    = ymdata - numpy.exp(powerlaw(xmdata, result[0], result[1], result[2]))
+    subidx   = gidx[numpy.argsort(value)[::-1]]
 
-        if display:
-            ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
-            if save:
-                pylab.savefig(os.path.join(save[0], 'rho_delta_%s.png' %(save[1])))
-                pylab.close()
-            else:
-                pylab.show()
-        return subidx
+    if display:
+        ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
+        if save:
+            pylab.savefig(os.path.join(save[0], 'rho_delta_%s.png' %(save[1])))
+            pylab.close()
+        else:
+            pylab.show()
+    return subidx
 
 
 def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):

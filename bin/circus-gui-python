@@ -56,7 +56,7 @@ def write_results(path, result):
 
 print_info(["Exporting data..."])
 write_results(output_path, get_results(params))
-numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening'))
+numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.linalg.inv(load_data(params, 'spatial_whitening')))
 numpy.save(os.path.join(output_path, 'channel_positions'), generate_matlab_mapping(probe))
 nodes, edges   = get_nodes_and_edges(params)
 numpy.save(os.path.join(output_path, 'channel_map'), nodes)
