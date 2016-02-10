@@ -87,7 +87,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     c_overlap.close()
 
     if comm.rank == 0:
-        print "Here comes the SpyKING CIRCUS %s..." %info_string
+        print "Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)
         io.purge(file_out_suff, '.data')
 
 
