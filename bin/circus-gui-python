@@ -37,15 +37,21 @@ def generate_matlab_mapping(probe):
     return positions
 
 def write_results(path, result):
-    spikes   = numpy.zeros(0, dtype=numpy.float64)
-    clusters = numpy.zeros(0, dtype=numpy.int32)
+    spikes     = numpy.zeros(0, dtype=numpy.int64)
+    clusters   = numpy.zeros(0, dtype=numpy.int32)
+    amplitudes = numpy.zeros(0, dtype=numpy.float32)
     for key in result['spiketimes'].keys():
-        temp_id  = int(key.split('_')[-1])
-        data     = result['spiketimes'].pop(key)
-        spikes   = numpy.concatenate((spikes, data/sampling_rate))
-        clusters = numpy.concatenate((clusters, numpy.ones(len(data), dtype=numpy.int32)))
-    numpy.save(os.path.join(output_path, 'spike_templates'), clusters)
-    numpy.save(os.path.join(output_path, 'spike_times'), spikes)
+        temp_id    = int(key.split('_')[-1])
+        data       = result['spiketimes'].pop(key)
+        spikes     = numpy.concatenate((spikes, data.astype(numpy.int64)))
+        amplitudes = numpy.concatenate((amplitudes, result['amplitudes'][key][:, 0]))
+        clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.int32)))
+    
+    idx = numpy.argsort(spikes)
+
+    numpy.save(os.path.join(output_path, 'spike_templates'), clusters[idx])
+    numpy.save(os.path.join(output_path, 'spike_times'), spikes[idx])
+    numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
 
 
 print_info(["Exporting data..."])
@@ -60,7 +66,7 @@ N_tm      = templates.shape[1]
 templates = templates.reshape(N_e, N_t, N_tm)[:,:,:N_tm/2]
 
 
-numpy.save(os.path.join(output_path, 'templates'), templates)
+numpy.save(os.path.join(output_path, 'templates'), templates.transpose())
 temp_mapping = numpy.ones((N_tm/2, len(nodes)), dtype=numpy.int32)*nodes
 numpy.save(os.path.join(output_path, 'templates_ind'), temp_mapping)
 
