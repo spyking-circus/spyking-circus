@@ -499,7 +499,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             lines += ["                              -increase sim_same_elec?"]
         io.print_info(lines)
 
-        print "Extracting the templates with the %s procedure ..." %extraction
+        print "Estimating the templates with the %s procedure ..." %extraction
 
     if extraction == 'quadratic':
 
