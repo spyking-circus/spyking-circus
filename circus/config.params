@@ -12,6 +12,7 @@ stationary     = True                   # Should be False for long recordings: a
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)
 alignement     = True                   # Realign the waveforms by oversampling
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
+multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
 
 [filtering]
 cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
