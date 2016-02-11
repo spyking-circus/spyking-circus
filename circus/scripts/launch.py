@@ -185,7 +185,7 @@ Options are:
         with open(tasks_list, 'r') as f:
             for line in f:
                 if len(line) > 0:
-                    main(['spyking-circus'] + line.replace('\n', '').split(" "))
+                    subprocess.check_call(['spyking-circus'] + line.replace('\n', '').split(" "))
     else:
         print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
         print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
