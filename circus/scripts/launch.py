@@ -270,11 +270,11 @@ Options are:
                         if subtask != 'benchmarking':
                             if platform.system() == 'Windows':
                                 args += ['-np', nb_tasks, sys.executable,
-                                       'spyking-circus-subtask.py',
+                                       'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                             else:                
                                 args += ['-np', nb_tasks,
-                                       'spyking-circus-subtask.py',
+                                       'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                         else:
                             if (output is None) or (benchmark is None):
@@ -282,11 +282,11 @@ Options are:
                                 sys.exit()
                             if platform.system() == 'Windows':
                                 args += ['-np', nb_tasks, sys.executable,
-                                       'spyking-circus-subtask.py',
+                                       'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
                             else:
                                 args += ['-np', nb_tasks,
-                                       'spyking-circus-subtask.py',
+                                       'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
 
                         try:

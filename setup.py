@@ -26,7 +26,7 @@ setup(name='spyking-circus',
       entry_points={
           'console_scripts': [
               'spyking-circus=circus.scripts.launch:main',
-              'spyking-circus-subtask=circus.scripts.launch:main',
+              'spyking-circus-subtask=circus.scripts.subtask:main',
               'circus-gui-matlab=circus.scripts.matlab_gui:main',
               'circus-gui-python=circus.scripts.python_gui:main',
               'circus-multi=circus.scripts.circus_multi:main'
