@@ -10,7 +10,7 @@ from circus.shared.files import print_error, print_info, write_datasets, get_res
 
 def main():
 
-    sys.argv = argv
+    argv = sys.argv
 
     filename       = os.path.abspath(sys.argv[1])
     params         = circus.shared.utils.io.load_parameters(filename)

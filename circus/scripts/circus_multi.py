@@ -12,7 +12,7 @@ from circus.shared.algorithms import slice_result
 
 def main():
     
-    sys.argv = argv
+    argv = sys.argv
 
     if len(sys.argv) == 2:
         filename   = os.path.abspath(sys.argv[1])
