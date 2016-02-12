@@ -728,7 +728,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     duration       = data_stats(params, show=False)
     templates      = load_data(params, 'templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
-    refractory     = int(0*sampling_rate*1e-3)
+    refractory     = int(0.5*sampling_rate*1e-3)
     x, N_tm        = templates.shape
 
     print "Gathering data from %d nodes..." %nb_threads
