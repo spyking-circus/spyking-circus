@@ -724,6 +724,8 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     N_t            = params.getint('data', 'N_t')
     duration       = data_stats(params, show=False)
     templates      = load_data(params, 'templates')
+    sampling_rate  = params.getint('data', 'sampling_rate')
+    refractory     = int(0.5*sampling_rate*1e-3)
     x, N_tm        = templates.shape
 
     print "Gathering data from %d nodes..." %nb_threads
@@ -795,6 +797,15 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             result['real_amps'][key] = result['real_amps'][key][idx]
         if with_voltages:
             result['voltages'][key] = result['voltages'][key][idx]
+
+        if refractory > 0:
+            violations = numpy.where(numpy.diff(result['spiketimes'][key]) <= refractory)[0] + 1
+            result['spiketimes'][key] = numpy.delete(result['spiketimes'][key], violations)
+            result['amplitudes'][key] = numpy.delete(result['amplitudes'][key], violations, axis=0)
+            if with_real_amps:
+                result['real_amps'][key] = numpy.delete(result['real_amps'][key], violations)
+            if with_voltages:
+                result['voltages'][key] = numpy.delete(result['voltages'][key], violations)
 
     keys = ['spiketimes', 'amplitudes']
     if with_real_amps:

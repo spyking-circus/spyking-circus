@@ -161,15 +161,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             thresholds *= spike_thresh
 
         #print "Extracting the peaks..."
-        if params.getboolean('data', 'alignment'):
-            mpd = int(0.2*1e-3*sampling_rate)
-        else:
-            mpd = 0
-
         if not spikedetekt:
             local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
             for i in xrange(N_e):
-                peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=mpd)
+                peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
                 if skip_artefact:
                     values    = local_chunk[peaktimes, i]
                     idx       = numpy.where(values >= -10*thresholds[i])[0]
