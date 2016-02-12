@@ -5,6 +5,8 @@ import ConfigParser as configparser
 from termcolor import colored
 import colorama
 from circus.shared.mpi import gather_array
+from circus.shared.utils import smooth
+
 colorama.init()
 
 def purge(file, pattern):
@@ -407,8 +409,9 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
             f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
-            rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
-            ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+            smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
+            rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+            ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
             local_chunk = f(ddata, ydata).astype(numpy.float32)
 
         if all_labels:
@@ -725,7 +728,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     duration       = data_stats(params, show=False)
     templates      = load_data(params, 'templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
-    refractory     = int(0.5*sampling_rate*1e-3)
+    refractory     = int(0*sampling_rate*1e-3)
     x, N_tm        = templates.shape
 
     print "Gathering data from %d nodes..." %nb_threads

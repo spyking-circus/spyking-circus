@@ -11,6 +11,7 @@ from os.path import join as pjoin
 from termcolor import colored
 import colorama
 colorama.init()
+import circus.shared.files as io
 
 
 import circus
@@ -164,7 +165,7 @@ Options are:
 
     # Print info
     if not batch_mode:
-    	params = circus.shared.utils.io.load_parameters(filename)
+    	params = io.load_parameters(filename)
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
@@ -174,7 +175,7 @@ Options are:
         filename     = os.path.join(tmp_path_loc, 'preview.dat')
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
         steps        = ['filtering', 'whitening']
-        circus.shared.utils.io.prepare_preview(params, filename)
+        io.prepare_preview(params, filename)
     else: 
 	if not batch_mode: 	  
             stationary = params.getboolean('data', 'stationary')
@@ -199,7 +200,7 @@ Options are:
         print ""        
 
         if not preview:
-            length = circus.shared.utils.io.data_stats(params)
+            length = io.data_stats(params)
 
             if length >= 3600 and stationary:
                 print_info(['Long recording detected: maybe turn off the stationary mode'])
@@ -304,13 +305,13 @@ Options are:
             pass
         pylab.switch_backend('QT4Agg')
         if preview:
-            PreviewGUI(circus.shared.utils.io.load_parameters(filename))
+            PreviewGUI(io.load_parameters(filename))
             mng   = pylab.get_current_fig_manager()
             pylab.tight_layout()
             pylab.show()
             shutil.rmtree(tmp_path_loc)
         elif result:
-            PreviewGUI(circus.shared.utils.io.load_parameters(filename), show_fit=True)
+            PreviewGUI(io.load_parameters(filename), show_fit=True)
             mng   = pylab.get_current_fig_manager()
             pylab.tight_layout()
             pylab.show()

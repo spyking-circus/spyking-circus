@@ -1,5 +1,5 @@
 import importlib
-from circus.shared.utils import io
+import circus.shared.files as io
 
 def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None):
     params = io.load_parameters(filename)

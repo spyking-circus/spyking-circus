@@ -250,15 +250,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     to_update = result['tmp_' + str(elec)]
 
                                 if len(to_update) < loop_max_elts_elec:
-                                    
                                     if alignment:
                                         idx   = numpy.where(indices == elec)[0]
                                         zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
                                         ydata = numpy.arange(len(indices))
                                         f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
-                                        rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
-                                        ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                        sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                        smoothed = smooth(f(cdata, idx)[:, 0], template_shift)
+                                        rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                        ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                        sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
                                         sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
 

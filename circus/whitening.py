@@ -332,9 +332,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
                                     ydata = numpy.arange(len(indices))
                                     f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
-                                    rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
-                                    ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                    sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                    smoothed = smooth(f(cdata, idx)[:, 0], template_shift)
+                                    rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                    ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                    sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                 else:
                                     sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
 
@@ -349,8 +350,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 if alignment:
                                     ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
                                     f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
-                                    rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-                                    ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                    smoothed = smooth(f(cdata), template_shift)
+                                    rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                    ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                     elts[:, elt_count] = f(ddata).astype(numpy.float32)
                                 
                                 elt_count         += 1
