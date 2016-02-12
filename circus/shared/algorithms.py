@@ -24,15 +24,18 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
         with numpy.errstate(all='ignore'):
             return a*(x**k) + b
 
-    result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, 1, 0])
+    try:
+        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, -1, 0])
+    except Exception:
+        result, pcov = [0, -1, numpy.log(numpy.mean(ymdata))], 0
 
     if display:
         fig      = pylab.figure(figsize=(15, 5))
         ax       = fig.add_subplot(111)
-        data_fit = numpy.exp(powerlaw(xdata[sort_idx], result[0], result[1], result[2]))    
-        sort_idx = numpy.argsort(xdata)
-        ax.plot(xdata, ydata, 'k.')
-        ax.plot(xdata[sort_idx], data_fit)
+        sort_idx = numpy.argsort(xmdata)
+        data_fit = numpy.exp(powerlaw(xmdata[sort_idx], result[0], result[1], result[2]))    
+        ax.plot(xmdata, ymdata, 'k.')
+        ax.plot(xmdata[sort_idx], data_fit)
         ax.set_yscale('log')
         ax.set_ylabel(r'$\delta$')
         ax.set_xlabel(r'$\rho$')
