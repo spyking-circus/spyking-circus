@@ -161,7 +161,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             thresholds *= spike_thresh
 
         #print "Extracting the peaks..."
-        if params.getboolean('data', 'alignement'):
+        if params.getboolean('data', 'alignment'):
             mpd = int(0.2*1e-3*sampling_rate)
         else:
             mpd = 0
