@@ -15,23 +15,21 @@ def distancematrix(data, weight=None):
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
-    gamma  = xdata * ydata
     gidx   = numpy.where(xdata > threshold)[0]
     xmdata = xdata[gidx]
     ymdata = ydata[gidx]
+    gamma  = xmdata * ymdata
 
     def powerlaw(x, a, b, k): 
         with numpy.errstate(all='ignore'):
             return a*(x**k) + b
 
-    sort_idx     = numpy.argsort(xmdata)    
     result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, 1, 0])
-    data_fit     = numpy.exp(powerlaw(xmdata[sort_idx], result[0], result[1], result[2]))
 
     if display:
         fig      = pylab.figure(figsize=(15, 5))
         ax       = fig.add_subplot(111)
-        
+        data_fit = numpy.exp(powerlaw(xdata[sort_idx], result[0], result[1], result[2]))    
         sort_idx = numpy.argsort(xdata)
         ax.plot(xdata, ydata, 'k.')
         ax.plot(xdata[sort_idx], data_fit)
@@ -39,13 +37,12 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
         ax.set_ylabel(r'$\delta$')
         ax.set_xlabel(r'$\rho$')
 
-    idx = numpy.where(ymdata > data_fit)[0]
-
-    if len(idx) == 0:
-        subidx = numpy.argsort(gamma)
-
     value    = ymdata - numpy.exp(powerlaw(xmdata, result[0], result[1], result[2]))
-    subidx   = gidx[numpy.argsort(value)[::-1]]
+    
+    if not numpy.any(value > 0):
+        subidx = gidx[numpy.argsort(gamma)[::-1]]
+    else:
+        subidx = gidx[numpy.argsort(value)[::-1]]
 
     if display:
         ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
