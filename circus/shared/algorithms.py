@@ -54,7 +54,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
             pylab.close()
         else:
             pylab.show()
-    return subidx, ymdata, data_fit, result
+    return subidx
 
 
 def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
