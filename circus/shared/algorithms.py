@@ -25,9 +25,9 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
             return a*(x**k) + b
 
     try:
-        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, -1, 0])
+        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, 0, -1])
     except Exception:
-        result, pcov = [0, -1, numpy.log(numpy.mean(ymdata))], 0
+        result, pcov = [0, numpy.median(numpy.log(ymdata)), -1], 0
 
     if display:
         fig      = pylab.figure(figsize=(15, 5))
@@ -40,7 +40,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
         ax.set_ylabel(r'$\delta$')
         ax.set_xlabel(r'$\rho$')
 
-    value    = ymdata - numpy.exp(powerlaw(xmdata, result[0], result[1], result[2]))
+    value = ymdata - numpy.exp(powerlaw(xmdata, result[0], result[1], result[2]))
     
     if not numpy.any(value > 0):
         subidx = gidx[numpy.argsort(gamma)[::-1]]
@@ -54,7 +54,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
             pylab.close()
         else:
             pylab.show()
-    return subidx
+    return subidx, ymdata, data_fit, result
 
 
 def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
