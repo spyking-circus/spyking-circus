@@ -167,6 +167,12 @@ Options are:
     if not batch_mode:
     	params = io.load_parameters(filename)
 
+    if os.path.exists(f_next + '.log'):
+        os.remove(f_next + '.log')
+
+    write_to_logger(params, ['Config file: %s' %(f_next + '.params')])
+    write_to_logger(params, ['Data file  : %s' %filename])
+
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
@@ -236,7 +242,7 @@ Options are:
 
                         from mpi4py import MPI
                         vendor = MPI.get_vendor()
-                        #write_to_logger(params, ['MPI detected: %s' %str(vendor)])
+                        write_to_logger(params, ['MPI detected: %s' %str(vendor)])
                         if vendor[0] == 'Open MPI':
                             args  = ['mpirun']
                             if os.getenv('LD_LIBRARY_PATH'):
@@ -291,7 +297,8 @@ Options are:
                                        'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
 
-                        #write_to_logger(params, ['Command: %s' %str(args)])
+                        write_to_logger(params, ['Launching task %s' %subtask])
+                        write_to_logger(params, ['Command: %s' %str(args)])
 
                         try:
                             subprocess.check_call(args)

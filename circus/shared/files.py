@@ -16,7 +16,6 @@ def purge(file, pattern):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
 
-
 def set_logger(params):
     f_next, extension = os.path.splitext(params.get('data', 'data_file'))
     log_file          = f_next + '.log'
@@ -25,10 +24,15 @@ def set_logger(params):
         level=logging.DEBUG, 
         datefmt='%m/%d/%Y %I:%M:%S %p')
 
-def write_to_logger(params, to_write):
+def write_to_logger(params, to_write, level='info'):
     set_logger(params)
     for line in to_write:
-        logging.info(line)
+        if level == 'info':
+            logging.info(line)
+        elif level == 'debug':
+            logging.debug(line)
+        elif level == 'warning':
+            logging.warning(line)
 
 def detect_header(filename, value='MCS'):
 
@@ -342,13 +346,24 @@ def data_stats(params, show=True, export_times=False):
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
 
-    if show:
-        print_info(lines)
+    print_and_log(lines, 'info', params, show)
 
     if not export_times:
         return nb_chunks*60 + last_chunk_len
     else:
         return times
+
+def print_and_log(to_print, level='info', logger=True, display=True):
+    if display:
+        if level == 'default':
+            print to_print
+        if level == 'info':
+            print_info(to_print)
+        elif level == 'error':
+            print_error(to_print)
+
+    if logger:
+        write_to_logger(logger, to_print, level)
 
 def print_info(lines):
     print colored("-------------------------  Informations  -------------------------", 'yellow')
