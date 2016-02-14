@@ -47,6 +47,14 @@ def main():
         positions = numpy.array(positions)[idx]
         return positions
 
+    def get_max_loc_channel(params):
+        nodes, edges    = circus.shared.utils.io.get_nodes_and_edges(params)
+        max_loc_channel = 0
+        for key in edges.keys():
+            if len(edges[key]) > max_loc_channel:
+                max_loc_channel = len(edges[key])
+        return max_loc_channel
+
     def write_results(path, result):
         spikes     = numpy.zeros(0, dtype=numpy.int64)
         clusters   = numpy.zeros(0, dtype=numpy.int32)
@@ -64,11 +72,19 @@ def main():
         numpy.save(os.path.join(output_path, 'spike_times'), spikes[idx])
         numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
 
-    def write_pcs(path, clusters):
+    def write_pcs(path, clusters, params):
 
-        numpy.save(os.path.join(output_path, 'pc_features'), clusters[idx]) # nspikes, nfeat, n_loc_chan
-        numpy.save(os.path.join(output_path, 'pc_features_ind'), clusters[idx]) #n_templates, n_loc_chan
+        max_loc_channel = get_max_loc_channel(params)
+        electrodes      = clusters['electrodes']
+        for target in xrange(len(electrodes)):
+            elec     = clusters['electrodes'][target]
+            nic      = target - numpy.where(clusters['electrodes'] == elec)[0][0]
+            mask     = clusters['clusters_' + str(elec)] > -1
+            tmp      = numpy.unique(clusters['clusters_' + str(elec)][mask])
+            indices  = numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0]
 
+        #numpy.save(os.path.join(output_path, 'pc_features'), clusters[idx]) # nspikes, nfeat, n_loc_chan
+        #numpy.save(os.path.join(output_path, 'pc_features_ind'), clusters[idx]) #n_templates, n_loc_chan
 
 
     print_info(["Exporting data..."])

@@ -6,6 +6,7 @@ from termcolor import colored
 import colorama
 from circus.shared.mpi import gather_array
 from circus.shared.utils import smooth
+import logging
 
 colorama.init()
 
@@ -14,6 +15,20 @@ def purge(file, pattern):
     for f in os.listdir(dir):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
+
+
+def set_logger(params):
+    f_next, extension = os.path.splitext(params.get('data', 'data_file'))
+    log_file          = f_next + '.log'
+    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', 
+        filename=log_file,
+        level=logging.DEBUG, 
+        datefmt='%m/%d/%Y %I:%M:%S %p')
+
+def write_to_logger(params, to_write):
+    set_logger(params)
+    for line in to_write:
+        logging.info(line)
 
 def detect_header(filename, value='MCS'):
 

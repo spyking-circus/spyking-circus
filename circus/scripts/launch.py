@@ -15,7 +15,7 @@ import circus.shared.files as io
 
 
 import circus
-from circus.shared.files import print_error, print_info
+from circus.shared.files import print_error, print_info, write_to_logger
 
 def main():
 
@@ -236,6 +236,7 @@ Options are:
 
                         from mpi4py import MPI
                         vendor = MPI.get_vendor()
+                        #write_to_logger(params, ['MPI detected: %s' %str(vendor)])
                         if vendor[0] == 'Open MPI':
                             args  = ['mpirun']
                             if os.getenv('LD_LIBRARY_PATH'):
@@ -289,6 +290,8 @@ Options are:
                                 args += ['-np', nb_tasks,
                                        'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+
+                        #write_to_logger(params, ['Command: %s' %str(args)])
 
                         try:
                             subprocess.check_call(args)
