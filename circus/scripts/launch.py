@@ -15,7 +15,7 @@ import circus.shared.files as io
 
 
 import circus
-from circus.shared.files import print_error, print_info
+from circus.shared.files import print_error, print_info, write_to_logger
 
 def main():
 
@@ -188,6 +188,13 @@ Options are:
                 if len(line) > 0:
                     subprocess.check_call(['spyking-circus'] + line.replace('\n', '').split(" "))
     else:
+
+        if os.path.exists(f_next + '.log'):
+            os.remove(f_next + '.log')
+
+        write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
+        write_to_logger(params, ['Data file  : %s' %filename], 'debug')
+
         print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
         print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
         print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
@@ -236,6 +243,7 @@ Options are:
 
                         from mpi4py import MPI
                         vendor = MPI.get_vendor()
+                        write_to_logger(params, ['MPI detected: %s' %str(vendor)], 'debug')
                         if vendor[0] == 'Open MPI':
                             args  = ['mpirun']
                             if os.getenv('LD_LIBRARY_PATH'):
@@ -289,6 +297,9 @@ Options are:
                                 args += ['-np', nb_tasks,
                                        'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+
+                        write_to_logger(params, ['Launching task %s' %subtask], 'debug')
+                        write_to_logger(params, ['Command: %s' %str(args)], 'debug')
 
                         try:
                             subprocess.check_call(args)

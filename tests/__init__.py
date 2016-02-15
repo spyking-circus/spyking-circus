@@ -32,9 +32,12 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
     vendor = MPI.get_vendor()
     if vendor[0] == 'Open MPI':
         args  = ['mpirun']
-        args += ['-x', 'LD_LIBRARY_PATH']
-        args += ['-x', 'PATH']
-        args += ['-x', 'PYTHONPATH']
+        if os.getenv('LD_LIBRARY_PATH'):
+            args += ['-x', 'LD_LIBRARY_PATH']
+        if os.getenv('PATH'):
+            args += ['-x', 'PATH']
+        if os.getenv('PYTHONPATH'):
+            args += ['-x', 'PYTHONPATH']
     elif vendor[0] == 'Microsoft MPI':
         args  = ['mpiexec']
     else: 
@@ -47,14 +50,14 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
 
     if subtask != 'benchmarking':
         args += ['-np', nb_tasks,
-                 'spyking-circus-subtask.py',
+                 'spyking-circus-subtask',
                  subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
     else:
         if (output is None) or (benchmark is None):
             print colored("To generate synthetic datasets, you must provide output and type", 'red')
             sys.exit()
         args += ['-np', nb_tasks,
-                 'spyking-circus-subtask.py',
+                 'spyking-circus-subtask',
                  subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
     subprocess.check_call(args)
 

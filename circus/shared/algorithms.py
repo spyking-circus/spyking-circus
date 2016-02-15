@@ -9,9 +9,9 @@ import scipy.linalg, scipy.sparse
 def distancematrix(data, weight=None):
     
     if weight is None:
-        weight = numpy.ones(data.shape[1])/data.shape[1]    
+        weight = numpy.ones(data.shape[1], dtype=numpy.float32)/data.shape[1]    
     distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=numpy.sqrt(weight))**2
-    return distances
+    return distances.astype(numpy.float32)
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
@@ -79,7 +79,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
                 rho[i]  = numpy.sum(exp_dist[indices])  
     else:
         if weight is None:
-            weight   = numpy.ones(data.shape[1])/data.shape[1]
+            weight   = numpy.ones(data.shape[1], dtype=numpy.float32)/data.shape[1]
 
         for i in xrange(N):
             dist     = numpy.sum(weight*(data[i] - update)**2, 1)
