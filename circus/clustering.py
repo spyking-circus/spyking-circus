@@ -388,7 +388,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     numpy.save(tmp_file, dist)
                     dist_file.close()
                     result['dist_' + str(ielec)] = dist_file
-                    result['norm_' + str(ielec)] = len(result['data_' + str(ielec)])
+                    result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
                     result['dc_' + str(ielec)]   = dc
                     del dist
@@ -398,7 +398,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float32)/dimension
                     result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
                     result['rho_'  + str(ielec)] = numpy.zeros(len(result['data_' + str(ielec)]), dtype=numpy.float32)
-                    result['norm_' + str(ielec)] = 0
+                    result['norm_' + str(ielec)] = 1
                     result['dc_' + str(ielec)]   = 1.
             else:
                 if len(result['tmp_' + str(ielec)]) > 1:
