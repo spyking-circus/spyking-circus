@@ -2,7 +2,7 @@ from .shared.utils import *
 import h5py
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
-    numpy.random.seed(451235)
+    numpy.random.seed(45135)
 
     data_path      = os.path.dirname(os.path.abspath(file_name))
     data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
@@ -32,11 +32,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         rate            = nb_insert*[10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
     if benchmark == 'clustering':
-        n_point         = 5
+        n_point         = 10
         n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, n_point**2)
         x, y            = numpy.mgrid[0:n_point,0:n_point]
-        rate            = numpy.linspace(0.5, 20, n_point)[x.flatten()]
-        amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
+        rate            = numpy.arange(0.5, 20, 2)[x.flatten()]
+        amplitude       = numpy.arange(0.5, 5.5, 0.5)[y.flatten()]
     if benchmark == 'synchrony':
         nb_insert       = 5
         corrcoef        = 0.2
