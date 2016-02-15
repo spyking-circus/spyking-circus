@@ -167,12 +167,6 @@ Options are:
     if not batch_mode:
     	params = io.load_parameters(filename)
 
-    if os.path.exists(f_next + '.log'):
-        os.remove(f_next + '.log')
-
-    write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
-    write_to_logger(params, ['Data file  : %s' %filename], 'debug')
-
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
@@ -194,6 +188,13 @@ Options are:
                 if len(line) > 0:
                     subprocess.check_call(['spyking-circus'] + line.replace('\n', '').split(" "))
     else:
+
+        if os.path.exists(f_next + '.log'):
+            os.remove(f_next + '.log')
+
+        write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
+        write_to_logger(params, ['Data file  : %s' %filename], 'debug')
+
         print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
         print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
         print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
