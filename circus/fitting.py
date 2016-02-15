@@ -87,7 +87,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     c_overlap.close()
 
     if comm.rank == 0:
-        print "Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)
+        io.print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
         io.purge(file_out_suff, '.data')
 
 
@@ -117,7 +117,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 c_overs[i] = cmt.CUDAMatrix(-data)
         except Exception:
             if comm.rank == 0:
-                io.print_info(["Not enough memory on GPUs: GPUs are used for projection only"])
+                io.print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
             for i in xrange(N_over):
                 if c_overs.has_key(i):
                     del c_overs[i]
@@ -215,7 +215,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     lines = ["There may be a GPU memory error: -set gpu_only to False",
                              "                                 -reduce N_t",
                              "                                 -increase mergings"]
-                    io.print_info(lines)
+                    io.print_and_log(lines, 'error', params)
                 sys.exit(0)
 
             if use_gpu:

@@ -31,7 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if comm.rank == 0:
-        print "Analyzing data to get whitening matrices and thresholds..."
+        io.print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', params)
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
@@ -40,8 +40,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         res        = io.data_stats(params, show=False)
         chunk_size = res*sampling_rate/comm.size
         if comm.rank == 0:
-            io.print_info(["Too much cores, reducing size of the data chunks"])
-            #io.write_to_logger(params, ['Reducing the size of the chunks to %g' %chunk_size])
+            io.print_and_log(["Too much cores, reducing size of the data chunks"], 'info', params)
+
 
         borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
@@ -147,7 +147,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 nb_silences     = numpy.sum(all_elecs > 0)
                 all_res         = all_res.reshape((nb_silences, N_t**2))
             except Exception:
-                print io.print_info(["No silent periods detected: something wrong with the parameters?"])
+                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             all_res             = numpy.sum(all_res, 0)
             all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
             temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
@@ -157,7 +157,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if do_spatial_whitening:
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
-            print "We found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)
+            io.print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)], 'default', params)
         
         bfile = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, to_write.keys(), to_write)
@@ -169,7 +169,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if do_spatial_whitening or do_temporal_whitening:
 
         if comm.rank == 0:
-            print "Because of whitening, we need to recompute the thresholds..."
+            io.print_and_log(["Because of whitening, need to recompute the thresholds..."], 'default', params)
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -234,8 +234,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     if comm.rank == 0:
-        print "Searching spikes to construct the PCA basis..."
-
+        io.print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
+        
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
@@ -372,11 +372,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
+    io.print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count)], 'debug', params)
     gdata = gather_array(elts[:, :elt_count].T, comm, 0, 1)
 
     if comm.rank == 0:
         #DO PCA on elts and store the basis obtained.
-        print "We found", gdata.shape[0], "waveforms over", int(nb_elts*comm.size), "requested"
+        io.print_and_log(["Found %d waveforms over %d requested" %(gdata.shape[0], int(nb_elts*comm.size))], 'default', params)
         pca = PCA(output_dim, copy=False)
         res = {}     
         if len(gdata) > 0:
@@ -388,5 +389,5 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         res['waveforms'] = gdata[:, :1000]
         bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
-        io.print_info(["A basis with %s dimensions has been built" %res['proj'].shape[1]])
+        io.print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
         bfile.close()

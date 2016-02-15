@@ -82,6 +82,7 @@ def get_multi_files(params):
         pattern     = pattern.replace(str(count), str(count+1))
         count      += 1
 
+    print_and_log(['Multi-files:'] + to_process, 'debug', params)
     return to_process
 
 
@@ -175,7 +176,7 @@ def load_parameters(file_name):
 
     if nb_channels is not None:
         if N_e != nb_channels:
-            print_error(["MCS file: mistmatch between number of electrodes and data header"])
+            print_and_log(["MCS file: mistmatch between number of electrodes and data header"], 'error', parser)
             #sys.exit(0)
 
     parser.set('data', 'N_e', str(N_e))   
@@ -183,12 +184,12 @@ def load_parameters(file_name):
     for section in ['whitening', 'clustering']:
         test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
         if not test: 
-            print_error(["nb_elts in %s should be in [0,1]" %section])
+            print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', parser)
             sys.exit(0)
 
     test = (parser.getfloat('clustering', 'nclus_min') > 0) and (parser.getfloat(section, 'nclus_min') <= 1)
     if not test:
-        print_error(["nclus_min in clustering should be in [0,1]"])
+        print_and_log(["nclus_min in clustering should be in [0,1]"], 'error', parser)
         sys.exit(0)
  
     parser.set('fitting', 'space_explo', '1')
@@ -264,7 +265,7 @@ def load_parameters(file_name):
 
     test = (parser.get('clustering', 'extraction') in ['quadratic', 'median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
     if not test:
-        print_error(["Only 5 extraction modes: quadratic, median-raw, median-pca, mean-raw or mean-pca!"])
+        print_and_log(["Only 5 extraction modes: quadratic, median-raw, median-pca, mean-raw or mean-pca!"], 'error', parser)
         sys.exit(0)
 
     if parser.getboolean('data', 'multi-files'):
@@ -353,16 +354,17 @@ def data_stats(params, show=True, export_times=False):
     else:
         return times
 
-def print_and_log(to_print, level='info', logger=True, display=True):
+def print_and_log(to_print, level='info', logger=None, display=True):
     if display:
         if level == 'default':
-            print to_print
+            for line in to_print:
+                print line
         if level == 'info':
             print_info(to_print)
         elif level == 'error':
             print_error(to_print)
 
-    if logger:
+    if logger is not None:
         write_to_logger(logger, to_print, level)
 
 def print_info(lines):
@@ -761,7 +763,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     refractory     = int(0.5*sampling_rate*1e-3)
     x, N_tm        = templates.shape
 
-    print "Gathering data from %d nodes..." %nb_threads
+    print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
     result = {'spiketimes' : {}, 'amplitudes' : {}}
     if with_real_amps:
@@ -858,7 +860,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
-    print_info(["Number of spikes fitted : %d" %count])
+    print_and_log(["Number of spikes fitted : %d" %count], 'info', params)
 
     if erase:
         purge(file_out_suff, '.data')
