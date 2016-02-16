@@ -58,15 +58,15 @@ def get_performance(file_name, name):
         source_temp = inj_templates[:, temp_id].toarray().flatten()
         similarity  = []
         temp_match  = []
-        dmax        = 0
         for i in xrange(templates.shape[1]/2):
             d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
-            if d > dmax:
+            if d > sim_templates:
                 temp_match += [i]
-                dmax       = d
+        
         res[gcount]  = numpy.max(similarity)
         res2[gcount] = numpy.sum(numpy.array(similarity) > sim_templates)
+        
         if res2[gcount] > 0:
 
             all_fitted_spikes = []
