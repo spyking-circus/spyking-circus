@@ -367,12 +367,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['tmp_' + str(ielec)]  = pca.fit_transform(result['tmp_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                     result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=None, compute_rho=False)
+                    rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)].astype(numpy.double), weight=None, compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
                     dimension                    = basis_proj.shape[1] * n_neighb
-                    result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float32)/dimension
+                    result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float64)/dimension
                     result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
                 smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= 0.9*max_elts_elec*comm.size)
             elif gpass == 1:
@@ -382,7 +382,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                     result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], compute_rho=True)
+                    rho, dist, dc = algo.rho_estimation(data.astype(numpy.double), weight=result['w_' + str(ielec)], compute_rho=True)
                     dist_file = tempfile.NamedTemporaryFile(delete=False)
                     tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))
                     numpy.save(tmp_file, dist)
@@ -404,7 +404,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if len(result['tmp_' + str(ielec)]) > 1:
                     data  = numpy.dot(result['tmp_' + str(ielec)], result['pca_' + str(ielec)])
                     sdata = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
-                    rho, dist, dc = algo.rho_estimation(sdata, dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
+                    rho, dist, dc = algo.rho_estimation(sdata.astype(numpy.double), dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
                     result['rho_'  + str(ielec)] += rho
                     result['norm_' + str(ielec)] += len(result['tmp_' + str(ielec)])
 
