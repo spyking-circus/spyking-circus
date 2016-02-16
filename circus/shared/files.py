@@ -512,7 +512,8 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
             f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
-            rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+            smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
+            rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
             ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
             local_chunk = f(ddata, ydata).astype(numpy.float32)
 
