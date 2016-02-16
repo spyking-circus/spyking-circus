@@ -40,7 +40,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_clusters   = params.getint('clustering', 'max_clusters')
     make_plots     = params.getboolean('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
-    cc_merge       = params.getfloat('clustering', 'cc_merge')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
@@ -1026,7 +1025,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(["Merging similar templates..."], 'default', params)
     
     
-    merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
+    merged1 = algo.merging_cc(comm, params, parallel_hdf5)
     
     comm.Barrier()
 

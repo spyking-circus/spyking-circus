@@ -22,7 +22,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     safety_time    = int(params.getfloat('extracting', 'safety_time')*sampling_rate*1e-3)
     max_elts_temp  = params.getint('extracting', 'max_elts')
     output_dim     = params.getfloat('extracting', 'output_dim')
-    cc_merge       = params.getfloat('extracting', 'cc_merge')
     noise_thr      = params.getfloat('extracting', 'noise_thr')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
@@ -322,7 +321,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["Merging similar templates..."], 'default', params)
     
-    merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
+    merged1 = algo.merging_cc(comm, params, parallel_hdf5)
 
     comm.Barrier()
     if remove_mixture:
