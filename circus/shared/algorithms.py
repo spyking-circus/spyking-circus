@@ -15,7 +15,7 @@ def distancematrix(data, weight=None):
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
-    gidx   = numpy.where(xdata > threshold)[0]
+    gidx   = numpy.where(xdata >= threshold)[0]
     xmdata = xdata[gidx]
     ymdata = ydata[gidx]
     gamma  = xmdata * ymdata
