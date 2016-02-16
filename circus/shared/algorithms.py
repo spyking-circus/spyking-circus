@@ -11,7 +11,7 @@ def distancematrix(data, weight=None):
     if weight is None:
         weight = numpy.ones(data.shape[1], dtype=numpy.float32)/data.shape[1]    
     distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=numpy.sqrt(weight))**2
-    return distances.astype(numpy.float32)
+    return distances
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
@@ -60,8 +60,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
 def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
     N    = len(data)
-    rho  = numpy.zeros(N, dtype=numpy.float32)
-    dist = numpy.zeros(0, dtype=numpy.float32)
+    rho  = numpy.zeros(N, dtype=numpy.float64)
         
     if update is None:
         dist = distancematrix(data, weight=weight)
@@ -95,7 +94,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
     didx              = lambda i,j: i*N + j - i*(i+1)/2 - i - 1
     ordrho            = numpy.argsort(rho)[::-1]
     rho_sorted        = rho[ordrho]
-    delta, nneigh     = numpy.zeros(N, dtype=numpy.float32), numpy.zeros(N, dtype=numpy.int32)
+    delta, nneigh     = numpy.zeros(N, dtype=numpy.float64), numpy.zeros(N, dtype=numpy.int32)
     delta[ordrho[0]]  = -1
     for ii in xrange(N):
         delta[ordrho[ii]] = maxd
@@ -108,7 +107,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
             if xdist < delta[ordrho[ii]]:
                 delta[ordrho[ii]]  = xdist
                 nneigh[ordrho[ii]] = ordrho[jj]
-    
+
     delta[ordrho[0]] = delta.ravel().max()  
     threshold        = numpy.exp(-3**2)
     clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
@@ -127,7 +126,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
         # halo
         halo = cl.copy()
         if NCLUST > 1:
-            bord_rho = numpy.zeros(NCLUST, dtype=numpy.float32)
+            bord_rho = numpy.zeros(NCLUST, dtype=numpy.float64)
             for i in xrange(N):
                 idx      = numpy.where((cl[i] < cl[i+1:N]) & (dist[didx(i, numpy.arange(i+1, N))] <= dc))[0]
                 if len(idx) > 0:
@@ -142,7 +141,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
             
             idx       = numpy.where(rho < bord_rho[cl])[0]
             halo[idx] = -1
-
+        
         if n_min is not None:
             for cluster in xrange(NCLUST):
                 idx = numpy.where(halo == cluster)[0]
