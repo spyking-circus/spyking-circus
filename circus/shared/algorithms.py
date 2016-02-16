@@ -320,7 +320,7 @@ def slice_result(result, times):
 
     return sub_results
 
-def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
+def merging_cc(comm, params, parallel_hdf5=False):
 
     def remove(result, distances, cc_merge):
         do_merge  = True
@@ -374,7 +374,8 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     x,        N_tm = templates.shape
     nb_temp        = N_tm/2
     to_merge       = []
-    
+    cc_merge       = params.getfloat('clustering', 'cc_merge')
+        
     result   = []
     overlap  = get_overlaps(comm, params, extension='-merging', erase=True, parallel_hdf5=parallel_hdf5, normalize=True, maxoverlap=False, verbose=False, half=True)
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
@@ -418,6 +419,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     templates      = load_data(params, 'templates')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
+    cc_merge       = params.getfloat('clustering', 'cc_merge')
     x,        N_tm = templates.shape
     nb_temp        = N_tm/2
     merged         = [nb_temp, 0]
@@ -490,7 +492,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                     if is_a1 and is_a2:
                         new_template = a1*templates[:, i].toarray() + a2*templates[:, j].toarray()
                         similarity   = numpy.corrcoef(templates[:, k].toarray().flatten(), new_template.flatten())[0, 1]
-                        if similarity > 0.95:
+                        if similarity > cc_merge:
                             if k not in mixtures:
                                 mixtures  += [k]
                                 been_found = True 
