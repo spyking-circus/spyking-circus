@@ -25,7 +25,8 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
             return a*(x**k) + b
 
     try:
-        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, 0, -1])
+        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, numpy.median(numpy.log(ymdata)), -1])
+        pcov         = 1
     except Exception:
         result, pcov = [0, numpy.median(numpy.log(ymdata)), -1], 0
 
