@@ -22,7 +22,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     safety_time    = int(params.getfloat('extracting', 'safety_time')*sampling_rate*1e-3)
     max_elts_temp  = params.getint('extracting', 'max_elts')
     output_dim     = params.getfloat('extracting', 'output_dim')
-    cc_merge       = params.getfloat('extracting', 'cc_merge')
     noise_thr      = params.getfloat('extracting', 'noise_thr')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
@@ -32,7 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if comm.rank == 0:
-        print "Extracting templates from already found clusters..."
+        io.print_and_log(["Extracting templates from already found clusters..."], 'default', params)
 
     thresholds                           = io.load_data(params, 'thresholds')
     basis_proj, basis_rec                = io.load_data(params, 'basis')
@@ -131,7 +130,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     gdata = gather_array(numpy.array([total_nb_elts], dtype=numpy.float32), comm, 0)
     if comm.rank == 0:
-        print "We found", int(numpy.sum(gdata)), "spikes over", int(nb_elts), "requested"
+        io.print_and_log(["Found %d spikes over %d requested" %(int(numpy.sum(gdata)), int(nb_elts))], 'default', params)
 
     #print "Spikes extracted in", time.time() - t_start, "s"
 
@@ -147,7 +146,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     if comm.rank == 0:
-        print "Extracting the templates..."
+        io.print_and_log(["Extracting the templates..."], 'default', params)
     
     total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.float32), root=0)[0])
     offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
@@ -320,21 +319,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if comm.rank == 0:
-        print "Merging similar templates..."
+        io.print_and_log(["Merging similar templates..."], 'default', params)
     
-    merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
+    merged1 = algo.merging_cc(comm, params, parallel_hdf5)
 
     comm.Barrier()
     if remove_mixture:
         if comm.rank == 0:
-            print "Removing mixtures..."
+            io.print_and_log(["Removing mixtures..."], 'default', params)
         merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
     else:
         merged2 = [0, 0]
 
     if comm.rank == 0:
-        io.print_info(["Number of global merges    : %d" %merged1[1], 
-                       "Number of mixtures removed : %d" %merged2[1]])    
+        io.print_and_log(["Number of global merges    : %d" %merged1[1], 
+                       "Number of mixtures removed : %d" %merged2[1]], 'info', params)    
 
     comm.Barrier()
     io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)

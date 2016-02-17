@@ -327,7 +327,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
 
 
 
-def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100):
+def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100, temp_id=None):
     
     params          = load_parameters(file_name)
     N_e             = params.getint('data', 'N_e')
@@ -340,7 +340,11 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
     N_t              = params.getint('data', 'N_t')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
-    
+
+    if temp_id is not None:
+        templates    = load_data(params, 'templates')
+        mytemplate   = templates[:, temp_id].toarray().reshape(N_e, N_t)
+
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
@@ -388,6 +392,8 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         xmin, xmax = pylab.xlim()
         pylab.plot([xmin, xmax], [-thresholds[i], -thresholds[i]], 'k--')
         pylab.plot([xmin, xmax], [thresholds[i], thresholds[i]], 'k--')
+        if temp_id is not None:
+            pylab.plot(mytemplate[i, :], 'b')
         pylab.title('Elec %d' %i)
         if xzoom:
             pylab.xlim(xzoom[0], xzoom[1])

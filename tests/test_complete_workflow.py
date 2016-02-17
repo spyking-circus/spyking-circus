@@ -19,9 +19,19 @@ def get_performance(file_name, name):
     thresh          = int(sampling*2*1e-3)
     sim_templates   = 0.8
 
-    print os.path.join(result_name, '.templates.hdf5')
-    inj_templates   = h5py.File(os.path.join(result_name, '%s.templates.hdf5' %a)).get('templates')[:]
-    templates       = h5py.File(file_out + '.templates.hdf5').get('templates')[:]
+    temp_file       = file_out + '.templates.hdf5'
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    templates       = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(temp_shape[0]*temp_shape[1], temp_shape[2]))
+
+    temp_file       = os.path.join(result_name, '%s.templates.hdf5' %a)
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    inj_templates   = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(temp_shape[0]*temp_shape[1], temp_shape[2]))
     
     result          = h5py.File(file_out + '.result.hdf5')
     fitted_spikes   = {}
@@ -39,24 +49,24 @@ def get_performance(file_name, name):
     for key in result.get('real_amps').keys():
         real_amps[key]   = result.get('real_amps/%s' %key)[:]
     
-    n_tm            = inj_templates.shape[2]/2
+    n_tm            = inj_templates.shape[1]/2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
     res3            = numpy.zeros((len(n_cells), 2))
 
     for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
-        source_temp = inj_templates[:, :, temp_id]
+        source_temp = inj_templates[:, temp_id].toarray().flatten()
         similarity  = []
         temp_match  = []
-        dmax        = 0
-        for i in xrange(templates.shape[2]/2):
-            d = numpy.corrcoef(templates[:, :, i].flatten(), source_temp.flatten())[0, 1]
+        for i in xrange(templates.shape[1]/2):
+            d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
-            if d > dmax:
+            if d > sim_templates:
                 temp_match += [i]
-                dmax       = d
+        
         res[gcount]  = numpy.max(similarity)
         res2[gcount] = numpy.sum(numpy.array(similarity) > sim_templates)
+        
         if res2[gcount] > 0:
 
             all_fitted_spikes = []

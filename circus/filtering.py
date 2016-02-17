@@ -17,7 +17,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if filter_done:
         if comm.rank == 0:
-            io.print_info(["Filtering has already been done with cut off at %dHz" %cut_off])
+            io.print_and_log(["Filtering has already been done with cut off at %dHz" %cut_off], 'info', params)
 
     elif do_filter:
 
@@ -38,7 +38,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loc_nb_chunks = len(to_process)
 
             if comm.rank == 0:
-                print "Filtering the signal with a Butterworth filter in", (cut_off, int(0.95*(sampling_rate/2))), "Hz"
+                to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off, int(0.95*(sampling_rate/2)))]
+                io.print_and_log(to_write, 'info', params)
                 pbar = get_progressbar(loc_nb_chunks)
 
             for count, gidx in enumerate(to_process):
@@ -95,15 +96,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mpi_out  = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
             mpi_out.Set_view(data_offset, data_mpi, data_mpi)
             offset   = 0
+            io.write_to_logger(params, ['Output file: %s' %params.get('data', 'data_file') ], 'debug')
 
             for data_file in all_files:
                 mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDWR)
-                if params.get('data', 'MCS'):
+                if params.getboolean('data', 'MCS'):
                     data_offset, nb_channels = io.detect_header(data_file, 'MCS')
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
+                io.write_to_logger(params, ['Input file: %s' %params.get('data', 'data_file') ], 'debug')
                 filter_file(params, comm, mpi_in, mpi_out, offset)
-                offset += mpi_in.size                
+                offset += (mpi_in.size/data_mpi.size)               
                 mpi_in.Close()
 
             mpi_out.Close()

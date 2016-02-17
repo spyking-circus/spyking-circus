@@ -5,6 +5,9 @@ import ConfigParser as configparser
 from termcolor import colored
 import colorama
 from circus.shared.mpi import gather_array
+from circus.shared.utils import smooth
+import logging
+
 colorama.init()
 
 def purge(file, pattern):
@@ -12,6 +15,24 @@ def purge(file, pattern):
     for f in os.listdir(dir):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
+
+def set_logger(params):
+    f_next, extension = os.path.splitext(params.get('data', 'data_file'))
+    log_file          = f_next + '.log'
+    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', 
+        filename=log_file,
+        level=logging.DEBUG, 
+        datefmt='%m/%d/%Y %I:%M:%S %p')
+
+def write_to_logger(params, to_write, level='info'):
+    set_logger(params)
+    for line in to_write:
+        if level == 'info':
+            logging.info(line)
+        elif level == 'debug':
+            logging.debug(line)
+        elif level == 'warning':
+            logging.warning(line)
 
 def detect_header(filename, value='MCS'):
 
@@ -61,6 +82,7 @@ def get_multi_files(params):
         pattern     = pattern.replace(str(count), str(count+1))
         count      += 1
 
+    print_and_log(['Multi-files:'] + to_process, 'debug', params)
     return to_process
 
 
@@ -154,7 +176,7 @@ def load_parameters(file_name):
 
     if nb_channels is not None:
         if N_e != nb_channels:
-            print_error(["MCS file: mistmatch between number of electrodes and data header"])
+            print_and_log(["MCS file: mistmatch between number of electrodes and data header"], 'error', parser)
             #sys.exit(0)
 
     parser.set('data', 'N_e', str(N_e))   
@@ -162,12 +184,12 @@ def load_parameters(file_name):
     for section in ['whitening', 'clustering']:
         test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
         if not test: 
-            print_error(["nb_elts in %s should be in [0,1]" %section])
+            print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', parser)
             sys.exit(0)
 
     test = (parser.getfloat('clustering', 'nclus_min') > 0) and (parser.getfloat(section, 'nclus_min') <= 1)
     if not test:
-        print_error(["nclus_min in clustering should be in [0,1]"])
+        print_and_log(["nclus_min in clustering should be in [0,1]"], 'error', parser)
         sys.exit(0)
  
     parser.set('fitting', 'space_explo', '1')
@@ -243,7 +265,7 @@ def load_parameters(file_name):
 
     test = (parser.get('clustering', 'extraction') in ['quadratic', 'median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
     if not test:
-        print_error(["Only 5 extraction modes: quadratic, median-raw, median-pca, mean-raw or mean-pca!"])
+        print_and_log(["Only 5 extraction modes: quadratic, median-raw, median-pca, mean-raw or mean-pca!"], 'error', parser)
         sys.exit(0)
 
     if parser.getboolean('data', 'multi-files'):
@@ -292,7 +314,7 @@ def data_stats(params, show=True, export_times=False):
         t_start        = 0
         times          = []
         for f in all_files:
-            if params.get('data', 'MCS'):
+            if params.getboolean('data', 'MCS'):
                 data_offset, nb_channels = detect_header(f, 'MCS')
             datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
             loc_N           = len(datablock)
@@ -304,6 +326,10 @@ def data_stats(params, show=True, export_times=False):
 
     N_t = params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/sampling_rate, 1)
+
+    nb_extra        = last_chunk_len/60
+    nb_chunks      += nb_extra
+    last_chunk_len -= nb_extra*60
 
     lines = ["Number of recorded channels : %d" %N_total,
              "Number of analyzed channels : %d" %N_e,
@@ -321,13 +347,25 @@ def data_stats(params, show=True, export_times=False):
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
 
-    if show:
-        print_info(lines)
+    print_and_log(lines, 'info', params, show)
 
     if not export_times:
         return nb_chunks*60 + last_chunk_len
     else:
         return times
+
+def print_and_log(to_print, level='info', logger=None, display=True):
+    if display:
+        if level == 'default':
+            for line in to_print:
+                print line
+        if level == 'info':
+            print_info(to_print)
+        elif level == 'error':
+            print_error(to_print)
+
+    if logger is not None:
+        write_to_logger(logger, to_print, level)
 
 def print_info(lines):
     print colored("-------------------------  Informations  -------------------------", 'yellow')
@@ -403,8 +441,9 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
             f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
-            rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
-            ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+            smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
+            rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+            ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
             local_chunk = f(ddata, ydata).astype(numpy.float32)
 
         if all_labels:
@@ -473,7 +512,8 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
             f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
-            rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
+            smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
+            rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
             ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
             local_chunk = f(ddata, ydata).astype(numpy.float32)
 
@@ -494,6 +534,8 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
         chunk_size = params.getint('data', 'chunk_size')
     data_file    = params.get('data', 'data_file')
     data_offset  = params.getint('data', 'data_offset')
+    if params.getboolean('data', 'MCS'):
+        data_offset, nb_channels = detect_header(data_file, 'MCS')
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
@@ -539,6 +581,8 @@ def analyze_data(params, chunk_size=None):
         chunk_size = params.getint('data', 'chunk_size')
     data_file      = params.get('data', 'data_file')
     data_offset    = params.getint('data', 'data_offset')
+    if params.getboolean('data', 'MCS'):
+        data_offset, nb_channels = detect_header(data_file, 'MCS')
     data_dtype     = params.get('data', 'data_dtype')
     N_total        = params.getint('data', 'N_total')
     template_shift = params.getint('data', 'template_shift')
@@ -610,6 +654,11 @@ def load_data(params, data, extension=''):
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
+    elif data == 'waveforms':
+        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        waveforms  = myfile.get('waveforms')[:]
+        myfile.close()
+        return waveforms
     elif data == 'templates':
         N_e = params.getint('data', 'N_e')
         N_t = params.getint('data', 'N_t')
@@ -711,9 +760,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     N_t            = params.getint('data', 'N_t')
     duration       = data_stats(params, show=False)
     templates      = load_data(params, 'templates')
+    sampling_rate  = params.getint('data', 'sampling_rate')
+    refractory     = int(0.5*sampling_rate*1e-3)
     x, N_tm        = templates.shape
 
-    print "Gathering data from %d nodes..." %nb_threads
+    print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
     result = {'spiketimes' : {}, 'amplitudes' : {}}
     if with_real_amps:
@@ -783,6 +834,15 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if with_voltages:
             result['voltages'][key] = result['voltages'][key][idx]
 
+        if refractory > 0:
+            violations = numpy.where(numpy.diff(result['spiketimes'][key]) <= refractory)[0] + 1
+            result['spiketimes'][key] = numpy.delete(result['spiketimes'][key], violations)
+            result['amplitudes'][key] = numpy.delete(result['amplitudes'][key], violations, axis=0)
+            if with_real_amps:
+                result['real_amps'][key] = numpy.delete(result['real_amps'][key], violations)
+            if with_voltages:
+                result['voltages'][key] = numpy.delete(result['voltages'][key], violations)
+
     keys = ['spiketimes', 'amplitudes']
     if with_real_amps:
         keys += ['real_amps']
@@ -801,7 +861,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
-    print_info(["Number of spikes fitted : %d" %count])
+    print_and_log(["Number of spikes fitted : %d" %count], 'info', params)
 
     if erase:
         purge(file_out_suff, '.data')
@@ -908,8 +968,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         if len_local > 0:
 
             loc_templates = templates[:, local_idx].toarray().reshape(N_e, N_t, len(local_idx))
-            electrodes    = inv_nodes[edges[nodes[ielec]]]
-            to_consider   = numpy.arange(upper_bounds)[numpy.in1d(best_elec, electrodes)]
+            to_consider   = numpy.arange(upper_bounds)
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
             

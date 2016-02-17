@@ -204,6 +204,7 @@ class TestSynchrony(unittest.TestCase):
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'synchrony')
+            mpi_launch('whitening', self.file_name, 2, 0, 'False')
 
     #def tearDown(self):
     #    data_path = '.'.join(self.file_name.split('.')[:-1])

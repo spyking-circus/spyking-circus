@@ -2,7 +2,6 @@ import numpy, pylab, os, mpi4py, progressbar, tempfile
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 
-
 def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     # gather 1D or 2D numpy arrays
     assert isinstance(data, numpy.ndarray)

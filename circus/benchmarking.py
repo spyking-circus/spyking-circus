@@ -10,7 +10,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     if benchmark not in ['fitting', 'clustering', 'synchrony']:
         if comm.rank == 0:
-            io.print_error(['Benchmark need to be in [fitting, clustering, synchrony]'])
+            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony]'], 'error', params)
         sys.exit(0)
 
     def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe):
@@ -127,7 +127,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
-                    io.print_error(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)])
+                    io.print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
                 sys.exit(0)
             else:
                 n_elec = all_elecs[count]
@@ -200,7 +200,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         nb_chunks += 1
 
     if comm.rank == 0:
-        io.print_info(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)])
+        io.print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
         io.purge(file_out, '.data')
 
     template_shift = int((N_t-1)/2)
@@ -250,15 +250,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             loc_template   = templates[:, n_template].toarray().reshape(N_e, N_t)
             first_flat     = loc_template.T.flatten()
             norm_flat      = numpy.sum(first_flat**2)
+            refractory     = int(5*1e-3*sampling_rate)         
+            t_last         = -refractory
             for scount, spike in enumerate(spikes):
-                local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
-                amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
-                amp       /= norm_flat
-                result['real_amps']  += [amp]
-                result['spiketimes'] += [spike + offset]
-                result['amplitudes'] += [(1, 0)]
-                result['templates']  += [n_template]
-                result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
+                if (spike - t_last) > refractory:
+                    local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
+                    amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
+                    amp       /= norm_flat
+                    result['real_amps']  += [amp]
+                    result['spiketimes'] += [spike + offset]
+                    result['amplitudes'] += [(1, 0)]
+                    result['templates']  += [n_template]
+                    result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
+                    t_last                = spike
 
         spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
         amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
@@ -324,7 +328,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     comm.Barrier()
     if comm.rank == 0:
-        io.collect_data(comm.size, io.load_parameters(file_params), erase=True, with_real_amps=True, with_voltages=True)
+        io.collect_data(comm.size, io.load_parameters(file_name), erase=True, with_real_amps=True, with_voltages=True)
         io.change_flag(file_name, 'temporal', 'False')
         io.change_flag(file_name, 'spatial', 'False')
         io.change_flag(file_name, 'data_dtype', 'float32')

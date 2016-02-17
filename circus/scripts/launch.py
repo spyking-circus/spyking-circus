@@ -11,12 +11,15 @@ from os.path import join as pjoin
 from termcolor import colored
 import colorama
 colorama.init()
+import circus.shared.files as io
 
 
 import circus
-from circus.shared.files import print_error, print_info
+from circus.shared.files import print_error, print_info, write_to_logger
 
-def main(argv):
+def main():
+
+    argv = sys.argv
 
     import h5py
     parallel_hdf5 = h5py.get_config().mpi
@@ -162,7 +165,7 @@ Options are:
 
     # Print info
     if not batch_mode:
-    	params = circus.shared.utils.io.load_parameters(filename)
+    	params = io.load_parameters(filename)
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
@@ -172,7 +175,7 @@ Options are:
         filename     = os.path.join(tmp_path_loc, 'preview.dat')
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
         steps        = ['filtering', 'whitening']
-        circus.shared.utils.io.prepare_preview(params, filename)
+        io.prepare_preview(params, filename)
     else: 
 	if not batch_mode: 	  
             stationary = params.getboolean('data', 'stationary')
@@ -183,8 +186,15 @@ Options are:
         with open(tasks_list, 'r') as f:
             for line in f:
                 if len(line) > 0:
-                    main(['spyking-circus'] + line.replace('\n', '').split(" "))
+                    subprocess.check_call(['spyking-circus'] + line.replace('\n', '').split(" "))
     else:
+
+        if os.path.exists(f_next + '.log'):
+            os.remove(f_next + '.log')
+
+        write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
+        write_to_logger(params, ['Data file  : %s' %filename], 'debug')
+
         print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
         print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
         print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
@@ -197,7 +207,7 @@ Options are:
         print ""        
 
         if not preview:
-            length = circus.shared.utils.io.data_stats(params)
+            length = io.data_stats(params)
 
             if length >= 3600 and stationary:
                 print_info(['Long recording detected: maybe turn off the stationary mode'])
@@ -233,6 +243,7 @@ Options are:
 
                         from mpi4py import MPI
                         vendor = MPI.get_vendor()
+                        write_to_logger(params, ['MPI detected: %s' %str(vendor)], 'debug')
                         if vendor[0] == 'Open MPI':
                             args  = ['mpirun']
                             if os.getenv('LD_LIBRARY_PATH'):
@@ -268,11 +279,11 @@ Options are:
                         if subtask != 'benchmarking':
                             if platform.system() == 'Windows':
                                 args += ['-np', nb_tasks, sys.executable,
-                                       'spyking-circus-subtask.py',
+                                       'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                             else:                
                                 args += ['-np', nb_tasks,
-                                       'spyking-circus-subtask.py',
+                                       'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                         else:
                             if (output is None) or (benchmark is None):
@@ -280,12 +291,15 @@ Options are:
                                 sys.exit()
                             if platform.system() == 'Windows':
                                 args += ['-np', nb_tasks, sys.executable,
-                                       'spyking-circus-subtask.py',
+                                       'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
                             else:
                                 args += ['-np', nb_tasks,
-                                       'spyking-circus-subtask.py',
+                                       'spyking-circus-subtask',
                                        subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+
+                        write_to_logger(params, ['Launching task %s' %subtask], 'debug')
+                        write_to_logger(params, ['Command: %s' %str(args)], 'debug')
 
                         try:
                             subprocess.check_call(args)
@@ -302,16 +316,13 @@ Options are:
             pass
         pylab.switch_backend('QT4Agg')
         if preview:
-            PreviewGUI(circus.shared.utils.io.load_parameters(filename))
+            PreviewGUI(io.load_parameters(filename))
             mng   = pylab.get_current_fig_manager()
             pylab.tight_layout()
             pylab.show()
             shutil.rmtree(tmp_path_loc)
         elif result:
-            PreviewGUI(circus.shared.utils.io.load_parameters(filename), show_fit=True)
+            PreviewGUI(io.load_parameters(filename), show_fit=True)
             mng   = pylab.get_current_fig_manager()
             pylab.tight_layout()
             pylab.show()
-
-if __name__ == '__main__':
-    main(sys.argv)

@@ -40,7 +40,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_clusters   = params.getint('clustering', 'max_clusters')
     make_plots     = params.getboolean('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
-    cc_merge       = params.getfloat('clustering', 'cc_merge')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
@@ -104,17 +103,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass == 0:
-                print "Searching random spikes to estimate distances..."
+                io.print_and_log(["Searching random spikes to estimate distances..."], 'default', params)
             elif gpass == 1:
                 if not numpy.all(sdata > 0):
                     lines = ["Smart Search disabled on %d electrodes" %(numpy.sum(sdata == 0))]
-                    io.print_info(lines)
+                    io.print_and_log(lines, 'info', params)
                 if numpy.any(sdata > 0):
-                    print "Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)
+                    io.print_and_log(["Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', params)
                 else:
-                    print "Searching random spikes for the clustering (%d/%d) (no smart search)..." %(gpass, nb_repeats)
+                    io.print_and_log(["Searching random spikes for the clustering (%d/%d) (no smart search)..." %(gpass, nb_repeats)], 'default', params)
             else:
-                print "Searching random spikes to refine the clustering (%d/%d)..." %(gpass, nb_repeats)
+                io.print_and_log(["Searching random spikes to refine the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', params)
 
         for i in xrange(N_e):
             n_neighb                     = len(edges[nodes[i]])
@@ -250,15 +249,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     to_update = result['tmp_' + str(elec)]
 
                                 if len(to_update) < loop_max_elts_elec:
-                                    
                                     if alignment:
                                         idx   = numpy.where(indices == elec)[0]
                                         zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
                                         ydata = numpy.arange(len(indices))
                                         f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
-                                        rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
-                                        ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                        sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                        smoothed = smooth(f(cdata, idx)[:, 0], template_shift)
+                                        rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                        ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                        sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
                                         sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
 
@@ -314,7 +313,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
-        gdata2      = all_gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
+        gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = int(numpy.sum(gdata))
         nb_rejected = int(numpy.sum(gdata2))
         nb_total    = int(nb_elts*comm.size)
@@ -324,11 +323,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass != 1:
-                print "We found", nb_elements, "spikes over", nb_total, "requested"
+                io.print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', params)
                 if nb_elements == 0:
-                    io.print_info(["No more isolated spikes in the recording, stop searching"])
+                    io.print_and_log(["No more isolated spikes in the recording, stop searching"], 'info', params)
             else:
-                print "We found", nb_elements, "spikes over", nb_total, "requested (%d rejected)" %nb_rejected
+                io.print_and_log(["We found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', params)
                 if nb_elements < 0.2*nb_total:
                     few_elts = True
 
@@ -350,11 +349,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass == 0:
-                print "Estimating the distances..."
+                io.print_and_log(["Estimating the distances..."], 'default', params)
             elif gpass == 1:
-                print "Computing density estimations..."
+                io.print_and_log(["Computing density estimations..."], 'default', params)
             else:
-                print "Refining density estimations..."
+                io.print_and_log(["Refining density estimations..."], 'default', params)
             if not os.path.exists(plot_path):
                 os.makedirs(plot_path)
 
@@ -372,7 +371,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
                     dimension                    = basis_proj.shape[1] * n_neighb
-                    result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float32)/dimension
+                    result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float64)/dimension
                     result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
                 smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= 0.9*max_elts_elec*comm.size)
             elif gpass == 1:
@@ -388,17 +387,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     numpy.save(tmp_file, dist)
                     dist_file.close()
                     result['dist_' + str(ielec)] = dist_file
-                    result['norm_' + str(ielec)] = len(result['data_' + str(ielec)])
+                    result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
                     result['dc_' + str(ielec)]   = dc
                     del dist
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
                     dimension                    = basis_proj.shape[1] * n_neighb
-                    result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float32)/dimension
+                    result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float64)/dimension
                     result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
-                    result['rho_'  + str(ielec)] = numpy.zeros(len(result['data_' + str(ielec)]), dtype=numpy.float32)
-                    result['norm_' + str(ielec)] = 0
+                    result['rho_'  + str(ielec)] = numpy.zeros(len(result['data_' + str(ielec)]), dtype=numpy.float64)
+                    result['norm_' + str(ielec)] = 1
                     result['dc_' + str(ielec)]   = 1.
             else:
                 if len(result['tmp_' + str(ielec)]) > 1:
@@ -455,7 +454,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result.pop('all_times_' + str(ielec))
                     result.pop('rho_' + str(ielec))
                     result.pop('norm_' + str(ielec))
-                    result.pop('dc_' + str(ielec))
                     result.pop('dist_' + str(ielec))
                     result['debug_' + str(ielec)]       = numpy.array([r, d], dtype=numpy.float32)
                     mask                                = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
@@ -464,7 +462,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['clusters_' + str(ielec)]    = cluster_results[ielec]['groups']
                     for i in numpy.unique(cluster_results[ielec]['groups'][mask]):
                         n_clusters += [numpy.sum(cluster_results[ielec]['groups'][mask] == i)]
-                    print "Node %d:" %comm.rank, '%d-%d' %(merged[0], merged[1]), "templates on electrode", ielec, "with", n_data, "spikes:", n_clusters
+    
+                    line = ["Node %d: %d-%d templates on electrode %d with %d spikes: %s" %(comm.rank, merged[0], merged[1], ielec, n_data, str(n_clusters))]
+                    io.print_and_log(line, 'default', params)
                     if (merged[0]-merged[1]) == max_clusters:
                         local_hits += 1
                     local_mergings += merged[1]
@@ -473,7 +473,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     cluster_results[ielec]['n_clus'] = 0
                     result['clusters_' + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
                     result['debug_'    + str(ielec)] = numpy.zeros((2,0), dtype=numpy.float32)
-                    print "Node %d:" %comm.rank, "not enough spikes on electrode", ielec
+                    line = ["Node %d: not enough spikes on electrode %d" %(comm.rank, ielec)]
+                    io.print_and_log(line, 'default', params)
 
                 local_nb_clusters += cluster_results[ielec]['n_clus']
 
@@ -497,9 +498,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if total_hits > 0:
             lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
             lines += ["                              -increase sim_same_elec?"]
-        io.print_info(lines)
+        io.print_and_log(lines, 'info', params)
 
-        print "Extracting the templates with the %s procedure ..." %extraction
+        io.print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', params)
 
     if extraction == 'quadratic':
 
@@ -894,8 +895,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 variations       = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
-                amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
+                amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - variations))
+                amp_max          = max(1.2, min(amp_limits[1], numpy.median(amplitudes) + variations))
                 amps_lims[g_count] = [amp_min, amp_max]
 
                 for i in xrange(x):
@@ -958,7 +959,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         #At the end we should have a templates variable to store.
         cfile.close()
-        del result, templates, amps_lims
+        del result, amps_lims
         
         comm.Barrier()
 
@@ -1021,24 +1022,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if comm.rank == 0:
-        print "Merging similar templates..."
+        io.print_and_log(["Merging similar templates..."], 'default', params)
     
     
-    merged1 = algo.merging_cc(comm, params, cc_merge, parallel_hdf5)
+    merged1 = algo.merging_cc(comm, params, parallel_hdf5)
     
     comm.Barrier()
 
     if remove_mixture:
         if comm.rank == 0:
-            print "Removing mixtures..."
+            io.print_and_log(["Removing mixtures..."], 'default', params)
         merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
     else:
         merged2 = [0, 0]
 
     if comm.rank == 0:
 
-        io.print_info(["Number of global merges    : %d" %merged1[1], 
-                       "Number of mixtures removed : %d" %merged2[1]])    
+        io.print_and_log(["Number of global merges    : %d" %merged1[1], 
+                          "Number of mixtures removed : %d" %merged2[1]], 'info', params)    
     
     
     comm.Barrier()
