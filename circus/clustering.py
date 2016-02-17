@@ -344,8 +344,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         elif gpass == 1:
             for ielec in xrange(comm.rank, N_e, comm.size):
                 result['times_' + str(ielec)] = numpy.copy(result['loc_times_' + str(ielec)])
-                if numpy.any(smart_search > 0):
-                    result.pop('sub_' + str(ielec))
 
         if comm.rank == 0:
             if gpass == 0:
@@ -382,10 +380,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                         result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                         result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    else:
-                        data = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
                     
-                    rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
+                    if smart_search[elec] == 0:
+                        result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
+
+                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
                     dist_file = tempfile.NamedTemporaryFile(delete=False)
                     tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))
                     numpy.save(tmp_file, dist)
@@ -397,18 +396,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         result['dc_' + str(ielec)]   = dc
                     del dist
                 else:
-                    n_neighb                     = len(edges[nodes[ielec]])
-                    dimension                    = basis_proj.shape[1] * n_neighb
-                    result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float64)/dimension
-                    result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
+                    if result['pca_' + str(ielec)] is None:
+                        n_neighb                    = len(edges[nodes[ielec]])
+                        dimension                   = basis_proj.shape[1] * n_neighb
+                        result['w_' + str(ielec)]   = numpy.ones(dimension, dtype=numpy.float64)/dimension
+                        result['pca_' + str(ielec)] = numpy.identity(dimension, dtype=numpy.float32)
                     result['rho_'  + str(ielec)] = numpy.zeros(len(result['data_' + str(ielec)]), dtype=numpy.float64)
                     result['norm_' + str(ielec)] = 1
-                    result['dc_' + str(ielec)]   = 1.
+                    if result['dc_' + str(ielec)] is None:
+                        result['dc_' + str(ielec)] = 1.
+
+                    if smart_search[elec] == 0:
+                        result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
             else:
                 if len(result['tmp_' + str(ielec)]) > 1:
                     data  = numpy.dot(result['tmp_' + str(ielec)], result['pca_' + str(ielec)])
-                    sdata = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
-                    rho, dist, dc = algo.rho_estimation(sdata, dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
+                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
                     result['rho_'  + str(ielec)] += rho
                     result['norm_' + str(ielec)] += len(result['tmp_' + str(ielec)])
 
