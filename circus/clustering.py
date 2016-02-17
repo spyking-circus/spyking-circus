@@ -274,7 +274,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             if len(result['data_' + str(elec)]) == 0:
                                                 to_accept = True
                                             else:
-                                                dist = numpy.sum(result['w_' + str(elec)]*(sub_sub_mat - result['sub_' + str(elec)])**2, 1)
+                                                dist = algo.distancematrix(sub_sub_mat, result['w_' + str(elec)], result['sub_' + str(elec)])
                                                 if numpy.min(dist) >= smart_search[elec]*result['dc_' + str(elec)]:
                                                     to_accept = True
                                                 else:
@@ -454,7 +454,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         mask = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
                         sel  = numpy.unique(cluster_results[ielec]['groups'][mask])
                         data = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
-                        plot.view_clusters(numpy.sqrt(result['w_' + str(ielec)])*data, r, d, c[:max_clusters],
+                        plot.view_clusters(result['w_' + str(ielec)]*data, r, d, c[:max_clusters],
                                            cluster_results[ielec]['groups'], dc=result['dc_' + str(ielec)], injected=injected,
                                            save=save)
 
