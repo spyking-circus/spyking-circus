@@ -381,7 +381,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                         result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     
-                    if smart_search[elec] == 0:
+                    if smart_search[ielec] == 0:
                         result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
 
                     rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
@@ -406,7 +406,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if result['dc_' + str(ielec)] is None:
                         result['dc_' + str(ielec)] = 1.
 
-                    if smart_search[elec] == 0:
+                    if smart_search[ielec] == 0:
                         result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
             else:
                 if len(result['tmp_' + str(ielec)]) > 1:
