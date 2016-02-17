@@ -72,38 +72,75 @@ def main():
         numpy.save(os.path.join(output_path, 'spike_times'), spikes[idx])
         numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
 
-    def write_pcs(path, clusters, params):
+
+    def write_templates(path, params, extension):
 
         max_loc_channel = get_max_loc_channel(params)
-        electrodes      = clusters['electrodes']
-        for target in xrange(len(electrodes)):
+        templates       = load_data(params, 'templates', extension)
+        N_tm            = templates.shape[1]/2
+        to_write        = numpy.zeros((N_tm, N_t, N_e), dtype=numpy.float32)
+        mapping         = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
+
+        for t in xrange(N_tm):
+            tmp  = templates[:, t].toarray().reshape(N_e, N_t).T
+            x, y = tmp.nonzero()
+            to_write[t, x, y]                = tmp[x, y] 
+            nb_loc                           = len(numpy.unique(y))
+            mapping[t, numpy.arange(nb_loc)] = numpy.unique(y)
+
+        numpy.save(os.path.join(output_path, 'templates'), to_write)
+        numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
+
+
+    def write_pcs(path, params, extension):
+
+        max_loc_channel = get_max_loc_channel(params)
+        clusters        = load_data(params, 'clusters', extension)
+        best_elec       = clusters['electrodes']
+        nb_features     = params.getint('whitening', 'output_dim')
+
+        nodes, edges    = get_nodes_and_edges(params)
+        templates       = load_data(params, 'templates', extension)
+
+        N_tm            = templates.shape[1]/2
+
+        pc_features     = numpy.zeros((0, nb_features, max_loc_channel), dtype=numpy.float32)
+        pc_features_ind = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
+
+        for count, elec in enumerate(best_elec):
+            nb_loc                = len(edges[elec])
+            pc_features_ind[count, numpy.arange(nb_loc)] = edges[elec]
+
+        for target in xrange(N_tm):
             elec     = clusters['electrodes'][target]
             nic      = target - numpy.where(clusters['electrodes'] == elec)[0][0]
             mask     = clusters['clusters_' + str(elec)] > -1
             tmp      = numpy.unique(clusters['clusters_' + str(elec)][mask])
-            indices  = numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0]
+            indices  = numpy.where(clusters['clusters_' + str(elec)] == tmp[nic])[0]
+            x, y        = clusters['data_' + str(elec)][indices, :].shape
+            data        = clusters['data_' + str(elec)][indices, :].reshape(x, nb_features, y/nb_features)
+            difference  = max_loc_channel - data.shape[2]
+            to_fill     = numpy.zeros((x, nb_features, difference))
+            to_write    = numpy.concatenate((data, to_fill), axis=2)
+            pc_features = numpy.concatenate((pc_features, to_write), axis=0)
 
-        #numpy.save(os.path.join(output_path, 'pc_features'), clusters[idx]) # nspikes, nfeat, n_loc_chan
-        #numpy.save(os.path.join(output_path, 'pc_features_ind'), clusters[idx]) #n_templates, n_loc_chan
+        numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
+        numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
 
-
-    print_info(["Exporting data..."])
+    print_info(["Exporting data for the phy GUI..."])
     
     write_results(output_path, get_results(params, extension))
-    #write_pcs(output_path, load_data(params, 'clusters', extension))
 
     numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.linalg.inv(load_data(params, 'spatial_whitening')))
     numpy.save(os.path.join(output_path, 'channel_positions'), generate_matlab_mapping(probe))
     nodes, edges   = get_nodes_and_edges(params)
     numpy.save(os.path.join(output_path, 'channel_map'), nodes)
 
-    templates = load_data(params, 'templates', extension).toarray()
-    N_tm      = templates.shape[1]
-    templates = templates.reshape(N_e, N_t, N_tm)[:,:,:N_tm/2]
+    write_pcs(output_path, params, extension)
+    write_templates(output_path, params, extension)
 
-    numpy.save(os.path.join(output_path, 'templates'), templates.transpose())
-    temp_mapping = numpy.ones((N_tm/2, len(nodes)), dtype=numpy.int32)*nodes
-    numpy.save(os.path.join(output_path, 'templates_ind'), temp_mapping)
+    similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
+    numpy.save(os.path.join(output_path, 'templates_similarities'), similarities)
 
 
 
