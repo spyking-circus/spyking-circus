@@ -158,6 +158,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.ui.btn_lasso.clicked.connect(self.update_rect_selector)
         self.ui.btn_picker.clicked.connect(self.update_rect_selector)
         self.ui.btn_select.clicked.connect(self.add_to_selection)
+        self.ui.btn_unselect.clicked.connect(self.remove_selection)
 
         self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
         self.ui.btn_merge.clicked.connect(self.do_merge)
