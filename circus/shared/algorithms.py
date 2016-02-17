@@ -6,11 +6,15 @@ from circus.shared.files import load_data, write_datasets, get_overlaps, get_nod
 from circus.shared.mpi import all_gather_array
 import scipy.linalg, scipy.sparse
 
-def distancematrix(data, weight=None):
+def distancematrix(data, weight=None, ydata=None):
     
     if weight is None:
-        weight = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]    
-    distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=numpy.sqrt(weight))**2
+        weight = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]  
+
+    if ydata is None:
+        distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=weight)
+    else:
+        distances = scipy.spatial.distance.cdist(data, ydata, 'wminkowski', p=2, w=weight)
     return distances
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
@@ -82,7 +86,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
             weight   = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]
 
         for i in xrange(N):
-            dist     = numpy.sum(weight*(data[i] - update)**2, 1)
+            dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update)
             exp_dist = numpy.exp(-(dist/dc)**2)
             rho[i]   = numpy.sum(exp_dist)
     return rho, dist, dc

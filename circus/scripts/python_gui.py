@@ -55,7 +55,8 @@ def main():
                 max_loc_channel = len(edges[key])
         return max_loc_channel
 
-    def write_results(path, result):
+    def write_results(path, params, extension):
+        result     = get_results(params, extension)
         spikes     = numpy.zeros(0, dtype=numpy.int64)
         clusters   = numpy.zeros(0, dtype=numpy.int32)
         amplitudes = numpy.zeros(0, dtype=numpy.float32)
@@ -71,6 +72,7 @@ def main():
         numpy.save(os.path.join(output_path, 'spike_templates'), clusters[idx])
         numpy.save(os.path.join(output_path, 'spike_times'), spikes[idx])
         numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
+        return spikes[idx]
 
 
     def write_templates(path, params, extension):
@@ -92,18 +94,15 @@ def main():
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
 
 
-    def write_pcs(path, params, extension):
+    def write_pcs(path, params, extension, spikes):
 
         max_loc_channel = get_max_loc_channel(params)
         clusters        = load_data(params, 'clusters', extension)
         best_elec       = clusters['electrodes']
         nb_features     = params.getint('whitening', 'output_dim')
-
         nodes, edges    = get_nodes_and_edges(params)
         templates       = load_data(params, 'templates', extension)
-
         N_tm            = templates.shape[1]/2
-
         pc_features     = numpy.zeros((0, nb_features, max_loc_channel), dtype=numpy.float32)
         pc_features_ind = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
 
@@ -124,23 +123,23 @@ def main():
             to_write    = numpy.concatenate((data, to_fill), axis=2)
             pc_features = numpy.concatenate((pc_features, to_write), axis=0)
 
+        
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
         numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
 
     print_info(["Exporting data for the phy GUI..."])
     
-    write_results(output_path, get_results(params, extension))
-
     numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.linalg.inv(load_data(params, 'spatial_whitening')))
     numpy.save(os.path.join(output_path, 'channel_positions'), generate_matlab_mapping(probe))
     nodes, edges   = get_nodes_and_edges(params)
     numpy.save(os.path.join(output_path, 'channel_map'), nodes)
-
-    write_pcs(output_path, params, extension)
-    write_templates(output_path, params, extension)
-
     similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
     numpy.save(os.path.join(output_path, 'templates_similarities'), similarities)
+
+    spikes = write_results(output_path, params, extension)    
+    write_templates(output_path, params, extension)
+    write_pcs(output_path, params, extension, spikes)
+    
 
 
 
