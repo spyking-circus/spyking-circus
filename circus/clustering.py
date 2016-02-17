@@ -274,7 +274,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             if len(result['data_' + str(elec)]) == 0:
                                                 to_accept = True
                                             else:
-                                                dist = numpy.mean((sub_sub_mat - result['sub_' + str(elec)])**2, 1)
+                                                dist = numpy.sum(result['w_' + str(elec)]*(sub_sub_mat - result['sub_' + str(elec)])**2, 1)
                                                 if numpy.min(dist) >= smart_search[elec]*result['dc_' + str(elec)]:
                                                     to_accept = True
                                                 else:
@@ -366,7 +366,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['tmp_' + str(ielec)]  = pca.fit_transform(result['tmp_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                     result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=None, compute_rho=False)
+                    rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=result['w_' + str(ielec)], compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
@@ -377,10 +377,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             elif gpass == 1:
                 if len(result['data_' + str(ielec)]) > 1:
 
-                    pca                          = PCA(sub_output_dim)
-                    data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
-                    result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
-                    result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
+                    if result['pca_' + str(ielec)] is None:
+                        pca                          = PCA(sub_output_dim)
+                        data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
+                        result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
+                        result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
+                    else:
+                        data = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
+                    
                     rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
                     dist_file = tempfile.NamedTemporaryFile(delete=False)
                     tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))
