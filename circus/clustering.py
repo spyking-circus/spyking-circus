@@ -381,7 +381,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                     result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], compute_rho=True)
+                    rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
                     dist_file = tempfile.NamedTemporaryFile(delete=False)
                     tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))
                     numpy.save(tmp_file, dist)
@@ -389,7 +389,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['dist_' + str(ielec)] = dist_file
                     result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
-                    result['dc_' + str(ielec)]   = dc
+                    if result['dc_' + str(ielec)] is None:
+                        result['dc_' + str(ielec)]   = dc
                     del dist
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])

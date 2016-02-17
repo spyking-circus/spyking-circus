@@ -125,7 +125,7 @@ def main():
             pc_features = numpy.concatenate((pc_features, to_write), axis=0)
 
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
-        numpy.save(os.path.join(output_path, 'pc_features_ind'), pc_features_ind) #n_templates, n_loc_chan
+        numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
 
     print_info(["Exporting data for the phy GUI..."])
     
