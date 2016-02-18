@@ -371,7 +371,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     dimension                    = basis_proj.shape[1] * n_neighb
                     result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float64)/dimension
                     result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
-                smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= 0.9*max_elts_elec*comm.size)
+                smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= 0.5*max_elts_elec*comm.size)
             elif gpass == 1:
                 if len(result['data_' + str(ielec)]) > 1:
 

@@ -156,16 +156,6 @@ class TestClustering(unittest.TestCase):
             self.all_matches   = res[1]
         assert numpy.all(self.all_templates == res[0])
 
-    def test_clustering_smart_search(self):
-        io.change_flag(self.file_name, 'smart_search', '0')
-        mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'smart_search', '3')
-        res = get_performance(self.file_name, 'smart_search')
-        if self.all_templates is None:
-            self.all_templates = res[0]
-            self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == res[0])
-
     def test_clustering_nb_passes(self):
         io.change_flag(self.file_name, 'nb_repeats', '1')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')

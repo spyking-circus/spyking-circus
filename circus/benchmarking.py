@@ -8,9 +8,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
     file_out, ext  = os.path.splitext(os.path.abspath(file_name))
 
-    if benchmark not in ['fitting', 'clustering', 'synchrony']:
+    if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search']:
         if comm.rank == 0:
-            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony]'], 'error', params)
+            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search]'], 'error', params)
         sys.exit(0)
 
     def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe):
@@ -43,6 +43,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
         rate            = 10./corrcoef
         amplitude       = 2
+    if benchmark == 'smart-search':
+        nb_insert       = 10
+        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
+        rate            = 20*numpy.ones(nb_insert)
+        rate[0:2]       = 10
+        amplitude       = 2
+
 
     if comm.rank == 0:
         if os.path.exists(file_out):
@@ -131,7 +138,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 sys.exit(0)
             else:
                 n_elec = all_elecs[count]
-                if benchmark is not 'synchrony':
+                if benchmark not in ['synchrony', 'smart-search']:
                     local_test = n_elec != best_elec
                 else:
                     local_test = n_elec == best_elec
