@@ -16,6 +16,8 @@ import circus.shared.files as io
 
 import circus
 from circus.shared.files import print_error, print_info, write_to_logger
+from circus.shared import gui
+
 
 def main():
 
@@ -308,21 +310,23 @@ Options are:
                             raise
 
     if preview or result:
-        import numpy, pylab
-        from circus.shared.gui import PreviewGUI
+        import pylab
+        from matplotlib.backends import qt_compat
+
+        use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
+        if use_pyside:
+            from PySide import QtGui, QtCore, uic
+        else:
+            from PyQt4 import QtGui, QtCore, uic
+        app = QtGui.QApplication([])
         try:
             pylab.style.use('ggplot')
         except Exception:
             pass
-        pylab.switch_backend('QT4Agg')
+
         if preview:
-            PreviewGUI(io.load_parameters(filename))
-            mng   = pylab.get_current_fig_manager()
-            pylab.tight_layout()
-            pylab.show()
+            mygui = gui.PreviewGUI(io.load_parameters(filename))
             shutil.rmtree(tmp_path_loc)
         elif result:
-            PreviewGUI(io.load_parameters(filename), show_fit=True)
-            mng   = pylab.get_current_fig_manager()
-            pylab.tight_layout()
-            pylab.show()
+            mygui = gui.PreviewGUI(io.load_parameters(filename), show_fit=True)
+        sys.exit(app.exec_())
