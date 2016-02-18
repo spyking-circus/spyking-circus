@@ -180,23 +180,6 @@ def load_parameters(file_name):
             #sys.exit(0)
 
     parser.set('data', 'N_e', str(N_e))   
-
-    for section in ['whitening', 'clustering']:
-        test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
-        if not test: 
-            print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', parser)
-            sys.exit(0)
-
-    test = (parser.getfloat('clustering', 'nclus_min') > 0) and (parser.getfloat('clustering', 'nclus_min') <= 1)
-    if not test:
-        print_and_log(["nclus_min in clustering should be in [0,1]"], 'error', parser)
-        sys.exit(0)
- 
-    test = (parser.getfloat('clustering', 'smart_search') > 0) and (parser.getfloat('clustering', 'smart_search') <= 1)
-    if not test:
-        print_and_log(["smart_search in clustering should be in [0,1]"], 'error', parser)
-        sys.exit(0)
-
     parser.set('fitting', 'space_explo', '1')
     parser.set('fitting', 'nb_chances', '3')
 
@@ -292,6 +275,22 @@ def load_parameters(file_name):
     parser.set('data', 'file_out_suff', file_out  + parser.get('data', 'suffix')) # Output file with suffix
     parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
     parser.set('data', 'dist_peaks', str(N_t)) # Get only isolated spikes for a single electrode (whitening, clustering, basis)    
+
+    for section in ['whitening', 'clustering']:
+        test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
+        if not test: 
+            print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', parser)
+            sys.exit(0)
+
+    test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') <= 1)
+    if not test:
+        print_and_log(["nclus_min in clustering should be in [0,1]"], 'error', parser)
+        sys.exit(0)
+ 
+    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') <= 1)
+    if not test:
+        print_and_log(["smart_search in clustering should be in [0,1]"], 'error', parser)
+        sys.exit(0)
 
     return parser
 
