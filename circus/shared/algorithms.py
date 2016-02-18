@@ -19,6 +19,7 @@ def distancematrix(data, weight=None, ydata=None):
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
+    #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
     gidx   = numpy.where(xdata >= threshold)[0]
     xmdata = xdata[gidx]
     ymdata = ydata[gidx]
@@ -26,13 +27,13 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
 
     def powerlaw(x, a, b, k): 
         with numpy.errstate(all='ignore'):
-            return a*(x**k) + b
+            return numpy.abs(a)*(x**(-numpy.abs(k))) + b
 
     try:
-        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, numpy.median(numpy.log(ymdata)), -1])
+        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, numpy.median(numpy.log(ymdata)), 1])
         pcov         = 1
     except Exception:
-        result, pcov = [0, numpy.median(numpy.log(ymdata)), -1], 0
+        result, pcov = [0, numpy.median(numpy.log(ymdata)), 1], 0
 
     if display:
         fig      = pylab.figure(figsize=(15, 5))
