@@ -13,8 +13,12 @@ from matplotlib.backends import qt_compat
 use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
 if use_pyside:
     from PySide import QtGui, QtCore, uic
+    from PySide.QtCore import Qt
+    from PySide.QtGui import QApplication, QCursor
 else:
     from PyQt4 import QtGui, QtCore, uic
+    from PyQt4.QtCore import Qt
+    from PyQt4.QtGui import QApplication, QCursor
 
 from utils import *
 from algorithms import slice_templates, slice_clusters
@@ -96,9 +100,10 @@ class SymmetricVCursor(widgets.AxesWidget):
 
 class MergeWindow(QtGui.QMainWindow):
 
-    def __init__(self, comm, params):
+    def __init__(self, comm, params, app):
         super(MergeWindow, self).__init__()
 
+        self.app        = app
         self.comm       = comm
         self.params     = params
         sampling_rate   = params.getint('data', 'sampling_rate')
@@ -655,6 +660,8 @@ class MergeWindow(QtGui.QMainWindow):
         # This simply removes the data points for now
         print 'Data indices to merge: ', sorted(self.selected_points)
         
+        self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
+
         for pair in self.pairs[list(self.selected_points), :]:
 
             one_merge = [self.indices[pair[0]], self.indices[pair[1]]]
@@ -708,8 +715,15 @@ class MergeWindow(QtGui.QMainWindow):
         self.update_lag(self.use_lag)
         self.update_data_sort_order()
         self.update_detail_plot()
+        self.plot_scores()
+        # do lengthy process
+        
+        self.app.restoreOverrideCursor()
+
 
     def finalize(self, event):
+
+        self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
         if comm.rank == 0:
             self.mpi_wait = self.comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
@@ -744,6 +758,8 @@ class MergeWindow(QtGui.QMainWindow):
                 maxoverlaps[c, :] = self.overlap[i, to_keep]*self.shape[0] * self.shape[1]
             mydata.close()
 
+        self.app.restoreOverrideCursor()
+        
         sys.exit(0)
 
 

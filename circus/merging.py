@@ -22,5 +22,5 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pylab.style.use('ggplot')
     except Exception:
         pass
-    mygui = gui.MergeWindow(comm, params)
+    mygui = gui.MergeWindow(comm, params, app)
     sys.exit(app.exec_())
