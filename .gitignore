@@ -15,3 +15,8 @@ build
 #Generated python
 *.pyc
 *.egg-info
+
+# General backup/temporary files
+*~
+*.bak
+
