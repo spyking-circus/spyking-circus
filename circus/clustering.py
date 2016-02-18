@@ -135,7 +135,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         ## This is not easy to read, but during the smart search pass, we need to loop over all chunks, and every nodes should
         ## search spikes for a subset of electrodes, to avoid too many communications.
-        if gpass == 1:
+        if gpass <= 1:
             chunks_to_load     = all_chunks
             nb_elecs           = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_e), comm.size))
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
@@ -170,7 +170,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
                     thresholds *= spike_thresh
                 
-                if gpass != 1:
+                if gpass > 1:
                     search_from = numpy.arange(N_e)
                 else:
                     search_from = numpy.arange(comm.rank, N_e, comm.size)    
@@ -228,7 +228,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                         elec = numpy.argmin(local_chunk[peak])
                         
-                        if ((gpass != 1) or (numpy.mod(elec, comm.size) == comm.rank)):
+                        if ((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank)):
 
                             indices = inv_nodes[edges[nodes[elec]]]
 
@@ -338,7 +338,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_mergings    = 0
         cluster_results   = {}
 
-        if gpass != 1:
+        if gpass > 1:
             for ielec in xrange(N_e):
                 result['tmp_' + str(ielec)] = gather_array(result['tmp_' + str(ielec)], comm, numpy.mod(ielec, comm.size), 1)
         elif gpass == 1:
