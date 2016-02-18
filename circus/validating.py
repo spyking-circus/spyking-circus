@@ -61,16 +61,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             spikes[:, :, count] = local_chunk
         return spikes
     
+    def squared_Mahalanobis_distance(A, mu, X):
+        '''Compute the squared Mahalanobis distance.'''
+        N = X.shape[0]
+        d2 = numpy.zeros(N)
+        for i in xrange(0, N):
+            d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
+        return d2
+
+    
     # Initialize the random seed.
     numpy.random.seed(0)
     
     # Retrieve PCA basis.
     basis_proj, basis_rec = io.load_data(params, 'basis')
+    N_p = basis_proj.shape[1]
     # Retrieve sampling rate.
     sampling_rate  = params.getint('data', 'sampling_rate')
     
     
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
+    
+    print("# Ground truth cell's samples...")
     
     # Retrieve the spikes of the "ground truth cell".
     spike_times_gt, spikes_gt = io.load_data(params, 'triggers')
@@ -80,20 +92,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spikes_gt = spikes_gt[:, indices, :]
     
     # Reshape data.
-    shape_gt = spikes_gt.shape
-    spikes_gt = spikes_gt.reshape(shape_gt[0], shape_gt[1] * shape_gt[2])
+    N_t = spikes_gt.shape[0]
+    N_e = spikes_gt.shape[1]
+    N_gt = spikes_gt.shape[2]
+    spikes_gt = spikes_gt.reshape(N_t, N_e * N_gt)
     spikes_gt = spikes_gt.T
     
     # Compute the PCA coordinates of each spike of the "ground truth cell".
     X_gt = numpy.dot(spikes_gt, basis_proj)
+    X_gt = X_gt.T
     # Reshape data.
-    X_gt = X_gt.reshape(X_gt.shape[0] / shape_gt[1], X_gt.shape[1] * shape_gt[1])
+    X_gt = X_gt.reshape(N_p * N_e, N_gt)
+    X_gt = X_gt.T
     # Define the outputs.
-    y_gt = numpy.zeros((X_gt.shape[0], 1))
+    y_gt = numpy.zeros((N_gt, 1))
     
     print("# X_gt.shape")
     print(X_gt.shape)
+    print("# y_gt.shape")
+    print(y_gt.shape)
     
+    
+    ############################################################################
     
     # Compute the forbidden spike times.
     spike_times_fbd = []
@@ -107,6 +127,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
     
+    print("# Non ground truth cell's samples...")
+    
     # Retrieve the spikes of all the "non ground truth cells".
     clusters = io.load_data(params, 'clusters')
     ## Find all the spike times.
@@ -117,9 +139,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
-    alpha = 5
-    print(spike_times_ngt_tmp.size)
-    print(alpha * spike_times_gt.shape[0])
+    alpha = 4
     idxs_ngt = numpy.random.choice(spike_times_ngt_tmp.size,
                                    size=alpha*spike_times_gt.shape[0],
                                    replace=False)
@@ -130,22 +150,30 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spikes_ngt = load_chunk(params, spike_times_ngt)
     
     # Reshape data.
-    shape_ngt = spikes_ngt.shape
-    spikes_ngt = spikes_ngt.reshape(shape_ngt[0], shape_ngt[1] * shape_ngt[2])
+    N_t = spikes_ngt.shape[0]
+    N_e = spikes_ngt.shape[1]
+    N_ngt = spikes_ngt.shape[2]
+    spikes_ngt = spikes_ngt.reshape(N_t, N_e * N_ngt)
     spikes_ngt = spikes_ngt.T
     
     # Compute the PCA coordinates of each spike of the "non ground truth cells".
     X_ngt = numpy.dot(spikes_ngt, basis_proj)
+    X_ngt = X_ngt.T
     # Reshape data.
-    X_ngt = X_ngt.reshape(X_ngt.shape[0] / shape_gt[1], X_ngt.shape[1] * shape_gt[1])
+    X_ngt = X_ngt.reshape(N_p * N_e, N_ngt)
+    X_ngt = X_ngt.T
     # Define the outputs.
-    y_ngt = numpy.ones((X_ngt.shape[0], 1))
+    y_ngt = numpy.ones((N_ngt, 1))
     
     print("# X_ngt.shape")
     print(X_ngt.shape)
+    print("# y_ngt.shape")
+    print(y_ngt.shape)
     
     
     ##### NOISE SAMPLES ########################################################
+    
+    print("# Noise samples...")
     
     # Compute the PCA coordinates of each "non-spike" sample.
     # TODO: replace temporary solution for 'low' and 'high'.
@@ -155,46 +183,48 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_noi = numpy.random.random_integers(low, high, size)
     spike_times_noi = numpy.unique(spike_times_noi)
     spike_times_noi = numpy.setdiff1d(spike_times_noi, spike_times_fbd)
-    alpha = 5
-    print(spike_times_noi.size)
-    print(alpha * spike_times_gt.shape[0])
+    alpha = 4
     idxs_noi = numpy.random.choice(spike_times_noi.size, size=alpha*spike_times_gt.shape[0], replace=False)
     idxs_noi = numpy.unique(idxs_noi)
     spike_times_noi = spike_times_noi[idxs_noi]
     
-    # TODO: filter ground truht spike times.
+    # TODO: filter ground truth spike times.
     
     # Load some "non-spike" samples.
     spikes_noi = load_chunk(params, spike_times_noi)
     
     # Reshape data.
-    shape_noi = spikes_noi.shape
-    spikes_noi = spikes_noi.reshape(shape_noi[0], shape_noi[1] * shape_noi[2])
+    N_t = spikes_noi.shape[0]
+    N_e = spikes_noi.shape[1]
+    N_noi = spikes_noi.shape[2]
+    spikes_noi = spikes_noi.reshape(N_t, N_e * N_noi)
     spikes_noi = spikes_noi.T
     
     # Compute the PCA coordinates of each "non-spike" sample.
     X_noi = numpy.dot(spikes_noi, basis_proj)
+    X_noi = X_noi.T
     # Reshape data.
-    X_noi = X_noi.reshape(X_noi.shape[0] / shape_noi[1], X_noi.shape[1] * shape_noi[1])
+    X_noi = X_noi.reshape(N_p * N_e, N_noi)
+    X_noi = X_noi.T
     # Define outputs.
-    y_noi = numpy.ones((X_noi.shape[0], 1))
+    y_noi = numpy.ones((N_noi, 1))
     
     print("# X_noi.shape")
     print(X_noi.shape)
+    print("# y_noi.shape")
+    print(y_noi.shape)
     
     
     ##### SANITY PLOTS #########################################################
     
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
-
-    #max_component = X_gt.shape[1]
-    max_component = 1 * 3
-    x_component = 0
-    y_component = 1
-    y_component = min(y_component, max_component - 1)
+    
     
     print("# Sanity plots...")
+    
+    #max_component = X_gt.shape[1]
+    max_component = 1 * 3
     
     fig = plt.figure()
     for x_component in xrange(0, max_component):
@@ -202,22 +232,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             fig.suptitle("Samples for validation")
             gs = gridspec.GridSpec(1, 1)
             ax = fig.add_subplot(gs[0])
-            ax.hold(True)
-            ax.plot(X_noi[:, x_component], X_noi[:, y_component], 'r.')
-            ax.plot(X_ngt[:, x_component], X_ngt[:, y_component], 'b.')
-            ax.plot(X_gt[:, x_component], X_gt[:, y_component], 'g.')
-            ax.hold(False)
+            ax.scatter(X_noi[:, x_component], X_noi[:, y_component], c='r')
+            ax.scatter(X_ngt[:, x_component], X_ngt[:, y_component], c='b')
+            ax.scatter(X_gt[:, x_component], X_gt[:, y_component], c='g')
             ax.set_xlabel("%dst principal component" %(x_component + 1))
             ax.set_ylabel("%dnd principal component" %(y_component + 1))
             ax.grid()
             filename = "/tmp/validation-samples-%d-%d.png" %(x_component, y_component)
             plt.savefig(filename)
-            print("%s done." %filename)
+            print("\"%s\" done." %filename)
             fig.clear()
     
     
-
     ##### SAMPLES ##############################################################
+    
+    print("# Samples...")
     
     # Option to include the pairwise product of feature vector elements.
     pairwise = True
@@ -230,15 +259,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if pairwise:
         # With pairwise product of feature vector elements.
-        shape = (X_gt.shape[0] + X_ngt.shape[0] + X_noi.shape[0], N + N * (N + 1) / 2)
+        shape = (N_gt + N_ngt + N_noi, N + N * (N + 1) / 2)
     else:
         # Without pairwise product of feature vector elments.
-        shape = (X_gt.shape[0] + X_ngt.shape[0] + X_noi.shape[0], N)
+        shape = (N_gt + N_ngt + N_noi, N)
     X = numpy.zeros(shape)
     X[:, :N] = X_raw
-    
-    print("# X.shape")
-    print(X.shape)
     
     if pairwise:
         # Add the pairwise product of feature vector elements.
@@ -256,12 +282,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     y_raw = y_raw.flatten()
     y = y_raw
     
+    print("# X_raw.shape")
+    print(X_raw.shape)
+    print("# y_raw.shape")
+    print(y_raw.shape)
+    print("# X.shape")
+    print(X.shape)
+    print("# y.shape")
+    print(y.shape)
     
     
     ##### INITIAL PARAMETER ####################################################
     
-    # TODO: compute the covariance matrix of 
-    # TODO: compute coef of the ellipse
+    print("# Initial parameter...")
     
     # Useful function to convert an ellispoid in standard form to an ellispoid
     # in general form.
@@ -323,28 +356,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         A = numpy.zeros((N, N))
         k = 0
         for i in xrange(0, N):
-            A[i, i] = coefs[1 + N + k]
+            A[i, i] = coefs[1 + N + k, 0]
             k = k + 1
             for j in xrange(i + 1, N):
-                A[i, j] = coefs[1 + N + k] / 2.0
-                A[j, i] = coefs[1 + N + k] / 2.0
+                A[i, j] = coefs[1 + N + k, 0] / 2.0
+                A[j, i] = coefs[1 + N + k, 0] / 2.0
                 k = k + 1
         # Retrieve b.
         b = coefs[1:1+N, 0]
         # Retrieve c.
-        c = coefs[0]
+        c = coefs[0, 0]
         return A, b, c
     
     
     method = 'covariance'
     #method = 'geometric'
-    
-    print("")
-    
+        
     if method is 'covariance':
         
         mu = numpy.mean(X_gt.T, axis=1)
-        sigma = numpy.cov(X_gt.T )
+        sigma = numpy.cov(X_gt.T)
         k = 1.0
         
         sigma_inv = numpy.linalg.inv(sigma)
@@ -373,19 +404,133 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         coefs_init = ellipsoid_standard_to_general(t, s, O)
         
     else:
+        
         raise(Exception)
+    
     
     print("# coefs_init")
     print(coefs_init)
     
-    print("")
+    
+    # Compute false positive rate and true positive rate for various cutoffs.
+    num = 100
+    
+    Mhlnb_gt = squared_Mahalanobis_distance(A_init, mu, X_gt)
+    Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
+    Mhlnb_noi = squared_Mahalanobis_distance(A_init, mu, X_noi)
+    
+    Mhlnb = numpy.concatenate((Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi))
+    Mhlnb = numpy.unique(Mhlnb)
+    Mhlnb = numpy.sort(Mhlnb)
+    indices = numpy.linspace(0, Mhlnb.size - 1, num=num)
+    indices = indices.astype('int')
+    cutoffs = numpy.zeros(num)
+    fprs = numpy.zeros(num)
+    tprs = numpy.zeros(num)
+    for (i, index) in enumerate(indices):
+        cutoffs[i] = Mhlnb[index]
+        cutoff = cutoffs[i]
+        fp = float(numpy.count_nonzero(Mhlnb_ngt < cutoff)
+                   + numpy.count_nonzero(Mhlnb_noi < cutoff))
+        n = float(Mhlnb_ngt.size + Mhlnb_noi.size)
+        fprs[i] = fp / n
+        tp = float(numpy.count_nonzero(Mhlnb_gt < cutoff))
+        p = float(Mhlnb_gt.size)
+        tprs[i] = tp / p
     
     
-    #A_init, b_init, c_init = ellipsoid_coefs_to_matrix(coefs_init)
+    # print("# cutoffs")
+    # print(cutoffs)
+    # print("# fprs")
+    # print(fprs)
+    # print("# tprs")
+    # print(tprs)
+    
+    
+    # Compute false positive rate and true positive rate for the chosen cutoff.
+    cutoff = 89.33 # 0.5 quantile of the chi^2 distribution with 90 degree of freedom
+    fp = float(numpy.count_nonzero(Mhlnb_ngt < cutoff)
+               + numpy.count_nonzero(Mhlnb_noi < cutoff))
+    n = float(Mhlnb_ngt.size + Mhlnb_noi.size)
+    fpr = fp / n
+    tp = float(numpy.count_nonzero(Mhlnb_gt < cutoff))
+    p = float(Mhlnb_gt.size)
+    tpr = tp / p
+    
+    
+    print("# cutoff")
+    print(cutoff)
+    print("# fpr")
+    print(fpr)
+    print("# tpr")
+    print(tpr)
+    
+    
+    # Plot ROC curve.
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.set_aspect('equal')
+    ax.grid(True)
+    ax.set_title("ROC curve for the inital parameter")
+    ax.set_xlabel("False positive rate")
+    ax.set_ylabel("True positive rate")
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.0])
+    ax.plot([0.0, 1.0], [0.0, 1.0], 'k--')
+    ax.plot(fprs, tprs, 'b-')
+    ax.plot(fpr, tpr, 'bo')
+    fig.savefig("/tmp/roc-curve.png")
+    
+    
+    # Compute mean acccuracy for various cutoffs.
+    accs = numpy.zeros(num)
+    for (i, index) in enumerate(indices):
+        cutoff = Mhlnb[index]
+        tp = float(numpy.count_nonzero(Mhlnb_gt <= cutoff))
+        p = float(Mhlnb_gt.size)
+        tn = float(numpy.count_nonzero(cutoff < Mhlnb_ngt)
+                   + numpy.count_nonzero(cutoff < Mhlnb_noi))
+        n = float(Mhlnb_ngt.size + Mhlnb_noi.size)
+        accs[i] = (tp + tn) / (p + n)
+    
+    # Find the optimal cutoff.
+    i_opt = numpy.argmax(accs)
+    cutoff_opt = cutoffs[i_opt]
+    
+    
+    print("# cutoff_opt")
+    print(cutoff_opt)
+    print("# acc_opt")
+    print(accs[i_opt])
+    
+    
+    # Plot accuracy plot.
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.set_title("Accuracy curve for the initial parameter")
+    ax.set_xlabel("Cutoff")
+    ax.set_ylabel("Accuracy")
+    ax.set_xlim([numpy.amin(Mhlnb[indices]), numpy.amax(Mhlnb[indices])])
+    ax.set_ylim([0.0, 1.0])
+    ax.grid(True)
+    ax.plot(Mhlnb[indices], accs, 'b-')
+    ax.plot(Mhlnb[indices[i_opt]], accs[i_opt], 'bo')
+    fig.savefig("/tmp/accuracy-plot.png")
+    
+    
+    # Set cutoff equal to the optimal cutoff.
+    cutoff = cutoff_opt
+    
+    # Scale the ellipse according to the chosen cutoff.
+    A_init = (1.0 / cutoff) * A_init
+    b_init = (1.0 / cutoff) * b_init
+    c_init = (1.0 / cutoff) * (c_init + 1.0) - 1.0
     
     
     
     # SANITY PLOT (ELLIPSE PROJECTION) #########################################
+    
+    print("# Sanity plot (ellipse projection)...")
     
     from sklearn.decomposition import PCA
     
@@ -402,22 +547,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     X_noi_ = pca.transform(X_noi)
     
     # Mean transformation.
-    mu_gt = numpy.mean(X_gt, axis=0)
+    mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
     mu_gt_ = pca.transform(mu_gt)
-    mu_ngt = numpy.mean(X_ngt, axis=0)
+    mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
     mu_ngt_ = pca.transform(mu_ngt)
-    mu_noi = numpy.mean(X_noi, axis=0)
+    mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
     mu_noi_ = pca.transform(mu_noi)
     
     # Ellipse transformation.
+    f = 0.25 * numpy.dot(numpy.dot(b_init, numpy.linalg.inv(A_init)), b_init) - c_init
     t = - 0.5 * numpy.dot(numpy.linalg.inv(A_init), b_init)
-    f = 1.0 / (0.25 * numpy.dot(b_init, numpy.dot(numpy.linalg.inv(A_init), b_init)) - c_init)
-    s, O = numpy.linalg.eigh(numpy.linalg.inv(f * A_init))
+    s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A_init))
     s = numpy.sqrt(s)
-    O_ = pca.transform(t + numpy.multiply(s, O).T)
+    t_ = pca.transform(t)
+    O_ = pca.transform(numpy.multiply(O, s).T + t)
+    
+    
+    print("# s (i.e. demi-axes)")
+    print(s)
+    
     
     # Find plot limits.
-    pad = 0.1
+    pad = 0.3
     x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
     x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
     x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
@@ -428,69 +579,229 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Plot.
     fig = plt.figure()
     ax = fig.gca()
+    ax.set_aspect('equal')
     ax.grid()
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
     ax.set_xlabel("1st component")
     ax.set_ylabel("2nd component")
     # Plot datasets.
-    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g')
-    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b')
-    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r')
+    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
+    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
+    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
     # Plot ellipse transformation.
-    ax.scatter(O_[:, 0], O_[:, 1], c='y', s=50)
+    for i in xrange(0, O_.shape[0]):
+        ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
     # Plot means of datasets.
-    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=100)
-    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=100)
-    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=100)
+    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
     fig.savefig("/tmp/sanity-ellipse-projection-init.png")
     
+    
+    
+    ##### SANITY PLOT (QUADRIC APPARENT CONTOUR) ###############################
+    
+    print("# Sanity plot (quadric apparent contour)...")
+    
+    
+    v1 = pca.components_[0, :]
+    v2 = pca.components_[1, :]
+    
+    
+    # print("# norm(v1)")
+    # print(numpy.linalg.norm(v1))
+    # print("# norm(v2)")
+    # print(numpy.linalg.norm(v2))
+    
+    
+    N = v1.size
+    x = numpy.copy(v1)
+    R = numpy.eye(N)
+    for i in xrange(1, N):
+        x1 = x[0]
+        x2 = x[i]
+        n = numpy.sqrt(x1 * x1 + x2 * x2)
+        if n == 0.0:
+            cos = 1.0
+            sin = 0.0
+        else:
+            cos = x1 / n
+            sin = x2 / n
+        R_ = numpy.eye(N)
+        R_[0, 0] = cos
+        R_[0, i] = sin
+        R_[i, 0] = - sin
+        R_[i, i] = cos
+        x = numpy.dot(R_, x)
+        R = numpy.dot(R_, R)
+    x = numpy.dot(R, v2)
+    for i in xrange(2, N):
+        x1 = x[1]
+        x2 = x[i]
+        n = numpy.sqrt(x1 * x1 + x2 * x2)
+        if n == 0.0:
+            cos = 1.0
+            sin = 0.0
+        else:
+            cos = x1 / n
+            sin = x2 / n
+        R_ = numpy.eye(N)
+        R_[1, 1] = cos
+        R_[1, i] = sin
+        R_[i, 1] = - sin
+        R_[i, i] = cos
+        x = numpy.dot(R_, x)
+        R = numpy.dot(R_, R)
+    
+    
+    # u1 = numpy.dot(R, v1)
+    # u1[numpy.abs(u1) < 1.0e-10] = 0.0
+    # print("# R * v1")
+    # print(u1)
+    # u2 = numpy.dot(R, v2)
+    # u2[numpy.abs(u2) < 1.0e-10] = 0.0
+    # print("# R * v2")
+    # print(u2)
+    
+    
+    R_ = R.T
+    t_ = pca.mean_
+    A_ = numpy.dot(numpy.dot(R_.T, A_init), R_)
+    b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A_init, t_) + b_init)
+    c_ = numpy.dot(numpy.dot(A_init, t_) + b_init, t_) + c_init
+    
+    
+    print("# t_")
+    print(t_)
+    
+    
+    xs = [numpy.array([0.0, 0.0]),
+          numpy.array([1.0, 0.0]),
+          numpy.array([0.0, 1.0])]
+    
+    # Solve the linear system 2 * A.T * y + b = 0 for fixed couples (y_1, y_2).
+    ys = []
+    for x in xs:
+        c1 = 2.0 * A_[2:, 2:].T
+        c2 = - (numpy.dot(2.0 * A_[:2, 2:].T, x) + b_[2:])
+        yx = numpy.linalg.solve(c1, c2)
+        ys.append(yx)
+    
+    
+    k = ys[0].size
+    c1 = numpy.eye(k)
+    c1 = numpy.tile(c1, (3, 3))
+    for (i, x) in enumerate(xs):
+        for (j, v) in enumerate(x):
+            c1[i*k:(i+1)*k, j*k:(j+1)*k] = v * c1[i*k:(i+1)*k, j*k:(j+1)*k]
+    c2 = numpy.concatenate(tuple(ys))
+    m = numpy.linalg.solve(c1, c2)
+    
+    # Reconstruct alpha.
+    alpha_1 = numpy.eye(2)
+    alpha_2 = numpy.hstack((m[0:k].reshape(-1, 1), m[k:2*k].reshape(-1, 1)))
+    alpha = numpy.vstack((alpha_1, alpha_2))
+    # Reconstruct beta.
+    beta_1 = numpy.zeros(2)
+    beta_2 = m[2*k:3*k]
+    beta = numpy.concatenate((beta_1, beta_2))
+    
+    A__ = numpy.dot(alpha.T, numpy.dot(A_, alpha))
+    b__ = numpy.dot(alpha.T, 2.0 * numpy.dot(A_, beta) + b_)
+    c__ = numpy.dot(numpy.dot(A_, beta) + b_, beta) + c_
+    
+    
+    print("# A__")
+    print(A__)
+    print("# b__")
+    print(b__)
+    print("# c__")
+    print(c__)
+    
+    
+    # TODO: plot this conic section.
+    n = 100
+    # x_min = -3100.0
+    # x_max = +3100.0
+    # y_min = -3100.0
+    # y_max = +3100.0
+    x_r = numpy.linspace(x_min, x_max, n)
+    y_r = numpy.linspace(y_min, y_max, n)
+    xx, yy = numpy.meshgrid(x_r, y_r)
+    zz = numpy.zeros(xx.shape)
+    for i in xrange(0, xx.shape[0]):
+        for j in xrange(0, xx.shape[1]):
+            v = numpy.array([xx[i, j], yy[i, j]])
+            zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
+    vv = numpy.array([0.0])
+    # vv = numpy.arange(0.0, 1.0, 0.1)
+    # vv = numpy.arange(0.0, 20.0)
+    
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    ax.set_aspect('equal')
+    ax.grid()
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+    ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
+    # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
+    # ax.clabel(cs, inline=1, fontsize=10)
+    ax.scatter(pca.transform(X_gt)[:, 0], pca.transform(X_gt)[:, 1], c='g', s=5, lw=0.1)
+    fig.savefig("/tmp/contour-init.png")
+    
+    
+    
     ############################################################################
     
-    # # Compute the Mahalanobis distance.
-    # def evaluate_ellipse(A, b, c, X):
-    #     x2 = numpy.sum(numpy.multiply(X.T, numpy.dot(A, X.T)), axis=0)
-    #     x1 = numpy.dot(b, X.T)
-    #     x0 = c
-    #     return numpy.sqrt(x2 + x1 + x0)
-    # def Mahalanobis_distance(A, mu, X):
-    #     X_ = X - mu
-    #     #X_ = X
-    #     return numpy.sqrt(numpy.sum(numpy.multiply(X_.T, numpy.dot(A, X_.T)), axis=0))
-    # mu = numpy.mean(X_gt, axis=0)
-    # Mhlnb_gt = Mahalanobis_distance(A_init, mu, X_gt)
-    # Mhlnb_ngt = Mahalanobis_distance(A_init, mu, X_ngt)
-    # Mhlnb_noi = Mahalanobis_distance(A_init, mu, X_noi)
-    # Ell_gt = evaluate_ellipse(A_init, b_init, c_init, X_gt)
-    # #####
-    # fig = plt.figure()
-    # ax = fig.gca()
-    # ax.grid()
-    # ax.hist(Ell_gt, bins=500)
-    # fig.savefig("/tmp/ellipse-values.png")
-    # #####
-    # #####
-    # fig = plt.figure()
-    # ax = fig.gca()
-    # ax.grid()
-    # ax.hist(Mhlnb_noi, bins=50, color='r')
-    # ax.hist(Mhlnb_ngt, bins=50, color='b')
-    # ax.hist(Mhlnb_gt, bins=75, color='g')
-    # fig.savefig("/tmp/mahalanobis-init.png")
-    # #####
+    # Compute the Mahalanobis distance.
+    def evaluate_ellipse(A, b, c, X):
+        x2 = numpy.sum(numpy.multiply(X.T, numpy.dot(A, X.T)), axis=0)
+        x1 = numpy.dot(b, X.T)
+        x0 = c
+        d2 = x2 + x1 + x0
+        return d2
     
-    # def project_ellipse(A, b, c, v1, v2):
-    #     pass
-    #     return
+    def Mahalanobis_distance(A, mu, X):
+        N = X.shape[0]
+        d2 = numpy.zeros(N)
+        for i in xrange(0, N):
+            d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
+        return d2
     
-    ############################################################################
+    mu = numpy.mean(X_gt, axis=0)
     
+    Mhlnb_gt = Mahalanobis_distance(A_init, mu, X_gt)
+    Mhlnb_ngt = Mahalanobis_distance(A_init, mu, X_ngt)
+    Mhlnb_noi = Mahalanobis_distance(A_init, mu, X_noi)
     
-    ##### TODO: compute the False Positive and False Negative for this initial
-    #####       ellipse.
+    Ell_gt = evaluate_ellipse(A_init, b_init, c_init, X_gt)
+    
+    #####
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid()
+    ax.hist(Ell_gt, bins=75, color='g')
+    fig.savefig("/tmp/ellipse-values.png")
+    #####
+    
+    #####
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid()
+    ax.hist(Mhlnb_noi, bins=50, color='r')
+    ax.hist(Mhlnb_ngt, bins=50, color='b')
+    ax.hist(Mhlnb_gt, bins=75, color='g')
+    fig.savefig("/tmp/mahalanobis-init.png")
+    #####
+    
     
     
     ##### LEARNING #############################################################
+    
+    print("# Learning...")
     
     from sklearn.model_selection import train_test_split
     from sklearn.neural_network import MLPClassifier
@@ -514,69 +825,162 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     y_min = numpy.amin(X[:, y_component]) - pad * y_dif
     y_max = numpy.amax(X[:, y_component]) + pad * y_dif
     h = max(x_dif, y_dif) / 100.0 # step size in the mesh
-    xx, yy = numpy.meshgrid(numpy.arange(x_min, x_max, h),
-                            numpy.arange(y_min, y_max, h))
-    
+    x_r = numpy.arange(x_min, x_max, h)
+    y_r = numpy.arange(y_min, y_max, h)
+    xx, yy = numpy.meshgrid(x_r, y_r)
+        
     # Preprocess dataset.
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    
     
     print("# X_train.shape")
     print(X_train.shape)
     print("# X_test.shape")
     print(X_test.shape)
     
+    
     # Declare model.
-    # clf = MLPClassifier(hidden_layer_sizes=(),
-    #                     activation='logistic',
-    #                     algorithm='l-bfgs',
-    #                     alpha=1e-12, # L2 penalty parameter (regularization)
-    #                     learning_rate='adaptive',
-    #                     max_iter=2000,
-    #                     random_state=1,
-    #                     tol=1e-5,
-    #                     warm_start=True)
     clf = MLPClassifier(hidden_layer_sizes=(),
                         activation='logistic',
                         algorithm='sgd',
-                        learning_rate='constant',
-                        momentum=0.9,
-                        nesterovs_momentum=True,
-                        learning_rate_init=0.2,
-                        warm_start=True)
+                        alpha=1.0e-12,
+                        tol=1.0e-8,
+                        learning_rate='adaptive',
+                        random_state=0,
+                        momentum=0.05,
+                        nesterovs_momentum=False)
     
     # Initialize model (i.e. fake launch + weights initialization).
-    clf.set_params(max_iter=5)
+    clf.set_params(max_iter=1)
+    clf.set_params(learning_rate_init=1.0e-16)
     clf.set_params(warm_start=False)
     clf.fit(X_train, y_train)
-    clf.coefs_ = [coefs_init[1:, :]]
-    clf.intercepts_ = [coefs_init[:1, :]]
-    
-    # Train model.
-    clf.set_params(max_iter=400)
-    clf.set_params(warm_start=True)
-    clf.fit(X_train, y_train)
     
     
-    # Print the current loss computed with the loss function.
-    print("# clf._loss_")
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid()
+    # c_raw = clf.predict(X) 
+    # c_raw = clf.predict_proba(X)[:, 0]
+    c_raw = clf.decision_function(X)
+    x_raw = pca.transform(X_raw)[:, 0]
+    y_raw = pca.transform(X_raw)[:, 1]
+    vmax = max(abs(numpy.amin(c_raw)), abs(numpy.amax(c_raw)))
+    cs = ax.scatter(x_raw, y_raw, c=c_raw, s=5, lw=0.1, cmap='seismic', vmin=-vmax, vmax=vmax)
+    fig.colorbar(cs)
+    fig.savefig("/tmp/temp-1.png")
+    
+    
+    print("")
+    # Print the current loss.
+    print("# clf.loss_")
     print(clf.loss_)
+    # Print the loss curve.
+    print("# clf.loss_curve_")
+    print(clf.loss_curve_)
     # Print the number of iterations the algorithm has ran.
     print("# clf.n_iter_")
     print(clf.n_iter_)
     # Print the score on the test set.
     print("# clf.score(X_test, y_test)")
     print(clf.score(X_test, y_test))
-    # Print prediction at (0, 0).
-    print("# clf.predict([? * [0.0]])")
-    if pairwise:
-        print(clf.predict([(N + N * (N + 1) / 2) * [0.0]]))
-    else:
-        print(clf.predict([N * [0.0]]))
+    print(1.0 - clf.score(X_test, y_test))
+    
+    
+    coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
+    clf.coefs_ = [coefs_init[1:, :]]
+    clf.intercepts_ = [coefs_init[:1, :]]
+    
+    
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid()
+    # c_raw = clf.predict(X)
+    # c_raw = clf.predict_proba(X)[:, 0]
+    c_raw = clf.decision_function(X)
+    x_raw = pca.transform(X_raw)[:, 0]
+    y_raw = pca.transform(X_raw)[:, 1]
+    vmax = max(abs(numpy.amin(c_raw)), abs(numpy.amax(c_raw)))
+    cs = ax.scatter(x_raw, y_raw, c=c_raw, s=5, lw=0.1, cmap='seismic', vmin=-vmax, vmax=vmax)
+    fig.colorbar(cs)
+    fig.savefig("/tmp/temp-2.png")
+    
+    
+    print("")
+    # # Print the current loss.
+    # print("# clf.loss_")
+    # print(clf.loss_)
+    # Print the loss curve.
+    print("# clf.loss_curve_")
+    print(clf.loss_curve_)
+    # # Print the number of iterations the algorithm has ran.
+    # print("# clf.n_iter_")
+    # print(clf.n_iter_)
+    # Print the score on the test set.
+    print("# clf.score(X_test, y_test)")
+    print(clf.score(X_test, y_test))
+    print(1.0 - clf.score(X_test, y_test))
+    
+    
+    # Train model.
+    clf.set_params(max_iter=1000)
+    clf.set_params(learning_rate_init=1.0e-9)
+    clf.set_params(warm_start=True)
+    clf.fit(X_train, y_train)
+    
+    
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid()
+    # c_raw = clf.predict(X)
+    # c_raw = clf.predict_proba(X)[:, 0]
+    c_raw = clf.decision_function(X)
+    x_raw = pca.transform(X_raw)[:, 0]
+    y_raw = pca.transform(X_raw)[:, 1]
+    vmax = max(abs(numpy.amin(c_raw)), abs(numpy.amax(c_raw)))
+    cs = ax.scatter(x_raw, y_raw, c=c_raw, s=5, lw=0.1, cmap='seismic', vmin=-vmax, vmax=vmax)
+    fig.colorbar(cs)
+    fig.savefig("/tmp/temp-3.png")
+    
+    
+    print("")
+    # Print the current loss computed with the loss function.
+    print("# clf.loss_")
+    print(clf.loss_)
+    # Print the loss curve.
+    print("# clf.loss_curve_")
+    print(clf.loss_curve_)
+    # Print the number of iterations the algorithm has ran.
+    print("# clf.n_iter_")
+    print(clf.n_iter_)
+    # Print the score on the test set.
+    print("# clf.score(X_test, y_test)")
+    print(clf.score(X_test, y_test))
+    print(1.0 - clf.score(X_test, y_test))
+    print("")
+    
+    
+    # Plot the loss curve.
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.grid(True, which='both')
+    ax.set_title("Loss curve")
+    ax.set_xlabel("iteration")
+    ax.set_ylabel("loss")
+    x_min = 1
+    x_max = len(clf.loss_curve_) - 1
+    ax.set_xlim([x_min - 1, x_max + 1])
+    # ax.set_ylim([0.0, 1.1 * numpy.amax(clf.loss_curve_[1:])])
+    # ax.plot(range(x_min, x_max + 1), clf.loss_curve_[1:], 'b-')
+    # ax.plot(range(x_min, x_max + 1), clf.loss_curve_[1:], 'bo')
+    ax.semilogy(range(x_min, x_max + 1), clf.loss_curve_[1:], 'b-')
+    # ax.semilogy(range(x_min, x_max + 1), clf.loss_curve_[1:], 'bo')
+    fig.savefig("/tmp/loss-curve.png")
     
     
     # Retrieve the coefficients of the ellipsoid.
-    weights = clf.coefs_[0].flatten() # weight vector
     bias = clf.intercepts_[0].flatten() # bias vector
+    weights = clf.coefs_[0].flatten() # weight vector
     # Concatenate the coefficients.
     coefs = numpy.concatenate((bias, weights))
     coefs = coefs.reshape(-1, 1)
@@ -584,7 +988,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     A, b, c = ellipsoid_coefs_to_matrix(coefs)
     
-    ############################################################################
+    
+    print("# det(A)")
+    print(numpy.linalg.det(A))
+    
+    
+    
+    # SANITY PLOT (ELLIPSE PROJECTION) #########################################
+    
+    print("# Sanity plot (ellipse projection)...")
+    
     from sklearn.decomposition import PCA
     
     
@@ -600,26 +1013,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     X_noi_ = pca.transform(X_noi)
     
     # Mean transformation.
-    mu_gt = numpy.mean(X_gt, axis=0)
+    mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
     mu_gt_ = pca.transform(mu_gt)
-    mu_ngt = numpy.mean(X_ngt, axis=0)
+    mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
     mu_ngt_ = pca.transform(mu_ngt)
-    mu_noi = numpy.mean(X_noi, axis=0)
+    mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
     mu_noi_ = pca.transform(mu_noi)
     
     # Ellipse transformation.
+    f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
     t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b)
-    f = 1.0 / (0.25 * numpy.dot(b, numpy.dot(numpy.linalg.inv(A), b)) - c)
-    print("# f")
-    print(f)
-    s, O = numpy.linalg.eigh(numpy.linalg.inv(f * A))
-    print("# s")
+    s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A))
+    ##### TODO: remove test zone.
+    s = numpy.abs(s)
+    ##### end test zone
+    s = numpy.sqrt(s)
+    t_ = pca.transform(t)
+    O_ = pca.transform(numpy.multiply(s, O).T + t)
+    
+    
+    print("# t")
+    print(t)
+    print("# s (i.e. demi-axes)")
     print(s)
-    #s = numpy.sqrt(s)
-    #O_ = pca.transform(t + numpy.multiply(s, O).T)
+    
     
     # Find plot limits.
-    pad = 0.1
+    pad = 0.3
     x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
     x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
     x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
@@ -630,55 +1050,215 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Plot.
     fig = plt.figure()
     ax = fig.gca()
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    ax.grid()
+    ax.set_aspect('equal')
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+    # Plot datasets.
+    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
+    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
+    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
+    # # Plot ellipse transformation.
+    for i in xrange(0, O_.shape[0]):
+        ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
+    # Plot means of datasets.
+    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+    fig.savefig("/tmp/sanity-ellipse-projection.png")
+    
+    
+    
+    ##### SANITY PLOT (QUADRIC APPARENT CONTOUR) ###############################
+    
+    print("# Sanity plot (quadric apparent contour)...")
+    
+    
+    v1 = pca.components_[0, :]
+    v2 = pca.components_[1, :]
+    
+    
+    # print("# norm(v1)")
+    # print(numpy.linalg.norm(v1))
+    # print("# norm(v2)")
+    # print(numpy.linalg.norm(v2))
+    
+    
+    N = v1.size
+    x = numpy.copy(v1)
+    R = numpy.eye(N)
+    for i in xrange(1, N):
+        x1 = x[0]
+        x2 = x[i]
+        n = numpy.sqrt(x1 * x1 + x2 * x2)
+        if n == 0.0:
+            cos = 1.0
+            sin = 0.0
+        else:
+            cos = x1 / n
+            sin = x2 / n
+        R_ = numpy.eye(N)
+        R_[0, 0] = cos
+        R_[0, i] = sin
+        R_[i, 0] = - sin
+        R_[i, i] = cos
+        x = numpy.dot(R_, x)
+        R = numpy.dot(R_, R)
+    x = numpy.dot(R, v2)
+    for i in xrange(2, N):
+        x1 = x[1]
+        x2 = x[i]
+        n = numpy.sqrt(x1 * x1 + x2 * x2)
+        if n == 0.0:
+            cos = 1.0
+            sin = 0.0
+        else:
+            cos = x1 / n
+            sin = x2 / n
+        R_ = numpy.eye(N)
+        R_[1, 1] = cos
+        R_[1, i] = sin
+        R_[i, 1] = - sin
+        R_[i, i] = cos
+        x = numpy.dot(R_, x)
+        R = numpy.dot(R_, R)
+    
+    
+    # u1 = numpy.dot(R, v1)
+    # u1[numpy.abs(u1) < 1.0e-10] = 0.0
+    # print("# R * v1")
+    # print(u1)
+    # u2 = numpy.dot(R, v2)
+    # u2[numpy.abs(u2) < 1.0e-10] = 0.0
+    # print("# R * v2")
+    # print(u2)
+    
+    
+    R_ = R.T
+    t_ = pca.mean_
+    A_ = numpy.dot(numpy.dot(R_.T, A), R_)
+    b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, t_) + b)
+    c_ = numpy.dot(numpy.dot(A, t_) + b, t_) + c
+    
+    
+    print("# t_")
+    print(t_)
+    
+    
+    xs = [numpy.array([0.0, 0.0]),
+          numpy.array([1.0, 0.0]),
+          numpy.array([0.0, 1.0])]
+    
+    # Solve the linear system 2 * A.T * y + b = 0 for fixed couples (y_1, y_2).
+    ys = []
+    for x in xs:
+        c1 = 2.0 * A_[2:, 2:].T
+        c2 = - (numpy.dot(2.0 * A_[:2, 2:].T, x) + b_[2:])
+        yx = numpy.linalg.solve(c1, c2)
+        ys.append(yx)
+    
+    
+    k = ys[0].size
+    c1 = numpy.eye(k)
+    c1 = numpy.tile(c1, (3, 3))
+    for (i, x) in enumerate(xs):
+        for (j, v) in enumerate(x):
+            c1[i*k:(i+1)*k, j*k:(j+1)*k] = v * c1[i*k:(i+1)*k, j*k:(j+1)*k]
+    c2 = numpy.concatenate(tuple(ys))
+    m = numpy.linalg.solve(c1, c2)
+    
+    # Reconstruct alpha.
+    alpha_1 = numpy.eye(2)
+    alpha_2 = numpy.hstack((m[0:k].reshape(-1, 1), m[k:2*k].reshape(-1, 1)))
+    alpha = numpy.vstack((alpha_1, alpha_2))
+    # Reconstruct beta.
+    beta_1 = numpy.zeros(2)
+    beta_2 = m[2*k:3*k]
+    beta = numpy.concatenate((beta_1, beta_2))
+    
+    A__ = numpy.dot(alpha.T, numpy.dot(A_, alpha))
+    b__ = numpy.dot(alpha.T, 2.0 * numpy.dot(A_, beta) + b_)
+    c__ = numpy.dot(numpy.dot(A_, beta) + b_, beta) + c_
+    
+    
+    print("# A__")
+    print(A__)
+    print("# b__")
+    print(b__)
+    print("# c__")
+    print(c__)
+    
+    
+    # TODO: plot this conic section.
+    n = 100
+    # x_min = -300.0
+    # x_max = +300.0
+    # y_min = -300.0
+    # y_max = +300.0
+    x_r = numpy.linspace(x_min, x_max, n)
+    y_r = numpy.linspace(y_min, y_max, n)
+    xx, yy = numpy.meshgrid(x_r, y_r)
+    zz = numpy.zeros(xx.shape)
+    for i in xrange(0, xx.shape[0]):
+        for j in xrange(0, xx.shape[1]):
+            v = numpy.array([xx[i, j], yy[i, j]])
+            zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
+    vv = numpy.array([0.0])
+    # vv = numpy.arange(0.0, 1.0, 0.1)
+    # vv = numpy.arange(0.0, 20.0)
+    
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    ax.set_aspect('equal')
     ax.grid()
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
-    ax.set_xlabel("1st component")
-    ax.set_ylabel("2nd component")
-    # Plot datasets.
-    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g')
-    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b')
-    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r')
-    # # Plot ellipse transformation.
-    # ax.scatter(O_[:, 0], O_[:, 1], c='y', s=50)
-    # Plot means of datasets.
-    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=100)
-    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=100)
-    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=100)
-    fig.savefig("/tmp/sanity-ellipse-projection.png")
+    ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
+    # cs = ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
+    # cs = ax.contour(xx, yy, zz, colors='y', linewidths=1.0)
+    # ax.clabel(cs, inline=1, fontsize=10)
+    # ax.scatter(pca.transform(X_gt)[:, 0], pca.transform(X_gt)[:, 1], c='g', s=5, lw=0.1)
+    c_raw = clf.predict(X)[0:X_raw.shape[0]]
+    ax.scatter(pca.transform(X_raw)[:, 0], pca.transform(X_raw)[:, 1], c=c_raw, s=5, lw=0.1)
+    fig.savefig("/tmp/contour.png")
     
-    import sys
-    sys.exit(0)
+    
     
     ############################################################################
     
     # Compute the Mahalanobis distance.
-    def Mahalanobis_distance(A, mu, X):
-        X_ = X - mu
-        return numpy.sum(numpy.multiply(X_.T, numpy.dot(A, X_.T)), axis=0)
-    print(A.shape)
-    print(X_gt.shape)
-    print(X_ngt.shape)
-    print(X_noi.shape)
+    def squared_Mahalanobis_distance(A, mu, X):
+        N = X.shape[0]
+        d = numpy.zeros(N)
+        for i in xrange(0, N):
+            d[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
+        return d
+    
     mu = numpy.mean(X_gt, axis=0)
-    Mhlnb_gt = Mahalanobis_distance(-A, mu, X_gt)
-    Mhlnb_ngt = Mahalanobis_distance(-A, mu, X_ngt)
-    Mhlnb_noi = Mahalanobis_distance(-A, mu, X_noi)
-    #####
+    Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
+    Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
+    Mhlnb_noi = squared_Mahalanobis_distance(A, mu, X_noi)
+    
+    
+    print("# Mhlnb_gt")
+    print(Mhlnb_gt)
+    
+    
     fig = plt.figure()
     ax = fig.gca()
     ax.grid()
-    ax.hist(Mhlnb_ngt, bins=25, color='b')
+    ax.hist(Mhlnb_ngt, bins=50, color='b')
+    ax.hist(Mhlnb_noi, bins=50, color='r')
     ax.hist(Mhlnb_gt, bins=75, color='g')
-    ax.hist(Mhlnb_noi, bins=25, color='r')
     fig.savefig("/tmp/mahalanobis.png")
-    #####
     
-    ##### TODO: compute the Mahalanobis distance.
     
-    import sys
-    sys.exit(0)
     
+    ############################################################################
     
     # Compute prediction on a grid of the input space for plotting.
     shape_pre = (xx.shape[0] * xx.shape[1], X_train.shape[1])
@@ -720,7 +1300,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     zz = zz.reshape(xx.shape)
     
     
-    ##### SANITY PLOT
+    
+    ##### SANITY PLOT ##########################################################
     
     fig = plt.figure()
     fig.suptitle("Dataset and decision boundaries")
@@ -755,7 +1336,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     fig.clear()
     
     
-    ##### SANITY PLOT (with PCA)
+    ##### SANITY PLOT (PCA) ####################################################
     
     from sklearn.decomposition import PCA
     
