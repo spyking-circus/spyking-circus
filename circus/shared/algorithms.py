@@ -17,7 +17,7 @@ def distancematrix(data, weight=None, ydata=None):
         distances = scipy.spatial.distance.cdist(data, ydata, 'wminkowski', p=2, w=weight)
     return distances
 
-def fit_rho_delta(xdata, ydata, display=False, threshold=exp(-3**2), max_clusters=10, save=False):
+def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
     #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
     gidx   = numpy.where(xdata >= threshold)[0]
@@ -115,7 +115,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
                 nneigh[ordrho[ii]] = ordrho[jj]
 
     delta[ordrho[0]] = delta.ravel().max()  
-    threshold        = exp(-3**2)
+    threshold        = numpy.exp(-3**2)
     clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
     
     def assign_halo(idx):
