@@ -6,15 +6,20 @@ from circus.shared.files import load_data, write_datasets, get_overlaps, get_nod
 from circus.shared.mpi import all_gather_array
 import scipy.linalg, scipy.sparse
 
-def distancematrix(data, weight=None):
+def distancematrix(data, weight=None, ydata=None):
     
     if weight is None:
-        weight = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]    
-    distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=numpy.sqrt(weight))**2
+        weight = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]  
+
+    if ydata is None:
+        distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=weight)
+    else:
+        distances = scipy.spatial.distance.cdist(data, ydata, 'wminkowski', p=2, w=weight)
     return distances
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
+    #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
     gidx   = numpy.where(xdata >= threshold)[0]
     xmdata = xdata[gidx]
     ymdata = ydata[gidx]
@@ -22,13 +27,13 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
 
     def powerlaw(x, a, b, k): 
         with numpy.errstate(all='ignore'):
-            return a*(x**k) + b
+            return numpy.abs(a)*(x**(-numpy.abs(k))) + b
 
     try:
-        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, numpy.median(numpy.log(ymdata)), -1])
+        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, numpy.median(numpy.log(ymdata)), 1])
         pcov         = 1
     except Exception:
-        result, pcov = [0, numpy.median(numpy.log(ymdata)), -1], 0
+        result, pcov = [0, numpy.median(numpy.log(ymdata)), 1], 0
 
     if display:
         fig      = pylab.figure(figsize=(15, 5))
@@ -82,7 +87,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
             weight   = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]
 
         for i in xrange(N):
-            dist     = numpy.sum(weight*(data[i] - update)**2, 1)
+            dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update)
             exp_dist = numpy.exp(-(dist/dc)**2)
             rho[i]   = numpy.sum(exp_dist)
     return rho, dist, dc

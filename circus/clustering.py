@@ -135,7 +135,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         ## This is not easy to read, but during the smart search pass, we need to loop over all chunks, and every nodes should
         ## search spikes for a subset of electrodes, to avoid too many communications.
-        if gpass == 1:
+        if gpass <= 1:
             chunks_to_load     = all_chunks
             nb_elecs           = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_e), comm.size))
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
@@ -170,7 +170,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
                     thresholds *= spike_thresh
                 
-                if gpass != 1:
+                if gpass > 1:
                     search_from = numpy.arange(N_e)
                 else:
                     search_from = numpy.arange(comm.rank, N_e, comm.size)    
@@ -228,7 +228,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                         elec = numpy.argmin(local_chunk[peak])
                         
-                        if ((gpass != 1) or (numpy.mod(elec, comm.size) == comm.rank)):
+                        if ((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank)):
 
                             indices = inv_nodes[edges[nodes[elec]]]
 
@@ -274,7 +274,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             if len(result['data_' + str(elec)]) == 0:
                                                 to_accept = True
                                             else:
-                                                dist = numpy.mean((sub_sub_mat - result['sub_' + str(elec)])**2, 1)
+                                                dist = algo.distancematrix(sub_sub_mat, result['w_' + str(elec)], result['sub_' + str(elec)])
                                                 if numpy.min(dist) >= smart_search[elec]*result['dc_' + str(elec)]:
                                                     to_accept = True
                                                 else:
@@ -338,14 +338,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_mergings    = 0
         cluster_results   = {}
 
-        if gpass != 1:
+        if gpass > 1:
             for ielec in xrange(N_e):
                 result['tmp_' + str(ielec)] = gather_array(result['tmp_' + str(ielec)], comm, numpy.mod(ielec, comm.size), 1)
         elif gpass == 1:
             for ielec in xrange(comm.rank, N_e, comm.size):
                 result['times_' + str(ielec)] = numpy.copy(result['loc_times_' + str(ielec)])
-                if numpy.any(smart_search > 0):
-                    result.pop('sub_' + str(ielec))
 
         if comm.rank == 0:
             if gpass == 0:
@@ -366,22 +364,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['tmp_' + str(ielec)]  = pca.fit_transform(result['tmp_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                     result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=None, compute_rho=False)
+                    rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=result['w_' + str(ielec)], compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
                     dimension                    = basis_proj.shape[1] * n_neighb
                     result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float64)/dimension
                     result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
-                smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= 0.9*max_elts_elec*comm.size)
+                smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= params.getfloat('clustering', 'nb_elts')*loop_max_elts_elec)
             elif gpass == 1:
                 if len(result['data_' + str(ielec)]) > 1:
 
-                    pca                          = PCA(sub_output_dim)
-                    data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
-                    result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
-                    result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    rho, dist, dc = algo.rho_estimation(data, weight=result['w_' + str(ielec)], compute_rho=True)
+                    if result['pca_' + str(ielec)] is None:
+                        pca                          = PCA(sub_output_dim)
+                        data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
+                        result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
+                        result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
+                    
+                    if smart_search[ielec] == 0:
+                        result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
+
+                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
                     dist_file = tempfile.NamedTemporaryFile(delete=False)
                     tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))
                     numpy.save(tmp_file, dist)
@@ -389,21 +392,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['dist_' + str(ielec)] = dist_file
                     result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
-                    result['dc_' + str(ielec)]   = dc
+                    if result['dc_' + str(ielec)] is None:
+                        result['dc_' + str(ielec)]   = dc
                     del dist
                 else:
-                    n_neighb                     = len(edges[nodes[ielec]])
-                    dimension                    = basis_proj.shape[1] * n_neighb
-                    result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float64)/dimension
-                    result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
+                    if result['pca_' + str(ielec)] is None:
+                        n_neighb                    = len(edges[nodes[ielec]])
+                        dimension                   = basis_proj.shape[1] * n_neighb
+                        result['w_' + str(ielec)]   = numpy.ones(dimension, dtype=numpy.float64)/dimension
+                        result['pca_' + str(ielec)] = numpy.identity(dimension, dtype=numpy.float32)
                     result['rho_'  + str(ielec)] = numpy.zeros(len(result['data_' + str(ielec)]), dtype=numpy.float64)
                     result['norm_' + str(ielec)] = 1
-                    result['dc_' + str(ielec)]   = 1.
+                    if result['dc_' + str(ielec)] is None:
+                        result['dc_' + str(ielec)] = 1.
+
+                    if smart_search[ielec] == 0:
+                        result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
             else:
                 if len(result['tmp_' + str(ielec)]) > 1:
                     data  = numpy.dot(result['tmp_' + str(ielec)], result['pca_' + str(ielec)])
-                    sdata = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
-                    rho, dist, dc = algo.rho_estimation(sdata, dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
+                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
                     result['rho_'  + str(ielec)] += rho
                     result['norm_' + str(ielec)] += len(result['tmp_' + str(ielec)])
 
@@ -446,7 +454,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         mask = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
                         sel  = numpy.unique(cluster_results[ielec]['groups'][mask])
                         data = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
-                        plot.view_clusters(numpy.sqrt(result['w_' + str(ielec)])*data, r, d, c[:max_clusters],
+                        plot.view_clusters(result['w_' + str(ielec)]*data, r, d, c[:max_clusters],
                                            cluster_results[ielec]['groups'], dc=result['dc_' + str(ielec)], injected=injected,
                                            save=save)
 
