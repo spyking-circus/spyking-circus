@@ -399,7 +399,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
                     if result['dc_' + str(ielec)] is None:
-                        result['dc_' + str(ielec)]   = dc
+                        result['dc_' + str(ielec)] = dc
                     del dist
                 else:
                     if result['pca_' + str(ielec)] is None:
@@ -438,10 +438,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                                                               max_clusters=max_clusters)
 
                     # Now we perform a merging step, for clusters that look too similar
-                    data = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
+                    data = result['sub_' + str(ielec)]
                     cluster_results[ielec]['groups'], merged = algo.merging(cluster_results[ielec]['groups'],
                                                                     sim_same_elec,
-                                                                    data)
+                                                                    data*result['w_' + str(ielec)])
 
                     if make_plots:
                         save     = [plot_path, '%d' %ielec]
