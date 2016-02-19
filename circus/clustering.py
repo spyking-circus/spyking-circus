@@ -367,8 +367,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=result['w_' + str(ielec)], compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
                     sda                          = numpy.argsort(dist)
-                    position                     = numpy.round(len(dist)*params.getfloat('clustering', 'smart_search'))
-                    smart_search[ielec]          = dist[sda][int(position)]
+                    position                     = int(len(dist)*params.getfloat('clustering', 'smart_search'))
+                    smart_search[ielec]          = dist[sda][position]
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
                     dimension                    = basis_proj.shape[1] * n_neighb
