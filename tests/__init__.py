@@ -140,7 +140,7 @@ def get_dataset(self):
         io.change_flag(filename, 'make_plots', 'False')
         io.change_flag(filename, 'nb_repeats', '3')
         io.change_flag(filename, 'N_t', '3')
-        io.change_flag(filename, 'smart_search', '3')
+        io.change_flag(filename, 'smart_search', '0')
         io.change_flag(filename, 'max_elts', '10000', 'Fraction')
         io.change_flag(filename, 'filter_done', 'True')
         io.change_flag(filename, 'extraction', 'median-raw')

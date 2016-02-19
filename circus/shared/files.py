@@ -221,7 +221,7 @@ def load_parameters(file_name):
                   ['clustering', 'make_plots', 'bool', 'True'],
                   ['clustering', 'test_clusters', 'bool', 'False'],
                   ['clustering', 'sim_same_elec', 'float', '3'],
-                  ['clustering', 'smart_search', 'float', '3'],
+                  ['clustering', 'smart_search', 'float', '0'],
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
