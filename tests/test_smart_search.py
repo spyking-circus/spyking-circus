@@ -67,7 +67,7 @@ def get_performance(file_name, name):
     pylab.ylim(0, 1.1)
 
     pylab.subplot(122)
-    pylab.plot(rate, res2)
+    pylab.plot(rate, res2, '.')
     pylab.ylabel('Number of templates')
     pylab.xlabel('Rate [Hz]')
     pylab.xlim(rate.min()-0.5, rate.max()+0.5)
