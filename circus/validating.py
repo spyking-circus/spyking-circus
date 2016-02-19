@@ -3,7 +3,7 @@ from .shared.utils import *
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
-    print("Validating...")
+    io.print_and_log(["Start validation..."], level='info', logger=params)
     
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
@@ -92,7 +92,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
-    print("# Ground truth cell's samples...")
+    io.print_and_log(["# Ground truth cell's samples..."], level='info', logger=params)
     
     # Retrieve the spikes of the "ground truth cell".
     spike_times_gt, spikes_gt = io.load_data(params, 'triggers')
@@ -119,10 +119,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# X_gt.shape")
-        print(X_gt.shape)
-        print("# y_gt.shape")
-        print(y_gt.shape)
+        msg = [
+            "# X_gt.shape",
+            "%s" %(X_gt.shape,),
+            "# y_gt.shape",
+            "%s" %(y_gt.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     
@@ -141,7 +144,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
     
-    print("# Non ground truth cell's samples...")
+    io.print_and_log(["# Non ground truth cell's samples..."], level='info', logger=params)
     
     # Retrieve the spikes of all the "non ground truth cells".
     clusters = io.load_data(params, 'clusters')
@@ -181,16 +184,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# X_ngt.shape")
-        print(X_ngt.shape)
-        print("# y_ngt.shape")
-        print(y_ngt.shape)
+        msg = [
+            "# X_ngt.shape",
+            "%s" %(X_ngt.shape,),
+            "# y_ngt.shape",
+            "%s" %(y_ngt.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     
     ##### NOISE SAMPLES ########################################################
     
-    print("# Noise samples...")
+    io.print_and_log(["# Noise samples..."], level='info', logger=params)
     
     # Compute the PCA coordinates of each "non-spike" sample.
     # TODO: replace temporary solution for 'low' and 'high'.
@@ -228,20 +234,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# X_noi.shape")
-        print(X_noi.shape)
-        print("# y_noi.shape")
-        print(y_noi.shape)
+        msg = [
+            "# X_noi.shape",
+            "%s" %(X_noi.shape,),
+            "# y_noi.shape",
+            "%s" %(y_noi.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     
     ##### SANITY PLOTS #########################################################
     
+    io.print_and_log(["# Sanity plots..."], level='info', logger=params)
+    
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     
-    
-    print("# Sanity plots...")
     
     #max_component = X_gt.shape[1]
     max_component = 1 * 3
@@ -269,7 +278,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### SAMPLES ##############################################################
     
-    print("# Samples...")
+    io.print_and_log(["# Samples..."], level='info', logger=params)
     
     # Option to include the pairwise product of feature vector elements.
     pairwise = True
@@ -298,8 +307,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 k = k + 1
         
         if verbose:
-            print("# X.shape (with pairwise product of feature vector element")
-            print(X.shape)
+            msg = [
+                "# X.shape (with pairwise product of feature vector element",
+                "%s" %(X.shape,),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     ## Create the output dataset.
     y_raw = numpy.vstack((y_gt, y_ngt, y_noi))
@@ -308,20 +320,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# X_raw.shape")
-        print(X_raw.shape)
-        print("# y_raw.shape")
-        print(y_raw.shape)
-        print("# X.shape")
-        print(X.shape)
-        print("# y.shape")
-        print(y.shape)
+        msg = [
+            "# X_raw.shape",
+            "%s" %(X_raw.shape,),
+            "# y_raw.shape",
+            "%s" %(y_raw.shape,),
+            "# X.shape",
+            "%s" %(X.shape,),
+            "# y.shape",
+            "%s" %(y.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     
     ##### INITIAL PARAMETER ####################################################
     
-    print("# Initial parameter...")
+    io.print_and_log(["# Initial parameter..."], level='info', logger=params)
+    
     
     # Useful function to convert an ellispoid in standard form to an ellispoid
     # in general form.
@@ -333,10 +349,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ##### TODO: remove test zone
         w, v = numpy.linalg.eigh(A)
         if verbose:
-            #print("# det(A)")
-            #print(numpy.linalg.det(A))
-            print("# Eigenvalues")
-            print(w)
+            msg = [
+                # "# det(A)",
+                # "%s" %(numpy.linalg.det(A),),
+                "# Eigenvalues",
+                "%s" %(w,),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
         ##### end test zone
         b = - 2.0 * numpy.dot(t, A)
         c = numpy.dot(t, numpy.dot(A, t)) - 1
@@ -441,8 +460,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# coefs_init")
-        print(coefs_init)
+        msg = [
+            "# coefs_init",
+            "%s" %(coefs_init,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     # Compute false positive rate and true positive rate for various cutoffs.
@@ -473,12 +495,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        # print("# cutoffs")
-        # print(cutoffs)
-        # print("# fprs")
-        # print(fprs)
-        # print("# tprs")
-        # print(tprs)
+        # msg = [
+        #     "# cutoffs",
+        #     "%s" %(cutoffs,),
+        #     "# fprs",
+        #     "%s" %(fprs,),
+        #     "# tprs",
+        #     "%s" %(tprs,),
+        # ]
+        # io.print_and_log(msg, level='default', logger=params)
         pass
     
     
@@ -494,12 +519,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# cutoff")
-        print(cutoff)
-        print("# fpr")
-        print(fpr)
-        print("# tpr")
-        print(tpr)
+        msg = [
+            "# cutoff",
+            "%s" %(cutoff,),
+            "# fpr",
+            "%s" %(fpr,),
+            "# tpr",
+            "%s" %(tpr),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     if make_plots:
@@ -539,10 +567,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# cutoff_opt_acc")
-        print(cutoff_opt_acc)
-        print("# acc_opt")
-        print(accs[i_opt])
+        msg = [
+            "# cutoff_opt_acc",
+            "%s" %(cutoff_opt_acc,),
+            "# acc_opt",
+            "%s" %accs[i_opt],
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     if make_plots:
@@ -586,10 +617,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# cutoff_opt_norm_acc")
-        print(cutoff_opt_norm_acc)
-        print("# norm_acc_opt")
-        print(norm_accs[i_opt])
+        msg = [
+            "# cutoff_opt_norm_acc",
+            "%s" %(cutoff_opt_norm_acc,),
+            "# norm_acc_opt",
+            "%s" %(norm_accs[i_opt],),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     if make_plots:
@@ -624,7 +658,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # SANITY PLOT (ELLIPSE PROJECTION) #########################################
     
-    print("# Sanity plot (ellipse projection)...")
+    io.print_and_log(["# Sanity plot (ellipse projection)..."], level='info', logger=params)
     
     from sklearn.decomposition import PCA
     
@@ -658,8 +692,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# s (i.e. demi-axes)")
-        print(s)
+        msg = [
+            "# s (i.e. demi-axes)",
+            "%s" %(s,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     # Find plot limits.
@@ -701,7 +738,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### SANITY PLOT (QUADRIC APPARENT CONTOUR) ###############################
     
-    print("# Sanity plot (quadric apparent contour)...")
+    io.print_and_log(["# Sanity plot (quadric apparent contour)..."], level='info', logger=params)
     
     
     v1 = pca.components_[0, :]
@@ -709,10 +746,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        # print("# norm(v1)")
-        # print(numpy.linalg.norm(v1))
-        # print("# norm(v2)")
-        # print(numpy.linalg.norm(v2))
+        # msg = [
+        #     "# norm(v1)",
+        #     "%s" %(numpy.linalg.norm(v1),),
+        #     "# norm(v2)",
+        #     "%s" %(numpy.linalg.norm(v2),),
+        # ]
+        # io.print_and_log(msg, level='default', logger=params)
         pass
     
     
@@ -759,12 +799,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if verbose:
         # u1 = numpy.dot(R, v1)
         # u1[numpy.abs(u1) < 1.0e-10] = 0.0
-        # print("# R * v1")
-        # print(u1)
         # u2 = numpy.dot(R, v2)
         # u2[numpy.abs(u2) < 1.0e-10] = 0.0
-        # print("# R * v2")
-        # print(u2)
+        # msg = [
+        #     "# R * v1",
+        #     "%s" %(u1,),
+        #     "# R * v2",
+        #     "%s" %(u2,),
+        # ]
+        io.print_and_log(msg, level='default', logger=params)
         pass
     
     
@@ -776,8 +819,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# t_")
-        print(t_)
+        msg = [
+            "# t_",
+            "%s" %(t_,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     xs = [numpy.array([0.0, 0.0]),
@@ -817,12 +863,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# A__")
-        print(A__)
-        print("# b__")
-        print(b__)
-        print("# c__")
-        print(c__)
+        msg = [
+            "# A__",
+            "%s" %(A__,),
+            "# b__",
+            "%s" %(b__,),
+            "# c__",
+            "%s" %(c__,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     if make_plots:
@@ -916,7 +965,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### LEARNING #############################################################
     
-    print("# Learning...")
+    io.print_and_log(["# Learning..."], level='info', logger=params)
     
     from sklearn.model_selection import train_test_split
     from sklearn.neural_network import MLPClassifier
@@ -949,10 +998,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# X_train.shape")
-        print(X_train.shape)
-        print("# X_test.shape")
-        print(X_test.shape)
+        msg = [
+            "# X_train.shape",
+            "%s" %(X_train.shape,),
+            "# X_test.shape",
+            "%s" %(X_test.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     # Declare model.
@@ -997,20 +1049,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("")
-        # Print the current loss.
-        print("# clf.loss_")
-        print(clf.loss_)
-        # Print the loss curve.
-        print("# clf.loss_curve_")
-        print(clf.loss_curve_)
-        # Print the number of iterations the algorithm has ran.
-        print("# clf.n_iter_")
-        print(clf.n_iter_)
-        # Print the score on the test set.
-        print("# clf.score(X_test, y_test)")
-        print(clf.score(X_test, y_test))
-        print(1.0 - clf.score(X_test, y_test))
+        msg = [
+            # Print the current loss.
+            "# clf.loss_",
+            "%s" %(clf.loss_,),
+            # Print the loss curve.
+            "# clf.loss_curve_",
+            "%s" %(clf.loss_curve_,),
+            # Print the number of iterations the algorithm has ran.
+            "# clf.n_iter_",
+            "%s" %(clf.n_iter_,),
+            # Print the score on the test set.
+            "# clf.score(X_test, y_test)",
+            "%s" %(clf.score(X_test, y_test),),
+            "%s" %(1.0 - clf.score(X_test, y_test),),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
@@ -1042,20 +1096,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("")
-        # # Print the current loss.
-        # print("# clf.loss_")
-        # print(clf.loss_)
-        # Print the loss curve.
-        print("# clf.loss_curve_")
-        print(clf.loss_curve_)
-        # # Print the number of iterations the algorithm has ran.
-        # print("# clf.n_iter_")
-        # print(clf.n_iter_)
-        # Print the score on the test set.
-        print("# clf.score(X_test, y_test)")
-        print(clf.score(X_test, y_test))
-        print(1.0 - clf.score(X_test, y_test))
+        msg = [
+            # # Print the current loss.
+            # "# clf.loss_",
+            # "%s" %(clf.loss_,),
+            # Print the loss curve.
+            "# clf.loss_curve_",
+            "%s" %(clf.loss_curve_,),
+            # # Print the number of iterations the algorithm has ran.
+            # "# clf.n_iter_",
+            # "%s" %(clf.n_iter_,),
+            # Print the score on the test set.
+            "# clf.score(X_test, y_test)",
+            "%s" %(clf.score(X_test, y_test),),
+            "%s" %(1.0 - clf.score(X_test, y_test),)
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     # Train model.
@@ -1089,21 +1145,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("")
-        # Print the current loss computed with the loss function.
-        print("# clf.loss_")
-        print(clf.loss_)
-        # Print the loss curve.
-        print("# clf.loss_curve_")
-        print(clf.loss_curve_)
-        # Print the number of iterations the algorithm has ran.
-        print("# clf.n_iter_")
-        print(clf.n_iter_)
-        # Print the score on the test set.
-        print("# clf.score(X_test, y_test)")
-        print(clf.score(X_test, y_test))
-        print(1.0 - clf.score(X_test, y_test))
-        print("")
+        msg = [
+            # Print the current loss computed with the loss function.
+            "# clf.loss_",
+            "%s" %(clf.loss_,),
+            # Print the loss curve.
+            "# clf.loss_curve_",
+            "%s" %(clf.loss_curve_,),
+            # Print the number of iterations the algorithm has ran.
+            "# clf.n_iter_",
+            "%s" %(clf.n_iter_,),
+            # Print the score on the test set.
+            "# clf.score(X_test, y_test)",
+            "%s" %(clf.score(X_test, y_test),),
+            "%s" %(1.0 - clf.score(X_test, y_test),),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     if make_plots:
@@ -1140,14 +1197,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# det(A)")
-        print(numpy.linalg.det(A))
+        msg = [
+            "# det(A)",
+            "%s" %(numpy.linalg.det(A),),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     
     # SANITY PLOT (ELLIPSE PROJECTION) #########################################
     
-    print("# Sanity plot (ellipse projection)...")
+    io.print_and_log(["# Sanity plot (ellipse projection)..."], level='info', logger=params)
     
     from sklearn.decomposition import PCA
     
@@ -1184,10 +1244,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# t")
-        print(t)
-        print("# s (i.e. demi-axes)")
-        print(s)
+        msg = [
+            "# t",
+            "%s" %(t,),
+            "# s (i.e. demi-axes)",
+            "%s" %(s,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     if make_plots:
@@ -1230,7 +1293,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### SANITY PLOT (QUADRIC APPARENT CONTOUR) ###############################
     
-    print("# Sanity plot (quadric apparent contour)...")
+    io.print_and_log(["# Sanity plot (quadric apparent contour)..."], level='info', logger=params)
     
     
     v1 = pca.components_[0, :]
@@ -1238,10 +1301,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        # print("# norm(v1)")
-        # print(numpy.linalg.norm(v1))
-        # print("# norm(v2)")
-        # print(numpy.linalg.norm(v2))
+        # msg = [
+        #     "# norm(v1)",
+        #     "%s" %(numpy.linalg.norm(v1),),
+        #     "# norm(v2)",
+        #     "%s" %(numpy.linalg.norm(v2),),
+        # ]
+        # io.print_and_log(msg, level='default', logger=params)
         pass
     
     
@@ -1286,14 +1352,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        # u1 = numpy.dot(R, v1)
-        # u1[numpy.abs(u1) < 1.0e-10] = 0.0
-        # print("# R * v1")
-        # print(u1)
-        # u2 = numpy.dot(R, v2)
-        # u2[numpy.abs(u2) < 1.0e-10] = 0.0
-        # print("# R * v2")
-        # print(u2)
+        u1 = numpy.dot(R, v1)
+        u1[numpy.abs(u1) < 1.0e-10] = 0.0
+        u2 = numpy.dot(R, v2)
+        u2[numpy.abs(u2) < 1.0e-10] = 0.0
+        msg = [
+            "# R * v1",
+            "%s" %(u1,),
+            "# R * v2",
+            "%s" %(u2,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
         pass
     
     
@@ -1305,8 +1374,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# t_")
-        print(t_)
+        msg = [
+            "# t_",
+            "%s" %(t_,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     xs = [numpy.array([0.0, 0.0]),
@@ -1346,12 +1418,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# A__")
-        print(A__)
-        print("# b__")
-        print(b__)
-        print("# c__")
-        print(c__)
+        msg = [
+            "# A__",
+            "%s" %(A__,),
+            "# b__",
+            "%s" %(b__,),
+            "# c__",
+            "%s" %(c__,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     if make_plots:
@@ -1413,8 +1488,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# Mhlnb_gt")
-        print(Mhlnb_gt)
+        msg = [
+            "# Mhlnb_gt",
+            "%s" %(Mhlnb_gt,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     if make_plots:
@@ -1476,7 +1554,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### SANITY PLOT ##########################################################
     
-    print("# Sanity plot...")
+    io.print_and_log(["# Sanity plot..."], level='info', logger=params)
     
     
     if make_plots:
@@ -1515,7 +1593,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### SANITY PLOT (PCA) ####################################################
     
-    print("# Sanity plot (PCA)...")
+    io.print_and_log(["# Sanity plot (PCA)..."], level='info', logger=params)
     
     from sklearn.decomposition import PCA
     
@@ -1550,20 +1628,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# Shapes of the components")
-        print(vpca.shape)
+        msg = [
+            "# Shapes of the components",
+            "%s" %(vpca.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     v = numpy.array([[1.0, 0.0], [0.0, 1.0]])
     vpca = pca.inverse_transform(v)
     
     if verbose:
-        print("# Shapes after inverse transform of v (i.e. vpca)")
-        print(vpca.shape)
-        print("# Shapes X_raw")
-        print(X_raw.shape)
-        print("# Norms of vpca0 and vpca1")
-        print(numpy.linalg.norm(vpca, axis=1))
+        msg = [
+            "# Shapes after inverse transform of v (i.e. vpca)",
+            "%s" %(vpca.shape,),
+            "# Shapes X_raw",
+            "%s" %(X_raw.shape,),
+            "# Norms of vpca0 and vpca1",
+            "%s" %(numpy.linalg.norm(vpca, axis=1),),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     # Retrieve the coefficients of the ellipsoid.
@@ -1574,19 +1658,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("#####")
-        print("# Weights")
-        print(weights)
-        print(type(weights))
-        print(weights.shape)
-        print("# Bias")
-        print(bias)
-        print(type(bias))
-        print(bias.shape)
-        print("# Coefs")
-        print(coefs)
-        print(type(coefs))
-        print(coefs.shape)
+        msg = [
+            "# Weights",
+            "%s" %(weights,),
+            "%s" %(type(weights),),
+            "%s" %(weights.shape,),
+            "# Bias",
+            "%s" %(bias,),
+            "%s" %(type(bias),),
+            "%s" %(bias.shape,),
+            "# Coefs",
+            "%s" %(coefs,),
+            "%s" %(type(coefs),),
+            "%s" %(coefs.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
+    
     
     # Check if ellipsoid.
     # TODO: complete (i.e. check if det(A) > 0 which is the criterion for ellipse).
@@ -1616,10 +1703,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
         N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
         if verbose:
-            print("# K")
-            print(K)
-            print("# N")
-            print(N)
+            msg = [
+                "# K",
+                "%s" %(K,),
+                "# N",
+                "%s" %(N,),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
         # Retrieve the matrix representation.
         A = numpy.zeros((N, N))
         k = 0
@@ -1637,8 +1727,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         ##### TODO: remove test zone
         if verbose:
-            print("# Test of symmetry")
-            print(numpy.all(A == A.T))
+            msg = [
+                "# Test of symmetry",
+                "%s" %(numpy.all(A == A.T),),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
         ##### end test zone
         ##### TODO: remove plot zone
         if make_plots:
@@ -1657,11 +1750,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         ##### TODO: remove print zone.
         if verbose:
-            print("# Semi-axes computation")
-            print("## det(A)")
-            print(numpy.linalg.det(A))
-            print("## evals")
-            print(evals)
+            msg = [
+                "# Semi-axes computation",
+                "## det(A)",
+                "%s" %(numpy.linalg.det(A),),
+                "## evals",
+                "%s" %(evals,),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
         ##### end print zone.
         
         # Semi-axes from reduced canonical equation.
@@ -1716,27 +1812,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# Conversion")
-        print("# Center")
-        print(center)
-        print(center.shape)
-        print("# Eigenaxis")
-        print(eaxis)
-        print(eaxis.shape)
-        print("# Eigenvectors")
-        print(evecs)
-        print(evecs.shape)
+        msg = [
+            "# Conversion",
+            "# Center",
+            "%s" %(center,),
+            "%s" %(center.shape,),
+            "# Eigenaxis",
+            "%s" %(eaxis,),
+            "%s" %(eaxis.shape,),
+            "# Eigenvectors",
+            "%s" %(evecs,),
+            "%s" %(evecs.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     coefs_bis = ellipsoid_standard_to_general(center, eaxis, evecs)
     
     
     if verbose:
-        print("# Transform and untransfrom")
-        print("# coefs")
-        print(coefs)
-        print("# coefs_bis")
-        print(coefs_bis)
+        msg = [
+            "# Transform and untransfrom",
+            "# coefs",
+            "%s" %(coefs,),
+            "# coefs_bis",
+            "%s" %(coefs_bis,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     
     # TODO: compute the projection of the eigenvectors on Vect(vpca[0, :], vpca[1, :]).
@@ -1772,12 +1874,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if verbose:
-        print("# Center projection")
-        print(cprojs)
-        print(cprojs.shape)
-        # print("# Eigenprojections")
-        # print(eprojs)
-        # print(eprojs.shape)
+        msg = [
+            "# Center projection",
+            "%s" %(cprojs,),
+            "%s" %(cprojs.shape,),
+            # "# Eigenprojections",
+            # "%s" %(eprojs,),
+            # "%s" %(eprojs.shape,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
+
     
     
     
@@ -1841,7 +1947,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # SANITY PLOTS (REDUCED DATASETS) ##########################################
     
-    print("# Sanity plots (reduced datasets)...")
+    io.print_and_log(["# Sanity plots (reduced datasets)..."], level='info', logger=params)
     
     
     if make_plots:
@@ -1912,6 +2018,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     
-    print("End validating.")
+    io.print_and_log(["Validation done."], level='info', logger=params)
     
     return
