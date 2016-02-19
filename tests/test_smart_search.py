@@ -100,7 +100,7 @@ def get_performance(file_name, name):
 
     plot_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
     plot_path = os.path.join(plot_path, 'plots')
-    plot_path = os.path.join(plot_path, 'clustering')
+    plot_path = os.path.join(plot_path, 'smart-search')
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
     output = os.path.join(plot_path, '%s.pdf' %name)
