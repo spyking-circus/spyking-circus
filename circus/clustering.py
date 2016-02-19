@@ -275,7 +275,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                                 to_accept = True
                                             else:
                                                 dist = algo.distancematrix(sub_sub_mat, result['w_' + str(elec)], result['sub_' + str(elec)])
-                                                if numpy.min(dist) >= smart_search[elec]*result['dc_' + str(elec)]:
+                                                if numpy.min(dist) >= smart_search[elec]:
                                                     to_accept = True
                                                 else:
                                                     rejected += 1
@@ -366,12 +366,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=result['w_' + str(ielec)], compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
+                    sda                          = numpy.argsort(dist)
+                    position                     = numpy.round(len(dist)*params.getfloat('clustering', 'smart_search'))
+                    smart_search[ielec]          = dist[sda][int(position)]
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
                     dimension                    = basis_proj.shape[1] * n_neighb
                     result['w_' + str(ielec)]    = numpy.ones(dimension, dtype=numpy.float64)/dimension
                     result['pca_' + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
+                    smart_search[ielec]          = 0
+
                 smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= params.getfloat('clustering', 'nb_elts')*loop_max_elts_elec)
+
             elif gpass == 1:
                 if len(result['data_' + str(ielec)]) > 1:
 

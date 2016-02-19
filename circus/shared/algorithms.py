@@ -15,6 +15,7 @@ def distancematrix(data, weight=None, ydata=None):
         distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=weight)
     else:
         distances = scipy.spatial.distance.cdist(data, ydata, 'wminkowski', p=2, w=weight)
+
     return distances
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
@@ -74,7 +75,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
         if dc is None:
             sda      = numpy.argsort(dist)
-            position = numpy.round(N*2/100.)
+            position = numpy.round(len(dist)*2/100.)
             dc       = dist[sda][int(position)]
 
         if compute_rho:
