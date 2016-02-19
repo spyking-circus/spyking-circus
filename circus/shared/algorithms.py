@@ -46,7 +46,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
         if dc is None:
             sda = numpy.argsort(dist)
-            dc  = dist[sda][int(len(dist)*0.0001)]
+            dc  = dist[sda][int(len(dist)*2e-5)]
 
         if compute_rho:
             exp_dist = numpy.exp(-(dist/dc)**2)
