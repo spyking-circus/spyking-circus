@@ -5,12 +5,14 @@ suffix         =                        # Suffix to add to generated files
 data_dtype     = uint16                 # Type of the data
 dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
 spike_thresh   = 6                      # Threshold for spike detection
+skip_artefact  = False                  # Skip part of signals with large fluctuations
 sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 N_t            = 5                      # Width of the templates [in ms]
 stationary     = True                   # Should be False for long recordings: adaptive thresholds
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)
 alignement     = True                   # Realign the waveforms by oversampling
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
+multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
 
 [filtering]
 cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
@@ -18,7 +20,7 @@ filter         = True      # If True, then a low-pass filtering is performed
 
 [whitening]
 chunk_size     = 60        # Size of the data chunks [in s]
-safety_time    = auto      # Temporal zone around which templates are isolated [in ms]
+safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
 temporal       = False     # Perform temporal whitening
 spatial        = True      # Perform spatial whitening
 max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
@@ -26,19 +28,19 @@ nb_elts        = 0.8       # Fraction of max_elts that should be obtained per el
 output_dim     = 5         # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 
 [clustering]
-extraction     = median-pca # How to extract templates. Can be either quadratic, median-pca (default), median-raw
+extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw, or quadratic
 safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
 safety_time    = auto       # Temporal zone around which templates are isolated [in ms]
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
-nclus_min      = 0.05       # Min number of elements in a cluster (given in percentage)
+nclus_min      = 0.02       # Min number of elements in a cluster (given in percentage)
 max_clusters   = 10         # Maximal number of clusters for every electrodes
 nb_repeats     = 3          # Number of passes used for the clustering
-smart_search   = 3          # Parameter for the smart search. The higher, the more strict
+smart_search   = 0          # Parameter for the smart search [0-1]. The higher, the more strict
 sim_same_elec  = 3          # Distance within clusters under which they are re-merged
 cc_merge       = 0.95       # If CC between two templates is higher, they are merged
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
-make_plots     = False      # Generate sanity plots of the clustering
+make_plots     = True       # Generate sanity plots of the clustering
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
 
 [fitting]

@@ -1,6 +1,6 @@
 function varargout = SortingGUI(varargin)
 
-% SortingGUI(20000,'/Users/olivier/ownCloud/SpikeSorting/kenneth/20141202_all/20141202_all','-final.mat','../mappings/kenneth.mapping.mat',2,'int16',0,0.1)
+% SortingGUI(20000,'mydata/mydata','.mat','../mappings.mat',2,'int16',0,0.1)
 %SamplingRate, filename, extension, mappingfile, RPVlimit, format,
 %HeaderSize, Gain
 
@@ -78,13 +78,17 @@ set(handles.Xscale, 'String', '2');
 set(handles.XYratio, 'String', '2');
 set(handles.CrossCorrMaxBin,'String','2');
 
-if length(varargin)<=3
-    load('../mappings/mea_252.mapping.mat','-mat')
+if size(strfind(varargin{4}, '.mat')) > 0
+    b                  = load(varargin{4}, '-mat');
+    handles.Positions  = double(b.Positions);
+    handles.NelecTot   = b.nb_total;
+    handles.ElecPermut = b.Permutation;
 else
-    load(varargin{4},'-mat')
+    handles.Positions  = double(transpose(h5read(varargin{4}, '/positions')));
+    handles.ElecPermut = h5read(varargin{4}, '/permutation');
+    handles.NelecTot   = h5read(varargin{4}, '/nb_total');
 end
 
-handles.Positions   = double(Positions);
 handles.H.MaxdiffX  = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
 handles.H.MaxdiffY  = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
 handles.H.zoom_coef = max(handles.H.MaxdiffX,handles.H.MaxdiffY);
@@ -227,10 +231,6 @@ if length(varargin)>=6
                 end
             end     
         end
-
-        b                  = load(varargin{4}, '-mat');
-        handles.NelecTot   = b.nb_total;
-        handles.ElecPermut = b.Permutation;
     end
 end
 
@@ -817,7 +817,7 @@ end
 
 comp     = max(comp,[],1);
 [val,id] = sort(comp,'descend');
-IdTempl  = id(SimilarNb+1);%The first one is the template with itself. 
+IdTempl  = id(SimilarNb);%The first one is the template with itself. 
 
 if get(handles.SameElec,'Value')~=0 & val(SimilarNb+1)==0
     disp('No more templates to compare in the same electrode')

@@ -1,10 +1,8 @@
-import numpy, scipy
-import pylab
-import os
-
+import numpy, scipy, pylab, os
 from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results, read_probe
 import numpy, pylab
 from circus.shared import algorithms as algo
+from circus.shared.utils import *
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
@@ -110,7 +108,6 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
 
 def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=False):
 
-    import mdp
     fig = pylab.figure(figsize=(15, 10))
     ax  = fig.add_subplot(231)
     ax.set_xlabel(r'$\rho$')
@@ -129,11 +126,12 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
             colorVal = scalarMap.to_rgba(halo[i])
             ax.plot(rho[i], delta[i], 'o', color=colorVal)
 
-    pca = mdp.nodes.PCANode(output_dim=3)
-    visu_data = pca(data.astype(numpy.double))
-    assigned  = numpy.where(halo > -1)[0]
-
     try:
+
+        pca = PCA(3)
+        visu_data = pca.fit_transform(data.astype(numpy.double))
+        assigned  = numpy.where(halo > -1)[0]
+
         ax = fig.add_subplot(232)
         ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0)
         ax.set_xlabel('Dim 0')
@@ -342,7 +340,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
 
 
 
-def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100):
+def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100, temp_id=None):
     
     params          = load_parameters(file_name)
     N_e             = params.getint('data', 'N_e')
@@ -355,7 +353,11 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
     N_t              = params.getint('data', 'N_t')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
-    
+
+    if temp_id is not None:
+        templates    = load_data(params, 'templates')
+        mytemplate   = templates[:, temp_id].toarray().reshape(N_e, N_t)
+
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
@@ -375,8 +377,6 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
             data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
         
         curve[count] = data.T
-    pylab.subplot(111)
-    pylab.imshow(numpy.mean(curve, 0), aspect='auto') 
 
     if not numpy.iterable(n_elec):
         if square:
@@ -387,6 +387,7 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         idx    = n_elec
         n_elec = numpy.sqrt(len(idx))
     pylab.figure()
+
     for count, i in enumerate(idx):
         if square:
             pylab.subplot(n_elec, n_elec, count + 1)
@@ -404,10 +405,12 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         xmin, xmax = pylab.xlim()
         pylab.plot([xmin, xmax], [-thresholds[i], -thresholds[i]], 'k--')
         pylab.plot([xmin, xmax], [thresholds[i], thresholds[i]], 'k--')
-        pylab.title('Electrode %d' %i)
+        if temp_id is not None:
+            pylab.plot(mytemplate[i, :], 'b')
+        pylab.title('Elec %d' %i)
         if xzoom:
             pylab.xlim(xzoom[0], xzoom[1])
-        pylab.ylim(-2*thresholds[i], 2*thresholds[i])
+        #pylab.ylim(-5*thresholds[i], 5*thresholds[i])
         if yzoom:
             pylab.ylim(yzoom[0], yzoom[1])
     pylab.tight_layout()

@@ -42,12 +42,12 @@ def get_performance(file_name, name):
     res3            = numpy.zeros(len(n_cells))
 
     for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
-        source_temp = inj_templates[:, temp_id].toarray()
+        source_temp = inj_templates[:, temp_id].toarray().flatten()
         similarity  = []
         temp_match  = None
         dmax        = 0
         for i in xrange(templates.shape[1]/2):
-            d = numpy.corrcoef(templates[:, i].toarray(), source_temp)[0, 1]
+            d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
             if d > dmax:
                 temp_match = i
@@ -127,6 +127,7 @@ class TestClustering(unittest.TestCase):
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
+            mpi_launch('whitening', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
 
     def test_clustering_one_CPU(self):
@@ -148,18 +149,8 @@ class TestClustering(unittest.TestCase):
     def test_clustering_quadratic(self):
         io.change_flag(self.file_name, 'extraction', 'quadratic')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'extraction', 'median')
+        io.change_flag(self.file_name, 'extraction', 'median-raw')
         res = get_performance(self.file_name, 'quadratic')
-        if self.all_templates is None:
-            self.all_templates = res[0]
-            self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == res[0])
-
-    def test_clustering_smart_search(self):
-        io.change_flag(self.file_name, 'smart_search', '0')
-        mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'smart_search', '3')
-        res = get_performance(self.file_name, 'smart_search')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]

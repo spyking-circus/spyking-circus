@@ -7,7 +7,10 @@ import sys
 import circus
 
 
-if __name__ == '__main__':
+def main():
+
+    argv = sys.argv
+    
     # This should not never be called by the user, therefore we can assume a
     # standard format
     assert (len(sys.argv) == 6) or (len(sys.argv) == 8), 'Incorrect number of arguments -- do not run this script manually, use "spyking-circus" instead'

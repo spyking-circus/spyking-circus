@@ -118,7 +118,7 @@ class TestFitting(unittest.TestCase):
     
     def setUp(self):
         self.all_spikes     = None
-        self.max_chunk      = '2'
+        self.max_chunk      = '100'
         dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
@@ -127,6 +127,8 @@ class TestFitting(unittest.TestCase):
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
+            mpi_launch('whitening', self.file_name, 2, 0, 'False')
+
 
     def test_fitting_one_CPU(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
@@ -175,6 +177,7 @@ class TestFitting(unittest.TestCase):
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
 
+    '''
     def test_fitting_refractory(self):
         io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
         io.change_flag(self.file_name, 'refractory', '5')
@@ -185,3 +188,4 @@ class TestFitting(unittest.TestCase):
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
+    '''

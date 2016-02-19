@@ -17,9 +17,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
     file_out, ext  = os.path.splitext(os.path.abspath(file_name))
 
-    if benchmark not in ['fitting', 'clustering', 'synchrony', 'pca-validation']:
+    if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search']:
         if comm.rank == 0:
-            io.print_error(['Benchmark need to be in [fitting, clustering, synchrony, pca-validation]'])
+            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search]'], 'error', params)
         sys.exit(0)
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
@@ -73,7 +73,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude_min   = 0.5
         amplitude_max   = 5.0
         amplitude       = amplitude_min + (amplitude_max - amplitude_min) * numpy.random.random_sample(nb_insert)
-
+    if benchmark == 'smart-search':
+        nb_insert       = 10
+        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
+        rate            = 50*numpy.ones(nb_insert)
+        rate[0:2]       = 5
+        amplitude       = 2
+    
     # Delete the output directory tree if this output directory exists.
     if comm.rank == 0:
         if os.path.exists(file_out):
@@ -143,11 +149,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     scalings       = []
     data_mpi       = get_mpi_type('float32')
     if comm.rank == 0:
-        file = open(file_name, 'w')
-        for i in xrange(data_offset):
-            file.write('1')
-        file.close()
-    
+        io.copy_header(data_offset, params.get('data', 'data_file'), file_name)
+
     # Synchronize all the threads/processes.
     comm.Barrier()
 
@@ -167,20 +170,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
-                    io.print_error(["No electrode to move template %d (max similarity is %g)"
-                                    %(cell_id, similarity)])
+                    io.print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
                 sys.exit(0)
             else:
                 # Get the next shuffled electrode.
                 n_elec = all_elecs[count]
-                if benchmark is 'synchrony':
-                    # Process if the shuffled electrode and the nearest electrode
-                    # to the synthesized cell are identical.
-                    local_test = n_elec == best_elec
-                else:
+
+                if benchmark not in ['synchrony', 'smart-search']:
                     # Process if the shuffled electrode and the nearest electrode
                     # to the synthesized cell are not identical.
                     local_test = n_elec != best_elec
+                else:
+                    # Process if the shuffled electrode and the nearest electrode
+                    # to the synthesized cell are identical.
+                    local_test = n_elec == best_elec
 
                 if local_test:
                     # Shuffle the neighboring electrodes whithout modifying
@@ -309,7 +312,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     # Display informations about the generated benchmark.
     if comm.rank == 0:
-        io.print_info(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)])
+        io.print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
         io.purge(file_out, '.data')
 
     # Compute the shift to center template.
@@ -399,16 +402,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             norm_flat      = numpy.sum(first_flat ** 2)
             # For each index (i.e. spike sample location) add the spike to the
             # chunk of data.
+            refractory     = int(5 * 1e-3 * sampling_rate)         
+            t_last         = - refractory
             for scount, spike in enumerate(spikes):
-                window = numpy.arange(spike - template_shift, spike + template_shift + 1, 1)
-                local_chunk[window, :] += loc_template.T
-                amp        = numpy.dot(local_chunk[window, :].flatten(), first_flat)
-                amp       /= norm_flat
-                result['real_amps']  += [amp]
-                result['spiketimes'] += [spike + offset]
-                result['amplitudes'] += [(1, 0)]
-                result['templates']  += [n_template]
-                result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
+                if (spike - t_last) > refractory:
+                    local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
+                    amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
+                    amp       /= norm_flat
+                    result['real_amps']  += [amp]
+                    result['spiketimes'] += [spike + offset]
+                    result['amplitudes'] += [(1, 0)]
+                    result['templates']  += [n_template]
+                    result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
+                    t_last                = spike
 
         # Write the results into the thread/process' files.
         spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
@@ -490,9 +496,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         mydata.create_dataset('electrodes', data=best_elecs)
         mydata.close()
 
+    comm.Barrier()
+    if comm.rank == 0:
         # Gather data from all threads/processes.
-        io.collect_data(comm.size, io.load_parameters(file_params), erase=True,
-                        with_real_amps=True, with_voltages=True)
+        io.collect_data(comm.size, io.load_parameters(file_name), erase=True, with_real_amps=True, with_voltages=True)
         # Change some flags in the configuration file.
         io.change_flag(file_name, 'temporal', 'False') # Disable temporal filtering
         io.change_flag(file_name, 'spatial', 'False') # Disable spatial filtering
@@ -500,9 +507,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.change_flag(file_name, 'dtype_offset', 'auto') # Set padding for data to auto
         # Move results from `<dataset>/<dataset>.result.hdf5` to
         # `<dataset>/injected/<dataset>.result.hdf5`.
-        shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'),
-                    os.path.join(result_path, data_suff + '.result.hdf5'))
-
+        shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'), os.path.join(result_path, data_suff + '.result.hdf5'))
+                
         # Save scalings into `<dataset>/injected/<dataset>.scalings.npy`.
         numpy.save(os.path.join(result_path, data_suff + '.scalings'), scalings)
 

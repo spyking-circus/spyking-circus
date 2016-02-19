@@ -1,70 +1,73 @@
 import matplotlib
 matplotlib.use('Agg')
 import os
-os.environ['MDP_DISABLE_SKLEARN']='yes'
-import scipy.optimize, numpy, pylab, mdp, scipy.spatial.distance, scipy.stats, progressbar
+import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats, progressbar
 from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges
 from circus.shared.mpi import all_gather_array
 import scipy.linalg, scipy.sparse
 
-def distancematrix(data, weight=None):
+def distancematrix(data, weight=None, ydata=None):
     
     if weight is None:
-        weight = numpy.ones(data.shape[1])/data.shape[1]    
-    distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=numpy.sqrt(weight))**2
+        weight = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]  
+
+    if ydata is None:
+        distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=weight)
+    else:
+        distances = scipy.spatial.distance.cdist(data, ydata, 'wminkowski', p=2, w=weight)
+
     return distances
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
 
-    gamma = xdata * ydata
+    #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
+    gidx   = numpy.where(xdata >= threshold)[0]
+    xmdata = xdata[gidx]
+    ymdata = ydata[gidx]
+    gamma  = xmdata * ymdata
 
     def powerlaw(x, a, b, k): 
         with numpy.errstate(all='ignore'):
-            return a*(x**k) + b
+            return numpy.abs(a)*(x**(-numpy.abs(k))) + b
 
     try:
-        sort_idx     = numpy.argsort(xdata)    
-        result, pcov = scipy.optimize.curve_fit(powerlaw, xdata, numpy.log(ydata), [1, 1, 0])
-        data_fit     = numpy.exp(powerlaw(xdata[sort_idx], result[0], result[1], result[2]))
-        xaxis        = numpy.linspace(xdata.min(), xdata.max(), 1000)
-        padding      = threshold
+        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, numpy.median(numpy.log(ymdata)), 1])
+        pcov         = 1
     except Exception:
-        return numpy.argsort(gamma)
+        result, pcov = [0, numpy.median(numpy.log(ymdata)), 1], 0
 
     if display:
         fig      = pylab.figure(figsize=(15, 5))
         ax       = fig.add_subplot(111)
-        
-        ax.plot(xdata, ydata, 'k.')
-        ax.plot(xdata[sort_idx], data_fit)
+        sort_idx = numpy.argsort(xmdata)
+        data_fit = numpy.exp(powerlaw(xmdata[sort_idx], result[0], result[1], result[2]))    
+        ax.plot(xmdata, ymdata, 'k.')
+        ax.plot(xmdata[sort_idx], data_fit)
         ax.set_yscale('log')
         ax.set_ylabel(r'$\delta$')
         ax.set_xlabel(r'$\rho$')
 
-    idx      = numpy.where((xdata > padding) & (ydata > data_fit))[0]
-    if len(idx) == 0:
-        subidx = numpy.argsort(gamma)
-    with numpy.errstate(all='ignore'):
-        mask     = (xdata > padding).astype(int)
-        value    = ydata - numpy.exp(powerlaw(xdata, result[0], result[1], result[2]))
-        value   *= mask
-        subidx   = numpy.argsort(value)[::-1]
+    value = ymdata - numpy.exp(powerlaw(xmdata, result[0], result[1], result[2]))
+    
+    if not numpy.any(value > 0):
+        subidx = gidx[numpy.argsort(gamma)[::-1]]
+    else:
+        subidx = gidx[numpy.argsort(value)[::-1]]
 
-        if display:
-            ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
-            if save:
-                pylab.savefig(os.path.join(save[0], 'rho_delta_%s.png' %(save[1])))
-                pylab.close()
-            else:
-                pylab.show()
-        return subidx
+    if display:
+        ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
+        if save:
+            pylab.savefig(os.path.join(save[0], 'rho_delta_%s.png' %(save[1])))
+            pylab.close()
+        else:
+            pylab.show()
+    return subidx
 
 
 def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
     N    = len(data)
-    rho  = numpy.zeros(N, dtype=numpy.float32)
-    dist = numpy.zeros(0, dtype=numpy.float32)
+    rho  = numpy.zeros(N, dtype=numpy.float64)
         
     if update is None:
         dist = distancematrix(data, weight=weight)
@@ -72,7 +75,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
         if dc is None:
             sda      = numpy.argsort(dist)
-            position = numpy.round(N*2/100.)
+            position = numpy.round(len(dist)*2/100.)
             dc       = dist[sda][int(position)]
 
         if compute_rho:
@@ -82,10 +85,10 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
                 rho[i]  = numpy.sum(exp_dist[indices])  
     else:
         if weight is None:
-            weight   = numpy.ones(data.shape[1])/data.shape[1]
+            weight   = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]
 
         for i in xrange(N):
-            dist     = numpy.sum(weight*(data[i] - update)**2, 1)
+            dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update)
             exp_dist = numpy.exp(-(dist/dc)**2)
             rho[i]   = numpy.sum(exp_dist)
     return rho, dist, dc
@@ -98,7 +101,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
     didx              = lambda i,j: i*N + j - i*(i+1)/2 - i - 1
     ordrho            = numpy.argsort(rho)[::-1]
     rho_sorted        = rho[ordrho]
-    delta, nneigh     = numpy.zeros(N, dtype=numpy.float32), numpy.zeros(N, dtype=numpy.int32)
+    delta, nneigh     = numpy.zeros(N, dtype=numpy.float64), numpy.zeros(N, dtype=numpy.int32)
     delta[ordrho[0]]  = -1
     for ii in xrange(N):
         delta[ordrho[ii]] = maxd
@@ -111,9 +114,9 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
             if xdist < delta[ordrho[ii]]:
                 delta[ordrho[ii]]  = xdist
                 nneigh[ordrho[ii]] = ordrho[jj]
-    
+
     delta[ordrho[0]] = delta.ravel().max()  
-    threshold        = n_min * numpy.exp(-max(smart_search, 4)**2)
+    threshold        = numpy.exp(-3**2)
     clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
     
     def assign_halo(idx):
@@ -130,7 +133,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
         # halo
         halo = cl.copy()
         if NCLUST > 1:
-            bord_rho = numpy.zeros(NCLUST, dtype=numpy.float32)
+            bord_rho = numpy.zeros(NCLUST, dtype=numpy.float64)
             for i in xrange(N):
                 idx      = numpy.where((cl[i] < cl[i+1:N]) & (dist[didx(i, numpy.arange(i+1, N))] <= dc))[0]
                 if len(idx) > 0:
@@ -145,7 +148,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
             
             idx       = numpy.where(rho < bord_rho[cl])[0]
             halo[idx] = -1
-
+        
         if n_min is not None:
             for cluster in xrange(NCLUST):
                 idx = numpy.where(halo == cluster)[0]
@@ -244,7 +247,6 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
                     idx        = numpy.unique(to_merge[subset].flatten())
                     ratios     = norm_templates[keep]/norm_templates[idx]
                     new_limits = [numpy.min(ratios*old_limits[idx][:, 0]), numpy.max(ratios*old_limits[idx][:, 1])]
-                    #new_limits = [numpy.min(old_limits[idx][:, 0]), numpy.max(old_limits[idx][:, 1])]
                 else:
                     new_limits = old_limits[keep]
             limits[count]  = new_limits
@@ -308,7 +310,23 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
 
     comm.Barrier()
 
-def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
+
+def slice_result(result, times):
+
+    sub_results = []
+
+    nb_temp = len(result['spiketimes'])
+    for t in times:
+        sub_result = {'spiketimes' : {}, 'amplitudes' : {}}
+        for key in result['spiketimes'].keys():
+            idx = numpy.where((result['spiketimes'][key] >= t[0]) & (result['spiketimes'][key] <= t[1]))[0]
+            sub_result['spiketimes'][key] = result['spiketimes'][key][idx] - t[0]
+            sub_result['amplitudes'][key] = result['amplitudes'][key][idx]                
+        sub_results += [sub_result]
+
+    return sub_results
+
+def merging_cc(comm, params, parallel_hdf5=False):
 
     def remove(result, distances, cc_merge):
         do_merge  = True
@@ -362,7 +380,8 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
     x,        N_tm = templates.shape
     nb_temp        = N_tm/2
     to_merge       = []
-    
+    cc_merge       = params.getfloat('clustering', 'cc_merge')
+        
     result   = []
     overlap  = get_overlaps(comm, params, extension='-merging', erase=True, parallel_hdf5=parallel_hdf5, normalize=True, maxoverlap=False, verbose=False, half=True)
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
@@ -389,7 +408,7 @@ def merging_cc(comm, params, cc_merge, parallel_hdf5=False):
 
     to_merge = numpy.array(to_merge)
     to_merge = comm.bcast(to_merge, root=0)
-
+    
     if len(to_merge) > 0:
         slice_templates(comm, params, to_merge=to_merge)
         slice_clusters(comm, params, result)
@@ -406,6 +425,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     templates      = load_data(params, 'templates')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
+    cc_merge       = params.getfloat('clustering', 'cc_merge')
     x,        N_tm = templates.shape
     nb_temp        = N_tm/2
     merged         = [nb_temp, 0]
@@ -417,6 +437,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     result   = []
     
     norm_templates   = load_data(params, 'norm-templates')
+    templates        = load_data(params, 'templates')
     result           = load_data(params, 'clusters')
     best_elec        = load_data(params, 'electrodes')
     limits           = load_data(params, 'limits')
@@ -455,27 +476,34 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
         rows          = numpy.arange(k*nb_temp, (k+1)*nb_temp)
         overlap_k     = overlap[rows, :].tolil()
         is_in_area    = numpy.in1d(best_elec, electrodes)
-        for item in sorted_temp[:count]:
-            is_in_area[item] = False
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
+        been_found    = False
 
         for i in all_idx:
-            rows      = numpy.arange(i*nb_temp, (i+1)*nb_temp)
-            overlap_i = overlap[rows, :].tolil()
-            M[0, 0]   = overlap_0[i, i]
-            V[0, 0]   = overlap_k[i, distances[k, i]]
-            for j in all_idx[i+1:]:
-                M[1, 1]  = overlap_0[j, j]
-                M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
-                M[0, 1]  = M[0, 1]
-                V[1, 0]  = overlap_k[j, distances[k, j]]
-                [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                a1_lim   = limits[i]
-                a2_lim   = limits[j]
-                is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
-                is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
-                if is_a1 and is_a2:
-                    mixtures += [k]
+            if not been_found:
+                rows      = numpy.arange(i*nb_temp, (i+1)*nb_temp)
+                overlap_i = overlap[rows, :].tolil()
+                M[0, 0]   = overlap_0[i, i]
+                V[0, 0]   = overlap_k[i, distances[k, i]]
+                for j in all_idx[i+1:]:
+                    M[1, 1]  = overlap_0[j, j]
+                    M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
+                    M[0, 1]  = M[1, 0]
+                    V[1, 0]  = overlap_k[j, distances[k, j]]
+                    [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                    a1_lim   = limits[i]
+                    a2_lim   = limits[j]
+                    is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
+                    is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
+                    if is_a1 and is_a2:
+                        new_template = a1*templates[:, i].toarray() + a2*templates[:, j].toarray()
+                        similarity   = numpy.corrcoef(templates[:, k].toarray().flatten(), new_template.flatten())[0, 1]
+                        if similarity > cc_merge:
+                            if k not in mixtures:
+                                mixtures  += [k]
+                                been_found = True 
+                                break
+                                #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
 
         if comm.rank == 0:
             pbar.update(count)
@@ -483,6 +511,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     if comm.rank == 0:
         pbar.finish()
     
+    #print mixtures
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
     

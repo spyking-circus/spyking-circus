@@ -22,10 +22,16 @@ setup(name='spyking-circus',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
       packages=['circus', 'circus.shared'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
-      install_requires=['progressbar', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'hdf5storage', 'termcolor', 'colorama'],
-      scripts=[pjoin('bin', 'spyking-circus'),
-               pjoin('bin', 'spyking-circus-subtask.py'),
-               pjoin('bin', 'circus-gui')],
+      install_requires=['progressbar', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'termcolor', 'colorama'],
+      entry_points={
+          'console_scripts': [
+              'spyking-circus=circus.scripts.launch:main',
+              'spyking-circus-subtask=circus.scripts.subtask:main',
+              'circus-gui-matlab=circus.scripts.matlab_gui:main',
+              'circus-gui-python=circus.scripts.python_gui:main',
+              'circus-multi=circus.scripts.circus_multi:main'
+          ],
+      },
       package_data={'circus': ['config.params',
                                # Only include the actual GUI, not other test scripts
                                pjoin('matlab_GUI', 'SortingGUI.m'),

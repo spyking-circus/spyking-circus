@@ -12,6 +12,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     spike_thresh   = params.getfloat('data', 'spike_thresh')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
@@ -30,16 +31,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if comm.rank == 0:
-        print "Analyzing data to get whitening matrices and thresholds..."
+        io.print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', params)
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     if nb_chunks < comm.size:
 
-        if comm.rank == 0:
-            io.print_info(["Too much cores, reducing size of the data chunks"])
         res        = io.data_stats(params, show=False)
         chunk_size = res*sampling_rate/comm.size
+        if comm.rank == 0:
+            io.print_and_log(["Too much cores, reducing size of the data chunks"], 'info', params)
+
+
         borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     # I guess this is more relevant, to take signals from all over the recordings
@@ -88,8 +91,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_idx         = local_peaktimes[argmax_peak]
 
             #print "Selection of the peaks with spatio-temporal masks..."
-            for idx, sidx in zip(argmax_peak, all_idx):
-                elec    = numpy.argmax(numpy.abs(local_chunk[sidx]))
+            for idx, peak in zip(argmax_peak, all_idx):
+                elec    = numpy.argmax(numpy.abs(local_chunk[peak]))
                 indices = inv_nodes[edges[nodes[elec]]]
                 myslice = all_times[indices, min_times[idx]:max_times[idx]]
                 peak    = local_peaktimes[idx]
@@ -144,7 +147,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 nb_silences     = numpy.sum(all_elecs > 0)
                 all_res         = all_res.reshape((nb_silences, N_t**2))
             except Exception:
-                print io.print_info(["No silent periods detected: something wrong with the parameters?"])
+                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             all_res             = numpy.sum(all_res, 0)
             all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
             temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
@@ -154,9 +157,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if do_spatial_whitening:
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
-            print "We found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)
-
-        bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
+            io.print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)], 'default', params)
+        
+        bfile = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, to_write.keys(), to_write)
         bfile.close()
 
@@ -166,7 +169,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if do_spatial_whitening or do_temporal_whitening:
 
         if comm.rank == 0:
-            print "Because of whitening, we need to recompute the thresholds..."
+            io.print_and_log(["Because of whitening, need to recompute the thresholds..."], 'default', params)
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -178,8 +181,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
-                for i in xrange(N_e):
-                    local_chunk[:, i] = numpy.convolve(local_chunk[:, i], temporal_whitening, 'same')
+                local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
             thresholds = numpy.zeros(N_e, dtype=numpy.float32)
             for i in xrange(N_e):
@@ -210,6 +212,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    skip_artefact  = params.getboolean('data', 'skip_artefact')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
@@ -227,13 +230,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     elt_count        = 0
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    take_all         = True
+    take_all         = False
     #################################################################
 
 
     if comm.rank == 0:
-        print "Searching spikes to construct the PCA basis..."
-
+        io.print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
+        
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
@@ -282,6 +285,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             for i in xrange(N_e):
                 peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                if skip_artefact:
+                    values    = local_chunk[peaktimes, i]
+                    idx       = numpy.where(values >= -10*thresholds[i])[0]
+                    peaktimes = peaktimes[idx]
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
@@ -308,13 +315,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_idx         = local_peaktimes[argmax_peak]
 
                 #print "Selection of the peaks with spatio-temporal masks..."
-                for idx, sidx in zip(argmax_peak, all_idx):
+                for midx, peak in zip(argmax_peak, all_idx):
                     if elt_count == nb_elts:
                         break
-                    elec    = numpy.argmin(local_chunk[sidx])
+                    elec    = numpy.argmin(local_chunk[peak])
                     indices = inv_nodes[edges[nodes[elec]]]
-                    myslice = all_times[indices, min_times[idx]:max_times[idx]]
-                    peak    = local_peaktimes[idx]
+                    myslice = all_times[indices, min_times[midx]:max_times[midx]]
                     is_local_min = elec in all_minimas[all_peaktimes == peak]
                     if is_local_min and not myslice.any():
                         upper_bounds = max_elts_elec
@@ -329,9 +335,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
                                     ydata = numpy.arange(len(indices))
                                     f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
-                                    rmin  = (numpy.argmin(f(cdata, idx)) - len(cdata)/2.)/5.
-                                    ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                    sub_mat = f(ddata, ydata).astype(numpy.float32)
+                                    smoothed = smooth(f(cdata, idx)[:, 0], template_shift)
+                                    rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                    ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                    sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                 else:
                                     sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
 
@@ -346,14 +353,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 if alignment:
                                     ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
                                     f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
-                                    rmin  = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-                                    ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-
-                                elts[:, elt_count] = f(ddata).astype(numpy.float32)
+                                    smoothed = smooth(f(cdata), template_shift)
+                                    rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                    ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                    elts[:, elt_count] = f(ddata).astype(numpy.float32)
+                                
                                 elt_count         += 1
 
                         groups[elec] += 1
-                        all_times[indices, min_times[idx]:max_times[idx]] = True
+                        all_times[indices, min_times[midx]:max_times[midx]] = True
 
             if comm.rank == 0:
                 pbar.update(elt_count)
@@ -365,20 +373,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
+    io.print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count)], 'debug', params)
     gdata = gather_array(elts[:, :elt_count].T, comm, 0, 1)
 
     if comm.rank == 0:
         #DO PCA on elts and store the basis obtained.
-        print "We found", gdata.shape[0], "waveforms over", int(nb_elts*comm.size), "requested"
-        pca = mdp.nodes.PCANode(output_dim=output_dim)
+        io.print_and_log(["Found %d waveforms over %d requested" %(gdata.shape[0], int(nb_elts*comm.size))], 'default', params)
+        pca = PCA(output_dim, copy=False)
         res = {}     
         if len(gdata) > 0:
-            res_pca     = pca(gdata.astype(numpy.double))
-            res['proj'] = pca.get_projmatrix().astype(numpy.float32)
+            res_pca     = pca.fit_transform(gdata.astype(numpy.double)).astype(numpy.float32)
+            res['proj'] = pca.components_.T.astype(numpy.float32)
         else:
             res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
         res['rec']  = res['proj'].T
-        bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
+        res['waveforms'] = gdata[:, :1000]
+        bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
-        io.print_info(["A basis with %s dimensions has been built" %res['proj'].shape[1]])
+        io.print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
         bfile.close()
