@@ -22,7 +22,6 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
 
     #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
     gidx   = numpy.where(xdata >= threshold)[0]
-    xmdata = xdata[gidx]
     ymdata = ydata[gidx]    
     subidx = gidx[numpy.argsort(ymdata)[::-1]]
 
@@ -35,6 +34,33 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
             pylab.show()
     return subidx
 
+def autoselect_dc(max_id, max_dis, min_dis, distances):
+    '''
+    Auto select the local density threshold that let average neighbor is 1-2 percent of all nodes.
+    Args:
+        max_id    : max continues id
+        max_dis   : max distance for all points
+        min_dis   : min distance for all points
+        distances : distance dict
+    
+    Returns:
+        dc that local density threshold
+    '''
+    dc = (max_dis + min_dis) / 2
+
+    while True:
+        nneighs = sum(distances < dc) / max_id ** 2
+        if nneighs >= 0.01 and nneighs <= 0.002:
+            break
+        # binary search
+        if nneighs < 0.01:
+            min_dis = dc
+        else:
+            max_dis = dc
+        dc = (max_dis + min_dis) / 2
+        if max_dis - min_dis < 0.0001:
+            break
+    return dc
 
 def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
@@ -47,8 +73,10 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
         if dc is None:
             sda      = numpy.argsort(dist)
-            position = numpy.round(len(dist)*2/100.)
+            position = numpy.round(N*2/100.)
             dc       = dist[sda][int(position)]
+            #dc = autoselect_dc(N, dist.max(), dist.min(), dist)
+            #print dc, dist[sda][int(numpy.round(len(dist)*2/100.))], dist[sda][int(numpy.round(N*2/100.))]
 
         if compute_rho:
             exp_dist = numpy.exp(-(dist/dc)**2)
