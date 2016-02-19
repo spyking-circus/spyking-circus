@@ -221,9 +221,9 @@ def load_parameters(file_name):
                   ['clustering', 'make_plots', 'bool', 'True'],
                   ['clustering', 'test_clusters', 'bool', 'False'],
                   ['clustering', 'sim_same_elec', 'float', '3'],
-                  ['clustering', 'smart_search', 'float', '3'],
+                  ['clustering', 'smart_search', 'float', '0'],
                   ['clustering', 'safety_space', 'bool', 'True'],
-                  ['clustering', 'noise_thr', 'float', '0.8'],
+                  ['clustering', 'noise_thr', 'float', '1'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
                   ['clustering', 'extraction', 'string', 'median-pca'],
                   ['clustering', 'remove_mixture', 'bool', 'True'],
@@ -290,6 +290,11 @@ def load_parameters(file_name):
     test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') <= 1)
     if not test:
         print_and_log(["smart_search in clustering should be in [0,1]"], 'error', parser)
+        sys.exit(0)
+
+    test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)
+    if not test:
+        print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', parser)
         sys.exit(0)
 
     return parser

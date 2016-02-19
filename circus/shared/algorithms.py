@@ -23,36 +23,8 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
     #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
     gidx   = numpy.where(xdata >= threshold)[0]
     xmdata = xdata[gidx]
-    ymdata = ydata[gidx]
-    gamma  = xmdata * ymdata
-
-    def powerlaw(x, a, b, k): 
-        with numpy.errstate(all='ignore'):
-            return numpy.abs(a)*(x**(-numpy.abs(k))) + b
-
-    try:
-        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, numpy.median(numpy.log(ymdata)), 1])
-        pcov         = 1
-    except Exception:
-        result, pcov = [0, numpy.median(numpy.log(ymdata)), 1], 0
-
-    if display:
-        fig      = pylab.figure(figsize=(15, 5))
-        ax       = fig.add_subplot(111)
-        sort_idx = numpy.argsort(xmdata)
-        data_fit = numpy.exp(powerlaw(xmdata[sort_idx], result[0], result[1], result[2]))    
-        ax.plot(xmdata, ymdata, 'k.')
-        ax.plot(xmdata[sort_idx], data_fit)
-        ax.set_yscale('log')
-        ax.set_ylabel(r'$\delta$')
-        ax.set_xlabel(r'$\rho$')
-
-    value = ymdata - numpy.exp(powerlaw(xmdata, result[0], result[1], result[2]))
-    
-    if not numpy.any(value > 0):
-        subidx = gidx[numpy.argsort(gamma)[::-1]]
-    else:
-        subidx = gidx[numpy.argsort(value)[::-1]]
+    ymdata = ydata[gidx]    
+    subidx = gidx[numpy.argsort(ymdata)[::-1]]
 
     if display:
         ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')

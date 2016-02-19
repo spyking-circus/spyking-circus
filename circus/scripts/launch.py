@@ -16,7 +16,6 @@ import circus.shared.files as io
 
 import circus
 from circus.shared.files import print_error, print_info, write_to_logger
-from circus.shared import gui
 
 
 def main():
@@ -310,6 +309,7 @@ Options are:
                             raise
 
     if preview or result:
+        from circus.shared import gui
         import pylab
         from matplotlib.backends import qt_compat
 

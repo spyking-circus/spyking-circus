@@ -39,7 +39,7 @@ nb_repeats     = 3          # Number of passes used for the clustering
 smart_search   = 0          # Parameter for the smart search [0-1]. The higher, the more strict
 sim_same_elec  = 3          # Distance within clusters under which they are re-merged
 cc_merge       = 0.95       # If CC between two templates is higher, they are merged
-noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
+noise_thr      = 1.         # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
 make_plots     = True       # Generate sanity plots of the clustering
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
 

@@ -1,0 +1,138 @@
+import numpy, h5py, pylab, cPickle
+import unittest
+from . import mpi_launch, get_dataset
+from circus.shared.utils import *
+
+def get_performance(file_name, name):
+
+    a, b            = os.path.splitext(os.path.basename(file_name))
+    file_name, ext  = os.path.splitext(file_name)
+    file_out        = os.path.join(os.path.abspath(file_name), a)
+    result_name     = os.path.join(file_name, 'injected')
+
+    pic_name        = file_name + '.pic'
+    data            = cPickle.load(open(pic_name))
+    n_cells         = data['cells'] 
+    n_point         = len(n_cells)
+    amplitude       = data['amplitudes'][0:n_point]
+    rate            = data['rates'][:n_point]
+    sampling        = data['sampling']
+    probe_file      = data['probe']
+    sim_templates   = 0.8
+
+    temp_file       = file_out + '.templates.hdf5'
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    templates       = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(temp_shape[0]*temp_shape[1], temp_shape[2]))
+
+    temp_file       = os.path.join(result_name, '%s.templates.hdf5' %a)
+    temp_x          = h5py.File(temp_file).get('temp_x')[:]
+    temp_y          = h5py.File(temp_file).get('temp_y')[:]
+    temp_data       = h5py.File(temp_file).get('temp_data')[:]
+    temp_shape      = h5py.File(temp_file).get('temp_shape')[:]
+    inj_templates   = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(temp_shape[0]*temp_shape[1], temp_shape[2]))
+
+    amplitudes      = h5py.File(file_out + '.templates.hdf5').get('limits')[:]
+
+    n_tm            = inj_templates.shape[1]/2
+    res             = numpy.zeros(len(n_cells))
+    res2            = numpy.zeros(len(n_cells))
+    res3            = numpy.zeros(len(n_cells))
+
+    for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
+        source_temp = inj_templates[:, temp_id].toarray().flatten()
+        similarity  = []
+        temp_match  = None
+        dmax        = 0
+        for i in xrange(templates.shape[1]/2):
+            d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
+            similarity += [d]
+            if d > dmax:
+                temp_match = i
+                dmax       = d
+        res[gcount]  = numpy.max(similarity)
+        res2[gcount] = numpy.sum(numpy.array(similarity) > sim_templates)
+        res3[gcount] = temp_match
+
+
+    pylab.figure()
+
+    pylab.subplot(121)
+    pylab.plot(rate, res, '.')
+    pylab.xlabel('Rate [Hz]')
+    pylab.ylabel('Correlation')
+    pylab.xlim(rate.min()-0.5, rate.max()+0.5)
+    pylab.ylim(0, 1.1)
+
+    pylab.subplot(122)
+    pylab.plot(rate, res2, '.')
+    pylab.ylabel('Number of templates')
+    pylab.xlabel('Rate [Hz]')
+    pylab.xlim(rate.min()-0.5, rate.max()+0.5)
+
+    '''
+    pylab.subplot(223)
+    pylab.imshow(amplitudes[-len(n_cells):][:,0].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
+    cb = pylab.colorbar()
+    cb.set_label('Min amplitude')
+    pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
+    pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
+    pylab.ylabel('Rate [Hz]')
+    pylab.xlabel('Relative Amplitude')
+    pylab.xlim(-0.5, n_point-0.5)
+    pylab.ylim(-0.5, n_point-0.5)
+
+    pylab.subplot(224)
+    pylab.imshow(amplitudes[-len(n_cells):][:,1].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
+    cb = pylab.colorbar()
+    cb.set_label('Max amplitude')
+    pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
+    pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
+    pylab.ylabel('Rate [Hz]')
+    pylab.xlabel('Relative Amplitude')
+    pylab.xlim(-0.5, n_point-0.5)
+    pylab.ylim(-0.5, n_point-0.5)
+    '''
+
+    pylab.tight_layout()
+
+    plot_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+    plot_path = os.path.join(plot_path, 'plots')
+    plot_path = os.path.join(plot_path, 'smart-search')
+    if not os.path.exists(plot_path):
+        os.makedirs(plot_path)
+    output = os.path.join(plot_path, '%s.pdf' %name)
+    pylab.savefig(output)
+    return templates, res2
+
+class TestSmartSearch(unittest.TestCase):
+
+    def setUp(self):
+        self.all_matches    = None
+        self.all_templates  = None
+        dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+        self.path           = os.path.join(dirname, 'synthetic')
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+        self.file_name      = os.path.join(self.path, 'smart_search.raw')
+        self.source_dataset = get_dataset(self)
+        if not os.path.exists(self.file_name):
+            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'smart-search')
+            mpi_launch('whitening', self.file_name, 2, 0, 'False')
+        io.change_flag(self.file_name, 'max_elts', '2000', avoid_flag='Fraction')
+
+    #def tearDown(self):
+    #    data_path = '.'.join(self.file_name.split('.')[:-1])
+    #    shutil.rmtree(data_path)
+
+    def test_smart_search(self):
+        io.change_flag(self.file_name, 'smart_search', '0.1')
+        mpi_launch('clustering', self.file_name, 2, 0, 'False')
+        io.change_flag(self.file_name, 'smart_search', '0')
+        res = get_performance(self.file_name, 'smart_search_0.1')
+
+    def test_no_smart_search(self):
+        mpi_launch('clustering', self.file_name, 2, 0, 'False')
+        res = get_performance(self.file_name, 'smart_search_0')
