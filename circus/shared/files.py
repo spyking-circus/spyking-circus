@@ -89,7 +89,8 @@ def load_parameters(file_name):
         sys.exit(0)
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting',
+                'filtering', 'merging', 'validating', 'noedits']
     for section in sections:
         if parser.has_section(section):
             for (key, value) in parser.items(section):
@@ -204,6 +205,10 @@ def load_parameters(file_name):
                   ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
+                  ['validating', 'max_iter', 'int', '200'],
+                  ['validating', 'learning_rate', 'float', '1.0e-3'],
+                  ['validating', 'verbose', 'bool', 'False'],
+                  ['validating', 'make_plots', 'bool', 'False'],
                   ['merging', 'cc_overlap', 'float', '0.25'],
                   ['merging', 'cc_bin', 'float', '2']]
 

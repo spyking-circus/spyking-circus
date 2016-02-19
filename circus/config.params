@@ -60,5 +60,11 @@ output_dim     = 5         # Percentage of variance explained while performing P
 cc_merge       = 0.95      # If CC between two templates is higher, they are merged
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
+[validating]
+max_iter       = 200       # Maximum number of iterations of the stochastic gradient descent (SGD)
+learning_rate  = 1.0e-3    # Initial learning rate which controls the step-size of the SGD
+verbose        = False     # Show details of the validation
+make_plots     = False     # Generate sanity plots of the validation
+
 [noedits]
 filter_done    = False     # Will become True automatically after filtering.
