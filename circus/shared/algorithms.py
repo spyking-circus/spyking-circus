@@ -49,7 +49,7 @@ def autoselect_dc(max_id, max_dis, min_dis, distances):
     dc = (max_dis + min_dis) / 2
 
     while True:
-        nneighs = sum(distances < dc) / max_id ** 2
+        nneighs = numpy.sum(distances < dc) / float(max_id ** 2)
         if nneighs >= 0.01 and nneighs <= 0.002:
             break
         # binary search
@@ -74,9 +74,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
         if dc is None:
             sda      = numpy.argsort(dist)
             position = numpy.round(N*2/100.)
-            dc       = dist[sda][int(position)]
-            #dc = autoselect_dc(N, dist.max(), dist.min(), dist)
-            #print dc, dist[sda][int(numpy.round(len(dist)*2/100.))], dist[sda][int(numpy.round(N*2/100.))]
+            dc = autoselect_dc(N, dist.max(), dist.min(), dist)
 
         if compute_rho:
             exp_dist = numpy.exp(-(dist/dc)**2)
