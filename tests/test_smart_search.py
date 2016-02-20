@@ -72,30 +72,6 @@ def get_performance(file_name, name):
     pylab.xlabel('Rate [Hz]')
     pylab.xlim(rate.min()-0.5, rate.max()+0.5)
 
-    '''
-    pylab.subplot(223)
-    pylab.imshow(amplitudes[-len(n_cells):][:,0].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
-    cb = pylab.colorbar()
-    cb.set_label('Min amplitude')
-    pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
-    pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
-    pylab.ylabel('Rate [Hz]')
-    pylab.xlabel('Relative Amplitude')
-    pylab.xlim(-0.5, n_point-0.5)
-    pylab.ylim(-0.5, n_point-0.5)
-
-    pylab.subplot(224)
-    pylab.imshow(amplitudes[-len(n_cells):][:,1].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
-    cb = pylab.colorbar()
-    cb.set_label('Max amplitude')
-    pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
-    pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
-    pylab.ylabel('Rate [Hz]')
-    pylab.xlabel('Relative Amplitude')
-    pylab.xlim(-0.5, n_point-0.5)
-    pylab.ylim(-0.5, n_point-0.5)
-    '''
-
     pylab.tight_layout()
 
     plot_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
@@ -127,11 +103,17 @@ class TestSmartSearch(unittest.TestCase):
     #    data_path = '.'.join(self.file_name.split('.')[:-1])
     #    shutil.rmtree(data_path)
 
-    def test_smart_search(self):
+    def test_smart_search_small(self):
         io.change_flag(self.file_name, 'smart_search', '0.1')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'smart_search', '0')
         res = get_performance(self.file_name, 'smart_search_0.1')
+
+    def test_smart_search_large(self):
+        io.change_flag(self.file_name, 'smart_search', '0.5')
+        mpi_launch('clustering', self.file_name, 2, 0, 'False')
+        io.change_flag(self.file_name, 'smart_search', '0')
+        res = get_performance(self.file_name, 'smart_search_0.5')
 
     def test_no_smart_search(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
