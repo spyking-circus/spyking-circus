@@ -103,6 +103,7 @@ class MergeWindow(QtGui.QMainWindow):
     def __init__(self, comm, params, app):
         super(MergeWindow, self).__init__()
 
+        io.print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)
         self.app        = app
         self.comm       = comm
         self.params     = params
@@ -279,10 +280,10 @@ class MergeWindow(QtGui.QMainWindow):
                                                    facecolor=['black' for _ in x]))
             self.score_ax1.set_ylabel('CC metric')
             self.score_ax1.set_xticklabels([])
-            self.score_ax2.set_xlabel('normalized CC metric')
+            self.score_ax2.set_xlabel('Normalized CC metric')
             self.score_ax2.set_yticklabels([])
-            self.score_ax3.set_xlabel('template similarity')
-            self.score_ax3.set_ylabel('normalized CC metric')
+            self.score_ax3.set_xlabel('Template similarity')
+            self.score_ax3.set_ylabel('Normalized CC metric')
         else:
             for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
                                                                  (self.score_z, self.score_y),
@@ -658,7 +659,7 @@ class MergeWindow(QtGui.QMainWindow):
 
     def do_merge(self, event):
         # This simply removes the data points for now
-        print 'Data indices to merge: ', sorted(self.selected_points)
+        io.print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', params)
         
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 

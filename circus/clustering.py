@@ -477,7 +477,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     for i in numpy.unique(cluster_results[ielec]['groups'][mask]):
                         n_clusters += [numpy.sum(cluster_results[ielec]['groups'][mask] == i)]
     
-                    line = ["Node %d: %d-%d templates on electrode %d with %d spikes: %s" %(comm.rank, merged[0], merged[1], ielec, n_data, str(n_clusters))]
+                    line = ["Node %d: %d-%d templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], ielec, n_data, str(n_clusters))]
                     io.print_and_log(line, 'default', params)
                     if (merged[0]-merged[1]) == max_clusters:
                         local_hits += 1
@@ -487,7 +487,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     cluster_results[ielec]['n_clus'] = 0
                     result['clusters_' + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
                     result['debug_'    + str(ielec)] = numpy.zeros((2,0), dtype=numpy.float32)
-                    line = ["Node %d: not enough spikes on electrode %d" %(comm.rank, ielec)]
+                    line = ["Node %d: not enough spikes on channel %d" %(comm.rank, ielec)]
                     io.print_and_log(line, 'default', params)
 
                 local_nb_clusters += cluster_results[ielec]['n_clus']
