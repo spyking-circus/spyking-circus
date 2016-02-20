@@ -958,7 +958,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
     if comm.rank == 0:
         if verbose:
-            print "Computing the overlaps", cuda_string
+            print_and_log(["Computing the overlaps %s" %cuda_string], 'default', params)
         N_0  = len(range(comm.rank, N_e, comm.size))
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_0).start()
 
@@ -1028,6 +1028,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
     if comm.rank == 0:
         pbar.finish()
+        print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', params)
 
     comm.Barrier()
 
