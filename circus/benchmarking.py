@@ -46,8 +46,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if benchmark == 'smart-search':
         nb_insert       = 10
         n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
-        rate            = 1 + 10*numpy.arange(nb_insert)
-        rate[0:2]       = 5
+        rate            = 1 + 5*numpy.arange(nb_insert)
         amplitude       = 2
 
 

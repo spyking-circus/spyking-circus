@@ -120,7 +120,12 @@ class MergeWindow(QtGui.QMainWindow):
         self.result     = io.load_data(params, 'results')
         self.overlap    = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('maxoverlap')[:]
         self.shape      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('temp_shape')[:]
+        self.norms      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('temp_shape')[:]
         self.indices    = numpy.arange(self.shape[2]/2)
+        self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
+        for idx in self.indices:
+            self.rates[idx] = len(self.result['spiketimes']['temp_' + str(idx)])
+
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
         self.mpi_wait   = numpy.array([0], dtype=numpy.int32)
@@ -128,10 +133,8 @@ class MergeWindow(QtGui.QMainWindow):
         if self.comm.rank > 0:
             self.listen()
 
-        self.cmap = plt.get_cmap('winter')
         self.init_gui_layout()
 
-        
         self.generate_data()
         self.selected_points = set()
         self.inspect_points = []
@@ -253,7 +256,7 @@ class MergeWindow(QtGui.QMainWindow):
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.vstack((self.raw_control, b))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
-        
+
         self.pairs       = gather_array(self.pairs, self.comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, self.comm, 0, 1)
         self.raw_data    = gather_array(self.raw_data, self.comm, 0, 1)
