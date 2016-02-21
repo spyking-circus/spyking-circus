@@ -39,7 +39,7 @@ def detect_header(filename, value='MCS'):
     if value == 'MCS':
         header      = 0
         stop        = False
-        fid         = open(filename, 'r')
+        fid         = open(filename, 'rb')
         header_text = ''
         regexp      = re.compile('El_\d*')
 
@@ -131,7 +131,7 @@ def load_parameters(file_name):
     f_next, extension = os.path.splitext(file_name)
     file_path         = os.path.dirname(file_name)
     file_params       = f_next + '.params'
-    parser            = configparser.SafeConfigParser()
+    parser            = configparser.ConfigParser()
     if not os.path.exists(file_params):
         print_error(["%s does not exist" %file_params])
         sys.exit(0)
