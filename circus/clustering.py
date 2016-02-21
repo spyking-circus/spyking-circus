@@ -312,6 +312,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
 
+        io.print_and_log(['Node %d collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', params)
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = int(numpy.sum(gdata))
@@ -377,6 +378,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     smart_search[ielec]          = 0
 
                 smart_search[ielec] *= int(len(result['tmp_' + str(ielec)]) >= params.getfloat('clustering', 'nb_elts')*loop_max_elts_elec)
+                if smart_search[ielec] > 0:
+                    io.print_and_log(['Smart search is actived on channel %d' % ielec], 'debug', params)
 
             elif gpass == 1:
                 if len(result['data_' + str(ielec)]) > 1:
