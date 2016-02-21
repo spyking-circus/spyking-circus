@@ -111,7 +111,7 @@ def read_probe(parser):
         print_error(["The probe file can not be found"])
         sys.exit(0)
     try:
-        probetext = file(parser.get('data', 'mapping'), 'r')
+        probetext = open(parser.get('data', 'mapping'), 'r')
         exec probetext in probe
         probetext.close()
     except Exception:
@@ -216,19 +216,19 @@ def load_parameters(file_name):
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['whitening', 'chunk_size', 'int', '60'],
-                  ['clustering', 'max_clusters', 'int', '10'],
+                  ['clustering', 'max_clusters', 'int', '15'],
                   ['clustering', 'nb_repeats', 'int', '3'],
                   ['clustering', 'make_plots', 'bool', 'True'],
                   ['clustering', 'test_clusters', 'bool', 'False'],
-                  ['clustering', 'sim_same_elec', 'float', '3'],
+                  ['clustering', 'sim_same_elec', 'float', '2'],
                   ['clustering', 'smart_search', 'float', '0'],
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '1'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
-                  ['clustering', 'extraction', 'string', 'median-pca'],
+                  ['clustering', 'extraction', 'string', 'median-raw'],
                   ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
-                  ['extracting', 'noise_thr', 'float', '0.8'],
+                  ['extracting', 'noise_thr', 'float', '1.'],
                   ['merging', 'cc_overlap', 'float', '0.25'],
                   ['merging', 'cc_bin', 'float', '2']]
 

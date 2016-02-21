@@ -103,7 +103,8 @@ class MergeWindow(QtGui.QMainWindow):
     def __init__(self, comm, params, app):
         super(MergeWindow, self).__init__()
 
-        io.print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)
+        if comm.rank == 0:
+            io.print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)
         self.app        = app
         self.comm       = comm
         self.params     = params
@@ -659,7 +660,7 @@ class MergeWindow(QtGui.QMainWindow):
 
     def do_merge(self, event):
         # This simply removes the data points for now
-        io.print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', params)
+        io.print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', self.params)
         
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
@@ -867,7 +868,7 @@ class PreviewGUI(QtGui.QMainWindow):
                         self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
             except Exception:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
-                io.print_info(["No results found!"])
+                io.print_and_log(["No results found!"], 'info', self.params)
 
     def init_gui_layout(self):
         self.ui = uic.loadUi(os.path.join(os.path.dirname(__file__), './qt_preview.ui'), self)

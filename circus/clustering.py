@@ -312,7 +312,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
 
-        io.print_and_log(['Node %d collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', params)
+        io.print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', params)
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = int(numpy.sum(gdata))
