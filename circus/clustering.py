@@ -312,7 +312,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
 
-        io.print_and_log(['Node %d collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', params)
+        io.print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', params)
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = int(numpy.sum(gdata))
@@ -356,6 +356,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if not os.path.exists(plot_path):
                 os.makedirs(plot_path)
 
+        if gpass == 1:
+            dist_file = tempfile.NamedTemporaryFile()
+            tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name)) + '.hdf5'
+            dist_file.close()
+            result['dist_file'] = tmp_file
+            tmp_h5py  = h5py.File(result['dist_file'], 'w', libver='latest')
+            io.print_and_log(["Node %d will use temp file %s" %(comm.rank, tmp_file)], 'debug', params)
+        elif gpass > 1:
+            tmp_h5py  = h5py.File(result['dist_file'], 'r', libver='latest')
+
         for ielec in xrange(comm.rank, N_e, comm.size):
             cluster_results[ielec] = {}
 
@@ -394,16 +404,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
 
                     rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
-                    dist_file = tempfile.NamedTemporaryFile(delete=False)
-                    tmp_file  = os.path.join(tmp_path_loc, os.path.basename(dist_file.name))
-                    numpy.save(tmp_file, dist)
-                    dist_file.close()
-                    result['dist_' + str(ielec)] = dist_file
                     result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
+                    tmp_h5py.create_dataset('dist_' + str(ielec), data=dist, chunks=True)
+                    del dist
                     if result['dc_' + str(ielec)] is None:
                         result['dc_' + str(ielec)] = dc
-                    del dist
                 else:
                     if result['pca_' + str(ielec)] is None:
                         n_neighb                    = len(edges[nodes[ielec]])
@@ -412,6 +418,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         result['pca_' + str(ielec)] = numpy.identity(dimension, dtype=numpy.float32)
                     result['rho_'  + str(ielec)] = numpy.zeros(len(result['data_' + str(ielec)]), dtype=numpy.float64)
                     result['norm_' + str(ielec)] = 1
+                    dist                         = numpy.zeros(0, dtype=numpy.float64)
                     if result['dc_' + str(ielec)] is None:
                         result['dc_' + str(ielec)] = 1.
 
@@ -429,9 +436,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 n_data  = len(result['data_' + str(ielec)])
                 n_min   = numpy.maximum(5, int(nclus_min*n_data))
                 if (n_data > 1):
-                    tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
-                    dist     = numpy.load(tmp_file +'.npy')
-                    os.remove(tmp_file + '.npy')
+                    #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
+                    dist     = tmp_h5py.get('dist_' + str(ielec))[:]
                     result['rho_' + str(ielec)] /= result['norm_' + str(ielec)]
 
                     cluster_results[ielec]['groups'], r, d, c = algo.clustering(result['rho_' + str(ielec)], dist,
@@ -471,7 +477,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result.pop('all_times_' + str(ielec))
                     result.pop('rho_' + str(ielec))
                     result.pop('norm_' + str(ielec))
-                    result.pop('dist_' + str(ielec))
                     result['debug_' + str(ielec)]       = numpy.array([r, d], dtype=numpy.float32)
                     mask                                = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
                     cluster_results[ielec]['n_clus']    = len(numpy.unique(cluster_results[ielec]['groups'][mask]))
@@ -495,7 +500,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 local_nb_clusters += cluster_results[ielec]['n_clus']
 
+        if gpass >= 1:
+            tmp_h5py.close()
         gpass += 1
+        
+    os.remove(result['dist_file'])
 
     comm.Barrier()
 
