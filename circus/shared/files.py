@@ -29,7 +29,7 @@ def write_to_logger(params, to_write, level='info'):
     for line in to_write:
         if level == 'info':
             logging.info(line)
-        elif level == 'debug':
+        elif level in ['debug', 'default']:
             logging.debug(line)
         elif level == 'warning':
             logging.warning(line)
