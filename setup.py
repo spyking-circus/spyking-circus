@@ -7,6 +7,11 @@ from setuptools import setup
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
 
+if sys.version_info.major < 3:
+    requires = ['progressbar', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+elif sys.version_info.major == 3:
+    requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+
 if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
     # We seem to be running under a "conda build"
     data_path = pjoin('data', 'spyking-circus')
@@ -22,7 +27,7 @@ setup(name='spyking-circus',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
       packages=['circus', 'circus.shared'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
-      install_requires=['progressbar', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'termcolor', 'colorama'],
+      install_requires=,requires
       entry_points={
           'console_scripts': [
               'spyking-circus=circus.scripts.launch:main',
