@@ -54,7 +54,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         x, y            = numpy.mgrid[0:n_point,0:n_point]
         rate            = 5*numpy.ones(n_point)[x.flatten()]
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
-        trends          = numpy.random.randn(n_point)
+        trends          = numpy.random.randn(n_point**2)
 
     if comm.rank == 0:
         if os.path.exists(file_out):
@@ -257,7 +257,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 spikes     = numpy.random.rand(chunk_size) < rate[idx]/float(sampling_rate)
 
             if benchmark == 'drifts':
-                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(60*float(sampling_rate)))
+                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(sampling_rate)))
             else:
                 amplitudes = numpy.ones(len(spikes))
 
