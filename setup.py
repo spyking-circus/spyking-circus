@@ -27,7 +27,7 @@ setup(name='spyking-circus',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
       packages=['circus', 'circus.shared'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
-      install_requires=,requires
+      install_requires=requires,
       entry_points={
           'console_scripts': [
               'spyking-circus=circus.scripts.launch:main',
