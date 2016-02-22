@@ -111,9 +111,9 @@ def read_probe(parser):
         print_error(["The probe file can not be found"])
         sys.exit(0)
     try:
-        probetext = open(parser.get('data', 'mapping'), 'r')
-        exec probetext in probe
-        probetext.close()
+        with open(parser.get('data', 'mapping'), 'r') as f:
+            probetext = f.read()
+            exec probetext in probe
     except Exception:
         print_error(["Something wrong with the syntax of the probe file!"])
         sys.exit(0)
