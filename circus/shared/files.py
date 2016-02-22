@@ -223,7 +223,7 @@ def load_parameters(file_name):
                   ['clustering', 'sim_same_elec', 'float', '2'],
                   ['clustering', 'smart_search', 'float', '0'],
                   ['clustering', 'safety_space', 'bool', 'True'],
-                  ['clustering', 'noise_thr', 'float', '1'],
+                  ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.95'],
                   ['clustering', 'extraction', 'string', 'median-raw'],
                   ['clustering', 'remove_mixture', 'bool', 'True'],
