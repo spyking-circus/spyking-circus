@@ -2,13 +2,13 @@ import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
-from termcolor import colored
 import colorama
+colorama.init(autoreset=True)
+from colorama import Fore, Back, Style
+
 from circus.shared.mpi import gather_array
 from circus.shared.utils import smooth
 import logging
-
-colorama.init()
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))
@@ -377,16 +377,16 @@ def print_and_log(to_print, level='info', logger=None, display=True):
         write_to_logger(logger, to_print, level)
 
 def print_info(lines):
-    print colored("-------------------------  Informations  -------------------------", 'yellow')
+    print Fore.YELLOW + "-------------------------  Informations  -------------------------"
     for line in lines:
-        print colored("| " + line, 'yellow')
-    print colored("------------------------------------------------------------------", 'yellow')
+        print Fore.YELLOW + "| " + line
+    print Fore.YELLOW + "------------------------------------------------------------------"
 
 def print_error(lines):
-    print colored("----------------------------  Error  -----------------------------", 'red')
+    print Fore.RED + "----------------------------  Error  -----------------------------"
     for line in lines:
-        print colored("| " + line, 'red')
-    print colored("------------------------------------------------------------------", 'red')
+        print Fore.RED + "| " + line
+    print Fore.RED + "------------------------------------------------------------------"
 
 
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):

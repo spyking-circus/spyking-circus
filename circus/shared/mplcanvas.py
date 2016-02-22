@@ -1,4 +1,4 @@
-from PyQt4 import QtGui, uic
+from PyQt4 import QtGui, uic, QtCore
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
@@ -16,6 +16,8 @@ class MplCanvas(FigureCanvas):
         self.axes = fig.add_axes([0.15, 0.15, 0.85, 0.85])
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
+        self.setFocusPolicy(QtCore.Qt.ClickFocus)
+        self.setFocus()
         fig.patch.set_alpha(0)
 
     def resizeEvent(self, event):

@@ -8,12 +8,10 @@ import subprocess
 import pkg_resources
 import platform
 from os.path import join as pjoin
-from termcolor import colored
 import colorama
-colorama.init()
+colorama.init(autoreset=True)
+from colorama import Fore, Back, Style
 import circus.shared.files as io
-
-
 import circus
 from circus.shared.files import print_error, print_info, write_to_logger
 
@@ -93,23 +91,23 @@ Options are:
     batch_mode = (('-b' in argv) or ('--batch' in argv))
 
     if not batch_mode:
-        print colored(header, 'green')
+        print Fore.GREEN + header
 
     if len(argv) < 2:
-        print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
-        print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
+        print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
+        print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
         print ""
-        print colored("###################################################################", 'green')
+        print Fore.GREEN + "###################################################################"
         print ""
         print message
         sys.exit()
     else:
         filename   = argv[1]
         if filename in ['-h', '--help']:
-            print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
-            print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
+            print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
+            print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
             print ""
-            print colored("##################################################################", 'green')
+            print Fore.GREEN + "##################################################################"
             print ""
             print message
             sys.exit()
@@ -196,15 +194,15 @@ Options are:
         write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
         write_to_logger(params, ['Data file  : %s' %filename], 'debug')
 
-        print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
-        print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
-        print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
+        print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
+        print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
+        print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu)
         if HAVE_CUDA:
-            print colored("Number of GPU :", 'green'), colored(nb_gpu, 'cyan')
-        print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
-        print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
+            print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
+        print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
+        print Fore.GREEN + "Hostfile      :", Fore.CYAN + hostfile
         print ""
-        print colored("##################################################################", 'green')
+        print Fore.GREEN + "##################################################################"
         print ""        
 
         if not preview:
