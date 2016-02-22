@@ -16,7 +16,6 @@ requirements:
     - matplotlib
     - h5py
     - setuptools
-    - termcolor
     - colorama
   run:
     - progressbar
@@ -27,7 +26,6 @@ requirements:
     - matplotlib
     - h5py
     - setuptools
-    - termcolor
     - colorama
 
 source:
