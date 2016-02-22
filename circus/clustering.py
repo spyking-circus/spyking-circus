@@ -737,10 +737,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
 
                 amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], ielec, indices, slice_temp, nodes)
-                variations        = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-                physical_limit    = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                amp_min           = max(physical_limit, numpy.median(amplitudes) - variations)
-                amp_max           = min(amp_limits[1], numpy.median(amplitudes) + variations)
+                variations         = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                physical_limit     = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
+                amp_min            = min(0.8, max([physical_limit, numpy.median(amplitudes) - variations, 0.5]))
+                amp_max            = max(1.2, min([amp_limits[1], numpy.median(amplitudes) + variations, 5.]))
                 amps_lims[g_count] = [amp_min, amp_max]
 
                 offset        = total_nb_clusters + count_templates
@@ -921,8 +921,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 variations       = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - variations))
-                amp_max          = max(1.2, min(amp_limits[1], numpy.median(amplitudes) + variations))
+                amp_min          = min(0.8, max([physical_limit, numpy.median(amplitudes) - variations, 0.5]))
+                amp_max          = max(1.2, min([amp_limits[1], numpy.median(amplitudes) + variations, 5.]))
                 amps_lims[g_count] = [amp_min, amp_max]
 
                 for i in xrange(x):
