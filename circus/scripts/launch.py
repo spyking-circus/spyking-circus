@@ -164,7 +164,7 @@ Options are:
 
     # Print info
     if not batch_mode:
-    	params = io.load_parameters(filename)
+        params = io.load_parameters(filename)
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
@@ -176,7 +176,7 @@ Options are:
         steps        = ['filtering', 'whitening']
         io.prepare_preview(params, filename)
     else: 
-	if not batch_mode: 	  
+        if not batch_mode:
             stationary = params.getboolean('data', 'stationary')
         else:
              stationary = False
