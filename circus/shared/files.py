@@ -1,3 +1,5 @@
+from __future__ import division
+
 import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 import numpy, h5py, os, progressbar, platform, re, sys, scipy
@@ -114,8 +116,8 @@ def read_probe(parser):
         with open(parser.get('data', 'mapping'), 'r') as f:
             probetext = f.read()
             exec probetext in probe
-    except Exception:
-        print_error(["Something wrong with the syntax of the probe file!"])
+    except Exception as ex:
+        print_error(["Something wrong with the syntax of the probe file:\n" + str(ex)])
         sys.exit(0)
 
     key_flags = ['total_nb_channels', 'radius', 'channel_groups']
