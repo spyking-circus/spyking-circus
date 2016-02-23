@@ -118,18 +118,16 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
         halo = cl.copy()
         if NCLUST > 1:
             bord_rho = numpy.zeros(NCLUST, dtype=numpy.float64)
-            for i in xrange(N):
-                idx      = numpy.where((cl[i] < cl[i+1:N]) & (dist[didx(i, numpy.arange(i+1, N))] <= dc))[0]
-                if len(idx) > 0:
-                    myslice  = cl[i+1:N][idx]
-                    rho_aver = (rho[i] + rho[idx]) / 2.
-                    sub_idx  = numpy.where(rho_aver > bord_rho[cl[i]])[0]
-                    if len(sub_idx) > 0:
-                        bord_rho[cl[i]] = rho_aver[sub_idx].max()
-                    sub_idx  = numpy.where(rho_aver > bord_rho[myslice])[0]
-                    if len(sub_idx) > 0:
-                        bord_rho[myslice[sub_idx]] = rho_aver[sub_idx]
             
+            for i in xrange(N):
+                for j in xrange(i+1, N):
+                    if cl[i]!=cl[j] and dist[didx(i,j)]<=dc:
+                        rho_aver = (rho[i]+rho[j])/2
+                        if rho_aver>bord_rho[cl[i]]:
+                            bord_rho[cl[i]] = rho_aver
+                        if rho_aver>bord_rho[cl[j]]:
+                            bord_rho[cl[j]] = rho_aver
+
             idx       = numpy.where(rho < bord_rho[cl])[0]
             halo[idx] = -1
         

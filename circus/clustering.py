@@ -38,7 +38,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     max_clusters   = params.getint('clustering', 'max_clusters')
-    m_ratio        = numpy.min(0.1, 1./max_clusters)    
+    m_ratio        = 0.02   
     make_plots     = params.getboolean('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
