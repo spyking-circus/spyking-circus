@@ -1165,6 +1165,8 @@ def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=Non
     f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
     t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
     s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A))
+    # TODO: remove following line if possible.
+    s = numpy.abs(s)
     s = numpy.sqrt(s)
     t_ = pca.transform(t)
     O_ = pca.transform(numpy.multiply(O, s).T + t)
@@ -1215,9 +1217,9 @@ def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=Non
     fig = pylab.figure()
     ax = fig.gca()
     ## Plot datasets.
-    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
     ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
     ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
+    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
     ## Plot ellipse transformation.
     for i in xrange(0, O_.shape[0]):
         ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
@@ -1252,6 +1254,85 @@ def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=Non
         ax.set_title(title)
     ax.set_xlabel("1st component")
     ax.set_ylabel("2nd component")
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_mahalanobis_distribution(d_gt, d_ngt, d_noi, title=None, save=None):
+    '''Plot Mahalanobis distribution'''
+    fig = pylab.figure()
+    ax = fig.gca()
+    ax.hist(d_noi, bins=50, color='red', alpha=0.5, label="noise")
+    ax.hist(d_ngt, bins=50, color='blue', alpha=0.5, label="non ground truth")
+    ax.hist(d_gt, bins=75, color='green', alpha=0.5, label="ground truth")
+    ax.grid(True)
+    if title is None:
+        ax.set_title("Mahalanobis distribution")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("squared Mahalanobis distance")
+    ax.set_ylabel("")
+    ax.legend()
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_classification(clf, X, X_raw, mode='predict', title=None, save=None):
+    if mode == 'predict':
+        c = clf.predict(X)
+        vmax = 1.0
+        vmin = 0.0
+    elif mode == 'decision_function':
+        c = clf.decision_function(X)
+        vmax = max(abs(numpy.amin(c)), abs(numpy.amax(c)))
+        vmin = - vmax
+    else:
+        raise Exception
+    n_components = 2
+    pca = PCA(n_components)
+    _ = pca.fit(X_raw)
+    # Plot figure.
+    fig = pylab.figure()
+    ax = fig.gca()
+    X_raw_ = pca.transform(X_raw)
+    sc = ax.scatter(X_raw_[:, 0], X_raw_[:, 1], c=c, s=5, lw=0.1, cmap='bwr',
+                    vmin=vmin, vmax=vmax)
+    fig.colorbar(sc)
+    ax.grid(True)
+    if title is None:
+        ax.set_title("Classification")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_loss_curve(losss, title=None, save=None):
+    '''Plot loss curve'''
+    x_min = 1
+    x_max = len(losss) - 1
+    fig = pylab.figure()
+    ax = fig.gca()
+    ax.semilogy(range(x_min, x_max + 1), losss[1:], color='blue', linestyle='solid')
+    ax.grid(True, which='both')
+    if title is None:
+        ax.set_title("Loss curve")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("iteration")
+    ax.set_ylabel("loss")
+    ax.set_xlim([x_min - 1, x_max + 1])
     if save is None:
         pylab.show()
     else:

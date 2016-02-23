@@ -688,7 +688,7 @@ class PCA(object):
 
 # Useful function to convert an ellispoid in standard form to an ellispoid
 # in general form.
-def ellipsoid_standard_to_general(t, s, O):
+def ellipsoid_standard_to_general(t, s, O, verbose=False, logger=None):
     # Translation from standard matrix to general matrix.
     d = numpy.divide(1.0, numpy.power(s, 2.0))
     D = numpy.diag(d)
@@ -702,7 +702,7 @@ def ellipsoid_standard_to_general(t, s, O):
             "# Eigenvalues",
             "%s" %(w,),
         ]
-        io.print_and_log(msg, level='default', logger=params)
+        io.print_and_log(msg, level='default', logger=logger)
     ##### end test zone
     b = - 2.0 * numpy.dot(t, A)
     c = numpy.dot(t, numpy.dot(A, t)) - 1
@@ -724,6 +724,84 @@ def ellipsoid_standard_to_general(t, s, O):
             # end test zone
             k = k + 1
     return coefs
+
+# Useful function to convert an ellispoid in general form to an ellispoid in
+# standard form.
+def ellipsoid_general_to_standard(coefs, verbose=False, logger=None):
+    """
+    Convert an ellipsoid in general form:
+        a_{0}
+        + a_{1} x1 + ... + a_{m} xm
+        + a_{1, 1} * x1 * x1 + ... + a_{1, m} * x1 * xm
+        + ...
+        + a_{m, m} xm * xm
+        = 0
+    To standard form (TODO: check validity):
+        (x1 - x1') * phi1(t_{1, 2}, ..., t_{m-1, m})
+        + ...
+        + (xm - xm') * phim(t_{1, 2}, ..., t_{m-1, m})
+    The ellipse has center [x1', ..., xm']^T, semi-axes b1, ... and bm, and
+    the angle to the semi-major axis is t.
+    """
+    # Convert to float.
+    coefs = coefs.astype('float')
+    K = coefs.size
+    # Retrieve the number of dimension (i.e. N).
+    # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
+    N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
+    if verbose:
+        msg = [
+            "# K",
+            "%s" %(K,),
+            "# N",
+            "%s" %(N,),
+        ]
+        io.print_and_log(msg, level='default', logger=logger)
+    # Retrieve the matrix representation.
+    A = numpy.zeros((N, N))
+    k = 0
+    for i in xrange(0, N):
+        A[i, i] = coefs[1 + N + k]
+        k = k + 1
+        for j in xrange(i + 1, N):
+            A[i, j] = coefs[1 + N + k] / 2.0
+            A[j, i] = coefs[1 + N + k] / 2.0
+            k = k + 1
+    b = coefs[1:1+N]
+    c = coefs[0]
+    # Compute the center of the ellipsoid.
+    center = - 0.5 * numpy.dot(numpy.linalg.inv(A), b)
+    
+    ##### TODO: remove test zone
+    if verbose:
+        msg = [
+            "# Test of symmetry",
+            "%s" %(numpy.all(A == A.T),),
+        ]
+        io.print_and_log(msg, level='default', logger=logger)
+    ##### end test zone
+    
+    # Each eigenvector of A lies along one of the axes.
+    evals, evecs = numpy.linalg.eigh(A)
+    
+    ##### TODO: remove print zone.
+    if verbose:
+        msg = [
+            "# Semi-axes computation",
+            "## det(A)",
+            "%s" %(numpy.linalg.det(A),),
+            "## evals",
+            "%s" %(evals,),
+        ]
+        io.print_and_log(msg, level='default', logger=logger)
+    ##### end print zone.
+    
+    # Semi-axes from reduced canonical equation.
+    ##### TODO: remove test zone.
+    # eaxis = numpy.sqrt(- c / evals)
+    eaxis = numpy.sqrt(numpy.abs(-c / evals))
+    ##### end test zone
+    return center, eaxis, evecs
 
 def ellipsoid_matrix_to_coefs(A, b, c):
     N = b.size
@@ -852,3 +930,20 @@ def find_apparent_contour(A, b, c):
     b_ = numpy.dot(alpha.T, 2.0 * numpy.dot(A, beta) + b)
     c_ = numpy.dot(numpy.dot(A, beta) + b, beta) + c
     return(A_, b_, c_)
+
+def evaluate_ellipse(A, b, c, X):
+    '''Compute ellipse values for various points'''
+    x2 = numpy.sum(numpy.multiply(X.T, numpy.dot(A, X.T)), axis=0)
+    x1 = numpy.dot(b, X.T)
+    x0 = c
+    d2 = x2 + x1 + x0
+    return d2
+
+def squared_Mahalanobis_distance(A, mu, X):
+    '''Compute squared Mahalanobis distance for various points'''
+    N = X.shape[0]
+    d2 = numpy.zeros(N)
+    for i in xrange(0, N):
+        d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
+    return d2
+

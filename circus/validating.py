@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from sklearn.decomposition import PCA
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
 
 from .shared.utils import *
 from .shared import plot
@@ -23,7 +26,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     
     ############################################################################
-    
     
     
     def get_neighbors(params, chan=43, radius=120):
@@ -76,14 +78,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # Save data.
             spikes[:, :, count] = local_chunk
         return spikes
-    
-    def squared_Mahalanobis_distance(A, mu, X):
-        '''Compute the squared Mahalanobis distance.'''
-        N = X.shape[0]
-        d2 = numpy.zeros(N)
-        for i in xrange(0, N):
-            d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
-        return d2
     
     
     # Initialize the random seed.
@@ -593,353 +587,57 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     
-    # SANITY PLOT (ELLIPSE PROJECTION) #########################################
+    # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
-    io.print_and_log(["# Sanity plot (ellipse projection)..."], level='info', logger=params)
+    io.print_and_log(["# Sanity plot (classifier projection)..."],
+                     level='info', logger=params)
     
-    
-    # Compute PCA with two components.
-    n_components = 2
-    pca = PCA(n_components)
-    _ = pca.fit(X_raw)
-    
-    # Data transformation.
-    X_raw_ = pca.transform(X_raw)
-    X_gt_ = pca.transform(X_gt)
-    X_ngt_ = pca.transform(X_ngt)
-    X_noi_ = pca.transform(X_noi)
-    
-    # Mean transformation.
-    mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
-    mu_gt_ = pca.transform(mu_gt)
-    mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
-    mu_ngt_ = pca.transform(mu_ngt)
-    mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
-    mu_noi_ = pca.transform(mu_noi)
-    
-    # Ellipse transformation.
-    f = 0.25 * numpy.dot(numpy.dot(b_init, numpy.linalg.inv(A_init)), b_init) - c_init
-    t = - 0.5 * numpy.dot(numpy.linalg.inv(A_init), b_init).reshape(1, -1)
-    s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A_init))
-    s = numpy.sqrt(s)
-    t_ = pca.transform(t)
-    O_ = pca.transform(numpy.multiply(O, s).T + t)
-    
-    
-    if verbose:
-        msg = [
-            "# s (i.e. demi-axes)",
-            "%s" %(s,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
-    # Find plot limits.
-    pad = 0.3
-    x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
-    x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
-    x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
-    y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
-    y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
-    y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
     
     if make_plots:
-        # Plot classifier.
-        
-        # fig = plt.figure()
-        # ax = fig.gca()
-        # ax.set_aspect('equal')
-        # ax.grid()
-        # ax.set_xlim([x_min, x_max])
-        # ax.set_ylim([y_min, y_max])
-        # ax.set_xlabel("1st component")
-        # ax.set_ylabel("2nd component")
-        # # Plot datasets.
-        # ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
-        # ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
-        # ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
-        # # Plot ellipse transformation.
-        # for i in xrange(0, O_.shape[0]):
-        #     ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
-        # # Plot means of datasets.
-        # ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        # ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        # ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        # plot_filename = "sanity-ellipse-projection-init.png"
-        # path = os.path.join(plot_path, plot_filename)
-        # fig.savefig(path)
-        # plt.close(fig)
-        
+        # Plot initial classifier (ellipsoid).
         title = "Initial classifier (ellipsoid)"
-        plot_filename = "sanity-ellipse-projection-init.png"
+        plot_filename = "classifier-projection-init.png"
         path = os.path.join(plot_path, plot_filename)
         plot.view_classifier(filename, X_gt, X_ngt, X_noi, A_init, b_init, c_init,
                              title=title, save=path, verbose=verbose)
     
     
     
-    ##### SANITY PLOT (QUADRIC APPARENT CONTOUR) ###############################
+    # MAHALANOBIS DISTRIBUTIONS ################################################
     
-    # io.print_and_log(["# Sanity plot (quadric apparent contour)..."], level='info', logger=params)
-    
-    
-    # v1 = pca.components_[0, :]
-    # v2 = pca.components_[1, :]
-    
-    
-    # if verbose:
-    #     # msg = [
-    #     #     "# norm(v1)",
-    #     #     "%s" %(numpy.linalg.norm(v1),),
-    #     #     "# norm(v2)",
-    #     #     "%s" %(numpy.linalg.norm(v2),),
-    #     # ]
-    #     # io.print_and_log(msg, level='default', logger=params)
-    #     pass
-    
-    
-    # N = v1.size
-    # x = numpy.copy(v1)
-    # R = numpy.eye(N)
-    # for i in xrange(1, N):
-    #     x1 = x[0]
-    #     x2 = x[i]
-    #     n = numpy.sqrt(x1 * x1 + x2 * x2)
-    #     if n == 0.0:
-    #         cos = 1.0
-    #         sin = 0.0
-    #     else:
-    #         cos = x1 / n
-    #         sin = x2 / n
-    #     R_ = numpy.eye(N)
-    #     R_[0, 0] = cos
-    #     R_[0, i] = sin
-    #     R_[i, 0] = - sin
-    #     R_[i, i] = cos
-    #     x = numpy.dot(R_, x)
-    #     R = numpy.dot(R_, R)
-    # x = numpy.dot(R, v2)
-    # for i in xrange(2, N):
-    #     x1 = x[1]
-    #     x2 = x[i]
-    #     n = numpy.sqrt(x1 * x1 + x2 * x2)
-    #     if n == 0.0:
-    #         cos = 1.0
-    #         sin = 0.0
-    #     else:
-    #         cos = x1 / n
-    #         sin = x2 / n
-    #     R_ = numpy.eye(N)
-    #     R_[1, 1] = cos
-    #     R_[1, i] = sin
-    #     R_[i, 1] = - sin
-    #     R_[i, i] = cos
-    #     x = numpy.dot(R_, x)
-    #     R = numpy.dot(R_, R)
-    
-    
-    # if verbose:
-    #     # u1 = numpy.dot(R, v1)
-    #     # u1[numpy.abs(u1) < 1.0e-10] = 0.0
-    #     # u2 = numpy.dot(R, v2)
-    #     # u2[numpy.abs(u2) < 1.0e-10] = 0.0
-    #     # msg = [
-    #     #     "# R * v1",
-    #     #     "%s" %(u1,),
-    #     #     "# R * v2",
-    #     #     "%s" %(u2,),
-    #     # ]
-    #     # io.print_and_log(msg, level='default', logger=params)
-    #     pass
-    
-    
-    # R_ = R.T
-    # t_ = pca.mean_
-    # A_ = numpy.dot(numpy.dot(R_.T, A_init), R_)
-    # b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A_init, t_) + b_init)
-    # c_ = numpy.dot(numpy.dot(A_init, t_) + b_init, t_) + c_init
-    
-    
-    # if verbose:
-    #     msg = [
-    #         "# t_",
-    #         "%s" %(t_,),
-    #     ]
-    #     io.print_and_log(msg, level='default', logger=params)
-    
-    
-    # xs = [numpy.array([0.0, 0.0]),
-    #       numpy.array([1.0, 0.0]),
-    #       numpy.array([0.0, 1.0])]
-    
-    # # Solve the linear system 2 * A.T * y + b = 0 for fixed couples (y_1, y_2).
-    # ys = []
-    # for x in xs:
-    #     c1 = 2.0 * A_[2:, 2:].T
-    #     c2 = - (numpy.dot(2.0 * A_[:2, 2:].T, x) + b_[2:])
-    #     yx = numpy.linalg.solve(c1, c2)
-    #     ys.append(yx)
-    
-    
-    # k = ys[0].size
-    # c1 = numpy.eye(k)
-    # c1 = numpy.tile(c1, (3, 3))
-    # for (i, x) in enumerate(xs):
-    #     for (j, v) in enumerate(x):
-    #         c1[i*k:(i+1)*k, j*k:(j+1)*k] = v * c1[i*k:(i+1)*k, j*k:(j+1)*k]
-    # c2 = numpy.concatenate(tuple(ys))
-    # m = numpy.linalg.solve(c1, c2)
-    
-    # # Reconstruct alpha.
-    # alpha_1 = numpy.eye(2)
-    # alpha_2 = numpy.hstack((m[0:k].reshape(-1, 1), m[k:2*k].reshape(-1, 1)))
-    # alpha = numpy.vstack((alpha_1, alpha_2))
-    # # Reconstruct beta.
-    # beta_1 = numpy.zeros(2)
-    # beta_2 = m[2*k:3*k]
-    # beta = numpy.concatenate((beta_1, beta_2))
-    
-    # A__ = numpy.dot(alpha.T, numpy.dot(A_, alpha))
-    # b__ = numpy.dot(alpha.T, 2.0 * numpy.dot(A_, beta) + b_)
-    # c__ = numpy.dot(numpy.dot(A_, beta) + b_, beta) + c_
-    
-    
-    # if verbose:
-    #     msg = [
-    #         "# A__",
-    #         "%s" %(A__,),
-    #         "# b__",
-    #         "%s" %(b__,),
-    #         "# c__",
-    #         "%s" %(c__,),
-    #     ]
-    #     io.print_and_log(msg, level='default', logger=params)
-    
-    
-    # if make_plots:
-    #     # Plot conic section.
-    #     n = 100
-    #     # x_min = -3100.0
-    #     # x_max = +3100.0
-    #     # y_min = -3100.0
-    #     # y_max = +3100.0
-    #     x_r = numpy.linspace(x_min, x_max, n)
-    #     y_r = numpy.linspace(y_min, y_max, n)
-    #     xx, yy = numpy.meshgrid(x_r, y_r)
-    #     zz = numpy.zeros(xx.shape)
-    #     for i in xrange(0, xx.shape[0]):
-    #         for j in xrange(0, xx.shape[1]):
-    #             v = numpy.array([xx[i, j], yy[i, j]])
-    #             zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
-    #     vv = numpy.array([0.0])
-    #     # vv = numpy.arange(0.0, 1.0, 0.1)
-    #     # vv = numpy.arange(0.0, 20.0)
-        
-    #     fig = plt.figure()
-    #     ax = fig.gca()
-    #     ax.set_xlabel("1st component")
-    #     ax.set_ylabel("2nd component")
-    #     ax.set_aspect('equal')
-    #     ax.grid()
-    #     ax.set_xlim([x_min, x_max])
-    #     ax.set_ylim([y_min, y_max])
-    #     ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
-    #     # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
-    #     # ax.clabel(cs, inline=1, fontsize=10)
-    #     ax.scatter(pca.transform(X_gt)[:, 0], pca.transform(X_gt)[:, 1], c='g', s=5, lw=0.1)
-    #     plot_filename = "contour-init.png"
-    #     path = os.path.join(plot_path, plot_filename)
-    #     fig.savefig(path)
-    #     plt.close(fig)
-    
-    
-    
-    ############################################################################
-    
-    io.print_and_log(["# Compute Mahalanobis distances..."],
+    io.print_and_log(["# Compute intial Mahalanobis distributions..."],
                      level='info', logger=params)
     
     
-    # Compute the Mahalanobis distance.
-    def evaluate_ellipse(A, b, c, X):
-        x2 = numpy.sum(numpy.multiply(X.T, numpy.dot(A, X.T)), axis=0)
-        x1 = numpy.dot(b, X.T)
-        x0 = c
-        d2 = x2 + x1 + x0
-        return d2
-    
-    def Mahalanobis_distance(A, mu, X):
-        N = X.shape[0]
-        d2 = numpy.zeros(N)
-        for i in xrange(0, N):
-            d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
-        return d2
-    
+    # Compute mahalanobis distributions.
     mu = numpy.mean(X_gt, axis=0)
-    
-    Mhlnb_gt = Mahalanobis_distance(A_init, mu, X_gt)
-    Mhlnb_ngt = Mahalanobis_distance(A_init, mu, X_ngt)
-    Mhlnb_noi = Mahalanobis_distance(A_init, mu, X_noi)
-    
-    Ell_gt = evaluate_ellipse(A_init, b_init, c_init, X_gt)
+    Mhlnb_gt = squared_Mahalanobis_distance(A_init, mu, X_gt)
+    Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
+    Mhlnb_noi = squared_Mahalanobis_distance(A_init, mu, X_noi)
     
     
     if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        ax.hist(Ell_gt, bins=75, color='g')
-        plot_filename = "ellipse-values.png"
-        path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
-    
-    
-    if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        ax.hist(Mhlnb_noi, bins=50, color='r')
-        ax.hist(Mhlnb_ngt, bins=50, color='b')
-        ax.hist(Mhlnb_gt, bins=75, color='g')
+        # Plot Mahalanobis distributions.
+        title = "Mahalanobis distributions (ellipsoid)"
         plot_filename = "mahalanobis-init.png"
         path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
+        plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
+                                           title=title, save=path)
     
-    sys.exit(0)
     
     
     ##### LEARNING #############################################################
     
     io.print_and_log(["# Learning..."], level='info', logger=params)
     
-    from sklearn.model_selection import train_test_split
-    from sklearn.neural_network import MLPClassifier
-    from sklearn.preprocessing import StandardScaler
-    
     
     # mode = 'decision'
     mode = 'prediction'
     
-    x_component = 0
-    y_component = 1
     
     # Standardize features by removing the mean and scaling to unit variance.
     # X = StandardScaler().fit_transform(X)
     
-    pad = 0.5 # padding coefficient
-    x_dif = numpy.amax(X[:, x_component]) - numpy.amin(X[:, x_component])
-    x_min = numpy.amin(X[:, x_component]) - pad * x_dif
-    x_max = numpy.amax(X[:, x_component]) + pad * x_dif
-    y_dif = numpy.amax(X[:, y_component]) - numpy.amin(X[:, y_component])
-    y_min = numpy.amin(X[:, y_component]) - pad * y_dif
-    y_max = numpy.amax(X[:, y_component]) + pad * y_dif
-    h = max(x_dif, y_dif) / 100.0 # step size in the mesh
-    x_r = numpy.arange(x_min, x_max, h)
-    y_r = numpy.arange(y_min, y_max, h)
-    xx, yy = numpy.meshgrid(x_r, y_r)
-        
     # Preprocess dataset.
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
     
@@ -973,26 +671,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        c_raw = clf.predict(X) 
-        # c_raw = clf.predict_proba(X)[:, 0]
-        vmax = 1.0
-        vmin = 0.0
-        # c_raw = clf.decision_function(X)
-        # vmax = max(abs(numpy.amin(c_raw)), abs(numpy.amax(c_raw)))
-        # vmin = - vmax
-        x_raw = pca.transform(X_raw)[:, 0]
-        y_raw = pca.transform(X_raw)[:, 1]
-        # cs = ax.scatter(x_raw, y_raw, c=c_raw, s=5, lw=0.1, cmap='bwr', vmin=vmin, vmax=vmax)
-        # fig.colorbar(cs)
-        ax.scatter(x_raw[0.5 < c_raw], y_raw[0.5 < c_raw], c='r', s=5, lw=0.1)
-        ax.scatter(x_raw[c_raw < 0.5], y_raw[c_raw < 0.5], c='g', s=5, lw=0.1)
-        plot_filename = "temp-1.png"
+        # Plot prediction.
+        title = "Initial prediction (random)"
+        plot_filename = "prediction-init-random.png"
         path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
+        plot.view_classification(clf, X, X_raw, mode='predict',
+                                 title=title, save=path)
+        # Plot decision function.
+        title = "Initial decision function (random)"
+        plot_filename = "decision-function-init-random.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_classification(clf, X, X_raw, mode='decision_function',
+                                 title=title, save=path)
     
     
     if verbose:
@@ -1020,26 +710,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        c_raw = clf.predict(X)
-        # c_raw = clf.predict_proba(X)[:, 0]
-        vmax = 1.0
-        vmin = 0.0
-        # c_raw = clf.decision_function(X)
-        # vmax = max(abs(numpy.amin(c_raw)), abs(numpy.amax(c_raw)))
-        # vmin = - vmax
-        x_raw = pca.transform(X_raw)[:, 0]
-        y_raw = pca.transform(X_raw)[:, 1]
-        # cs = ax.scatter(x_raw, y_raw, c=c_raw, s=5, lw=0.1, cmap='bwr', vmin=vmin, vmax=vmax)
-        # fig.colorbar(cs)
-        ax.scatter(x_raw[0.5 < c_raw], y_raw[0.5 < c_raw], c='r', s=5, lw=0.1)
-        ax.scatter(x_raw[c_raw < 0.5], y_raw[c_raw < 0.5], c='g', s=5, lw=0.1)
-        plot_filename = "temp-2.png"
+        # Plot prediction.
+        title = "Initial prediction (ellipsoid)"
+        plot_filename = "prediction-init-ellipsoid.png"
         path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
+        plot.view_classification(clf, X, X_raw, mode='predict',
+                                 title=title, save=path)
+        # Plot decision function.
+        title = "Initial decision function (ellipsoid)"
+        plot_filename = "decision-function-init-ellipsoid.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_classification(clf, X, X_raw, mode='decision_function',
+                                 title=title, save=path)
     
     
     if verbose:
@@ -1069,26 +751,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        c_raw = clf.predict(X)
-        vmax = 1.0
-        vmin = 0.0
-        # c_raw = clf.predict_proba(X)[:, 0]
-        # c_raw = clf.decision_function(X)
-        # vmax = max(abs(numpy.amin(c_raw)), abs(numpy.amax(c_raw)))
-        # vmin = - vmax
-        x_raw = pca.transform(X_raw)[:, 0]
-        y_raw = pca.transform(X_raw)[:, 1]
-        # cs = ax.scatter(x_raw, y_raw, c=c_raw, s=5, lw=0.1, cmap='bwr', vmin=-vmax, vmax=vmax)
-        # fig.colorbar(cs)
-        ax.scatter(x_raw[0.5 < c_raw], y_raw[0.5 < c_raw], c='r', s=5, lw=0.1)
-        ax.scatter(x_raw[c_raw < 0.5], y_raw[c_raw < 0.5], c='g', s=5, lw=0.1)
-        plot_filename = "temp-3.png"
+        # Plot final prediction.
+        title = "Final prediction "
+        plot_filename = "prediction-final.png"
         path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
+        plot.view_classification(clf, X, X_raw, mode='predict',
+                                 title=title, save=path)
+        # Plot final decision function.
+        title = "Final decision function"
+        plot_filename = "decision-function-final.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_classification(clf, X, X_raw, mode='decision_function',
+                                 title=title, save=path)
     
     
     if verbose:
@@ -1112,24 +786,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if make_plots:
         # Plot the loss curve.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid(True, which='both')
-        ax.set_title("Loss curve")
-        ax.set_xlabel("iteration")
-        ax.set_ylabel("loss")
-        x_min = 1
-        x_max = len(clf.loss_curve_) - 1
-        ax.set_xlim([x_min - 1, x_max + 1])
-        # ax.set_ylim([0.0, 1.1 * numpy.amax(clf.loss_curve_[1:])])
-        # ax.plot(range(x_min, x_max + 1), clf.loss_curve_[1:], 'b-')
-        # ax.plot(range(x_min, x_max + 1), clf.loss_curve_[1:], 'bo')
-        ax.semilogy(range(x_min, x_max + 1), clf.loss_curve_[1:], 'b-')
-        # ax.semilogy(range(x_min, x_max + 1), clf.loss_curve_[1:], 'bo')
         plot_filename = "loss-curve.png"
         path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
+        plot.view_loss_curve(clf.loss_curve_, save=path)
     
     
     # Retrieve the coefficients of the ellipsoid.
@@ -1152,280 +811,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     
-    # SANITY PLOT (ELLIPSE PROJECTION) #########################################
+    # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
-    io.print_and_log(["# Sanity plot (ellipse projection)..."], level='info', logger=params)
-    
-    
-    # Compute PCA with two components.
-    n_components = 2
-    pca = PCA(n_components)
-    _ = pca.fit(X_raw)
-    
-    # Data transformation.
-    X_raw_ = pca.transform(X_raw)
-    X_gt_ = pca.transform(X_gt)
-    X_ngt_ = pca.transform(X_ngt)
-    X_noi_ = pca.transform(X_noi)
-    
-    # Mean transformation.
-    mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
-    mu_gt_ = pca.transform(mu_gt)
-    mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
-    mu_ngt_ = pca.transform(mu_ngt)
-    mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
-    mu_noi_ = pca.transform(mu_noi)
-    
-    # Ellipse transformation.
-    f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
-    t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
-    s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A))
-    ##### TODO: remove test zone.
-    s = numpy.abs(s)
-    ##### end test zone
-    s = numpy.sqrt(s)
-    t_ = pca.transform(t)
-    O_ = pca.transform(numpy.multiply(s, O).T + t)
-    
-    
-    if verbose:
-        msg = [
-            "# t",
-            "%s" %(t,),
-            "# s (i.e. demi-axes)",
-            "%s" %(s,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    io.print_and_log(["# Sanity plot (classifier projection)..."],
+                     level='info', logger=params)
     
     
     if make_plots:
-        # Plot ellipse projection.
-        ## Find plot limits.
-        pad = 0.3
-        x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
-        x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
-        x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
-        y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
-        y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
-        y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
-        ## Create plot.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.set_xlabel("1st component")
-        ax.set_ylabel("2nd component")
-        ax.grid()
-        ax.set_aspect('equal')
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ## Plot datasets.
-        ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
-        ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
-        ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
-        ## Plot ellipse transformation.
-        for i in xrange(0, O_.shape[0]):
-            ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
-        ## Plot means of datasets.
-        ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        ## Save plot.
-        plot_filename = "sanity-ellipse-projection.png"
+        # Plot final classifier.
+        title = "Final classifier"
+        plot_filename = "classifier-projection-final.png"
         path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
+        plot.view_classifier(filename, X_gt, X_ngt, X_noi, A, b, c,
+                             title=title, save=path, verbose=verbose)
     
     
     
-    ##### SANITY PLOT (QUADRIC APPARENT CONTOUR) ###############################
+    # MAHALANOBIS DISTRIBUTIONS ################################################
     
-    io.print_and_log(["# Sanity plot (quadric apparent contour)..."], level='info', logger=params)
-    
-    
-    v1 = pca.components_[0, :]
-    v2 = pca.components_[1, :]
+    io.print_and_log(["# Compute final Mahalanobis distributions..."],
+                     level='info', logger=params)
     
     
-    if verbose:
-        # msg = [
-        #     "# norm(v1)",
-        #     "%s" %(numpy.linalg.norm(v1),),
-        #     "# norm(v2)",
-        #     "%s" %(numpy.linalg.norm(v2),),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
-    
-    
-    N = v1.size
-    x = numpy.copy(v1)
-    R = numpy.eye(N)
-    for i in xrange(1, N):
-        x1 = x[0]
-        x2 = x[i]
-        n = numpy.sqrt(x1 * x1 + x2 * x2)
-        if n == 0.0:
-            cos = 1.0
-            sin = 0.0
-        else:
-            cos = x1 / n
-            sin = x2 / n
-        R_ = numpy.eye(N)
-        R_[0, 0] = cos
-        R_[0, i] = sin
-        R_[i, 0] = - sin
-        R_[i, i] = cos
-        x = numpy.dot(R_, x)
-        R = numpy.dot(R_, R)
-    x = numpy.dot(R, v2)
-    for i in xrange(2, N):
-        x1 = x[1]
-        x2 = x[i]
-        n = numpy.sqrt(x1 * x1 + x2 * x2)
-        if n == 0.0:
-            cos = 1.0
-            sin = 0.0
-        else:
-            cos = x1 / n
-            sin = x2 / n
-        R_ = numpy.eye(N)
-        R_[1, 1] = cos
-        R_[1, i] = sin
-        R_[i, 1] = - sin
-        R_[i, i] = cos
-        x = numpy.dot(R_, x)
-        R = numpy.dot(R_, R)
-    
-    
-    if verbose:
-        u1 = numpy.dot(R, v1)
-        u1[numpy.abs(u1) < 1.0e-10] = 0.0
-        u2 = numpy.dot(R, v2)
-        u2[numpy.abs(u2) < 1.0e-10] = 0.0
-        msg = [
-            "# R * v1",
-            "%s" %(u1,),
-            "# R * v2",
-            "%s" %(u2,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-        pass
-    
-    
-    R_ = R.T
-    t_ = pca.mean_
-    A_ = numpy.dot(numpy.dot(R_.T, A), R_)
-    b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, t_) + b)
-    c_ = numpy.dot(numpy.dot(A, t_) + b, t_) + c
-    
-    
-    if verbose:
-        msg = [
-            "# t_",
-            "%s" %(t_,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
-    xs = [numpy.array([0.0, 0.0]),
-          numpy.array([1.0, 0.0]),
-          numpy.array([0.0, 1.0])]
-    
-    # Solve the linear system 2 * A.T * y + b = 0 for fixed couples (y_1, y_2).
-    ys = []
-    for x in xs:
-        c1 = 2.0 * A_[2:, 2:].T
-        c2 = - (numpy.dot(2.0 * A_[:2, 2:].T, x) + b_[2:])
-        yx = numpy.linalg.solve(c1, c2)
-        ys.append(yx)
-    
-    
-    k = ys[0].size
-    c1 = numpy.eye(k)
-    c1 = numpy.tile(c1, (3, 3))
-    for (i, x) in enumerate(xs):
-        for (j, v) in enumerate(x):
-            c1[i*k:(i+1)*k, j*k:(j+1)*k] = v * c1[i*k:(i+1)*k, j*k:(j+1)*k]
-    c2 = numpy.concatenate(tuple(ys))
-    m = numpy.linalg.solve(c1, c2)
-    
-    # Reconstruct alpha.
-    alpha_1 = numpy.eye(2)
-    alpha_2 = numpy.hstack((m[0:k].reshape(-1, 1), m[k:2*k].reshape(-1, 1)))
-    alpha = numpy.vstack((alpha_1, alpha_2))
-    # Reconstruct beta.
-    beta_1 = numpy.zeros(2)
-    beta_2 = m[2*k:3*k]
-    beta = numpy.concatenate((beta_1, beta_2))
-    
-    A__ = numpy.dot(alpha.T, numpy.dot(A_, alpha))
-    b__ = numpy.dot(alpha.T, 2.0 * numpy.dot(A_, beta) + b_)
-    c__ = numpy.dot(numpy.dot(A_, beta) + b_, beta) + c_
-    
-    
-    if verbose:
-        msg = [
-            "# A__",
-            "%s" %(A__,),
-            "# b__",
-            "%s" %(b__,),
-            "# c__",
-            "%s" %(c__,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
-    if make_plots:
-        # Plot conic section.
-        n = 100
-        # x_min = -300.0
-        # x_max = +300.0
-        # y_min = -300.0
-        # y_max = +300.0
-        x_r = numpy.linspace(x_min, x_max, n)
-        y_r = numpy.linspace(y_min, y_max, n)
-        xx, yy = numpy.meshgrid(x_r, y_r)
-        zz = numpy.zeros(xx.shape)
-        for i in xrange(0, xx.shape[0]):
-            for j in xrange(0, xx.shape[1]):
-                v = numpy.array([xx[i, j], yy[i, j]])
-                zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
-        vv = numpy.array([0.0])
-        # vv = numpy.arange(0.0, 1.0, 0.1)
-        # vv = numpy.arange(0.0, 20.0)
-        
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.set_xlabel("1st component")
-        ax.set_ylabel("2nd component")
-        ax.set_aspect('equal')
-        ax.grid()
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
-        # cs = ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
-        # cs = ax.contour(xx, yy, zz, colors='y', linewidths=1.0)
-        # ax.clabel(cs, inline=1, fontsize=10)
-        # ax.scatter(pca.transform(X_gt)[:, 0], pca.transform(X_gt)[:, 1], c='g', s=5, lw=0.1)
-        c_raw = clf.predict(X)[0:X_raw.shape[0]]
-        ax.scatter(pca.transform(X_raw)[:, 0], pca.transform(X_raw)[:, 1], c=c_raw, s=5, lw=0.1)
-        ## Save plot.
-        plot_filename = "contour.png"
-        path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
-    
-    
-    
-    ############################################################################
-    
-    # Compute the Mahalanobis distance.
-    def squared_Mahalanobis_distance(A, mu, X):
-        N = X.shape[0]
-        d = numpy.zeros(N)
-        for i in xrange(0, N):
-            d[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
-        return d
-    
+    # Compute the Mahalanobis distributions.
     mu = numpy.mean(X_gt, axis=0)
     Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
     Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
@@ -1441,20 +849,37 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        ax.hist(Mhlnb_ngt, bins=50, color='b')
-        ax.hist(Mhlnb_noi, bins=50, color='r')
-        ax.hist(Mhlnb_gt, bins=75, color='g')
-        plot_filename = "mahalanobis.png"
+        # Plot Mahalanobis distributions.
+        title = "Final Mahalanobis distributions"
+        plot_filename = "mahalanobis-final.png"
         path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
+        plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
+                                           title=title, save=path)
     
     
     
-    ############################################################################
+    ##### SANITY PLOT ##########################################################
+    
+    io.print_and_log(["# Sanity plot..."], level='info', logger=params)
+    
+    
+    # TODO: remove this section (not so useful).
+    
+    
+    # Compute plot limits.
+    x_component = 0
+    y_component = 1
+    pad = 0.5 # padding coefficient
+    x_dif = numpy.amax(X[:, x_component]) - numpy.amin(X[:, x_component])
+    x_min = numpy.amin(X[:, x_component]) - pad * x_dif
+    x_max = numpy.amax(X[:, x_component]) + pad * x_dif
+    y_dif = numpy.amax(X[:, y_component]) - numpy.amin(X[:, y_component])
+    y_min = numpy.amin(X[:, y_component]) - pad * y_dif
+    y_max = numpy.amax(X[:, y_component]) + pad * y_dif
+    n = 300 # number of node per dimension in the mesh
+    x_r = numpy.linspace(x_min, x_max, n)
+    y_r = numpy.linspace(y_min, y_max, n)
+    xx, yy = numpy.meshgrid(x_r, y_r)
     
     # Compute prediction on a grid of the input space for plotting.
     shape_pre = (xx.shape[0] * xx.shape[1], X_train.shape[1])
@@ -1496,12 +921,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     zz = zz.reshape(xx.shape)
     
     
-    
-    ##### SANITY PLOT ##########################################################
-    
-    io.print_and_log(["# Sanity plot..."], level='info', logger=params)
-    
-    
     if make_plots:
         fig = plt.figure()
         fig.suptitle("Dataset and decision boundaries")
@@ -1518,17 +937,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             raise(Exception)
         cs = ax.contourf(xx, yy, zz, 20, alpha=0.8, cmap='bwr', vmin=vmin, vmax=vmax)
-##### TODO: remove test zone
-        # Comment scatter to see the prediction boundary only.
         ax.scatter(X_test[:, x_component], X_test[:, y_component], c=y_test, cmap='bwr', alpha=0.6)
         ax.scatter(X_train[:, x_component], X_train[:, y_component], c=y_train, cmap='bwr')
-##### end test zone
         ax.hold(False)
         fig.colorbar(cs)
         ax.set_xlim([x_min, x_max])
         ax.set_ylim([y_min, y_max])
-        ax.set_xlabel("%dst principal component" %(x_component + 1))
-        ax.set_ylabel("%dnd principal component" %(y_component + 1))
+        ax.set_xlabel("%dst dimension" %(x_component + 1))
+        ax.set_ylabel("%dnd dimension" %(y_component + 1))
         ax.grid()
         plot_filename = "decision-boundaries-%d-%d.png" %(x_component, y_component)
         path = os.path.join(plot_path, plot_filename)
@@ -1536,10 +952,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         fig.clear()
     
     
-    ##### SANITY PLOT (PCA) ####################################################
     
-    io.print_and_log(["# Sanity plot (PCA)..."], level='info', logger=params)
-    
+    ############################################################################
     
     # Compute PCA with two components.
     n_components = 2
@@ -1556,16 +970,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     y_min = numpy.amin(X_raw_r[:, 1]) - pad * y_dif
     y_max = numpy.amax(X_raw_r[:, 1]) + pad * y_dif
     
-##### TODO: remove temporary zone.
-    # Set plot limits to zoom in.
-    x_min = -800.0
-    x_max = +600.0
-    y_min = -750.0
-    y_max = +750.0
-##### end temporary zone
-    
-
-    # TODO: compute the projection of the ellipsoid on Vect(pca1, pca2).
     # Retrieve pca1 and pca2.
     vpca = pca.components_
     
@@ -1578,8 +982,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(msg, level='default', logger=params)
     
     
-    v = numpy.array([[1.0, 0.0], [0.0, 1.0]])
-    vpca = pca.inverse_transform(v)
+    vpca = vpca[:2, :]
+    
     
     if verbose:
         msg = [
@@ -1618,140 +1022,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(msg, level='default', logger=params)
     
     
-    # Check if ellipsoid.
-    # TODO: complete (i.e. check if det(A) > 0 which is the criterion for ellipse).
-        
-    # Useful function to convert an ellispoid in general form to an ellispoid in
-    # standard form.
-    def ellipsoid_general_to_standard(coefs):
-        """
-        Convert an ellipsoid in general form:
-            a_{0}
-            + a_{1} x1 + ... + a_{m} xm
-            + a_{1, 1} * x1 * x1 + ... + a_{1, m} * x1 * xm
-            + ...
-            + a_{m, m} xm * xm
-            = 0
-        To standard form (TODO: check validity):
-            (x1 - x1') * phi1(t_{1, 2}, ..., t_{m-1, m})
-            + ...
-            + (xm - xm') * phim(t_{1, 2}, ..., t_{m-1, m})
-        The ellipse has center [x1', ..., xm']^T, semi-axes b1, ... and bm, and
-        the angle to the semi-major axis is t.
-        """
-        # Convert to float.
-        coefs = coefs.astype('float')
-        K = coefs.size
-        # Retrieve the number of dimension (i.e. N).
-        # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
-        N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
-        if verbose:
-            msg = [
-                "# K",
-                "%s" %(K,),
-                "# N",
-                "%s" %(N,),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-        # Retrieve the matrix representation.
-        A = numpy.zeros((N, N))
-        k = 0
-        for i in xrange(0, N):
-            A[i, i] = coefs[1 + N + k]
-            k = k + 1
-            for j in xrange(i + 1, N):
-                A[i, j] = coefs[1 + N + k] / 2.0
-                A[j, i] = coefs[1 + N + k] / 2.0
-                k = k + 1
-        b = coefs[1:1+N]
-        c = coefs[0]
-        # Compute the center of the ellipsoid.
-        center = - 0.5 * numpy.dot(numpy.linalg.inv(A), b)
-        
-        ##### TODO: remove test zone
-        if verbose:
-            msg = [
-                "# Test of symmetry",
-                "%s" %(numpy.all(A == A.T),),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-        ##### end test zone
-        ##### TODO: remove plot zone
-        if make_plots:
-            fig = plt.figure()
-            ax = fig.gca()
-            cax = ax.imshow(A, interpolation='nearest', cmap='jet')
-            fig.colorbar(cax)
-            plot_filename = "ellipse.png"
-            path = os.path.join(plot_path, plot_filename)
-            fig.savefig(path)
-            plt.close(fig)
-        ##### end plot zone
-        
-        # Each eigenvector of A lies along one of the axes.
-        evals, evecs = numpy.linalg.eigh(A)
-        
-        ##### TODO: remove print zone.
-        if verbose:
-            msg = [
-                "# Semi-axes computation",
-                "## det(A)",
-                "%s" %(numpy.linalg.det(A),),
-                "## evals",
-                "%s" %(evals,),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-        ##### end print zone.
-        
-        # Semi-axes from reduced canonical equation.
-        ##### TODO: remove test zone.
-        # eaxis = numpy.sqrt(- c / evals)
-        eaxis = numpy.sqrt(numpy.abs(-c / evals))
-        ##### end test zone
-        return center, eaxis, evecs
-    
-    
-##### TODO: remove test zone (standard -> genral -> standard)
-    # if verbose:
-    #     print("")
-
-    # # Test.
-    # t = numpy.array([1.0, 2.0])
-    # s = numpy.array([0.5, 0.2])
-    # O = numpy.array([[1.0, 0.0], [0.0, 1.0]])
-    
-    # if verbose:
-    #     print("# t")
-    #     print(t)
-    #     print("# s")
-    #     print(s)
-    #     print("# O")
-    #     print(O)
-    
-    # coefs_bis = ellipsoid_standard_to_general(t, s, O)
-    
-    # if verbose:
-    #     print("# coefs_bis")
-    #     print(coefs_bis)
-    
-    # t_bis, s_bis, O_bis = ellipsoid_general_to_standard(coefs_bis)
-    
-    # if verbose:
-    #     print("# t_bis")
-    #     print(t_bis)
-    #     print("# s_bis")
-    #     print(s_bis)
-    #     print("# O_bis")
-    #     print(O_bis)
-    
-    # if verbose:
-    #     print("")
-    
-    # import sys
-    # sys.exit(0)
-##### end test zone
-    
-    center, eaxis, evecs = ellipsoid_general_to_standard(coefs)
+    center, eaxis, evecs = ellipsoid_general_to_standard(coefs,
+                                                         verbose=verbose,
+                                                         logger=params)
     
     
     if verbose:
@@ -1770,7 +1043,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(msg, level='default', logger=params)
     
     
-    coefs_bis = ellipsoid_standard_to_general(center, eaxis, evecs)
+    coefs_bis = ellipsoid_standard_to_general(center, eaxis, evecs,
+                                              verbose=verbose,
+                                              logger=params)
     
     
     if verbose:
@@ -1784,182 +1059,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(msg, level='default', logger=params)
     
     
-    # TODO: compute the projection of the eigenvectors on Vect(vpca[0, :], vpca[1, :]).
-    # Projection of the center.
-    shape = (1, 2)
-    cprojs = pca.transform(center.reshape(1, -1))
-    # Projection of the eigenvectors.
-    shape = (evecs.shape[1], 2)
-    eprojs = numpy.zeros(shape)
-    for j in xrange(evecs.shape[1]):
-        # eprojs[j, :] = pca.transform(eaxis[j] * evecs[:, j])
-        vec = numpy.add(pca.mean_, 300.0 * evecs[:, j])
-        vec = vec.reshape(1, -1)
-        eprojs[j, :] = pca.transform(vec)
-        #eprojs[j, :] = pca.transform(pca.mean_ + evecs[:, j])
-        pass
-        # import math
-        # if math.isnan(eaxis[j]):
-        #     print("Pass")
-        #     vec = numpy.add(pca.mean_, evecs[:, j])
-        #     eprojs[j, :] = pca.transform(vec)
-        # else:
-        #     # print("#####")
-        #     # print(pca.mean_)
-        #     # print(eaxis[j])
-        #     # print(evecs[:, j])
-        #     vec = numpy.add(pca.mean_, eaxis[j] * evecs[:, j])
-        #     eprojs[j, :] = pca.transform(vec)
-        
-        # TODO: remove incorrect projection on the PCA space.
-        # eprojs[j, 0] = numpy.dot(eaxis[j] * evecs[:, j], vpca[0, :])
-        # eprojs[j, 1] = numpy.dot(eaxis[j] * evecs[:, j], vpca[1, :])
     
-    
-    if verbose:
-        msg = [
-            "# Center projection",
-            "%s" %(cprojs,),
-            "%s" %(cprojs.shape,),
-            # "# Eigenprojections",
-            # "%s" %(eprojs,),
-            # "%s" %(eprojs.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-
-    
-    
-    
-##### TODO: remove plot zone.
-    if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.plot(vpca[0, :])
-        plot_filename = "plot0.png"
-        path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
-    
-    if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.plot(vpca[1, :])
-        plot_filename = "plot1.png"
-        path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
-    
-    if make_plots:
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.plot(vpca[1, :] - vpca[0, :])
-        plot_filename = "plot2.png"
-        path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
-##### end plot zone
-
-    
-##### TODO: remove experimental zone.
-    # h = 0.1 # step size in the mesh
-    # xx, yy = numpy.meshgrid(numpy.arange(x_min, x_max, h),
-    #                         numpy.arange(y_min, y_max, h))
-    # shape_pre = (xx.shape[0] * xx.shape[1], X_train.shape[1])
-    # X_pre = numpy.zeros(shape_pre)
-    # X_pre[:, x_component] = xx.ravel()
-    # X_pre[:, y_component] = yy.ravel()
-    # if pairwise:
-    #     k = 0
-    #     for i in xrange(0, N):
-    #         for j in xrange(i, N):
-    #             if i == x_component and j == y_component:
-    #                 X_pre[:, N + k] = numpy.multiply(xx.ravel(), yy.ravel())
-    #             else:
-    #                 pass
-    #             k = k + 1
-    
-    # if mode is 'decision':
-    #     zz = clf.decision_function(X_pre)
-    # elif mode is 'prediction':
-    #     zz = clf.predict(X_pre)
-    # else:
-    #     raise(Exception)
-    # zz = zz.reshape(xx.shape)
-##### end experimental zone
-    
-    
-    # SANITY PLOTS (REDUCED DATASETS) ##########################################
-    
-    io.print_and_log(["# Sanity plots (reduced datasets)..."], level='info', logger=params)
-    
-    
-    if make_plots:
-        # Plot reduced dataset.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        ax.scatter(X_raw_r[:, 0], X_raw_r[:, 1], c=y, cmap='bwr', zorder=1)
-        # Plot the projection of the ellipsoid.
-        ax.scatter(cprojs[0, 0], cprojs[0, 1], c='y', s=100, zorder=3)
-        for j in xrange(0, eprojs.shape[0]):
-            xp = cprojs[0, 0] + [0.0, eprojs[j, 0]]
-            yp = cprojs[0, 1] + [0.0, eprojs[j, 1]]
-            ax.plot(xp, yp, 'y-', zorder=2)
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ax.set_title("Plot PCA-reduced dataset")
-        ax.set_xlabel("1st component")
-        ax.set_ylabel("2nd component")
-        plot_filename = "reduced-dataset.png"
-        path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
-    
-    if make_plots:
-        # Plot reduced datset restricted to the ground truth cell.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        ax.scatter(X_raw_r[y == 1, 0], X_raw_r[y == 1, 1], c='r', zorder=1)
-        # Plot the projection of the ellipsoid.
-        ax.scatter(cprojs[0, 0], cprojs[0, 1], c='y', s=100, zorder=3)
-        for j in xrange(0, eprojs.shape[0]):
-            xp = cprojs[0, 0] + [0.0, eprojs[j, 0]]
-            yp = cprojs[0, 1] + [0.0, eprojs[j, 1]]
-            ax.plot(xp, yp, 'y-', zorder=2)
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ax.set_title("Plot PCA-reduced dataset restricted to the ground truth cell")
-        ax.set_xlabel("1st component")
-        ax.set_ylabel("2nd component")
-        plot_filename = "reduced-dataset-true.png"
-        path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
-    
-    if make_plots:
-        # Plot reduced datset restricted non ground truth cells and noise.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.grid()
-        ax.scatter(X_raw_r[y == 0, 0], X_raw_r[y == 0, 1], c='b', zorder=1)
-        # Plot the projection of the ellipsoid.
-        ax.scatter(cprojs[0, 0], cprojs[0, 1], c='y', s=100, zorder=3)
-        for j in xrange(0, eprojs.shape[0]):
-            xp = cprojs[0, 0] + [0.0, eprojs[j, 0]]
-            yp = cprojs[0, 1] + [0.0, eprojs[j, 1]]
-            ax.plot(xp, yp, 'y-', zorder=2)
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ax.set_title("Plot PCA-reduced dataset restricted to the non ground truth cells and noise")
-        ax.set_xlabel("1st component")
-        ax.set_ylabel("2nd component")
-        plot_filename = "/tmp/reduced-dataset-false.png"
-        path = os.path.join(plot_path, plot_filename)
-        fig.savefig(path)
-        plt.close(fig)
-    
-    
+    ############################################################################
     
     io.print_and_log(["Validation done."], level='info', logger=params)
     
