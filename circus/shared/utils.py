@@ -681,3 +681,174 @@ class PCA(object):
             Average log-likelihood of the samples under the current model
         """
         return np.mean(self.score_samples(X))
+
+
+
+# Validating utils #############################################################
+
+# Useful function to convert an ellispoid in standard form to an ellispoid
+# in general form.
+def ellipsoid_standard_to_general(t, s, O):
+    # Translation from standard matrix to general matrix.
+    d = numpy.divide(1.0, numpy.power(s, 2.0))
+    D = numpy.diag(d)
+    A = O * D * O.T
+    ##### TODO: remove test zone
+    w, v = numpy.linalg.eigh(A)
+    if verbose:
+        msg = [
+            # "# det(A)",
+            # "%s" %(numpy.linalg.det(A),),
+            "# Eigenvalues",
+            "%s" %(w,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
+    ##### end test zone
+    b = - 2.0 * numpy.dot(t, A)
+    c = numpy.dot(t, numpy.dot(A, t)) - 1
+    # Translation from general matrix to coefficients.
+    N = t.size
+    coefs = numpy.zeros(1 + N + (N + 1) * N / 2)
+    coefs[0] = c
+    for i in xrange(0, N):
+        coefs[1 + i] = b[i]
+    k = 0
+    for i in xrange(0, N):
+        coefs[1 + N + k] = A[i, i]
+        k = k + 1
+        for j in xrange(i + 1, N):
+            # TODO: remove test zone
+            # coefs[1 + N + k] = A[i, j]
+            # coefs[1 + N + k] = A[j, i]
+            coefs[1 + N + k] = A[i, j] + A[j, i]
+            # end test zone
+            k = k + 1
+    return coefs
+
+def ellipsoid_matrix_to_coefs(A, b, c):
+    N = b.size
+    K = 1 + N + (N + 1) * N / 2
+    coefs = numpy.zeros(K)
+    coefs[0] = c
+    coefs[1:1+N] = b
+    k = 0
+    for i in xrange(0, N):
+        coefs[1 + N + k] = A[i, i]
+        k = k + 1
+        for j in xrange(i + 1, N):
+            coefs[1 + N + k] = A[i, j] + A[j, i]
+            k = k + 1
+    coefs = coefs.reshape(-1, 1)
+    return coefs
+
+def ellipsoid_coefs_to_matrix(coefs):
+    K = coefs.size
+    # Retrieve the number of dimension (i.e. N).
+    # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
+    N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
+    # Retrieve A.
+    A = numpy.zeros((N, N))
+    k = 0
+    for i in xrange(0, N):
+        A[i, i] = coefs[1 + N + k, 0]
+        k = k + 1
+        for j in xrange(i + 1, N):
+            A[i, j] = coefs[1 + N + k, 0] / 2.0
+            A[j, i] = coefs[1 + N + k, 0] / 2.0
+            k = k + 1
+    # Retrieve b.
+    b = coefs[1:1+N, 0]
+    # Retrieve c.
+    c = coefs[0, 0]
+    return A, b, c
+
+def find_rotation(v1, v2, verbose=False, logger=None):
+    '''Find a rotation which maps these two vectors of the two first vectors of
+    the canonical basis.'''
+    N = v1.size
+    x = numpy.copy(v1)
+    R = numpy.eye(N)
+    for i in xrange(1, N):
+        x1 = x[0]
+        x2 = x[i]
+        n = numpy.sqrt(x1 * x1 + x2 * x2)
+        if n == 0.0:
+            cos = 1.0
+            sin = 0.0
+        else:
+            cos = x1 / n
+            sin = x2 / n
+        R_ = numpy.eye(N)
+        R_[0, 0] = cos
+        R_[0, i] = sin
+        R_[i, 0] = - sin
+        R_[i, i] = cos
+        x = numpy.dot(R_, x)
+        R = numpy.dot(R_, R)
+    x = numpy.dot(R, v2)
+    for i in xrange(2, N):
+        x1 = x[1]
+        x2 = x[i]
+        n = numpy.sqrt(x1 * x1 + x2 * x2)
+        if n == 0.0:
+            cos = 1.0
+            sin = 0.0
+        else:
+            cos = x1 / n
+            sin = x2 / n
+        R_ = numpy.eye(N)
+        R_[1, 1] = cos
+        R_[1, i] = sin
+        R_[i, 1] = - sin
+        R_[i, i] = cos
+        x = numpy.dot(R_, x)
+        R = numpy.dot(R_, R)
+    if verbose:
+        # u1 = numpy.dot(R, v1)
+        # u1[numpy.abs(u1) < 1.0e-10] = 0.0
+        # u2 = numpy.dot(R, v2)
+        # u2[numpy.abs(u2) < 1.0e-10] = 0.0
+        # msg = [
+        #     "# R * v1",
+        #     "%s" %(u1,),
+        #     "# R * v2",
+        #     "%s" %(u2,),
+        # ]
+        # io.print_and_log(msg, level='default', logger=logger)
+        pass
+    return R
+
+def find_apparent_contour(A, b, c):
+    '''Find the apparent contour of a classifier'''
+    xs = [numpy.array([0.0, 0.0]),
+          numpy.array([1.0, 0.0]),
+          numpy.array([0.0, 1.0])]
+    # Solve the linear system 2 * A.T * y + b = 0 for fixed couples (y_1, y_2).
+    ys = []
+    for x in xs:
+        c1 = 2.0 * A[2:, 2:].T
+        c2 = - (numpy.dot(2.0 * A[:2, 2:].T, x) + b[2:])
+        yx = numpy.linalg.solve(c1, c2)
+        ys.append(yx)
+    # Solve the linear system to express (y_3, ..., y_m) with (y_1, y_2).
+    k = ys[0].size
+    c1 = numpy.eye(k)
+    c1 = numpy.tile(c1, (3, 3))
+    for (i, x) in enumerate(xs):
+        for (j, v) in enumerate(x):
+            c1[i*k:(i+1)*k, j*k:(j+1)*k] = v * c1[i*k:(i+1)*k, j*k:(j+1)*k]
+    c2 = numpy.concatenate(tuple(ys))
+    m = numpy.linalg.solve(c1, c2)
+    # Reconstruct alpha.
+    alpha_1 = numpy.eye(2)
+    alpha_2 = numpy.hstack((m[0:k].reshape(-1, 1), m[k:2*k].reshape(-1, 1)))
+    alpha = numpy.vstack((alpha_1, alpha_2))
+    # Reconstruct beta.
+    beta_1 = numpy.zeros(2)
+    beta_2 = m[2*k:3*k]
+    beta = numpy.concatenate((beta_1, beta_2))
+    # Reconstruct the apparent contour.
+    A_ = numpy.dot(alpha.T, numpy.dot(A, alpha))
+    b_ = numpy.dot(alpha.T, 2.0 * numpy.dot(A, beta) + b)
+    c_ = numpy.dot(numpy.dot(A, beta) + b, beta) + c
+    return(A_, b_, c_)

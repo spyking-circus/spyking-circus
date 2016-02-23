@@ -766,7 +766,7 @@ def view_norms(file_name, save=True):
 
     return
 
-def view_triggers(file_name, mode='random', save=True):
+def view_triggers_bis(file_name, mode='random', save=True):
     """
     Sanity plot of the triggers of a given dataset.
     
@@ -907,4 +907,354 @@ def view_triggers(file_name, mode='random', save=True):
         fig2.show()
         fig3.show()
     
+    return
+
+
+
+# Validating plots #############################################################
+
+def view_trigger_times(file_name, trigger_times, color='blue', title=None, save=None):
+    params = load_parameters(file_name)
+    N_total = params.getint('data', 'N_total')
+    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
+    ttmax = (nb_chunks * chunk_len + last_chunk_len) / N_total
+    x = numpy.concatenate((numpy.array([0]),
+                           trigger_times,
+                           numpy.array([ttmax - 1]),))
+    x = x.astype('float') * 100.0 / float(ttmax - 1)
+    y = numpy.linspace(0.0, 100.0, x.size)
+    fig = pylab.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='dashed')
+    ax.step(x, y, color=color, linestyle='solid', where='post')
+    ax.grid(True)
+    ax.set_xlim(0.0, 100.0)
+    ax.set_ylim(0.0, 100.0)
+    ax.set_aspect('equal')
+    if title is None:
+        ax.set_title("Empirical distribution of triggers")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("cumulative share of samples (in %)")
+    ax.set_ylabel("cumulative share of triggers (in %)")
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_trigger_snippets_bis(trigger_snippets, elec_index, save=None):
+    fig = pylab.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    for n in xrange(0, trigger_snippets.shape[2]):
+        y = trigger_snippets[:, elec_index, n]
+        x = numpy.arange(- (y.size - 1) / 2, (y.size - 1) / 2 + 1)
+        b = 0.5 + 0.5 * numpy.random.rand()
+        ax.plot(x, y, color=(0.0, 0.0, b), linestyle='solid')
+    ax.grid(True)
+    ax.set_xlim([numpy.amin(x), numpy.amax(x)])
+    ax.set_xlabel("time")
+    ax.set_ylabel("amplitude")
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_trigger_snippets(trigger_snippets, chans, save=None):
+    # Create output directory if necessary.
+    if os.path.exists(save):
+        for f in os.listdir(save):
+            p = os.path.join(save, f)
+            os.remove(p)
+        os.removedirs(save)
+    os.makedirs(save)
+    # Plot figures.
+    fig = pylab.figure()
+    for (c, chan) in enumerate(chans):
+        ax = fig.add_subplot(1, 1, 1)
+        for n in xrange(0, trigger_snippets.shape[2]):
+            y = trigger_snippets[:, c, n]
+            x = numpy.arange(- (y.size - 1) / 2, (y.size - 1) / 2 + 1)
+            b = 0.5 + 0.5 * numpy.random.rand()
+            ax.plot(x, y, color=(0.0, 0.0, b), linestyle='solid')
+        ax.grid(True)
+        ax.set_xlim([numpy.amin(x), numpy.amax(x)])
+        ax.set_title("Channel %d" %chan)
+        ax.set_xlabel("time")
+        ax.set_ylabel("amplitude")
+        if save is not None:
+            # Save plot.
+            filename = "channel-%d.png" %chan
+            path = os.path.join(save, filename)
+            pylab.savefig(path)
+        fig.clf()
+    if save is None:
+        pylab.show()
+    else:
+        pylab.close(fig)
+    return
+
+def view_dataset(X, color='blue', title=None, save=None):
+    n_components = 2
+    pca = PCA(n_components)
+    pca.fit(X)
+    x = pca.transform(X)
+    fig = pylab.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.scatter(x[:, 0], x[:, 1], c=color, s=5, lw=0.1)
+    ax.grid(True)
+    if title is None:
+        ax.set_title("Dataset")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_datasets(Xs, colors=None, labels=None, save=None):
+    D = numpy.vstack(tuple(Xs))
+    if colors is None:
+        colors = ['b'] * len(Xs)
+    n_components = 2
+    pca = PCA(n_components)
+    pca.fit(D)
+    x = pca.transform(D)
+    pad = 0.05
+    x_dif = numpy.amax(x[:, 0]) - numpy.amin(x[:, 0])
+    x_min = numpy.amin(x[:, 0]) - pad * x_dif
+    x_max = numpy.amax(x[:, 0]) + pad * x_dif
+    y_dif = numpy.amax(x[:, 1]) - numpy.amin(x[:, 1])
+    y_min = numpy.amin(x[:, 1]) - pad * y_dif
+    y_max = numpy.amax(x[:, 1]) + pad * y_dif
+    fig = pylab.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    k = 0
+    handles = []
+    for (i, X) in enumerate(Xs):
+        l = X.shape[0]
+        if labels is None:
+            ax.scatter(x[k:k+l, 0], x[k:k+l, 1], c=colors[i], s=5, lw=0.1)
+        else:
+            sc = ax.scatter(x[k:k+l, 0], x[k:k+l, 1], c=colors[i], s=5, lw=0.1, label=labels[i])
+            handles.append(sc)
+        k = k + l
+    ax.grid(True)
+    ax.set_aspect('equal')
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+    ax.set_title("Datasets")
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    ax.legend(handles, labels)
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None):
+    '''Plot ROC curve'''
+    fig = pylab.figure()
+    ax = fig.gca()
+    ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
+    ax.plot(fprs, tprs, color='blue', linestyle='solid')
+    ax.plot(fpr, tpr, color='blue', marker='o')
+    ax.set_aspect('equal')
+    ax.grid(True)
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.0])
+    if title is None:
+        ax.set_title("ROC curve")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("false positive rate")
+    ax.set_ylabel("true positive rate")
+    # Save ROC plot.
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_accuracy(cutoffs, accs, cutoff, acc, title=None, save=None):
+    '''Plot accuracy curve'''
+    fig = pylab.figure()
+    ax = fig.gca()
+    ax.plot(cutoffs, accs, color='blue', linestyle='solid')
+    ax.plot(cutoff, acc, color='blue', marker='o')
+    ax.grid(True)
+    ax.set_xlim([numpy.amin(cutoffs), numpy.amax(cutoffs)])
+    ax.set_ylim([0.0, 1.0])
+    if title is None:
+        ax.set_title("Accuracy curve")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("cutoff")
+    ax.set_ylabel("accuracy")
+    # Save accuracy plot.
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_normalized_accuracy(cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc,
+                             title=None, save=None):
+    '''Plot normalized accuracy curve'''
+    labels = [
+        "true positive rate",
+        "true negative rate",
+        "normalized accuracy",
+    ]
+    fig = pylab.figure()
+    ax = fig.gca()
+    h1, = ax.plot(cutoffs, tprs, color='green', linestyle='solid', label=labels[0])
+    h2, = ax.plot(cutoffs, tnrs, color='red', linestyle='solid', label=labels[1])
+    h3, = ax.plot(cutoffs, norm_accs, color='blue', linestyle='solid', label=labels[2])
+    ax.plot(cutoff, norm_acc, color='blue', marker='o')
+    ax.grid(True)
+    ax.set_xlim([numpy.amin(cutoffs), numpy.amax(cutoffs)])
+    ax.set_ylim([0.0, 1.0])
+    if title is None:
+        ax.set_title("Normalized accuracy curve")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("cutoff")
+    ax.set_ylabel("")
+    ax.legend([h1, h2, h3], labels)
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=None, verbose=False):
+    '''Plot classifier'''
+    # Retrieve parameters.
+    params = load_parameters(file_name)
+    # Compute the PCA with two components.
+    n_components = 2
+    X_raw = numpy.vstack((X_gt, X_ngt, X_noi))
+    pca = PCA(n_components)
+    _ = pca.fit(X_raw)
+    # Data transformation.
+    X_raw_ = pca.transform(X_raw)
+    X_gt_ = pca.transform(X_gt)
+    X_ngt_ = pca.transform(X_ngt)
+    X_noi_ = pca.transform(X_noi)
+    # Means transformation.
+    mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
+    mu_gt_ = pca.transform(mu_gt)
+    mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
+    mu_ngt_ = pca.transform(mu_ngt)
+    mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
+    mu_noi_ = pca.transform(mu_noi)
+    # Ellipse transformation.
+    f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
+    t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
+    s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A))
+    s = numpy.sqrt(s)
+    t_ = pca.transform(t)
+    O_ = pca.transform(numpy.multiply(O, s).T + t)
+    if verbose:
+        msg = [
+            "# s (i.e. demi-axes)",
+            "%s" %(s,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
+    # Find plot limits.
+    pad = 0.3
+    x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
+    x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
+    x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
+    y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
+    y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
+    y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
+    # Retrieve the two first PCA vectors.
+    v1 = pca.components_[0, :]
+    v2 = pca.components_[1, :]
+    if verbose:
+        # msg = [
+        #     "# norm(v1)",
+        #     "%s" %(numpy.linalg.norm(v1),),
+        #     "# norm(v2)",
+        #     "%s" %(numpy.linalg.norm(v2),),
+        # ]
+        # io.print_and_log(msg, level='default', logger=params)
+        pass
+    # Find a rotation which maps theses vectors on the two first vectors of the
+    # canonical basis of R^m.
+    R = find_rotation(v1, v2)
+    # Apply rotation to the classifier.
+    R_ = R.T
+    mean_ = pca.mean_
+    A_ = numpy.dot(numpy.dot(R_.T, A), R_)
+    b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, mean_) + b)
+    c_ = numpy.dot(numpy.dot(A, mean_) + b, mean_) + c
+    if verbose:
+        msg = [
+            "# mean_",
+            "%s" %(mean_,),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
+    # Find the apparent contour of the classifier.
+    A__, b__, c__ = find_apparent_contour(A_, b_, c_)
+    # Plot classifier.
+    fig = pylab.figure()
+    ax = fig.gca()
+    ## Plot datasets.
+    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
+    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
+    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
+    ## Plot ellipse transformation.
+    for i in xrange(0, O_.shape[0]):
+        ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
+    ## Plot ellipse apparent contour.
+    n = 100
+    x_r = numpy.linspace(x_min, x_max, n)
+    y_r = numpy.linspace(y_min, y_max, n)
+    xx, yy = numpy.meshgrid(x_r, y_r)
+    zz = numpy.zeros(xx.shape)
+    for i in xrange(0, xx.shape[0]):
+        for j in xrange(0, xx.shape[1]):
+            v = numpy.array([xx[i, j], yy[i, j]])
+            zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
+    vv = numpy.array([0.0])
+    # vv = numpy.arange(0.0, 1.0, 0.1)
+    # vv = numpy.arange(0.0, 20.0)
+    ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
+    # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
+    # ax.clabel(cs, inline=1, fontsize=10)
+    ## Plot means of datasets.
+    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+    ## Plot aspect.
+    ax.set_aspect('equal')
+    ax.grid()
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+    if title is None:
+        ax.set_title("Classifier")
+    else:
+        ax.set_title(title)
+    ax.set_xlabel("1st component")
+    ax.set_ylabel("2nd component")
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
     return

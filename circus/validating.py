@@ -1,4 +1,11 @@
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
+from sklearn.decomposition import PCA
+
 from .shared.utils import *
+from .shared import plot
+
 
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
@@ -19,7 +26,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     
-    def get_neighbors(params, elec=43, radius=120):
+    def get_neighbors(params, chan=43, radius=120):
         if radius is None:
             pass
         else:
@@ -27,18 +34,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             _ = params.set('data', 'radius', str(radius))
         N_total = params.getint('data', 'N_total')
         nodes, edges = io.get_nodes_and_edges(params)
-        if elec is None:
-            # Select all the electrodes.
-            indices = nodes
+        if chan is None:
+            # Select all the channels.
+            chans = nodes
         else:
-            # Select only the neighboring electrodes of the best electrode.
+            # Select only the neighboring channels of the best channel.
             inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
             inv_nodes[nodes] = numpy.argsort(nodes)
-            indices = inv_nodes[edges[nodes[elec]]]
-        return indices
+            chans = inv_nodes[edges[nodes[chan]]]
+        return chans
     
     # Define an auxiliary function to load spike data given spike times.
-    def load_chunk(params, spike_times, elec=43):
+    def load_chunk(params, spike_times, chans=None):
         # Load the parameters of the spike data.
         data_file = params.get('data', 'data_file')
         data_offset = params.getint('data', 'data_offset')
@@ -47,8 +54,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         N_total = params.getint('data', 'N_total')
         N_t = params.getint('data', 'N_t')
         dtype_offset = params.getint('data', 'dtype_offset')
-        indices = get_neighbors(params)
-        N_filt = indices.size
+        if chans is None:
+            chans, _ = io.get_nodes_and_edges(params)
+        N_filt = chans.size
         ## Compute some additional parameters of the spike data.
         N_tr = spike_times.shape[0]
         datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
@@ -62,7 +70,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_chunk = datablock[chunk_start:chunk_end]
             # Reshape, slice and cast data.
             local_chunk = local_chunk.reshape(N_t, N_total)
-            local_chunk = local_chunk[:, indices]
+            local_chunk = local_chunk[:, chans]
             local_chunk = local_chunk.astype(numpy.float32)
             local_chunk -= dtype_offset
             # Save data.
@@ -76,7 +84,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         for i in xrange(0, N):
             d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
         return d2
-
     
     
     # Initialize the random seed.
@@ -88,18 +95,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Retrieve sampling rate.
     sampling_rate  = params.getint('data', 'sampling_rate')
     
+    # Select only the neighboring channels of the best channel.
+    chan = 43
+    chans = get_neighbors(params, chan=chan)
+    chan_index = numpy.argwhere(chans == chan)[0]
+    
     
     
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
     io.print_and_log(["# Ground truth cell's samples..."], level='info', logger=params)
     
-    # Retrieve the spikes of the "ground truth cell".
-    spike_times_gt, spikes_gt = io.load_data(params, 'triggers')
+    # Retrieve the spike times of the "ground truth cell".
+    spike_times_gt, _ = io.load_data(params, 'triggers')
     
-    # Select only the neighboring electrodes of the best electrode.
-    indices = get_neighbors(params)
-    spikes_gt = spikes_gt[:, indices, :]
+    # Load the spikes of all the 'non ground truth cells".
+    spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
+    
+    
+    if make_plots:
+        plot_filename = "trigger-times-gt.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_trigger_times(filename, spike_times_gt, color='green', save=path)
+        # TODO: uncomment.
+        # directory = "trigger-snippets-gt"
+        # path = os.path.join(plot_path, directory)
+        # plot.view_trigger_snippets(spikes_gt, chans, save=path)
+    
     
     # Reshape data.
     N_t = spikes_gt.shape[0]
@@ -126,6 +148,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             "%s" %(y_gt.shape,),
         ]
         io.print_and_log(msg, level='default', logger=params)
+    
+    
+    if make_plots:
+        plot_filename = "dataset-gt.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_dataset(X_gt, color='green', title="Ground-truth dataset", save=path)
     
     
     
@@ -164,7 +192,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
     
     # Load the spikes of all the 'non ground truth cells".
-    spikes_ngt = load_chunk(params, spike_times_ngt)
+    spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
+    
+    
+    if make_plots:
+        plot_filename = "trigger-times-ngt.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_trigger_times(filename, spike_times_ngt, color='blue', save=path)
+        # TODO: uncomment
+        # directory = "trigger-snippets-ngt"
+        # path = os.path.join(plot_path, directory)
+        # plot.view_trigger_snippets(spikes_ngt, chans, save=path)
+    
     
     # Reshape data.
     N_t = spikes_ngt.shape[0]
@@ -192,6 +231,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ]
         io.print_and_log(msg, level='default', logger=params)
     
+    if make_plots:
+        plot_filename = "dataset-ngt.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_dataset(X_ngt, color='blue', title="Non ground-truth dataset", save=path)
+    
     
     
     ##### NOISE SAMPLES ########################################################
@@ -207,14 +251,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_noi = numpy.unique(spike_times_noi)
     spike_times_noi = numpy.setdiff1d(spike_times_noi, spike_times_fbd)
     alpha = 4
-    idxs_noi = numpy.random.choice(spike_times_noi.size, size=alpha*spike_times_gt.shape[0], replace=False)
+    idxs_noi = numpy.random.choice(spike_times_noi.size,
+                                   size=alpha*spike_times_gt.shape[0],
+                                   replace=False)
     idxs_noi = numpy.unique(idxs_noi)
     spike_times_noi = spike_times_noi[idxs_noi]
     
     # TODO: filter ground truth spike times.
     
     # Load some "non-spike" samples.
-    spikes_noi = load_chunk(params, spike_times_noi)
+    spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
+    
+    
+    if make_plots:
+        plot_filename = "trigger-times-noi.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_trigger_times(filename, spike_times_noi, color='red', save=path)
+        # TODO: uncomment.
+        # directory = "trigger-snippets-noi"
+        # path = os.path.join(plot_path, directory)
+        # plot.view_trigger_snippets(spikes_noi, chans, save=path)
+    
     
     # Reshape data.
     N_t = spikes_noi.shape[0]
@@ -242,37 +299,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ]
         io.print_and_log(msg, level='default', logger=params)
     
-    
-    
-    ##### SANITY PLOTS #########################################################
-    
-    io.print_and_log(["# Sanity plots..."], level='info', logger=params)
-    
-    import matplotlib.pyplot as plt
-    import matplotlib.gridspec as gridspec
-    
-    
-    #max_component = X_gt.shape[1]
-    max_component = 1 * 3
-    
     if make_plots:
-        fig = plt.figure()
-        for x_component in xrange(0, max_component):
-            for y_component in xrange(x_component + 1, max_component):
-                fig.suptitle("Samples for validation")
-                gs = gridspec.GridSpec(1, 1)
-                ax = fig.add_subplot(gs[0])
-                ax.scatter(X_noi[:, x_component], X_noi[:, y_component], c='r')
-                ax.scatter(X_ngt[:, x_component], X_ngt[:, y_component], c='b')
-                ax.scatter(X_gt[:, x_component], X_gt[:, y_component], c='g')
-                ax.set_xlabel("%dst principal component" %(x_component + 1))
-                ax.set_ylabel("%dnd principal component" %(y_component + 1))
-                ax.grid()
-                filename = "validation-samples-%d-%d.png" %(x_component, y_component)
-                path = os.path.join(plot_path, filename)
-                plt.savefig(path)
-                fig.clear()
-        plt.close(fig)
+        plot_filename = "dataset-noi.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_dataset(X_noi, color='red', title="Noise dataset", save=path)
     
     
     
@@ -291,10 +321,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if pairwise:
         # With pairwise product of feature vector elements.
-        shape = (N_gt + N_ngt + N_noi, N + N * (N + 1) / 2)
+        M = N + N * (N + 1) / 2
+        shape = (N_gt + N_ngt + N_noi, M)
     else:
         # Without pairwise product of feature vector elments.
-        shape = (N_gt + N_ngt + N_noi, N)
+        M = N
+        shape = (N_gt + N_ngt + N_noi, M)
     X = numpy.zeros(shape)
     X[:, :N] = X_raw
     
@@ -308,7 +340,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         if verbose:
             msg = [
-                "# X.shape (with pairwise product of feature vector element",
+                "# X.shape (with pairwise product of feature vector element)",
                 "%s" %(X.shape,),
             ]
             io.print_and_log(msg, level='default', logger=params)
@@ -334,86 +366,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     
+    ##### SANITY PLOT ##########################################################
+    
+    io.print_and_log(["# Sanity plot..."], level='info', logger=params)
+    
+    if make_plots:
+        plot_filename = "datasets.png"
+        path = os.path.join(plot_path, plot_filename)
+        Xs = [X_ngt, X_noi, X_gt]
+        colors = ['b', 'r', 'g']
+        labels = ["non ground truth spikes", "noise", "ground truth spikes"]
+        plot.view_datasets(Xs, colors=colors, labels=labels, save=path)
+    
+    
+    
     ##### INITIAL PARAMETER ####################################################
     
     io.print_and_log(["# Initial parameter..."], level='info', logger=params)
-    
-    
-    # Useful function to convert an ellispoid in standard form to an ellispoid
-    # in general form.
-    def ellipsoid_standard_to_general(t, s, O):
-        # Translation from standard matrix to general matrix.
-        d = numpy.divide(1.0, numpy.power(s, 2.0))
-        D = numpy.diag(d)
-        A = O * D * O.T
-        ##### TODO: remove test zone
-        w, v = numpy.linalg.eigh(A)
-        if verbose:
-            msg = [
-                # "# det(A)",
-                # "%s" %(numpy.linalg.det(A),),
-                "# Eigenvalues",
-                "%s" %(w,),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-        ##### end test zone
-        b = - 2.0 * numpy.dot(t, A)
-        c = numpy.dot(t, numpy.dot(A, t)) - 1
-        # Translation from general matrix to coefficients.
-        N = t.size
-        coefs = numpy.zeros(1 + N + (N + 1) * N / 2)
-        coefs[0] = c
-        for i in xrange(0, N):
-            coefs[1 + i] = b[i]
-        k = 0
-        for i in xrange(0, N):
-            coefs[1 + N + k] = A[i, i]
-            k = k + 1
-            for j in xrange(i + 1, N):
-                # TODO: remove test zone
-                # coefs[1 + N + k] = A[i, j]
-                # coefs[1 + N + k] = A[j, i]
-                coefs[1 + N + k] = A[i, j] + A[j, i]
-                # end test zone
-                k = k + 1
-        return coefs
-    
-    def ellipsoid_matrix_to_coefs(A, b, c):
-        N = b.size
-        K = 1 + N + (N + 1) * N / 2
-        coefs = numpy.zeros(K)
-        coefs[0] = c
-        coefs[1:1+N] = b
-        k = 0
-        for i in xrange(0, N):
-            coefs[1 + N + k] = A[i, i]
-            k = k + 1
-            for j in xrange(i + 1, N):
-                coefs[1 + N + k] = A[i, j] + A[j, i]
-                k = k + 1
-        coefs = coefs.reshape(-1, 1)
-        return coefs
-    
-    def ellipsoid_coefs_to_matrix(coefs):
-        K = coefs.size
-        # Retrieve the number of dimension (i.e. N).
-        # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
-        N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
-        # Retrieve A.
-        A = numpy.zeros((N, N))
-        k = 0
-        for i in xrange(0, N):
-            A[i, i] = coefs[1 + N + k, 0]
-            k = k + 1
-            for j in xrange(i + 1, N):
-                A[i, j] = coefs[1 + N + k, 0] / 2.0
-                A[j, i] = coefs[1 + N + k, 0] / 2.0
-                k = k + 1
-        # Retrieve b.
-        b = coefs[1:1+N, 0]
-        # Retrieve c.
-        c = coefs[0, 0]
-        return A, b, c
     
     
     method = 'covariance'
@@ -445,8 +414,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             cax = ax.imshow(c, interpolation='nearest')
             ax.set_title("Covariance matrix of ground truth")
             fig.colorbar(cax)
-            filename = "covariance-matrix-gt.png"
-            path = os.path.join(plot_path, filename)
+            plot_filename = "covariance-matrix-gt.png"
+            path = os.path.join(plot_path, plot_filename)
             fig.savefig(path)
             plt.close(fig)
         
@@ -507,49 +476,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pass
     
     
-    # Compute false positive rate and true positive rate for the chosen cutoff.
-    cutoff = 89.33 # 0.5 quantile of the chi^2 distribution with 90 degree of freedom
-    fp = float(numpy.count_nonzero(Mhlnb_ngt < cutoff)
-               + numpy.count_nonzero(Mhlnb_noi < cutoff))
-    n = float(Mhlnb_ngt.size + Mhlnb_noi.size)
-    fpr = fp / n
-    tp = float(numpy.count_nonzero(Mhlnb_gt < cutoff))
-    p = float(Mhlnb_gt.size)
-    tpr = tp / p
-    
-    
-    if verbose:
-        msg = [
-            "# cutoff",
-            "%s" %(cutoff,),
-            "# fpr",
-            "%s" %(fpr,),
-            "# tpr",
-            "%s" %(tpr),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
-    if make_plots:
-        # Plot ROC curve.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.set_aspect('equal')
-        ax.grid(True)
-        ax.set_title("ROC curve for the inital parameter")
-        ax.set_xlabel("False positive rate")
-        ax.set_ylabel("True positive rate")
-        ax.set_xlim([0.0, 1.0])
-        ax.set_ylim([0.0, 1.0])
-        ax.plot([0.0, 1.0], [0.0, 1.0], 'k--')
-        ax.plot(fprs, tprs, 'b-')
-        ax.plot(fpr, tpr, 'bo')
-        filename = "roc-curve.png"
-        path = os.path.join(plot_path, filename)
-        fig.savefig(path)
-        plt.close(fig)
-    
-    
     # Compute mean acccuracy for various cutoffs.
     accs = numpy.zeros(num)
     for (i, index) in enumerate(indices):
@@ -577,21 +503,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if make_plots:
-        # Plot accuracy plot.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.set_title("Accuracy curve for the initial parameter")
-        ax.set_xlabel("Cutoff")
-        ax.set_ylabel("Accuracy")
-        ax.set_xlim([numpy.amin(Mhlnb[indices]), numpy.amax(Mhlnb[indices])])
-        ax.set_ylim([0.0, 1.0])
-        ax.grid(True)
-        ax.plot(Mhlnb[indices], accs, 'b-')
-        ax.plot(Mhlnb[indices[i_opt]], accs[i_opt], 'bo')
-        filename = "accuracy-plot.png"
-        path = os.path.join(plot_path, filename)
-        fig.savefig(path)
-        plt.close(fig)
+        # Plot accuracy curve.
+        title = "Accuracy curve for the initial parameter"
+        plot_filename = "accuracy-plot.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
+                           accs[i_opt], title=title, save=path)
     
     
     # Compute the normalized accuracy for various cutoffs.
@@ -627,27 +544,47 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     if make_plots:
-        # Plot normalized accuracy plot.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.set_title("Normalized accuracy curve for the initial parameter")
-        ax.set_xlabel("Cutoff")
-        ax.set_ylabel("Normalized accuracy")
-        ax.set_xlim([numpy.amin(Mhlnb[indices]), numpy.amax(Mhlnb[indices])])
-        ax.set_ylim([0.0, 1.0])
-        ax.grid(True)
-        ax.plot(Mhlnb[indices], norm_accs, 'b-')
-        ax.plot(Mhlnb[indices], tprs, 'g-')
-        ax.plot(Mhlnb[indices], tnrs, 'r-')
-        ax.plot(Mhlnb[indices[i_opt]], norm_accs[i_opt], 'bo')
-        filename = "normalized-accuray-plot.png"
-        path = os.path.join(plot_path, filename)
-        fig.savefig(path)
-        plt.close(fig)
+        # Plot normalized accuracy curve.
+        title = "Normalized accuracy curve for the initial parameter"
+        plot_filename = "normalized-accuray-plot.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_normalized_accuracy(Mhlnb[indices], tprs, tnrs, norm_accs,
+                                      Mhlnb[indices[i_opt]], norm_accs[i_opt],
+                                      title=title, save=path)
     
     
     # Set cutoff equal to the optimal cutoff.
-    cutoff = cutoff_opt_acc
+    cutoff = cutoff_opt_norm_acc
+    
+    # Compute false positive rate and true positive rate for the chosen cutoff.
+    fp = float(numpy.count_nonzero(Mhlnb_ngt < cutoff)
+               + numpy.count_nonzero(Mhlnb_noi < cutoff))
+    n = float(Mhlnb_ngt.size + Mhlnb_noi.size)
+    fpr = fp / n
+    tp = float(numpy.count_nonzero(Mhlnb_gt < cutoff))
+    p = float(Mhlnb_gt.size)
+    tpr = tp / p
+    
+    
+    if verbose:
+        msg = [
+            "# cutoff",
+            "%s" %(cutoff,),
+            "# fpr",
+            "%s" %(fpr,),
+            "# tpr",
+            "%s" %(tpr),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
+    
+    
+    if make_plots:
+        # Plot ROC curve.
+        title = "ROC curve for the inital parameter"
+        plot_filename = "roc-curve.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
+    
     
     # Scale the ellipse according to the chosen cutoff.
     A_init = (1.0 / cutoff) * A_init
@@ -659,8 +596,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # SANITY PLOT (ELLIPSE PROJECTION) #########################################
     
     io.print_and_log(["# Sanity plot (ellipse projection)..."], level='info', logger=params)
-    
-    from sklearn.decomposition import PCA
     
     
     # Compute PCA with two components.
@@ -709,210 +644,221 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
     
     if make_plots:
-        # Plot.
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.set_aspect('equal')
-        ax.grid()
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ax.set_xlabel("1st component")
-        ax.set_ylabel("2nd component")
-        # Plot datasets.
-        ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
-        ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
-        ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
-        # Plot ellipse transformation.
-        for i in xrange(0, O_.shape[0]):
-            ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
-        # Plot means of datasets.
-        ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        filename = "sanity-ellipse-projection-init.png"
-        path = os.path.join(plot_path, filename)
-        fig.savefig(path)
-        plt.close(fig)
+        # Plot classifier.
+        
+        # fig = plt.figure()
+        # ax = fig.gca()
+        # ax.set_aspect('equal')
+        # ax.grid()
+        # ax.set_xlim([x_min, x_max])
+        # ax.set_ylim([y_min, y_max])
+        # ax.set_xlabel("1st component")
+        # ax.set_ylabel("2nd component")
+        # # Plot datasets.
+        # ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
+        # ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
+        # ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
+        # # Plot ellipse transformation.
+        # for i in xrange(0, O_.shape[0]):
+        #     ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
+        # # Plot means of datasets.
+        # ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        # ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        # ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        # plot_filename = "sanity-ellipse-projection-init.png"
+        # path = os.path.join(plot_path, plot_filename)
+        # fig.savefig(path)
+        # plt.close(fig)
+        
+        title = "Initial classifier (ellipsoid)"
+        plot_filename = "sanity-ellipse-projection-init.png"
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_classifier(filename, X_gt, X_ngt, X_noi, A_init, b_init, c_init,
+                             title=title, save=path, verbose=verbose)
     
     
     
     ##### SANITY PLOT (QUADRIC APPARENT CONTOUR) ###############################
     
-    io.print_and_log(["# Sanity plot (quadric apparent contour)..."], level='info', logger=params)
+    # io.print_and_log(["# Sanity plot (quadric apparent contour)..."], level='info', logger=params)
     
     
-    v1 = pca.components_[0, :]
-    v2 = pca.components_[1, :]
+    # v1 = pca.components_[0, :]
+    # v2 = pca.components_[1, :]
     
     
-    if verbose:
-        # msg = [
-        #     "# norm(v1)",
-        #     "%s" %(numpy.linalg.norm(v1),),
-        #     "# norm(v2)",
-        #     "%s" %(numpy.linalg.norm(v2),),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
+    # if verbose:
+    #     # msg = [
+    #     #     "# norm(v1)",
+    #     #     "%s" %(numpy.linalg.norm(v1),),
+    #     #     "# norm(v2)",
+    #     #     "%s" %(numpy.linalg.norm(v2),),
+    #     # ]
+    #     # io.print_and_log(msg, level='default', logger=params)
+    #     pass
     
     
-    N = v1.size
-    x = numpy.copy(v1)
-    R = numpy.eye(N)
-    for i in xrange(1, N):
-        x1 = x[0]
-        x2 = x[i]
-        n = numpy.sqrt(x1 * x1 + x2 * x2)
-        if n == 0.0:
-            cos = 1.0
-            sin = 0.0
-        else:
-            cos = x1 / n
-            sin = x2 / n
-        R_ = numpy.eye(N)
-        R_[0, 0] = cos
-        R_[0, i] = sin
-        R_[i, 0] = - sin
-        R_[i, i] = cos
-        x = numpy.dot(R_, x)
-        R = numpy.dot(R_, R)
-    x = numpy.dot(R, v2)
-    for i in xrange(2, N):
-        x1 = x[1]
-        x2 = x[i]
-        n = numpy.sqrt(x1 * x1 + x2 * x2)
-        if n == 0.0:
-            cos = 1.0
-            sin = 0.0
-        else:
-            cos = x1 / n
-            sin = x2 / n
-        R_ = numpy.eye(N)
-        R_[1, 1] = cos
-        R_[1, i] = sin
-        R_[i, 1] = - sin
-        R_[i, i] = cos
-        x = numpy.dot(R_, x)
-        R = numpy.dot(R_, R)
+    # N = v1.size
+    # x = numpy.copy(v1)
+    # R = numpy.eye(N)
+    # for i in xrange(1, N):
+    #     x1 = x[0]
+    #     x2 = x[i]
+    #     n = numpy.sqrt(x1 * x1 + x2 * x2)
+    #     if n == 0.0:
+    #         cos = 1.0
+    #         sin = 0.0
+    #     else:
+    #         cos = x1 / n
+    #         sin = x2 / n
+    #     R_ = numpy.eye(N)
+    #     R_[0, 0] = cos
+    #     R_[0, i] = sin
+    #     R_[i, 0] = - sin
+    #     R_[i, i] = cos
+    #     x = numpy.dot(R_, x)
+    #     R = numpy.dot(R_, R)
+    # x = numpy.dot(R, v2)
+    # for i in xrange(2, N):
+    #     x1 = x[1]
+    #     x2 = x[i]
+    #     n = numpy.sqrt(x1 * x1 + x2 * x2)
+    #     if n == 0.0:
+    #         cos = 1.0
+    #         sin = 0.0
+    #     else:
+    #         cos = x1 / n
+    #         sin = x2 / n
+    #     R_ = numpy.eye(N)
+    #     R_[1, 1] = cos
+    #     R_[1, i] = sin
+    #     R_[i, 1] = - sin
+    #     R_[i, i] = cos
+    #     x = numpy.dot(R_, x)
+    #     R = numpy.dot(R_, R)
     
     
-    if verbose:
-        # u1 = numpy.dot(R, v1)
-        # u1[numpy.abs(u1) < 1.0e-10] = 0.0
-        # u2 = numpy.dot(R, v2)
-        # u2[numpy.abs(u2) < 1.0e-10] = 0.0
-        # msg = [
-        #     "# R * v1",
-        #     "%s" %(u1,),
-        #     "# R * v2",
-        #     "%s" %(u2,),
-        # ]
-        io.print_and_log(msg, level='default', logger=params)
-        pass
+    # if verbose:
+    #     # u1 = numpy.dot(R, v1)
+    #     # u1[numpy.abs(u1) < 1.0e-10] = 0.0
+    #     # u2 = numpy.dot(R, v2)
+    #     # u2[numpy.abs(u2) < 1.0e-10] = 0.0
+    #     # msg = [
+    #     #     "# R * v1",
+    #     #     "%s" %(u1,),
+    #     #     "# R * v2",
+    #     #     "%s" %(u2,),
+    #     # ]
+    #     # io.print_and_log(msg, level='default', logger=params)
+    #     pass
     
     
-    R_ = R.T
-    t_ = pca.mean_
-    A_ = numpy.dot(numpy.dot(R_.T, A_init), R_)
-    b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A_init, t_) + b_init)
-    c_ = numpy.dot(numpy.dot(A_init, t_) + b_init, t_) + c_init
+    # R_ = R.T
+    # t_ = pca.mean_
+    # A_ = numpy.dot(numpy.dot(R_.T, A_init), R_)
+    # b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A_init, t_) + b_init)
+    # c_ = numpy.dot(numpy.dot(A_init, t_) + b_init, t_) + c_init
     
     
-    if verbose:
-        msg = [
-            "# t_",
-            "%s" %(t_,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    # if verbose:
+    #     msg = [
+    #         "# t_",
+    #         "%s" %(t_,),
+    #     ]
+    #     io.print_and_log(msg, level='default', logger=params)
     
     
-    xs = [numpy.array([0.0, 0.0]),
-          numpy.array([1.0, 0.0]),
-          numpy.array([0.0, 1.0])]
+    # xs = [numpy.array([0.0, 0.0]),
+    #       numpy.array([1.0, 0.0]),
+    #       numpy.array([0.0, 1.0])]
     
-    # Solve the linear system 2 * A.T * y + b = 0 for fixed couples (y_1, y_2).
-    ys = []
-    for x in xs:
-        c1 = 2.0 * A_[2:, 2:].T
-        c2 = - (numpy.dot(2.0 * A_[:2, 2:].T, x) + b_[2:])
-        yx = numpy.linalg.solve(c1, c2)
-        ys.append(yx)
-    
-    
-    k = ys[0].size
-    c1 = numpy.eye(k)
-    c1 = numpy.tile(c1, (3, 3))
-    for (i, x) in enumerate(xs):
-        for (j, v) in enumerate(x):
-            c1[i*k:(i+1)*k, j*k:(j+1)*k] = v * c1[i*k:(i+1)*k, j*k:(j+1)*k]
-    c2 = numpy.concatenate(tuple(ys))
-    m = numpy.linalg.solve(c1, c2)
-    
-    # Reconstruct alpha.
-    alpha_1 = numpy.eye(2)
-    alpha_2 = numpy.hstack((m[0:k].reshape(-1, 1), m[k:2*k].reshape(-1, 1)))
-    alpha = numpy.vstack((alpha_1, alpha_2))
-    # Reconstruct beta.
-    beta_1 = numpy.zeros(2)
-    beta_2 = m[2*k:3*k]
-    beta = numpy.concatenate((beta_1, beta_2))
-    
-    A__ = numpy.dot(alpha.T, numpy.dot(A_, alpha))
-    b__ = numpy.dot(alpha.T, 2.0 * numpy.dot(A_, beta) + b_)
-    c__ = numpy.dot(numpy.dot(A_, beta) + b_, beta) + c_
+    # # Solve the linear system 2 * A.T * y + b = 0 for fixed couples (y_1, y_2).
+    # ys = []
+    # for x in xs:
+    #     c1 = 2.0 * A_[2:, 2:].T
+    #     c2 = - (numpy.dot(2.0 * A_[:2, 2:].T, x) + b_[2:])
+    #     yx = numpy.linalg.solve(c1, c2)
+    #     ys.append(yx)
     
     
-    if verbose:
-        msg = [
-            "# A__",
-            "%s" %(A__,),
-            "# b__",
-            "%s" %(b__,),
-            "# c__",
-            "%s" %(c__,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    # k = ys[0].size
+    # c1 = numpy.eye(k)
+    # c1 = numpy.tile(c1, (3, 3))
+    # for (i, x) in enumerate(xs):
+    #     for (j, v) in enumerate(x):
+    #         c1[i*k:(i+1)*k, j*k:(j+1)*k] = v * c1[i*k:(i+1)*k, j*k:(j+1)*k]
+    # c2 = numpy.concatenate(tuple(ys))
+    # m = numpy.linalg.solve(c1, c2)
+    
+    # # Reconstruct alpha.
+    # alpha_1 = numpy.eye(2)
+    # alpha_2 = numpy.hstack((m[0:k].reshape(-1, 1), m[k:2*k].reshape(-1, 1)))
+    # alpha = numpy.vstack((alpha_1, alpha_2))
+    # # Reconstruct beta.
+    # beta_1 = numpy.zeros(2)
+    # beta_2 = m[2*k:3*k]
+    # beta = numpy.concatenate((beta_1, beta_2))
+    
+    # A__ = numpy.dot(alpha.T, numpy.dot(A_, alpha))
+    # b__ = numpy.dot(alpha.T, 2.0 * numpy.dot(A_, beta) + b_)
+    # c__ = numpy.dot(numpy.dot(A_, beta) + b_, beta) + c_
     
     
-    if make_plots:
-        # Plot conic section.
-        n = 100
-        # x_min = -3100.0
-        # x_max = +3100.0
-        # y_min = -3100.0
-        # y_max = +3100.0
-        x_r = numpy.linspace(x_min, x_max, n)
-        y_r = numpy.linspace(y_min, y_max, n)
-        xx, yy = numpy.meshgrid(x_r, y_r)
-        zz = numpy.zeros(xx.shape)
-        for i in xrange(0, xx.shape[0]):
-            for j in xrange(0, xx.shape[1]):
-                v = numpy.array([xx[i, j], yy[i, j]])
-                zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
-        vv = numpy.array([0.0])
-        # vv = numpy.arange(0.0, 1.0, 0.1)
-        # vv = numpy.arange(0.0, 20.0)
+    # if verbose:
+    #     msg = [
+    #         "# A__",
+    #         "%s" %(A__,),
+    #         "# b__",
+    #         "%s" %(b__,),
+    #         "# c__",
+    #         "%s" %(c__,),
+    #     ]
+    #     io.print_and_log(msg, level='default', logger=params)
+    
+    
+    # if make_plots:
+    #     # Plot conic section.
+    #     n = 100
+    #     # x_min = -3100.0
+    #     # x_max = +3100.0
+    #     # y_min = -3100.0
+    #     # y_max = +3100.0
+    #     x_r = numpy.linspace(x_min, x_max, n)
+    #     y_r = numpy.linspace(y_min, y_max, n)
+    #     xx, yy = numpy.meshgrid(x_r, y_r)
+    #     zz = numpy.zeros(xx.shape)
+    #     for i in xrange(0, xx.shape[0]):
+    #         for j in xrange(0, xx.shape[1]):
+    #             v = numpy.array([xx[i, j], yy[i, j]])
+    #             zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
+    #     vv = numpy.array([0.0])
+    #     # vv = numpy.arange(0.0, 1.0, 0.1)
+    #     # vv = numpy.arange(0.0, 20.0)
         
-        fig = plt.figure()
-        ax = fig.gca()
-        ax.set_xlabel("1st component")
-        ax.set_ylabel("2nd component")
-        ax.set_aspect('equal')
-        ax.grid()
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
-        # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
-        # ax.clabel(cs, inline=1, fontsize=10)
-        ax.scatter(pca.transform(X_gt)[:, 0], pca.transform(X_gt)[:, 1], c='g', s=5, lw=0.1)
-        filename = "contour-init.png"
-        path = os.path.join(plot_path, filename)
-        fig.savefig(path)
-        plt.close(fig)
+    #     fig = plt.figure()
+    #     ax = fig.gca()
+    #     ax.set_xlabel("1st component")
+    #     ax.set_ylabel("2nd component")
+    #     ax.set_aspect('equal')
+    #     ax.grid()
+    #     ax.set_xlim([x_min, x_max])
+    #     ax.set_ylim([y_min, y_max])
+    #     ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
+    #     # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
+    #     # ax.clabel(cs, inline=1, fontsize=10)
+    #     ax.scatter(pca.transform(X_gt)[:, 0], pca.transform(X_gt)[:, 1], c='g', s=5, lw=0.1)
+    #     plot_filename = "contour-init.png"
+    #     path = os.path.join(plot_path, plot_filename)
+    #     fig.savefig(path)
+    #     plt.close(fig)
     
     
     
     ############################################################################
+    
+    io.print_and_log(["# Compute Mahalanobis distances..."],
+                     level='info', logger=params)
+    
     
     # Compute the Mahalanobis distance.
     def evaluate_ellipse(A, b, c, X):
@@ -943,8 +889,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ax = fig.gca()
         ax.grid()
         ax.hist(Ell_gt, bins=75, color='g')
-        filename = "ellipse-values.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "ellipse-values.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -956,11 +902,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ax.hist(Mhlnb_noi, bins=50, color='r')
         ax.hist(Mhlnb_ngt, bins=50, color='b')
         ax.hist(Mhlnb_gt, bins=75, color='g')
-        filename = "mahalanobis-init.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "mahalanobis-init.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
+    sys.exit(0)
     
     
     ##### LEARNING #############################################################
@@ -1042,8 +989,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         # fig.colorbar(cs)
         ax.scatter(x_raw[0.5 < c_raw], y_raw[0.5 < c_raw], c='r', s=5, lw=0.1)
         ax.scatter(x_raw[c_raw < 0.5], y_raw[c_raw < 0.5], c='g', s=5, lw=0.1)
-        filename = "temp-1.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "temp-1.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1089,8 +1036,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         # fig.colorbar(cs)
         ax.scatter(x_raw[0.5 < c_raw], y_raw[0.5 < c_raw], c='r', s=5, lw=0.1)
         ax.scatter(x_raw[c_raw < 0.5], y_raw[c_raw < 0.5], c='g', s=5, lw=0.1)
-        filename = "temp-2.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "temp-2.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1138,8 +1085,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         # fig.colorbar(cs)
         ax.scatter(x_raw[0.5 < c_raw], y_raw[0.5 < c_raw], c='r', s=5, lw=0.1)
         ax.scatter(x_raw[c_raw < 0.5], y_raw[c_raw < 0.5], c='g', s=5, lw=0.1)
-        filename = "temp-3.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "temp-3.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1179,8 +1126,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         # ax.plot(range(x_min, x_max + 1), clf.loss_curve_[1:], 'bo')
         ax.semilogy(range(x_min, x_max + 1), clf.loss_curve_[1:], 'b-')
         # ax.semilogy(range(x_min, x_max + 1), clf.loss_curve_[1:], 'bo')
-        filename = "loss-curve.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "loss-curve.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1208,8 +1155,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # SANITY PLOT (ELLIPSE PROJECTION) #########################################
     
     io.print_and_log(["# Sanity plot (ellipse projection)..."], level='info', logger=params)
-    
-    from sklearn.decomposition import PCA
     
     
     # Compute PCA with two components.
@@ -1284,8 +1229,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
         ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
         ## Save plot.
-        filename = "sanity-ellipse-projection.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "sanity-ellipse-projection.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1464,8 +1409,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         c_raw = clf.predict(X)[0:X_raw.shape[0]]
         ax.scatter(pca.transform(X_raw)[:, 0], pca.transform(X_raw)[:, 1], c=c_raw, s=5, lw=0.1)
         ## Save plot.
-        filename = "contour.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "contour.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1502,8 +1447,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ax.hist(Mhlnb_ngt, bins=50, color='b')
         ax.hist(Mhlnb_noi, bins=50, color='r')
         ax.hist(Mhlnb_gt, bins=75, color='g')
-        filename = "mahalanobis.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "mahalanobis.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1585,8 +1530,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ax.set_xlabel("%dst principal component" %(x_component + 1))
         ax.set_ylabel("%dnd principal component" %(y_component + 1))
         ax.grid()
-        filename = "decision-boundaries-%d-%d.png" %(x_component, y_component)
-        path = os.path.join(plot_path, filename)
+        plot_filename = "decision-boundaries-%d-%d.png" %(x_component, y_component)
+        path = os.path.join(plot_path, plot_filename)
         plt.savefig(path)
         fig.clear()
     
@@ -1594,8 +1539,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### SANITY PLOT (PCA) ####################################################
     
     io.print_and_log(["# Sanity plot (PCA)..."], level='info', logger=params)
-    
-    from sklearn.decomposition import PCA
     
     
     # Compute PCA with two components.
@@ -1739,8 +1682,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ax = fig.gca()
             cax = ax.imshow(A, interpolation='nearest', cmap='jet')
             fig.colorbar(cax)
-            filename = "ellipse.png"
-            path = os.path.join(plot_path, filename)
+            plot_filename = "ellipse.png"
+            path = os.path.join(plot_path, plot_filename)
             fig.savefig(path)
             plt.close(fig)
         ##### end plot zone
@@ -1892,8 +1835,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         fig = plt.figure()
         ax = fig.gca()
         ax.plot(vpca[0, :])
-        filename = "plot0.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "plot0.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1901,8 +1844,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         fig = plt.figure()
         ax = fig.gca()
         ax.plot(vpca[1, :])
-        filename = "plot1.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "plot1.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1910,8 +1853,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         fig = plt.figure()
         ax = fig.gca()
         ax.plot(vpca[1, :] - vpca[0, :])
-        filename = "plot2.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "plot2.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
 ##### end plot zone
@@ -1967,8 +1910,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ax.set_title("Plot PCA-reduced dataset")
         ax.set_xlabel("1st component")
         ax.set_ylabel("2nd component")
-        filename = "reduced-dataset.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "reduced-dataset.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -1989,8 +1932,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ax.set_title("Plot PCA-reduced dataset restricted to the ground truth cell")
         ax.set_xlabel("1st component")
         ax.set_ylabel("2nd component")
-        filename = "reduced-dataset-true.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "reduced-dataset-true.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
@@ -2011,8 +1954,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         ax.set_title("Plot PCA-reduced dataset restricted to the non ground truth cells and noise")
         ax.set_xlabel("1st component")
         ax.set_ylabel("2nd component")
-        filename = "/tmp/reduced-dataset-false.png"
-        path = os.path.join(plot_path, filename)
+        plot_filename = "/tmp/reduced-dataset-false.png"
+        path = os.path.join(plot_path, plot_filename)
         fig.savefig(path)
         plt.close(fig)
     
