@@ -8,6 +8,7 @@ requirements:
   # only includes hdf5storage for linux-64 and termcolor for linux-32, linux-64
   # and mac-osx for termcolor)
   build:
+    - python
     - progressbar # [py2k]
     - progressbar2 # [not py2k]
     - mpi4py
@@ -19,6 +20,7 @@ requirements:
     - setuptools
     - colorama
   run:
+    - python
     - progressbar # [py2k]
     - progressbar2 # [not py2k]
     - mpi4py
