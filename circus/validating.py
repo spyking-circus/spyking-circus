@@ -4,6 +4,8 @@ import matplotlib.gridspec as gridspec
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import Perceptron
+from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import StandardScaler
 
 from .shared.utils import *
@@ -178,7 +180,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
-    alpha = 4
+    alpha = 2
     idxs_ngt = numpy.random.choice(spike_times_ngt_tmp.size,
                                    size=alpha*spike_times_gt.shape[0],
                                    replace=False)
@@ -244,7 +246,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_noi = numpy.random.random_integers(low, high, size)
     spike_times_noi = numpy.unique(spike_times_noi)
     spike_times_noi = numpy.setdiff1d(spike_times_noi, spike_times_fbd)
-    alpha = 4
+    alpha = 2
     idxs_noi = numpy.random.choice(spike_times_noi.size,
                                    size=alpha*spike_times_gt.shape[0],
                                    replace=False)
@@ -548,7 +550,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     # Set cutoff equal to the optimal cutoff.
-    cutoff = cutoff_opt_norm_acc
+    cutoff = cutoff_opt_acc
+    # cutoff = cutoff_opt_norm_acc
     
     # Compute false positive rate and true positive rate for the chosen cutoff.
     fp = float(numpy.count_nonzero(Mhlnb_ngt < cutoff)
@@ -652,21 +655,43 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(msg, level='default', logger=params)
     
     
+    model = 'sgd'
     # Declare model.
-    clf = MLPClassifier(hidden_layer_sizes=(),
-                        activation='logistic',
-                        algorithm='sgd',
-                        alpha=1.0e-12,
-                        tol=1.0e-8,
-                        learning_rate='adaptive',
-                        random_state=0,
-                        momentum=0.05,
-                        nesterovs_momentum=False)
+    if model == 'mlp':
+        clf = MLPClassifier(hidden_layer_sizes=(),
+                            activation='logistic',
+                            algorithm='sgd',
+                            alpha=1.0e-12,
+                            tol=1.0e-8,
+                            learning_rate='adaptive',
+                            random_state=0,
+                            momentum=0.05,
+                            nesterovs_momentum=False)
+    elif model == 'perceptron':
+        clf = Perceptron(penalty='l2',
+                         alpha=1.0e-12,
+                         fit_intercept=True,
+                         random_state=0)
+    elif model == 'sgd':
+        alphas, betas, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
+        clf = SGDClassifier(loss='perceptron',
+                            penalty='l2',
+                            alpha=1.0e-12,
+                            fit_intercept=True,
+                            random_state=2,
+                            learning_rate='constant',
+                            eta0=sys.float_info.epsilon,
+                            class_weight=class_weights[0])
     
-    # Initialize model (i.e. fake launch + weights initialization).
-    clf.set_params(max_iter=1)
-    clf.set_params(learning_rate_init=sys.float_info.epsilon)
-    clf.set_params(warm_start=False)
+    # Initialize model (i.e. fake launch, weights initialization).
+    if model == 'mlp':
+        clf.set_params(max_iter=1)
+        clf.set_params(learning_rate_init=sys.float_info.epsilon)
+        clf.set_params(warm_start=False)
+    elif model == 'perceptron' or model == 'sgd':
+        clf.set_params(n_iter=1)
+        clf.set_params(eta0=sys.float_info.epsilon)
+        clf.set_params(warm_start=False)
     clf.fit(X_train, y_train)
     
     
@@ -687,15 +712,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if verbose:
         msg = [
-            # Print the current loss.
-            "# clf.loss_",
-            "%s" %(clf.loss_,),
-            # Print the loss curve.
-            "# clf.loss_curve_",
-            "%s" %(clf.loss_curve_,),
-            # Print the number of iterations the algorithm has ran.
-            "# clf.n_iter_",
-            "%s" %(clf.n_iter_,),
+            # # Print the current loss.
+            # "# clf.loss_",
+            # "%s" %(clf.loss_,),
+            # # Print the loss curve.
+            # "# clf.loss_curve_",
+            # "%s" %(clf.loss_curve_,),
+            # # Print the number of iterations the algorithm has ran.
+            # "# clf.n_iter_",
+            # "%s" %(clf.n_iter_,),
             # Print the score on the test set.
             "# clf.score(X_test, y_test)",
             "%s" %(clf.score(X_test, y_test),),
@@ -705,8 +730,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
-    clf.coefs_ = [coefs_init[1:, :]]
-    clf.intercepts_ = [coefs_init[:1, :]]
+    if model == 'mlp':
+        clf.coefs_ = [coefs_init[1:, :]]
+        clf.intercepts_ = [coefs_init[:1, :]]
+    elif model == 'perceptron' or model == 'sgd':
+        clf.coef_ = coefs_init[1:, :].reshape(1, -1)
+        clf.intercept_ = coefs_init[:1, :].ravel()
     
     
     if make_plots:
@@ -729,9 +758,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # # Print the current loss.
             # "# clf.loss_",
             # "%s" %(clf.loss_,),
-            # Print the loss curve.
-            "# clf.loss_curve_",
-            "%s" %(clf.loss_curve_,),
+            # # Print the loss curve.
+            # "# clf.loss_curve_",
+            # "%s" %(clf.loss_curve_,),
             # # Print the number of iterations the algorithm has ran.
             # "# clf.n_iter_",
             # "%s" %(clf.n_iter_,),
@@ -744,9 +773,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     # Train model.
-    clf.set_params(max_iter=max_iter)
-    clf.set_params(learning_rate_init=learning_rate_init)
-    clf.set_params(warm_start=True)
+    if model == 'mlp':
+        clf.set_params(max_iter=max_iter)
+        clf.set_params(learning_rate_init=learning_rate_init)
+        clf.set_params(warm_start=True)
+    elif model == 'perceptron' or model == 'sgd':
+        clf.set_params(n_iter=max_iter)
+        clf.set_params(eta0=learning_rate_init)
+        clf.set_params(warm_start=True)
     clf.fit(X_train, y_train)
     
     
@@ -767,15 +801,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if verbose:
         msg = [
-            # Print the current loss computed with the loss function.
-            "# clf.loss_",
-            "%s" %(clf.loss_,),
-            # Print the loss curve.
-            "# clf.loss_curve_",
-            "%s" %(clf.loss_curve_,),
-            # Print the number of iterations the algorithm has ran.
-            "# clf.n_iter_",
-            "%s" %(clf.n_iter_,),
+            # # Print the current loss computed with the loss function.
+            # "# clf.loss_",
+            # "%s" %(clf.loss_,),
+            # # Print the loss curve.
+            # "# clf.loss_curve_",
+            # "%s" %(clf.loss_curve_,),
+            # # Print the number of iterations the algorithm has ran.
+            # "# clf.n_iter_",
+            # "%s" %(clf.n_iter_,),
             # Print the score on the test set.
             "# clf.score(X_test, y_test)",
             "%s" %(clf.score(X_test, y_test),),
@@ -784,16 +818,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(msg, level='default', logger=params)
     
     
-    if make_plots:
-        # Plot the loss curve.
-        plot_filename = "loss-curve.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_loss_curve(clf.loss_curve_, save=path)
+    # # TODO: uncomment (i.e. compute loss curve for perceptron and sgd)
+    # if make_plots:
+    #     # Plot the loss curve.
+    #     plot_filename = "loss-curve.png"
+    #     path = os.path.join(plot_path, plot_filename)
+    #     plot.view_loss_curve(clf.loss_curve_, save=path)
     
     
     # Retrieve the coefficients of the ellipsoid.
-    bias = clf.intercepts_[0].flatten() # bias vector
-    weights = clf.coefs_[0].flatten() # weight vector
+    if model == 'mlp':
+        bias = clf.intercepts_[0].flatten()
+        weights = clf.coefs_[0].flatten()
+    elif model == 'perceptron' or model == 'sgd':
+        bias = clf.intercept_.flatten()
+        weights = clf.coef_.flatten()
     # Concatenate the coefficients.
     coefs = numpy.concatenate((bias, weights))
     coefs = coefs.reshape(-1, 1)
@@ -855,6 +894,87 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         path = os.path.join(plot_path, plot_filename)
         plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
                                            title=title, save=path)
+    
+    
+    
+    ##### WEIGHTED LEARNING ####################################################
+    
+    io.print_and_log(["# Weighted learning..."], level='info', logger=params)
+    
+    
+    # TODO: find why same fpr and tpr for different tuples of class weights.
+    
+    if model == 'sgd':
+        # TODO: make 'n' a parameter inside '<dataset>.params'
+        _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=7)
+        confusion_matrices = []
+        for class_weight in class_weights:
+            
+            # TODO: remove.
+            print(class_weight)
+            
+            # Declare classifier.
+            wclf = SGDClassifier(loss='perceptron',
+                                 penalty='l2',
+                                 alpha=1.0e-12,
+                                 fit_intercept=True,
+                                 random_state=2,
+                                 learning_rate='constant',
+                                 eta0=sys.float_info.epsilon)
+            # Initialize classifier (i.e. fake launch, weights initialization).
+            wclf.set_params(class_weight=class_weight)
+            wclf.set_params(n_iter=1)
+            wclf.set_params(eta0=sys.float_info.epsilon)
+            wclf.set_params(warm_start=False)
+            wclf.fit(X_train, y_train)
+            # Initialize classifier (i.e. ellipsoid weights).
+            wclf.coef_ = coefs_init[1:, :].reshape(1, -1)
+            wclf.intercept_ = coefs_init[:1, :].ravel()
+            # Train classifier.
+            wclf.set_params(n_iter=max_iter)
+            wclf.set_params(eta0=learning_rate_init)
+            wclf.set_params(warm_start=True)
+            wclf.fit(X_train, y_train)
+            # Classifer prediction on train set.
+            y_pred = wclf.predict(X_test)
+            # Compute true positives, false negatives, true negatives and false
+            # positives.
+            p = (y_test == 1.0)
+            tp = float(numpy.count_nonzero(y_pred[p] == y_test[p]))
+            fn = float(numpy.count_nonzero(y_pred[p] != y_test[p]))
+            n = (y_test == 0.0)
+            tn = float(numpy.count_nonzero(y_pred[n] == y_test[n]))
+            fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
+            confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
+            
+            # TODO: remove.
+            print(confusion_matrix)
+            
+            confusion_matrices.append(confusion_matrix)
+        
+        # Compute false positive rates and true positive rates.
+        fprs = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
+        tprs = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+        
+        
+        if verbose:
+            msg = [
+                "# class_weights",
+                "%s" %(class_weights,),
+                "# false positive rates",
+                "%s" %(fprs,),
+                "# true positive rates",
+                "%s" %(tprs,),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
+        
+        
+        if make_plots:
+            # Plot ROC curve.
+            title = "ROC curve of the BEER estimate"
+            plot_filename = 'roc-curve-beer.png'
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path)
     
     
     
@@ -998,8 +1118,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     # Retrieve the coefficients of the ellipsoid.
-    weights = clf.coefs_[0].flatten() # weight vector
-    bias = clf.intercepts_[0].flatten() # bias vector
+    if model == 'mlp':
+        weights = clf.coefs_[0].flatten()
+        bias = clf.intercepts_[0].flatten()
+    elif model == 'perceptron' or model == 'sgd':
+        weights = clf.coef_.flatten()
+        bias = clf.intercept_.flatten()
     # Concatenate the coefficients.
     coefs = numpy.concatenate((bias, weights))
     

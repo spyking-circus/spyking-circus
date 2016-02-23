@@ -1067,7 +1067,8 @@ def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None):
     ax = fig.gca()
     ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
     ax.plot(fprs, tprs, color='blue', linestyle='solid')
-    ax.plot(fpr, tpr, color='blue', marker='o')
+    if fpr is not None and tpr is not None:
+        ax.plot(fpr, tpr, color='blue', marker='o')
     ax.set_aspect('equal')
     ax.grid(True)
     ax.set_xlim([0.0, 1.0])
@@ -1224,7 +1225,7 @@ def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=Non
     for i in xrange(0, O_.shape[0]):
         ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
     ## Plot ellipse apparent contour.
-    n = 100
+    n = 300
     x_r = numpy.linspace(x_min, x_max, n)
     y_r = numpy.linspace(y_min, y_max, n)
     xx, yy = numpy.meshgrid(x_r, y_r)

@@ -947,3 +947,21 @@ def squared_Mahalanobis_distance(A, mu, X):
         d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
     return d2
 
+def get_class_weights(y_gt, y_ngt, y_noi, n=7):
+    '''Compute different class weights for the stochastic gradient descent'''
+    n_class_0 = float(y_gt.size)
+    n_class_1 = float(y_ngt.size + y_noi.size)
+    n_samples = n_class_0 + n_class_1
+    n_classes = 2.0
+    alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
+    betas = numpy.linspace(0.0, 2.0, n + 2)[1:-1]
+    class_weights = []
+    for i in xrange(0, n):
+        alpha = alphas[i]
+        beta = betas[i]
+        class_weight = {
+            0: alpha * n_samples / (n_classes * n_class_0),
+            1: beta * n_samples / (n_classes * n_class_1),
+        }
+        class_weights.append(class_weight)
+    return alphas, betas, class_weights
