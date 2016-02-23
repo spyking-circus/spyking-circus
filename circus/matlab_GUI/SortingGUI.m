@@ -1984,7 +1984,26 @@ if get(handles.EnableWaveforms,'Value')==1
 
     NbElec = handles.NelecTot;
 
-    FileStart = handles.HeaderSize + 2*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
+    if strcmp(handles.DataFormat, 'int8')
+        data_padding = 1;
+    end
+    if strcmp(handles.DataFormat, 'uint8')
+        data_padding = 1;
+    end
+    if strcmp(handles.DataFormat, 'uint16')
+        data_padding = 2;
+    end
+    if strcmp(handles.DataFormat, 'int16')
+        data_padding = 2;
+    end
+    if strcmp(handles.DataFormat, 'float32')
+        data_padding = 4;
+    end
+    if strcmp(handles.DataFormat, 'double')
+        data_padding = 8;
+    end
+
+    FileStart = handles.HeaderSize + data_padding*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
 
 
     duration = handles.templates_size(2);
@@ -2002,6 +2021,9 @@ if get(handles.EnableWaveforms,'Value')==1
 
     if strcmp(handles.DataFormat,'uint16')
         data = data - 32767;
+    end
+    if strcmp(handles.DataFormat,'uint8')
+        data = data - 255;
     end
 
     data = data*handles.Gain;
