@@ -13,7 +13,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
         sys.exit(0)
 
-    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe):
+    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe, trends=None):
         import cPickle
         to_write = {'benchmark' : benchmark}
         to_write['cells']      = cells
@@ -21,10 +21,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         to_write['probe']      = probe
         to_write['amplitudes'] = amplitudes
         to_write['sampling']   = sampling
+        if benchmark == 'drifts':
+            to_write['drifts'] = trends
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
     templates = io.load_data(params, 'templates')
     sim_same_elec   = 0.8
+    trends          = None
 
     if benchmark == 'fitting':
         nb_insert       = 25
@@ -102,7 +105,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             os.makedirs(file_out)
 
     if comm.rank == 0:
-        write_benchmark(file_out, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'))
+        write_benchmark(file_out, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'), trends)
 
 
     comm.Barrier()

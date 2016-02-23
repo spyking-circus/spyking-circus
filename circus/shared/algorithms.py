@@ -46,7 +46,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
 
         if dc is None:
             sda = numpy.argsort(dist)
-            dc  = dist[sda][int(len(dist)*1e-5)]
+            dc  = dist[sda][int(len(dist)*1e-2)]
 
         if compute_rho:
             exp_dist = numpy.exp(-(dist/dc)**2)
@@ -85,8 +85,8 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
                 delta[ordrho[ii]]  = xdist
                 nneigh[ordrho[ii]] = ordrho[jj]
 
-    delta[ordrho[0]] = delta.ravel().max()  
-    threshold        = numpy.exp(-3**2)
+    delta[ordrho[0]] = delta.ravel().max()
+    threshold        = numpy.exp(-3**2)  
     clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
     
     def assign_halo(idx):
