@@ -83,8 +83,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['pca_' + str(i)]       = None
 
 
-    max_elts_elec /= comm.size
-    nb_elts       /= comm.size
+    max_elts_elec //= comm.size
+    nb_elts       //= comm.size
     few_elts       = False
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
@@ -255,7 +255,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         ydata = numpy.arange(len(indices))
                                         f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
                                         smoothed = smooth(f(cdata, idx)[:, 0], template_shift)
-                                        rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                        rmin     = (numpy.argmin(smoothed) - len(cdata)//2.)/5.
                                         ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                         sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
@@ -304,8 +304,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     pbar.update(elt_count)
 
             if comm.rank == 0:
-                if (elt_count < (gcount+1)*loop_nb_elts/len(chunks_to_load)):
-                    pbar.update((gcount+1)*loop_nb_elts/len(chunks_to_load))
+                if (elt_count < (gcount+1)*loop_nb_elts//len(chunks_to_load)):
+                    pbar.update((gcount+1)*loop_nb_elts//len(chunks_to_load))
 
         if comm.rank == 0:
             pbar.finish()
@@ -656,8 +656,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         data_i   = cdic[j, i, lj, li][1]
                         data_j   = cdic[j, i, lj, li][0]
                     else:
-                        data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
-                        data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
+                        data_i   = cross_corr(spikes_i-N_t//2, spikes_j)
+                        data_j   = cross_corr(spikes_i, spikes_j-N_t//2)[::-1]
                         cdic[i,j,li,lj] = [data_i, data_j]
                     
                     if (numpy.any(data_i != 0) or numpy.any(data_j != 0)):
@@ -802,7 +802,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count      = 0
                 for i in xrange(comm.size):
                     loc_norms   = ts[i].get('norms')
-                    middle      = len(loc_norms)/2
+                    middle      = len(loc_norms)//2
                     norms[count:count+middle]                                     = loc_norms[:middle]
                     norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')
@@ -1021,7 +1021,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count      = 0
                 for i in xrange(comm.size):
                     loc_norms   = ts[i].get('norms')
-                    middle      = len(loc_norms)/2
+                    middle      = len(loc_norms)//2
                     norms[count:count+middle]                                     = loc_norms[:middle]
                     norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')

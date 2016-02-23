@@ -3,7 +3,7 @@ radius            = 100
 
 channel_groups = {
 	1: {
-		'channels': range(32),
+		'channels': list(range(32)),
 		'graph' : [],
 		'geometry': {
 			0 : [20, 0],

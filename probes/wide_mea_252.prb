@@ -3,7 +3,7 @@ radius            = 250
 channel_groups    = {1 : {}}
 
 
-channel_groups[1]["channels"] = range(252) 
+channel_groups[1]["channels"] = list(range(252))
 channel_groups[1]["graph"]    = []
 channel_groups[1]["geometry"] = {0: [1500, 1100],
  1: [1000, 900],

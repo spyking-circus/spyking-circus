@@ -152,14 +152,14 @@ def load_parameters(file_name):
     for key in ['whitening', 'clustering']:
         safety_time = parser.get(key, 'safety_time')
         if safety_time == 'auto':
-            parser.set(key, 'safety_time', '%g' %(N_t/3.))
+            parser.set(key, 'safety_time', '%g' %(N_t//3.))
 
     sampling_rate   = parser.getint('data', 'sampling_rate')
     N_t             = int(sampling_rate*N_t*1e-3)
     if numpy.mod(N_t, 2) == 0:
         N_t += 1
     parser.set('data', 'N_t', str(N_t))
-    parser.set('data', 'template_shift', str(int((N_t-1)/2)))
+    parser.set('data', 'template_shift', str(int((N_t-1)//2)))
 
     data_offset              = parser.get('data', 'data_offset')
     if data_offset == 'MCS':
@@ -315,8 +315,8 @@ def data_stats(params, show=True, export_times=False):
     if not multi_files:
         datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
         N              = len(datablock)
-        nb_chunks      = N / chunk_len
-        last_chunk_len = (N - nb_chunks * chunk_len)/(N_total*sampling_rate)
+        nb_chunks      = N // chunk_len
+        last_chunk_len = (N - nb_chunks * chunk_len)//(N_total*sampling_rate)
     else:
         all_files      = get_multi_files(params)
         N              = 0
@@ -329,23 +329,23 @@ def data_stats(params, show=True, export_times=False):
                 data_offset, nb_channels = detect_header(f, 'MCS')
             datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
             loc_N           = len(datablock)
-            loc_nb_chunks   = loc_N / chunk_len
+            loc_nb_chunks   = loc_N // chunk_len
             nb_chunks      += loc_nb_chunks
-            last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)/(N_total*sampling_rate)
-            times   += [[t_start, t_start + len(datablock)/N_total]]
-            t_start  = t_start + len(datablock)/N_total
+            last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)//(N_total*sampling_rate)
+            times   += [[t_start, t_start + len(datablock)//N_total]]
+            t_start  = t_start + len(datablock)//N_total
 
     N_t = params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/sampling_rate, 1)
 
-    nb_extra        = last_chunk_len/60
+    nb_extra        = last_chunk_len//60
     nb_chunks      += nb_extra
     last_chunk_len -= nb_extra*60
 
     lines = ["Number of recorded channels : %d" %N_total,
              "Number of analyzed channels : %d" %N_e,
              "Data type                   : %s" %str(data_dtype),
-             "Sampling rate               : %d kHz" %(sampling_rate/1000.),
+             "Sampling rate               : %d kHz" %(sampling_rate//1000.),
              "Header offset for the data  : %d" %data_offset,
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
@@ -601,9 +601,9 @@ def analyze_data(params, chunk_size=None):
     borders        = N_total * template_shift
     datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     N              = len(datablock)
-    nb_chunks      = N / chunk_len
+    nb_chunks      = N // chunk_len
     last_chunk_len = N - nb_chunks * chunk_len
-    last_chunk_len = N_total * int(last_chunk_len/N_total)
+    last_chunk_len = N_total * int(last_chunk_len//N_total)
     
     return borders, nb_chunks, chunk_len, last_chunk_len
 
@@ -782,7 +782,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         result['real_amps'] = {}
     if with_voltages:
         result['voltages'] = {}    
-    for i in xrange(N_tm/2):
+    for i in xrange(N_tm//2):
         result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0)
         result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2))
         if with_real_amps:
@@ -809,7 +809,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.int32)
             templates  = numpy.fromfile(templates_file, dtype=numpy.int32)
             N          = len(amplitudes)
-            amplitudes = amplitudes.reshape(N/2, 2)
+            amplitudes = amplitudes.reshape(N//2, 2)
             min_size   = min([amplitudes.shape[0], spiketimes.shape[0], templates.shape[0]])
             amplitudes = amplitudes[:min_size]
             spiketimes = spiketimes[:min_size]
@@ -908,7 +908,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     x,        N_tm = templates.shape
 
     if half:
-        N_tm /= 2
+        N_tm //= 2
 
     if os.path.exists(filename) and not erase:
         return h5py.File(filename, 'r')
@@ -927,7 +927,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
-                gpu_id = int(comm.rank/nb_cpu)
+                gpu_id = int(comm.rank//nb_cpu)
             else:
                 gpu_id = 0
         else:
@@ -956,7 +956,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         upper_bounds = N_tm
     else:
         nb_total     = 2*len(local_templates)
-        upper_bounds = N_tm/2
+        upper_bounds = N_tm//2
 
     if comm.rank == 0:
         if verbose:

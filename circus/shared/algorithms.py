@@ -23,6 +23,34 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
     #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
     gidx   = numpy.where(xdata >= threshold)[0]
     ymdata = ydata[gidx]    
+
+    '''
+    xmdata = xdata[gidx]
+    
+    def powerlaw(x, a, b, k): 
+        with numpy.errstate(all='ignore'):
+            return numpy.abs(a)*(x**(-numpy.abs(k))) + b
+
+    try:
+        result, pcov = scipy.optimize.curve_fit(powerlaw, xmdata, numpy.log(ymdata), [1, numpy.median(numpy.log(ymdata)), 1])
+        pcov         = 1
+    except Exception:
+        result, pcov = [0, numpy.median(numpy.log(ymdata)), 1], 0
+
+    if display:
+        fig      = pylab.figure(figsize=(15, 5))
+        ax       = fig.add_subplot(111)
+        sort_idx = numpy.argsort(xmdata)
+        data_fit = numpy.exp(powerlaw(xmdata[sort_idx], result[0], result[1], result[2]))    
+        ax.plot(xmdata, ymdata, 'k.')
+        ax.plot(xmdata[sort_idx], data_fit)
+        ax.set_yscale('log')
+        ax.set_ylabel(r'$\delta$')
+        ax.set_xlabel(r'$\rho$')
+
+    delta_d = numpy.maximum(0, ymdata - numpy.exp(powerlaw(xmdata, result[0], result[1], result[2])))
+    subidx  = gidx[numpy.argsort(delta_d)[::-1]]
+    '''
     subidx = gidx[numpy.argsort(ymdata)[::-1]]
 
     if display:
@@ -42,7 +70,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
         
     if update is None:
         dist = distancematrix(data, weight=weight)
-        didx = lambda i,j: i*N + j - i*(i+1)/2 - i - 1
+        didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
 
         if dc is None:
             sda = numpy.argsort(dist)
@@ -68,7 +96,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
 
     N                 = len(rho)
     maxd              = numpy.max(dist)
-    didx              = lambda i,j: i*N + j - i*(i+1)/2 - i - 1
+    didx              = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
     ordrho            = numpy.argsort(rho)[::-1]
     rho_sorted        = rho[ordrho]
     delta, nneigh     = numpy.zeros(N, dtype=numpy.float64), numpy.zeros(N, dtype=numpy.int32)
@@ -193,7 +221,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
                 remove     = to_merge[count][1]
                 to_remove += [remove]
 
-        all_templates = set(numpy.arange(N_tm/2))
+        all_templates = set(numpy.arange(N_tm//2))
         to_keep       = numpy.array(list(all_templates.difference(to_remove)))
     
         positions  = numpy.arange(len(to_keep))
@@ -206,9 +234,9 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
         for count, keep in zip(positions, local_keep):
 
             templates[:, count]                = old_templates[:, keep]
-            templates[:, count + len(to_keep)] = old_templates[:, keep + N_tm/2]
+            templates[:, count + len(to_keep)] = old_templates[:, keep + N_tm//2]
             norms[count]                       = norm_templates[keep]
-            norms[count + len(to_keep)]        = norm_templates[keep + N_tm/2]
+            norms[count + len(to_keep)]        = norm_templates[keep + N_tm//2]
             if to_merge is None:
                 new_limits = old_limits[keep]
             else:
@@ -348,7 +376,7 @@ def merging_cc(comm, params, parallel_hdf5=False):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     x,        N_tm = templates.shape
-    nb_temp        = N_tm/2
+    nb_temp        = N_tm//2
     to_merge       = []
     cc_merge       = params.getfloat('clustering', 'cc_merge')
         
@@ -397,7 +425,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     N_t            = params.getint('data', 'N_t')
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     x,        N_tm = templates.shape
-    nb_temp        = N_tm/2
+    nb_temp        = N_tm//2
     merged         = [nb_temp, 0]
     mixtures       = []
     to_remove      = []

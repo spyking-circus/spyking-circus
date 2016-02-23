@@ -6,7 +6,7 @@ channel_groups = {
     # Shank index.
     1:
         {   
-            'channels': range(30),
+            'channels': list(range(30)),
             'geometry': {
                 0: (0, -1050),
                 1: (22, -1050),
