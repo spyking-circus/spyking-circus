@@ -38,6 +38,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     max_clusters   = params.getint('clustering', 'max_clusters')
+    m_ratio        = numpy.min(0.1, 1./max_clusters)    
     make_plots     = params.getboolean('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
@@ -403,8 +404,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if smart_search[ielec] == 0:
                         result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
 
-                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
-                    result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
+                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True, mratio=m_ratio)
+                    result['norm_' + str(ielec)] = int(m_ratio*(len(result['data_' + str(ielec)]) - 1))
                     result['rho_'  + str(ielec)] = rho
                     tmp_h5py.create_dataset('dist_' + str(ielec), data=dist, chunks=True)
                     del dist
@@ -429,7 +430,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     data  = numpy.dot(result['tmp_' + str(ielec)], result['pca_' + str(ielec)])
                     rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
                     result['rho_'  + str(ielec)] += rho
-                    result['norm_' + str(ielec)] += len(result['tmp_' + str(ielec)])
+                    result['norm_' + str(ielec)] += int(m_ratio*len(result['tmp_' + str(ielec)]))
 
             if gpass == nb_repeats:
                 result.pop('tmp_' + str(ielec))
@@ -438,6 +439,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if (n_data > 1):
                     #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                     dist     = tmp_h5py.get('dist_' + str(ielec))[:]
+                    result['rho_' + str(ielec)]  = -result['rho_' + str(ielec)] + result['rho_' + str(ielec)].max() 
                     result['rho_' + str(ielec)] /= result['norm_' + str(ielec)]
 
                     cluster_results[ielec]['groups'], r, d, c = algo.clustering(result['rho_' + str(ielec)], dist,
@@ -504,7 +506,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             tmp_h5py.close()
         gpass += 1
         
-    os.remove(result['dist_file'])
+    #os.remove(result['dist_file'])
 
     comm.Barrier()
 

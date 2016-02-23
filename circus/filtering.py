@@ -32,7 +32,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if last_chunk_len > 0:
                 nb_chunks += 1
 
-            b, a          = signal.butter(3, (cut_off//(sampling_rate//2.), 0.95), 'pass')
+            b, a          = signal.butter(3, (cut_off/(sampling_rate/2.), 0.95), 'pass')
             all_chunks    = numpy.arange(nb_chunks)
             to_process    = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
             loc_nb_chunks = len(to_process)

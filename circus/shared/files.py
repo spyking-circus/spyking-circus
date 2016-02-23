@@ -5,8 +5,8 @@ warnings.simplefilter(action = "ignore", category = FutureWarning)
 import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 import colorama
+from colorama import Fore
 colorama.init(autoreset=True)
-from colorama import Fore, Back, Style
 
 from circus.shared.mpi import gather_array
 from circus.shared.utils import smooth
