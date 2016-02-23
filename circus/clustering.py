@@ -442,7 +442,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                     dist     = tmp_h5py.get('dist_' + str(ielec))[:]
                     result['rho_' + str(ielec)]  = -result['rho_' + str(ielec)] + result['rho_' + str(ielec)].max() 
-                    result['rho_' + str(ielec)] /= result['norm_' + str(ielec)]
+                    result['rho_' + str(ielec)] /= max(1, result['norm_' + str(ielec)])
 
                     cluster_results[ielec]['groups'], r, d, c = algo.clustering(result['rho_' + str(ielec)], dist,
                                                                               result['dc_' + str(ielec)],
