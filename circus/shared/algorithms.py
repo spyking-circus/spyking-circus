@@ -11,10 +11,16 @@ def distancematrix(data, weight=None, ydata=None):
     if weight is None:
         weight = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]  
 
+    '''
     if ydata is None:
         distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=weight)
     else:
         distances = scipy.spatial.distance.cdist(data, ydata, 'wminkowski', p=2, w=weight)
+    '''
+    if ydata is None:
+        distances = scipy.spatial.distance.pdist(data, 'euclidean')
+    else:
+        distances = scipy.spatial.distance.cdist(data, ydata, 'euclidean')
 
     return distances
 
@@ -24,6 +30,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
     gidx   = numpy.where(xdata >= threshold)[0]
     ymdata = ydata[gidx]  
     xmdata = xdata[gidx]
+    #subidx = gidx[numpy.argsort(ymdata)[::-1]]
     subidx = gidx[numpy.argsort(xmdata*ymdata)[::-1]]
 
     if display:
@@ -50,10 +57,13 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mr
             dc  = dist[sda][int(len(dist)*1e-2)]
 
         if compute_rho:
+            #exp_dist = numpy.exp(-(dist/dc)**2)
             for i in xrange(N):
                 indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
                 tmp     = numpy.argsort(dist[indices])[:int(mratio*N)]
+                #rho[i]  = numpy.sum(exp_dist[indices])
                 rho[i]  = numpy.sum(dist[indices[tmp]])  
+
     else:
         M = len(update)
         if weight is None:
@@ -61,6 +71,8 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mr
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update).flatten()
+            #exp_dist = numpy.exp(-(dist/dc)**2).flatten()
+            #rho[i]   = numpy.sum(exp_dist)
             tmp      = numpy.argsort(dist)[:int(mratio*M)]
             rho[i]   = numpy.sum(dist[tmp])
     return rho, dist, dc
@@ -88,7 +100,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
                 nneigh[ordrho[ii]] = ordrho[jj]
 
     delta[ordrho[0]] = delta.ravel().max()
-    threshold        = 0.5  
+    threshold        = numpy.exp(-3**2) 
     clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
     
     def assign_halo(idx):

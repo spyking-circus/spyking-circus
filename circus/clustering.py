@@ -49,7 +49,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
-    sub_output_dim = 0.95   
+    sub_output_dim = 0.5   
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     to_write         = ['data_', 'clusters_', 'debug_', 'w_', 'pca_', 'times_']
@@ -378,6 +378,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=result['w_' + str(ielec)], compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
+                    print comm.rank, ielec, result['pca_' + str(ielec)].shape
                     sda                          = numpy.argsort(dist)
                     position                     = int(len(dist)*params.getfloat('clustering', 'smart_search'))
                     smart_search[ielec]          = dist[sda][position]
@@ -400,12 +401,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                         result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                         result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    
+                        
+
                     if smart_search[ielec] == 0:
                         result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
 
                     rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True, mratio=m_ratio)
                     result['norm_' + str(ielec)] = int(m_ratio*(len(result['data_' + str(ielec)]) - 1))
+                    #result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
                     tmp_h5py.create_dataset('dist_' + str(ielec), data=dist, chunks=True)
                     del dist
@@ -431,6 +434,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
                     result['rho_'  + str(ielec)] += rho
                     result['norm_' + str(ielec)] += int(m_ratio*len(result['tmp_' + str(ielec)]))
+                    #result['norm_' + str(ielec)] += len(result['tmp_' + str(ielec)])
 
             if gpass == nb_repeats:
                 result.pop('tmp_' + str(ielec))
@@ -450,9 +454,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     # Now we perform a merging step, for clusters that look too similar
                     data = result['sub_' + str(ielec)]
+                    #cluster_results[ielec]['groups'], merged = algo.merging(cluster_results[ielec]['groups'],
+                    #                                                sim_same_elec,
+                    #                                                data*result['w_' + str(ielec)])
                     cluster_results[ielec]['groups'], merged = algo.merging(cluster_results[ielec]['groups'],
                                                                     sim_same_elec,
-                                                                    data*result['w_' + str(ielec)])
+                                                                    data)
+
 
                     if make_plots:
                         save     = [plot_path, '%d' %ielec]
@@ -471,7 +479,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         mask = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
                         sel  = numpy.unique(cluster_results[ielec]['groups'][mask])
                         data = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
-                        plot.view_clusters(result['w_' + str(ielec)]*data, r, d, c[:max_clusters],
+                        plot.view_clusters(data, r, d, c[:max_clusters],
                                            cluster_results[ielec]['groups'], dc=result['dc_' + str(ielec)], injected=injected,
                                            save=save)
 
