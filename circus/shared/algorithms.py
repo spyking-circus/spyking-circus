@@ -104,6 +104,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
         
         # halo
         halo = cl.copy()
+
         if NCLUST > 1:
             bord_rho = numpy.zeros(NCLUST, dtype=numpy.float64)
 
