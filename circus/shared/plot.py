@@ -54,7 +54,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
                 count += 1
                 spike -= t_start*sampling_rate
                 tmp1   = templates[:, elec].toarray().reshape(N_e, N_t)
-                tmp2   = templates[:, elec+templates.shape[1]/2].toarray().reshape(N_e, N_t)
+                tmp2   = templates[:, elec+templates.shape[1]//2].toarray().reshape(N_e, N_t)
                 
                 curve[:, spike-template_shift:spike+template_shift+1] += amp1*tmp1 + amp2*tmp2
         print "Number of spikes", count
@@ -95,7 +95,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.title('Electrode %d' %i)
         if (square and not (count < n_elec*(n_elec - 1))) or (not square and not count != (n_elec - 1)):
             x, y = pylab.xticks()
-            pylab.xticks(x, numpy.round(x/sampling_rate, 2))
+            pylab.xticks(x, numpy.round(x//sampling_rate, 2))
 
         pylab.ylim(-2*thresholds[i], 2*thresholds[i])
     pylab.tight_layout()
@@ -189,7 +189,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     clust_idx    = numpy.unique(halo[mask])
     fig          = pylab.figure()    
     square       = True
-    center       = len(data[0] - 1)/2
+    center       = len(data[0] - 1)//2
     for count, i in enumerate(xrange(nb_templates)):
         if square:
             pylab.subplot(n_panels, n_panels, count + 1)
@@ -260,7 +260,7 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
         templates = numpy.zeros((0, 0, 0))
     
     for count, t_spike in enumerate(numpy.random.permutation(spikes)[:n_spikes]):
-        padding          = ((t_spike - int(N_t-1)/2)*N_total, (t_spike - int(N_t-1)/2)*N_total)
+        padding          = ((t_spike - int(N_t-1)//2)*N_total, (t_spike - int(N_t-1)//2)*N_total)
         data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
@@ -511,9 +511,9 @@ def view_raw_templates(file_name, n_temp=2, square=True):
     N_e, N_t, N_tm = templates.shape
     if not numpy.iterable(n_temp):
         if square:
-            idx = numpy.random.permutation(numpy.arange(N_tm/2))[:n_temp**2]
+            idx = numpy.random.permutation(numpy.arange(N_tm//2))[:n_temp**2]
         else:
-            idx = numpy.random.permutation(numpy.arange(N_tm/2))[:n_temp]
+            idx = numpy.random.permutation(numpy.arange(N_tm//2))[:n_temp]
     else:
         idx = n_temp
 
@@ -554,7 +554,7 @@ def view_whitening(data):
     pylab.plot(data['temporal'])
     pylab.xlabel('Time [ms]')
     x, y = pylab.xticks()
-    pylab.xticks(x, (x-x[-1]/2)/10)
+    pylab.xticks(x, (x-x[-1]//2)//10)
     pylab.tight_layout()
 
 

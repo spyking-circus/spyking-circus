@@ -49,7 +49,7 @@ def get_performance(file_name, name):
     for key in result.get('real_amps').keys():
         real_amps[key]   = result.get('real_amps/%s' %key)[:]
     
-    n_tm            = inj_templates.shape[1]/2
+    n_tm            = inj_templates.shape[1]//2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
     res3            = numpy.zeros((len(n_cells), 2))
@@ -58,7 +58,7 @@ def get_performance(file_name, name):
         source_temp = inj_templates[:, temp_id].toarray().flatten()
         similarity  = []
         temp_match  = []
-        for i in xrange(templates.shape[1]/2):
+        for i in xrange(templates.shape[1]//2):
             d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
             if d > sim_templates:

@@ -25,7 +25,7 @@ def get_performance(file_name, name):
     pylab.plot(data['temporal'])
     pylab.xlabel('Time [ms]')
     x, y = pylab.xticks()
-    pylab.xticks(x, (x-x[-1]/2)/10)
+    pylab.xticks(x, (x-x[-1]//2)//10)
     pylab.tight_layout()
     plot_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
     plot_path = os.path.join(plot_path, 'plots')
