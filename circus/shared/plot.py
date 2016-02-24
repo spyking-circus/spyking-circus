@@ -106,13 +106,12 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.show()
 
 
-def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=False):
+def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
 
     fig = pylab.figure(figsize=(15, 10))
     ax  = fig.add_subplot(231)
     ax.set_xlabel(r'$\rho$')
     ax.set_ylabel(r'$\delta$')
-    ax.set_title(r'$d_c = %g$' %dc)
     ax.plot(rho, delta, 'o', color='black')
     ax.set_yscale('log')
 

@@ -65,9 +65,6 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mr
         dist = distancematrix(data, weight=weight)
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
 
-        if dc is None:
-            dc  = autoselect_dc(dist)
-
         if compute_rho:
             for i in xrange(N):
                 indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
@@ -83,7 +80,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mr
             dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update).flatten()
             tmp      = numpy.argsort(dist)[:int(mratio*M)]
             rho[i]   = numpy.sum(dist[tmp])
-    return rho, dist, dc
+    return rho, dist
 
 
 def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10, save=False):
