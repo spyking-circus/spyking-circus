@@ -35,19 +35,18 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
             pylab.show()
     return subidx
 
-def autoselect_dc(distances):
+def autoselect_dc(distances, bounds=[0.005, 0.015]):
     
     max_dis = distances.max()
     min_dis = distances.min()
-
-    dc = (max_dis + min_dis) / 2
+    dc      = (max_dis + min_dis) / 2
 
     while True:
         nneighs = numpy.sum(distances < dc) / float(len(distances))
-        if nneighs >= 0.005 and nneighs <= 0.015:
+        if nneighs >= bounds[0] and nneighs <= bounds[1]:
             break
         # binary search
-        if nneighs < 0.005:
+        if nneighs < bounds[0]:
             min_dis = dc
         else:
             max_dis = dc

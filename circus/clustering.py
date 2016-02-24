@@ -378,9 +378,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=result['w_' + str(ielec)], compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
-                    sda                          = numpy.argsort(dist)
-                    position                     = int(len(dist)*params.getfloat('clustering', 'smart_search'))
-                    smart_search[ielec]          = dist[sda][position]
+                    target                       = params.getfloat('clustering', 'smart_search')
+                    bounds                       = [0.75*target, 1.25*target]
+                    smart_search[ielec]          = algo.autoselect_dc(dist, bounds=bounds)
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
                     dimension                    = basis_proj.shape[1] * n_neighb
