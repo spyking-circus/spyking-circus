@@ -378,9 +378,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                     rho, dist, dc = algo.rho_estimation(result['tmp_' + str(ielec)], weight=result['w_' + str(ielec)], compute_rho=False)
                     result['dc_' + str(ielec)]   = dc
-                    sda                          = numpy.argsort(dist)
-                    position                     = int(len(dist)*params.getfloat('clustering', 'smart_search'))
-                    smart_search[ielec]          = dist[sda][position]
+                    target                       = params.getfloat('clustering', 'smart_search')
+                    bounds                       = [0.75*target, 1.25*target]
+                    smart_search[ielec]          = algo.autoselect_dc(dist, bounds=bounds)
                 else:
                     n_neighb                     = len(edges[nodes[ielec]])
                     dimension                    = basis_proj.shape[1] * n_neighb
@@ -406,7 +406,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True, mratio=m_ratio)
                     result['norm_' + str(ielec)] = int(m_ratio*(len(result['data_' + str(ielec)]) - 1))
-                    #result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
                     tmp_h5py.create_dataset('dist_' + str(ielec), data=dist, chunks=True)
                     del dist
@@ -432,12 +431,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data, mratio=m_ratio)
                     result['rho_'  + str(ielec)] += rho
                     result['norm_' + str(ielec)] += int(m_ratio*len(result['tmp_' + str(ielec)]))
-                    #result['norm_' + str(ielec)] += len(result['tmp_' + str(ielec)])
 
             if gpass == nb_repeats:
                 result.pop('tmp_' + str(ielec))
                 n_data  = len(result['data_' + str(ielec)])
-                n_min   = numpy.maximum(5, int(nclus_min*n_data))
+                n_min   = numpy.maximum(10, int(nclus_min*n_data))
                 if (n_data > 1):
                     #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                     dist     = tmp_h5py.get('dist_' + str(ielec))[:]
@@ -452,9 +450,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     # Now we perform a merging step, for clusters that look too similar
                     data = result['sub_' + str(ielec)]
-                    #cluster_results[ielec]['groups'], merged = algo.merging(cluster_results[ielec]['groups'],
-                    #                                                sim_same_elec,
-                    #                                                data*result['w_' + str(ielec)])
                     cluster_results[ielec]['groups'], merged = algo.merging(cluster_results[ielec]['groups'],
                                                                     sim_same_elec,
                                                                     data)
@@ -890,13 +885,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     first_component  = numpy.mean(sub_data, axis=0)
                     tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 elif extraction == 'median-raw':                
-                    labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
+                    labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 500)]
                     times_i          = result['times_' + str(ielec)][labels_i]
                     sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
                     first_component  = numpy.median(sub_data, 0)
                     tmp_templates    = first_component
                 elif extraction == 'mean-raw':                
-                    labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
+                    labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 500)]
                     times_i          = result['times_' + str(ielec)][labels_i]
                     sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
                     first_component  = numpy.mean(sub_data, 0)

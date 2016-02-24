@@ -35,6 +35,26 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
             pylab.show()
     return subidx
 
+def autoselect_dc(distances, bounds=[0.005, 0.015]):
+    
+    max_dis = distances.max()
+    min_dis = distances.min()
+    dc      = (max_dis + min_dis) / 2
+
+    while True:
+        nneighs = numpy.sum(distances < dc) / float(len(distances))
+        if nneighs >= bounds[0] and nneighs <= bounds[1]:
+            break
+        # binary search
+        if nneighs < bounds[0]:
+            min_dis = dc
+        else:
+            max_dis = dc
+        dc = (max_dis + min_dis) / 2
+        if max_dis - min_dis < 0.0001:
+            break
+    return dc
+
 
 def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mratio=0.1):
 
@@ -46,8 +66,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mr
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
 
         if dc is None:
-            sda = numpy.argsort(dist)
-            dc  = dist[sda][int(len(dist)*1e-2)]
+            dc  = autoselect_dc(dist)
 
         if compute_rho:
             for i in xrange(N):
@@ -104,6 +123,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
         
         # halo
         halo = cl.copy()
+
         if NCLUST > 1:
             bord_rho = numpy.zeros(NCLUST, dtype=numpy.float64)
 
