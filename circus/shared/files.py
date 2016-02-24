@@ -6,7 +6,6 @@ import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 import colorama
 from colorama import Fore
-colorama.init(autoreset=True)
 
 from circus.shared.mpi import gather_array
 from circus.shared.utils import smooth
@@ -379,12 +378,14 @@ def print_and_log(to_print, level='info', logger=None, display=True):
         write_to_logger(logger, to_print, level)
 
 def print_info(lines):
+    colorama.init(autoreset=True)
     print Fore.YELLOW + "-------------------------  Informations  -------------------------"
     for line in lines:
         print Fore.YELLOW + "| " + line
     print Fore.YELLOW + "------------------------------------------------------------------"
 
 def print_error(lines):
+    colorama.init(autoreset=True)
     print Fore.RED + "----------------------------  Error  -----------------------------"
     for line in lines:
         print Fore.RED + "| " + line

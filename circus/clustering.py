@@ -435,7 +435,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if gpass == nb_repeats:
                 result.pop('tmp_' + str(ielec))
                 n_data  = len(result['data_' + str(ielec)])
-                n_min   = numpy.maximum(5, int(nclus_min*n_data))
+                n_min   = numpy.maximum(10, int(nclus_min*n_data))
                 if (n_data > 1):
                     #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                     dist     = tmp_h5py.get('dist_' + str(ielec))[:]
