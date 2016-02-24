@@ -24,7 +24,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
     gidx   = numpy.where(xdata >= threshold)[0]
     ymdata = ydata[gidx]  
     xmdata = xdata[gidx]
-    subidx = gidx[numpy.argsort(xmdata*ymdata)[::-1]]
+    subidx = gidx[numpy.argsort(xmdata*numpy.log(1 + ymdata))[::-1]]
 
     if display:
         ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
@@ -121,12 +121,9 @@ def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10,
             if cl[ordrho[i]] == -1:
                 cl[ordrho[i]] = cl[nneigh[ordrho[i]]]
         
-        # halo
+        # halo (ignoring outliers)
         halo = cl.copy()
-
-        if NCLUST > 1:
-            bord_rho = numpy.zeros(NCLUST, dtype=numpy.float64)
-
+        
         if n_min is not None:
             for cluster in xrange(NCLUST):
                 idx = numpy.where(halo == cluster)[0]
