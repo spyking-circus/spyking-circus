@@ -35,7 +35,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
             pylab.show()
     return subidx
 
-def autoselect_dc(distances, bounds=[0.005, 0.015]):
+def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
     
     max_dis = distances.max()
     min_dis = distances.min()
@@ -109,7 +109,7 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
     delta[ordrho[0]] = delta.max()
     threshold        = 0
     clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
-    
+
     def assign_halo(idx):
         cl      = numpy.empty(N, dtype=numpy.int32)
         cl[:]   = -1

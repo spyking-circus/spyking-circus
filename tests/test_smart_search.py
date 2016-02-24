@@ -36,7 +36,7 @@ def get_performance(file_name, name):
 
     amplitudes      = h5py.File(file_out + '.templates.hdf5').get('limits')[:]
 
-    n_tm            = inj_templates.shape[1]/2
+    n_tm            = inj_templates.shape[1]//2
     res             = numpy.zeros(len(n_cells))
     res2            = numpy.zeros(len(n_cells))
     res3            = numpy.zeros(len(n_cells))
@@ -46,7 +46,7 @@ def get_performance(file_name, name):
         similarity  = []
         temp_match  = None
         dmax        = 0
-        for i in xrange(templates.shape[1]/2):
+        for i in xrange(templates.shape[1]//2):
             d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
             if d > dmax:
