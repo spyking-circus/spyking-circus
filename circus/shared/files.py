@@ -233,6 +233,7 @@ def load_parameters(file_name):
                   ['extracting', 'noise_thr', 'float', '0.8'],
                   ['validating', 'max_iter', 'int', '200'],
                   ['validating', 'learning_rate', 'float', '1.0e-3'],
+                  ['validating', 'roc_sampling', 'int', '7'],
                   ['validating', 'verbose', 'bool', 'False'],
                   ['validating', 'make_plots', 'bool', 'False'],
                   ['merging', 'cc_overlap', 'float', '0.25'],

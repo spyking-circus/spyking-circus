@@ -25,6 +25,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     learning_rate_init = params.getfloat('validating', 'learning_rate')
     verbose = params.getboolean('validating', 'verbose')
     make_plots = params.getboolean('validating', 'make_plots')
+    roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     
     ############################################################################
@@ -673,7 +674,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                          fit_intercept=True,
                          random_state=0)
     elif model == 'sgd':
-        alphas, betas, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
+        _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
         clf = SGDClassifier(loss='perceptron',
                             penalty='l2',
                             alpha=1.0e-12,
@@ -819,6 +820,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     # # TODO: uncomment (i.e. compute loss curve for perceptron and sgd)
+    # #       should find a replacement since perceptron and sgd do not give
+    # #       access to the loss values.
     # if make_plots:
     #     # Plot the loss curve.
     #     plot_filename = "loss-curve.png"
@@ -902,32 +905,35 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     io.print_and_log(["# Weighted learning..."], level='info', logger=params)
     
     
-    # TODO: find why same fpr and tpr for different tuples of class weights.
-    
     if model == 'sgd':
-        # TODO: make 'n' a parameter inside '<dataset>.params'
-        _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=7)
+        _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
         confusion_matrices = []
-        for class_weight in class_weights:
+        for (i, class_weight) in enumerate(class_weights):
             
-            # TODO: remove.
-            print(class_weight)
+            if verbose:
+                msg = [
+                    "# Loop {}".format(i),
+                    "# weight for positive samples: {}".format(class_weight[0]),
+                    "# weight for negative samples: {}".format(class_weight[1]),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
             
             # Declare classifier.
             wclf = SGDClassifier(loss='perceptron',
                                  penalty='l2',
                                  alpha=1.0e-12,
                                  fit_intercept=True,
-                                 random_state=2,
+                                 random_state=0,
                                  learning_rate='constant',
-                                 eta0=sys.float_info.epsilon)
+                                 eta0=sys.float_info.epsilon,
+                                 class_weight=class_weight)
             # Initialize classifier (i.e. fake launch, weights initialization).
-            wclf.set_params(class_weight=class_weight)
             wclf.set_params(n_iter=1)
             wclf.set_params(eta0=sys.float_info.epsilon)
             wclf.set_params(warm_start=False)
             wclf.fit(X_train, y_train)
             # Initialize classifier (i.e. ellipsoid weights).
+            coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
             wclf.coef_ = coefs_init[1:, :].reshape(1, -1)
             wclf.intercept_ = coefs_init[:1, :].ravel()
             # Train classifier.
@@ -939,23 +945,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             y_pred = wclf.predict(X_test)
             # Compute true positives, false negatives, true negatives and false
             # positives.
-            p = (y_test == 1.0)
+            p = (y_test == 0.0)
             tp = float(numpy.count_nonzero(y_pred[p] == y_test[p]))
             fn = float(numpy.count_nonzero(y_pred[p] != y_test[p]))
-            n = (y_test == 0.0)
+            n = (y_test == 1.0)
             tn = float(numpy.count_nonzero(y_pred[n] == y_test[n]))
             fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
+            
+            if verbose:
+                msg = [
+                    "# true positives: {}".format(tp),
+                    "# false negatives: {}".format(fn),
+                    "# true negatives: {}".format(tn),
+                    "# false positives: {}".format(fp),
+                    "# false positive rate: {}".format(fp / (fp + tn)),
+                    "# true positive rate: {}".format(tp / (tp + fn)),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
+            
             confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
-            
-            # TODO: remove.
-            print(confusion_matrix)
-            
             confusion_matrices.append(confusion_matrix)
         
         # Compute false positive rates and true positive rates.
         fprs = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
         tprs = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
-        
+        # Add false positive rates and true positive rates endpoints.
+        fprs = [0.0] + fprs + [1.0]
+        tprs = [0.0] + tprs + [1.0]
         
         if verbose:
             msg = [

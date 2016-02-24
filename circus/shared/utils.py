@@ -959,9 +959,11 @@ def get_class_weights(y_gt, y_ngt, y_noi, n=7):
     for i in xrange(0, n):
         alpha = alphas[i]
         beta = betas[i]
+        weight_0 = alpha * n_samples / (n_classes * n_class_0)
+        weight_1 = beta * n_samples / (n_classes * n_class_1)
         class_weight = {
-            0: alpha * n_samples / (n_classes * n_class_0),
-            1: beta * n_samples / (n_classes * n_class_1),
+            0: n_classes * weight_0 / (weight_0 + weight_1),
+            1: n_classes * weight_1 / (weight_0 + weight_1),
         }
         class_weights.append(class_weight)
     return alphas, betas, class_weights
