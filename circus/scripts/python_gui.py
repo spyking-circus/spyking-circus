@@ -79,7 +79,7 @@ def main():
 
         max_loc_channel = get_max_loc_channel(params)
         templates       = load_data(params, 'templates', extension)
-        N_tm            = templates.shape[1]/2
+        N_tm            = templates.shape[1]//2
         to_write        = numpy.zeros((N_tm, N_t, N_e), dtype=numpy.float32)
         mapping         = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
 
@@ -102,7 +102,7 @@ def main():
         nb_features     = params.getint('whitening', 'output_dim')
         nodes, edges    = get_nodes_and_edges(params)
         templates       = load_data(params, 'templates', extension)
-        N_tm            = templates.shape[1]/2
+        N_tm            = templates.shape[1]//2
         pc_features     = numpy.zeros((0, nb_features, max_loc_channel), dtype=numpy.float32)
         pc_features_ind = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
 
@@ -117,7 +117,7 @@ def main():
             tmp      = numpy.unique(clusters['clusters_' + str(elec)][mask])
             indices  = numpy.where(clusters['clusters_' + str(elec)] == tmp[nic])[0]
             x, y        = clusters['data_' + str(elec)][indices, :].shape
-            data        = clusters['data_' + str(elec)][indices, :].reshape(x, nb_features, y/nb_features)
+            data        = clusters['data_' + str(elec)][indices, :].reshape(x, nb_features, y//nb_features)
             difference  = max_loc_channel - data.shape[2]
             to_fill     = numpy.zeros((x, nb_features, difference))
             to_write    = numpy.concatenate((data, to_fill), axis=2)

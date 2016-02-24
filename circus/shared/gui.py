@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import division
 import six, h5py, pkg_resources
 
 import numpy as np
@@ -121,7 +122,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.overlap    = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('maxoverlap')[:]
         self.shape      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('temp_shape')[:]
         self.norms      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('temp_shape')[:]
-        self.indices    = numpy.arange(self.shape[2]/2)
+        self.indices    = numpy.arange(self.shape[2]//2)
         self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
         for idx in self.indices:
             self.rates[idx] = len(self.result['spiketimes']['temp_' + str(idx)])

@@ -38,6 +38,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     max_clusters   = params.getint('clustering', 'max_clusters')
+    m_ratio        = 0.01  
     make_plots     = params.getboolean('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
@@ -48,7 +49,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
-    sub_output_dim = 0.95   
+    sub_output_dim = 5   
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     to_write         = ['data_', 'clusters_', 'debug_', 'w_', 'pca_', 'times_']
@@ -83,8 +84,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['pca_' + str(i)]       = None
 
 
-    max_elts_elec /= comm.size
-    nb_elts       /= comm.size
+    max_elts_elec //= comm.size
+    nb_elts       //= comm.size
     few_elts       = False
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
@@ -255,7 +256,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         ydata = numpy.arange(len(indices))
                                         f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0)
                                         smoothed = smooth(f(cdata, idx)[:, 0], template_shift)
-                                        rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                        rmin     = (numpy.argmin(smoothed) - len(cdata)//2.)/5.
                                         ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                         sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
@@ -304,8 +305,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     pbar.update(elt_count)
 
             if comm.rank == 0:
-                if (elt_count < (gcount+1)*loop_nb_elts/len(chunks_to_load)):
-                    pbar.update((gcount+1)*loop_nb_elts/len(chunks_to_load))
+                if (elt_count < (gcount+1)*loop_nb_elts//len(chunks_to_load)):
+                    pbar.update((gcount+1)*loop_nb_elts//len(chunks_to_load))
 
         if comm.rank == 0:
             pbar.finish()
@@ -399,12 +400,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         data                         = pca.fit_transform(result['data_' + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                         result['w_' + str(ielec)]    = pca.explained_variance_/pca.explained_variance_.sum()
                         result['pca_' + str(ielec)]  = pca.components_.T.astype(numpy.float32)
-                    
+                        
                     if smart_search[ielec] == 0:
                         result['sub_' + str(ielec)] = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
 
-                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True)
-                    result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
+                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], weight=result['w_' + str(ielec)], dc=result['dc_' + str(ielec)], compute_rho=True, mratio=m_ratio)
+                    result['norm_' + str(ielec)] = int(m_ratio*(len(result['data_' + str(ielec)]) - 1))
+                    #result['norm_' + str(ielec)] = len(result['data_' + str(ielec)]) - 1
                     result['rho_'  + str(ielec)] = rho
                     tmp_h5py.create_dataset('dist_' + str(ielec), data=dist, chunks=True)
                     del dist
@@ -427,9 +429,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 if len(result['tmp_' + str(ielec)]) > 1:
                     data  = numpy.dot(result['tmp_' + str(ielec)], result['pca_' + str(ielec)])
-                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data)
+                    rho, dist, dc = algo.rho_estimation(result['sub_' + str(ielec)], dc=result['dc_' + str(ielec)], weight=result['w_' + str(ielec)], update=data, mratio=m_ratio)
                     result['rho_'  + str(ielec)] += rho
-                    result['norm_' + str(ielec)] += len(result['tmp_' + str(ielec)])
+                    result['norm_' + str(ielec)] += int(m_ratio*len(result['tmp_' + str(ielec)]))
+                    #result['norm_' + str(ielec)] += len(result['tmp_' + str(ielec)])
 
             if gpass == nb_repeats:
                 result.pop('tmp_' + str(ielec))
@@ -438,7 +441,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if (n_data > 1):
                     #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                     dist     = tmp_h5py.get('dist_' + str(ielec))[:]
-                    result['rho_' + str(ielec)] /= result['norm_' + str(ielec)]
+                    result['rho_' + str(ielec)]  = -result['rho_' + str(ielec)] + result['rho_' + str(ielec)].max() 
+                    result['rho_' + str(ielec)] /= max(1, result['norm_' + str(ielec)])
 
                     cluster_results[ielec]['groups'], r, d, c = algo.clustering(result['rho_' + str(ielec)], dist,
                                                                               result['dc_' + str(ielec)],
@@ -448,9 +452,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     # Now we perform a merging step, for clusters that look too similar
                     data = result['sub_' + str(ielec)]
+                    #cluster_results[ielec]['groups'], merged = algo.merging(cluster_results[ielec]['groups'],
+                    #                                                sim_same_elec,
+                    #                                                data*result['w_' + str(ielec)])
                     cluster_results[ielec]['groups'], merged = algo.merging(cluster_results[ielec]['groups'],
                                                                     sim_same_elec,
-                                                                    data*result['w_' + str(ielec)])
+                                                                    data)
+
 
                     if make_plots:
                         save     = [plot_path, '%d' %ielec]
@@ -469,7 +477,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         mask = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
                         sel  = numpy.unique(cluster_results[ielec]['groups'][mask])
                         data = numpy.dot(result['data_' + str(ielec)], result['pca_' + str(ielec)])
-                        plot.view_clusters(result['w_' + str(ielec)]*data, r, d, c[:max_clusters],
+                        plot.view_clusters(data, r, d, c[:max_clusters],
                                            cluster_results[ielec]['groups'], dc=result['dc_' + str(ielec)], injected=injected,
                                            save=save)
 
@@ -504,7 +512,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             tmp_h5py.close()
         gpass += 1
         
-    os.remove(result['dist_file'])
+    #os.remove(result['dist_file'])
 
     comm.Barrier()
 
@@ -656,8 +664,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         data_i   = cdic[j, i, lj, li][1]
                         data_j   = cdic[j, i, lj, li][0]
                     else:
-                        data_i   = cross_corr(spikes_i-N_t/2, spikes_j)
-                        data_j   = cross_corr(spikes_i, spikes_j-N_t/2)[::-1]
+                        data_i   = cross_corr(spikes_i-N_t//2, spikes_j)
+                        data_j   = cross_corr(spikes_i, spikes_j-N_t//2)[::-1]
                         cdic[i,j,li,lj] = [data_i, data_j]
                     
                     if (numpy.any(data_i != 0) or numpy.any(data_j != 0)):
@@ -802,7 +810,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count      = 0
                 for i in xrange(comm.size):
                     loc_norms   = ts[i].get('norms')
-                    middle      = len(loc_norms)/2
+                    middle      = len(loc_norms)//2
                     norms[count:count+middle]                                     = loc_norms[:middle]
                     norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')
@@ -1021,7 +1029,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count      = 0
                 for i in xrange(comm.size):
                     loc_norms   = ts[i].get('norms')
-                    middle      = len(loc_norms)/2
+                    middle      = len(loc_norms)//2
                     norms[count:count+middle]                                     = loc_norms[:middle]
                     norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')

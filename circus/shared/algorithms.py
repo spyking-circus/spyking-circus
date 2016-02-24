@@ -12,9 +12,9 @@ def distancematrix(data, weight=None, ydata=None):
         weight = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]  
 
     if ydata is None:
-        distances = scipy.spatial.distance.pdist(data, 'wminkowski', p=2, w=weight)
+        distances = scipy.spatial.distance.pdist(data, 'euclidean')
     else:
-        distances = scipy.spatial.distance.cdist(data, ydata, 'wminkowski', p=2, w=weight)
+        distances = scipy.spatial.distance.cdist(data, ydata, 'euclidean')
 
     return distances
 
@@ -22,8 +22,9 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
 
     #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
     gidx   = numpy.where(xdata >= threshold)[0]
-    ymdata = ydata[gidx]    
-    subidx = gidx[numpy.argsort(ymdata)[::-1]]
+    ymdata = ydata[gidx]  
+    xmdata = xdata[gidx]
+    subidx = gidx[numpy.argsort(xmdata*ymdata)[::-1]]
 
     if display:
         ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
@@ -35,32 +36,34 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_c
     return subidx
 
 
-def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True):
+def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mratio=0.1):
 
     N    = len(data)
     rho  = numpy.zeros(N, dtype=numpy.float64)
         
     if update is None:
         dist = distancematrix(data, weight=weight)
-        didx = lambda i,j: i*N + j - i*(i+1)/2 - i - 1
+        didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
 
         if dc is None:
             sda = numpy.argsort(dist)
-            dc  = dist[sda][int(len(dist)*1e-5)]
+            dc  = dist[sda][int(len(dist)*1e-2)]
 
         if compute_rho:
-            exp_dist = numpy.exp(-(dist/dc)**2)
             for i in xrange(N):
                 indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
-                rho[i]  = numpy.sum(exp_dist[indices])  
+                tmp     = numpy.argsort(dist[indices])[:int(mratio*N)]
+                rho[i]  = numpy.sum(dist[indices[tmp]])  
+
     else:
+        M = len(update)
         if weight is None:
             weight   = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]
 
         for i in xrange(N):
-            dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update)
-            exp_dist = numpy.exp(-(dist/dc)**2)
-            rho[i]   = numpy.sum(exp_dist)
+            dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update).flatten()
+            tmp      = numpy.argsort(dist)[:int(mratio*M)]
+            rho[i]   = numpy.sum(dist[tmp])
     return rho, dist, dc
 
 
@@ -68,9 +71,8 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
 
     N                 = len(rho)
     maxd              = numpy.max(dist)
-    didx              = lambda i,j: i*N + j - i*(i+1)/2 - i - 1
+    didx              = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
     ordrho            = numpy.argsort(rho)[::-1]
-    rho_sorted        = rho[ordrho]
     delta, nneigh     = numpy.zeros(N, dtype=numpy.float64), numpy.zeros(N, dtype=numpy.int32)
     delta[ordrho[0]]  = -1
     for ii in xrange(N):
@@ -85,8 +87,8 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
                 delta[ordrho[ii]]  = xdist
                 nneigh[ordrho[ii]] = ordrho[jj]
 
-    delta[ordrho[0]] = delta.ravel().max()  
-    threshold        = numpy.exp(-3**2)
+    delta[ordrho[0]] = delta.max()
+    threshold        = 0
     clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
     
     def assign_halo(idx):
@@ -104,18 +106,16 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
         halo = cl.copy()
         if NCLUST > 1:
             bord_rho = numpy.zeros(NCLUST, dtype=numpy.float64)
+
             for i in xrange(N):
-                idx      = numpy.where((cl[i] < cl[i+1:N]) & (dist[didx(i, numpy.arange(i+1, N))] <= dc))[0]
-                if len(idx) > 0:
-                    myslice  = cl[i+1:N][idx]
-                    rho_aver = (rho[i] + rho[idx]) / 2.
-                    sub_idx  = numpy.where(rho_aver > bord_rho[cl[i]])[0]
-                    if len(sub_idx) > 0:
-                        bord_rho[cl[i]] = rho_aver[sub_idx].max()
-                    sub_idx  = numpy.where(rho_aver > bord_rho[myslice])[0]
-                    if len(sub_idx) > 0:
-                        bord_rho[myslice[sub_idx]] = rho_aver[sub_idx]
-            
+                for j in xrange(i+1, N):
+                    if cl[i]!=cl[j] and dist[didx(i,j)]<=dc:
+                        rho_aver = (rho[i]+rho[j])/2.
+                        if rho_aver > bord_rho[cl[i]]:
+                            bord_rho[cl[i]] = rho_aver
+                        if rho_aver > bord_rho[cl[j]]:
+                            bord_rho[cl[j]] = rho_aver
+
             idx       = numpy.where(rho < bord_rho[cl])[0]
             halo[idx] = -1
         
@@ -193,7 +193,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
                 remove     = to_merge[count][1]
                 to_remove += [remove]
 
-        all_templates = set(numpy.arange(N_tm/2))
+        all_templates = set(numpy.arange(N_tm//2))
         to_keep       = numpy.array(list(all_templates.difference(to_remove)))
     
         positions  = numpy.arange(len(to_keep))
@@ -206,9 +206,9 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
         for count, keep in zip(positions, local_keep):
 
             templates[:, count]                = old_templates[:, keep]
-            templates[:, count + len(to_keep)] = old_templates[:, keep + N_tm/2]
+            templates[:, count + len(to_keep)] = old_templates[:, keep + N_tm//2]
             norms[count]                       = norm_templates[keep]
-            norms[count + len(to_keep)]        = norm_templates[keep + N_tm/2]
+            norms[count + len(to_keep)]        = norm_templates[keep + N_tm//2]
             if to_merge is None:
                 new_limits = old_limits[keep]
             else:
@@ -348,7 +348,7 @@ def merging_cc(comm, params, parallel_hdf5=False):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     x,        N_tm = templates.shape
-    nb_temp        = N_tm/2
+    nb_temp        = N_tm//2
     to_merge       = []
     cc_merge       = params.getfloat('clustering', 'cc_merge')
         
@@ -397,7 +397,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     N_t            = params.getint('data', 'N_t')
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     x,        N_tm = templates.shape
-    nb_temp        = N_tm/2
+    nb_temp        = N_tm//2
     merged         = [nb_temp, 0]
     mixtures       = []
     to_remove      = []

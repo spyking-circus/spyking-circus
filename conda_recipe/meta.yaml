@@ -8,7 +8,9 @@ requirements:
   # only includes hdf5storage for linux-64 and termcolor for linux-32, linux-64
   # and mac-osx for termcolor)
   build:
-    - progressbar
+    - python
+    - progressbar # [py2k]
+    - progressbar2 # [not py2k]
     - mpi4py
     - numpy
     - cython
@@ -16,10 +18,11 @@ requirements:
     - matplotlib
     - h5py
     - setuptools
-    - termcolor
     - colorama
   run:
-    - progressbar
+    - python
+    - progressbar # [py2k]
+    - progressbar2 # [not py2k]
     - mpi4py
     - numpy
     - cython
@@ -27,7 +30,6 @@ requirements:
     - matplotlib
     - h5py
     - setuptools
-    - termcolor
     - colorama
 
 source:
@@ -41,6 +43,7 @@ test:
   imports:
     - circus
     - circus.shared
+    - circus.scripts
   commands:
     - spyking-circus -h
 

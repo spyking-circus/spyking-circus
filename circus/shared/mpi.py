@@ -23,13 +23,13 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
         if shape == 0:
             num_lines = data.shape[0]
             if num_lines > 0:
-                return gdata.reshape((num_lines, gdata.size/num_lines))
+                return gdata.reshape((num_lines, gdata.size//num_lines))
             else: 
                 return gdata.reshape((0, gdata.shape[1]))
         if shape == 1:
             num_columns = data.shape[1]
             if num_columns > 0:
-                return gdata.reshape((gdata.size/num_columns, num_columns))
+                return gdata.reshape((gdata.size//num_columns, num_columns))
             else:
                 return gdata.reshape((gdata.shape[0], 0))
 
@@ -54,13 +54,13 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32'):
         if shape == 0:
             num_lines = data.shape[0]
             if num_lines > 0:
-                return gdata.reshape((num_lines, gdata.size/num_lines))
+                return gdata.reshape((num_lines, gdata.size//num_lines))
             else: 
                 return gdata.reshape((0, gdata.shape[1]))
         if shape == 1:
             num_columns = data.shape[1]
             if num_columns > 0:
-                return gdata.reshape((gdata.size/num_columns, num_columns))
+                return gdata.reshape((gdata.size//num_columns, num_columns))
             else:
                 return gdata.reshape((gdata.shape[0], 0))
 

@@ -8,12 +8,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
     file_out, ext  = os.path.splitext(os.path.abspath(file_name))
 
-    if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search']:
+    if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
-            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search]'], 'error', params)
+            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
         sys.exit(0)
 
-    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe):
+    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe, trends=None):
         import cPickle
         to_write = {'benchmark' : benchmark}
         to_write['cells']      = cells
@@ -21,10 +21,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         to_write['probe']      = probe
         to_write['amplitudes'] = amplitudes
         to_write['sampling']   = sampling
+        if benchmark == 'drifts':
+            to_write['drifts'] = trends
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
     templates = io.load_data(params, 'templates')
     sim_same_elec   = 0.8
+    trends          = None
 
     if benchmark == 'fitting':
         nb_insert       = 25
@@ -48,7 +51,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
         rate            = 1 + 5*numpy.arange(nb_insert)
         amplitude       = 2
-
+    if benchmark == 'drifts':
+        n_point         = 5
+        n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, n_point**2)
+        x, y            = numpy.mgrid[0:n_point,0:n_point]
+        rate            = 5*numpy.ones(n_point)[x.flatten()]
+        amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
+        trends          = numpy.random.randn(n_point**2)
 
     if comm.rank == 0:
         if os.path.exists(file_out):
@@ -96,7 +105,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             os.makedirs(file_out)
 
     if comm.rank == 0:
-        write_benchmark(file_out, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'))
+        write_benchmark(file_out, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'), trends)
 
 
     comm.Barrier()
@@ -243,12 +252,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             mips = numpy.random.rand(chunk_size) < rate[0]/float(sampling_rate)
 
         for idx in xrange(len(cells)):
-            if benchmark is 'synchrony':
+            if benchmark == 'synchrony':
                 sidx       = numpy.where(mips == True)[0]
                 spikes     = numpy.zeros(chunk_size, dtype=numpy.bool)
                 spikes[sidx[numpy.random.rand(len(sidx)) < corrcoef]] = True
             else:
                 spikes     = numpy.random.rand(chunk_size) < rate[idx]/float(sampling_rate)
+
+            if benchmark == 'drifts':
+                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(sampling_rate)))
+            else:
+                amplitudes = numpy.ones(len(spikes))
+
             spikes[:N_t]   = False
             spikes[-N_t:]  = False
             spikes         = numpy.where(spikes == True)[0]
@@ -260,12 +275,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             t_last         = -refractory
             for scount, spike in enumerate(spikes):
                 if (spike - t_last) > refractory:
-                    local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
+                    local_chunk[spike-template_shift:spike+template_shift+1, :] += amplitudes[scount]*loc_template.T
                     amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
                     amp       /= norm_flat
                     result['real_amps']  += [amp]
                     result['spiketimes'] += [spike + offset]
-                    result['amplitudes'] += [(1, 0)]
+                    result['amplitudes'] += [(amplitudes[scount], 0)]
                     result['templates']  += [n_template]
                     result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
                     t_last                = spike

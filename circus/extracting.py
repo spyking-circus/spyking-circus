@@ -292,7 +292,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             count      = 0
             for i in xrange(comm.size):
                 loc_temp    = ts[i].get('templates')
-                middle      = loc_temp.shape[2]/2
+                middle      = loc_temp.shape[2]//2
                 norms[count:count+middle]                               = loc_norms[:middle]
                 norms[n_clusters+count:n_clusters+count+middle]         = loc_norms[middle:]
                 electrodes[count:count+middle] = ts[i].get('electrodes')
