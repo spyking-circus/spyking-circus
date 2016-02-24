@@ -443,8 +443,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['rho_' + str(ielec)] /= max(1, result['norm_' + str(ielec)])
 
                     cluster_results[ielec]['groups'], r, d, c = algo.clustering(result['rho_' + str(ielec)], dist,
-                                                                              result['dc_' + str(ielec)],
-                                                                              smart_search=smart_search[ielec],
+                                                                              m_ratio,
                                                                               n_min=n_min,
                                                                               max_clusters=max_clusters)
 

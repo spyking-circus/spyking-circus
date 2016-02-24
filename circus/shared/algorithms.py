@@ -86,7 +86,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mr
     return rho, dist, dc
 
 
-def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clusters=10, save=False):
+def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10, save=False):
 
     N                 = len(rho)
     maxd              = numpy.max(dist)
@@ -127,18 +127,6 @@ def clustering(rho, dist, dc, smart_search=0, display=None, n_min=None, max_clus
         if NCLUST > 1:
             bord_rho = numpy.zeros(NCLUST, dtype=numpy.float64)
 
-            for i in xrange(N):
-                for j in xrange(i+1, N):
-                    if cl[i]!=cl[j] and dist[didx(i,j)]<=dc:
-                        rho_aver = (rho[i]+rho[j])/2.
-                        if rho_aver > bord_rho[cl[i]]:
-                            bord_rho[cl[i]] = rho_aver
-                        if rho_aver > bord_rho[cl[j]]:
-                            bord_rho[cl[j]] = rho_aver
-
-            idx       = numpy.where(rho < bord_rho[cl])[0]
-            halo[idx] = -1
-        
         if n_min is not None:
             for cluster in xrange(NCLUST):
                 idx = numpy.where(halo == cluster)[0]
