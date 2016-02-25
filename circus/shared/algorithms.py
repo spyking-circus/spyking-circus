@@ -56,7 +56,7 @@ def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
     return dc
 
 
-def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mratio=0.1):
+def rho_estimation(data, weight=None, update=None, compute_rho=True, mratio=0.1):
 
     N    = len(data)
     rho  = numpy.zeros(N, dtype=numpy.float64)
@@ -64,9 +64,6 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mr
     if update is None:
         dist = distancematrix(data, weight=weight)
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
-
-        if dc is None:
-            dc  = autoselect_dc(dist)
 
         if compute_rho:
             for i in xrange(N):
@@ -83,7 +80,7 @@ def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mr
             dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update).flatten()
             tmp      = numpy.argsort(dist)[:int(mratio*M)]
             rho[i]   = numpy.sum(dist[tmp])
-    return rho, dist, dc
+    return rho, dist
 
 
 def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10, save=False):
@@ -121,7 +118,7 @@ def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10,
             if cl[ordrho[i]] == -1:
                 cl[ordrho[i]] = cl[nneigh[ordrho[i]]]
         
-        # halo (ignoring outliers)
+        # halo (ignoring outliers ?)
         halo = cl.copy()
         
         if n_min is not None:
