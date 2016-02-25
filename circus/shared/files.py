@@ -217,15 +217,15 @@ def load_parameters(file_name):
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['whitening', 'chunk_size', 'int', '60'],
-                  ['clustering', 'max_clusters', 'int', '15'],
+                  ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
-                  ['clustering', 'make_plots', 'bool', 'True'],
+                  ['clustering', 'make_plots', 'string', 'png'],
                   ['clustering', 'test_clusters', 'bool', 'False'],
                   ['clustering', 'sim_same_elec', 'float', '2'],
                   ['clustering', 'smart_search', 'float', '0'],
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
-                  ['clustering', 'cc_merge', 'float', '0.95'],
+                  ['clustering', 'cc_merge', 'float', '0.975'],
                   ['clustering', 'extraction', 'string', 'median-raw'],
                   ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
@@ -296,6 +296,12 @@ def load_parameters(file_name):
     test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)
     if not test:
         print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', parser)
+        sys.exit(0)
+
+    fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
+    test = parser.get('clustering', 'make_plots') in fileformats
+    if not test:
+        print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
 
     return parser

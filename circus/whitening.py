@@ -155,7 +155,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_write['temporal'] = temporal_whitening
 
         if do_spatial_whitening:
-            if len(all_silences)/sampling_rate) == 0:
+            if len(all_silences)/sampling_rate == 0:
                 io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
@@ -198,12 +198,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
                 bfile.close()
             comm.Barrier()
-
-    if comm.rank == 0:
-        if not os.path.exists(plot_path):
-            os.makedirs(plot_path)
-        n_elec = min(int(numpy.sqrt(N_e)), 5)
-        plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True, n_elec=n_elec, save=[plot_path, 'electrodes'])
 
     # Part 2: Basis
     numpy.random.seed(422)

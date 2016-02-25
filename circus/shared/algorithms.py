@@ -18,7 +18,7 @@ def distancematrix(data, weight=None, ydata=None):
 
     return distances
 
-def fit_rho_delta(xdata, ydata, display=False, threshold=numpy.exp(-3**2), max_clusters=10, save=False):
+def fit_rho_delta(xdata, ydata, display=False, threshold=0, max_clusters=10, save=False):
 
     #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
     gidx   = numpy.where(xdata >= threshold)[0]
@@ -68,7 +68,7 @@ def rho_estimation(data, weight=None, update=None, compute_rho=True, mratio=0.1)
         if compute_rho:
             for i in xrange(N):
                 indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
-                tmp     = numpy.argsort(dist[indices])[:int(mratio*N)]
+                tmp     = numpy.argsort(dist[indices])[:max(1, int(mratio*N))]
                 rho[i]  = numpy.sum(dist[indices[tmp]])  
 
     else:
@@ -78,7 +78,7 @@ def rho_estimation(data, weight=None, update=None, compute_rho=True, mratio=0.1)
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update).flatten()
-            tmp      = numpy.argsort(dist)[:int(mratio*M)]
+            tmp      = numpy.argsort(dist)[:max(1, int(mratio*M))]
             rho[i]   = numpy.sum(dist[tmp])
     return rho, dist
 
@@ -104,8 +104,7 @@ def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10,
                 nneigh[ordrho[ii]] = ordrho[jj]
 
     delta[ordrho[0]] = delta.max()
-    threshold        = 0
-    clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters, threshold=threshold)
+    clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters)
 
     def assign_halo(idx):
         cl      = numpy.empty(N, dtype=numpy.int32)

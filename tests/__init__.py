@@ -137,7 +137,7 @@ def get_dataset(self):
         user_path  = os.path.join(os.path.expanduser('~'), 'spyking-circus')
         probe_file = os.path.join(os.path.join(user_path, 'probes'), 'dan.prb')
         io.change_flag(filename, 'mapping', probe_file)
-        io.change_flag(filename, 'make_plots', 'False')
+        io.change_flag(filename, 'make_plots', 'png')
         io.change_flag(filename, 'nb_repeats', '3')
         io.change_flag(filename, 'N_t', '3')
         io.change_flag(filename, 'smart_search', '0')

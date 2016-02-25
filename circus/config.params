@@ -12,7 +12,7 @@ stationary     = True                   # Should be False for long recordings: a
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)
 alignement     = True                   # Realign the waveforms by oversampling
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
-multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
+multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation
 
 [filtering]
 cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
@@ -38,9 +38,9 @@ max_clusters   = 10         # Maximal number of clusters for every electrodes
 nb_repeats     = 3          # Number of passes used for the clustering
 smart_search   = 0          # Parameter for the smart search [0-1]. The higher, the more strict
 sim_same_elec  = 2          # Distance within clusters under which they are re-merged
-cc_merge       = 0.95       # If CC between two templates is higher, they are merged
+cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
-make_plots     = True       # Generate sanity plots of the clustering
+make_plots     = png        # Generate sanity plots of the clustering [Nothing or None if no plots]
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
 
 [fitting]
