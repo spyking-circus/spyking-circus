@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 import os
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats, progressbar
-from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges
+from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges, print_and_log
 from circus.shared.mpi import all_gather_array
 import scipy.linalg, scipy.sparse
 
@@ -175,7 +175,9 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
     import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
+
     if comm.rank == 0:
+        print_and_log(['Node 0 is slicing templates'], 'debug', params)
         old_templates  = load_data(params, 'templates')
         old_limits     = load_data(params, 'limits')
         N_e            = params.getint('data', 'N_e')
@@ -240,6 +242,8 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
     N_e            = params.getint('data', 'N_e')
 
     if comm.rank == 0:
+
+        print_and_log(['Node 0 is slicing clusters'], 'debug', params)
 
         if to_merge != []:
             to_remove = []

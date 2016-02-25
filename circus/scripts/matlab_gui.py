@@ -6,7 +6,7 @@ import pkg_resources
 import circus
 import tempfile
 import numpy, h5py
-from circus.shared.files import print_error, write_datasets, read_probe
+from circus.shared.files import print_error, write_datasets, read_probe, print_and_log
 
 def main():
 
