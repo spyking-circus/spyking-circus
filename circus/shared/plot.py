@@ -173,7 +173,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
     ax.set_yscale('log')
     pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], 'cluster_%s.pdf' %save[1]))
+        pylab.savefig(os.path.join(save[0], 'cluster_%s' %save[1]))
         pylab.close()
     else:
         pylab.show()
