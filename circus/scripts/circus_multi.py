@@ -25,7 +25,7 @@ def main():
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if not params.get('data', 'multi-files'):
-        print_error(['Not a multi-file!'])
+        print_and_log(['Not a multi-file!'], 'error', params)
         sys.exit(0)
 
     to_process  = circus.shared.files.get_multi_files(params)

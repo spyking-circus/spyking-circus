@@ -60,6 +60,8 @@ def main():
                            for arg, s in zip(gui_params, is_string)])
     matlab_command = 'SortingGUI(%s)' % arguments
 
+    print_and_log(["Launching the MATLAB GUI..."], 'info', params)
+
     try:
         sys.exit(subprocess.call(['matlab',
                               '-nodesktop',

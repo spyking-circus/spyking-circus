@@ -6,11 +6,8 @@ from circus.shared.files import load_data, write_datasets, get_overlaps, get_nod
 from circus.shared.mpi import all_gather_array
 import scipy.linalg, scipy.sparse
 
-def distancematrix(data, weight=None, ydata=None):
+def distancematrix(data, ydata=None):
     
-    if weight is None:
-        weight = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]  
-
     if ydata is None:
         distances = scipy.spatial.distance.pdist(data, 'euclidean')
     else:
@@ -56,13 +53,13 @@ def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
     return dc
 
 
-def rho_estimation(data, weight=None, update=None, compute_rho=True, mratio=0.1):
+def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
 
     N    = len(data)
     rho  = numpy.zeros(N, dtype=numpy.float64)
         
     if update is None:
-        dist = distancematrix(data, weight=weight)
+        dist = distancematrix(data)
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
 
         if compute_rho:
@@ -73,11 +70,9 @@ def rho_estimation(data, weight=None, update=None, compute_rho=True, mratio=0.1)
 
     else:
         M = len(update)
-        if weight is None:
-            weight   = numpy.ones(data.shape[1], dtype=numpy.float64)/data.shape[1]
 
         for i in xrange(N):
-            dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update).flatten()
+            dist     = distancematrix(data[i].reshape(1, len(data[i])), update).flatten()
             tmp      = numpy.argsort(dist)[:max(1, int(mratio*M))]
             rho[i]   = numpy.sum(dist[tmp])
     return rho, dist
