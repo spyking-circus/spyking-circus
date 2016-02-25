@@ -495,7 +495,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             tmp_h5py.close()
         gpass += 1
         
-    #os.remove(result['dist_file'])
+    os.remove(result['dist_file'])
 
     comm.Barrier()
 
