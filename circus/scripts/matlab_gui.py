@@ -12,6 +12,11 @@ def main():
 
     argv = sys.argv
 
+    if len(sys.argv) < 2:
+        print_and_log(['No data file!'], 'error', params)
+        sys.exit(0)
+
+
     filename       = os.path.abspath(sys.argv[1])
     params         = circus.shared.utils.io.load_parameters(filename)
 

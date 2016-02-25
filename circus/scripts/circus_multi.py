@@ -7,12 +7,15 @@ import circus
 import tempfile
 import h5py
 import numpy
-from circus.shared.files import print_error
+from circus.shared.files import print_error, print_and_log
 from circus.shared.algorithms import slice_result
 
 def main():
     
     argv = sys.argv
+    if len(sys.argv) < 2:
+        print_and_log(['No data file!'], 'error', params)
+        sys.exit(0)
 
     if len(sys.argv) == 2:
         filename   = os.path.abspath(sys.argv[1])

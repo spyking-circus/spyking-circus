@@ -117,6 +117,10 @@ Options are:
             sys.exit()
         else:
             f_next, extension = os.path.splitext(filename)
+            if extension == '.params':
+                print_error(['You should launch the code on the data file!'])
+                sys.exit(0)
+
             file_params       = f_next + '.params'
             if not os.path.exists(file_params) and not batch_mode:
                 print noparams %file_params

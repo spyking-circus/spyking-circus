@@ -12,6 +12,11 @@ def main():
 
     argv = sys.argv
 
+    if len(sys.argv) < 2:
+        print_and_log(['No data file!'], 'error', params)
+        sys.exit(0)
+
+
     filename       = os.path.abspath(sys.argv[1])
 
     if len(sys.argv) == 2:
