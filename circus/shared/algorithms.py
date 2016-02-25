@@ -56,7 +56,7 @@ def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
     return dc
 
 
-def rho_estimation(data, dc=None, weight=None, update=None, compute_rho=True, mratio=0.1):
+def rho_estimation(data, weight=None, update=None, compute_rho=True, mratio=0.1):
 
     N    = len(data)
     rho  = numpy.zeros(N, dtype=numpy.float64)
@@ -118,7 +118,7 @@ def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10,
             if cl[ordrho[i]] == -1:
                 cl[ordrho[i]] = cl[nneigh[ordrho[i]]]
         
-        # halo (ignoring outliers)
+        # halo (ignoring outliers ?)
         halo = cl.copy()
         
         if n_min is not None:
