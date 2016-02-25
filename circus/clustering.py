@@ -39,7 +39,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     max_clusters   = params.getint('clustering', 'max_clusters')
     m_ratio        = 0.01  
-    make_plots     = params.getboolean('clustering', 'make_plots')
+    make_plots     = params.get('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
@@ -447,8 +447,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                                                     data)
 
 
-                    if make_plots:
-                        save     = [plot_path, '%d' %ielec]
+                    if make_plots not in ['None', '']:
+                        save     = [plot_path, '%d.%s' %(ielec, make_plots)]
                         injected = None
                         if test_clusters:
                             injected = numpy.zeros(len(result['data_' + str(ielec)]), dtype=numpy.bool)
@@ -753,9 +753,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count_templates += 1
                 g_count         += 1
 
-            if make_plots:
+            if make_plots not in ['None', '']:
                 if n_data > 1:
-                    save     = [plot_path, '%d' %ielec]
+                    save     = [plot_path, '%d.%s' %(ielec, make_plots)]
                     idx      = numpy.where(indices == ielec)[0][0]
                     sub_data = data[:,:,idx]
                     nb_temp  = cluster_results[ielec]['n_clus']

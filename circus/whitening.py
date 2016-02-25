@@ -199,12 +199,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 bfile.close()
             comm.Barrier()
 
-    if comm.rank == 0:
-        if not os.path.exists(plot_path):
-            os.makedirs(plot_path)
-        n_elec = min(int(numpy.sqrt(N_e)), 5)
-        plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True, n_elec=n_elec, save=[plot_path, 'electrodes'])
-
     # Part 2: Basis
     numpy.random.seed(422)
 

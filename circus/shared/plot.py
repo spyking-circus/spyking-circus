@@ -100,7 +100,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.ylim(-2*thresholds[i], 2*thresholds[i])
     pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], save[1] + '.pdf'))
+        pylab.savefig(os.path.join(save[0], save[1]))
         pylab.close()
     else:
         pylab.show()
@@ -216,7 +216,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     if nb_templates > 0:
         pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], 'waveforms_%s.pdf' %save[1]))
+        pylab.savefig(os.path.join(save[0], 'waveforms_%s' %save[1]))
         pylab.close()
     else:
         pylab.show()

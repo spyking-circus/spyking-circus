@@ -68,7 +68,7 @@ def rho_estimation(data, weight=None, update=None, compute_rho=True, mratio=0.1)
         if compute_rho:
             for i in xrange(N):
                 indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
-                tmp     = numpy.argsort(dist[indices])[:int(mratio*N)]
+                tmp     = numpy.argsort(dist[indices])[:max(1, int(mratio*N))]
                 rho[i]  = numpy.sum(dist[indices[tmp]])  
 
     else:
@@ -78,7 +78,7 @@ def rho_estimation(data, weight=None, update=None, compute_rho=True, mratio=0.1)
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), weight, update).flatten()
-            tmp      = numpy.argsort(dist)[:int(mratio*M)]
+            tmp      = numpy.argsort(dist)[:max(1, int(mratio*M))]
             rho[i]   = numpy.sum(dist[tmp])
     return rho, dist
 
