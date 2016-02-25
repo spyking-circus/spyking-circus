@@ -155,7 +155,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_write['temporal'] = temporal_whitening
 
         if do_spatial_whitening:
-            if len(all_silences)/sampling_rate) == 0:
+            if len(all_silences)/sampling_rate == 0:
                 io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
