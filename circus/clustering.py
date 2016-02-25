@@ -956,9 +956,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count_templates += 1
                 g_count         += 1
 
-            if make_plots:
+            if make_plots not in ['None', '']:
                 if n_data > 1:
-                    save     = [plot_path, '%d' %ielec]
+                    save     = [plot_path, '%d.%s' %(ielec, make_plots)]
                     idx      = numpy.where(indices == ielec)[0][0]
                     sub_data = data[:,:,idx]
                     nb_temp  = cluster_results[ielec]['n_clus']
