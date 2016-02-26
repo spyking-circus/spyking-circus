@@ -206,7 +206,7 @@ def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
             templates[:, count + len(to_keep)] = old_templates[:, keep + N_tm//2]
             norms[count]                       = norm_templates[keep]
             norms[count + len(to_keep)]        = norm_templates[keep + N_tm//2]
-            if to_merge is None:
+            if to_merge == []:
                 new_limits = old_limits[keep]
             else:
                 subset     = numpy.where(to_merge[:, 0] == keep)[0]
