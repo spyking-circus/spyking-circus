@@ -170,7 +170,7 @@ def merging(groups, sim_same_elec, data):
             merged[1] += 1
     return groups, merged
 
-def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
+def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
 
     import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -185,8 +185,7 @@ def slice_templates(comm, params, to_remove=None, to_merge=None, extension=''):
         x, N_tm        = old_templates.shape
         norm_templates = load_data(params, 'norm-templates')
 
-        if to_merge is not None:
-            to_remove = []
+        if to_merge != []:
             for count in xrange(len(to_merge)):
                 remove     = to_merge[count][1]
                 to_remove += [remove]
@@ -246,7 +245,6 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
         print_and_log(['Node 0 is slicing clusters'], 'debug', params)
 
         if to_merge != []:
-            to_remove = []
             for count in xrange(len(to_merge)):
                 remove     = to_merge[count][1]
                 to_remove += [remove]

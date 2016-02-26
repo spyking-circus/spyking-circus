@@ -129,6 +129,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.indices    = numpy.arange(self.shape[2]//2)
         self.norms      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('norms')[:self.shape[2]//2]
         self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
+        self.to_delete  = []
         for idx in self.indices:
             self.rates[idx] = len(self.result['spiketimes']['temp_' + str(idx)])
 
@@ -371,7 +372,10 @@ class MergeWindow(QtGui.QMainWindow):
         p = mpl.path.Path(verts)
         in_selection = p.contains_points(self.lasso_selector.points)
         indices = np.nonzero(in_selection)[0]
-        self.update_inspect(indices, self.lasso_selector.add_or_remove)
+        if len(self.lasso_selector.points) == len(self.points[1]):
+            self.update_inspect_template(indices, self.lasso_selector.add_or_remove)
+        else:
+            self.update_inspect(indices, self.lasso_selector.add_or_remove)
 
     def callback_rect(self, eclick, erelease):
         xmin, xmax, ymin, ymax = eclick.xdata, erelease.xdata, eclick.ydata, erelease.ydata
@@ -729,6 +733,7 @@ class MergeWindow(QtGui.QMainWindow):
         io.print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', self.params)
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
+        self.to_delete = self.to_delete + list(self.inspect_templates)
 
         self.generate_data()
         self.collections = None
@@ -810,8 +815,6 @@ class MergeWindow(QtGui.QMainWindow):
         
         self.app.restoreOverrideCursor()
 
-    def remove(self, event):
-        pass
 
     def finalize(self, event):
 
@@ -823,8 +826,8 @@ class MergeWindow(QtGui.QMainWindow):
         comm.Barrier()
         self.all_merges = self.comm.bcast(self.all_merges, root=0)
         
-        slice_templates(self.comm, self.params, to_merge=self.all_merges, extension='-merged')
-        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, extension='-merged')
+        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=self.to_delete, extension='-merged')
+        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=self.to_delete, extension='-merged')
 
         if self.comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
