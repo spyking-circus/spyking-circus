@@ -111,12 +111,12 @@ class MergeWindow(QtGui.QMainWindow):
         self.params     = params
         self.N_e        = params.getint('data', 'N_e')
         self.N_t        = params.getint('data', 'N_t')
-        sampling_rate   = params.getint('data', 'sampling_rate')
+        self.sampling_rate = params.getint('data', 'sampling_rate')
         self.file_out_suff = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
         
-        self.bin_size   = int(self.cc_bin * sampling_rate * 1e-3)
+        self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
 
         self.clusters   = io.load_data(params, 'clusters')
@@ -300,6 +300,9 @@ class MergeWindow(QtGui.QMainWindow):
             self.score_ax2.set_ylabel('# Spikes')
             self.score_ax3.set_xlabel('Template similarity')
             self.score_ax3.set_ylabel('Normalized CC metric')
+            self.waveforms_ax.set_xlabel('Time [ms]')
+            self.waveforms_ax.set_ylabel('Amplitude')
+            
         else:
             for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
                                                                  (self.norms[self.real_indices], self.rates[self.real_indices]),
@@ -317,7 +320,7 @@ class MergeWindow(QtGui.QMainWindow):
             xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
             ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
         
-        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3]:
+        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3, self.ui.waveforms]:
             fig.draw_idle()
 
     def plot_data(self):
@@ -542,9 +545,13 @@ class MergeWindow(QtGui.QMainWindow):
             tmp = self.templates[:, p]
             tmp = tmp.toarray().reshape(self.N_e, self.N_t)
             elec = numpy.argmin(numpy.min(tmp, 1))
-            self.waveforms_ax.plot(tmp[elec], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
+            xaxis = numpy.linspace(0, (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
+            self.waveforms_ax.plot(xaxis, tmp[elec], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
             thr = self.thresholds[elec]
-            self.waveforms_ax.plot([0, self.N_t], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
+            self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
+
+        self.waveforms_ax.set_xlabel('Time [ms]')
+        self.waveforms_ax.set_ylabel('Amplitude')
 
         for fig in [self.ui.waveforms]:
             fig.draw_idle()
