@@ -770,7 +770,7 @@ def write_datasets(h5file, to_write, result, electrode=None):
         h5file.create_dataset(mykey, shape=result[mykey].shape, dtype=result[mykey].dtype, chunks=True)
         h5file.get(mykey)[:] = result[mykey]
 
-def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False):
+def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     file_out_suff  = params.get('data', 'file_out_suff')
     min_rate       = params.get('fitting', 'min_rate')
@@ -879,7 +879,12 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
-    print_and_log(["Number of spikes fitted : %d" %count], 'info', params)
+    if benchmark:
+        to_print = "injected"
+    else:
+        to_print = "fitted"
+
+    print_and_log(["Number of spikes %s : %d" %(to_print, count)], 'info', params)
 
     if erase:
         purge(file_out_suff, '.data')

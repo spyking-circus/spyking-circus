@@ -6,11 +6,16 @@ import pkg_resources
 import circus
 import tempfile
 import numpy, h5py
-from circus.shared.files import print_error, write_datasets, read_probe
+from circus.shared.files import print_error, write_datasets, read_probe, print_and_log
 
 def main():
 
     argv = sys.argv
+
+    if len(sys.argv) < 2:
+        print_and_log(['No data file!'], 'error', params)
+        sys.exit(0)
+
 
     filename       = os.path.abspath(sys.argv[1])
     params         = circus.shared.utils.io.load_parameters(filename)
@@ -59,6 +64,8 @@ def main():
     arguments = ', '.join(["'%s'" % arg if s else "%s" % arg
                            for arg, s in zip(gui_params, is_string)])
     matlab_command = 'SortingGUI(%s)' % arguments
+
+    print_and_log(["Launching the MATLAB GUI..."], 'info', params)
 
     try:
         sys.exit(subprocess.call(['matlab',
