@@ -213,6 +213,9 @@
        </item>
        <item>
         <widget class="QPushButton" name="btn_delete">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="text">
           <string>Delete Templates</string>
          </property>
@@ -229,7 +232,9 @@
           <string>UnSelect Templates</string>
          </property>
          <property name="icon">
-          <iconset theme="edit-delete"/>
+          <iconset theme="edit-delete">
+           <normaloff/>
+          </iconset>
          </property>
         </widget>
        </item>

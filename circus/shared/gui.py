@@ -127,11 +127,20 @@ class MergeWindow(QtGui.QMainWindow):
         self.templates  = io.load_data(params, 'templates')
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
-        self.norms      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('norms')[:self.shape[2]//2]
-        self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
-        self.to_delete  = []
+        
+
+        self.norms       = numpy.zeros(len(self.indices), dtype=numpy.float32)
+        self.rates       = numpy.zeros(len(self.indices), dtype=numpy.float32)
+        self.to_delete   = numpy.zeros(0, dtype=numpy.int32)
+        self.to_consider = self.indices
+
         for idx in self.indices:
+            tmp = self.templates[:, idx]
+            tmp = tmp.toarray().reshape(self.N_e, self.N_t)
             self.rates[idx] = len(self.result['spiketimes']['temp_' + str(idx)])
+            elec = numpy.argmin(numpy.min(tmp, 1))
+            thr = self.thresholds[elec]
+            self.norms[idx] = -tmp.min()/thr
 
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
@@ -247,6 +256,8 @@ class MergeWindow(QtGui.QMainWindow):
         if self.mpi_wait[0] > 0:
             return
 
+        #self.indices     = numpy.array(list(set(self.indices) - set(self.to_delete)), dtype=numpy.int32)
+        
         self.indices     = self.comm.bcast(self.indices, root=0)
 
         real_indices     = numpy.unique(self.indices)
@@ -372,10 +383,10 @@ class MergeWindow(QtGui.QMainWindow):
         p = mpl.path.Path(verts)
         in_selection = p.contains_points(self.lasso_selector.points)
         indices = np.nonzero(in_selection)[0]
-        if len(self.lasso_selector.points) == len(self.points[1]):
-            self.update_inspect_template(indices, self.lasso_selector.add_or_remove)
-        else:
+        if len(self.lasso_selector.points) != len(self.points[1]):
             self.update_inspect(indices, self.lasso_selector.add_or_remove)
+        else:
+            self.update_inspect_template(indices, self.lasso_selector.add_or_remove)
 
     def callback_rect(self, eclick, erelease):
         xmin, xmax, ymin, ymax = eclick.xdata, erelease.xdata, eclick.ydata, erelease.ydata
@@ -414,14 +425,18 @@ class MergeWindow(QtGui.QMainWindow):
             x = self.score_x
             y = self.score_y
             link_with_x = self.score_ax3.set_xlim
-            link_with_y = self.score_ax2.set_ylim
+            link_with_y = None
         elif event.inaxes == self.score_ax3:
             x = self.score_x
             y = self.score_z
             link_with_x = self.score_ax1.set_xlim
             link_with_y = self.score_ax2.set_xlim
+        elif event.inaxes == self.score_ax2:
+            x = self.norms[self.real_indices]
+            y = self.rates[self.real_indices]
+            link_with_x = None
+            link_with_y = None
         else:
-        # only zoom in the score plot
             return
 
         score_ax = event.inaxes
@@ -455,10 +470,12 @@ class MergeWindow(QtGui.QMainWindow):
         score_ax.set_xlim(newxmin, newxmax)
         score_ax.set_ylim(newymin, newymax)
         # Update the linked axes in the other plots as well
-        link_with_x(newxmin, newxmax)
-        link_with_y(newymin, newymax)
+        if link_with_x is not None:
+            link_with_x(newxmin, newxmax)
+        if link_with_y is not None:
+            link_with_y(newymin, newymax)
 
-        for fig in [self.ui.score_1, self.ui.score_3]:
+        for fig in [self.ui.score_1, self.ui.score_3, self.ui.score_2]:
             fig.draw_idle()
 
 
@@ -733,7 +750,7 @@ class MergeWindow(QtGui.QMainWindow):
         io.print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', self.params)
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
-        self.to_delete = self.to_delete + list(self.inspect_templates)
+        self.to_delete = numpy.concatenate((self.to_delete, self.inspect_templates))
 
         self.generate_data()
         self.collections = None
