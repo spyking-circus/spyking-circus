@@ -107,7 +107,7 @@ def main():
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
 
 
-    def write_pcs(path, params, extension, spikes, labels, mode):
+    def write_pcs(path, params, extension, spikes, labels, mode="a"):
 
         max_loc_channel = get_max_loc_channel(params)
         nb_features     = params.getint('whitening', 'output_dim')
@@ -125,45 +125,39 @@ def main():
             nb_loc                = len(edges[elec])
             pc_features_ind[count, numpy.arange(nb_loc)] = edges[elec]
 
-        if mode == "s":
+        basis_proj, basis_rec = load_data(params, 'basis')
 
-            pc_features     = numpy.zeros((0, nb_features, max_loc_channel), dtype=numpy.float32)
-            pbar = get_progressbar(N_tm)
+        if mode == "a":
+            nb_pcs = len(spikes)
+        elif mode == "s":
+            nb_pcs = 0
             for target in xrange(N_tm):
-                elec     = clusters['electrodes'][target]
-                nic      = target - numpy.where(clusters['electrodes'] == elec)[0][0]
-                mask     = clusters['clusters_' + str(elec)] > -1
-                tmp      = numpy.unique(clusters['clusters_' + str(elec)][mask])
-                indices  = numpy.where(clusters['clusters_' + str(elec)] == tmp[nic])[0]
-                x, y        = clusters['data_' + str(elec)][indices, :].shape
-                data        = clusters['data_' + str(elec)][indices, :].reshape(x, nb_features, y//nb_features)
-                difference  = max_loc_channel - data.shape[2]
-                to_fill     = numpy.zeros((x, nb_features, difference))
-                to_write    = numpy.concatenate((data, to_fill), axis=2)
-                pc_features = numpy.concatenate((pc_features, to_write), axis=0)
-                pbar.update(target)
-            pbar.finish()
+                nb_pcs += min(500, numpy.where(labels == target)[0])
 
-        elif mode == "a":
+        pc_features = numpy.zeros((nb_pcs, nb_features, max_loc_channel), dtype=numpy.float32)
+        count       = 0
 
-            basis_proj, basis_rec = load_data(params, 'basis')
-            pc_features     = numpy.zeros((len(spikes), nb_features, max_loc_channel), dtype=numpy.float32)
-
-            pbar = get_progressbar(N_tm)
-            for target in xrange(N_tm):
-                idx      = numpy.where(labels == target)[0]
-                elec     = best_elec[target]
-                indices  = inv_nodes[edges[nodes[elec]]]
-                labels_i = target*numpy.ones(len(idx))
-                times_i  = spikes[idx]
-                sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes)
-                pcs      = numpy.dot(sub_data, basis_proj)
-                pcs      = numpy.swapaxes(pcs, 1,2)
+        pbar = get_progressbar(N_tm)
+        for target in xrange(N_tm):
+            if mode == "s":
+                idx  = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
+            elif mode == "a":
+                idx  = numpy.where(labels == target)[0]
+            elec     = best_elec[target]
+            indices  = inv_nodes[edges[nodes[elec]]]
+            labels_i = target*numpy.ones(len(idx))
+            times_i  = spikes[idx]
+            sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes)
+            pcs      = numpy.dot(sub_data, basis_proj)
+            pcs      = numpy.swapaxes(pcs, 1,2)
+            if mode == "s":
+                pc_features[count:count+len(idx), :, :len(indices)] = pcs                    
+                count += len(idx)
+            else:
                 pc_features[idx, :, :len(indices)] = pcs
 
-                pbar.update(target)
-            pbar.finish()
-
+            pbar.update(target)
+        pbar.finish()
         
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
         numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
@@ -182,10 +176,11 @@ def main():
 
     key = ''
     while key not in ['a', 's', 'n']:
-        key = raw_input("Do you want SpyKING CIRCUS to export PCs? [(a)ll / (s)ome / (n)o]")
+        key = raw_input("Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o ")
     
     if key in ['a', 's']:
-        write_pcs(output_path, params, extension, spikes, clusters, key)
+        if not os.path.exists(os.path.join(output_path, 'pc_features.npy')):
+            write_pcs(output_path, params, extension, spikes, clusters, key)
     elif key in ['n']:
         if os.path.exists(os.path.join(output_path, 'pc_features.npy')):
             os.remove(os.path.join(output_path, 'pc_features.npy'))
