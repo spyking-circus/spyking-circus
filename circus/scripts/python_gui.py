@@ -151,9 +151,9 @@ def main():
 
             pbar = get_progressbar(N_tm)
             for target in xrange(N_tm):
-                idx = numpy.where(labels == target)[0]
-                elec    = best_elec[target]
-                indices = inv_nodes[edges[nodes[elec]]]
+                idx      = numpy.where(labels == target)[0]
+                elec     = best_elec[target]
+                indices  = inv_nodes[edges[nodes[elec]]]
                 labels_i = target*numpy.ones(len(idx))
                 times_i  = spikes[idx]
                 sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes)
@@ -198,6 +198,7 @@ def main():
 
     gui_params['dat_path']       = params.get('data', 'data_file')
     gui_params['n_channels_dat'] = params.getint('data', 'N_total')
+    gui_params['n_features_per_channel'] = 5
     gui_params['dtype']          = params.get('data', 'data_dtype')
     gui_params['offset']         = params.getint('data', 'data_offset')
     gui_params['sample_rate']    = params.getint('data', 'sampling_rate')
