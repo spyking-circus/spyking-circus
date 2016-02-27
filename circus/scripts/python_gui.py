@@ -8,6 +8,14 @@ import tempfile
 import numpy, h5py
 from circus.shared.files import print_error, print_info, print_and_log, write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, load_data
 
+import logging
+import numpy as np
+
+from phy import add_default_handler
+from phy.utils._misc import _read_python
+from phy.gui import create_app, run_app
+from phycontrib.template import create_template_gui
+
 def main():
 
     argv = sys.argv
@@ -143,7 +151,31 @@ def main():
 
     spikes = write_results(output_path, params, extension)    
     write_templates(output_path, params, extension)
-    write_pcs(output_path, params, extension, spikes)
+    #write_pcs(output_path, params, extension, spikes)
+
+
+    gui_params         = {}
+
+    gui_params['dat_path']       = params.get('data', 'data_file')
+    gui_params['n_channels_dat'] = params.getint('data', 'N_total')
+    gui_params['dtype']          = params.get('data', 'data_dtype')
+    gui_params['offset']         = params.getint('data', 'data_offset')
+    gui_params['sample_rate']    = params.getint('data', 'sampling_rate')
+    gui_params['hp_filtered']    = True
+
+    gui_params['dtype'] = getattr(np, gui_params['dtype'], 'int16')
+
+    os.chdir(output_path)
+    create_app()
+    plugins = ['SaveGeometryStatePlugin',
+               ]
+    gui = create_template_gui(plugins=plugins, **gui_params)
+
+    gui.show()
+    run_app()
+    gui.close()
+    del gui
+
     
 
 
