@@ -6,7 +6,8 @@ import pkg_resources
 import circus
 import tempfile
 import numpy, h5py
-from circus.shared.files import print_error, print_info, print_and_log, write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, load_data
+from circus.shared.files import print_error, print_info, print_and_log, write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, load_data, get_stas
+from circus.shared.utils import get_progressbar
 
 import logging
 import numpy as np
@@ -23,7 +24,6 @@ def main():
     if len(sys.argv) < 2:
         print_and_log(['No data file!'], 'error', params)
         sys.exit(0)
-
 
     filename       = os.path.abspath(sys.argv[1])
 
@@ -48,7 +48,7 @@ def main():
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    def generate_matlab_mapping(probe):
+    def generate_mapping(probe):
         p         = {}
         positions = []
         nodes     = []
@@ -85,7 +85,7 @@ def main():
         numpy.save(os.path.join(output_path, 'spike_templates'), clusters[idx])
         numpy.save(os.path.join(output_path, 'spike_times'), spikes[idx])
         numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
-        return spikes[idx]
+        return spikes[idx], clusters[idx]
 
 
     def write_templates(path, params, extension):
@@ -107,34 +107,62 @@ def main():
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
 
 
-    def write_pcs(path, params, extension, spikes):
+    def write_pcs(path, params, extension, spikes, labels, mode):
 
         max_loc_channel = get_max_loc_channel(params)
-        clusters        = load_data(params, 'clusters', extension)
-        best_elec       = clusters['electrodes']
         nb_features     = params.getint('whitening', 'output_dim')
         nodes, edges    = get_nodes_and_edges(params)
+        N_total         = params.getint('data', 'N_total')
         templates       = load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
-        pc_features     = numpy.zeros((0, nb_features, max_loc_channel), dtype=numpy.float32)
         pc_features_ind = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
+        clusters        = load_data(params, 'clusters', extension)
+        best_elec       = clusters['electrodes']
+        inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+        inv_nodes[nodes] = numpy.argsort(nodes)
 
         for count, elec in enumerate(best_elec):
             nb_loc                = len(edges[elec])
             pc_features_ind[count, numpy.arange(nb_loc)] = edges[elec]
 
-        for target in xrange(N_tm):
-            elec     = clusters['electrodes'][target]
-            nic      = target - numpy.where(clusters['electrodes'] == elec)[0][0]
-            mask     = clusters['clusters_' + str(elec)] > -1
-            tmp      = numpy.unique(clusters['clusters_' + str(elec)][mask])
-            indices  = numpy.where(clusters['clusters_' + str(elec)] == tmp[nic])[0]
-            x, y        = clusters['data_' + str(elec)][indices, :].shape
-            data        = clusters['data_' + str(elec)][indices, :].reshape(x, nb_features, y//nb_features)
-            difference  = max_loc_channel - data.shape[2]
-            to_fill     = numpy.zeros((x, nb_features, difference))
-            to_write    = numpy.concatenate((data, to_fill), axis=2)
-            pc_features = numpy.concatenate((pc_features, to_write), axis=0)
+        if mode == "s":
+
+            pc_features     = numpy.zeros((0, nb_features, max_loc_channel), dtype=numpy.float32)
+            pbar = get_progressbar(N_tm)
+            for target in xrange(N_tm):
+                elec     = clusters['electrodes'][target]
+                nic      = target - numpy.where(clusters['electrodes'] == elec)[0][0]
+                mask     = clusters['clusters_' + str(elec)] > -1
+                tmp      = numpy.unique(clusters['clusters_' + str(elec)][mask])
+                indices  = numpy.where(clusters['clusters_' + str(elec)] == tmp[nic])[0]
+                x, y        = clusters['data_' + str(elec)][indices, :].shape
+                data        = clusters['data_' + str(elec)][indices, :].reshape(x, nb_features, y//nb_features)
+                difference  = max_loc_channel - data.shape[2]
+                to_fill     = numpy.zeros((x, nb_features, difference))
+                to_write    = numpy.concatenate((data, to_fill), axis=2)
+                pc_features = numpy.concatenate((pc_features, to_write), axis=0)
+                pbar.update(target)
+            pbar.finish()
+
+        elif mode == "a":
+
+            basis_proj, basis_rec = load_data(params, 'basis')
+            pc_features     = numpy.zeros((len(spikes), nb_features, max_loc_channel), dtype=numpy.float32)
+
+            pbar = get_progressbar(N_tm)
+            for target in xrange(N_tm):
+                idx = numpy.where(labels == target)[0]
+                elec    = best_elec[target]
+                indices = inv_nodes[edges[nodes[elec]]]
+                labels_i = target*numpy.ones(len(idx))
+                times_i  = spikes[idx]
+                sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes)
+                pcs      = numpy.dot(sub_data, basis_proj)
+                pcs      = numpy.swapaxes(pcs, 1,2)
+                pc_features[idx, :, :len(indices)] = pcs
+
+                pbar.update(target)
+            pbar.finish()
 
         
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
@@ -143,16 +171,28 @@ def main():
     print_and_log(["Exporting data for the phy GUI..."], 'info', params)
     
     numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.linalg.inv(load_data(params, 'spatial_whitening')))
-    numpy.save(os.path.join(output_path, 'channel_positions'), generate_matlab_mapping(probe))
+    numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe))
     nodes, edges   = get_nodes_and_edges(params)
     numpy.save(os.path.join(output_path, 'channel_map'), nodes)
     similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
     numpy.save(os.path.join(output_path, 'templates_similarities'), similarities)
 
-    spikes = write_results(output_path, params, extension)    
+    spikes, clusters = write_results(output_path, params, extension)    
     write_templates(output_path, params, extension)
-    #write_pcs(output_path, params, extension, spikes)
 
+    key = ''
+    while key not in ['a', 's', 'n']:
+        key = raw_input("Do you want SpyKING CIRCUS to export PCs? [(a)ll / (s)ome / (n)o]")
+    
+    if key in ['a', 's']:
+        write_pcs(output_path, params, extension, spikes, clusters, key)
+    elif key in ['n']:
+        if os.path.exists(os.path.join(output_path, 'pc_features.npy')):
+            os.remove(os.path.join(output_path, 'pc_features.npy'))
+        if os.path.exists(os.path.join(output_path, 'pc_feature_ind.npy')):
+            os.remove(os.path.join(output_path, 'pc_feature_ind.npy'))
+
+    print_and_log(["Launching the phy GUI..."], 'info', params)
 
     gui_params         = {}
 
@@ -162,8 +202,6 @@ def main():
     gui_params['offset']         = params.getint('data', 'data_offset')
     gui_params['sample_rate']    = params.getint('data', 'sampling_rate')
     gui_params['hp_filtered']    = True
-
-    gui_params['dtype'] = getattr(np, gui_params['dtype'], 'int16')
 
     os.chdir(output_path)
     create_app()
