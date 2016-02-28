@@ -82,9 +82,9 @@ Options are:
     -g or --gpu      : number of GPU (default 1 if CUDA available)
     -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
     -b or --batch    : datafile is a list of commands to launch, in a batch mode
-    -o or --output   : output file [for generation of synthetic benchmarks]
     -p or --preview  : GUI to display the first second filtered with thresholds
     -r or --result   : GUI to display the results on top of raw data 
+    -o or --output   : output file [for generation of synthetic benchmarks]
     -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
     noparams='''The parameter file %s is not present!'''

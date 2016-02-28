@@ -14,7 +14,11 @@ def main():
     
     argv = sys.argv
     if len(sys.argv) < 2:
-        print_and_log(['No data file!'], 'error', params)
+        print_error(['No data file!'])
+        message = '''   
+Syntax is circus-multi datafile [extension]
+        '''
+        print(message)
         sys.exit(0)
 
     if len(sys.argv) == 2:
