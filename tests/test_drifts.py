@@ -107,7 +107,7 @@ def get_performance(file_name, name):
     pylab.tight_layout()
     plot_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
     plot_path = os.path.join(plot_path, 'plots')
-    plot_path = os.path.join(plot_path, 'complete')
+    plot_path = os.path.join(plot_path, 'drifts')
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
     output = os.path.join(plot_path, '%s.pdf' %name)
@@ -122,10 +122,10 @@ class TestCompleteWorkflow(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'complete.raw')
+        self.file_name      = os.path.join(self.path, 'drifts.raw')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
-            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
+            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'drifts')
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
 
     def test_all_two_CPU(self):

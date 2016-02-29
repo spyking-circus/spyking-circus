@@ -38,7 +38,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu:
         ## Need to properly handle multi GPU per MPI nodes?
         if nb_gpu > nb_cpu:
-            gpu_id = int(comm.rank/nb_cpu)
+            gpu_id = int(comm.rank//nb_cpu)
         else:
             gpu_id = 0
         cmt.cuda_set_device(gpu_id)
@@ -49,10 +49,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     x,        N_tm = templates.shape
-    template_shift = int((N_t-1)/2)
+    template_shift = int((N_t-1)//2)
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
-    n_tm           = N_tm/2
+    n_tm           = N_tm//2
     last_spikes    = numpy.zeros((n_tm, 1), dtype=numpy.int32)
 
     if not amp_auto:
@@ -127,7 +127,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_chunks                                     = int(min(nb_chunks, max_chunk))
 
     if comm.rank == 0:
-        pbar = get_progressbar(int(nb_chunks/comm.size))
+        pbar = get_progressbar(int(nb_chunks//comm.size))
 
 
     spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' %comm.rank, 'wb')
@@ -221,7 +221,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if use_gpu:
                 del sub_mat, cloc
 
-            local_offset = gidx*chunk_size+padding[0]/N_total
+            local_offset = gidx*chunk_size+padding[0]//N_total
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
 
@@ -280,7 +280,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_len    = max_time - min_time + 1
             min_times    = numpy.maximum(local_peaktimes - min_time - temp_2_shift, 0)
             max_times    = numpy.minimum(local_peaktimes - min_time + temp_2_shift + 1, max_time - min_time)
-            max_n_t      = int(space_explo*(max_time-min_time+1)/(2*temp_2_shift + 1))
+            max_n_t      = int(space_explo*(max_time-min_time+1)//(2*temp_2_shift + 1))
 
             while (numpy.mean(failure) < nb_chances):
 

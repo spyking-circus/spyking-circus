@@ -48,7 +48,7 @@ def get_performance(file_name, t_stop, name):
     clusters        = h5py.File(file_out + '.clusters.hdf5').get('electrodes')[:]
 
     N_t             = temp_shape[1]
-    n_tm            = temp_shape[2]/2
+    n_tm            = temp_shape[2]//2
     res             = numpy.zeros((len(n_cells), 2))
     res2            = numpy.zeros((len(n_cells), 2))
     real_amplitudes = []
@@ -68,8 +68,8 @@ def get_performance(file_name, t_stop, name):
         t1b = numpy.floor(t1/bin)
         t2b = numpy.floor(t2/bin)
 
-        x1  = numpy.zeros(t_stop/bin)
-        x2  = numpy.zeros(t_stop/bin)
+        x1  = numpy.zeros(t_stop//bin)
+        x2  = numpy.zeros(t_stop//bin)
 
         for i in t1b:
             x1[i] += 1

@@ -37,7 +37,7 @@ def get_performance(file_name, name):
     for key in result.get('real_amps').keys():
         real_amps[key]   = result.get('real_amps/%s' %key)[:]
 
-    n_tm            = templates[2]/2
+    n_tm            = templates[2]//2
     res             = numpy.zeros((len(n_cells), 2))
     res2            = numpy.zeros((len(n_cells), 2))
     real_amplitudes = []
@@ -168,7 +168,7 @@ class TestFitting(unittest.TestCase):
 
     def test_fitting_large_chunks(self):
         io.change_flag(self.file_name, 'chunk', '1', avoid_flag='max_chunk')
-        io.change_flag(self.file_name, 'max_chunk', str(int(self.max_chunk)/2))
+        io.change_flag(self.file_name, 'max_chunk', str(int(self.max_chunk)//2))
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
         io.change_flag(self.file_name, 'max_chunk', 'inf')
         io.change_flag(self.file_name, 'chunk', '0.5', avoid_flag='max_chunk')

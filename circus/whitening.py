@@ -25,7 +25,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges     = io.get_nodes_and_edges(params)
     safety_time      = int(params.getfloat('whitening', 'safety_time')*sampling_rate*1e-3)
     nb_temp_white    = min(max(20, comm.size), N_e)
-    max_silence_1    = int(20*sampling_rate / comm.size)
+    max_silence_1    = int(20*sampling_rate // comm.size)
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
@@ -39,7 +39,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if nb_chunks < comm.size:
 
         res        = io.data_stats(params, show=False)
-        chunk_size = res*sampling_rate/comm.size
+        chunk_size = res*sampling_rate//comm.size
         if comm.rank == 0:
             io.print_and_log(["Too much cores, reducing size of the data chunks"], 'info', params)
 
@@ -156,6 +156,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_write['temporal'] = temporal_whitening
 
         if do_spatial_whitening:
+            if len(all_silences)/sampling_rate == 0:
+                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
             io.print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)], 'default', params)
@@ -251,8 +253,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
-    max_elts_elec /= comm.size
-    nb_elts       /= comm.size
+    max_elts_elec //= comm.size
+    nb_elts       //= comm.size
     elts           = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
     chunks_to_load = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
 
@@ -326,7 +328,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if is_local_min and not myslice.any():
                         upper_bounds = max_elts_elec
                         if take_all:
-                            upper_bounds /= len(indices)
+                            upper_bounds //= len(indices)
 
                         if groups[elec] < upper_bounds:
 
@@ -368,8 +370,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 pbar.update(elt_count)
 
         if comm.rank == 0:
-            if (elt_count < (gcount+1)*max_elts_elec/len(chunks_to_load)):
-               pbar.update((gcount+1)*max_elts_elec/len(chunks_to_load))
+            if (elt_count < (gcount+1)*max_elts_elec//len(chunks_to_load)):
+               pbar.update((gcount+1)*max_elts_elec//len(chunks_to_load))
 
     if comm.rank == 0:
         pbar.finish()

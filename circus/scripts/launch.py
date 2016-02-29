@@ -8,12 +8,10 @@ import subprocess
 import pkg_resources
 import platform
 from os.path import join as pjoin
-from termcolor import colored
 import colorama
-colorama.init()
+colorama.init(autoreset=True)
+from colorama import Fore, Back, Style
 import circus.shared.files as io
-
-
 import circus
 from circus.shared.files import print_error, print_info, write_to_logger
 
@@ -87,32 +85,32 @@ Options are:
     -g or --gpu      : number of GPU (default 1 if CUDA available)
     -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
     -b or --batch    : datafile is a list of commands to launch, in a batch mode
-    -o or --output   : output file [for generation of synthetic benchmarks]
     -p or --preview  : GUI to display the first second filtered with thresholds
     -r or --result   : GUI to display the results on top of raw data 
+    -o or --output   : output file [for generation of synthetic benchmarks]
     -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
     noparams='''The parameter file %s is not present!'''
     batch_mode = (('-b' in argv) or ('--batch' in argv))
 
     if not batch_mode:
-        print colored(header, 'green')
+        print Fore.GREEN + header
 
     if len(argv) < 2:
-        print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
-        print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
+        print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
+        print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
         print ""
-        print colored("###################################################################", 'green')
+        print Fore.GREEN + "###################################################################"
         print ""
         print message
         sys.exit()
     else:
         filename   = argv[1]
         if filename in ['-h', '--help']:
-            print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
-            print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
+            print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
+            print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
             print ""
-            print colored("##################################################################", 'green')
+            print Fore.GREEN + "##################################################################"
             print ""
             print message
             sys.exit()
@@ -122,6 +120,10 @@ Options are:
             sys.exit()
         else:
             f_next, extension = os.path.splitext(filename)
+            if extension == '.params':
+                print_error(['You should launch the code on the data file!'])
+                sys.exit(0)
+
             file_params       = f_next + '.params'
             if not os.path.exists(file_params) and not batch_mode:
                 print noparams %file_params
@@ -169,7 +171,7 @@ Options are:
 
     # Print info
     if not batch_mode:
-    	params = io.load_parameters(filename)
+        params = io.load_parameters(filename)
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
@@ -180,8 +182,10 @@ Options are:
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
         steps        = ['filtering', 'whitening']
         io.prepare_preview(params, filename)
+        io.change_flag(filename, 'chunk_size', '2')
+        io.change_flag(filename, 'safety_time', '0')
     else: 
-	if not batch_mode: 	  
+        if not batch_mode:
             stationary = params.getboolean('data', 'stationary')
         else:
              stationary = False
@@ -199,15 +203,15 @@ Options are:
         write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
         write_to_logger(params, ['Data file  : %s' %filename], 'debug')
 
-        print colored("Steps         :", 'green'), colored(", ".join(steps), 'cyan')
-        print colored("GPU detected  :", 'green'), colored(HAVE_CUDA, 'cyan')
-        print colored("Number of CPU :", 'green'), colored(nb_cpu, 'cyan')
+        print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
+        print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
+        print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu)
         if HAVE_CUDA:
-            print colored("Number of GPU :", 'green'), colored(nb_gpu, 'cyan')
-        print colored("Parallel HDF5 :", 'green'), colored(parallel_hdf5, 'cyan')
-        print colored("Hostfile      :", 'green'), colored(hostfile, 'cyan')
+            print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
+        print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
+        print Fore.GREEN + "Hostfile      :", Fore.CYAN + hostfile
         print ""
-        print colored("##################################################################", 'green')
+        print Fore.GREEN + "##################################################################"
         print ""        
 
         if not preview:

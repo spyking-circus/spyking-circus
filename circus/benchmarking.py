@@ -17,15 +17,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
     file_out, ext  = os.path.splitext(os.path.abspath(file_name))
 
-    if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search']:
+    if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
-            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search]'], 'error', params)
+            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
         sys.exit(0)
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
     # see: http://stackoverflow.com/questions/4530111/python-saving-objects-and-using-pickle-extension-of-filename
     # see: https://wiki.python.org/moin/UsingPickle
-    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe):
+    def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe, trends=None):
         """Save benchmark parameters in a file to remember them."""
         import cPickle
         to_write = {'benchmark' : benchmark}
@@ -34,12 +34,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         to_write['probe']      = probe
         to_write['amplitudes'] = amplitudes
         to_write['sampling']   = sampling
+        if benchmark == 'drifts':
+            to_write['drifts'] = trends
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
     # Retrieve some key parameters.
     templates = io.load_data(params, 'templates')
     N_tm = templates.shape[1] / 2
     sim_same_elec   = 0.8
+    trends          = None
 
     # Normalize some variables.
     if benchmark == 'fitting':
@@ -76,10 +79,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if benchmark == 'smart-search':
         nb_insert       = 10
         n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
-        rate            = 50*numpy.ones(nb_insert)
-        rate[0:2]       = 5
+        rate            = 1 + 5*numpy.arange(nb_insert)
         amplitude       = 2
-    
+    if benchmark == 'drifts':
+        n_point         = 5
+        n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, n_point**2)
+        x, y            = numpy.mgrid[0:n_point,0:n_point]
+        rate            = 5*numpy.ones(n_point)[x.flatten()]
+        amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
+        trends          = numpy.random.randn(n_point**2)
+
     # Delete the output directory tree if this output directory exists.
     if comm.rank == 0:
         if os.path.exists(file_out):
@@ -130,7 +139,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # Save benchmark parameters in a file to remember them.
     if comm.rank == 0:
         write_benchmark(file_out, benchmark, cells, rate, amplitude,
-                        sampling_rate, params.get('data', 'mapping'))
+                        sampling_rate, params.get('data', 'mapping'), trends)
 
     # Synchronize all the threads/processes.
     comm.Barrier()
@@ -390,6 +399,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             else:
                 # Generate some spike indices at the given rate.
                 spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(sampling_rate)
+            if benchmark == 'drifts':
+                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(sampling_rate)))
+            else:
+                amplitudes = numpy.ones(len(spikes))
             # Padding with `False` to avoid the insertion of partial spikes at
             # the edges of the signal.
             spikes[:N_t]   = False
@@ -406,12 +419,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             t_last         = - refractory
             for scount, spike in enumerate(spikes):
                 if (spike - t_last) > refractory:
-                    local_chunk[spike-template_shift:spike+template_shift+1, :] += loc_template.T
+                    local_chunk[spike-template_shift:spike+template_shift+1, :] += amplitudes[scount]*loc_template.T
                     amp        = numpy.dot(local_chunk[spike-template_shift:spike+template_shift+1, :].flatten(), first_flat)
                     amp       /= norm_flat
                     result['real_amps']  += [amp]
                     result['spiketimes'] += [spike + offset]
-                    result['amplitudes'] += [(1, 0)]
+                    result['amplitudes'] += [(amplitudes[scount], 0)]
                     result['templates']  += [n_template]
                     result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
                     t_last                = spike
@@ -499,7 +512,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     comm.Barrier()
     if comm.rank == 0:
         # Gather data from all threads/processes.
-        io.collect_data(comm.size, io.load_parameters(file_name), erase=True, with_real_amps=True, with_voltages=True)
+        io.collect_data(comm.size, io.load_parameters(file_name), erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
         # Change some flags in the configuration file.
         io.change_flag(file_name, 'temporal', 'False') # Disable temporal filtering
         io.change_flag(file_name, 'spatial', 'False') # Disable spatial filtering

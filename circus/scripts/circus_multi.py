@@ -7,12 +7,19 @@ import circus
 import tempfile
 import h5py
 import numpy
-from circus.shared.files import print_error
+from circus.shared.files import print_error, print_and_log
 from circus.shared.algorithms import slice_result
 
 def main():
     
     argv = sys.argv
+    if len(sys.argv) < 2:
+        print_error(['No data file!'])
+        message = '''   
+Syntax is circus-multi datafile [extension]
+        '''
+        print(message)
+        sys.exit(0)
 
     if len(sys.argv) == 2:
         filename   = os.path.abspath(sys.argv[1])
@@ -25,7 +32,7 @@ def main():
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if not params.get('data', 'multi-files'):
-        print_error(['Not a multi-file!'])
+        print_and_log(['Not a multi-file!'], 'error', params)
         sys.exit(0)
 
     to_process  = circus.shared.files.get_multi_files(params)

@@ -1,14 +1,15 @@
+from __future__ import division
+
 import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
-from termcolor import colored
 import colorama
+from colorama import Fore
+
 from circus.shared.mpi import gather_array
 from circus.shared.utils import smooth
 import logging
-
-colorama.init()
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))
@@ -29,7 +30,7 @@ def write_to_logger(params, to_write, level='info'):
     for line in to_write:
         if level == 'info':
             logging.info(line)
-        elif level == 'debug':
+        elif level in ['debug', 'default']:
             logging.debug(line)
         elif level == 'warning':
             logging.warning(line)
@@ -39,7 +40,7 @@ def detect_header(filename, value='MCS'):
     if value == 'MCS':
         header      = 0
         stop        = False
-        fid         = open(filename, 'r')
+        fid         = open(filename, 'rb')
         header_text = ''
         regexp      = re.compile('El_\d*')
 
@@ -112,11 +113,11 @@ def read_probe(parser):
         print_error(["The probe file can not be found"])
         sys.exit(0)
     try:
-        probetext = file(parser.get('data', 'mapping'), 'r')
-        exec probetext in probe
-        probetext.close()
-    except Exception:
-        print_error(["Something wrong with the syntax of the probe file!"])
+        with open(parser.get('data', 'mapping'), 'r') as f:
+            probetext = f.read()
+            exec probetext in probe
+    except Exception as ex:
+        print_error(["Something wrong with the syntax of the probe file:\n" + str(ex)])
         sys.exit(0)
 
     key_flags = ['total_nb_channels', 'radius', 'channel_groups']
@@ -132,7 +133,7 @@ def load_parameters(file_name):
     f_next, extension = os.path.splitext(file_name)
     file_path         = os.path.dirname(file_name)
     file_params       = f_next + '.params'
-    parser            = configparser.SafeConfigParser()
+    parser            = configparser.ConfigParser()
     if not os.path.exists(file_params):
         print_error(["%s does not exist" %file_params])
         sys.exit(0)
@@ -152,14 +153,14 @@ def load_parameters(file_name):
     for key in ['whitening', 'clustering']:
         safety_time = parser.get(key, 'safety_time')
         if safety_time == 'auto':
-            parser.set(key, 'safety_time', '%g' %(N_t/3.))
+            parser.set(key, 'safety_time', '%g' %(N_t//3.))
 
     sampling_rate   = parser.getint('data', 'sampling_rate')
     N_t             = int(sampling_rate*N_t*1e-3)
     if numpy.mod(N_t, 2) == 0:
         N_t += 1
     parser.set('data', 'N_t', str(N_t))
-    parser.set('data', 'template_shift', str(int((N_t-1)/2)))
+    parser.set('data', 'template_shift', str(int((N_t-1)//2)))
 
     data_offset              = parser.get('data', 'data_offset')
     if data_offset == 'MCS':
@@ -220,17 +221,17 @@ def load_parameters(file_name):
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
-                  ['clustering', 'make_plots', 'bool', 'True'],
+                  ['clustering', 'make_plots', 'string', 'png'],
                   ['clustering', 'test_clusters', 'bool', 'False'],
-                  ['clustering', 'sim_same_elec', 'float', '3'],
+                  ['clustering', 'sim_same_elec', 'float', '2'],
                   ['clustering', 'smart_search', 'float', '0'],
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
-                  ['clustering', 'cc_merge', 'float', '0.95'],
-                  ['clustering', 'extraction', 'string', 'median-pca'],
+                  ['clustering', 'cc_merge', 'float', '0.975'],
+                  ['clustering', 'extraction', 'string', 'median-raw'],
                   ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
-                  ['extracting', 'noise_thr', 'float', '0.8'],
+                  ['extracting', 'noise_thr', 'float', '1.'],
                   ['validating', 'val_chan', 'int', '-1'],
                   ['validating', 'max_iter', 'int', '200'],
                   ['validating', 'learning_rate', 'float', '1.0e-3'],
@@ -300,6 +301,17 @@ def load_parameters(file_name):
         print_and_log(["smart_search in clustering should be in [0,1]"], 'error', parser)
         sys.exit(0)
 
+    test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)
+    if not test:
+        print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', parser)
+        sys.exit(0)
+
+    fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
+    test = parser.get('clustering', 'make_plots') in fileformats
+    if not test:
+        print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
+        sys.exit(0)
+
     return parser
 
 
@@ -316,8 +328,8 @@ def data_stats(params, show=True, export_times=False):
     if not multi_files:
         datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
         N              = len(datablock)
-        nb_chunks      = N / chunk_len
-        last_chunk_len = (N - nb_chunks * chunk_len)/(N_total*sampling_rate)
+        nb_chunks      = N // chunk_len
+        last_chunk_len = (N - nb_chunks * chunk_len)//(N_total*sampling_rate)
     else:
         all_files      = get_multi_files(params)
         N              = 0
@@ -330,23 +342,23 @@ def data_stats(params, show=True, export_times=False):
                 data_offset, nb_channels = detect_header(f, 'MCS')
             datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
             loc_N           = len(datablock)
-            loc_nb_chunks   = loc_N / chunk_len
+            loc_nb_chunks   = loc_N // chunk_len
             nb_chunks      += loc_nb_chunks
-            last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)/(N_total*sampling_rate)
-            times   += [[t_start, t_start + len(datablock)/N_total]]
-            t_start  = t_start + len(datablock)/N_total
+            last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)//(N_total*sampling_rate)
+            times   += [[t_start, t_start + len(datablock)//N_total]]
+            t_start  = t_start + len(datablock)//N_total
 
     N_t = params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/sampling_rate, 1)
 
-    nb_extra        = last_chunk_len/60
+    nb_extra        = last_chunk_len//60
     nb_chunks      += nb_extra
     last_chunk_len -= nb_extra*60
 
     lines = ["Number of recorded channels : %d" %N_total,
              "Number of analyzed channels : %d" %N_e,
              "Data type                   : %s" %str(data_dtype),
-             "Sampling rate               : %d kHz" %(sampling_rate/1000.),
+             "Sampling rate               : %d kHz" %(sampling_rate//1000.),
              "Header offset for the data  : %d" %data_offset,
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
@@ -381,17 +393,19 @@ def print_and_log(to_print, level='info', logger=None, display=True):
 
 def print_info(lines):
     """Prints informations messages, enhanced graphical aspects."""
-    print colored("-------------------------  Informations  -------------------------", 'yellow')
+    colorama.init(autoreset=True)
+    print Fore.YELLOW + "-------------------------  Informations  -------------------------"
     for line in lines:
-        print colored("| " + line, 'yellow')
-    print colored("------------------------------------------------------------------", 'yellow')
+        print Fore.YELLOW + "| " + line
+    print Fore.YELLOW + "------------------------------------------------------------------"
 
 def print_error(lines):
     """Prints errors messages, enhanced graphical aspects."""
-    print colored("----------------------------  Error  -----------------------------", 'red')
+    colorama.init(autoreset=True)
+    print Fore.RED + "----------------------------  Error  -----------------------------"
     for line in lines:
-        print colored("| " + line, 'red')
-    print colored("------------------------------------------------------------------", 'red')
+        print Fore.RED + "| " + line
+    print Fore.RED + "------------------------------------------------------------------"
 
 
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
@@ -604,9 +618,9 @@ def analyze_data(params, chunk_size=None):
     borders        = N_total * template_shift
     datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     N              = len(datablock)
-    nb_chunks      = N / chunk_len
+    nb_chunks      = N // chunk_len
     last_chunk_len = N - nb_chunks * chunk_len
-    last_chunk_len = N_total * int(last_chunk_len/N_total)
+    last_chunk_len = N_total * int(last_chunk_len//N_total)
     
     return borders, nb_chunks, chunk_len, last_chunk_len
 
@@ -849,9 +863,7 @@ def write_datasets(h5file, to_write, result, electrode=None):
         h5file.create_dataset(mykey, shape=result[mykey].shape, dtype=result[mykey].dtype, chunks=True)
         h5file.get(mykey)[:] = result[mykey]
 
-def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False):
-    # TODO: complete
-    #""""""
+def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     # Retrieve the key parameters.
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -872,7 +884,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         result['real_amps'] = {}
     if with_voltages:
         result['voltages'] = {}    
-    for i in xrange(N_tm/2):
+    for i in xrange(N_tm//2):
         result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0)
         result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2))
         if with_real_amps:
@@ -900,7 +912,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.int32)
             templates  = numpy.fromfile(templates_file, dtype=numpy.int32)
             N          = len(amplitudes)
-            amplitudes = amplitudes.reshape(N/2, 2)
+            amplitudes = amplitudes.reshape(N//2, 2)
             min_size   = min([amplitudes.shape[0], spiketimes.shape[0], templates.shape[0]])
             amplitudes = amplitudes[:min_size]
             spiketimes = spiketimes[:min_size]
@@ -966,7 +978,12 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
-    print_and_log(["Number of spikes fitted : %d" %count], 'info', params)
+    if benchmark:
+        to_print = "injected"
+    else:
+        to_print = "fitted"
+
+    print_and_log(["Number of spikes %s : %d" %(to_print, count)], 'info', params)
 
     # TODO: find a programmer comment
     if erase:
@@ -1003,7 +1020,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     x,        N_tm = templates.shape
 
     if half:
-        N_tm /= 2
+        N_tm //= 2
 
     if os.path.exists(filename) and not erase:
         return h5py.File(filename, 'r')
@@ -1022,7 +1039,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
-                gpu_id = int(comm.rank/nb_cpu)
+                gpu_id = int(comm.rank//nb_cpu)
             else:
                 gpu_id = 0
         else:
@@ -1051,11 +1068,11 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         upper_bounds = N_tm
     else:
         nb_total     = 2*len(local_templates)
-        upper_bounds = N_tm/2
+        upper_bounds = N_tm//2
 
     if comm.rank == 0:
         if verbose:
-            print "Computing the overlaps", cuda_string
+            print_and_log(["Computing the overlaps %s" %cuda_string], 'default', params)
         N_0  = len(range(comm.rank, N_e, comm.size))
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_0).start()
 
@@ -1125,6 +1142,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
     if comm.rank == 0:
         pbar.finish()
+        print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', params)
 
     comm.Barrier()
 

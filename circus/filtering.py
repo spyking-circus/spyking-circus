@@ -46,7 +46,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
                     data_len   = last_chunk_len
-                    chunk_size = last_chunk_len/N_total
+                    chunk_size = last_chunk_len//N_total
                 else:
                     data_len   = chunk_len
 
@@ -58,8 +58,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk  -= dtype_offset
                 for i in xrange(N_total):
                     local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
-                    local_chunk[:, i] -= numpy.median(local_chunk[:, i])
-		local_chunk  += dtype_offset
+                    local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
+                local_chunk  += dtype_offset
                 local_chunk   = local_chunk.astype(data_dtype)
                 local_chunk   = local_chunk.reshape(local_shape * N_total)
 
@@ -103,7 +103,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file: %s' %params.get('data', 'data_file') ], 'debug')
                 filter_file(params, comm, mpi_in, mpi_out, offset)
-                offset += (mpi_in.size/data_mpi.size)               
+                offset += (mpi_in.size//data_mpi.size)               
                 mpi_in.Close()
 
             mpi_out.Close()

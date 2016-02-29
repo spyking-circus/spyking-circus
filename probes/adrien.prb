@@ -12,11 +12,11 @@ def get_geometry(i):
 
 def get_channels(i):
     if i == 1: 
-        return range(8)
+        return list(range(8))
     elif i == 2:
-        return range(8, 16)
+        return list(range(8, 16))
     else:
-        return range(16, 24)
+        return list(range(16, 24))
 
 for i in xrange(1, 4):
     channel_groups[i]             = {}
