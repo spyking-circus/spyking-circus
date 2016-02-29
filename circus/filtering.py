@@ -51,22 +51,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     data_len   = chunk_len
 
                 local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                mpi_input.Iread_at(gidx*chunk_len, local_chunk)
+                mpi_input.Read_at(gidx*chunk_len, local_chunk)
                 local_shape   = chunk_size
                 local_chunk   = local_chunk.reshape(local_shape, N_total)
                 local_chunk   = local_chunk.astype(numpy.float32)
                 local_chunk  -= dtype_offset
-                print("{} {}".format(comm.rank, local_chunk.shape))
-		print(local_chunk[:5, 10])
                 for i in xrange(N_total):
                     local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i])
-		print(local_chunk[:5, 10])                
 		local_chunk  += dtype_offset
                 local_chunk   = local_chunk.astype(data_dtype)
                 local_chunk   = local_chunk.reshape(local_shape * N_total)
 
-                mpi_output.Iwrite_at(gidx*chunk_len+offset, local_chunk)
+                mpi_output.Write_at(gidx*chunk_len+offset, local_chunk)
 
                 if comm.rank == 0:
                     pbar.update(count)
