@@ -179,6 +179,8 @@ Options are:
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
         steps        = ['filtering', 'whitening']
         io.prepare_preview(params, filename)
+        io.change_flag(filename, 'chunk_size', '2')
+        io.change_flag(filename, 'safety_time', '0')
     else: 
         if not batch_mode:
             stationary = params.getboolean('data', 'stationary')
