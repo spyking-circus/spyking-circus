@@ -93,7 +93,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sampling_rate  = params.getint('data', 'sampling_rate')
     
     # Select only the neighboring channels of the best channel.
-    chan = 43
+    chan = params.getint('validating', 'val_chan')
+    if chan == -1:
+        # Automatic selection of the validation channel.
+        # TODO: select the channel with the highest changes in amplitudes
+        #       instead of an arbitrary selection.
+        chan = 43
     chans = get_neighbors(params, chan=chan)
     chan_index = numpy.argwhere(chans == chan)[0]
     
@@ -675,7 +680,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                          random_state=0)
     elif model == 'sgd':
         _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
-        clf = SGDClassifier(loss='perceptron',
+        clf = SGDClassifier(loss='log',
                             penalty='l2',
                             alpha=1.0e-12,
                             fit_intercept=True,
@@ -919,7 +924,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 io.print_and_log(msg, level='default', logger=params)
             
             # Declare classifier.
-            wclf = SGDClassifier(loss='perceptron',
+            wclf = SGDClassifier(loss='log',
                                  penalty='l2',
                                  alpha=1.0e-12,
                                  fit_intercept=True,

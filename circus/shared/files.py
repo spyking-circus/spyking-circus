@@ -231,6 +231,7 @@ def load_parameters(file_name):
                   ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '0.8'],
+                  ['validating', 'val_chan', 'int', '-1'],
                   ['validating', 'max_iter', 'int', '200'],
                   ['validating', 'learning_rate', 'float', '1.0e-3'],
                   ['validating', 'roc_sampling', 'int', '7'],

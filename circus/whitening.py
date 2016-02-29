@@ -17,6 +17,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
+    file_out       = params.get('data', 'file_out')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size       = params.getint('whitening', 'chunk_size')

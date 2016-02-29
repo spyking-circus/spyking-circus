@@ -56,13 +56,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk   = local_chunk.reshape(local_shape, N_total)
                 local_chunk   = local_chunk.astype(numpy.float32)
                 local_chunk  -= dtype_offset
+                print("{} {}".format(comm.rank, local_chunk.shape))
+		print(local_chunk[:5, 10])
                 for i in xrange(N_total):
-                    try:
-                        local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
-                        local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
-                    except Exception:
-                        pass
-                local_chunk  += dtype_offset
+                    local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                    local_chunk[:, i] -= numpy.median(local_chunk[:, i])
+		print(local_chunk[:5, 10])                
+		local_chunk  += dtype_offset
                 local_chunk   = local_chunk.astype(data_dtype)
                 local_chunk   = local_chunk.reshape(local_shape * N_total)
 
