@@ -259,9 +259,8 @@ class MergeWindow(QtGui.QMainWindow):
 
         to_consider      = set(self.indices) - set(self.to_delete)
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
-
-        print self.to_consider
         real_indices     = self.to_consider
+        print "consider", self.to_consider
         
         sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
         
@@ -387,7 +386,7 @@ class MergeWindow(QtGui.QMainWindow):
         if len(self.lasso_selector.points) != len(self.points[1]):
             self.update_inspect(indices, self.lasso_selector.add_or_remove)
         else:
-            self.update_inspect_template(indices, self.lasso_selector.add_or_remove)
+            self.update_inspect_template(self.to_consider[list(indices)], self.lasso_selector.add_or_remove)
 
     def callback_rect(self, eclick, erelease):
         xmin, xmax, ymin, ymax = eclick.xdata, erelease.xdata, eclick.ydata, erelease.ydata
@@ -419,7 +418,7 @@ class MergeWindow(QtGui.QMainWindow):
         if self.score_ax != self.score_ax2:
             self.update_inspect(indices, add_or_remove)
         else:
-            self.update_inspect_template(indices, add_or_remove)
+            self.update_inspect_template(self.to_consider[list(indices)], add_or_remove)
 
     def zoom(self, event):
         if event.inaxes == self.score_ax1:
@@ -485,7 +484,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.use_lag = actual_lag
         self.score_x, self.score_y, self.score_z = self.calc_scores(lag=self.use_lag)
         self.points = [zip(self.score_x, self.score_y),
-                       zip(self.rates[self.to_consider], self.norms[self.to_consider]),
+                       zip(self.norms[self.to_consider], self.rates[self.to_consider]),
                        zip(self.score_x, self.score_z)]
         self.line_lag1.set_xdata((lag, lag))
         self.line_lag2.set_xdata((-lag, -lag))
@@ -711,7 +710,7 @@ class MergeWindow(QtGui.QMainWindow):
                 elif event.key == 'control':
                     add_or_remove = 'remove'
                 if event.inaxes == self.score_ax2:
-                    self.update_inspect_template(selection, add_or_remove)
+                    self.update_inspect_template(self.to_consider[list(selection)], add_or_remove)
                 else:
                     self.update_inspect(selection, add_or_remove)
             else:
@@ -829,7 +828,7 @@ class MergeWindow(QtGui.QMainWindow):
                 idx                  = numpy.where(self.indices == to_remove)[0]
                 self.rates[to_keep] += self.rates[to_remove]
                 self.indices[idx]    = self.indices[to_keep]
-        
+
         self.generate_data()
         self.collections = None
         self.selected_points = set()
