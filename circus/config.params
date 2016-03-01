@@ -10,7 +10,7 @@ sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 N_t            = 5                      # Width of the templates [in ms]
 stationary     = True                   # Should be False for long recordings: adaptive thresholds
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)
-alignement     = True                   # Realign the waveforms by oversampling
+alignment      = True                   # Realign the waveforms by oversampling
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
 multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation
 
@@ -59,7 +59,7 @@ cc_bin         = 2         # Bin size for computing CC [in ms]
 safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
 max_elts       = 1000      # Max number of collected events per templates
 output_dim     = 5         # Percentage of variance explained while performing PCA
-cc_merge       = 0.95      # If CC between two templates is higher, they are merged
+cc_merge       = 0.975     # If CC between two templates is higher, they are merged
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
 [noedits]

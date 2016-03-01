@@ -82,9 +82,9 @@ Options are:
     -g or --gpu      : number of GPU (default 1 if CUDA available)
     -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
     -b or --batch    : datafile is a list of commands to launch, in a batch mode
-    -o or --output   : output file [for generation of synthetic benchmarks]
     -p or --preview  : GUI to display the first second filtered with thresholds
     -r or --result   : GUI to display the results on top of raw data 
+    -o or --output   : output file [for generation of synthetic benchmarks]
     -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
     noparams='''The parameter file %s is not present!'''
@@ -179,6 +179,8 @@ Options are:
         shutil.copyfile(file_params, filename.replace('.dat', '.params'))
         steps        = ['filtering', 'whitening']
         io.prepare_preview(params, filename)
+        io.change_flag(filename, 'chunk_size', '2')
+        io.change_flag(filename, 'safety_time', '0')
     else: 
         if not batch_mode:
             stationary = params.getboolean('data', 'stationary')
