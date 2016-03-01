@@ -534,6 +534,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = node_pad
             g_offset   = total_nb_clusters
+            count_templates = nod_pad
         else:
             hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
@@ -541,6 +542,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
             g_offset   = local_nb_clusters
+            count_templates = 0
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
         temp_y     = numpy.zeros(0, dtype=numpy.int32)
@@ -548,7 +550,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         comm.Barrier()
         cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
-        count_templates = node_pad
 
         for ielec in range(comm.rank, N_e, comm.size):
             io.write_datasets(cfile, to_write, result, ielec)
@@ -832,6 +833,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = node_pad
             g_offset   = total_nb_clusters
+            count_templates = node_pad
         else:
             hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
@@ -839,6 +841,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = 0
             g_offset   = local_nb_clusters
+            count_templates = 0
     
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
         temp_y     = numpy.zeros(0, dtype=numpy.int32)
@@ -846,7 +849,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
         cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
-        count_templates = node_pad
 
 
         if comm.rank == 0:
@@ -962,8 +964,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     nb_temp  = cluster_results[ielec]['n_clus']
                     vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0] 
                     sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
-                    sub_tmp  = sub_tmp[numpy.arange(ielec*N_t, (ielec+1)*N_t), :]
-                    sub_tmp  = sub_tmp.toarray().reshape(N_t, nb_temp)
+                    sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
+                    sub_tmp  = sub_tmp[ielec, :, :]
                     plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
                         thresholds[ielec], sub_tmp,
                         amps_lims[loc_pad:loc_pad+nb_temp], save=save)
