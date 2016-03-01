@@ -128,11 +128,9 @@ class MergeWindow(QtGui.QMainWindow):
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
         
-
-        self.norms       = numpy.zeros(len(self.indices), dtype=numpy.float32)
-        self.rates       = numpy.zeros(len(self.indices), dtype=numpy.float32)
-        self.to_delete   = numpy.zeros(0, dtype=numpy.int32)
-        self.to_consider = self.indices
+        self.norms      = numpy.zeros(len(self.indices), dtype=numpy.float32)
+        self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
+        self.to_delete  = numpy.zeros(0, dtype=numpy.int32)
 
         for idx in self.indices:
             tmp = self.templates[:, idx]
@@ -255,13 +253,14 @@ class MergeWindow(QtGui.QMainWindow):
         
         if self.mpi_wait[0] > 0:
             return
-
-        #self.indices     = numpy.array(list(set(self.indices) - set(self.to_delete)), dtype=numpy.int32)
         
         self.indices     = self.comm.bcast(self.indices, root=0)
+        self.to_delete   = self.comm.bcast(self.to_delete, root=0)
 
-        real_indices     = numpy.unique(self.indices)
-        self.real_indices= real_indices
+        to_consider      = set(self.indices) - set(self.to_delete)
+        self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
+        real_indices     = self.to_consider
+        
         sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
         
         n_pairs          = len(sub_real_indices)*(len(real_indices) - 1)/2.
@@ -302,7 +301,7 @@ class MergeWindow(QtGui.QMainWindow):
             # it later
             self.collections = []
             for ax, x, y in [(self.score_ax1, self.score_x, self.score_y),
-                             (self.score_ax2, self.norms[self.real_indices], self.rates[self.real_indices]),
+                             (self.score_ax2, self.norms[self.to_consider], self.rates[self.to_consider]),
                              (self.score_ax3, self.score_x, self.score_z)]:
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
@@ -317,13 +316,13 @@ class MergeWindow(QtGui.QMainWindow):
             
         else:
             for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
-                                                                 (self.norms[self.real_indices], self.rates[self.real_indices]),
+                                                                 (self.norms[self.to_consider], self.rates[self.to_consider]),
                                                                  (self.score_x, self.score_z)]):
                 collection.set_offsets(np.hstack([x[np.newaxis, :].T,
                                                   y[np.newaxis, :].T]))
         
         for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
-                                     (self.score_ax2, self.rates[self.real_indices], self.norms[self.real_indices]),
+                                     (self.score_ax2, self.rates[self.to_consider], self.norms[self.to_consider]),
                                      (self.score_ax3, self.score_z, self.score_x)]:
             ymin, ymax = min(score_y), max(score_y)
             yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
@@ -400,7 +399,7 @@ class MergeWindow(QtGui.QMainWindow):
         if self.score_ax == self.score_ax1:
             score_x, score_y = self.score_x, self.score_y
         elif self.score_ax == self.score_ax2:
-            score_x, score_y = self.norms[self.real_indices], self.rates[self.real_indices]
+            score_x, score_y = self.norms[self.to_consider], self.rates[self.to_consider]
         elif self.score_ax == self.score_ax3:
             score_x, score_y = self.score_x, self.score_z
 
@@ -432,8 +431,8 @@ class MergeWindow(QtGui.QMainWindow):
             link_with_x = self.score_ax1.set_xlim
             link_with_y = self.score_ax2.set_xlim
         elif event.inaxes == self.score_ax2:
-            x = self.norms[self.real_indices]
-            y = self.rates[self.real_indices]
+            x = self.norms[self.to_consider]
+            y = self.rates[self.to_consider]
             link_with_x = None
             link_with_y = None
         else:
@@ -484,7 +483,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.use_lag = actual_lag
         self.score_x, self.score_y, self.score_z = self.calc_scores(lag=self.use_lag)
         self.points = [zip(self.score_x, self.score_y),
-                       zip(self.rates[self.real_indices], self.norms[self.real_indices]),
+                       zip(self.norms[self.to_consider], self.rates[self.to_consider]),
                        zip(self.score_x, self.score_z)]
         self.line_lag1.set_xdata((lag, lag))
         self.line_lag2.set_xdata((-lag, -lag))
@@ -562,13 +561,13 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.waveforms_ax.clear()
 
-        for idx, p in enumerate(self.inspect_templates):
-            tmp = self.templates[:, p]
-            tmp = tmp.toarray().reshape(self.N_e, self.N_t)
-            elec = numpy.argmin(numpy.min(tmp, 1))
+        for idx, p in enumerate(self.to_consider[list(self.inspect_templates)]):
+            tmp   = self.templates[:, p]
+            tmp   = tmp.toarray().reshape(self.N_e, self.N_t)
+            elec  = numpy.argmin(numpy.min(tmp, 1))
             xaxis = numpy.linspace(0, (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
+            thr   = self.thresholds[elec]
             self.waveforms_ax.plot(xaxis, tmp[elec], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
-            thr = self.thresholds[elec]
             self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
 
         self.waveforms_ax.set_xlabel('Time [ms]')
@@ -603,6 +602,10 @@ class MergeWindow(QtGui.QMainWindow):
 
     def update_inspect_template(self, indices, add_or_remove=None):
         all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
+        indices = self.to_consider[list(indices)]
+        
+        for i in xrange(len(indices)):
+            indices[i] -= [numpy.sum(self.to_delete <= indices[i])]
 
         if add_or_remove is 'add':
             indices = set(self.inspect_templates) | set(indices)
@@ -610,9 +613,19 @@ class MergeWindow(QtGui.QMainWindow):
             indices = set(self.inspect_templates) - set(indices)
 
         self.inspect_templates = sorted(indices)
+        
         # We use a deterministic mapping to colors, based on their index
         self.inspect_colors_templates = [all_colors[idx % len(all_colors)]
                                for idx in self.inspect_templates]
+
+        '''
+        is_selected_1 = numpy.where(numpy.in1d(self.pairs[:, 0], self.inspect_templates) == True)[0]
+        is_selected_2 = numpy.where(numpy.in1d(self.pairs[:, 1], self.inspect_templates) == True)[0]
+        is_selected = numpy.unique(numpy.concatenate((is_selected_1, is_selected_2)))
+        self.inspect_points = []
+        self.update_inspect(is_selected, 'add')
+        '''
+
         self.update_score_plot()
         self.update_waveforms()
 
@@ -673,8 +686,8 @@ class MergeWindow(QtGui.QMainWindow):
                     x = self.score_x
                     y = self.score_y
                 elif event.inaxes == self.score_ax2:
-                    x = self.norms[self.real_indices]
-                    y = self.rates[self.real_indices]
+                    x = self.norms[self.to_consider]
+                    y = self.rates[self.to_consider]
                 elif event.inaxes == self.score_ax3:
                     x = self.score_x
                     y = self.score_z
@@ -750,20 +763,22 @@ class MergeWindow(QtGui.QMainWindow):
         io.print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', self.params)
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
-        self.to_delete = numpy.concatenate((self.to_delete, self.inspect_templates))
+        self.to_delete = numpy.concatenate((self.to_delete, self.to_consider[self.inspect_templates]))
 
         self.generate_data()
-        self.collections = None
-        self.selected_points = set()
+        self.collections       = None
+        self.selected_points   = set()
+        self.inspect_points    = set()
+        self.inspect_templates = set()
         self.score_ax1.clear()
         self.score_ax2.clear()
         self.score_ax3.clear()
         self.update_lag(self.use_lag)
         self.update_data_sort_order()
         self.update_detail_plot()
+        self.update_waveforms()
         self.plot_scores()
-        # do lengthy process
-        
+        # do lengthy process        
         self.app.restoreOverrideCursor()
 
 
@@ -813,11 +828,12 @@ class MergeWindow(QtGui.QMainWindow):
                 self.result['spiketimes'].pop(key2)
                 self.result['amplitudes'].pop(key2)
             
-                self.all_merges   = numpy.vstack((self.all_merges, [self.indices[to_keep], self.indices[to_remove]]))
-                idx               = numpy.where(self.indices == to_remove)[0]
+                self.all_merges      = numpy.vstack((self.all_merges, [self.indices[to_keep], self.indices[to_remove]]))
+                idx                  = numpy.where(self.indices == to_remove)[0]
+                self.to_delete       = numpy.concatenate((self.to_delete, [to_remove]))
                 self.rates[to_keep] += self.rates[to_remove]
-                self.indices[idx] = self.indices[to_keep]
-        
+                self.indices[idx]    = self.indices[to_keep]
+
         self.generate_data()
         self.collections = None
         self.selected_points = set()
@@ -842,9 +858,10 @@ class MergeWindow(QtGui.QMainWindow):
 
         comm.Barrier()
         self.all_merges = self.comm.bcast(self.all_merges, root=0)
+        self.to_delete  = self.comm.bcast(self.to_delete, root=0)
         
-        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=self.to_delete, extension='-merged')
-        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=self.to_delete, extension='-merged')
+        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension='-merged')
+        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension='-merged')
 
         if self.comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
