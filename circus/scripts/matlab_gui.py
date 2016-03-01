@@ -20,10 +20,14 @@ Syntax is circus-gui-matlab datafile [extension]
         print(message)
         sys.exit(0)
 
+    if len(sys.argv) == 2:
+        filename   = os.path.abspath(sys.argv[1])
+        extension  = ''
+    elif len(sys.argv) == 3:
+        filename   = os.path.abspath(sys.argv[1])
+        extension  = sys.argv[2]
 
-    filename       = os.path.abspath(sys.argv[1])
     params         = circus.shared.utils.io.load_parameters(filename)
-
     sampling_rate  = params.getint('data', 'sampling_rate')
     data_dtype     = params.get('data', 'data_dtype')
     gain           = 1
@@ -50,12 +54,7 @@ Syntax is circus-gui-matlab datafile [extension]
         return t
 
     mapping    = generate_matlab_mapping(probe)
-    if len(sys.argv) == 2:
-        filename   = os.path.abspath(sys.argv[1])
-        extension  = ''
-    elif len(sys.argv) == 3:
-        filename   = os.path.abspath(sys.argv[1])
-        extension  = sys.argv[2]
+    filename   = params.get('data', 'data_file')
 
     gui_params = [sampling_rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
 
