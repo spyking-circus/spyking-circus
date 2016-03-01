@@ -260,7 +260,6 @@ class MergeWindow(QtGui.QMainWindow):
         to_consider      = set(self.indices) - set(self.to_delete)
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
         real_indices     = self.to_consider
-        print "consider", self.to_consider
         
         sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
         
@@ -386,7 +385,7 @@ class MergeWindow(QtGui.QMainWindow):
         if len(self.lasso_selector.points) != len(self.points[1]):
             self.update_inspect(indices, self.lasso_selector.add_or_remove)
         else:
-            self.update_inspect_template(self.to_consider[list(indices)], self.lasso_selector.add_or_remove)
+            self.update_inspect_template(indices, self.lasso_selector.add_or_remove)
 
     def callback_rect(self, eclick, erelease):
         xmin, xmax, ymin, ymax = eclick.xdata, erelease.xdata, eclick.ydata, erelease.ydata
@@ -418,7 +417,7 @@ class MergeWindow(QtGui.QMainWindow):
         if self.score_ax != self.score_ax2:
             self.update_inspect(indices, add_or_remove)
         else:
-            self.update_inspect_template(self.to_consider[list(indices)], add_or_remove)
+            self.update_inspect_template(indices, add_or_remove)
 
     def zoom(self, event):
         if event.inaxes == self.score_ax1:
@@ -562,13 +561,13 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.waveforms_ax.clear()
 
-        for idx, p in enumerate(self.inspect_templates):
-            tmp = self.templates[:, p]
-            tmp = tmp.toarray().reshape(self.N_e, self.N_t)
-            elec = numpy.argmin(numpy.min(tmp, 1))
+        for idx, p in enumerate(self.to_consider[list(self.inspect_templates)]):
+            tmp   = self.templates[:, p]
+            tmp   = tmp.toarray().reshape(self.N_e, self.N_t)
+            elec  = numpy.argmin(numpy.min(tmp, 1))
             xaxis = numpy.linspace(0, (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
+            thr   = self.thresholds[elec]
             self.waveforms_ax.plot(xaxis, tmp[elec], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
-            thr = self.thresholds[elec]
             self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
 
         self.waveforms_ax.set_xlabel('Time [ms]')
@@ -603,6 +602,10 @@ class MergeWindow(QtGui.QMainWindow):
 
     def update_inspect_template(self, indices, add_or_remove=None):
         all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
+        indices = self.to_consider[list(indices)]
+        
+        for i in xrange(len(indices)):
+            indices[i] -= [numpy.sum(self.to_delete <= indices[i])]
 
         if add_or_remove is 'add':
             indices = set(self.inspect_templates) | set(indices)
@@ -610,6 +613,7 @@ class MergeWindow(QtGui.QMainWindow):
             indices = set(self.inspect_templates) - set(indices)
 
         self.inspect_templates = sorted(indices)
+        
         # We use a deterministic mapping to colors, based on their index
         self.inspect_colors_templates = [all_colors[idx % len(all_colors)]
                                for idx in self.inspect_templates]
@@ -710,7 +714,7 @@ class MergeWindow(QtGui.QMainWindow):
                 elif event.key == 'control':
                     add_or_remove = 'remove'
                 if event.inaxes == self.score_ax2:
-                    self.update_inspect_template(self.to_consider[list(selection)], add_or_remove)
+                    self.update_inspect_template(selection, add_or_remove)
                 else:
                     self.update_inspect(selection, add_or_remove)
             else:
@@ -826,6 +830,7 @@ class MergeWindow(QtGui.QMainWindow):
             
                 self.all_merges      = numpy.vstack((self.all_merges, [self.indices[to_keep], self.indices[to_remove]]))
                 idx                  = numpy.where(self.indices == to_remove)[0]
+                self.to_delete       = numpy.concatenate((self.to_delete, [to_remove]))
                 self.rates[to_keep] += self.rates[to_remove]
                 self.indices[idx]    = self.indices[to_keep]
 
