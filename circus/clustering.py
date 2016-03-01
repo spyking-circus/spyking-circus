@@ -7,7 +7,7 @@ from .shared import plot
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     import h5py
-    parallel_hdf5 = False #h5py.get_config().mpi
+    parallel_hdf5 = h5py.get_config().mpi
 
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')

@@ -270,7 +270,11 @@ class MergeWindow(QtGui.QMainWindow):
         self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
-        for temp_id1 in sub_real_indices:
+        if comm.rank == 0:
+            io.print_and_log(['Updating the data...'], 'default', self.params)
+            pbar = get_progressbar(len(sub_real_indices))
+
+        for count, temp_id1 in enumerate(sub_real_indices):
             for temp_id2 in real_indices[real_indices > temp_id1]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
@@ -279,6 +283,11 @@ class MergeWindow(QtGui.QMainWindow):
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.vstack((self.raw_control, b))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
+            if comm.rank == 0:
+                pbar.update(count)
+
+        if comm.rank == 0:
+            pbar.finish()
 
         self.pairs       = gather_array(self.pairs, self.comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, self.comm, 0, 1)
@@ -881,7 +890,8 @@ class MergeWindow(QtGui.QMainWindow):
             mydata.close()
             
             mydata  = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'r+', libver='latest')
-            to_keep = numpy.unique(self.indices)
+            to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
+            to_keep = numpy.array(list(to_keep))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
             for c, i in enumerate(to_keep):
                 maxoverlaps[c, :] = self.overlap[i, to_keep]*self.shape[0] * self.shape[1]
