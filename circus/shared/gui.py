@@ -860,8 +860,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.all_merges = self.comm.bcast(self.all_merges, root=0)
         self.to_delete  = self.comm.bcast(self.to_delete, root=0)
         
-        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=self.to_delete, extension='-merged')
-        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=self.to_delete, extension='-merged')
+        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension='-merged')
+        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension='-merged')
 
         if self.comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
