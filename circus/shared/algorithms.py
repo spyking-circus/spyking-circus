@@ -458,10 +458,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
                     M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
                     M[0, 1]  = M[1, 0]
                     V[1, 0]  = overlap_k[j, distances[k, j]]
-                    try:
-                        [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                    except Exception:
-                        [a1, a2] = [0, 0]
+                    [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
                     a1_lim   = limits[i]
                     a2_lim   = limits[j]
                     is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
