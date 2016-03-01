@@ -696,6 +696,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             indices  = inv_nodes[edges[nodes[ielec]]]
             loc_pad  = count_templates
+            myamps   = []
             for xcount, group in enumerate(numpy.unique(cluster_results[ielec]['groups'][mask])):
             
                 electrodes[g_count] = ielec
@@ -733,6 +734,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amp_min            = max(physical_limit, numpy.median(amplitudes) - variations)
                 amp_max            = min(amp_limits[1], numpy.median(amplitudes) + variations)
                 amps_lims[g_count] = [amp_min, amp_max]
+                myamps            += [[amp_min, amp_max]]
 
                 offset        = total_nb_clusters + count_templates
                 sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
@@ -761,7 +763,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     sub_tmp  = sub_tmp.toarray().reshape(N_t, nb_temp)
                     plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
                         thresholds[ielec], sub_tmp,
-                        amps_lims[loc_pad:loc_pad+nb_temp], save=save)
+                        numpy.array(myamps), save=save)
 
             if comm.rank == 0:
                 pbar.update(count_templates)
@@ -859,6 +861,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             data     = result['data_' + str(ielec)].reshape(n_data, basis_proj.shape[1], n_neighb)
             mask     = numpy.where(cluster_results[ielec]['groups'] > -1)[0]
             loc_pad  = count_templates
+            myamps   = []
             indices  = inv_nodes[edges[nodes[ielec]]]
                     
             for group in numpy.unique(cluster_results[ielec]['groups'][mask]):
@@ -917,6 +920,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #amp_min          = min(0.8, max([physical_limit, numpy.median(amplitudes) - variations, amp_limits[0]]))
                 #amp_max          = max(1.2, min([amp_limits[1], numpy.median(amplitudes) + variations, amp_limits[1]]))
                 amps_lims[g_count] = [amp_min, amp_max]
+                myamps            += [[amp_min, amp_max]]
 
                 for i in xrange(x):
                     sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
@@ -966,7 +970,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     sub_tmp  = sub_tmp[ielec, :, :]
                     plot.view_waveforms_clusters(numpy.dot(sub_data, basis_rec), cluster_results[ielec]['groups'],
                         thresholds[ielec], sub_tmp,
-                        amps_lims[gcount-sub_tmp.shape[1]:gcount], save=save)
+                        numpy.array(myamps), save=save)
 
             io.write_datasets(cfile, to_write, result, ielec)
 
