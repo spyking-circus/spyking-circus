@@ -265,7 +265,7 @@ class MergeWindow(QtGui.QMainWindow):
         
         sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
         
-        n_pairs          = len(sub_real_indices)*(len(real_indices) - 1)/2.
+        n_pairs          = len(sub_real_indices)*(len(real_indices) - 1)//2.
         n_size           = 2*self.max_delay + 1
 
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
@@ -1012,7 +1012,7 @@ class PreviewGUI(QtGui.QMainWindow):
                     for spike, (amp1, amp2) in zip(self.result['spiketimes'][key][idx], self.result['amplitudes'][key][idx]):
                         spike -= self.t_start*self.sampling_rate
                         tmp1   = self.templates[:, elec].toarray().reshape(self.N_e, self.N_t)
-                        tmp2   = self.templates[:, elec+self.templates.shape[1]/2].toarray().reshape(self.N_e, self.N_t)
+                        tmp2   = self.templates[:, elec+self.templates.shape[1]//2].toarray().reshape(self.N_e, self.N_t)
                         self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
             except Exception:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
