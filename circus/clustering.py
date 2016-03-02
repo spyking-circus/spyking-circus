@@ -515,8 +515,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         lines = ["Number of clusters found : %d" %total_nb_clusters,
                  "Number of local merges   : %d" %total_mergings]
         if few_elts:
-            lines += ["Not enough spikes gathered: -decrease smart_search?"]
-            lines += ["                            -put safety_space=False?"]
+            lines += ["Not enough spikes gathered: -put safety_space=False?"]
+            if numpy.any(sdata > 0):
+                lines += ["                            -decrease smart_search?"]
         if total_hits > 0:
             lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
             lines += ["                              -increase sim_same_elec?"]
@@ -922,8 +923,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
                 amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
                 amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
-                #amp_min          = min(0.8, max([physical_limit, numpy.median(amplitudes) - variations, amp_limits[0]]))
-                #amp_max          = max(1.2, min([amp_limits[1], numpy.median(amplitudes) + variations, amp_limits[1]]))
                 amps_lims[g_count] = [amp_min, amp_max]
                 myamps            += [[amp_min, amp_max]]
 
