@@ -167,7 +167,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
                 if skip_artefact:
                     values    = local_chunk[peaktimes, i]
-                    idx       = numpy.where(values >= -10*thresholds[i])[0]
+                    idx       = numpy.where(values >= -20*thresholds[i])[0]
                     peaktimes = peaktimes[idx]
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
