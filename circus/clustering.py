@@ -177,9 +177,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 for i in search_from:
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     if skip_artefact:
-                        values    = local_chunk[peaktimes, i]
-                        idx       = numpy.where(values >= -10*thresholds[i])[0]
-                        peaktimes = peaktimes[idx]
+                        real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+                        indices   = inv_nodes[edges[nodes[i]]]
+                        for idx in xrange(len(peaktimes)):
+                            values      = local_chunk[idx, indices]
+                            is_artefact = numpy.any(values < -20*thresholds[indices])
+                            if not is_artefact:
+                                real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
+                        peaktimes = peaktimes[real_peaktimes]
                     all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                     all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
