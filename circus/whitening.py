@@ -282,7 +282,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                 if skip_artefact:
                     values    = local_chunk[peaktimes, i]
-                    idx       = numpy.where(values >= -10*thresholds[i])[0]
+                    idx       = numpy.where(values >= -20*thresholds[i])[0]
                     peaktimes = peaktimes[idx]
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
