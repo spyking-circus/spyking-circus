@@ -922,6 +922,7 @@ class PreviewGUI(QtGui.QMainWindow):
 
         self.show_fit         = show_fit
         self.params           = params
+        self.maxtime          = io.data_stats(params, show=False) - 1
         self.init_gui_layout()
         self.probe            = io.read_probe(params)
         self.N_e              = params.getint('data', 'N_e')
@@ -980,11 +981,18 @@ class PreviewGUI(QtGui.QMainWindow):
         self.btn_rectangle.clicked.connect(self.update_rect_selector)
         self.btn_lasso.clicked.connect(self.update_rect_selector)
         self.btn_picker.clicked.connect(self.update_rect_selector)
+        self.get_time.valueChanged.connect(self.update_time)
 
         # Select the most central point at start
         idx = np.argmin((self.x_position - np.mean(self.x_position)) ** 2 +
                         (self.y_position - np.mean(self.y_position)) ** 2)
         self.update_inspect({idx})
+
+    def update_time(self):
+        self.t_start  = min(self.maxtime, int(self.get_time.value()))
+        self.t_stop   = self.t_start + 1
+        self.get_data()
+        self.update_data_plot()
 
     def get_data(self):
         self.chunk_size       = self.sampling_rate
@@ -1034,8 +1042,9 @@ class PreviewGUI(QtGui.QMainWindow):
         self.ui.show()
 
     def increase_time(self, event):
-        self.t_start += 1
-        self.t_stop  += 1
+        if self.t_start < self.maxtime:
+            self.t_start += 1
+            self.t_stop  += 1
         self.get_data()
         self.update_data_plot()
 

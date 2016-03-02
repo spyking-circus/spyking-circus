@@ -115,6 +115,13 @@
             </property>
            </widget>
           </item>
+          <item>
+           <widget class="QSpinBox" name="get_time">
+            <property name="maximum">
+             <number>999999998</number>
+            </property>
+           </widget>
+          </item>
          </layout>
         </item>
        </layout>
