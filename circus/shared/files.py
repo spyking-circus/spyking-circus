@@ -7,8 +7,7 @@ import ConfigParser as configparser
 import colorama
 from colorama import Fore
 
-from circus.shared.mpi import gather_array
-from circus.shared.utils import smooth
+from .mpi import gather_array
 import logging
 
 def purge(file, pattern):
@@ -399,7 +398,7 @@ def print_error(lines):
 
 
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
-
+    from .utils import smooth  # avoid import issues
     
     N_t          = params.getint('data', 'N_t')
     if not all_labels:
@@ -477,6 +476,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     return stas
 
 def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
+    from .utils import smooth  # avoid import issues
 
     N_t          = params.getint('data', 'N_t')
     amplitudes   = numpy.zeros(len(times_i), dtype=numpy.float32)
