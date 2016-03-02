@@ -192,12 +192,15 @@
          <property name="text">
           <string>Suggest Pairs</string>
          </property>
+         <property name="icon">
+          <iconset theme="help-about"/>
+         </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="btn_select">
          <property name="text">
-          <string>Select</string>
+          <string>Select Pairs</string>
          </property>
          <property name="icon">
           <iconset theme="edit-add">
@@ -212,7 +215,7 @@
           <string>UnSelect Pairs</string>
          </property>
          <property name="icon">
-          <iconset theme="edit-delete">
+          <iconset theme="list-remove">
            <normaloff/>
           </iconset>
          </property>
@@ -248,6 +251,9 @@
          <property name="text">
           <string>Suggest Templates</string>
          </property>
+         <property name="icon">
+          <iconset theme="help-about"/>
+         </property>
         </widget>
        </item>
        <item>
@@ -256,7 +262,7 @@
           <string>UnSelect Templates</string>
          </property>
          <property name="icon">
-          <iconset theme="edit-delete">
+          <iconset theme="list-remove">
            <normaloff/>
           </iconset>
          </property>
@@ -330,7 +336,7 @@
           <string>Finalize</string>
          </property>
          <property name="icon">
-          <iconset theme="dialog-yes">
+          <iconset theme="system-run">
            <normaloff/>
           </iconset>
          </property>

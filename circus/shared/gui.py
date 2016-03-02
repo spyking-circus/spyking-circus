@@ -216,10 +216,10 @@ class MergeWindow(QtGui.QMainWindow):
         elif self.mpi_wait[0] == 2:
             sys.exit(0)
 
-    def handle_close(self, event):
+    def closeEvent(self, event):
         if self.comm.rank == 0:
             self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
-        sys.exit(0)
+        super(MergeWindow, self).closeEvent(event)
 
     def init_gui_layout(self):
         self.ui = uic.loadUi(os.path.join(os.path.dirname(__file__), './qt_merge.ui'), self)
@@ -977,7 +977,6 @@ class PreviewGUI(QtGui.QMainWindow):
         self.ui.raw_data.mpl_connect('scroll_event', self.zoom)
         self.ui.raw_data.mpl_connect('motion_notify_event', self.update_statusbar)
         self.ui.raw_data.mpl_connect('figure_leave_event', lambda event: self.statusbar.clearMessage())
-        #self.fig.canvas.mpl_connect('close_event', self.handle_close)
         self.btn_rectangle.clicked.connect(self.update_rect_selector)
         self.btn_lasso.clicked.connect(self.update_rect_selector)
         self.btn_picker.clicked.connect(self.update_rect_selector)

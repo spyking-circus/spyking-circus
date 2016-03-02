@@ -7,10 +7,8 @@ from setuptools import setup
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
 
-if sys.version_info.major < 3:
-    requires = ['progressbar', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
-elif sys.version_info.major == 3:
-    requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+
 
 if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
     # We seem to be running under a "conda build"
