@@ -188,6 +188,13 @@
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
+        <widget class="QPushButton" name="btn_suggest_pairs">
+         <property name="text">
+          <string>Suggest Pairs</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="btn_select">
          <property name="text">
           <string>Select</string>
@@ -235,6 +242,13 @@
           </size>
          </property>
         </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_suggest_templates">
+         <property name="text">
+          <string>Suggest Templates</string>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QPushButton" name="btn_unselect_template">

@@ -188,6 +188,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.ui.btn_select.clicked.connect(self.add_to_selection)
         self.ui.btn_unselect.clicked.connect(self.remove_selection)
         self.ui.btn_delete.clicked.connect(self.remove_templates)
+        self.ui.btn_suggest_templates.clicked.connect(self.suggest_pairs)
+        self.ui.btn_suggest_pairs.clicked.connect(self.suggest_templates)
         self.ui.btn_unselect_template.clicked.connect(self.remove_selection_templates)
 
         self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
@@ -680,6 +682,17 @@ class MergeWindow(QtGui.QMainWindow):
     def remove_selection_templates(self, event):
         self.inspect_templates = set()
         self.update_inspect_template(self.inspect_templates, add_or_remove='remove')
+
+    def suggest_templates(self, event):
+        indices  = numpy.where(self.score_x >= 0.9)[0]
+        mad      = numpy.median(numpy.abs(self.score_y[indices] - numpy.median(self.score_y[indices])))
+        nindices = numpy.where(self.score_y[indices] >= 2*mad)[0]
+        self.update_inspect(indices[nindices], add_or_remove='add')
+
+    def suggest_pairs(self, event):
+        indices = numpy.where(self.norms[self.to_consider] <= 1)[0]
+        self.update_inspect_template(indices, add_or_remove='add')
+
 
     def on_mouse_press(self, event):
         if event.inaxes in [self.score_ax1, self.score_ax2, self.score_ax3]:
