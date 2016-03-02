@@ -2,6 +2,9 @@
 dist
 build
 /docs
+tests/data
+tests/synthetic
+tests/plots
 
 # PyCharms
 .idea
