@@ -31,29 +31,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     if benchmark == 'fitting':
         nb_insert       = 25
-        n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, nb_insert)
+        n_cells         = numpy.random.random_integers(0, templates.shape[1]//2-1, nb_insert)
         rate            = nb_insert*[10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
     if benchmark == 'clustering':
         n_point         = 10
-        n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, n_point**2)
+        n_cells         = numpy.random.random_integers(0, templates.shape[1]//2-1, n_point**2)
         x, y            = numpy.mgrid[0:n_point,0:n_point]
         rate            = numpy.arange(0.5, 20, 2)[x.flatten()]
         amplitude       = numpy.arange(0.5, 5.5, 0.5)[y.flatten()]
     if benchmark == 'synchrony':
         nb_insert       = 5
         corrcoef        = 0.2
-        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
+        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]//2-1, 1)[0]]
         rate            = 10./corrcoef
         amplitude       = 2
     if benchmark == 'smart-search':
         nb_insert       = 10
-        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
+        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]//2-1, 1)[0]]
         rate            = 1 + 5*numpy.arange(nb_insert)
         amplitude       = 2
     if benchmark == 'drifts':
         n_point         = 5
-        n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, n_point**2)
+        n_cells         = numpy.random.random_integers(0, templates.shape[1]//2-1, n_point**2)
         x, y            = numpy.mgrid[0:n_point,0:n_point]
         rate            = 5*numpy.ones(n_point)[x.flatten()]
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
@@ -94,7 +94,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    N_tm_init             = templates.shape[1]/2
+    N_tm_init             = templates.shape[1]//2
     thresholds            = io.load_data(params, 'thresholds')
     limits                = io.load_data(params, 'limits')
     best_elecs            = io.load_data(params, 'electrodes')
@@ -162,7 +162,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                         gmin = new_temp.min()
                         data = numpy.where(new_temp == gmin)
                         scaling = -thresholds[data[0][0]]/gmin
-                        for i in xrange(templates.shape[1]/2):
+                        for i in xrange(templates.shape[1]//2):
                             match = templates[:, i].toarray().reshape(N_e, N_t)
                             d = numpy.corrcoef(match.flatten(), scaling*new_temp.flatten())[0, 1]
                             if d > similarity:
@@ -174,7 +174,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         #if comm.rank == 0:
         #    print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
 
-        N_tm           = templates.shape[1]/2
+        N_tm           = templates.shape[1]//2
         to_insert      = numpy.zeros(reference.shape, dtype=numpy.float32)
         to_insert[new_indices] = scaling*amplitude[gcount]*templates[:, cell_id].toarray().reshape(N_e, N_t)[indices]
         to_insert2     = numpy.zeros(reference.shape, dtype=numpy.float32)
@@ -218,7 +218,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
         io.purge(file_out, '.data')
 
-    template_shift = int((N_t-1)/2)
+    template_shift = int((N_t-1)//2)
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)
@@ -237,7 +237,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
         if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
             chunk_len  = last_chunk_len
-            chunk_size = last_chunk_len/N_total
+            chunk_size = last_chunk_len//N_total
 
         result         = {'spiketimes' : [], 'amplitudes' : [], 'templates' : [], 'real_amps' : [], 'voltages' : []}
         offset         = gidx*chunk_size
