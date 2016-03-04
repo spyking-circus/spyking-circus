@@ -25,7 +25,8 @@ requirements:
     - h5py
     - setuptools
     - colorama
-
+    - qt
+    - pyqt
 source:
   path: ..
 
