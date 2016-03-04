@@ -282,26 +282,16 @@ Options are:
                                 nb_tasks = str(nb_cpu)
 
                         if subtask != 'benchmarking':
-                            if platform.system() == 'Windows':
-                                args += ['-np', nb_tasks, sys.executable,
-                                       'spyking-circus-subtask',
-                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
-                            else:                
-                                args += ['-np', nb_tasks,
-                                       'spyking-circus-subtask',
-                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
+                            args += ['-np', nb_tasks,
+                                     'spyking-circus-subtask',
+                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                         else:
                             if (output is None) or (benchmark is None):
                                 print_error(["To generate synthetic datasets, you must provide output and type"])
                                 sys.exit()
-                            if platform.system() == 'Windows':
-                                args += ['-np', nb_tasks, sys.executable,
-                                       'spyking-circus-subtask',
-                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
-                            else:
-                                args += ['-np', nb_tasks,
-                                       'spyking-circus-subtask',
-                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                            args += ['-np', nb_tasks,
+                                     'spyking-circus-subtask',
+                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
 
                         write_to_logger(params, ['Launching task %s' %subtask], 'debug')
                         write_to_logger(params, ['Command: %s' %str(args)], 'debug')
