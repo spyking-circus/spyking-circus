@@ -8,3 +8,5 @@ include probes/small_mea_252.prb
 include probes/wide_mea_252.prb
 include probes/mea_4225.prb
 include probes/imec.prb
+include probes/kampff_32.prb
+include probes/kampff_128.prb

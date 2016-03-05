@@ -982,6 +982,7 @@ class PreviewGUI(QtGui.QMainWindow):
         self.btn_lasso.clicked.connect(self.update_rect_selector)
         self.btn_picker.clicked.connect(self.update_rect_selector)
         self.get_time.valueChanged.connect(self.update_time)
+        self.get_time.setValue(self.t_start)
 
         # Select the most central point at start
         idx = np.argmin((self.x_position - np.mean(self.x_position)) ** 2 +
@@ -1046,6 +1047,7 @@ class PreviewGUI(QtGui.QMainWindow):
             self.t_start += 1
             self.t_stop  += 1
         self.get_data()
+        self.get_time.setValue(self.t_start)
         self.update_data_plot()
 
     def decrease_time(self, event):
@@ -1053,6 +1055,7 @@ class PreviewGUI(QtGui.QMainWindow):
             self.t_start -= 1
             self.t_stop  -= 1
             self.get_data()
+            self.get_time.setValue(self.t_start)
             self.update_data_plot()
 
     def plot_electrodes(self):
