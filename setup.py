@@ -52,6 +52,8 @@ setup(name='spyking-circus',
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'small_mea_252.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'wide_mea_252.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'imec.prb')]),
+                  (pjoin(data_path, 'probes'), [pjoin('probes', 'kampff_32.prb')]),
+                  (pjoin(data_path, 'probes'), [pjoin('probes', 'kampff_128.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'mea_4225.prb')])],
       use_2to3=True,
       classifiers=[
