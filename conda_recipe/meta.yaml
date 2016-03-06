@@ -1,39 +1,32 @@
 package:
   name: spyking-circus
-  version: "0.2"
+  version: "0.3"
 
 requirements:
-  # Note: hdf5storage and termcolor are not available in the standard anaconda
-  # repository, you need to add the "auto" channel for it (and this channel
-  # only includes hdf5storage for linux-64 and termcolor for linux-32, linux-64
-  # and mac-osx for termcolor)
   build:
-    - progressbar
+    - python
+    - progressbar2
     - mpi4py
-    - mdp
-    - hdf5storage
     - numpy
     - cython
     - scipy
     - matplotlib
     - h5py
     - setuptools
-    - termcolor
     - colorama
   run:
-    - progressbar
+    - python
+    - progressbar2
     - mpi4py
-    - mdp
-    - hdf5storage
     - numpy
     - cython
     - scipy
     - matplotlib
     - h5py
     - setuptools
-    - termcolor
     - colorama
-
+    - qt
+    - pyqt
 source:
   path: ..
 
@@ -45,6 +38,7 @@ test:
   imports:
     - circus
     - circus.shared
+    - circus.scripts
   commands:
     - spyking-circus -h
 

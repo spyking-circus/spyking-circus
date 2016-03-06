@@ -2,6 +2,9 @@
 dist
 build
 /docs
+tests/data
+tests/synthetic
+tests/plots
 
 # PyCharms
 .idea
@@ -15,3 +18,8 @@ build
 #Generated python
 *.pyc
 *.egg-info
+
+# General backup/temporary files
+*~
+*.bak
+

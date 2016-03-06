@@ -1,6 +1,6 @@
 function varargout = SortingGUI(varargin)
 
-% SortingGUI(20000,'/Users/olivier/ownCloud/SpikeSorting/kenneth/20141202_all/20141202_all','-final.mat','../mappings/kenneth.mapping.mat',2,'int16',0,0.1)
+% SortingGUI(20000,'mydata/mydata','.mat','../mappings.mat',2,'int16',0,0.1)
 %SamplingRate, filename, extension, mappingfile, RPVlimit, format,
 %HeaderSize, Gain
 
@@ -78,13 +78,17 @@ set(handles.Xscale, 'String', '2');
 set(handles.XYratio, 'String', '2');
 set(handles.CrossCorrMaxBin,'String','2');
 
-if length(varargin)<=3
-    load('../mappings/mea_252.mapping.mat','-mat')
+if size(strfind(varargin{4}, '.mat')) > 0
+    b                  = load(varargin{4}, '-mat');
+    handles.Positions  = double(b.Positions);
+    handles.NelecTot   = b.nb_total;
+    handles.ElecPermut = b.Permutation;
 else
-    load(varargin{4},'-mat')
+    handles.Positions  = double(transpose(h5read(varargin{4}, '/positions')));
+    handles.ElecPermut = h5read(varargin{4}, '/permutation');
+    handles.NelecTot   = h5read(varargin{4}, '/nb_total');
 end
 
-handles.Positions   = double(Positions);
 handles.H.MaxdiffX  = max(handles.Positions(:,1)) - min(handles.Positions(:,1));
 handles.H.MaxdiffY  = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
 handles.H.zoom_coef = max(handles.H.MaxdiffX,handles.H.MaxdiffY);
@@ -115,18 +119,34 @@ else
     tmpfile  = [handles.filename '.templates' handles.suffix];
     tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
     info     = h5info(tmpfile);
-    handles.has_hdf5 = true;
-    template = h5read(tmpfile, '/templates');
-    has_tagged = false;
+    handles.has_hdf5  = true;
+    handles.is_dense  = true;
+    has_tagged        = false;
     for id=1:size(info.Datasets, 1)
+        if strcmp(info.Datasets(id).Name, 'temp_x')
+            handles.is_dense = false;
+        end
         if strcmp(info.Datasets(id).Name, 'tagged')
             has_tagged = true;
         end
-        if strcmp(info.Datasets(id).Name, 'templates')
-            handles.templates_size = info.Datasets(id).Dataspace.Size;
-            handles.templates_size = [handles.templates_size(3) handles.templates_size(2) handles.templates_size(1)/2];
-        end
     end
+    if handles.is_dense
+        template = h5read(tmpfile, '/templates');
+        for id=1:size(info.Datasets, 1)    
+            if strcmp(info.Datasets(id).Name, 'templates')
+                handles.templates_size = info.Datasets(id).Dataspace.Size;
+                handles.templates_size = [handles.templates_size(3) handles.templates_size(2) handles.templates_size(1)/2];
+            end
+        end
+    else
+        handles.templates_size = double(h5read(tmpfile, '/temp_shape'));
+        temp_x = double(h5read(tmpfile, '/temp_x') + 1);
+        temp_y = double(h5read(tmpfile, '/temp_y') + 1); 
+        temp_z = double(h5read(tmpfile, '/temp_data'));
+        handles.templates = sparse(temp_x, temp_y, temp_z, handles.templates_size(1)*handles.templates_size(2), handles.templates_size(3));
+        handles.templates_size = [handles.templates_size(1) handles.templates_size(2) handles.templates_size(3)/2];
+    end
+
     if has_tagged
         handles.Tagged = h5read(tmpfile, '/tagged');
     end
@@ -194,18 +214,23 @@ if length(varargin)>=6
             handles.WhiteTemporal = a.temporal;
         else
             tmpfile = [handles.filename '.basis.hdf5'];
-            handles.WhiteSpatial  = h5read(tmpfile, '/spatial');
-            ndim                  = numel(size(handles.WhiteSpatial));
-            handles.WhiteSpatial  = permute(handles.WhiteSpatial,[ndim:-1:1]);
-            handles.WhiteTemporal = h5read(tmpfile, '/temporal');
-            ndim                  = numel(size(handles.WhiteTemporal));
-            handles.WhiteTemporal = permute(handles.WhiteTemporal,[ndim:-1:1]);
-            handles.Thresholds    = h5read(tmpfile, '/thresholds');
+            info     = h5info(tmpfile);
+            for id=1:size(info.Datasets, 1)
+                if strcmp(info.Datasets(id).Name, 'spatial')
+                    handles.WhiteSpatial  = h5read(tmpfile, '/spatial');
+                    ndim                  = numel(size(handles.WhiteSpatial));
+                    handles.WhiteSpatial  = permute(handles.WhiteSpatial,[ndim:-1:1]);
+                end
+                if strcmp(info.Datasets(id).Name, 'temporal')
+                    handles.WhiteTemporal = h5read(tmpfile, '/temporal');
+                    ndim                  = numel(size(handles.WhiteTemporal));
+                    handles.WhiteTemporal = permute(handles.WhiteTemporal,[ndim:-1:1]);
+                end
+                if strcmp(info.Datasets(id).Name, 'thresholds')
+                    handles.Thresholds    = h5read(tmpfile, '/thresholds');
+                end
+            end     
         end
-
-        b                  = load(varargin{4}, '-mat');
-        handles.NelecTot   = b.nb_total;
-        handles.ElecPermut = b.Permutation;
     end
 end
 
@@ -792,7 +817,7 @@ end
 
 comp     = max(comp,[],1);
 [val,id] = sort(comp,'descend');
-IdTempl  = id(SimilarNb+1);%The first one is the template with itself. 
+IdTempl  = id(SimilarNb);%The first one is the template with itself. 
 
 if get(handles.SameElec,'Value')~=0 & val(SimilarNb+1)==0
     disp('No more templates to compare in the same electrode')
@@ -1065,14 +1090,19 @@ ViewMode = 1 + get(handles.TwoView,'Value');
 
 %% PLOT TEMPLATE
 if handles.has_hdf5
-    tmpfile  = [handles.filename '.templates' handles.suffix];
-    tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
-    handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    handles.local_template2 = h5read(tmpfile, '/templates', [RCellNb2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
-    ndim                    = numel(size(handles.local_template));
-    handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
-    ndim                    = numel(size(handles.local_template2));
-    handles.local_template2 = permute(handles.local_template2,[ndim:-1:1]);
+    if handles.is_dense
+        tmpfile  = [handles.filename '.templates' handles.suffix];
+        tmpfile  = strrep(tmpfile, '.mat', '.hdf5');
+        handles.local_template  = h5read(tmpfile, '/templates', [RCellNb 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+        handles.local_template2 = h5read(tmpfile, '/templates', [RCellNb2 1 1], [1 handles.templates_size(2) handles.templates_size(1)]);
+        ndim                    = numel(size(handles.local_template));
+        handles.local_template  = permute(handles.local_template,[ndim:-1:1]);
+        ndim                    = numel(size(handles.local_template2));
+        handles.local_template2 = permute(handles.local_template2,[ndim:-1:1]);
+    else
+        handles.local_template  = full(reshape(handles.templates(:, RCellNb), handles.templates_size(2), handles.templates_size(1)))';
+        handles.local_template2 = full(reshape(handles.templates(:, RCellNb2), handles.templates_size(2), handles.templates_size(1)))';
+    end
 else
     handles.local_template  = handles.templates(:, :, RCellNb);
     handles.local_template2 = handles.templates(:, :, RCellNb2);
@@ -1488,44 +1518,61 @@ overlap = handles.overlap * (handles.templates_size(1) * handles.templates_size(
 output_file_temp = [handles.filename '.templates' suffix '.hdf5'];
 nb_templates     = size(handles.to_keep, 2);
 tmp_templates    = [handles.filename '.templates-tmp' suffix '.hdf5'];
+tmpfile          = [handles.filename '.templates' handles.suffix];
 
 if exist(tmp_templates,'file')
     delete(tmp_templates);
 end
 
-h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
-
-nb_to_write = 100;
-tmp_count   = 1;
-differences = [diff(handles.to_keep) 0];
-
-while tmp_count <= nb_templates
-    contiguous  = find(differences(tmp_count:nb_templates) ~= 1);
-    if isempty(contiguous)
-        local_write = min(nb_to_write, nb_templates - tmp_count);
-    else
-        local_write = min(nb_to_write, contiguous(1));
-    end
-
-    temp_1 = handles.to_keep(tmp_count:tmp_count + local_write - 1);
-    temp_2 = handles.to_keep(tmp_count:tmp_count + local_write - 1) + handles.templates_size(3);
-    
-    if handles.has_hdf5
-        tmpfile    = [handles.filename '.templates' handles.suffix];
-        tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
-        to_write_1 = h5read(tmpfile, '/templates', [temp_1(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
-        to_write_2 = h5read(tmpfile, '/templates', [temp_2(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
-    else
-        to_write_1 = handles.templates(:, :, temp_1);
-        to_write_2 = handles.templates(:, :, temp_2);
-        ndim       = numel(size(to_write_1));
-        to_write_1 = permute(to_write_1,[ndim:-1:1]);
-        to_write_2 = permute(to_write_2,[ndim:-1:1]);
-    end
-    h5write(tmp_templates, '/templates', to_write_1, [tmp_count 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
-    h5write(tmp_templates, '/templates', to_write_2, [tmp_count+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
-    tmp_count = tmp_count + local_write;
+mysize = int32([handles.templates_size(1) handles.templates_size(2) 2*nb_templates])
+h5create(tmp_templates, '/temp_shape', size(mysize))
+h5write(tmp_templates, '/temp_shape', mysize)
+new_templates = sparse(handles.templates_size(1)*handles.templates_size(2), 2*nb_templates);
+for count=1:nb_templates
+    new_templates(:, count)                = handles.templates(:, handles.to_keep(count));
+    new_templates(:, count + nb_templates) = handles.templates(:, handles.to_keep(count) + handles.templates_size(3));
 end
+
+[x, y, z] = find(new_templates);
+h5create(tmp_templates, '/temp_x', size(x));
+h5create(tmp_templates, '/temp_y', size(y));
+h5create(tmp_templates, '/temp_data', size(z));
+h5write(tmp_templates, '/temp_x', int32(x) - 1);
+h5write(tmp_templates, '/temp_y', int32(y) - 1);
+h5write(tmp_templates, '/temp_data', single(z));
+
+
+
+
+%h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
+%nb_to_write = 100;
+%tmp_count   = 1;
+%differences = [diff(handles.to_keep) 0];
+%while tmp_count <= nb_templates
+%    contiguous  = find(differences(tmp_count:nb_templates) ~= 1);
+%    if isempty(contiguous)
+%        local_write = min(nb_to_write, nb_templates - tmp_count);
+%    else
+%        local_write = min(nb_to_write, contiguous(1));
+%    end
+%    temp_1 = handles.to_keep(tmp_count:tmp_count + local_write - 1);
+%    temp_2 = handles.to_keep(tmp_count:tmp_count + local_write - 1) + handles.templates_size(3);
+%    if handles.has_hdf5
+%        tmpfile    = [handles.filename '.templates' handles.suffix];
+%        tmpfile    = strrep(tmpfile, '.mat', '.hdf5');
+%        to_write_1 = h5read(tmpfile, '/templates', [temp_1(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+%        to_write_2 = h5read(tmpfile, '/templates', [temp_2(1) 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+%    else
+%        to_write_1 = handles.templates(:, :, temp_1);
+%        to_write_2 = handles.templates(:, :, temp_2);
+%        ndim       = numel(size(to_write_1));
+%        to_write_1 = permute(to_write_1,[ndim:-1:1]);
+%        to_write_2 = permute(to_write_2,[ndim:-1:1]);
+%    end
+%    h5write(tmp_templates, '/templates', to_write_1, [tmp_count 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]);
+%    h5write(tmp_templates, '/templates', to_write_2, [tmp_count+nb_templates 1 1], [local_write handles.templates_size(2) handles.templates_size(1)]); 
+%    tmp_count = tmp_count + local_write;
+%end
 
 delete(output_file_temp);
 movefile(tmp_templates, output_file_temp)
@@ -1937,7 +1984,26 @@ if get(handles.EnableWaveforms,'Value')==1
 
     NbElec = handles.NelecTot;
 
-    FileStart = handles.HeaderSize + 2*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
+    if strcmp(handles.DataFormat, 'int8')
+        data_padding = 1;
+    end
+    if strcmp(handles.DataFormat, 'uint8')
+        data_padding = 1;
+    end
+    if strcmp(handles.DataFormat, 'uint16')
+        data_padding = 2;
+    end
+    if strcmp(handles.DataFormat, 'int16')
+        data_padding = 2;
+    end
+    if strcmp(handles.DataFormat, 'float32')
+        data_padding = 4;
+    end
+    if strcmp(handles.DataFormat, 'double')
+        data_padding = 8;
+    end
+
+    FileStart = handles.HeaderSize + data_padding*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed. 
 
 
     duration = handles.templates_size(2);
@@ -1956,6 +2022,9 @@ if get(handles.EnableWaveforms,'Value')==1
     if strcmp(handles.DataFormat,'uint16')
         data = data - 32767;
     end
+    if strcmp(handles.DataFormat,'uint8')
+        data = data - 255;
+    end
 
     data = data*handles.Gain;
 
@@ -1965,9 +2034,13 @@ if get(handles.EnableWaveforms,'Value')==1
 
     data = data(handles.ElecPermut + 1,:);
 
-    data = handles.WhiteSpatial*data;
-    for i=1:size(data,1)
-        data(i,:) = conv(data(i,:),handles.WhiteTemporal,'same');
+    if isfield(handles, 'WhiteSpatial')
+        data = handles.WhiteSpatial*data;
+    end
+    if isfield(handles, 'WhiteTemporal')
+        for i=1:size(data,1)
+            data(i,:) = conv(data(i,:),handles.WhiteTemporal,'same');
+        end
     end
 
     %% Reduce the data to the portion of interest - remove also the unnecessary
