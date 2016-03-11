@@ -229,7 +229,7 @@ def load_parameters(file_name):
                   ['clustering', 'remove_mixture', 'bool', 'True'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '1.'],
-                  ['merging', 'cc_overlap', 'float', '0.25'],
+                  ['merging', 'cc_overlap', 'float', '0.5'],
                   ['merging', 'cc_bin', 'float', '2']]
 
     for item in new_values:

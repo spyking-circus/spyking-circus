@@ -40,8 +40,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         res        = io.data_stats(params, show=False)
         chunk_size = res*sampling_rate//comm.size
         if comm.rank == 0:
-            io.print_and_log(["Too much cores, reducing size of the data chunks"], 'info', params)
-
+            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
         borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
@@ -238,6 +237,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+
+    if nb_chunks < comm.size:
+
+        res        = io.data_stats(params, show=False)
+        chunk_size = res*sampling_rate//comm.size
+        if comm.rank == 0:
+            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+
+        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     groups    = {}
     for i in xrange(N_e):

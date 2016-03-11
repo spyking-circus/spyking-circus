@@ -85,8 +85,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
-    few_elts       = False
+    few_elts        = False
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+
+    if nb_chunks < comm.size:
+
+        res        = io.data_stats(params, show=False)
+        chunk_size = res*sampling_rate//comm.size
+        if comm.rank == 0:
+            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+
+        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     if numpy.all(smart_search == 0):
         gpass = 1

@@ -42,7 +42,6 @@ Syntax is circus-gui-python datafile [extension]
     params         = circus.shared.utils.io.load_parameters(filename)
     sampling_rate  = float(params.getint('data', 'sampling_rate'))
     data_dtype     = params.get('data', 'data_dtype')
-    gain           = 1
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
