@@ -15,7 +15,7 @@ import numpy as np
 from phy import add_default_handler
 from phy.utils._misc import _read_python
 from phy.gui import create_app, run_app
-from phycontrib.template import create_template_gui
+from phycontrib.template import TemplateController
 
 def main():
 
@@ -109,6 +109,7 @@ Syntax is circus-gui-python datafile [extension]
 
         numpy.save(os.path.join(output_path, 'templates'), to_write)
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
+        return N_tm
 
 
     def write_pcs(path, params, extension, spikes, labels, mode="a"):
@@ -172,11 +173,12 @@ Syntax is circus-gui-python datafile [extension]
     numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe))
     nodes, edges   = get_nodes_and_edges(params)
     numpy.save(os.path.join(output_path, 'channel_map'), nodes)
-    similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
-    numpy.save(os.path.join(output_path, 'templates_similarities'), similarities)
 
     spikes, clusters = write_results(output_path, params, extension)    
-    write_templates(output_path, params, extension)
+    N_tm = write_templates(output_path, params, extension)
+    similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
+    numpy.save(os.path.join(output_path, 'similar_templates'), similarities[:N_tm, :N_tm])
+
 
     key = ''
     while key not in ['a', 's', 'n']:
@@ -205,9 +207,8 @@ Syntax is circus-gui-python datafile [extension]
 
     os.chdir(output_path)
     create_app()
-    plugins = ['SaveGeometryStatePlugin',
-               ]
-    gui = create_template_gui(plugins=plugins, **gui_params)
+    controller = TemplateController(**gui_params)
+    gui = controller.create_gui()
 
     gui.show()
     run_app()
