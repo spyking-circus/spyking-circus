@@ -142,10 +142,12 @@ Syntax is circus-gui-python datafile [extension]
         pc_features = numpy.zeros((nb_pcs, nb_features, max_loc_channel), dtype=numpy.float32)
         count       = 0
 
-        pbar = get_progressbar(N_tm)
+        pbar    = get_progressbar(N_tm)
+        all_idx = numpy.zeros(0, dtype=numpy.int32)
         for target in xrange(N_tm):
             if mode == "s":
-                idx  = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
+                idx     = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
+                all_idx = numpy.concatenate((all_idx, idx))
             elif mode == "a":
                 idx  = numpy.where(labels == target)[0]
             elec     = best_elec[target]
@@ -166,6 +168,8 @@ Syntax is circus-gui-python datafile [extension]
         
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
         numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
+        if mode == "s":
+            numpy.save(os.path.join(output_path, 'pc_features_spike_ids'), all_idx)
 
     print_and_log(["Exporting data for the phy GUI..."], 'info', params)
     
