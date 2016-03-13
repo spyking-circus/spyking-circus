@@ -181,7 +181,8 @@ Syntax is circus-gui-python datafile [extension]
     spikes, clusters = write_results(output_path, params, extension)    
     N_tm = write_templates(output_path, params, extension)
     similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
-    numpy.save(os.path.join(output_path, 'similar_templates'), similarities[:N_tm, :N_tm])
+    norm = params.getint('data', 'N_e')*params.getint('data', 'N_t')
+    numpy.save(os.path.join(output_path, 'similar_templates'), similarities[:N_tm, :N_tm]/norm)
 
 
     key = ''

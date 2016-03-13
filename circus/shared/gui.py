@@ -949,11 +949,13 @@ class PreviewGUI(QtGui.QMainWindow):
         self.get_data()
         self.x_position = []
         self.y_position = []
-        self.order   = []
+        self.order      = []
         for key in self.probe['channel_groups'].keys():
             for item in self.probe['channel_groups'][key]['geometry'].keys():
-                self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
-                self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
+                if item in self.probe['channel_groups'][key]['channels']:
+                    self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
+                    self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
+
 
         self.points = zip(self.x_position, self.y_position)
 
@@ -1193,7 +1195,7 @@ class PreviewGUI(QtGui.QMainWindow):
     def update_data_plot(self):
         self.data_x.clear()
         indices         = self.inspect_points
-        yspacing        = numpy.max(np.abs(self.data))*1.01
+        yspacing        = numpy.max(np.abs(self.data[:, indices]))*1.01
 
         if not self.show_fit:
             for count, idx in enumerate(indices):
@@ -1225,7 +1227,10 @@ class PreviewGUI(QtGui.QMainWindow):
             status_bar.showMessage(u'x: %.0fμm  y: %.0fμm' % (event.xdata, event.ydata))
         elif event.inaxes == self.data_x:
             yspacing = numpy.max(np.abs(self.data))*1.05
-            row = int((event.ydata + 0.5*yspacing)/yspacing)
+            if yspacing != 0:
+                row = int((event.ydata + 0.5*yspacing)/yspacing)
+            else:
+                row = int((event.ydata))
             if row < 0 or row >= len(self.inspect_points):
                 status_bar.clearMessage()
             else:
