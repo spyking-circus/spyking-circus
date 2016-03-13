@@ -992,10 +992,11 @@ class PreviewGUI(QtGui.QMainWindow):
         self.update_inspect({idx})
 
     def update_time(self):
-        self.t_start  = min(self.maxtime, int(self.get_time.value()))
-        self.t_stop   = self.t_start + 1
-        self.get_data()
-        self.update_data_plot()
+        if self.show_fit:
+            self.t_start  = min(self.maxtime, int(self.get_time.value()))
+            self.t_stop   = self.t_start + 1
+            self.get_data()
+            self.update_data_plot()
 
     def get_data(self):
         self.chunk_size       = self.sampling_rate
@@ -1045,20 +1046,22 @@ class PreviewGUI(QtGui.QMainWindow):
         self.ui.show()
 
     def increase_time(self, event):
-        if self.t_start < self.maxtime:
-            self.t_start += 1
-            self.t_stop  += 1
-        self.get_data()
-        self.get_time.setValue(self.t_start)
-        self.update_data_plot()
-
-    def decrease_time(self, event):
-        if self.t_start > 0:
-            self.t_start -= 1
-            self.t_stop  -= 1
+        if self.show_fit:
+            if self.t_start < self.maxtime:
+                self.t_start += 1
+                self.t_stop  += 1
             self.get_data()
             self.get_time.setValue(self.t_start)
             self.update_data_plot()
+
+    def decrease_time(self, event):
+        if self.show_fit:
+            if self.t_start > 0:
+                self.t_start -= 1
+                self.t_stop  -= 1
+                self.get_data()
+                self.get_time.setValue(self.t_start)
+                self.update_data_plot()
 
     def plot_electrodes(self):
         if not getattr(self, 'collections', None):
@@ -1195,7 +1198,10 @@ class PreviewGUI(QtGui.QMainWindow):
     def update_data_plot(self):
         self.data_x.clear()
         indices         = self.inspect_points
-        yspacing        = numpy.max(np.abs(self.data[:, indices]))*1.01
+        if len(indices) > 0:
+            yspacing  = numpy.max(np.abs(self.data[:, indices]))*1.01
+        else:
+            yspaceing = 0 
 
         if not self.show_fit:
             for count, idx in enumerate(indices):
