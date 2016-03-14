@@ -16,7 +16,11 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
         mpi_comm.Gatherv([data.flatten(), size, MPI.FLOAT], [gdata, (sizes, displacements), MPI.FLOAT], root=root)
     elif dtype is 'int32':
         gdata         = numpy.empty(int(sum(sizes)), dtype=numpy.int32)
-        mpi_comm.Gatherv([data.flatten(), size, MPI.INT], [gdata, (sizes, displacements), MPI.INT], root=root)        
+        mpi_comm.Gatherv([data.flatten(), size, MPI.INT], [gdata, (sizes, displacements), MPI.INT], root=root)
+    elif dtype is 'int64':
+        gdata = numpy.empty(int(sum(sizes)), dtype=numpy.int64)
+        mpi_comm.Gatherv([data.flatten(), size, MPI.LONG], [gdata, (sizes, displacements), MPI.LONG], root=root)
+    
     if len(data.shape) == 1:
         return gdata
     else:

@@ -3,19 +3,21 @@ import matplotlib.gridspec as gridspec
 
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPClassifier
+# TODO: remove following line (i.e. remove warning).
+# from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import StandardScaler
 
-from .shared.utils import *
-from .shared import plot
-
+from ..shared.utils import *
+from ..shared import plot
+from .utils import *
 
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
-    io.print_and_log(["Start validation..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["Start validation..."], level='info', logger=params)
     
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
@@ -28,26 +30,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     
+    # TODO: remove following lines.
+    make_plots_snippets = False
+    # N_max = 1000000
+    N_max = 100000
+    alpha_ngt = 2.0
+    alpha_noi = 2.0
+    
     ############################################################################
-    
-    
-    def get_neighbors(params, chan=43, radius=120):
-        if radius is None:
-            pass
-        else:
-            radius = 120 # um
-            _ = params.set('data', 'radius', str(radius))
-        N_total = params.getint('data', 'N_total')
-        nodes, edges = io.get_nodes_and_edges(params)
-        if chan is None:
-            # Select all the channels.
-            chans = nodes
-        else:
-            # Select only the neighboring channels of the best channel.
-            inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
-            inv_nodes[nodes] = numpy.argsort(nodes)
-            chans = inv_nodes[edges[nodes[chan]]]
-        return chans
     
     # Define an auxiliary function to load spike data given spike times.
     def load_chunk(params, spike_times, chans=None):
@@ -84,7 +74,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     # Initialize the random seed.
-    numpy.random.seed(0)
+    _ = numpy.random.seed(0)
     
     # Retrieve PCA basis.
     basis_proj, basis_rec = io.load_data(params, 'basis')
@@ -95,10 +85,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Select only the neighboring channels of the best channel.
     chan = params.getint('validating', 'val_chan')
     if chan == -1:
+        assert False
         # Automatic selection of the validation channel.
         # TODO: select the channel with the highest changes in amplitudes
         #       instead of an arbitrary selection.
-        chan = 43
     chans = get_neighbors(params, chan=chan)
     chan_index = numpy.argwhere(chans == chan)[0]
     
@@ -106,7 +96,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
-    io.print_and_log(["# Ground truth cell's samples..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Ground truth cell's samples..."], level='info', logger=params)
     
     # Retrieve the spike times of the "ground truth cell".
     spike_times_gt, _ = io.load_data(params, 'triggers')
@@ -114,16 +105,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Load the spikes of all the 'non ground truth cells".
     spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
     
-    
-    if make_plots:
-        plot_filename = "trigger-times-gt.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_trigger_times(filename, spike_times_gt, color='green', save=path)
-        # TODO: uncomment.
-        # directory = "trigger-snippets-gt"
-        # path = os.path.join(plot_path, directory)
-        # plot.view_trigger_snippets(spikes_gt, chans, save=path)
-    
+    if comm.rank == 0:
+        if make_plots:
+            plot_filename = "trigger-times-gt.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_trigger_times(filename, spike_times_gt, color='green', save=path)
+            if make_plots_snippets:
+                directory = "trigger-snippets-gt"
+                path = os.path.join(plot_path, directory)
+                plot.view_trigger_snippets(spikes_gt, chans, save=path)
     
     # Reshape data.
     N_t = spikes_gt.shape[0]
@@ -135,31 +125,39 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Compute the PCA coordinates of each spike of the "ground truth cell".
     X_gt = numpy.dot(spikes_gt, basis_proj)
     X_gt = X_gt.T
+    
     # Reshape data.
     X_gt = X_gt.reshape(N_p * N_e, N_gt)
     X_gt = X_gt.T
+    
     # Define the outputs.
     y_gt = numpy.zeros((N_gt, 1))
     
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# X_gt.shape: {}".format(X_gt.shape),
+                "# y_gt.shape: {}".format(y_gt.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
-    if verbose:
-        msg = [
-            "# X_gt.shape",
-            "%s" %(X_gt.shape,),
-            "# y_gt.shape",
-            "%s" %(y_gt.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
-    if make_plots:
-        plot_filename = "dataset-gt.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_dataset(X_gt, color='green', title="Ground-truth dataset", save=path)
+    if comm.rank == 0:
+        if make_plots:
+            plot_filename = "dataset-gt.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_dataset(X_gt, color='green', title="Ground-truth dataset", save=path)
     
     
     
     ############################################################################
+    
+    # Compute the amount of ngt and noi to load.
+    c = (float(N_max) / float(N_gt) - 1.0) / float(alpha_ngt + alpha_noi)
+    if c < 1.0:
+        raise Exception("TODO: c = {}".format(c))
+    else:
+        alpha_ngt = c * alpha_ngt
+        alpha_noi = c * alpha_noi
     
     # Compute the forbidden spike times.
     spike_times_fbd = []
@@ -174,7 +172,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
     
-    io.print_and_log(["# Non ground truth cell's samples..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Non ground truth cell's samples..."], level='info', logger=params)
+    
+    ##### TODO: remove test zone.
+    spike_times_ngt = extract_extra_spikes(params)
+    sys.exit(0)
+    ##### end test zone
     
     # Retrieve the spikes of all the "non ground truth cells".
     clusters = io.load_data(params, 'clusters')
@@ -186,9 +190,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
-    alpha = 2
-    idxs_ngt = numpy.random.choice(spike_times_ngt_tmp.size,
-                                   size=alpha*spike_times_gt.shape[0],
+    size = min(int(alpha_ngt * float(spike_times_gt.shape[0])), spike_times_ngt_tmp.shape[0])
+    idxs_ngt = numpy.random.choice(spike_times_ngt_tmp.size, size=size,
                                    replace=False)
     idxs_ngt = numpy.unique(idxs_ngt)
     spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
@@ -201,10 +204,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         plot_filename = "trigger-times-ngt.png"
         path = os.path.join(plot_path, plot_filename)
         plot.view_trigger_times(filename, spike_times_ngt, color='blue', save=path)
-        # TODO: uncomment
-        # directory = "trigger-snippets-ngt"
-        # path = os.path.join(plot_path, directory)
-        # plot.view_trigger_snippets(spikes_ngt, chans, save=path)
+        if make_plots_snippets:
+            directory = "trigger-snippets-ngt"
+            path = os.path.join(plot_path, directory)
+            plot.view_trigger_snippets(spikes_ngt, chans, save=path)
     
     
     # Reshape data.
@@ -252,9 +255,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_noi = numpy.random.random_integers(low, high, size)
     spike_times_noi = numpy.unique(spike_times_noi)
     spike_times_noi = numpy.setdiff1d(spike_times_noi, spike_times_fbd)
-    alpha = 2
+    size = min(int(alpha_noi * spike_times_gt.shape[0]), spike_times_noi.shape[0])
     idxs_noi = numpy.random.choice(spike_times_noi.size,
-                                   size=alpha*spike_times_gt.shape[0],
+                                   size=size,
                                    replace=False)
     idxs_noi = numpy.unique(idxs_noi)
     spike_times_noi = spike_times_noi[idxs_noi]
@@ -269,10 +272,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         plot_filename = "trigger-times-noi.png"
         path = os.path.join(plot_path, plot_filename)
         plot.view_trigger_times(filename, spike_times_noi, color='red', save=path)
-        # TODO: uncomment.
-        # directory = "trigger-snippets-noi"
-        # path = os.path.join(plot_path, directory)
-        # plot.view_trigger_snippets(spikes_noi, chans, save=path)
+        if make_plots_snippets:
+            directory = "trigger-snippets-noi"
+            path = os.path.join(plot_path, directory)
+            plot.view_trigger_snippets(spikes_noi, chans, save=path)
     
     
     # Reshape data.
@@ -305,6 +308,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         plot_filename = "dataset-noi.png"
         path = os.path.join(plot_path, plot_filename)
         plot.view_dataset(X_noi, color='red', title="Noise dataset", save=path)
+    
+    
+    
+    # NORMALIZE DATASETS #######################################################
+    
+    X_raw = numpy.vstack((X_gt, X_ngt, X_noi))
+    norm_scale = numpy.mean(numpy.linalg.norm(X_raw, axis=1))
+    X_gt = X_gt / norm_scale
+    X_ngt = X_ngt / norm_scale
+    X_noi = X_noi / norm_scale
     
     
     
@@ -376,9 +389,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         plot_filename = "datasets.png"
         path = os.path.join(plot_path, plot_filename)
         Xs = [X_ngt, X_noi, X_gt]
+        ys = [y_ngt, y_noi, y_gt]
         colors = ['b', 'r', 'g']
-        labels = ["non ground truth spikes", "noise", "ground truth spikes"]
-        plot.view_datasets(Xs, colors=colors, labels=labels, save=path)
+        labels = ["non ground truth", "noise", "ground truth"]
+        plot.view_datasets(Xs, ys, colors=colors, labels=labels, save=path)
     
     
     
@@ -439,7 +453,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     # Compute false positive rate and true positive rate for various cutoffs.
-    num = 100
+    num = 300
     
     Mhlnb_gt = squared_Mahalanobis_distance(A_init, mu, X_gt)
     Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
@@ -556,8 +570,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     # Set cutoff equal to the optimal cutoff.
-    cutoff = cutoff_opt_acc
-    # cutoff = cutoff_opt_norm_acc
+    # cutoff = cutoff_opt_acc
+    cutoff = cutoff_opt_norm_acc
     
     # Compute false positive rate and true positive rate for the chosen cutoff.
     fp = float(numpy.count_nonzero(Mhlnb_ngt < cutoff)
@@ -607,7 +621,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         title = "Initial classifier (ellipsoid)"
         plot_filename = "classifier-projection-init.png"
         path = os.path.join(plot_path, plot_filename)
-        plot.view_classifier(filename, X_gt, X_ngt, X_noi, A_init, b_init, c_init,
+        plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
+                             A_init, b_init, c_init,
                              title=title, save=path, verbose=verbose)
     
     
@@ -681,12 +696,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     elif model == 'sgd':
         _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
         clf = SGDClassifier(loss='log',
-                            penalty='l2',
-                            alpha=1.0e-12,
+                            # penalty='l2',
+                            # alpha=1.0e-12,
                             fit_intercept=True,
                             random_state=2,
-                            learning_rate='constant',
-                            eta0=sys.float_info.epsilon,
+                            # learning_rate='constant',
+                            learning_rate='optimal',
+                            # eta0=sys.float_info.epsilon,
                             class_weight=class_weights[0])
     
     # Initialize model (i.e. fake launch, weights initialization).
@@ -696,7 +712,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         clf.set_params(warm_start=False)
     elif model == 'perceptron' or model == 'sgd':
         clf.set_params(n_iter=1)
-        clf.set_params(eta0=sys.float_info.epsilon)
+        # clf.set_params(eta0=sys.float_info.epsilon)
         clf.set_params(warm_start=False)
     clf.fit(X_train, y_train)
     
@@ -706,17 +722,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         title = "Initial prediction (random)"
         plot_filename = "prediction-init-random.png"
         path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, mode='predict',
+        plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
                                  title=title, save=path)
         # Plot decision function.
         title = "Initial decision function (random)"
         plot_filename = "decision-function-init-random.png"
         path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, mode='decision_function',
+        plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
                                  title=title, save=path)
     
     
     if verbose:
+        y_pred = clf.predict(X_test)
+        score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
         msg = [
             # # Print the current loss.
             # "# clf.loss_",
@@ -728,9 +746,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # "# clf.n_iter_",
             # "%s" %(clf.n_iter_,),
             # Print the score on the test set.
-            "# clf.score(X_test, y_test)",
-            "%s" %(clf.score(X_test, y_test),),
-            "%s" %(1.0 - clf.score(X_test, y_test),),
+            "# accuracy_score(X_test, y_test)",
+            "%s" %(score,),
+            "%s" %(1.0 - score,),
         ]
         io.print_and_log(msg, level='default', logger=params)
     
@@ -749,17 +767,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         title = "Initial prediction (ellipsoid)"
         plot_filename = "prediction-init-ellipsoid.png"
         path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, mode='predict',
+        plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
                                  title=title, save=path)
         # Plot decision function.
         title = "Initial decision function (ellipsoid)"
         plot_filename = "decision-function-init-ellipsoid.png"
         path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, mode='decision_function',
+        plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
                                  title=title, save=path)
     
     
     if verbose:
+        y_pred = clf.predict(X_test)
+        score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
         msg = [
             # # Print the current loss.
             # "# clf.loss_",
@@ -771,9 +791,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # "# clf.n_iter_",
             # "%s" %(clf.n_iter_,),
             # Print the score on the test set.
-            "# clf.score(X_test, y_test)",
-            "%s" %(clf.score(X_test, y_test),),
-            "%s" %(1.0 - clf.score(X_test, y_test),)
+            "# accuracy_score(X_test, y_test)",
+            "%s" %(score,),
+            "%s" %(1.0 - score,),
         ]
         io.print_and_log(msg, level='default', logger=params)
     
@@ -784,8 +804,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         clf.set_params(learning_rate_init=learning_rate_init)
         clf.set_params(warm_start=True)
     elif model == 'perceptron' or model == 'sgd':
-        clf.set_params(n_iter=max_iter)
-        clf.set_params(eta0=learning_rate_init)
+        n_iter = min(max_iter, 1000000 / N_max)
+        clf.set_params(n_iter=n_iter)
+        # clf.set_params(eta0=learning_rate_init)
         clf.set_params(warm_start=True)
     clf.fit(X_train, y_train)
     
@@ -795,17 +816,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         title = "Final prediction "
         plot_filename = "prediction-final.png"
         path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, mode='predict',
+        plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
                                  title=title, save=path)
         # Plot final decision function.
         title = "Final decision function"
         plot_filename = "decision-function-final.png"
         path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, mode='decision_function',
+        plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
                                  title=title, save=path)
     
     
     if verbose:
+        y_pred = clf.predict(X_test)
+        score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
         msg = [
             # # Print the current loss computed with the loss function.
             # "# clf.loss_",
@@ -817,9 +840,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # "# clf.n_iter_",
             # "%s" %(clf.n_iter_,),
             # Print the score on the test set.
-            "# clf.score(X_test, y_test)",
-            "%s" %(clf.score(X_test, y_test),),
-            "%s" %(1.0 - clf.score(X_test, y_test),),
+            "# accuracy_score(X_test, y_test)",
+            "%s" %(score,),
+            "%s" %(1.0 - score,),
         ]
         io.print_and_log(msg, level='default', logger=params)
     
@@ -849,14 +872,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     A, b, c = ellipsoid_coefs_to_matrix(coefs)
     
     
-    if verbose:
-        msg = [
-            "# det(A)",
-            "%s" %(numpy.linalg.det(A),),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
     
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
@@ -869,8 +884,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         title = "Final classifier"
         plot_filename = "classifier-projection-final.png"
         path = os.path.join(plot_path, plot_filename)
-        plot.view_classifier(filename, X_gt, X_ngt, X_noi, A, b, c,
-                             title=title, save=path, verbose=verbose)
+        plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
+                             A, b, c, title=title, save=path, verbose=verbose)
     
     
     
@@ -925,16 +940,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             # Declare classifier.
             wclf = SGDClassifier(loss='log',
-                                 penalty='l2',
-                                 alpha=1.0e-12,
+                                 # penalty='l2',
+                                 # alpha=1.0e-12,
                                  fit_intercept=True,
                                  random_state=0,
-                                 learning_rate='constant',
-                                 eta0=sys.float_info.epsilon,
+                                 # learning_rate='constant',
+                                 learning_rate='optimal',
+                                 # eta0=sys.float_info.epsilon,
                                  class_weight=class_weight)
             # Initialize classifier (i.e. fake launch, weights initialization).
             wclf.set_params(n_iter=1)
-            wclf.set_params(eta0=sys.float_info.epsilon)
+            # wclf.set_params(eta0=sys.float_info.epsilon)
             wclf.set_params(warm_start=False)
             wclf.fit(X_train, y_train)
             # Initialize classifier (i.e. ellipsoid weights).
@@ -942,8 +958,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             wclf.coef_ = coefs_init[1:, :].reshape(1, -1)
             wclf.intercept_ = coefs_init[:1, :].ravel()
             # Train classifier.
-            wclf.set_params(n_iter=max_iter)
-            wclf.set_params(eta0=learning_rate_init)
+            n_iter = min(max_iter, 1000000 / N_max)
+            wclf.set_params(n_iter=n_iter)
+            # wclf.set_params(eta0=learning_rate_init)
             wclf.set_params(warm_start=True)
             wclf.fit(X_train, y_train)
             # Classifer prediction on train set.
@@ -975,8 +992,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         fprs = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
         tprs = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
         # Add false positive rates and true positive rates endpoints.
-        fprs = [0.0] + fprs + [1.0]
-        tprs = [0.0] + tprs + [1.0]
+        fprs = [1.0] + fprs + [0.0]
+        tprs = [1.0] + tprs + [0.0]
         
         if verbose:
             msg = [

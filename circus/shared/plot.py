@@ -4,6 +4,7 @@ import numpy, pylab
 from circus.shared import algorithms as algo
 from circus.shared.utils import *
 
+
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
     params          = load_parameters(file_name)
@@ -931,9 +932,9 @@ def view_trigger_times(file_name, trigger_times, color='blue', title=None, save=
     ax.set_ylim(0.0, 100.0)
     ax.set_aspect('equal')
     if title is None:
-        ax.set_title("Empirical distribution of triggers")
+        ax.set_title("Empirical distribution of triggers ({} samples)".format(x.size))
     else:
-        ax.set_title(title)
+        ax.set_title(title + " ({} samples)".format(x.size))
     ax.set_xlabel("cumulative share of samples (in %)")
     ax.set_ylabel("cumulative share of triggers (in %)")
     if save is None:
@@ -979,6 +980,9 @@ def view_trigger_snippets(trigger_snippets, chans, save=None):
             x = numpy.arange(- (y.size - 1) / 2, (y.size - 1) / 2 + 1)
             b = 0.5 + 0.5 * numpy.random.rand()
             ax.plot(x, y, color=(0.0, 0.0, b), linestyle='solid')
+        y = numpy.mean(trigger_snippets[:, c, :], axis=1)
+        x = numpy.arange(- (y.size - 1) / 2, (y.size - 1) / 2 + 1)
+        ax.plot(x, y, color=(1.0, 0.0, 0.0), linestyle='solid')
         ax.grid(True)
         ax.set_xlim([numpy.amin(x), numpy.amax(x)])
         ax.set_title("Channel %d" %chan)
@@ -1006,9 +1010,9 @@ def view_dataset(X, color='blue', title=None, save=None):
     ax.scatter(x[:, 0], x[:, 1], c=color, s=5, lw=0.1)
     ax.grid(True)
     if title is None:
-        ax.set_title("Dataset")
+        ax.set_title("Dataset ({} samples)".format(X.shape[0]))
     else:
-        ax.set_title(title)
+        ax.set_title(title + " ({} samples)".format(X.shape[0]))
     ax.set_xlabel("1st component")
     ax.set_ylabel("2nd component")
     if save is None:
@@ -1018,14 +1022,12 @@ def view_dataset(X, color='blue', title=None, save=None):
         pylab.close(fig)
     return
 
-def view_datasets(Xs, colors=None, labels=None, save=None):
-    D = numpy.vstack(tuple(Xs))
+def view_datasets(Xs, ys, colors=None, labels=None, save=None):
     if colors is None:
         colors = ['b'] * len(Xs)
-    n_components = 2
-    pca = PCA(n_components)
-    pca.fit(D)
-    x = pca.transform(D)
+    p = Projection()
+    p = p.fit(Xs, ys)
+    x = p.transform(Xs)
     pad = 0.05
     x_dif = numpy.amax(x[:, 0]) - numpy.amin(x[:, 0])
     x_min = numpy.amin(x[:, 0]) - pad * x_dif
@@ -1046,13 +1048,19 @@ def view_datasets(Xs, colors=None, labels=None, save=None):
             handles.append(sc)
         k = k + l
     ax.grid(True)
-    ax.set_aspect('equal')
+    #ax.set_aspect('equal')
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
     ax.set_title("Datasets")
     ax.set_xlabel("1st component")
     ax.set_ylabel("2nd component")
-    ax.legend(handles, labels)
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.15,
+                     box.width, box.height * 0.85])
+    handles = [handles[2], handles[0], handles[1]]
+    labels = [labels[2], labels[0], labels[1]]
+    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15),
+              fancybox=False, shadow=False, ncol=3)
     if save is None:
         pylab.show()
     else:
@@ -1065,13 +1073,15 @@ def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None):
     fig = pylab.figure()
     ax = fig.gca()
     ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
-    ax.plot(fprs, tprs, color='blue', linestyle='solid')
+    ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
     if fpr is not None and tpr is not None:
-        ax.plot(fpr, tpr, color='blue', marker='o')
+        ax.plot(fpr, tpr, color='blue', marker='o', zorder=4)
     ax.set_aspect('equal')
     ax.grid(True)
-    ax.set_xlim([0.0, 1.0])
-    ax.set_ylim([0.0, 1.0])
+    # ax.set_xlim([0.0, 1.0])
+    # ax.set_ylim([0.0, 1.0])
+    ax.set_xlim([0.0, 0.25])
+    ax.set_ylim([0.75, 1.0])
     if title is None:
         ax.set_title("ROC curve")
     else:
@@ -1140,27 +1150,27 @@ def view_normalized_accuracy(cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc,
         pylab.close(fig)
     return
 
-def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=None, verbose=False):
+def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=False):
     '''Plot classifier'''
     # Retrieve parameters.
     params = load_parameters(file_name)
-    # Compute the PCA with two components.
-    n_components = 2
-    X_raw = numpy.vstack((X_gt, X_ngt, X_noi))
-    pca = PCA(n_components)
-    _ = pca.fit(X_raw)
+    p = Projection()
+    p = p.fit(X, y)
+    X_gt, X_ngt, X_noi = X
+    y_gt, y_ngt, y_noi = y
+    X_raw = numpy.vstack(tuple(X))
     # Data transformation.
-    X_raw_ = pca.transform(X_raw)
-    X_gt_ = pca.transform(X_gt)
-    X_ngt_ = pca.transform(X_ngt)
-    X_noi_ = pca.transform(X_noi)
+    X_raw_ = p.transform(X_raw)
+    X_gt_ = p.transform(X_gt)
+    X_ngt_ = p.transform(X_ngt)
+    X_noi_ = p.transform(X_noi)
     # Means transformation.
     mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
-    mu_gt_ = pca.transform(mu_gt)
+    mu_gt_ = p.transform(mu_gt)
     mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
-    mu_ngt_ = pca.transform(mu_ngt)
+    mu_ngt_ = p.transform(mu_ngt)
     mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
-    mu_noi_ = pca.transform(mu_noi)
+    mu_noi_ = p.transform(mu_noi)
     # Ellipse transformation.
     f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
     t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
@@ -1168,8 +1178,8 @@ def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=Non
     # TODO: remove following line if possible.
     s = numpy.abs(s)
     s = numpy.sqrt(s)
-    t_ = pca.transform(t)
-    O_ = pca.transform(numpy.multiply(O, s).T + t)
+    t_ = p.transform(t)
+    O_ = p.transform(numpy.multiply(O, s).T + t)
     if verbose:
         msg = [
             "# s (i.e. demi-axes)",
@@ -1184,9 +1194,8 @@ def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=Non
     y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
     y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
     y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
-    # Retrieve the two first PCA vectors.
-    v1 = pca.components_[0, :]
-    v2 = pca.components_[1, :]
+    # Retrieve the projection vectors.
+    v1, v2 = p.get_vectors()
     if verbose:
         # msg = [
         #     "# norm(v1)",
@@ -1201,7 +1210,7 @@ def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=Non
     R = find_rotation(v1, v2)
     # Apply rotation to the classifier.
     R_ = R.T
-    mean_ = pca.mean_
+    mean_ = p.get_mean()
     A_ = numpy.dot(numpy.dot(R_.T, A), R_)
     b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, mean_) + b)
     c_ = numpy.dot(numpy.dot(A, mean_) + b, mean_) + c
@@ -1244,7 +1253,7 @@ def view_classifier(file_name, X_gt, X_ngt, X_noi, A, b, c, title=None, save=Non
     ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
     ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
     ## Plot aspect.
-    ax.set_aspect('equal')
+    # ax.set_aspect('equal')
     ax.grid()
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
@@ -1283,7 +1292,7 @@ def view_mahalanobis_distribution(d_gt, d_ngt, d_noi, title=None, save=None):
         pylab.close(fig)
     return
 
-def view_classification(clf, X, X_raw, mode='predict', title=None, save=None):
+def view_classification(clf, X, X_raw, y, mode='predict', title=None, save=None):
     if mode == 'predict':
         c = clf.predict(X)
         vmax = 1.0
@@ -1294,13 +1303,12 @@ def view_classification(clf, X, X_raw, mode='predict', title=None, save=None):
         vmin = - vmax
     else:
         raise Exception
-    n_components = 2
-    pca = PCA(n_components)
-    _ = pca.fit(X_raw)
+    p = Projection()
+    _ = p.fit(X_raw, y)
+    X_raw_ = p.transform(X_raw)
     # Plot figure.
     fig = pylab.figure()
     ax = fig.gca()
-    X_raw_ = pca.transform(X_raw)
     sc = ax.scatter(X_raw_[:, 0], X_raw_[:, 1], c=c, s=5, lw=0.1, cmap='bwr',
                     vmin=vmin, vmax=vmax)
     fig.colorbar(sc)

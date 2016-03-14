@@ -10,7 +10,10 @@ import scipy.interpolate
 import numpy, pylab, os, mpi4py, progressbar, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters
 from mpi import *
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 import files as io
+
+
 
 def get_progressbar(size):
 
@@ -685,6 +688,64 @@ class PCA(object):
 
 
 # Validating utils #############################################################
+
+class Projection(object):
+    
+    # TODO: test class.
+    
+    def __init__(self, tol=0):
+        self.tol = tol
+        self.fitted = False
+    
+    def fit(self, X, y):
+        if type(X) is list:
+            X = numpy.vstack(tuple(X))
+        if type(y) is list:
+            y = numpy.vstack(tuple(y))
+            y = y.ravel()
+        self.lda = LDA(n_components=1, tol=self.tol)
+        self.lda = self.lda.fit(X, y)
+        self.v1 = self.lda.scalings_[:, 0]
+        self.v1 = self.v1 / numpy.linalg.norm(self.v1)
+        self.mean = self.lda.xbar_
+        self.v2 = numpy.ones(self.v1.size)
+        self.v2 = self.v2 - numpy.dot(self.v1, self.v2) * self.v1 / numpy.linalg.norm(self.v1)
+        self.v2 = self.v2 / numpy.linalg.norm(self.v2)
+        assert(numpy.dot(self.v1, self.v2) < 1e-15, "Test")
+        self.fitted = True
+        return self
+    
+    def transform(self, X):
+        if not self.fitted:
+            raise Exception("Must be fitted first")
+        if type(X) is list:
+            X = numpy.vstack(tuple(X))
+        x1 = numpy.dot(X - self.mean, self.v1).reshape(-1, 1)
+        x2 = numpy.dot(X - self.mean, self.v2).reshape(-1, 1)
+        x = numpy.hstack((x1, x2))
+        return x
+    
+    def get_vectors(self):
+        return self.v1, self.v2
+    
+    def get_mean(self):
+        return self.mean
+
+def accuracy_score(y_true, y_pred, class_weights=None):
+    """Accuracy classification score."""
+    mask = (y_true == y_pred)
+    if class_weights is None:
+        m = y_true[mask].size
+        n = y_true.size
+        score = float(m) / float(n)
+    else:
+        m1 = numpy.count_nonzero(y_true[mask])
+        m0 = y_true[mask].size - m1
+        n1 = numpy.count_nonzero(y_true)
+        n0 = y_true.size - n1
+        score = (class_weights[0] * float(m0) + class_weights[1] * float(m1)) \
+                / (class_weights[0] * float(n0) + class_weights[1] * float(n1))
+    return score
 
 # Useful function to convert an ellispoid in standard form to an ellispoid
 # in general form.
