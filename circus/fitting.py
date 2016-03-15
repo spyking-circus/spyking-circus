@@ -78,7 +78,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     thresholds = io.load_data(params, 'thresholds')
-    c_overlap  = io.get_overlaps(comm, params)
+    c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
 
     over_x     = c_overlap.get('over_x')[:]
     over_y     = c_overlap.get('over_y')[:]
