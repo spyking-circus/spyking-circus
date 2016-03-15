@@ -29,6 +29,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     make_plots = params.getboolean('validating', 'make_plots')
     roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+    test_size = params.getfloat('validating', 'test_size')
     
     # TODO: remove following lines.
     make_plots_snippets = False
@@ -672,7 +673,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     mode = 'prediction'
     
     # Preprocess dataset.
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size)
     
     if comm.rank == 0:
         if verbose:
@@ -866,10 +867,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
     if comm.rank == 0:
+        
         io.print_and_log(["# Sanity plot (classifier projection)..."],
                          level='info', logger=params)
-    
-    if comm.rank == 0:
+        
+        
         if make_plots:
             # Plot final classifier.
             title = "Final classifier"
@@ -883,23 +885,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # MAHALANOBIS DISTRIBUTIONS ################################################
     
     if comm.rank == 0:
+        
         io.print_and_log(["# Compute final Mahalanobis distributions..."],
                          level='info', logger=params)
-    
-    # Compute the Mahalanobis distributions.
-    mu = numpy.mean(X_gt, axis=0)
-    Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
-    Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
-    Mhlnb_noi = squared_Mahalanobis_distance(A, mu, X_noi)
-    
-    if comm.rank == 0:
+        
+        
+        # Compute the Mahalanobis distributions.
+        mu = numpy.mean(X_gt, axis=0)
+        Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
+        Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
+        Mhlnb_noi = squared_Mahalanobis_distance(A, mu, X_noi)
+        
         if verbose:
             msg = [
                 "# Mhlnb_gt: {}".format(Mhlnb_gt),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
-    if comm.rank == 0:
+        
         if make_plots:
             # Plot Mahalanobis distributions.
             title = "Final Mahalanobis distributions"
@@ -910,25 +912,43 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     
+    # Synchronize CPUs before weighted learning.
+    comm.Barrier()
+    
+    
+    
     ##### WEIGHTED LEARNING ####################################################
     
     if comm.rank == 0:
         io.print_and_log(["# Weighted learning..."], level='info', logger=params)
     
     
+    _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
+    
+    # Distribute weights over the CPUs.
+    loc_indices = numpy.arange(comm.rank, roc_sampling, comm.size)
+    loc_class_weights = [class_weights[loc_index] for loc_index in loc_indices]
+    loc_nb_class_weights = len(loc_class_weights)
+    
+    # Preallocation to collect results.
+    confusion_matrices = loc_nb_class_weights * [None]
+    
+    if comm.rank == 0:
+        pbar = get_progressbar(loc_nb_class_weights)
+    
     if model == 'sgd':
-        _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
-        confusion_matrices = []
-        for (i, class_weight) in enumerate(class_weights):
+        for (count, class_weight) in enumerate(loc_class_weights):
             
-            if comm.rank == 0:
-                if verbose:
-                    msg = [
-                        "# Loop {}".format(i),
-                        "# weight for positive samples: {}".format(class_weight[0]),
-                        "# weight for negative samples: {}".format(class_weight[1]),
-                    ]
-                    io.print_and_log(msg, level='default', logger=params)
+            # TODO: remove depreciated zone
+            # if comm.rank == 0:
+            #     if verbose:
+            #         msg = [
+            #             "# Loop {}".format(count),
+            #             "# weight for positive samples: {}".format(class_weight[0]),
+            #             "# weight for negative samples: {}".format(class_weight[1]),
+            #         ]
+            #         io.print_and_log(msg, level='default', logger=params)
+            # end depreciated zone
             
             # Declare classifier.
             wclf = SGDClassifier(loss='log',
@@ -966,21 +986,43 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             tn = float(numpy.count_nonzero(y_pred[n] == y_test[n]))
             fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
             
-            if comm.rank == 0:
-                if verbose:
-                    msg = [
-                        "# true positives: {}".format(tp),
-                        "# false negatives: {}".format(fn),
-                        "# true negatives: {}".format(tn),
-                        "# false positives: {}".format(fp),
-                        "# false positive rate: {}".format(fp / (fp + tn)),
-                        "# true positive rate: {}".format(tp / (tp + fn)),
-                    ]
-                    io.print_and_log(msg, level='default', logger=params)
+            # TODO: remove depreciated zone
+            # if comm.rank == 0:
+            #     if verbose:
+            #         msg = [
+            #             "# true positives: {}".format(tp),
+            #             "# false negatives: {}".format(fn),
+            #             "# true negatives: {}".format(tn),
+            #             "# false positives: {}".format(fp),
+            #             "# false positive rate: {}".format(fp / (fp + tn)),
+            #             "# true positive rate: {}".format(tp / (tp + fn)),
+            #         ]
+            #         io.print_and_log(msg, level='default', logger=params)
+            # end depreciated zone
             
             confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
-            confusion_matrices.append(confusion_matrix)
-        
+            confusion_matrices[count] = confusion_matrix
+            
+            if comm.rank == 0:
+                pbar.update(count)
+    else:
+        raise Exception("Unsupported classifier: model={}".format(model))
+    
+    if comm.rank == 0:
+        pbar.finish()
+    
+    comm.Barrier()
+    
+    # Gather results on the root CPU.
+    indices = comm.gather(loc_indices, root=0)
+    confusion_matrices_tmp = comm.gather(confusion_matrices, root=0)
+    
+    if comm.rank == 0:
+        # Reorder confusion matrices properly.
+        confusion_matrices = roc_sampling * [None]
+        for (loc_indices, loc_confusion_matrices_tmp) in zip(indices, confusion_matrices_tmp):
+            for (loc_index, loc_confusion_matrix) in zip(loc_indices, loc_confusion_matrices_tmp):
+                confusion_matrices[loc_index] = loc_confusion_matrix
         # Compute false positive rates and true positive rates.
         fprs = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
         tprs = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
@@ -988,23 +1030,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         fprs = [1.0] + fprs + [0.0]
         tprs = [1.0] + tprs + [0.0]
         
-        if comm.rank == 0:
-            if verbose:
-                msg = [
-                    "# class_weights: {}".format(class_weights),
-                    "# false positive rates: {}".format(fprs),
-                    "# true positive rates: {}".format(tprs),
-                ]
-                io.print_and_log(msg, level='default', logger=params)
+        if verbose:
+            msg = [
+                "# class_weights: {}".format(class_weights),
+                "# false positive rates: {}".format(fprs),
+                "# true positive rates: {}".format(tprs),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
         
-        if comm.rank == 0:
-            if make_plots:
-                # Plot ROC curve.
-                title = "ROC curve of the BEER estimate"
-                plot_filename = 'roc-curve-beer.png'
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
-                                    xlim=[0.0, 0.25], ylim=[0.75, 1.0])
+        if make_plots:
+            # Plot ROC curve.
+            title = "ROC curve of the BEER estimate"
+            plot_filename = 'roc-curve-beer.png'
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
+                                xlim=[0.0, 0.25], ylim=[0.75, 1.0])
     
     
     

@@ -239,6 +239,7 @@ def load_parameters(file_name):
         ['validating', 'roc_sampling', 'int', '7'],
         ['validating', 'verbose', 'bool', 'False'],
         ['validating', 'make_plots', 'bool', 'False'],
+        ['validating', 'test_size', 'float', '0.3'],
         ['merging', 'cc_overlap', 'float', '0.25'],
         ['merging', 'cc_bin', 'float', '2'],
         ['noedits', 'filter_done', 'bool', 'False'],
