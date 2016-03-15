@@ -938,18 +938,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if model == 'sgd':
         for (count, class_weight) in enumerate(loc_class_weights):
-            
-            # TODO: remove depreciated zone
-            # if comm.rank == 0:
-            #     if verbose:
-            #         msg = [
-            #             "# Loop {}".format(count),
-            #             "# weight for positive samples: {}".format(class_weight[0]),
-            #             "# weight for negative samples: {}".format(class_weight[1]),
-            #         ]
-            #         io.print_and_log(msg, level='default', logger=params)
-            # end depreciated zone
-            
             # Declare classifier.
             wclf = SGDClassifier(loss='log',
                                  # penalty='l2',
@@ -985,21 +973,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             n = (y_test == 1.0)
             tn = float(numpy.count_nonzero(y_pred[n] == y_test[n]))
             fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
-            
-            # TODO: remove depreciated zone
-            # if comm.rank == 0:
-            #     if verbose:
-            #         msg = [
-            #             "# true positives: {}".format(tp),
-            #             "# false negatives: {}".format(fn),
-            #             "# true negatives: {}".format(tn),
-            #             "# false positives: {}".format(fp),
-            #             "# false positive rate: {}".format(fp / (fp + tn)),
-            #             "# true positive rate: {}".format(tp / (tp + fn)),
-            #         ]
-            #         io.print_and_log(msg, level='default', logger=params)
-            # end depreciated zone
-            
+            # Construct and save the confusion matrix
             confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
             confusion_matrices[count] = confusion_matrix
             
@@ -1018,6 +992,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     confusion_matrices_tmp = comm.gather(confusion_matrices, root=0)
     
     if comm.rank == 0:
+        
         # Reorder confusion matrices properly.
         confusion_matrices = roc_sampling * [None]
         for (loc_indices, loc_confusion_matrices_tmp) in zip(indices, confusion_matrices_tmp):
@@ -1039,201 +1014,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.print_and_log(msg, level='default', logger=params)
         
         if make_plots:
-            # Plot ROC curve.
+            # Plot the ROC curve of the BEER estimate.
             title = "ROC curve of the BEER estimate"
             plot_filename = 'roc-curve-beer.png'
             path = os.path.join(plot_path, plot_filename)
             plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
                                 xlim=[0.0, 0.25], ylim=[0.75, 1.0])
-    
-    
-    
-    ##### SANITY PLOT ##########################################################
-    
-    if comm.rank == 0:
-        io.print_and_log(["# Sanity plot..."], level='info', logger=params)
-    
-    
-    # TODO: remove this section (not so useful).
-    
-    
-    # Compute plot limits.
-    x_component = 0
-    y_component = 1
-    pad = 0.5 # padding coefficient
-    x_dif = numpy.amax(X[:, x_component]) - numpy.amin(X[:, x_component])
-    x_min = numpy.amin(X[:, x_component]) - pad * x_dif
-    x_max = numpy.amax(X[:, x_component]) + pad * x_dif
-    y_dif = numpy.amax(X[:, y_component]) - numpy.amin(X[:, y_component])
-    y_min = numpy.amin(X[:, y_component]) - pad * y_dif
-    y_max = numpy.amax(X[:, y_component]) + pad * y_dif
-    n = 300 # number of node per dimension in the mesh
-    x_r = numpy.linspace(x_min, x_max, n)
-    y_r = numpy.linspace(y_min, y_max, n)
-    xx, yy = numpy.meshgrid(x_r, y_r)
-    
-    # Compute prediction on a grid of the input space for plotting.
-    shape_pre = (xx.shape[0] * xx.shape[1], X_train.shape[1])
-    print("# Coefficients ellipse")
-    X_pre = numpy.zeros(shape_pre)
-    print("# 1")
-    print(coefs[0])
-    X_pre[:, x_component] = xx.ravel()
-    print("# x")
-    print(coefs[1 + x_component])
-    X_pre[:, y_component] = yy.ravel()
-    print("# y")
-    print(coefs[1 + y_component])
-    if pairwise:
-        k = 0
-        for i in xrange(0, N):
-            for j in xrange(i, N):
-                if i == x_component and j == x_component:
-                    X_pre[:, N + k] = numpy.multiply(xx.ravel(), xx.ravel())
-                    print("# x * x")
-                    print(coefs[1 + N + k])
-                elif i == x_component and j == y_component:
-                    X_pre[:, N + k] = numpy.multiply(xx.ravel(), yy.ravel())
-                    print("# x * y")
-                    print(coefs[1 + N + k])
-                elif i == y_component and j == y_component:
-                    X_pre[:, N + k] = numpy.multiply(yy.ravel(), yy.ravel())
-                    print("# y * y")
-                    print(coefs[1 + N + k])
-                else:
-                    pass
-                k = k + 1
-    if mode is 'decision':
-        zz = clf.decision_function(X_pre)
-    elif mode is 'prediction':
-        zz = clf.predict(X_pre)
-    else:
-        raise(Exception)
-    zz = zz.reshape(xx.shape)
-    
-    if comm.rank == 0:
-        if make_plots:
-            fig = plt.figure()
-            fig.suptitle("Dataset and decision boundaries")
-            gs = gridspec.GridSpec(1, 1)
-            ax = fig.add_subplot(gs[0])
-            ax.hold(True)
-            if mode is 'decision':
-                vlim = max(1.0, max(abs(numpy.amin(zz)), numpy.amax(zz)))
-                vmin = -vlim
-                vmax= vlim
-            elif mode is 'prediction':
-                vmin = 0.0
-                vmax = 1.0
-            else:
-                raise(Exception)
-            cs = ax.contourf(xx, yy, zz, 20, alpha=0.8, cmap='bwr', vmin=vmin, vmax=vmax)
-            ax.scatter(X_test[:, x_component], X_test[:, y_component], c=y_test, cmap='bwr', alpha=0.6)
-            ax.scatter(X_train[:, x_component], X_train[:, y_component], c=y_train, cmap='bwr')
-            ax.hold(False)
-            fig.colorbar(cs)
-            ax.set_xlim([x_min, x_max])
-            ax.set_ylim([y_min, y_max])
-            ax.set_xlabel("%dst dimension" %(x_component + 1))
-            ax.set_ylabel("%dnd dimension" %(y_component + 1))
-            ax.grid()
-            plot_filename = "decision-boundaries-%d-%d.png" %(x_component, y_component)
-            path = os.path.join(plot_path, plot_filename)
-            plt.savefig(path)
-            fig.clear()
-    
-    
-    
-    ############################################################################
-    
-    # Compute PCA with two components.
-    n_components = 2
-    pca = PCA(n_components)
-    _ = pca.fit(X_raw)
-    X_raw_r = pca.transform(X_raw)
-    
-    # Find plot limits.
-    pad = 0.1
-    x_dif = numpy.amax(X_raw_r[:, 0]) - numpy.amin(X_raw_r[:, 0])
-    x_min = numpy.amin(X_raw_r[:, 0]) - pad * x_dif
-    x_max = numpy.amax(X_raw_r[:, 0]) + pad * x_dif
-    y_dif = numpy.amax(X_raw_r[:, 1]) - numpy.amin(X_raw_r[:, 1])
-    y_min = numpy.amin(X_raw_r[:, 1]) - pad * y_dif
-    y_max = numpy.amax(X_raw_r[:, 1]) + pad * y_dif
-    
-    # Retrieve pca1 and pca2.
-    vpca = pca.components_
-    
-    if comm.rank == 0:
-        if verbose:
-            msg = [
-                "# Shapes of the components: {}".format(vpca.shape),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    
-    vpca = vpca[:2, :]
-    
-    if comm.rank == 0:
-        if verbose:
-            msg = [
-                "# Shapes after inverse transform of v (i.e. vpca): {}".format(vpca.shape),
-                "# Shapes X_raw: {}".format(X_raw.shape),
-                "# Norms of vpca0 and vpca1: {}".format(numpy.linalg.norm(vpca, axis=1)),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    # Retrieve the coefficients of the ellipsoid.
-    if model == 'mlp':
-        weights = clf.coefs_[0].flatten()
-        bias = clf.intercepts_[0].flatten()
-    elif model == 'perceptron' or model == 'sgd':
-        weights = clf.coef_.flatten()
-        bias = clf.intercept_.flatten()
-    # Concatenate the coefficients.
-    coefs = numpy.concatenate((bias, weights))
-    
-    if comm.rank == 0:
-        if verbose:
-            msg = [
-                "# weights: {}".format(weights),
-                "# weights.shape: {}".format(weights.shape),
-                "# bias: {}".format(bias),
-                "# bias.shape: {}".format(bias.shape),
-                "# coefs: {}".format(coefs),
-                "# coefs.shape: {}".format(coefs.shape),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    center, eaxis, evecs = ellipsoid_general_to_standard(coefs,
-                                                         verbose=verbose,
-                                                         logger=params)
-    
-    if comm.rank == 0:
-        if verbose:
-            msg = [
-                "# Conversion",
-                "# center: {}".format(center),
-                "# center.shape: {}".format(center.shape),
-                "# eigenaxis: {}".format(eaxis),
-                "# eigenaxis.shape: {}".format(eaxis.shape),
-                "# eigenvectors: {}".format(evecs),
-                "# eigenvectors.shape: {}".format(evecs.shape),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    coefs_bis = ellipsoid_standard_to_general(center, eaxis, evecs,
-                                              verbose=verbose,
-                                              logger=params)
-    
-    if comm.rank == 0:
-        if verbose:
-            msg = [
-                "# Transform and untransfrom",
-                "# coefs: {}".format(coefs),
-                "# coefs_bis: {}".format(coefs_bis),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
     
     
     
