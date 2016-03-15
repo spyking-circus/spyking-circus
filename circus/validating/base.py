@@ -9,6 +9,8 @@ from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import StandardScaler
 
+import h5py
+
 from ..shared.utils import *
 from ..shared import plot
 from .utils import *
@@ -30,6 +32,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
+    file_out_suff = params.get('data', 'file_out_suff')
     
     # TODO: remove following lines.
     make_plots_snippets = False
@@ -998,6 +1001,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         for (loc_indices, loc_confusion_matrices_tmp) in zip(indices, confusion_matrices_tmp):
             for (loc_index, loc_confusion_matrix) in zip(loc_indices, loc_confusion_matrices_tmp):
                 confusion_matrices[loc_index] = loc_confusion_matrix
+        # Save confusion matrices to file.
+        filename = file_out_suff + '.beer.hdf5'
+        cmfile = h5py.File(filename, 'w', libver='latest')
+        class_weights_ = numpy.array([[cw[0], cw[1]] for cw in class_weights])
+        io.write_datasets(cmfile, ['class-weights'], {'class-weights' : class_weights_})
+        confusion_matrices_ = numpy.array(confusion_matrices)
+        io.write_datasets(cmfile, ['confusion-matrices'], {'confusion-matrices' : confusion_matrices_})
+        cmfile.close()
         # Compute false positive rates and true positive rates.
         fprs = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
         tprs = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]

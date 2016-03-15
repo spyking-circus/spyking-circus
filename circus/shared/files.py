@@ -723,22 +723,6 @@ def load_data(params, data, extension=''):
         N_e = params.getint('data', 'N_e')
         N_t = params.getint('data', 'N_t')
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-##### TODO: remove debug zone
-# Problem is probably an interrupted execution
-#            print("#####")
-#            temp_x_bis = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
-#            print(temp_x_bis)
-#            for cmd in dir(temp_x_bis):
-#                print(cmd)
-#            print("#####")
-#            print(temp_x_bis.keys())
-#            temp_x_ter = temp_x_bis.get('templates')
-#            print(temp_x_ter)
-#            temp_x_ter = temp_x_bis.get('temp_x')
-#            print(temp_x_ter)
-#            temp_x_qua = temp_x_ter[:]
-#            print("#####")
-##### end debug zone
             temp_x = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
             temp_y = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
             temp_data = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]
@@ -818,7 +802,6 @@ def load_data(params, data, extension=''):
             return result
         except Exception:
             return None
-##### TODO: remove test zone
     elif data == 'triggers':
         filename = file_out_suff + '.triggers%s.npy' %extension
         if os.path.exists(filename):
@@ -848,12 +831,6 @@ def load_data(params, data, extension=''):
                 local_chunk -= dtype_offset
 
                 spikes[:, :, count] = local_chunk
-            # TODO: load the corresponding spike for each trigger.
-            # TODO: compute the underlying template
-            # TODO: compute the amplitude of for each spike (i.e. scalar product with the template).
-            # TODO: estimate the sampling distribution of these amplitudes.
-            # TODO: plot the estimated distribution.
-            # TODO: fit binary, gaussian, power-law or spyking-circus distribution.
             return triggers, spikes
         else:
             raise Exception('No triggers found! Check suffix or check if file `%s` exists ?' %filename)
@@ -874,7 +851,24 @@ def load_data(params, data, extension=''):
             else:
                 raise Exception('No triggers found! Check if file `{}` exists ?'.format(filename))
         return triggers
-##### end test zone
+    elif data == 'class-weights':
+        filename = file_out_suff + '.beer.hdf5'
+        if os.path.exists(filename):
+            bfile = h5py.File(filename, 'r', libver='latest')
+            class_weights = bfile.get('class-weights')[:]
+            bfile.close()
+            return class_weights
+        else:
+            raise Exception('No class weights found! Check suffix or check if file `{}` exists ?'.format(filename))
+    elif data == 'confusion-matrices':
+        filename = file_out_suff + '.beer.hdf5'
+        if os.path.exists(filename):
+            bfile = h5py.File(filename, 'r', libver='latest')
+            confusion_matrices = bfile.get('confusion-matrices')[:]
+            bfile.close()
+            return confusion_matrices
+        else:
+            raise Exception('No confusion matrices found! Check suffix or check if file `{}` exists ?'.format(filename))
         
 
 def write_datasets(h5file, to_write, result, electrode=None):
