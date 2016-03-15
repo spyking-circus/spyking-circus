@@ -856,6 +856,23 @@ def load_data(params, data, extension=''):
             return triggers, spikes
         else:
             raise Exception('No triggers found! Check suffix or check if file `%s` exists ?' %filename)
+    elif data == 'juxta-triggers':
+        filename = file_out_suff + '.triggers{}.npy'.format(extension)
+        if os.path.exists(filename):
+            triggers = numpy.load(filename)
+            return triggers
+        else:
+            raise Exception('No triggers found! Check suffix or check if file `{}` exists ?'.format(filename))
+    elif data == 'extra-triggers':
+        N_e = params.getint('data', 'N_e')
+        triggers = N_e * [None]
+        for k in xrange(0, N_e):
+            filename = file_out_suff + ".triggers.{}.npy".format(k)
+            if os.path.exists(filename):
+                triggers[k] = numpy.load(filename)
+            else:
+                raise Exception('No triggers found! Check if file `{}` exists ?'.format(filename))
+        return triggers
 ##### end test zone
         
 

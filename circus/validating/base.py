@@ -63,6 +63,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             chunk_start = (idx - template_shift) * N_total
             chunk_end = (idx + template_shift + 1)  * N_total
             local_chunk = datablock[chunk_start:chunk_end]
+            if local_chunk.shape[0] == 0:
+                # N_t * N_total:
+                print(datablock.shape)
+                print(idx * N_total)
+                print(chunk_start)
+                print(chunk_end)
             # Reshape, slice and cast data.
             local_chunk = local_chunk.reshape(N_t, N_total)
             local_chunk = local_chunk[:, chans]
@@ -85,10 +91,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Select only the neighboring channels of the best channel.
     chan = params.getint('validating', 'val_chan')
     if chan == -1:
-        assert False
         # Automatic selection of the validation channel.
         # TODO: select the channel with the highest changes in amplitudes
         #       instead of an arbitrary selection.
+        # TODO: remove default implementation which select a random channel.
+        N_e = params.getint('data', 'N_e')
+        chan = numpy.random.randint(0, N_e)
     chans = get_neighbors(params, chan=chan)
     chan_index = numpy.argwhere(chans == chan)[0]
     
@@ -99,10 +107,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["# Ground truth cell's samples..."], level='info', logger=params)
     
-    # Retrieve the spike times of the "ground truth cell".
-    spike_times_gt, _ = io.load_data(params, 'triggers')
+    # Detect the spikes times of the "ground truth cell".
+    extract_juxta_spikes(filename, params)
     
-    # Load the spikes of all the 'non ground truth cells".
+    # Retrieve the spike times of the "ground truth cell".
+    spike_times_gt = io.load_data(params, 'juxta-triggers')
+    
+    # Load the spikes of all the "ground truth cells".
     spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
     
     if comm.rank == 0:
@@ -175,24 +186,30 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["# Non ground truth cell's samples..."], level='info', logger=params)
     
-    ##### TODO: remove test zone.
-    spike_times_ngt = extract_extra_spikes(params)
-    sys.exit(0)
-    ##### end test zone
+    # Detect the spikes times of the "non ground truth cell".
+    extract_extra_spikes(filename, params)
     
-    # Retrieve the spikes of all the "non ground truth cells".
-    clusters = io.load_data(params, 'clusters')
-    ## Find all the spike times.
-    spike_times_ngt_tmp = []
-    keys = [key for key in clusters.keys() if "times_" in key]
-    for key in keys:
-        spike_times_ngt_tmp.append(clusters[key])
+    # Retrieve the spike times of the "non ground truth cell".
+    spike_times_ngt_tmp = io.load_data(params, 'extra-triggers')
+    
+    ##### TODO: remove depreciated zone
+    # # Retrieve the spikes of all the "non ground truth cells".
+    # clusters = io.load_data(params, 'clusters')
+    # ## Find all the spike times.
+    # spike_times_ngt_tmp = []
+    # keys = [key for key in clusters.keys() if "times_" in key]
+    # for key in keys:
+    #     spike_times_ngt_tmp.append(clusters[key])
+    # spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
+    ##### end depreciated zone
+    
+    # Filter the spike times of the "non ground truth cell".
+    spike_times_ngt_tmp = [spike_times_ngt_tmp[chan] for chan in chans]
     spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
     size = min(int(alpha_ngt * float(spike_times_gt.shape[0])), spike_times_ngt_tmp.shape[0])
-    idxs_ngt = numpy.random.choice(spike_times_ngt_tmp.size, size=size,
-                                   replace=False)
+    idxs_ngt = numpy.random.choice(spike_times_ngt_tmp.size, size=size, replace=False)
     idxs_ngt = numpy.unique(idxs_ngt)
     spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
     
@@ -200,14 +217,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
     
     
-    if make_plots:
-        plot_filename = "trigger-times-ngt.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_trigger_times(filename, spike_times_ngt, color='blue', save=path)
-        if make_plots_snippets:
-            directory = "trigger-snippets-ngt"
-            path = os.path.join(plot_path, directory)
-            plot.view_trigger_snippets(spikes_ngt, chans, save=path)
+    if comm.rank == 0:
+        if make_plots:
+            plot_filename = "trigger-times-ngt.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_trigger_times(filename, spike_times_ngt, color='blue', save=path)
+            if make_plots_snippets:
+                directory = "trigger-snippets-ngt"
+                path = os.path.join(plot_path, directory)
+                plot.view_trigger_snippets(spikes_ngt, chans, save=path)
     
     
     # Reshape data.
@@ -227,25 +245,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     y_ngt = numpy.ones((N_ngt, 1))
     
     
-    if verbose:
-        msg = [
-            "# X_ngt.shape",
-            "%s" %(X_ngt.shape,),
-            "# y_ngt.shape",
-            "%s" %(y_ngt.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# X_ngt.shape: {}".format(X_ngt.shape),
+                "# y_ngt.shape: {}".format(y_ngt.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
-    if make_plots:
-        plot_filename = "dataset-ngt.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_dataset(X_ngt, color='blue', title="Non ground-truth dataset", save=path)
+    if comm.rank == 0:
+        if make_plots:
+            plot_filename = "dataset-ngt.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_dataset(X_ngt, color='blue', title="Non ground-truth dataset", save=path)
     
     
     
     ##### NOISE SAMPLES ########################################################
     
-    io.print_and_log(["# Noise samples..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Noise samples..."], level='info', logger=params)
     
     # Compute the PCA coordinates of each "non-spike" sample.
     # TODO: replace temporary solution for 'low' and 'high'.
@@ -267,16 +286,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Load some "non-spike" samples.
     spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
     
-    
-    if make_plots:
-        plot_filename = "trigger-times-noi.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_trigger_times(filename, spike_times_noi, color='red', save=path)
-        if make_plots_snippets:
-            directory = "trigger-snippets-noi"
-            path = os.path.join(plot_path, directory)
-            plot.view_trigger_snippets(spikes_noi, chans, save=path)
-    
+    if comm.rank == 0:
+        if make_plots:
+            plot_filename = "trigger-times-noi.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_trigger_times(filename, spike_times_noi, color='red', save=path)
+            if make_plots_snippets:
+                directory = "trigger-snippets-noi"
+                path = os.path.join(plot_path, directory)
+                plot.view_trigger_snippets(spikes_noi, chans, save=path)
     
     # Reshape data.
     N_t = spikes_noi.shape[0]
@@ -294,20 +312,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Define outputs.
     y_noi = numpy.ones((N_noi, 1))
     
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# X_noi.shape: {}".format(X_noi.shape),
+                "# y_noi.shape: {}".format(y_noi.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
-    if verbose:
-        msg = [
-            "# X_noi.shape",
-            "%s" %(X_noi.shape,),
-            "# y_noi.shape",
-            "%s" %(y_noi.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    if make_plots:
-        plot_filename = "dataset-noi.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_dataset(X_noi, color='red', title="Noise dataset", save=path)
+    if comm.rank == 0:
+        if make_plots:
+            plot_filename = "dataset-noi.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_dataset(X_noi, color='red', title="Noise dataset", save=path)
     
     
     
@@ -323,7 +340,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### SAMPLES ##############################################################
     
-    io.print_and_log(["# Samples..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Samples..."], level='info', logger=params)
     
     # Option to include the pairwise product of feature vector elements.
     pairwise = True
@@ -366,44 +384,44 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     y = y_raw
     
     
-    if verbose:
-        msg = [
-            "# X_raw.shape",
-            "%s" %(X_raw.shape,),
-            "# y_raw.shape",
-            "%s" %(y_raw.shape,),
-            "# X.shape",
-            "%s" %(X.shape,),
-            "# y.shape",
-            "%s" %(y.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# X_raw.shape: {}".format(X_raw.shape),
+                "# y_raw.shape: {}".format(y_raw.shape),
+                "# X.shape: {}".format(X.shape),
+                "# y.shape: {}".format(y.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     
     
     ##### SANITY PLOT ##########################################################
     
-    io.print_and_log(["# Sanity plot..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Sanity plot..."], level='info', logger=params)
     
-    if make_plots:
-        plot_filename = "datasets.png"
-        path = os.path.join(plot_path, plot_filename)
-        Xs = [X_ngt, X_noi, X_gt]
-        ys = [y_ngt, y_noi, y_gt]
-        colors = ['b', 'r', 'g']
-        labels = ["non ground truth", "noise", "ground truth"]
-        plot.view_datasets(Xs, ys, colors=colors, labels=labels, save=path)
+    if comm.rank == 0:
+        if make_plots:
+            plot_filename = "datasets.png"
+            path = os.path.join(plot_path, plot_filename)
+            Xs = [X_ngt, X_noi, X_gt]
+            ys = [y_ngt, y_noi, y_gt]
+            colors = ['b', 'r', 'g']
+            labels = ["non ground truth", "noise", "ground truth"]
+            plot.view_datasets(Xs, ys, colors=colors, labels=labels, save=path)
     
     
     
     ##### INITIAL PARAMETER ####################################################
     
-    io.print_and_log(["# Initial parameter..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Initial parameter..."], level='info', logger=params)
     
     
     method = 'covariance'
     #method = 'geometric'
-        
+    
     if method is 'covariance':
         
         mu = numpy.mean(X_gt.T, axis=1)
@@ -444,12 +462,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         raise(Exception)
     
     
-    if verbose:
-        msg = [
-            "# coefs_init",
-            "%s" %(coefs_init,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# coefs_init: {}".format(coefs_init),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     
     # Compute false positive rate and true positive rate for various cutoffs.
@@ -479,17 +497,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         tprs[i] = tp / p
     
     
-    if verbose:
-        # msg = [
-        #     "# cutoffs",
-        #     "%s" %(cutoffs,),
-        #     "# fprs",
-        #     "%s" %(fprs,),
-        #     "# tprs",
-        #     "%s" %(tprs,),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
+    if comm.rank == 0:
+        if verbose:
+            # msg = [
+            #     "# cutoffs: {}".format(cutoffs),
+            #     "# fprs: {}".format(fprs),
+            #     "# tprs: {}".format(tprs),
+            # ]
+            # io.print_and_log(msg, level='default', logger=params)
+            pass
     
     
     # Compute mean acccuracy for various cutoffs.
@@ -508,23 +524,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     cutoff_opt_acc = cutoffs[i_opt]
     
     
-    if verbose:
-        msg = [
-            "# cutoff_opt_acc",
-            "%s" %(cutoff_opt_acc,),
-            "# acc_opt",
-            "%s" %accs[i_opt],
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# cutoff_opt_acc: {}".format(cutoff_opt_acc),
+                "# acc_opt: {}".format(accs[i_opt]),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
-    
-    if make_plots:
-        # Plot accuracy curve.
-        title = "Accuracy curve for the initial parameter"
-        plot_filename = "accuracy-plot.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
-                           accs[i_opt], title=title, save=path)
+    if comm.rank == 0:
+        if make_plots:
+            # Plot accuracy curve.
+            title = "Accuracy curve for the initial parameter"
+            plot_filename = "accuracy-plot.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
+                               accs[i_opt], title=title, save=path)
     
     
     # Compute the normalized accuracy for various cutoffs.
@@ -548,25 +563,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     i_opt = numpy.argmax(norm_accs)
     cutoff_opt_norm_acc = cutoffs[i_opt]
     
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# cutoff_opt_norm_acc: {}".format(cutoff_opt_norm_acc),
+                "# norm_acc_opt: {}".format(norm_accs[i_opt]),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
-    if verbose:
-        msg = [
-            "# cutoff_opt_norm_acc",
-            "%s" %(cutoff_opt_norm_acc,),
-            "# norm_acc_opt",
-            "%s" %(norm_accs[i_opt],),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
-    if make_plots:
-        # Plot normalized accuracy curve.
-        title = "Normalized accuracy curve for the initial parameter"
-        plot_filename = "normalized-accuray-plot.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_normalized_accuracy(Mhlnb[indices], tprs, tnrs, norm_accs,
-                                      Mhlnb[indices[i_opt]], norm_accs[i_opt],
-                                      title=title, save=path)
+    if comm.rank == 0:
+        if make_plots:
+            # Plot normalized accuracy curve.
+            title = "Normalized accuracy curve for the initial parameter"
+            plot_filename = "normalized-accuray-plot.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_normalized_accuracy(Mhlnb[indices], tprs, tnrs, norm_accs,
+                                          Mhlnb[indices[i_opt]], norm_accs[i_opt],
+                                          title=title, save=path)
     
     
     # Set cutoff equal to the optimal cutoff.
@@ -582,25 +595,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     p = float(Mhlnb_gt.size)
     tpr = tp / p
     
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# cutoff: {}".format(cutoff),
+                "# fpr: {}".format(fpr),
+                "# tpr: {}".format(tpr),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
-    if verbose:
-        msg = [
-            "# cutoff",
-            "%s" %(cutoff,),
-            "# fpr",
-            "%s" %(fpr,),
-            "# tpr",
-            "%s" %(tpr),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
-    if make_plots:
-        # Plot ROC curve.
-        title = "ROC curve for the inital parameter"
-        plot_filename = "roc-curve.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
+    if comm.rank == 0:
+        if make_plots:
+            # Plot ROC curve.
+            title = "ROC curve for the inital parameter"
+            plot_filename = "roc-curve.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
     
     
     # Scale the ellipse according to the chosen cutoff.
@@ -612,25 +622,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
-    io.print_and_log(["# Sanity plot (classifier projection)..."],
-                     level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Sanity plot (classifier projection)..."],
+                         level='info', logger=params)
     
-    
-    if make_plots:
-        # Plot initial classifier (ellipsoid).
-        title = "Initial classifier (ellipsoid)"
-        plot_filename = "classifier-projection-init.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
-                             A_init, b_init, c_init,
-                             title=title, save=path, verbose=verbose)
+    if comm.rank == 0:
+        if make_plots:
+            # Plot initial classifier (ellipsoid).
+            title = "Initial classifier (ellipsoid)"
+            plot_filename = "classifier-projection-init.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
+                                 A_init, b_init, c_init,
+                                 title=title, save=path, verbose=verbose)
     
     
     
     # MAHALANOBIS DISTRIBUTIONS ################################################
     
-    io.print_and_log(["# Compute intial Mahalanobis distributions..."],
-                     level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Compute intial Mahalanobis distributions..."],
+                         level='info', logger=params)
     
     
     # Compute mahalanobis distributions.
@@ -639,41 +651,36 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
     Mhlnb_noi = squared_Mahalanobis_distance(A_init, mu, X_noi)
     
-    
-    if make_plots:
-        # Plot Mahalanobis distributions.
-        title = "Mahalanobis distributions (ellipsoid)"
-        plot_filename = "mahalanobis-init.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
-                                           title=title, save=path)
+    if comm.rank == 0:
+        if make_plots:
+            # Plot Mahalanobis distributions.
+            title = "Mahalanobis distributions (ellipsoid)"
+            plot_filename = "mahalanobis-init.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
+                                               title=title, save=path)
     
     
     
     ##### LEARNING #############################################################
     
-    io.print_and_log(["# Learning..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Learning..."], level='info', logger=params)
     
     
     # mode = 'decision'
     mode = 'prediction'
     
-    
-    # Standardize features by removing the mean and scaling to unit variance.
-    # X = StandardScaler().fit_transform(X)
-    
     # Preprocess dataset.
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
     
-    
-    if verbose:
-        msg = [
-            "# X_train.shape",
-            "%s" %(X_train.shape,),
-            "# X_test.shape",
-            "%s" %(X_test.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# X_train.shape: {}".format(X_train.shape),
+                "# X_test.shape: {}".format(X_test.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     
     model = 'sgd'
@@ -716,42 +723,36 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         clf.set_params(warm_start=False)
     clf.fit(X_train, y_train)
     
+    if comm.rank == 0:
+        if make_plots:
+            # Plot prediction.
+            title = "Initial prediction (random)"
+            plot_filename = "prediction-init-random.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                                     title=title, save=path)
+            # Plot decision function.
+            title = "Initial decision function (random)"
+            plot_filename = "decision-function-init-random.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+                                     title=title, save=path)
     
-    if make_plots:
-        # Plot prediction.
-        title = "Initial prediction (random)"
-        plot_filename = "prediction-init-random.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                 title=title, save=path)
-        # Plot decision function.
-        title = "Initial decision function (random)"
-        plot_filename = "decision-function-init-random.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                 title=title, save=path)
-    
-    
-    if verbose:
-        y_pred = clf.predict(X_test)
-        score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
-        msg = [
-            # # Print the current loss.
-            # "# clf.loss_",
-            # "%s" %(clf.loss_,),
-            # # Print the loss curve.
-            # "# clf.loss_curve_",
-            # "%s" %(clf.loss_curve_,),
-            # # Print the number of iterations the algorithm has ran.
-            # "# clf.n_iter_",
-            # "%s" %(clf.n_iter_,),
-            # Print the score on the test set.
-            "# accuracy_score(X_test, y_test)",
-            "%s" %(score,),
-            "%s" %(1.0 - score,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
+    if comm.rank == 0:
+        if verbose:
+            y_pred = clf.predict(X_test)
+            score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
+            msg = [
+                # # Print the current loss.
+                # "# clf.loss_: {}".format(clf.loss_),
+                # # Print the loss curve.
+                # "# clf.loss_curve_: {}".format(clf.loss_curve_),
+                # # Print the number of iterations the algorithm has ran.
+                # "# clf.n_iter_: {}".format(clf.n_iter_),
+                # Print the score on the test set.
+                "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
     if model == 'mlp':
@@ -761,42 +762,36 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         clf.coef_ = coefs_init[1:, :].reshape(1, -1)
         clf.intercept_ = coefs_init[:1, :].ravel()
     
+    if comm.rank == 0:
+        if make_plots:
+            # Plot prediction.
+            title = "Initial prediction (ellipsoid)"
+            plot_filename = "prediction-init-ellipsoid.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                                     title=title, save=path)
+            # Plot decision function.
+            title = "Initial decision function (ellipsoid)"
+            plot_filename = "decision-function-init-ellipsoid.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+                                     title=title, save=path)
     
-    if make_plots:
-        # Plot prediction.
-        title = "Initial prediction (ellipsoid)"
-        plot_filename = "prediction-init-ellipsoid.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                 title=title, save=path)
-        # Plot decision function.
-        title = "Initial decision function (ellipsoid)"
-        plot_filename = "decision-function-init-ellipsoid.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                 title=title, save=path)
-    
-    
-    if verbose:
-        y_pred = clf.predict(X_test)
-        score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
-        msg = [
-            # # Print the current loss.
-            # "# clf.loss_",
-            # "%s" %(clf.loss_,),
-            # # Print the loss curve.
-            # "# clf.loss_curve_",
-            # "%s" %(clf.loss_curve_,),
-            # # Print the number of iterations the algorithm has ran.
-            # "# clf.n_iter_",
-            # "%s" %(clf.n_iter_,),
-            # Print the score on the test set.
-            "# accuracy_score(X_test, y_test)",
-            "%s" %(score,),
-            "%s" %(1.0 - score,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
+    if comm.rank == 0:
+        if verbose:
+            y_pred = clf.predict(X_test)
+            score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
+            msg = [
+                # # Print the current loss.
+                # "# clf.loss_: {}".format(clf.loss_),
+                # # Print the loss curve.
+                # "# clf.loss_curve_: {}".format(clf.loss_curve_),
+                # # Print the number of iterations the algorithm has ran.
+                # "# clf.n_iter_: {}".format(clf.n_iter_),
+                # Print the score on the test set.
+                "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     # Train model.
     if model == 'mlp':
@@ -810,41 +805,36 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         clf.set_params(warm_start=True)
     clf.fit(X_train, y_train)
     
+    if comm.rank == 0:
+        if make_plots:
+            # Plot final prediction.
+            title = "Final prediction "
+            plot_filename = "prediction-final.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                                     title=title, save=path)
+            # Plot final decision function.
+            title = "Final decision function"
+            plot_filename = "decision-function-final.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+                                     title=title, save=path)
     
-    if make_plots:
-        # Plot final prediction.
-        title = "Final prediction "
-        plot_filename = "prediction-final.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                 title=title, save=path)
-        # Plot final decision function.
-        title = "Final decision function"
-        plot_filename = "decision-function-final.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                 title=title, save=path)
-    
-    
-    if verbose:
-        y_pred = clf.predict(X_test)
-        score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
-        msg = [
-            # # Print the current loss computed with the loss function.
-            # "# clf.loss_",
-            # "%s" %(clf.loss_,),
-            # # Print the loss curve.
-            # "# clf.loss_curve_",
-            # "%s" %(clf.loss_curve_,),
-            # # Print the number of iterations the algorithm has ran.
-            # "# clf.n_iter_",
-            # "%s" %(clf.n_iter_,),
-            # Print the score on the test set.
-            "# accuracy_score(X_test, y_test)",
-            "%s" %(score,),
-            "%s" %(1.0 - score,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        if verbose:
+            y_pred = clf.predict(X_test)
+            score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
+            msg = [
+                # # Print the current loss computed with the loss function.
+                # "# clf.loss_: {}".format(clf.loss_),
+                # # Print the loss curve.
+                # "# clf.loss_curve_: {}".format(clf.loss_curve_),
+                # # Print the number of iterations the algorithm has ran.
+                # "# clf.n_iter_: {}".format(clf.n_iter_),
+                # Print the score on the test set.
+                "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     
     # # TODO: uncomment (i.e. compute loss curve for perceptron and sgd)
@@ -875,25 +865,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
-    io.print_and_log(["# Sanity plot (classifier projection)..."],
-                     level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Sanity plot (classifier projection)..."],
+                         level='info', logger=params)
     
-    
-    if make_plots:
-        # Plot final classifier.
-        title = "Final classifier"
-        plot_filename = "classifier-projection-final.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
-                             A, b, c, title=title, save=path, verbose=verbose)
+    if comm.rank == 0:
+        if make_plots:
+            # Plot final classifier.
+            title = "Final classifier"
+            plot_filename = "classifier-projection-final.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
+                                 A, b, c, title=title, save=path, verbose=verbose)
     
     
     
     # MAHALANOBIS DISTRIBUTIONS ################################################
     
-    io.print_and_log(["# Compute final Mahalanobis distributions..."],
-                     level='info', logger=params)
-    
+    if comm.rank == 0:
+        io.print_and_log(["# Compute final Mahalanobis distributions..."],
+                         level='info', logger=params)
     
     # Compute the Mahalanobis distributions.
     mu = numpy.mean(X_gt, axis=0)
@@ -901,28 +892,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
     Mhlnb_noi = squared_Mahalanobis_distance(A, mu, X_noi)
     
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# Mhlnb_gt: {}".format(Mhlnb_gt),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
-    if verbose:
-        msg = [
-            "# Mhlnb_gt",
-            "%s" %(Mhlnb_gt,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
-    
-    if make_plots:
-        # Plot Mahalanobis distributions.
-        title = "Final Mahalanobis distributions"
-        plot_filename = "mahalanobis-final.png"
-        path = os.path.join(plot_path, plot_filename)
-        plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
-                                           title=title, save=path)
+    if comm.rank == 0:
+        if make_plots:
+            # Plot Mahalanobis distributions.
+            title = "Final Mahalanobis distributions"
+            plot_filename = "mahalanobis-final.png"
+            path = os.path.join(plot_path, plot_filename)
+            plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
+                                               title=title, save=path)
     
     
     
     ##### WEIGHTED LEARNING ####################################################
     
-    io.print_and_log(["# Weighted learning..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Weighted learning..."], level='info', logger=params)
     
     
     if model == 'sgd':
@@ -930,13 +921,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         confusion_matrices = []
         for (i, class_weight) in enumerate(class_weights):
             
-            if verbose:
-                msg = [
-                    "# Loop {}".format(i),
-                    "# weight for positive samples: {}".format(class_weight[0]),
-                    "# weight for negative samples: {}".format(class_weight[1]),
-                ]
-                io.print_and_log(msg, level='default', logger=params)
+            if comm.rank == 0:
+                if verbose:
+                    msg = [
+                        "# Loop {}".format(i),
+                        "# weight for positive samples: {}".format(class_weight[0]),
+                        "# weight for negative samples: {}".format(class_weight[1]),
+                    ]
+                    io.print_and_log(msg, level='default', logger=params)
             
             # Declare classifier.
             wclf = SGDClassifier(loss='log',
@@ -974,16 +966,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             tn = float(numpy.count_nonzero(y_pred[n] == y_test[n]))
             fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
             
-            if verbose:
-                msg = [
-                    "# true positives: {}".format(tp),
-                    "# false negatives: {}".format(fn),
-                    "# true negatives: {}".format(tn),
-                    "# false positives: {}".format(fp),
-                    "# false positive rate: {}".format(fp / (fp + tn)),
-                    "# true positive rate: {}".format(tp / (tp + fn)),
-                ]
-                io.print_and_log(msg, level='default', logger=params)
+            if comm.rank == 0:
+                if verbose:
+                    msg = [
+                        "# true positives: {}".format(tp),
+                        "# false negatives: {}".format(fn),
+                        "# true negatives: {}".format(tn),
+                        "# false positives: {}".format(fp),
+                        "# false positive rate: {}".format(fp / (fp + tn)),
+                        "# true positive rate: {}".format(tp / (tp + fn)),
+                    ]
+                    io.print_and_log(msg, level='default', logger=params)
             
             confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
             confusion_matrices.append(confusion_matrix)
@@ -995,30 +988,30 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         fprs = [1.0] + fprs + [0.0]
         tprs = [1.0] + tprs + [0.0]
         
-        if verbose:
-            msg = [
-                "# class_weights",
-                "%s" %(class_weights,),
-                "# false positive rates",
-                "%s" %(fprs,),
-                "# true positive rates",
-                "%s" %(tprs,),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
+        if comm.rank == 0:
+            if verbose:
+                msg = [
+                    "# class_weights: {}".format(class_weights),
+                    "# false positive rates: {}".format(fprs),
+                    "# true positive rates: {}".format(tprs),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
         
-        
-        if make_plots:
-            # Plot ROC curve.
-            title = "ROC curve of the BEER estimate"
-            plot_filename = 'roc-curve-beer.png'
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path)
+        if comm.rank == 0:
+            if make_plots:
+                # Plot ROC curve.
+                title = "ROC curve of the BEER estimate"
+                plot_filename = 'roc-curve-beer.png'
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
+                                    xlim=[0.0, 0.25], ylim=[0.75, 1.0])
     
     
     
     ##### SANITY PLOT ##########################################################
     
-    io.print_and_log(["# Sanity plot..."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["# Sanity plot..."], level='info', logger=params)
     
     
     # TODO: remove this section (not so useful).
@@ -1078,36 +1071,36 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         raise(Exception)
     zz = zz.reshape(xx.shape)
     
-    
-    if make_plots:
-        fig = plt.figure()
-        fig.suptitle("Dataset and decision boundaries")
-        gs = gridspec.GridSpec(1, 1)
-        ax = fig.add_subplot(gs[0])
-        ax.hold(True)
-        if mode is 'decision':
-            vlim = max(1.0, max(abs(numpy.amin(zz)), numpy.amax(zz)))
-            vmin = -vlim
-            vmax= vlim
-        elif mode is 'prediction':
-            vmin = 0.0
-            vmax = 1.0
-        else:
-            raise(Exception)
-        cs = ax.contourf(xx, yy, zz, 20, alpha=0.8, cmap='bwr', vmin=vmin, vmax=vmax)
-        ax.scatter(X_test[:, x_component], X_test[:, y_component], c=y_test, cmap='bwr', alpha=0.6)
-        ax.scatter(X_train[:, x_component], X_train[:, y_component], c=y_train, cmap='bwr')
-        ax.hold(False)
-        fig.colorbar(cs)
-        ax.set_xlim([x_min, x_max])
-        ax.set_ylim([y_min, y_max])
-        ax.set_xlabel("%dst dimension" %(x_component + 1))
-        ax.set_ylabel("%dnd dimension" %(y_component + 1))
-        ax.grid()
-        plot_filename = "decision-boundaries-%d-%d.png" %(x_component, y_component)
-        path = os.path.join(plot_path, plot_filename)
-        plt.savefig(path)
-        fig.clear()
+    if comm.rank == 0:
+        if make_plots:
+            fig = plt.figure()
+            fig.suptitle("Dataset and decision boundaries")
+            gs = gridspec.GridSpec(1, 1)
+            ax = fig.add_subplot(gs[0])
+            ax.hold(True)
+            if mode is 'decision':
+                vlim = max(1.0, max(abs(numpy.amin(zz)), numpy.amax(zz)))
+                vmin = -vlim
+                vmax= vlim
+            elif mode is 'prediction':
+                vmin = 0.0
+                vmax = 1.0
+            else:
+                raise(Exception)
+            cs = ax.contourf(xx, yy, zz, 20, alpha=0.8, cmap='bwr', vmin=vmin, vmax=vmax)
+            ax.scatter(X_test[:, x_component], X_test[:, y_component], c=y_test, cmap='bwr', alpha=0.6)
+            ax.scatter(X_train[:, x_component], X_train[:, y_component], c=y_train, cmap='bwr')
+            ax.hold(False)
+            fig.colorbar(cs)
+            ax.set_xlim([x_min, x_max])
+            ax.set_ylim([y_min, y_max])
+            ax.set_xlabel("%dst dimension" %(x_component + 1))
+            ax.set_ylabel("%dnd dimension" %(y_component + 1))
+            ax.grid()
+            plot_filename = "decision-boundaries-%d-%d.png" %(x_component, y_component)
+            path = os.path.join(plot_path, plot_filename)
+            plt.savefig(path)
+            fig.clear()
     
     
     
@@ -1131,29 +1124,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Retrieve pca1 and pca2.
     vpca = pca.components_
     
-    
-    if verbose:
-        msg = [
-            "# Shapes of the components",
-            "%s" %(vpca.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# Shapes of the components: {}".format(vpca.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     
     vpca = vpca[:2, :]
     
-    
-    if verbose:
-        msg = [
-            "# Shapes after inverse transform of v (i.e. vpca)",
-            "%s" %(vpca.shape,),
-            "# Shapes X_raw",
-            "%s" %(X_raw.shape,),
-            "# Norms of vpca0 and vpca1",
-            "%s" %(numpy.linalg.norm(vpca, axis=1),),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# Shapes after inverse transform of v (i.e. vpca): {}".format(vpca.shape),
+                "# Shapes X_raw: {}".format(X_raw.shape),
+                "# Norms of vpca0 and vpca1: {}".format(numpy.linalg.norm(vpca, axis=1)),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     # Retrieve the coefficients of the ellipsoid.
     if model == 'mlp':
@@ -1165,65 +1153,53 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Concatenate the coefficients.
     coefs = numpy.concatenate((bias, weights))
     
-    
-    if verbose:
-        msg = [
-            "# Weights",
-            "%s" %(weights,),
-            "%s" %(type(weights),),
-            "%s" %(weights.shape,),
-            "# Bias",
-            "%s" %(bias,),
-            "%s" %(type(bias),),
-            "%s" %(bias.shape,),
-            "# Coefs",
-            "%s" %(coefs,),
-            "%s" %(type(coefs),),
-            "%s" %(coefs.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# weights: {}".format(weights),
+                "# weights.shape: {}".format(weights.shape),
+                "# bias: {}".format(bias),
+                "# bias.shape: {}".format(bias.shape),
+                "# coefs: {}".format(coefs),
+                "# coefs.shape: {}".format(coefs.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     center, eaxis, evecs = ellipsoid_general_to_standard(coefs,
                                                          verbose=verbose,
                                                          logger=params)
     
-    
-    if verbose:
-        msg = [
-            "# Conversion",
-            "# Center",
-            "%s" %(center,),
-            "%s" %(center.shape,),
-            "# Eigenaxis",
-            "%s" %(eaxis,),
-            "%s" %(eaxis.shape,),
-            "# Eigenvectors",
-            "%s" %(evecs,),
-            "%s" %(evecs.shape,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
-    
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# Conversion",
+                "# center: {}".format(center),
+                "# center.shape: {}".format(center.shape),
+                "# eigenaxis: {}".format(eaxis),
+                "# eigenaxis.shape: {}".format(eaxis.shape),
+                "# eigenvectors: {}".format(evecs),
+                "# eigenvectors.shape: {}".format(evecs.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     coefs_bis = ellipsoid_standard_to_general(center, eaxis, evecs,
                                               verbose=verbose,
                                               logger=params)
     
-    
-    if verbose:
-        msg = [
-            "# Transform and untransfrom",
-            "# coefs",
-            "%s" %(coefs,),
-            "# coefs_bis",
-            "%s" %(coefs_bis,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "# Transform and untransfrom",
+                "# coefs: {}".format(coefs),
+                "# coefs_bis: {}".format(coefs_bis),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
     
     
     ############################################################################
     
-    io.print_and_log(["Validation done."], level='info', logger=params)
+    if comm.rank == 0:
+        io.print_and_log(["Validation done."], level='info', logger=params)
     
     return

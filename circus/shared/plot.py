@@ -1068,7 +1068,7 @@ def view_datasets(Xs, ys, colors=None, labels=None, save=None):
         pylab.close(fig)
     return
 
-def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None):
+def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None, xlim=None, ylim=None):
     '''Plot ROC curve'''
     fig = pylab.figure()
     ax = fig.gca()
@@ -1078,10 +1078,14 @@ def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None):
         ax.plot(fpr, tpr, color='blue', marker='o', zorder=4)
     ax.set_aspect('equal')
     ax.grid(True)
-    # ax.set_xlim([0.0, 1.0])
-    # ax.set_ylim([0.0, 1.0])
-    ax.set_xlim([0.0, 0.25])
-    ax.set_ylim([0.75, 1.0])
+    if xlim is None:
+        ax.set_xlim([0.0, 1.0])
+    else:
+        ax.set_xlim(xlim)
+    if ylim is None:
+        ax.set_ylim([0.0, 1.0])
+    else:
+        ax.set_ylim(ylim)
     if title is None:
         ax.set_title("ROC curve")
     else:
