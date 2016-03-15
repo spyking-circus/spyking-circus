@@ -33,6 +33,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
     file_out_suff = params.get('data', 'file_out_suff')
+    sampling_rate = params.getint('data', 'sampling_rate')
+    N_e = params.getint('data', 'N_e')
     
     # TODO: remove following lines.
     make_plots_snippets = False
@@ -43,44 +45,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ############################################################################
     
-    # Define an auxiliary function to load spike data given spike times.
-    def load_chunk(params, spike_times, chans=None):
-        # Load the parameters of the spike data.
-        data_file = params.get('data', 'data_file')
-        data_offset = params.getint('data', 'data_offset')
-        data_dtype = params.get('data', 'data_dtype')
-        chunk_size = params.getint('data', 'chunk_size')
-        N_total = params.getint('data', 'N_total')
-        N_t = params.getint('data', 'N_t')
-        dtype_offset = params.getint('data', 'dtype_offset')
-        if chans is None:
-            chans, _ = io.get_nodes_and_edges(params)
-        N_filt = chans.size
-        ## Compute some additional parameters of the spike data.
-        N_tr = spike_times.shape[0]
-        datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-        template_shift = int((N_t - 1) / 2)
-        ## Load the spike data.
-        spikes = numpy.zeros((N_t, N_filt, N_tr))
-        for (count, idx) in enumerate(spike_times):
-            chunk_len = chunk_size * N_total
-            chunk_start = (idx - template_shift) * N_total
-            chunk_end = (idx + template_shift + 1)  * N_total
-            local_chunk = datablock[chunk_start:chunk_end]
-            if local_chunk.shape[0] == 0:
-                # N_t * N_total:
-                print(datablock.shape)
-                print(idx * N_total)
-                print(chunk_start)
-                print(chunk_end)
-            # Reshape, slice and cast data.
-            local_chunk = local_chunk.reshape(N_t, N_total)
-            local_chunk = local_chunk[:, chans]
-            local_chunk = local_chunk.astype(numpy.float32)
-            local_chunk -= dtype_offset
-            # Save data.
-            spikes[:, :, count] = local_chunk
-        return spikes
     
     
     # Initialize the random seed.
@@ -89,8 +53,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Retrieve PCA basis.
     basis_proj, basis_rec = io.load_data(params, 'basis')
     N_p = basis_proj.shape[1]
-    # Retrieve sampling rate.
-    sampling_rate  = params.getint('data', 'sampling_rate')
     
     # Select only the neighboring channels of the best channel.
     chan = params.getint('validating', 'val_chan')
@@ -99,7 +61,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         # TODO: select the channel with the highest changes in amplitudes
         #       instead of an arbitrary selection.
         # TODO: remove default implementation which select a random channel.
-        N_e = params.getint('data', 'N_e')
         chan = numpy.random.randint(0, N_e)
     chans = get_neighbors(params, chan=chan)
     chan_index = numpy.argwhere(chans == chan)[0]
@@ -109,7 +70,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Ground truth cell's samples..."], level='info', logger=params)
+        io.print_and_log(["Ground truth cell's samples..."], level='info', logger=params)
     
     # Detect the spikes times of the "ground truth cell".
     extract_juxta_spikes(filename, params)
@@ -136,16 +97,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_gt = spikes_gt.shape[2]
     spikes_gt = spikes_gt.reshape(N_t, N_e * N_gt)
     spikes_gt = spikes_gt.T
-    
     # Compute the PCA coordinates of each spike of the "ground truth cell".
     X_gt = numpy.dot(spikes_gt, basis_proj)
     X_gt = X_gt.T
-    
     # Reshape data.
     X_gt = X_gt.reshape(N_p * N_e, N_gt)
     X_gt = X_gt.T
     
-    # Define the outputs.
+    # Define the outputs (i.e. 0 for ground truth samples).
     y_gt = numpy.zeros((N_gt, 1))
     
     if comm.rank == 0:
@@ -155,8 +114,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# y_gt.shape: {}".format(y_gt.shape),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
-    if comm.rank == 0:
+        
         if make_plots:
             plot_filename = "dataset-gt.png"
             path = os.path.join(plot_path, plot_filename)
@@ -188,7 +146,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Non ground truth cell's samples..."], level='info', logger=params)
+        io.print_and_log(["Non ground truth cell's samples..."], level='info', logger=params)
     
     # Detect the spikes times of the "non ground truth cell".
     extract_extra_spikes(filename, params)
@@ -220,7 +178,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Load the spikes of all the 'non ground truth cells".
     spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
     
-    
     if comm.rank == 0:
         if make_plots:
             plot_filename = "trigger-times-ngt.png"
@@ -231,23 +188,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 path = os.path.join(plot_path, directory)
                 plot.view_trigger_snippets(spikes_ngt, chans, save=path)
     
-    
     # Reshape data.
     N_t = spikes_ngt.shape[0]
     N_e = spikes_ngt.shape[1]
     N_ngt = spikes_ngt.shape[2]
     spikes_ngt = spikes_ngt.reshape(N_t, N_e * N_ngt)
     spikes_ngt = spikes_ngt.T
-    
     # Compute the PCA coordinates of each spike of the "non ground truth cells".
     X_ngt = numpy.dot(spikes_ngt, basis_proj)
     X_ngt = X_ngt.T
     # Reshape data.
     X_ngt = X_ngt.reshape(N_p * N_e, N_ngt)
     X_ngt = X_ngt.T
-    # Define the outputs.
-    y_ngt = numpy.ones((N_ngt, 1))
     
+    # Define the outputs (i.e. 1 for non ground truth samples).
+    y_ngt = numpy.ones((N_ngt, 1))
     
     if comm.rank == 0:
         if verbose:
@@ -256,8 +211,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# y_ngt.shape: {}".format(y_ngt.shape),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
-    if comm.rank == 0:
+        
         if make_plots:
             plot_filename = "dataset-ngt.png"
             path = os.path.join(plot_path, plot_filename)
@@ -268,7 +222,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### NOISE SAMPLES ########################################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Noise samples..."], level='info', logger=params)
+        io.print_and_log(["Noise samples..."], level='info', logger=params)
     
     # Compute the PCA coordinates of each "non-spike" sample.
     # TODO: replace temporary solution for 'low' and 'high'.
@@ -306,14 +260,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_noi = spikes_noi.shape[2]
     spikes_noi = spikes_noi.reshape(N_t, N_e * N_noi)
     spikes_noi = spikes_noi.T
-    
     # Compute the PCA coordinates of each "non-spike" sample.
     X_noi = numpy.dot(spikes_noi, basis_proj)
     X_noi = X_noi.T
     # Reshape data.
     X_noi = X_noi.reshape(N_p * N_e, N_noi)
     X_noi = X_noi.T
-    # Define outputs.
+    
+    # Define outputs (i.e. 1 for non ground truth samples).
     y_noi = numpy.ones((N_noi, 1))
     
     if comm.rank == 0:
@@ -323,8 +277,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# y_noi.shape: {}".format(y_noi.shape),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
-    if comm.rank == 0:
+        
         if make_plots:
             plot_filename = "dataset-noi.png"
             path = os.path.join(plot_path, plot_filename)
@@ -333,6 +286,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     # NORMALIZE DATASETS #######################################################
+    
+    if comm.rank == 0:
+        io.print_and_log(["Normalize datasets..."], level='info', logger=params)
+    
     
     X_raw = numpy.vstack((X_gt, X_ngt, X_noi))
     norm_scale = numpy.mean(numpy.linalg.norm(X_raw, axis=1))
@@ -345,7 +302,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### SAMPLES ##############################################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Samples..."], level='info', logger=params)
+        io.print_and_log(["Samples..."], level='info', logger=params)
     
     # Option to include the pairwise product of feature vector elements.
     pairwise = True
@@ -375,18 +332,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 X[:, N + k] = numpy.multiply(X[:, i], X[:, j])
                 k = k + 1
         
-        if verbose:
-            msg = [
-                "# X.shape (with pairwise product of feature vector element)",
-                "%s" %(X.shape,),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
+        if comm.rank == 0:
+            if verbose:
+                msg = [
+                    "# X.shape (with pairwise product of feature vector element): {}".format(X.shape),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
     
     ## Create the output dataset.
     y_raw = numpy.vstack((y_gt, y_ngt, y_noi))
     y_raw = y_raw.flatten()
     y = y_raw
-    
     
     if comm.rank == 0:
         if verbose:
@@ -403,9 +359,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### SANITY PLOT ##########################################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Sanity plot..."], level='info', logger=params)
-    
-    if comm.rank == 0:
+        
+        io.print_and_log(["Sanity plot..."], level='info', logger=params)
+        
+        
         if make_plots:
             plot_filename = "datasets.png"
             path = os.path.join(plot_path, plot_filename)
@@ -420,7 +377,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### INITIAL PARAMETER ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Initial parameter..."], level='info', logger=params)
+        io.print_and_log(["Initial parameter..."], level='info', logger=params)
     
     
     method = 'covariance'
@@ -465,14 +422,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         raise(Exception)
     
-    
     if comm.rank == 0:
         if verbose:
             msg = [
                 "# coefs_init: {}".format(coefs_init),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
     
     # Compute false positive rate and true positive rate for various cutoffs.
     num = 300
@@ -500,7 +455,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         p = float(Mhlnb_gt.size)
         tprs[i] = tp / p
     
-    
     if comm.rank == 0:
         if verbose:
             # msg = [
@@ -510,7 +464,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # ]
             # io.print_and_log(msg, level='default', logger=params)
             pass
-    
     
     # Compute mean acccuracy for various cutoffs.
     accs = numpy.zeros(num)
@@ -527,7 +480,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     i_opt = numpy.argmax(accs)
     cutoff_opt_acc = cutoffs[i_opt]
     
-    
     if comm.rank == 0:
         if verbose:
             msg = [
@@ -535,8 +487,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# acc_opt: {}".format(accs[i_opt]),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
-    if comm.rank == 0:
+        
         if make_plots:
             # Plot accuracy curve.
             title = "Accuracy curve for the initial parameter"
@@ -544,7 +495,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             path = os.path.join(plot_path, plot_filename)
             plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
                                accs[i_opt], title=title, save=path)
-    
     
     # Compute the normalized accuracy for various cutoffs.
     tprs = numpy.zeros(num)
@@ -574,8 +524,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# norm_acc_opt: {}".format(norm_accs[i_opt]),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
-    if comm.rank == 0:
+        
         if make_plots:
             # Plot normalized accuracy curve.
             title = "Normalized accuracy curve for the initial parameter"
@@ -584,7 +533,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             plot.view_normalized_accuracy(Mhlnb[indices], tprs, tnrs, norm_accs,
                                           Mhlnb[indices[i_opt]], norm_accs[i_opt],
                                           title=title, save=path)
-    
     
     # Set cutoff equal to the optimal cutoff.
     # cutoff = cutoff_opt_acc
@@ -607,15 +555,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# tpr: {}".format(tpr),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
-    if comm.rank == 0:
+        
         if make_plots:
             # Plot ROC curve.
             title = "ROC curve for the inital parameter"
             plot_filename = "roc-curve.png"
             path = os.path.join(plot_path, plot_filename)
             plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
-    
     
     # Scale the ellipse according to the chosen cutoff.
     A_init = (1.0 / cutoff) * A_init
@@ -627,10 +573,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Sanity plot (classifier projection)..."],
+        io.print_and_log(["Sanity plot (classifier projection)..."],
                          level='info', logger=params)
-    
-    if comm.rank == 0:
+        
+        
         if make_plots:
             # Plot initial classifier (ellipsoid).
             title = "Initial classifier (ellipsoid)"
@@ -645,17 +591,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # MAHALANOBIS DISTRIBUTIONS ################################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Compute intial Mahalanobis distributions..."],
+        
+        io.print_and_log(["Compute intial Mahalanobis distributions..."],
                          level='info', logger=params)
-    
-    
-    # Compute mahalanobis distributions.
-    mu = numpy.mean(X_gt, axis=0)
-    Mhlnb_gt = squared_Mahalanobis_distance(A_init, mu, X_gt)
-    Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
-    Mhlnb_noi = squared_Mahalanobis_distance(A_init, mu, X_noi)
-    
-    if comm.rank == 0:
+        
+        
+        # Compute mahalanobis distributions.
+        mu = numpy.mean(X_gt, axis=0)
+        Mhlnb_gt = squared_Mahalanobis_distance(A_init, mu, X_gt)
+        Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
+        Mhlnb_noi = squared_Mahalanobis_distance(A_init, mu, X_noi)
+        
         if make_plots:
             # Plot Mahalanobis distributions.
             title = "Mahalanobis distributions (ellipsoid)"
@@ -669,7 +615,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### LEARNING #############################################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Learning..."], level='info', logger=params)
+        io.print_and_log(["Learning..."], level='info', logger=params)
     
     
     # mode = 'decision'
@@ -685,7 +631,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# X_test.shape: {}".format(X_test.shape),
             ]
             io.print_and_log(msg, level='default', logger=params)
-    
     
     model = 'sgd'
     # Declare model.
@@ -707,13 +652,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     elif model == 'sgd':
         _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
         clf = SGDClassifier(loss='log',
-                            # penalty='l2',
-                            # alpha=1.0e-12,
                             fit_intercept=True,
                             random_state=2,
-                            # learning_rate='constant',
                             learning_rate='optimal',
-                            # eta0=sys.float_info.epsilon,
+                            eta0=sys.float_info.epsilon,
                             class_weight=class_weights[0])
     
     # Initialize model (i.e. fake launch, weights initialization).
@@ -723,7 +665,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         clf.set_params(warm_start=False)
     elif model == 'perceptron' or model == 'sgd':
         clf.set_params(n_iter=1)
-        # clf.set_params(eta0=sys.float_info.epsilon)
+        clf.set_params(eta0=sys.float_info.epsilon)
         clf.set_params(warm_start=False)
     clf.fit(X_train, y_train)
     
@@ -805,7 +747,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     elif model == 'perceptron' or model == 'sgd':
         n_iter = min(max_iter, 1000000 / N_max)
         clf.set_params(n_iter=n_iter)
-        # clf.set_params(eta0=learning_rate_init)
+        clf.set_params(eta0=learning_rate_init)
         clf.set_params(warm_start=True)
     clf.fit(X_train, y_train)
     
@@ -871,7 +813,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         
-        io.print_and_log(["# Sanity plot (classifier projection)..."],
+        io.print_and_log(["Sanity plot (classifier projection)..."],
                          level='info', logger=params)
         
         
@@ -889,7 +831,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         
-        io.print_and_log(["# Compute final Mahalanobis distributions..."],
+        io.print_and_log(["Compute final Mahalanobis distributions..."],
                          level='info', logger=params)
         
         
@@ -923,7 +865,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### WEIGHTED LEARNING ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["# Weighted learning..."], level='info', logger=params)
+        io.print_and_log(["Weighted learning..."], level='info', logger=params)
     
     
     _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)

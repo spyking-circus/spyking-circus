@@ -25,6 +25,41 @@ def get_neighbors(params, chan=43, radius=120):
 
 
 
+def load_chunk(params, spike_times, chans=None):
+    """Auxiliary function to load spike data given spike times."""
+    # Load the parameters of the spike data.
+    data_file = params.get('data', 'data_file')
+    data_offset = params.getint('data', 'data_offset')
+    data_dtype = params.get('data', 'data_dtype')
+    chunk_size = params.getint('data', 'chunk_size')
+    N_total = params.getint('data', 'N_total')
+    N_t = params.getint('data', 'N_t')
+    dtype_offset = params.getint('data', 'dtype_offset')
+    if chans is None:
+        chans, _ = io.get_nodes_and_edges(params)
+    N_filt = chans.size
+    ## Compute some additional parameters of the spike data.
+    N_tr = spike_times.shape[0]
+    datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    template_shift = int((N_t - 1) / 2)
+    ## Load the spike data.
+    spikes = numpy.zeros((N_t, N_filt, N_tr))
+    for (count, idx) in enumerate(spike_times):
+        chunk_len = chunk_size * N_total
+        chunk_start = (idx - template_shift) * N_total
+        chunk_end = (idx + template_shift + 1)  * N_total
+        local_chunk = datablock[chunk_start:chunk_end]
+        # Reshape, slice and cast data.
+        local_chunk = local_chunk.reshape(N_t, N_total)
+        local_chunk = local_chunk[:, chans]
+        local_chunk = local_chunk.astype(numpy.float32)
+        local_chunk -= dtype_offset
+        # Save data.
+        spikes[:, :, count] = local_chunk
+    return spikes
+
+
+
 def extract_extra_thresholds(params):
     """Compute the mean and the standard deviation for each extracellular channel"""
     
