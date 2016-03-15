@@ -79,7 +79,7 @@ Options are:
                          - (extra) converting [to export to phy format]
                          - (extra) benchmarking [with -o and -t]
     -c or --cpu      : number of CPU (default 1)
-    -g or --gpu      : number of GPU (default 1 if CUDA available)
+    -g or --gpu      : number of GPU (default 0)
     -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
     -b or --batch    : datafile is a list of commands to launch, in a batch mode
     -p or --preview  : GUI to display the first second filtered with thresholds
