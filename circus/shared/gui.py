@@ -927,6 +927,7 @@ class PreviewGUI(QtGui.QMainWindow):
         self.probe            = io.read_probe(params)
         self.N_e              = params.getint('data', 'N_e')
         self.N_t              = params.getint('data', 'N_t')
+        self.spike_thresh     = params.getint('data', 'spike_thresh')
         self.N_total          = params.getint('data', 'N_total')
         self.sampling_rate    = params.getint('data', 'sampling_rate')
         self.template_shift   = params.getint('data', 'template_shift')
@@ -984,12 +985,23 @@ class PreviewGUI(QtGui.QMainWindow):
         self.btn_lasso.clicked.connect(self.update_rect_selector)
         self.btn_picker.clicked.connect(self.update_rect_selector)
         self.get_time.valueChanged.connect(self.update_time)
+        self.get_threshold.valueChanged.connect(self.update_threshold)
+        if self.show_fit:
+            self.time_box.setEnabled(True)
+        else:
+            self.threshold_box.setEnabled(True)
         self.get_time.setValue(self.t_start)
+        self.get_threshold.setValue(self.spike_thresh)
 
         # Select the most central point at start
         idx = np.argmin((self.x_position - np.mean(self.x_position)) ** 2 +
                         (self.y_position - np.mean(self.y_position)) ** 2)
         self.update_inspect({idx})
+
+
+    def update_threshold(self):
+        self.user_threshold = self.get_threshold.value()
+        self.update_data_plot()
 
     def update_time(self):
         if self.show_fit:
@@ -1207,7 +1219,7 @@ class PreviewGUI(QtGui.QMainWindow):
             for count, idx in enumerate(indices):
                 data_line, = self.data_x.plot(self.time,
                                               count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
-                thr = self.thresholds[idx]
+                thr = self.thresholds[idx]*(self.user_threshold/self.spike_thresh)
                 self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], ':',
                                  color=self.inspect_colors[count], lw=2)
         else:
