@@ -294,7 +294,8 @@ def slice_result(result, times):
 
     return sub_results
 
-def merging_cc(comm, params, parallel_hdf5=False):
+def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
+
 
     def remove(result, distances, cc_merge):
         do_merge  = True
@@ -351,7 +352,7 @@ def merging_cc(comm, params, parallel_hdf5=False):
     cc_merge       = params.getfloat('clustering', 'cc_merge')
         
     result   = []
-    overlap  = get_overlaps(comm, params, extension='-merging', erase=True, parallel_hdf5=parallel_hdf5, normalize=True, maxoverlap=False, verbose=False, half=True)
+    overlap  = get_overlaps(comm, params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
     if comm.rank > 0:
@@ -387,7 +388,7 @@ def merging_cc(comm, params, parallel_hdf5=False):
     return [nb_temp, len(to_merge)]
 
 
-def delete_mixtures(comm, params, parallel_hdf5=False):
+def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
         
     templates      = load_data(params, 'templates')
     templates      = load_data(params, 'templates')
@@ -400,7 +401,7 @@ def delete_mixtures(comm, params, parallel_hdf5=False):
     mixtures       = []
     to_remove      = []
 
-    overlap  = get_overlaps(comm, params, extension='-mixtures', erase=True, parallel_hdf5=parallel_hdf5, normalize=False, maxoverlap=False, verbose=False, half=True)
+    overlap  = get_overlaps(comm, params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     result   = []
     

@@ -1068,14 +1068,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(["Merging similar templates..."], 'default', params)
     
     
-    merged1 = algo.merging_cc(comm, params, parallel_hdf5)
+    merged1 = algo.merging_cc(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     
     comm.Barrier()
 
     if remove_mixture:
         if comm.rank == 0:
             io.print_and_log(["Removing mixtures..."], 'default', params)
-        merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+        merged2 = algo.delete_mixtures(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     else:
         merged2 = [0, 0]
 
@@ -1086,4 +1086,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     comm.Barrier()
-    io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
+    io.get_overlaps(comm, params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)

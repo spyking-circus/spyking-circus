@@ -914,7 +914,10 @@ def get_results(params, extension=''):
     myfile.close()
     return result
 
-def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, normalize=True, maxoverlap=True, verbose=True, half=False):
+def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0):
+
+    import h5py
+    parallel_hdf5  = h5py.get_config().mpi
 
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
@@ -948,9 +951,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
     cuda_string = 'using %d CPU...' %comm.size
     
-    try:
+    if use_gpu:
         import cudamat as cmt
-        HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
                 gpu_id = int(comm.rank//nb_cpu)
@@ -961,10 +963,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
-    except Exception:
-        HAVE_CUDA = False
 
-    if HAVE_CUDA:
+    if use_gpu:
         cuda_string = 'using %d GPU...' %comm.size
 
     #print "Normalizing the templates..."
@@ -1019,7 +1019,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
                 size  = N_e*idelay    
                 tmp_1 = loc_templates[:, :idelay]
                 
-                if HAVE_CUDA:
+                if use_gpu:
                     tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_elements))
                 else:
                     tmp_1 = tmp_1.reshape(size, nb_elements)
@@ -1031,7 +1031,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
                 lb_2  = tmp_2.shape[2]
                 
-                if HAVE_CUDA:
+                if use_gpu:
                     tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
                     data  = cmt.dot(tmp_1.T, tmp_2).asarray()
                 else:
