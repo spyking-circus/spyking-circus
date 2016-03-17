@@ -128,7 +128,7 @@ Syntax is circus-gui-python datafile [extension]
 
         for count, elec in enumerate(best_elec):
             nb_loc                = len(edges[nodes[elec]])
-            pc_features_ind[count, numpy.arange(nb_loc)] = edges[nodes[elec]]
+            pc_features_ind[count, numpy.arange(nb_loc)] = inv_nodes[edges[nodes[elec]]]
 
         basis_proj, basis_rec = load_data(params, 'basis')
 
