@@ -197,32 +197,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."                
-            local_chunk = local_chunk.T
-            b          = numpy.zeros((N_tm, n_t), dtype=numpy.float32)
+            local_chunk = local_chunk.T            
+            sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
+            for count, time in enumerate(local_peaktimes):
+                sub_mat[:, count] = local_chunk[:, time-template_shift: time+template_shift+1].flatten()
 
-            if use_gpu:
-                b    = cmt.CUDAMatrix(b)
-                cloc = cmt.CUDAMatrix(local_chunk)                              
-
-            try:
-                for count, time in enumerate(local_peaktimes):
-                    if use_gpu:            
-                        sub_mat = cloc.get_col_slice(time-template_shift, time+template_shift+1).transpose()
-                        sub_mat.reshape((N_e*(2*template_shift+1), 1))
-                        cmt.sparse_dot(templates, sub_mat, target=b.get_col_slice(count, count+1))
-                    else:
-                        sub_mat     = local_chunk[:, time-template_shift: time+template_shift+1].flatten()
-                        b[:, count] = templates.dot(sub_mat)
-            except Exception:
-                if comm.rank == 0:
-                    lines = ["There may be a GPU memory error: -set gpu_only to False",
-                             "                                 -reduce N_t",
-                             "                                 -increase mergings"]
-                    io.print_and_log(lines, 'error', params)
-                sys.exit(0)
-
-            if use_gpu:
-                del sub_mat, cloc
+            if use_gpu: 
+                try:
+                    sub_mat = cmt.CUDAMatrix(sub_mat)
+                    b       = cmt.sparse_dot(templates, sub_mat)
+                    del sub_mat
+                except Exception:
+                    if comm.rank == 0:
+                        lines = ["There may be a GPU memory error: -set gpu_only to False",
+                                 "                                 -reduce N_t",
+                                 "                                 -increase mergings"]
+                        io.print_and_log(lines, 'error', params)
+                    sys.exit(0)
+            else:
+                b = templates.dot(sub_mat)                
 
             local_offset = gidx*chunk_size+padding[0]//N_total
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
