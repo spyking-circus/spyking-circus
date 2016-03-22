@@ -671,7 +671,6 @@ class MergeWindow(QtGui.QMainWindow):
         self.update_data_plot()
         self.update_waveforms()
 
-
     def update_selection(self, indices, add_or_remove=None):
         if add_or_remove is None:
             self.selected_points.clear()

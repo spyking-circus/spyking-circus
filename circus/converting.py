@@ -13,6 +13,7 @@ import os.path as op
 import shutil
 
 import numpy as np
+import h5py
 from circus.shared.files import detect_header
 
 from phy.detect.spikedetekt import SpikeDetekt
@@ -31,11 +32,11 @@ filtered_datfile = True
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     def _read_spikes(basename):
-      with open_h5(basename + '.spiketimes.mat', 'r') as f:
+      with open_h5(basename + '.result.hdf5', 'r') as f:
           spike_samples = {}
-          for name in f.children():
+          for name in f.read('/spiketimes').keys():
               cluster = int(name.split('_')[1])
-              samples = f.read(name)[:].ravel().astype(np.uint64)
+              samples = f.read('/spiketimes/' + name)[:].ravel().astype(np.uint64)
               spike_samples[cluster] = samples
           clusters = np.sort(list(spike_samples.keys()))
           # n_clusters = len(clusters)
@@ -50,13 +51,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     def _read_templates(basename, probe, n_total_channels, n_channels):
-        with open_h5(basename + '.templates.mat', 'r') as f:
-            templates = f.read('/templates')
-            n_templates, n_samples, n_channels = templates.shape
-            n_templates    //= 2
-            templates        = templates[:n_templates, :, :]
-            masks            = np.zeros((n_templates, n_channels))
-            electrodes       = np.argmax(np.abs(templates).max(1), 1)
+        with h5py.File(basename + '.templates.hdf5', 'r') as f:
+            if 'templates' in f.keys():
+              templates        = f.get('templates')
+              n_templates, n_samples, n_channels = templates.shape[2], templates.shape[1], templates.shape[0] 
+              n_templates    //= 2
+              templates        = templates[:, :, :n_templates].T
+              masks            = np.zeros((n_templates, n_channels))
+              electrodes       = np.argmax(np.abs(templates).max(1), 1)
+            else:
+              n_channels, n_samples, n_templates = f.get('temp_shape')
+              n_templates    //= 2
+              masks            = np.zeros((n_templates, n_channels))
+              temp_x           = f.get('temp_x')[:]
+              temp_y           = f.get('temp_y')[:]
+              temp_data        = f.get('temp_data')[:]
+              idx              = numpy.where(temp_y < n_templates)[0]
+              templates        = scipy.sparse.csc_matrix((temp_data[idx], (temp_x[idx],temp_y[idx])), 
+                shape=(n_channels*n_samples, n_templates))
+              electrodes       = numpy.zeros(n_templates, dtype=np.int32)
+              for i in xrange(n_templates):
+                temp = templates[:, i].toarray().reshape(n_channels, n_samples)
+                electrodes[i] = np.argmax(np.abs(temp).max(1))
 
             inv_nodes        = np.zeros(n_total_channels, dtype=np.int32)
             nodes            = []
@@ -86,11 +102,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         amplitudes = np.empty_like(spike_clusters, dtype=np.float32)
         spike_ids = np.arange(n_spikes, dtype=np.int32)
         spc = _spikes_per_cluster(spike_ids, spike_clusters)
-
-        with open_h5(basename + '.amplitudes.mat', 'r') as f:
+        with open_h5(basename + '.result.hdf5', 'r') as f:
             for i in range(n_templates):
-                amplitudes_i = f.read('/temp_' + str(i))[0,...]
-                amplitudes[spc[i]] = amplitudes_i
+                if f.read('/amplitudes/temp_' + str(i)).shape[0] > 0:
+                  amplitudes_i = f.read('/amplitudes/temp_' + str(i))[0,...]
+                  amplitudes[spc[i]] = amplitudes_i
         return amplitudes
 
 
@@ -127,7 +143,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     def _read_filtered(filename, offset_value, n_channels=None, dtype=None):
         fn     = filename
-        offset = int(detect_header(filename, offset_value))
+        offset, nb_channels = detect_header(filename, offset_value)
+        offset = int(offset)
         info("Header: {} bytes.".format(offset))
         dtype = np.dtype(dtype)
         filename, data = _truncate(fn,
@@ -149,7 +166,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                      dtype=None,
                      sample_rate=None,
                      dc_offset=0,
-                     gain=0.01,
                      offset_value=0
                      ):
 
@@ -204,7 +220,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             # Load templates and masks.
             self.templates, self.template_masks = _read_templates(basename, self.probe, self.n_total_channels, self.n_channels)
-            self.n_templates = len(self.templates)
+            if len(self.templates.shape) == 3:
+              self.n_templates = len(self.templates)
+            else:
+              self.n_templates = self.templates.shape[1]
+
             info("Loaded templates: {}.".format(self.templates.shape))
 
             # Load amplitudes.
@@ -233,7 +253,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   self._wl = WaveformLoader(traces=self.traces_f,
                                             n_samples=self.n_samples_w,
                                             dc_offset=dc_offset,
-                                            scale_factor=gain,
                                             channels=nodes
                                             )
                 else:
@@ -242,7 +261,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             filter=filter,
                                             filter_margin=filter_margin,
                                             dc_offset=dc_offset,
-                                            scale_factor=gain,
                                             channels=nodes
                                             )
 
@@ -435,7 +453,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sample_rate      = params.getint('data', 'sampling_rate')
     dtype            = params.get('data', 'data_dtype')
     dc_offset        = params.getint('data', 'dtype_offset')
-    gain             = params.getfloat('data', 'gain')
     data_offset      = params.get('data', 'data_offset')
 
     c = Converter(basename, filename, N_t,
@@ -445,7 +462,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                   prb_file=prb_file,
                   sample_rate=sample_rate,
                   dtype=dtype,
-                  gain=gain,
                   offset_value=data_offset
                   )
 

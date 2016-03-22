@@ -194,8 +194,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         n_t             = len(local_peaktimes)
 
         if n_t > 0:
-            #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."
-                
+            #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."                
             local_chunk = local_chunk.T
 
             if use_gpu:

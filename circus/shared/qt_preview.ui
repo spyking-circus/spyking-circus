@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MergeWindow</class>
+ <widget class="QMainWindow" name="MergeWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>976</width>
+    <height>625</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <property name="autoFillBackground">
+   <bool>false</bool>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="1">
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <item>
+         <widget class="QToolButton" name="btn_lasso">
+          <property name="text">
+           <string>Lasso</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../icons/gimp-tool-free-select.png</normaloff>../icons/gimp-tool-free-select.png</iconset>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="autoExclusive">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btn_rectangle">
+          <property name="text">
+           <string>Rectangle</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../icons/gimp-tool-rect-select.png</normaloff>../icons/gimp-tool-rect-select.png</iconset>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="autoExclusive">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btn_picker">
+          <property name="text">
+           <string>Picker</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../icons/gimp-tool-color-picker.png</normaloff>../icons/gimp-tool-color-picker.png</iconset>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <property name="autoExclusive">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="time_box">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>100</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Set Time [s]                 </string>
+          </property>
+          <widget class="QToolButton" name="btn_prev">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>30</y>
+             <width>22</width>
+             <height>24</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Backward</string>
+           </property>
+           <property name="icon">
+            <iconset theme="go-previous">
+             <normaloff/>
+            </iconset>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="btn_next">
+           <property name="geometry">
+            <rect>
+             <x>20</x>
+             <y>30</y>
+             <width>22</width>
+             <height>24</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Forward</string>
+           </property>
+           <property name="icon">
+            <iconset theme="go-next">
+             <normaloff/>
+            </iconset>
+           </property>
+          </widget>
+          <widget class="QSpinBox" name="get_time">
+           <property name="geometry">
+            <rect>
+             <x>50</x>
+             <y>30</y>
+             <width>101</width>
+             <height>27</height>
+            </rect>
+           </property>
+           <property name="maximum">
+            <number>999999998</number>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="threshold_box">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>100</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Set Threshold</string>
+          </property>
+          <widget class="QDoubleSpinBox" name="get_threshold">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>30</y>
+             <width>101</width>
+             <height>27</height>
+            </rect>
+           </property>
+           <property name="singleStep">
+            <double>0.250000000000000</double>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="MplCanvas" name="electrodes" native="true"/>
+        </item>
+        <item>
+         <widget class="MplCanvas" name="raw_data" native="true"/>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MplCanvas</class>
+   <extends>QWidget</extends>
+   <header>circus.shared.mplcanvas</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

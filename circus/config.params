@@ -3,62 +3,63 @@ data_offset    = MCS                    # Length of the header ('MCS' is auto fo
 mapping        = probes/mea_252.prb     # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files
 data_dtype     = uint16                 # Type of the data
-dtype_offset   = 32767                  # Padding for data (uint16 is 32767)
-gain           = 0.01                   # Gain for spike detection
-spike_thresh   = 7                      # Threshold for spike detection
+dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
+spike_thresh   = 6                      # Threshold for spike detection
+skip_artefact  = False                  # Skip part of signals with large fluctuations
 sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 N_t            = 5                      # Width of the templates [in ms]
+stationary     = True                   # Should be False for long recordings: adaptive thresholds
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)
+alignment      = True                   # Realign the waveforms by oversampling
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
+multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation
 
 [filtering]
 cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
 filter         = True      # If True, then a low-pass filtering is performed
 
 [whitening]
-safety_time    = 0.5       # Temporal zone around which templates are isolated [in ms]
-temporal       = True      # Perform temporal whitening
+chunk_size     = 60        # Size of the data chunks [in s]
+safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
+temporal       = False     # Perform temporal whitening
 spatial        = True      # Perform spatial whitening
 max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8       # Fraction of max_elts that should be obtained per electrode [0-1]
 output_dim     = 5         # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 
 [clustering]
-safety_space   = True      # If True, we exclude spikes in the vicinity of a selected spikes
-safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
-max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
-nb_elts        = 0.8       # Fraction of max_elts that should be obtained per electrode [0-1]
-nclus_min      = 0.002     # Min number of elements in a cluster (given in percentage)
-max_clusters   = 10        # Maximal number of clusters for every electrodes
-nb_repeats     = 3         # Number of passes used for the clustering
-smart_search   = 3         # Parameter for the smart search. The higher, the more strict
-sim_same_elec  = 3         # Distance within clusters under which they are re-merged
-cc_merge       = 0.95      # If CC between two templates is higher, they are merged
-noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
-make_plots     = True      # Generate sanity plots of the clustering
-test_clusters  = False     # Should be False. Only to plot injection of synthetic clusters
+extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw, or quadratic
+safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
+safety_time    = auto       # Temporal zone around which templates are isolated [in ms]
+max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
+nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
+nclus_min      = 0.01       # Min number of elements in a cluster (given in percentage)
+max_clusters   = 10         # Maximal number of clusters for every electrodes
+nb_repeats     = 3          # Number of passes used for the clustering
+smart_search   = 0          # Parameter for the smart search [0-1]. The higher, the more strict
+sim_same_elec  = 3          # Distance within clusters under which they are re-merged
+cc_merge       = 0.975      # If CC between two templates is higher, they are merged
+noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
+make_plots     = png        # Generate sanity plots of the clustering [Nothing or None if no plots]
+remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
 
 [fitting]
-chunk          = 0.5       # Size of chunks used during fitting [in second]
+chunk          = 1         # Size of chunks used during fitting [in second]
 gpu_only       = True      # Use GPU for computation of b's AND fitting
-amp_limits     = (0.3, 30) # Amplitudes for the templates during spike detection
+amp_limits     = (0.3, 5)  # Amplitudes for the templates during spike detection
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
 refractory     = 0         # Refractory period, in ms [0 is None]
 max_chunk      = inf       # Fit only up to max_chunk   
-spike_range    = 0         # Jitter allowed around each spike time to fit the templates (in ms) 
 
 [merging]
-cc_gap         = 0.05      # Normalized difference between CrossCorr and shuffled CrossCorr
-cc_overlap     = 0.75      # Only templates with CC higher than cc_overlap may be merged
+cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2         # Bin size for computing CC [in ms]
-cc_average     = 40        # [-cc_average, cc_average] is the window of interest [in ms]
-make_plots     = True      # Generate sanity plots during automatic merging
 
 [extracting]
 safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
 max_elts       = 1000      # Max number of collected events per templates
 output_dim     = 5         # Percentage of variance explained while performing PCA
-cc_merge       = 0.95      # If CC between two templates is higher, they are merged
+cc_merge       = 0.975     # If CC between two templates is higher, they are merged
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
 [noedits]

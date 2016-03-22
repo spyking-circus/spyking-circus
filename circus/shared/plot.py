@@ -1,15 +1,14 @@
-import numpy
-import pylab
-import os
-
-from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results
+import numpy, scipy, pylab, os
+from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results, read_probe
 import numpy, pylab
 from circus.shared import algorithms as algo
+from circus.shared.utils import *
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
     params          = load_parameters(file_name)
     N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('data', 'N_t')
     N_total         = params.getint('data', 'N_total')
     sampling_rate   = params.getint('data', 'sampling_rate')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -21,18 +20,18 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
 
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
     data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
     
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
-    if do_temporal_whitening: 
-        for i in xrange(N_e):
-            data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
+    if do_temporal_whitening:
+        data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
 
     try:
         result    = load_data(params, 'results')
@@ -54,7 +53,10 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
             for spike, (amp1, amp2) in zip(result['spiketimes'][key][idx], result['amplitudes'][key][idx]):
                 count += 1
                 spike -= t_start*sampling_rate
-                curve[:, spike-template_shift:spike+template_shift+1] += amp1*templates[:, :, elec] + amp2*templates[:, :, elec+templates.shape[2]/2]
+                tmp1   = templates[:, elec].toarray().reshape(N_e, N_t)
+                tmp2   = templates[:, elec+templates.shape[1]//2].toarray().reshape(N_e, N_t)
+                
+                curve[:, spike-template_shift:spike+template_shift+1] += amp1*tmp1 + amp2*tmp2
         print "Number of spikes", count
 
     if not numpy.iterable(n_elec):
@@ -93,25 +95,23 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.title('Electrode %d' %i)
         if (square and not (count < n_elec*(n_elec - 1))) or (not square and not count != (n_elec - 1)):
             x, y = pylab.xticks()
-            pylab.xticks(x, numpy.round(x/sampling_rate, 2))
+            pylab.xticks(x, numpy.round(x//sampling_rate, 2))
 
         pylab.ylim(-2*thresholds[i], 2*thresholds[i])
     pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], save[1] + '.pdf'))
+        pylab.savefig(os.path.join(save[0], save[1]))
         pylab.close()
     else:
         pylab.show()
 
 
-def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=False):
+def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
 
-    import mdp
     fig = pylab.figure(figsize=(15, 10))
     ax  = fig.add_subplot(231)
     ax.set_xlabel(r'$\rho$')
     ax.set_ylabel(r'$\delta$')
-    ax.set_title(r'$d_c = %g$' %dc)
     ax.plot(rho, delta, 'o', color='black')
     ax.set_yscale('log')
 
@@ -125,11 +125,12 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
             colorVal = scalarMap.to_rgba(halo[i])
             ax.plot(rho[i], delta[i], 'o', color=colorVal)
 
-    pca = mdp.nodes.PCANode(output_dim=3)
-    visu_data = pca(data.astype(numpy.double))
-    assigned  = numpy.where(halo > -1)[0]
-
     try:
+
+        pca = PCA(3)
+        visu_data = pca.fit_transform(data.astype(numpy.double))
+        assigned  = numpy.where(halo > -1)[0]
+
         ax = fig.add_subplot(232)
         ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0)
         ax.set_xlabel('Dim 0')
@@ -153,7 +154,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
         my_cmap   = pylab.get_cmap('winter')
 
         ax = fig.add_subplot(236)
-        ax.scatter(visu_data[:,0], visu_data[:,1], c=rho, cmap=my_cmap)
+        idx = numpy.argsort(rho)
+        ax.scatter(visu_data[idx,0], visu_data[idx,1], c=rho[idx], cmap=my_cmap)
         ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
         if injected is not None:
             ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
@@ -171,7 +173,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, dc=None, save=
     ax.set_yscale('log')
     pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], 'cluster_%s.pdf' %save[1]))
+        pylab.savefig(os.path.join(save[0], 'cluster_%s' %save[1]))
         pylab.close()
     else:
         pylab.show()
@@ -186,7 +188,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     clust_idx    = numpy.unique(halo[mask])
     fig          = pylab.figure()    
     square       = True
-    center       = len(data[0] - 1)/2
+    center       = len(data[0] - 1)//2
     for count, i in enumerate(xrange(nb_templates)):
         if square:
             pylab.subplot(n_panels, n_panels, count + 1)
@@ -214,7 +216,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     if nb_templates > 0:
         pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], 'waveforms_%s.pdf' %save[1]))
+        pylab.savefig(os.path.join(save[0], 'waveforms_%s' %save[1]))
         pylab.close()
     else:
         pylab.show()
@@ -237,9 +239,10 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
     
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     try:
         result    = load_data(params, 'results')
@@ -256,13 +259,12 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
         templates = numpy.zeros((0, 0, 0))
     
     for count, t_spike in enumerate(numpy.random.permutation(spikes)[:n_spikes]):
-        padding          = ((t_spike - int(N_t-1)/2)*N_total, (t_spike - int(N_t-1)/2)*N_total)
+        padding          = ((t_spike - int(N_t-1)//2)*N_total, (t_spike - int(N_t-1)//2)*N_total)
         data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
-        if do_temporal_whitening: 
-            for i in xrange(N_e):
-                data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
+        if do_temporal_whitening:
+            data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
         
         curve[count] = data.T
     pylab.subplot(121)
@@ -287,9 +289,10 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
 
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
     data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
@@ -323,7 +326,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
 
 
 
-def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100):
+def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100, temp_id=None):
     
     params          = load_parameters(file_name)
     N_e             = params.getint('data', 'N_e')
@@ -336,10 +339,15 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
     N_t              = params.getint('data', 'N_t')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
-    
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+
+    if temp_id is not None:
+        templates    = load_data(params, 'templates')
+        mytemplate   = templates[:, temp_id].toarray().reshape(N_e, N_t)
+
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
    
     thresholds = load_data(params, 'thresholds')    
     
@@ -351,13 +359,10 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         data, data_shape = load_chunk(params, 0, N_t*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
-        if do_temporal_whitening: 
-            for i in xrange(N_e):
-                data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
+        if do_temporal_whitening:
+            data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
         
         curve[count] = data.T
-    pylab.subplot(111)
-    pylab.imshow(numpy.mean(curve, 0), aspect='auto') 
 
     if not numpy.iterable(n_elec):
         if square:
@@ -368,6 +373,7 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         idx    = n_elec
         n_elec = numpy.sqrt(len(idx))
     pylab.figure()
+
     for count, i in enumerate(idx):
         if square:
             pylab.subplot(n_elec, n_elec, count + 1)
@@ -385,10 +391,12 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         xmin, xmax = pylab.xlim()
         pylab.plot([xmin, xmax], [-thresholds[i], -thresholds[i]], 'k--')
         pylab.plot([xmin, xmax], [thresholds[i], thresholds[i]], 'k--')
-        pylab.title('Electrode %d' %i)
+        if temp_id is not None:
+            pylab.plot(mytemplate[i, :], 'b')
+        pylab.title('Elec %d' %i)
         if xzoom:
             pylab.xlim(xzoom[0], xzoom[1])
-        pylab.ylim(-2*thresholds[i], 2*thresholds[i])
+        #pylab.ylim(-5*thresholds[i], 5*thresholds[i])
         if yzoom:
             pylab.ylim(yzoom[0], yzoom[1])
     pylab.tight_layout()
@@ -410,10 +418,11 @@ def view_performance(file_name, triggers, lims=(150,150)):
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
     
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
-   
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
+
     thresholds       = load_data(params, 'thresholds')    
     
     try:
@@ -434,7 +443,7 @@ def view_performance(file_name, triggers, lims=(150,150)):
     return curve
 
 
-def view_templates(file_name, temp_id=0, best_elec=None):
+def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
 
     params          = load_parameters(file_name)
     N_e             = params.getint('data', 'N_e')
@@ -451,15 +460,10 @@ def view_templates(file_name, temp_id=0, best_elec=None):
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
 
-    templates        = load_data(params, 'templates')
+    if templates is None:
+        templates    = load_data(params, 'templates')
     clusters         = load_data(params, 'clusters')
-    probe            = {}
-    probetext        = file(params.get('data', 'mapping'), 'r')
-    try:
-        exec probetext in probe
-    except Exception:
-        print "Something wrong with the probe file!"
-    probetext.close()
+    probe            = read_probe(params)
 
     positions = {}
     for i in probe['channel_groups'].keys():
@@ -478,14 +482,15 @@ def view_templates(file_name, temp_id=0, best_elec=None):
             ymin = positions[i][0]
         if positions[i][1] > ymax:
             ymax = positions[i][1]
-    
     if best_elec is None:
         best_elec = clusters['electrodes'][temp_id]
+    elif best_elec == 'auto':
+        best_elec = numpy.argmin(numpy.min(templates[:, :, temp_id], 1))
     pylab.figure()
     for count, i in enumerate(xrange(N_e)):
         x, y     = positions[i]
-        xpadding = ((x - xmin)/float(xmax - xmin))*(2*N_t)
-        ypadding = ((y - ymin)/float(ymax - ymin))*scaling
+        xpadding = ((x - xmin)/(float(xmax - xmin) + 1))*(2*N_t)
+        ypadding = ((y - ymin)/(float(ymax - ymin) + 1))*scaling
 
         if i == best_elec:
             c='r'
@@ -505,9 +510,9 @@ def view_raw_templates(file_name, n_temp=2, square=True):
     N_e, N_t, N_tm = templates.shape
     if not numpy.iterable(n_temp):
         if square:
-            idx = numpy.random.permutation(numpy.arange(N_tm/2))[:n_temp**2]
+            idx = numpy.random.permutation(numpy.arange(N_tm//2))[:n_temp**2]
         else:
-            idx = numpy.random.permutation(numpy.arange(N_tm/2))[:n_temp]
+            idx = numpy.random.permutation(numpy.arange(N_tm//2))[:n_temp]
     else:
         idx = n_temp
 
@@ -548,7 +553,7 @@ def view_whitening(data):
     pylab.plot(data['temporal'])
     pylab.xlabel('Time [ms]')
     x, y = pylab.xticks()
-    pylab.xticks(x, (x-x[-1]/2)/10)
+    pylab.xticks(x, (x-x[-1]//2)//10)
     pylab.tight_layout()
 
 
@@ -570,9 +575,10 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     inv_nodes[nodes] = numpy.argsort(nodes)
     safety_time      = int(params.getfloat('clustering', 'safety_time')*sampling_rate*1e-3)
 
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
     data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
@@ -583,9 +589,10 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
     if do_temporal_whitening: 
-        for i in xrange(N_e):
-            data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
+        data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
+    
+    for i in xrange(N_e):
+        peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
 
 
     pylab.figure()
@@ -621,9 +628,10 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
 
-    if do_spatial_whitening or do_temporal_whitening:
-        spatial_whitening  = load_data(params,'spatial_whitening')
-        temporal_whitening = load_data(params,'temporal_whitening')
+    if do_spatial_whitening:
+        spatial_whitening  = load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
     data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
@@ -633,9 +641,10 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
     if do_temporal_whitening: 
-        for i in xrange(N_e):
-            data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
+        data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
+    
+    for i in xrange(N_e):
+        peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
 
     if not numpy.iterable(n_elec):
         if square:
