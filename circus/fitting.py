@@ -53,6 +53,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
+    n_scalar       = N_e*N_t
     last_spikes    = numpy.zeros((n_tm, 1), dtype=numpy.int32)
 
     if not amp_auto:
@@ -114,15 +115,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     for i in xrange(N_over):
         idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
-        c_overs[i] = scipy.sparse.csc_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
+        c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
     del over_x, over_y, over_data
 
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
-                data       = c_overs[i].toarray()
-                c_overs[i] = cmt.CUDAMatrix(-data)
+                c_overs[i] = cmt.SparseCUDAMatrix(-data)
         except Exception:
             if comm.rank == 0:
                 io.print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
@@ -143,6 +143,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     templates_file  = open(file_out_suff + '.templates-%d.data' %comm.rank, 'wb')
 
     comm.Barrier()
+
 
     for gcount, gidx in enumerate(xrange(comm.rank, nb_chunks, comm.size)):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -199,23 +200,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."                
             local_chunk = local_chunk.T            
             sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
-            for count, time in enumerate(local_peaktimes):
-                sub_mat[:, count] = local_chunk[:, time-template_shift: time+template_shift+1].flatten()
+            for count, idx in enumerate(local_peaktimes):
+                sub_mat[:, count] = local_chunk[:, idx-template_shift: idx+template_shift+1].flatten()
 
             if use_gpu: 
-                try:
-                    sub_mat = cmt.CUDAMatrix(sub_mat)
-                    b       = cmt.sparse_dot(templates, sub_mat)
-                    del sub_mat
-                except Exception:
-                    if comm.rank == 0:
-                        lines = ["There may be a GPU memory error: -set gpu_only to False",
-                                 "                                 -reduce N_t",
-                                 "                                 -increase mergings"]
-                        io.print_and_log(lines, 'error', params)
-                    sys.exit(0)
+                sub_mat = cmt.CUDAMatrix(sub_mat)
+                b       = cmt.sparse_dot(templates, sub_mat)
             else:
-                b = templates.dot(sub_mat)                
+                b       = templates.dot(sub_mat)                
 
             local_offset = gidx*chunk_size+padding[0]//N_total
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
@@ -233,7 +225,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if use_gpu and not full_gpu:
                 b = b.asarray()
 
-            n_scalar    = N_e*N_t
+            
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 
             if full_gpu:
@@ -364,6 +356,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 b_lines  = b.get_col_slice(0, b.shape[0])
                             else:
                                 b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
+                                
                             c_overs[inds_temp[keep]].select_columns(cu_slice, c)
                             c.mult_by_scalar(best_amp[keep])
                             b_lines.add(c)
