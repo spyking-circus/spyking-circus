@@ -69,6 +69,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         templates.data[myslice] /= norm_templates[idx]
 
     templates = templates.T
+    if use_gpu:
+        templates = cmt.SparseCUDAMatrix(templates)
 
     info_string   = ''
 
@@ -196,30 +198,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."                
             local_chunk = local_chunk.T
+            b          = numpy.zeros((N_tm, n_t), dtype=numpy.float32)
 
             if use_gpu:
-                b       = cmt.CUDAMatrix(numpy.zeros((n_t, N_tm)))
-                cloc    = cmt.CUDAMatrix(local_chunk)
-                sub_mat = cmt.empty((N_e, n_t))
-            else:
-                b    = numpy.zeros((n_t, N_tm), dtype=numpy.float32)                
+                b    = cmt.CUDAMatrix(b)
+                cloc = cmt.CUDAMatrix(local_chunk)                              
 
             try:
-                if use_gpu:
-                    for itime in xrange(temp_2_shift+1):
-                        rows            = numpy.arange(itime, templates.shape[0], N_t)
-                        slice_templates = templates[rows, :].toarray()
-                        if use_gpu:
-                            cu_slice = cmt.CUDAMatrix((local_peaktimes+itime-template_shift).reshape(1, n_t))
-                            cloc.select_columns(cu_slice, sub_mat)
-                            sub_mat_transpose = sub_mat.transpose()
-                            sub_templates     = cmt.CUDAMatrix(slice_templates)
-                            b.add_dot(sub_mat_transpose, sub_templates)
-                            del sub_templates, sub_mat_transpose
-                else:
-                    for count, time in enumerate(local_peaktimes):
-                        sub_mat  = local_chunk[:, time-template_shift: time+template_shift+1].flatten()
-                        b[count] = templates.dot(sub_mat)
+                for count, time in enumerate(local_peaktimes):
+                    if use_gpu:            
+                        sub_mat = cloc.get_col_slice(time-template_shift, time+template_shift+1).transpose()
+                        sub_mat.reshape((N_e*(2*template_shift+1), 1))
+                        cmt.sparse_dot(templates, sub_mat, target=b.get_col_slice(count, count+1))
+                    else:
+                        sub_mat     = local_chunk[:, time-template_shift: time+template_shift+1].flatten()
+                        b[:, count] = templates.dot(sub_mat)
             except Exception:
                 if comm.rank == 0:
                     lines = ["There may be a GPU memory error: -set gpu_only to False",
@@ -243,7 +236,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 penalty = numpy.ones((n_tm, n_t), dtype=numpy.float32)
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
-            b           = b.transpose()
+            #b           = b.transpose()
             if use_gpu and not full_gpu:
                 b = b.asarray()
 
