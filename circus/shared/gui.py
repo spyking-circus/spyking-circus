@@ -319,7 +319,6 @@ class MergeWindow(QtGui.QMainWindow):
                                                    facecolor=['black' for _ in x]))
             self.score_ax1.set_ylabel('Normalized CC metric')
             self.score_ax1.set_xlabel('Template similarity')
-            self.score_ax1.set_xticklabels([])
             self.score_ax2.set_xlabel('Template Norm')
             self.score_ax2.set_ylabel('# Spikes')
             self.score_ax3.set_xlabel('Reversed CC')
@@ -641,6 +640,8 @@ class MergeWindow(QtGui.QMainWindow):
             self.update_inspect(is_selected, 'add', False)
 
         self.update_score_plot()
+        self.update_detail_plot()
+        self.update_data_plot()
         self.update_waveforms()
 
 
@@ -668,6 +669,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.update_score_plot()
         self.update_detail_plot()
         self.update_data_plot()
+        self.update_waveforms()
 
 
     def update_selection(self, indices, add_or_remove=None):
