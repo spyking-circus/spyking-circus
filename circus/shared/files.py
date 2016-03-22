@@ -970,6 +970,9 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     #print "Normalizing the templates..."
     if normalize:
         norm_templates = load_data(params, 'norm-templates')[:N_tm]
+        for idx in xrange(N_tm):
+            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+            templates.data[myslice] /= norm_templates[idx]
 
     all_delays      = numpy.arange(1, N_t+1)
 
@@ -993,7 +996,8 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     over_x    = numpy.zeros(0, dtype=numpy.int32)
     over_y    = numpy.zeros(0, dtype=numpy.int32)
     over_data = numpy.zeros(0, dtype=numpy.float32)
-    
+    rows      = numpy.arange(N_e*N_t)
+                
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
         
         local_idx = numpy.where(best_elec == ielec)[0]
@@ -1004,39 +1008,27 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
 
         if len_local > 0:
 
-            loc_templates = templates[:, local_idx].toarray().reshape(N_e, N_t, len(local_idx))
             to_consider   = numpy.arange(upper_bounds)
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
             
-            nb_elements = loc_templates.shape[2]
-            
-            if normalize:
-                loc_templates /= norm_templates[local_idx]
+            loc_templates  = templates[:, local_idx].tocsr()
+            loc_templates2 = templates[:, to_consider].tocsr()
             
             for idelay in all_delays:
 
-                size  = N_e*idelay    
-                tmp_1 = loc_templates[:, :idelay]
-                
-                if use_gpu:
-                    tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_elements))
-                else:
-                    tmp_1 = tmp_1.reshape(size, nb_elements)
-                
-                loc_templates2 = templates[:, to_consider].toarray().reshape(N_e, N_t, len(to_consider))
-                tmp_2          = loc_templates2[:, -idelay:, :]
-                if normalize:
-                    tmp_2 /= norm_templates[to_consider]
+                srows = numpy.where(rows % N_t < idelay)[0]
+                tmp_1 = loc_templates[srows]
 
-                lb_2  = tmp_2.shape[2]
+                srows = numpy.where(rows % N_t >= (N_t - idelay))[0]
+                tmp_2 = loc_templates2[srows, :]
                 
                 if use_gpu:
-                    tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
-                    data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+                    tmp_2 = cmt.SparseCUDAMatrix(tmp_2)
+                    data  = None
                 else:
-                    tmp_2 = tmp_2.reshape(size, lb_2)
-                    data  = numpy.dot(tmp_1.T, tmp_2).reshape(nb_elements, lb_2)
+                    data  = tmp_1.T.dot(tmp_2)
+                    data  = data.toarray()
 
                 dx, dy     = data.nonzero()
                 ddx        = local_idx[dx].astype(numpy.int32)
