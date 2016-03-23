@@ -7,7 +7,7 @@ from setuptools import setup
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
 
-requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']#, 'cudamat==0.3circus']
 
 
 if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
@@ -25,6 +25,7 @@ setup(name='spyking-circus',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
       packages=['circus', 'circus.shared', 'circus.scripts'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
+      #dependency_links=["https://github.com/yger/cudamat/archive/cudamat.zip#egg=cudamat-0.3circus"],
       install_requires=requires,
       entry_points={
           'console_scripts': [
