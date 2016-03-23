@@ -300,10 +300,10 @@ class MergeWindow(QtGui.QMainWindow):
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
         control = self.raw_control[:, abs(self.raw_lags) <= lag]
-        norm_factor = (control.mean(1) + data.mean(1) + 1)[:, np.newaxis]
+        norm_factor = (control.mean(1) + data.mean(1) + 1.)[:, np.newaxis]
         score  = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
         score2 = ((control - data)/norm_factor).mean(axis=1)
-        score3 = control.mean(axis=1)
+        score3 = (control/(1. + control.mean(1))[:, np.newaxis]).mean(axis=1)
         return score, score2, score3
 
     def plot_scores(self):
@@ -317,6 +317,7 @@ class MergeWindow(QtGui.QMainWindow):
                              (self.score_ax3, self.score_z, self.score_y)]:
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
+            self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
             self.score_ax1.set_ylabel('Normalized CC metric')
             self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
