@@ -122,7 +122,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
-                c_overs[i] = cmt.SparseCUDAMatrix(-data)
+                data       = c_overs[i].toarray()                
+                c_overs[i] = cmt.CUDAMatrix(-data)
         except Exception:
             if comm.rank == 0:
                 io.print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
@@ -356,7 +357,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 b_lines  = b.get_col_slice(0, b.shape[0])
                             else:
                                 b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
-                                
+
                             c_overs[inds_temp[keep]].select_columns(cu_slice, c)
                             c.mult_by_scalar(best_amp[keep])
                             b_lines.add(c)
