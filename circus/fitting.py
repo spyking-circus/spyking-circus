@@ -114,19 +114,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     c_overs   = {}
     for i in xrange(N_over):
         idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
-        c_overs[i] = scipy.sparse.csc_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
+        c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
     del over_x, over_y, over_data
-
-    #N_over    = over_shape[0]
-    #S_over    = over_shape[1]
-    #c_overs = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_over, S_over))
 
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
-                data       = c_overs[i].toarray()                
-                c_overs[i] = cmt.CUDAMatrix(-data)
+                c_overs[i] = cmt.SparseCUDAMatrix(c_overs[i])
         except Exception:
             if comm.rank == 0:
                 io.print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
@@ -352,26 +347,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                         myslice  = x == count
                         idx_b    = y[myslice]
+                        indices  = numpy.zeros((S_over, len(itmp[myslice])), dtype=numpy.float32)
+                        indices[itmp[myslice], numpy.arange(len(itmp[myslice]))] = 1
 
-                        if full_gpu:                          
-                            cu_slice = cmt.CUDAMatrix(itmp[myslice].reshape(1, len(itmp[myslice])))
-                            c        = cmt.empty((N_over, len(itmp[myslice])))
+                        if full_gpu: 
+                            indices  = cmt.CUDAMatrix(indices)
                             if patch_gpu:
                                 b_lines  = b.get_col_slice(0, b.shape[0])
                             else:
                                 b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
 
-                            c_overs[inds_temp[keep]].select_columns(cu_slice, c)
-                            c.mult_by_scalar(best_amp[keep])
-                            b_lines.add(c)
-                            c_overs[inds_temp[keep] + n_tm].select_columns(cu_slice, c)
-                            c.mult_by_scalar(best_amp2[keep])
-                            b_lines.add(c)
-                            del cu_slice, b_lines, c
+                            tmp1 = cmt.sparse_dot(c_overs[inds_temp[keep]], indices)
+                            tmp1.mult_by_scalar(-best_amp[keep])
+                            tmp2 = cmt.sparse_dot(c_overs[inds_temp[keep] + n_tm], indices)
+                            tmp2.mult_by_scalar(-best_amp2[keep])
+                            b_lines.add(tmp1)
+                            b_lines.add(tmp2)
+                            del tmp1, tmp2
                         else:
-                            tmp1         = c_overs[inds_temp[keep]][:, itmp[myslice]]
-                            tmp2         = c_overs[inds_temp[keep] + n_tm][:, itmp[myslice]]
-                            b[:, idx_b] -= (best_amp[keep]*tmp1 + best_amp2[keep]*tmp2)
+                            tmp1   = c_overs[inds_temp[keep]].multiply(best_amp[keep]).dot(indices)
+                            tmp2   = c_overs[inds_temp[keep] + n_tm].multiply(best_amp2[keep]).dot(indices)
+                            b[:, idx_b] -= tmp1 + tmp2
 
                         if good[count]:
 
