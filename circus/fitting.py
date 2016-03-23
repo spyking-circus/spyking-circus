@@ -357,10 +357,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
 
-                            tmp1 = cmt.sparse_dot(c_overs[inds_temp[keep]], indices)
-                            tmp1.mult_by_scalar(-best_amp[keep])
-                            tmp2 = cmt.sparse_dot(c_overs[inds_temp[keep] + n_tm], indices)
-                            tmp2.mult_by_scalar(-best_amp2[keep])
+                            tmp1 = cmt.sparse_dot(c_overs[inds_temp[keep]], indices, mult=-best_amp[keep])
+                            tmp2 = cmt.sparse_dot(c_overs[inds_temp[keep] + n_tm], indices, mult=-best_amp2[keep])
                             b_lines.add(tmp1)
                             b_lines.add(tmp2)
                             del tmp1, tmp2
