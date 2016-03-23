@@ -112,11 +112,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_over    = int(numpy.sqrt(over_shape[0]))
     S_over    = over_shape[1]
     c_overs   = {}
-    
     for i in xrange(N_over):
         idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
-        c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
+        c_overs[i] = scipy.sparse.csc_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
     del over_x, over_y, over_data
+
+    #N_over    = over_shape[0]
+    #S_over    = over_shape[1]
+    #c_overs = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_over, S_over))
 
     if full_gpu:
         try:
