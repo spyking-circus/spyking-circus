@@ -27,7 +27,7 @@ def main():
     tasks_list = None
 
     nb_gpu     = 0
-    nb_cpu     = 0
+    nb_cpu     = 1
     output     = None
     benchmark  = None
     preview    = False
