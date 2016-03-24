@@ -15,7 +15,7 @@ import numpy as np
 from phy import add_default_handler
 from phy.utils._misc import _read_python
 from phy.gui import create_app, run_app
-from phycontrib.template import create_template_gui
+from phycontrib.template import TemplateController
 
 def main():
 
@@ -206,9 +206,8 @@ Syntax is circus-gui-python datafile [extension]
 
     os.chdir(output_path)
     create_app()
-    plugins = ['SaveGeometryStatePlugin',
-               ]
-    gui = create_template_gui(plugins=plugins, **gui_params)
+    controller = TemplateController(**gui_params)
+    gui = controller.create_gui()
 
     gui.show()
     run_app()
