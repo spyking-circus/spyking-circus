@@ -27,7 +27,7 @@ def main():
     tasks_list = None
 
     nb_gpu     = 0
-    nb_cpu     = 1
+    nb_cpu     = 0
     output     = None
     benchmark  = None
     preview    = False
@@ -40,7 +40,7 @@ def main():
         import cudamat as cmt
         cmt.init()
         HAVE_CUDA = True
-        nb_gpu    = 1
+        nb_gpu    = 0
     except Exception:
         HAVE_CUDA = False
 
