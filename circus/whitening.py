@@ -33,6 +33,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', params)
 
+    if use_gpu:
+        import cudamat as cmt
+        ## Need to properly handle multi GPU per MPI nodes?
+        if nb_gpu > nb_cpu:
+            gpu_id = int(comm.rank//nb_cpu)
+        else:
+            gpu_id = 0
+        cmt.cuda_set_device(gpu_id)
+        cmt.init()
+        cmt.cuda_sync_threads()
+
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     if nb_chunks < comm.size:
@@ -174,13 +185,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')
+            if use_gpu:
+                spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
         if do_temporal_whitening:
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         for gidx in [all_chunks[comm.rank]]:
             local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
             if do_spatial_whitening:
-                local_chunk = numpy.dot(local_chunk, spatial_whitening)
+                if use_gpu:
+                    local_chunk = cmt.CUDAMatrix(local_chunk)
+                    local_chunk = local_chunk.dot(spatial_whitening).asarray()
+                else:
+                    local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 

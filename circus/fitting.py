@@ -36,6 +36,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if use_gpu:
+        import cudamat as cmt
         ## Need to properly handle multi GPU per MPI nodes?
         if nb_gpu > nb_cpu:
             gpu_id = int(comm.rank//nb_cpu)
@@ -77,10 +78,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         if use_gpu:
-            if gpu_only:
-                info_string = "using %d GPUs" %(comm.size)
-            else:
-                info_string = "using %d GPUs (projection only)" %(comm.size)
+            info_string = "using %d GPUs" %(comm.size)
         else:
             info_string = "using %d CPUs" %(comm.size)
 
