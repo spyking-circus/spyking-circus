@@ -69,6 +69,15 @@ learning_rate  = 1.0e-3    # Initial learning rate which controls the step-size 
 roc_sampling   = 7         # Number of wanted points to render the ROC curve of the BEER estimate
 verbose        = False     # Show details of the validation
 make_plots     = False     # Generate sanity plots of the validation
+safety_space   = True      # If True, we exclude spikes in the vicinity of selected spikes
+safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
+extra          = True      # If True, then spike detection on extracellular traces is performed
+juxta          = True      # If True, then spike detection on juxtacellular traces is performed
+test_size      = 0.5       # Portion of the dataset to include in the test split
+radius_factor  = 0.6       # Radius factor which modulates radius for the validation
+juxta_dtype    = uint16    # Type of the juxtacellular data
 
 [noedits]
 filter_done    = False     # Will become True automatically after filtering.
+extra_done     = False     # Will become True automatically after spike detection on the extracellular traces.
+juxta_done     = False     # Will become True automatically after spike detection on the juxtacellular trace.

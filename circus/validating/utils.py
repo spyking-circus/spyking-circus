@@ -590,16 +590,16 @@ def extract_juxta_spikes_(params):
     if comm.rank == 0:
         
         file_out_suff = params.get('data', 'file_out_suff')
-        data_dtype = params.get('data', 'data_dtype')
         dtype_offset = params.getint('data', 'dtype_offset')
         sampling_rate = params.getint('data', 'sampling_rate')
         dist_peaks = params.getint('data', 'dist_peaks')
+        juxta_dtype = params.get('validating', 'juxta_dtype')
         
         juxta_filename = "{}.juxta.dat".format(file_out_suff)
         beer_path = "{}.beer.hdf5".format(file_out_suff)
         
         # Read juxtacellular trace.
-        juxta_data = numpy.fromfile(juxta_filename, dtype=data_dtype)
+        juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
         juxta_data = juxta_data.astype(numpy.float32)
         juxta_data = juxta_data - dtype_offset
         juxta_data = numpy.ascontiguousarray(juxta_data)
