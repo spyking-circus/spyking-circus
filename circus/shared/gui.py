@@ -111,6 +111,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.params     = params
         self.N_e        = params.getint('data', 'N_e')
         self.N_t        = params.getint('data', 'N_t')
+        self.N_total    = params.getint('data', 'N_total')
         self.sampling_rate = params.getint('data', 'sampling_rate')
         self.file_out_suff = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
@@ -127,6 +128,11 @@ class MergeWindow(QtGui.QMainWindow):
         self.templates  = io.load_data(params, 'templates')
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
+        nodes, edges    = io.get_nodes_and_edges(params)
+        self.nodes      = nodes
+        self.edges      = edges
+        self.inv_nodes  = numpy.zeros(self.N_total, dtype=numpy.int32)
+        self.inv_nodes[nodes] = numpy.argsort(nodes)
         
         self.norms      = numpy.zeros(len(self.indices), dtype=numpy.float32)
         self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
@@ -188,7 +194,7 @@ class MergeWindow(QtGui.QMainWindow):
         #
         # # Connect matplotlib events
         for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3,
-                    self.ui.detail, self.ui.data_overview]:
+                    self.ui.detail, self.ui.data_overview, self.ui.waveforms]:
             fig.mpl_connect('scroll_event', self.zoom)
             fig.mpl_connect('button_press_event', self.on_mouse_press)
 
@@ -242,6 +248,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.detail_ax     = self.ui.detail.axes
         self.data_ax       = self.ui.data_overview.axes
         self.current_order = self.ui.cmb_sorting.currentIndex()
+        self.mpl_toolbar = NavigationToolbar(self.ui.waveforms, None)
+        self.mpl_toolbar.pan()
         self.ui.show()
 
     def generate_data(self):
@@ -334,6 +342,8 @@ class MergeWindow(QtGui.QMainWindow):
             self.score_ax2.set_ylabel('# Spikes')
             self.score_ax3.set_xlabel('Reversed CC')
             self.score_ax3.set_ylabel('Normalized CC metric')
+            self.waveforms_ax.set_xticks([])
+            self.waveforms_ax.set_yticks([])
             #self.waveforms_ax.set_xlabel('Time [ms]')
             #self.waveforms_ax.set_ylabel('Amplitude')
             
@@ -458,6 +468,11 @@ class MergeWindow(QtGui.QMainWindow):
             y = self.rates[self.to_consider]
             link_with_x = None
             link_with_y = None
+        elif event.inaxes == self.waveforms_ax:
+            x = self.x_position
+            y = self.y_position
+            link_with_x = None
+            link_with_y = None
         else:
             return
 
@@ -497,7 +512,7 @@ class MergeWindow(QtGui.QMainWindow):
         if link_with_y is not None:
             link_with_y(newymin, newymax)
 
-        for fig in [self.ui.score_1, self.ui.score_3, self.ui.score_2]:
+        for fig in [self.ui.score_1, self.ui.score_3, self.ui.score_2, self.ui.waveforms]:
             fig.draw_idle()
 
 
@@ -588,13 +603,16 @@ class MergeWindow(QtGui.QMainWindow):
             tmp   = self.templates[:, p]
             tmp   = tmp.toarray().reshape(self.N_e, self.N_t)
             elec  = numpy.argmin(numpy.min(tmp, 1))
-            xaxis = numpy.linspace(0, (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
             thr   = self.thresholds[elec]
-            self.waveforms_ax.plot(xaxis, tmp[elec], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
-            self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
 
-        self.waveforms_ax.set_xlabel('Time [ms]')
-        self.waveforms_ax.set_ylabel('Amplitude')
+            indices = self.inv_nodes[self.edges[self.nodes[elec]]]
+            for sidx in indices:
+                xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
+                self.waveforms_ax.plot(xaxis, self.y_position[sidx] + tmp[sidx], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
+                #self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
+
+        self.waveforms_ax.set_xlabel('Probe Space')
+        self.waveforms_ax.set_ylabel('Probe Space')
 
         for fig in [self.ui.waveforms]:
             fig.draw_idle()
