@@ -835,22 +835,26 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No triggers found! Check suffix or check if file `%s` exists ?' %filename)
     elif data == 'juxta-triggers':
-        filename = file_out_suff + '.triggers{}.npy'.format(extension)
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            triggers = numpy.load(filename)
-            return triggers
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            juxta_spike_times = beer_file.get('juxta_spiketimes/elec_0')[:]
+            return juxta_spike_times
         else:
             raise Exception('No triggers found! Check suffix or check if file `{}` exists ?'.format(filename))
     elif data == 'extra-triggers':
-        N_e = params.getint('data', 'N_e')
-        triggers = N_e * [None]
-        for k in xrange(0, N_e):
-            filename = file_out_suff + ".triggers.{}.npy".format(k)
-            if os.path.exists(filename):
-                triggers[k] = numpy.load(filename)
-            else:
-                raise Exception('No triggers found! Check if file `{}` exists ?'.format(filename))
-        return triggers
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            N_e = params.getint('data', 'N_e')
+            extra_spike_times = N_e * [None]
+            for e in xrange(0, N_e):
+                key = "extra_spiketimes/elec_{}".format(e)
+                extra_spike_times[e] = beer_file.get(key)[:]
+            beer_file.close()
+            return extra_spike_times
+        else:
+            raise Exception('No triggers found! Check if file `{}` exists ?'.format(filename))
     elif data == 'class-weights':
         filename = file_out_suff + '.beer.hdf5'
         if os.path.exists(filename):

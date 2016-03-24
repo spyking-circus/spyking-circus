@@ -44,10 +44,13 @@ def main():
     except Exception:
         HAVE_CUDA = False
 
-##### TODO: remove test zone
-    # all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging']
-    all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging', 'validating']    
-##### end test zone
+    all_steps = [
+        'whitening', 'clustering',
+        'fitting', 'gathering',
+        'extracting','filtering',
+        'converting','benchmarking',
+        'merging', 'validating',
+    ]
     steps     = ['filtering', 'whitening', 'clustering', 'fitting']
     hostfile  = pjoin(user_path, 'circus.hosts')
 
@@ -221,16 +224,6 @@ Options are:
                 print_info(['Long recording detected: maybe turn off the stationary mode'])
 
         # Launch the subtasks
-##### TODO: remove test zone
-        # subtasks = [('filtering', 'mpirun'),
-        #             ('whitening', 'mpirun'),
-        #             ('clustering', 'mpirun'),
-        #             ('fitting', 'mpirun'),
-        #             ('extracting', 'mpirun'),
-        #             ('gathering', 'python'),
-        #             ('converting', 'python'),
-        #             ('benchmarking', 'mpirun'),
-        #             ('merging', 'mpirun')]
         subtasks = [('filtering', 'mpirun'),
                     ('whitening', 'mpirun'),
                     ('clustering', 'mpirun'),
@@ -241,7 +234,6 @@ Options are:
                     ('benchmarking', 'mpirun'),
                     ('merging', 'mpirun'),
                     ('validating', 'mpirun')]
-##### end test zone
 
         if HAVE_CUDA and nb_gpu > 0:
             use_gpu = 'True'
