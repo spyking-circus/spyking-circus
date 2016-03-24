@@ -195,13 +195,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         u             = numpy.median(local_chunk[:, i], 0)
                         thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
                     thresholds *= spike_thresh
-                
-                #if gpass > 1:
-                #    search_from = numpy.arange(N_e)
-                #else:
-                #    search_from = numpy.arange(comm.rank, N_e, comm.size)    
 
-                for i in numpy.arange(N_e):
+                for i in xrange(N_e):
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     if skip_artefact:
                         real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
