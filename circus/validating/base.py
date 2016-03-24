@@ -180,7 +180,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             path = os.path.join(plot_path, plot_filename)
             plot.view_dataset(X_gt, color='green', title="Ground-truth dataset", save=path)
     
-    
+   
     
     ############################################################################
     
@@ -612,7 +612,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if make_plots:
             # Plot ROC curve.
             title = "ROC curve for the inital parameter"
-            plot_filename = "beer-roc-curve_initial.png"
+            plot_filename = "beer-roc-curve-initial.png"
             path = os.path.join(plot_path, plot_filename)
             plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
     

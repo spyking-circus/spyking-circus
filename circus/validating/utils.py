@@ -9,14 +9,9 @@ from ..shared.utils import *
 
 
 
-def get_neighbors(params, chan=43, radius=120):
-    if radius is None:
-        radius = 120 # um
-        _ = params.set('data', 'radius', str(radius))
-    else:
-        radius = radius
+def get_neighbors(params, chan=None):
     N_total = params.getint('data', 'N_total')
-    nodes, edges = io.get_nodes_and_edges(params)
+    nodes, edges = io.get_nodes_and_edges(params, validating=True)
     if chan is None:
         # Select all the channels.
         chans = nodes

@@ -240,6 +240,7 @@ def load_parameters(file_name):
         ['validating', 'verbose', 'bool', 'False'],
         ['validating', 'make_plots', 'bool', 'False'],
         ['validating', 'test_size', 'float', '0.3'],
+        ['validating', 'radius_factor', 'float', '0.6'],
         ['merging', 'cc_overlap', 'float', '0.25'],
         ['merging', 'cc_bin', 'float', '2'],
         ['noedits', 'filter_done', 'bool', 'False'],
@@ -630,7 +631,7 @@ def analyze_data(params, chunk_size=None):
     
     return borders, nb_chunks, chunk_len, last_chunk_len
 
-def get_nodes_and_edges(parameters):
+def get_nodes_and_edges(parameters, validating=False):
     """
     Retrieve the topology of the probe.
     
@@ -652,6 +653,10 @@ def get_nodes_and_edges(parameters):
     nodes  = []
     probe  = read_probe(parameters)
     radius = parameters.getint('data', 'radius')
+
+    if validating:
+        radius_factor = parameters.getfloat('validating', 'radius_factor')
+        radius = int(radius_factor * float(radius))
 
     def get_edges(i, channel_groups):
         edges = []
