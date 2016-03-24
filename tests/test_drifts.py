@@ -58,38 +58,60 @@ def get_performance(file_name, name):
         source_temp = inj_templates[:, temp_id].toarray().flatten()
         similarity  = []
         temp_match  = []
-        for i in xrange(templates.shape[1]//2):
+        dmax        = 0
+        for i in xrange(templates.shape[1]/2):
             d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
-            if d > sim_templates:
+            if d > dmax:
                 temp_match += [i]
-        
+                dmax       = d
         res[gcount]  = numpy.max(similarity)
         res2[gcount] = numpy.sum(numpy.array(similarity) > sim_templates)
+
+        selection         = []
+        error             = [0, 0]
+        find_next         = True
+
+        while (find_next == True):
+
+            local_errors = numpy.zeros((len(temp_match), 2))
+
+            for mcount, tmp in enumerate(temp_match):
+
+                if selection != []:
+                    all_fitted_spikes = []
+                    for tmp in selection:
+                        all_fitted_spikes += fitted_spikes['temp_' + str(tmp)].tolist()
+                    all_fitted_spikes = numpy.array(all_fitted_spikes, dtype=numpy.int32)
+                else:
+                    all_fitted_spikes = fitted_spikes['temp_' + str(tmp)]
+
+                key1  = 'temp_' + str(temp_id)
+                count = 0
+                for spike in spikes[key1]:
+                    idx = numpy.where(numpy.abs(all_fitted_spikes - spike) < thresh)[0]
+                    if len(idx) > 0:
+                        count += 1
+                if len(spikes[key1]) > 0:
+                    local_errors[mcount, 0] = count/float(len(spikes[key1]))
+
+                count = 0
+                for spike in all_fitted_spikes:
+                    idx = numpy.where(numpy.abs(spikes[key1] - spike) < thresh)[0]
+                    if len(idx) > 0:
+                        count += 1
+                if len(all_fitted_spikes) > 0:
+                    local_errors[mcount, 1]  = count/(float(len(all_fitted_spikes)))
+
+            errors = numpy.mean(local_errors, 1)
+            if numpy.max(errors) > numpy.mean(error):
+                idx        = numpy.argmax(errors)
+                selection += [temp_match[idx]]
+                error      = local_errors[idx]
+            else:
+                find_next = False
         
-        if res2[gcount] > 0:
-
-            all_fitted_spikes = []
-            for tmp in temp_match:
-                all_fitted_spikes += fitted_spikes['temp_' + str(tmp)].tolist()
-            all_fitted_spikes = numpy.array(all_fitted_spikes, dtype=numpy.int32)
-
-            key1   = 'temp_' + str(temp_id)
-            count = 0
-            for spike in spikes[key1]:
-                idx = numpy.where(numpy.abs(all_fitted_spikes - spike) < thresh)[0]
-                if len(idx) > 0:
-                    count += 1
-            if len(spikes[key1]) > 0:
-                res3[gcount, 0] = count/float(len(spikes[key1]))
-
-            count = 0
-            for lcount, spike in enumerate(all_fitted_spikes):
-                idx = numpy.where(numpy.abs(spikes[key1] - spike) < thresh)[0]
-                if len(idx) > 0:
-                    count += 1
-            if len(all_fitted_spikes) > 0:
-                res3[gcount, 1]  = count/(float(len(all_fitted_spikes)))
+        res3[gcount] = error
 
     pylab.figure()
     pylab.subplot(121)

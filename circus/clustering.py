@@ -64,6 +64,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     result   = {}
 
+    if use_gpu:
+        import cudamat as cmt
+        ## Need to properly handle multi GPU per MPI nodes?
+        if nb_gpu > nb_cpu:
+            gpu_id = int(comm.rank//nb_cpu)
+        else:
+            gpu_id = 0
+        cmt.cuda_set_device(gpu_id)
+        cmt.init()
+        cmt.cuda_sync_threads()
+
     if test_clusters:
         injected_spikes = io.load_data(params, 'injected_spikes')
 
@@ -76,6 +87,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
     comm.Barrier()
+
+    if use_gpu:
+        spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
 
     for i in xrange(N_e):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
@@ -165,7 +179,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
                 local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
                 if do_spatial_whitening:
-                    local_chunk = numpy.dot(local_chunk, spatial_whitening)
+                    if use_gpu:
+                        local_chunk = cmt.CUDAMatrix(local_chunk)
+                        local_chunk = local_chunk.dot(spatial_whitening).asarray()
+                    else:
+                        local_chunk = numpy.dot(local_chunk, spatial_whitening)
                 if do_temporal_whitening:
                     local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
                 #print "Extracting the peaks..."
@@ -177,13 +195,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         u             = numpy.median(local_chunk[:, i], 0)
                         thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
                     thresholds *= spike_thresh
-                
-                if gpass > 1:
-                    search_from = numpy.arange(N_e)
-                else:
-                    search_from = numpy.arange(comm.rank, N_e, comm.size)    
 
-                for i in search_from:
+                for i in xrange(N_e):
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     if skip_artefact:
                         real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
