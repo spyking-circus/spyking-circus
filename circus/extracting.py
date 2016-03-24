@@ -55,7 +55,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
-    if use_gpu:
+    if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
 
     result         = {}

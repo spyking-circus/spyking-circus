@@ -88,7 +88,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    if use_gpu:
+    if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
 
     for i in xrange(N_e):
