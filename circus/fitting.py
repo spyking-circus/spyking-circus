@@ -143,6 +143,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
+    if use_gpu:
+        spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+
 
     for gcount, gidx in enumerate(xrange(comm.rank, nb_chunks, comm.size)):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -156,9 +159,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, padding, nodes=nodes)
+        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, padding, nodes=nodes)           
+
         if do_spatial_whitening:
-            local_chunk = numpy.dot(local_chunk, spatial_whitening)
+            if use_gpu:
+                local_chunk = cmt.CUDAMatrix(local_chunk)
+                local_chunk = local_chunk.dot(spatial_whitening).asarray()
+            else:
+                local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 

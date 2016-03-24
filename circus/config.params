@@ -45,7 +45,7 @@ remove_mixture = True       # At the end of the clustering, we remove mixtures o
 
 [fitting]
 chunk          = 1         # Size of chunks used during fitting [in second]
-gpu_only       = True      # Use GPU for computation of b's AND fitting
+gpu_only       = False     # Use GPU for computation of b's AND fitting
 amp_limits     = (0.3, 5)  # Amplitudes for the templates during spike detection
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
 refractory     = 0         # Refractory period, in ms [0 is None]
