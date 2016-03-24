@@ -766,8 +766,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], ielec, indices, slice_temp, nodes)
                 variations         = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                 physical_limit     = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                amp_min            = max(physical_limit, numpy.median(amplitudes) - variations)
-                amp_max            = min(amp_limits[1], numpy.median(amplitudes) + variations)
+                amp_min            = min(0.8, max(physical_limit, numpy.median(amplitudes) - variations))
+                amp_max            = max(1.2, min(amp_limits[1], numpy.median(amplitudes) + variations))
                 amps_lims[g_count] = [amp_min, amp_max]
                 myamps            += [[amp_min, amp_max]]
 
@@ -948,10 +948,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes       = numpy.dot(sub_data_flat, first_flat)
                 amplitudes      /= numpy.sum(first_flat**2)
 
-                variations       = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-                physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                amp_min          = max(physical_limit, numpy.median(amplitudes) - variations)
-                amp_max          = min(amp_limits[1], numpy.median(amplitudes) + variations)
+                variations         = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                physical_limit     = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
+                amp_min            = min(0.8, max(physical_limit, numpy.median(amplitudes) - variations))
+                amp_max            = max(1.2, min(amp_limits[1], numpy.median(amplitudes) + variations))
                 amps_lims[g_count] = [amp_min, amp_max]
                 myamps            += [[amp_min, amp_max]]
 

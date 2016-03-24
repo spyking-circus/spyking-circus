@@ -149,6 +149,16 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.init_gui_layout()
 
+        self.probe      = io.read_probe(params)
+        self.x_position = []
+        self.y_position = []
+        self.order      = []
+        for key in self.probe['channel_groups'].keys():
+            for item in self.probe['channel_groups'][key]['geometry'].keys():
+                if item in self.probe['channel_groups'][key]['channels']:
+                    self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
+                    self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
+
         self.generate_data()
         self.selected_points = set()
         self.selected_templates = set()
@@ -324,8 +334,8 @@ class MergeWindow(QtGui.QMainWindow):
             self.score_ax2.set_ylabel('# Spikes')
             self.score_ax3.set_xlabel('Reversed CC')
             self.score_ax3.set_ylabel('Normalized CC metric')
-            self.waveforms_ax.set_xlabel('Time [ms]')
-            self.waveforms_ax.set_ylabel('Amplitude')
+            #self.waveforms_ax.set_xlabel('Time [ms]')
+            #self.waveforms_ax.set_ylabel('Amplitude')
             
         else:
             for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),

@@ -104,13 +104,13 @@ def get_performance(file_name, name):
                     local_errors[mcount, 1]  = count/(float(len(all_fitted_spikes)))
 
             errors = numpy.mean(local_errors, 1)
-            if numpy.max(errors > numpy.mean(error)):
+            if numpy.max(errors) > numpy.mean(error):
                 idx        = numpy.argmax(errors)
                 selection += [temp_match[idx]]
                 error      = local_errors[idx]
             else:
                 find_next = False
-        
+
         res3[gcount] = error
 
     pylab.figure()

@@ -96,7 +96,7 @@ def get_performance(file_name, name):
                     local_errors[mcount, 0] = count/float(len(spikes[key1]))
 
                 count = 0
-                for lcount, spike in enumerate(all_fitted_spikes):
+                for spike in all_fitted_spikes:
                     idx = numpy.where(numpy.abs(spikes[key1] - spike) < thresh)[0]
                     if len(idx) > 0:
                         count += 1
@@ -104,7 +104,7 @@ def get_performance(file_name, name):
                     local_errors[mcount, 1]  = count/(float(len(all_fitted_spikes)))
 
             errors = numpy.mean(local_errors, 1)
-            if numpy.max(errors > numpy.mean(error)):
+            if numpy.max(errors) > numpy.mean(error):
                 idx        = numpy.argmax(errors)
                 selection += [temp_match[idx]]
                 error      = local_errors[idx]
