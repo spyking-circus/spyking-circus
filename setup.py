@@ -7,7 +7,7 @@ requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 
 try:
   subprocess.check_call(['nvcc', '--version'])
   requires += ['cudamat==0.3circus']
-except OSError:
+except (OSError, subprocess.CalledProcessError):
   print "CUDA not found"
 
 from setuptools import setup
@@ -47,7 +47,6 @@ setup(name='spyking-circus',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
       packages=['circus', 'circus.shared', 'circus.scripts'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
-      cmdclass={'install': cudamat_install},
       dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
       install_requires=requires,
       entry_points={
