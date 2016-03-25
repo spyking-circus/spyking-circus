@@ -2,13 +2,17 @@ import os
 from os.path import join as pjoin
 import sys
 
+requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+
+if "--gpu" in sys.argv:
+  requires += ['cudamat==0.3circus']
+  sys.argv.remove('--gpu')
+
+
 from setuptools import setup
 
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
-
-requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama', 'cudamat==0.3circus']
-
 
 if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
     # We seem to be running under a "conda build"

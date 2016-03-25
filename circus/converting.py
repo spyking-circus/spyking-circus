@@ -15,7 +15,7 @@ import shutil
 import numpy as np
 import h5py
 from circus.shared.files import detect_header
-
+import logging
 from phy.detect.spikedetekt import SpikeDetekt
 from phy.electrode import load_probe
 from phy.io.h5 import open_h5
