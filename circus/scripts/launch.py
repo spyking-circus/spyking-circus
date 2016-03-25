@@ -185,7 +185,7 @@ Options are:
         if not batch_mode:
             stationary = params.getboolean('data', 'stationary')
         else:
-             stationary = False
+            stationary = False
 
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
@@ -214,7 +214,7 @@ Options are:
         if not preview:
             length = io.data_stats(params)
 
-            if length >= 3600 and stationary:
+            if length >= 5*3600 and stationary:
                 print_info(['Long recording detected: maybe turn off the stationary mode'])
 
         # Launch the subtasks

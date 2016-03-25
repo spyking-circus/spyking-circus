@@ -8,7 +8,6 @@ if "--gpu" in sys.argv:
   requires += ['cudamat==0.3circus']
   sys.argv.remove('--gpu')
 
-
 from setuptools import setup
 
 if sys.version_info < (2, 7):
