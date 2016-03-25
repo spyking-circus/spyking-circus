@@ -45,6 +45,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     make_plots_snippets = False
     # N_max = 1000000
     N_max = 12000
+    alpha_gt = 1.0
     alpha_ngt = 2.0
     alpha_noi = 2.0
     
@@ -126,6 +127,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     chan_index = numpy.argwhere(chans == chan)[0]
     
     
+
+    ##### SAMPLES PROPORTIONS ##################################################
+    
+    alpha = alpha_gt + alpha_ngt + alpha_noi
+    N_gt_max = int((alpha_gt / alpha) * float(N_max))
+    N_ngt_max = int((alpha_ngt / alpha) * float(N_max))
+    N_noi_max = int((alpha_noi / alpha) * float(N_max))
+    
+    
     
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
@@ -133,13 +143,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(["Ground truth cell's samples..."], level='info', logger=params)
     
     # Detect the spikes times of the "ground truth cell".
-    extract_juxta_spikes(filename, params)
+    if comm.rank == 0:
+        extract_juxta_spikes(filename, params)
+    comm.Barrier()
     
     # Retrieve the spike times of the "ground truth cell".
     spike_times_gt = io.load_data(params, 'juxta-triggers')
     
     # Load the spikes of all the "ground truth cells".
     spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
+    
+    # Downsample to get the wanted number of spikes.
+    N_gt = spikes_gt.shape[2]
+    if N_gt_max < N_gt:
+        idx_gt = numpy.random.choice(N_gt, size=N_gt_max, replace=False)
+        spikes_gt = spikes_gt[:, :, idx_gt]
     
     if comm.rank == 0:
         if make_plots:
@@ -183,14 +201,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
    
     
     ############################################################################
+
+    ##### TODO: remove quarantine zone
+    # print("N_max = {}".format(N_max))
+    # print("N_gt = {}".format(N_gt))
+    # print("N_max / N_gt = {}".format(N_max / N_gt))
+    # print("alpha_ngt = {}".format(alpha_ngt))
+    # print("alpha_noi = {}".format(alpha_noi))
     
-    # Compute the amount of 'ngt' and 'noi' to load.
-    c = (float(N_max) / float(N_gt) - 1.0) / float(alpha_ngt + alpha_noi)
-    if c < 1.0:
-        raise Exception("TODO: c = {}".format(c))
-    else:
-        alpha_ngt = c * alpha_ngt
-        alpha_noi = c * alpha_noi
+    # # Compute the amount of 'ngt' and 'noi' to load.
+    # c = (float(N_max) / float(N_gt) - 1.0) / float(alpha_ngt + alpha_noi)
+    # if c < 1.0:
+    #     # TODO: subsample.
+    #     raise Exception("TODO: c = {}".format(c))
+    # else:
+    #     alpha_ngt = c * alpha_ngt
+    #     alpha_noi = c * alpha_noi
+    ##### end quarantine zone
     
     # Compute the forbidden spike times.
     max_time_shift = 0.25 # ms
@@ -222,10 +249,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ## Restrict to spikes which are far from ground truth spikes.
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
     ## Downsample to get the wanted number of spikes.
-    size = min(int(alpha_ngt * float(spike_times_gt.shape[0])), spike_times_ngt_tmp.shape[0])
-    idxs_ngt = numpy.random.choice(spike_times_ngt_tmp.size, size=size, replace=False)
-    idxs_ngt = numpy.unique(idxs_ngt)
-    spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
+    N_ngt = spike_times_ngt_tmp.shape[0]
+    if N_ngt_max < N_ngt:
+        idxs_ngt = numpy.random.choice(N_ngt, size=N_ngt_max, replace=False)
+        idxs_ngt = numpy.sort(idxs_ngt)
+        spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
     
     # Load the spikes of all the "non ground truth cells".
     spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
@@ -289,10 +317,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ## Restrict to spikes which are far from ground truth spikes.
     spike_times_noi = numpy.setdiff1d(spike_times_noi, spike_times_fbd)
     ## Downsample to get the wanted number of spikes.
-    size = min(int(alpha_noi * spike_times_gt.shape[0]), spike_times_noi.shape[0])
-    idxs_noi = numpy.random.choice(spike_times_noi.size, size=size, replace=False)
-    idxs_noi = numpy.unique(idxs_noi)
-    spike_times_noi = spike_times_noi[idxs_noi]
+    N_noi = spike_times_noi.shape[0]
+    if N_noi_max < N_noi:
+        idxs_noi = numpy.random.choice(N_noi, size=N_noi_max, replace=False)
+        idxs_noi = numpy.sort(idxs_noi)
+        spike_times_noi = spike_times_noi[idxs_noi]
     
     # Load the chunks for noise.
     spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
@@ -481,6 +510,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# coefs_init: {}".format(coefs_init),
             ]
             io.print_and_log(msg, level='default', logger=params)
+    
     
     # Compute false positive rate and true positive rate for various cutoffs.
     num = 300
@@ -1032,8 +1062,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             title = "ROC curve of the BEER estimate"
             plot_filename = "beer-roc-curve.png"
             path = os.path.join(plot_path, plot_filename)
+            # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
+            #                     xlim=[0.0, 0.25], ylim=[0.75, 1.0])
+            # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
+            #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
             plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
-                                xlim=[0.0, 0.25], ylim=[0.75, 1.0])
+                                xlim=[0.0, 1.0], ylim=[0.0, 1.0])
     
     
     

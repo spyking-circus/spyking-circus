@@ -88,7 +88,7 @@ def extract_extra_thresholds(params):
         weighted_mean = sum(weighted_values)
         return weighted_mean
     
-    def extract_median(data_len, gidx):
+    def extract_median(chunk_len, chunk_size, gidx):
         """Extract the medians from a chunk of extracellular traces"""
         loc_chunk, loc_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
         # Whiten signal.
@@ -99,7 +99,7 @@ def extract_extra_thresholds(params):
         median = numpy.median(loc_chunk, axis=0)
         return median
     
-    def extract_median_absolute_deviation(data_len, gidx, median):
+    def extract_median_absolute_deviation(chunk_len, chunk_size, gidx, median):
         """Extract the median absolute deviations from a chunk of extracellular traces"""
         loc_chunk, loc_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
         # Whiten signal.
@@ -125,12 +125,11 @@ def extract_extra_thresholds(params):
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
     
-    data_len = chunk_len
     medians = numpy.zeros((N_elec, loc_nb_chunks))
     
     # For each chunk attributed to the current CPU.
     for count, gidx in enumerate(loc_all_chunks):
-        medians[:, count] = extract_median(data_len, gidx)
+        medians[:, count] = extract_median(chunk_len, chunk_size, gidx)
         if comm.rank == 0:
             pbar.update(count)
     median = numpy.mean(medians, axis=1)
@@ -145,10 +144,9 @@ def extract_extra_thresholds(params):
     if comm.rank == 0:
         if last_chunk_len > 0:
             # For last chunk attributed to the first CPU.
-            data_len = last_chunk_len
             gidx = nb_chunks
-            chunk_size = last_chunk_len // N_total
-            last_median = extract_median(data_len, gidx)
+            last_chunk_size = last_chunk_len // N_total
+            last_median = extract_median(last_chunk_len, last_chunk_size, gidx)
             median = (float(nb_chunks * chunk_len) * median + float(last_chunk_len) * last_median) \
                      / float(nb_chunks * chunk_len + last_chunk_len)
     
@@ -167,12 +165,11 @@ def extract_extra_thresholds(params):
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
     
-    data_len = chunk_len
     mads = numpy.zeros((N_elec, loc_nb_chunks))
     
     # For each chunk attributed to the current CPU.
     for count, gidx in enumerate(loc_all_chunks):
-        mads[:, count] = extract_median_absolute_deviation(data_len, gidx, median)
+        mads[:, count] = extract_median_absolute_deviation(chunk_len, chunk_size, gidx, median)
         if comm.rank == 0:
             pbar.update(count)
     mad = numpy.mean(mads, axis=1)
@@ -187,10 +184,9 @@ def extract_extra_thresholds(params):
     if comm.rank == 0:
         if last_chunk_len > 0:
             # For last chunk attributed to the first CPU.
-            data_len = last_chunk_len
             gidx = nb_chunks
-            chunk_size = last_chunk_len // N_total
-            last_mad = extract_median_absolute_deviation(data_len, gidx, median)
+            last_chunk_size = last_chunk_len // N_total
+            last_mad = extract_median_absolute_deviation(last_chunk_len, last_chunk_size, gidx, median)
             mad = (float(nb_chunks * chunk_len) * mad + float(last_chunk_len) * last_mad) \
                   / float(nb_chunks * chunk_len + last_chunk_len)
     
@@ -449,7 +445,7 @@ def extract_extra_spikes_(params):
             for peak_index, peak_time in zip(argmax_peak, all_indices):
                 # Select electrode showing lowest amplitude.
                 elec = numpy.argmin(loc_chunk[peak_time, :])
-                neighs = get_neighbors(params, chan=elec, radius=250)
+                neighs = get_neighbors(params, chan=elec)
                 if safety_space:
                     mslice = all_times[neighs, min_times[peak_index]:max_times[peak_index]]
                 else:
@@ -587,57 +583,58 @@ def highpass(data, BUTTER_ORDER=3, sampling_rate=10000, cut_off=500.0):
 def extract_juxta_spikes_(params):
     '''Detect spikes from the extracellular traces'''
     
+    file_out_suff = params.get('data', 'file_out_suff')
+    dtype_offset = params.getint('data', 'dtype_offset')
+    sampling_rate = params.getint('data', 'sampling_rate')
+    dist_peaks = params.getint('data', 'dist_peaks')
+    juxta_dtype = params.get('validating', 'juxta_dtype')
+    
+    juxta_filename = "{}.juxta.dat".format(file_out_suff)
+    beer_path = "{}.beer.hdf5".format(file_out_suff)
+    
+    # Read juxtacellular trace.
+    juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
+    juxta_data = juxta_data.astype(numpy.float32)
+    # juxta_data = juxta_data - dtype_offset
+    juxta_data = numpy.ascontiguousarray(juxta_data)
+    
+    # Filter juxtacellular trace.
+    juxta_data = highpass(juxta_data, sampling_rate=sampling_rate)
+    
+    # Compute median and median absolute deviation.
+    juxta_median = numpy.median(juxta_data)
+    juxta_ad = numpy.abs(juxta_data - juxta_median)
+    juxta_mad = numpy.median(juxta_ad, axis=0)
+    
+    # Save medians and median absolute deviations to BEER file.
+    beer_file = h5py.File(beer_path, 'a', libver='latest')
+    if "juxta_median" in beer_file.keys():
+        del beer_file["juxta_median"]
+    beer_file.create_dataset("juxta_median", data=juxta_median)
+    if "juxta_mad" in beer_file.keys():
+        del beer_file["juxta_mad"]
+    beer_file.create_dataset("juxta_mad", data=juxta_mad)
+    beer_file.close()
+
     if comm.rank == 0:
-        
-        file_out_suff = params.get('data', 'file_out_suff')
-        dtype_offset = params.getint('data', 'dtype_offset')
-        sampling_rate = params.getint('data', 'sampling_rate')
-        dist_peaks = params.getint('data', 'dist_peaks')
-        juxta_dtype = params.get('validating', 'juxta_dtype')
-        
-        juxta_filename = "{}.juxta.dat".format(file_out_suff)
-        beer_path = "{}.beer.hdf5".format(file_out_suff)
-        
-        # Read juxtacellular trace.
-        juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
-        juxta_data = juxta_data.astype(numpy.float32)
-        juxta_data = juxta_data - dtype_offset
-        juxta_data = numpy.ascontiguousarray(juxta_data)
-        
-        # Filter juxtacellular trace.
-        juxta_data = highpass(juxta_data, sampling_rate=sampling_rate)
-        
-        # Compute median and median absolute deviation.
-        juxta_median = numpy.median(juxta_data)
-        juxta_ad = numpy.abs(juxta_data - juxta_median)
-        juxta_mad = numpy.median(juxta_ad, axis=0)
-        
-        # Save medians and median absolute deviations to BEER file.
-        beer_file = h5py.File(beer_path, 'a', libver='latest')
-        if "juxta_median" in beer_file.keys():
-            del beer_file["juxta_median"]
-        beer_file.create_dataset("juxta_median", data=juxta_median)
-        if "juxta_mad" in beer_file.keys():
-            del beer_file["juxta_mad"]
-        beer_file.create_dataset("juxta_mad", data=juxta_mad)
-        beer_file.close()
-        
-        # Detect juxta spike times.
-        k = 6.0
-        data = juxta_data - juxta_median
-        threshold = k * juxta_mad
-        juxta_spike_times = algo.detect_peaks(data, threshold, valley=True, mpd=dist_peaks)
-        
-        # Save juxta spike times to BEER file.
-        beer_file = h5py.File(beer_path, 'a', libver='latest')
-        group_name = "juxta_spiketimes"
-        if group_name in beer_file.keys():
-            del beer_file[group_name]
-        beer_file.create_group(group_name)
-        key = "{}/elec_0".format(group_name)
-        beer_file.create_dataset(key, data=juxta_spike_times)
-        beer_file.close()
-        
+        io.print_and_log(["Extract juxtacellular spikes"], level='info', logger=params)
+    
+    # Detect juxta spike times.
+    k = 6.0
+    data = juxta_data - juxta_median
+    threshold = k * juxta_mad
+    juxta_spike_times = algo.detect_peaks(data, threshold, valley=True, mpd=dist_peaks)
+    
+    # Save juxta spike times to BEER file.
+    beer_file = h5py.File(beer_path, 'a', libver='latest')
+    group_name = "juxta_spiketimes"
+    if group_name in beer_file.keys():
+        del beer_file[group_name]
+    beer_file.create_group(group_name)
+    key = "{}/elec_0".format(group_name)
+    beer_file.create_dataset(key, data=juxta_spike_times)
+    beer_file.close()
+    
     return
 
 
