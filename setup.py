@@ -1,20 +1,42 @@
 import os
 from os.path import join as pjoin
-import sys
+import sys, subprocess
+
+requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+
+try:
+  subprocess.check_call(['nvcc', '--version'])
+  requires += ['cudamat==0.3circus']
+except OSError:
+  print "CUDA not found"
 
 from setuptools import setup
+from setuptools.command.install import install
 
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
-
-requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama', 'cudamat==0.3circus']
-
 
 if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
     # We seem to be running under a "conda build"
     data_path = pjoin('data', 'spyking-circus')
 else:
     data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
+
+
+class cudamat_install(install):
+    '''
+    This class allows the install of CUDAMAT only if GPU is detected
+    '''
+    def run(self):
+        try:
+          print "GPU DETECTED, installing CUDAMAT"
+          requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama', 'cudamat==0.3circus']
+          self.do_egg_install()
+        except Exception:
+          print "GPU not DETECTED, skipping CUDAMAT"
+          requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+          self.do_egg_install()
+
 
 setup(name='spyking-circus',
       version='0.3',
@@ -25,6 +47,7 @@ setup(name='spyking-circus',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
       packages=['circus', 'circus.shared', 'circus.scripts'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
+      cmdclass={'install': cudamat_install},
       dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
       install_requires=requires,
       entry_points={
