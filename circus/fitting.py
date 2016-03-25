@@ -369,9 +369,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             b_lines.add(tmp2)
                             del tmp1, tmp2
                         else:
-                            tmp1   = c_overs[inds_temp[keep]].multiply(best_amp[keep]).dot(indices)
-                            tmp2   = c_overs[inds_temp[keep] + n_tm].multiply(best_amp2[keep]).dot(indices)
-                            b[:, idx_b] -= tmp1 + tmp2
+                            tmp1   = c_overs[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
+                            tmp2   = c_overs[inds_temp[keep] + n_tm].multiply(-best_amp2[keep]).dot(indices)
+                            b[:, idx_b] += tmp1 + tmp2
 
                         if good[count]:
 

@@ -180,7 +180,7 @@ def load_parameters(file_name):
             #sys.exit(0)
 
     parser.set('data', 'N_e', str(N_e))   
-    parser.set('fitting', 'space_explo', '1')
+    parser.set('fitting', 'space_explo', '0.5')
     parser.set('fitting', 'nb_chances', '3')
 
     dtype_offset = parser.get('data', 'dtype_offset')

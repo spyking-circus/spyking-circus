@@ -7,8 +7,10 @@ requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 
 try:
   subprocess.check_call(['nvcc', '--version'])
   requires += ['cudamat==0.3circus']
+  HAVE_CUDA = True
 except (OSError, subprocess.CalledProcessError):
   print "CUDA not found"
+  HAVE_CUDA = False
 
 from setuptools import setup
 from setuptools.command.install import install
@@ -90,3 +92,17 @@ setup(name='spyking-circus',
           'Topic :: Scientific/Engineering :: Bio-Informatics'
       ],
       zip_safe=False)
+
+msg = ['################################################################################',
+'# Probes files and parameter template have been copied to $HOME/spyking-circus #']
+
+
+if HAVE_CUDA:
+  msg += ['# GPU support has been correctly installed                                     #']
+else:
+  msg += ['# GPU support was NOT installed. Be sure to have a valid nvcc command          #']
+
+msg += ['################################################################################']
+
+for line in msg:
+  print line

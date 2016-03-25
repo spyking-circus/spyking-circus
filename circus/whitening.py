@@ -248,11 +248,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
         
-    if do_spatial_whitening:
-        spatial_whitening  = io.load_data(params, 'spatial_whitening')
-    if do_temporal_whitening:
-        temporal_whitening = io.load_data(params, 'temporal_whitening')
-
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
     if nb_chunks < comm.size:
@@ -290,7 +285,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
             local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
             if do_spatial_whitening:
-                local_chunk = numpy.dot(local_chunk, spatial_whitening)
+                if use_gpu:
+                    local_chunk = cmt.CUDAMatrix(local_chunk)
+                    local_chunk = local_chunk.dot(spatial_whitening).asarray()
+                else:
+                    local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
@@ -306,9 +305,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
                 peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                 if skip_artefact:
-                    values    = local_chunk[peaktimes, i]
-                    idx       = numpy.where(values >= -20*thresholds[i])[0]
-                    peaktimes = peaktimes[idx]
+                    real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+                    indices        = inv_nodes[edges[nodes[i]]]
+                    for idx in xrange(len(peaktimes)):
+                        values      = local_chunk[idx, indices]
+                        is_artefact = numpy.any(values < -20*thresholds[indices])
+                        if not is_artefact:
+                            real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
+                    peaktimes = peaktimes[real_peaktimes]
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
