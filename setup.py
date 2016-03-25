@@ -24,22 +24,6 @@ if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
 else:
     data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
 
-
-class cudamat_install(install):
-    '''
-    This class allows the install of CUDAMAT only if GPU is detected
-    '''
-    def run(self):
-        try:
-          print "GPU DETECTED, installing CUDAMAT"
-          requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama', 'cudamat==0.3circus']
-          self.do_egg_install()
-        except Exception:
-          print "GPU not DETECTED, skipping CUDAMAT"
-          requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
-          self.do_egg_install()
-
-
 setup(name='spyking-circus',
       version='0.3',
       description='Fast spike sorting by template matching',
