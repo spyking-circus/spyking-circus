@@ -14,6 +14,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     filter_done    = params.getboolean('noedits', 'filter_done')
     cut_off        = params.getint('filtering', 'cut_off')
     remove_median  = params.getboolean('filtering', 'remove_median')
+    nodes, edges   = io.get_nodes_and_edges(params)
     #################################################################
 
     if filter_done:
@@ -62,15 +63,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk   = local_chunk.reshape(local_shape, N_total)
                 local_chunk   = local_chunk.astype(numpy.float32)
                 local_chunk  -= dtype_offset
-                for i in xrange(N_total):
+                for i in nodes:
                     try:
                         local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
                     except Exception:
                         pass
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
                 if remove_median:
-                    global_median = numpy.median(local_chunk, 1)
-                    for i in xrange(N_total):
+                    if not numpy.all(nodes == numpy.arange(N_total)):
+                        global_median = numpy.median(local_chunk[:, nodes], 1)
+                    else:
+                        global_median = numpy.median(local_chunk, 1)
+                    for i in nodes:
                         local_chunk[:, i] -= global_median
 
                 local_chunk  += dtype_offset
