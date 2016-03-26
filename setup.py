@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 from os.path import join as pjoin
 import sys, subprocess
@@ -9,7 +10,7 @@ try:
   requires += ['cudamat==0.3circus']
   HAVE_CUDA = True
 except (OSError, subprocess.CalledProcessError):
-  print "CUDA not found"
+  print("CUDA not found")
   HAVE_CUDA = False
 
 from setuptools import setup
@@ -89,4 +90,4 @@ else:
 msg += ['################################################################################']
 
 for line in msg:
-  print line
+  print(line)
