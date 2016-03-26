@@ -17,6 +17,7 @@ multi-files    = False                  # If several files mydata_0,1,..,n.dat s
 [filtering]
 cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
 filter         = True      # If True, then a low-pass filtering is performed
+remove_median  = False     # If True, median over all channels is substracted to each channels (movement artifacts)
 
 [whitening]
 chunk_size     = 60        # Size of the data chunks [in s]

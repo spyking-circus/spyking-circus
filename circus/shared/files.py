@@ -216,6 +216,7 @@ def load_parameters(file_name):
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['whitening', 'chunk_size', 'int', '60'],
+                  ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
                   ['clustering', 'make_plots', 'string', 'png'],
