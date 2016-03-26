@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os
+import os, shutil
 import sys
 import subprocess
 import pkg_resources
@@ -46,6 +46,8 @@ Syntax is circus-gui-python datafile [extension]
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
     output_path    = params.get('data', 'file_out_suff') + '.GUI'
+    if os.path.exists(output_path):
+        shutil.rmtree(output_path)
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
 
@@ -137,7 +139,7 @@ Syntax is circus-gui-python datafile [extension]
         elif mode == "s":
             nb_pcs = 0
             for target in xrange(N_tm):
-                nb_pcs += min(500, numpy.where(labels == target)[0])
+                nb_pcs += min(500, len(numpy.where(labels == target)[0]))
 
         pc_features = numpy.zeros((nb_pcs, nb_features, max_loc_channel), dtype=numpy.float32)
         count       = 0

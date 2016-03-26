@@ -110,11 +110,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_over    = int(numpy.sqrt(over_shape[0]))
     S_over    = over_shape[1]
     c_overs   = {}
-    for i in xrange(N_over):
-        idx        = numpy.where((over_x >= i*N_over) & (over_x < (i+1)*N_over))[0]
-        c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (over_x[idx] - i*N_over, over_y[idx])), shape=(N_over, S_over))
+    overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
     del over_x, over_y, over_data
-
+    
+    for i in xrange(N_over):
+        c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
+    
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
