@@ -209,11 +209,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, count] = local_chunk[:, idx-template_shift: idx+template_shift+1].flatten()
 
+            del local_chunk
+
             if use_gpu: 
                 sub_mat = cmt.CUDAMatrix(sub_mat)
                 b       = cmt.sparse_dot(templates, sub_mat)
             else:
                 b       = templates.dot(sub_mat)                
+
+            del sub_mat
 
             local_offset = gidx*chunk_size+padding[0]//N_total
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)

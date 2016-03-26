@@ -171,7 +171,7 @@ Syntax is circus-gui-python datafile [extension]
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
         numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
         if mode == "s":
-            numpy.save(os.path.join(output_path, 'pc_features_spike_ids'), all_idx)
+            numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx)
 
     print_and_log(["Exporting data for the phy GUI..."], 'info', params)
     
