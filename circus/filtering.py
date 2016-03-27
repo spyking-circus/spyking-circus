@@ -71,7 +71,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
                 if remove_median:
                     if not numpy.all(nodes == numpy.arange(N_total)):
-                        global_median = numpy.median(numpy.take(local_chunk, nodes], axis=1), 1)
+                        global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
                     else:
                         global_median = numpy.median(local_chunk, 1)
                     for i in nodes:

@@ -105,7 +105,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 elec    = numpy.argmax(numpy.abs(local_chunk[peak]))
                 indices = inv_nodes[edges[nodes[elec]]]
                 myslice = all_times[indices, min_times[idx]:max_times[idx]]
-                peak    = local_peaktimes[idx]
                 all_times[indices, min_times[idx]:max_times[idx]] = True
         else:
             all_times   = numpy.zeros((N_e, len(local_chunk)), dtype=numpy.bool)
@@ -115,7 +114,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     all_silences   = []
 
     if do_spatial_whitening:
-        local_silences = local_chunk[subset, :][:max_silence_1]
+        local_silences = numpy.take(local_chunk, subset, axis=0)[:max_silence_1]
         all_silences   = gather_array(local_silences, comm, 0, 1)
     
     local_res      = []
@@ -145,7 +144,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_res = numpy.zeros(0, dtype=numpy.float32)
         else:
             local_res = numpy.sum(local_res, 0)
-        all_res   = gather_array(local_res.flatten(), comm, 0, 1)
+        all_res   = gather_array(local_res.ravel(), comm, 0, 1)
         all_elecs = gather_array(nb_elecs, comm, 0, 1)
 
     if comm.rank == 0:
@@ -268,7 +267,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
     elts           = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
-    chunks_to_load = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
+    chunks_to_load = all_chunks[comm.rank::comm.size]
 
     thresholds = io.load_data(params, 'thresholds')
 
@@ -353,43 +352,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                         if groups[elec] < upper_bounds:
 
-                            if take_all:
-                                if alignment:
-                                    idx   = numpy.where(indices == elec)[0]
-                                    zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
-                                    ydata = numpy.arange(len(indices))
-                                    if len(ydata) == 1:
-                                        f        = scipy.interpolate.UnivariateSpline(xdata, zdata, s=0)
-                                        smoothed = smooth(f(cdata), template_shift)
-                                        rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
-                                        ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                        sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
-                                    else:
-                                        f        = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
-                                        smoothed = smooth(f(cdata, idx)[:, 0], template_shift)
-                                        rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
-                                        ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                        sub_mat  = f(ddata, ydata).astype(numpy.float32)
-                                else:
-                                    sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
-
-                                for count, elec in enumerate(indices):
-                                    if elt_count < nb_elts:
-                                        elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, count]
-                                        elt_count          += 1
-                            else:
-
-                                elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
-
-                                if alignment:
-                                    ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
-                                    f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
-                                    smoothed = smooth(f(cdata), template_shift)
-                                    rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
-                                    ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                    elts[:, elt_count] = f(ddata).astype(numpy.float32)
+                            elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+                            if alignment:
+                                ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
+                                f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
+                                smoothed = smooth(f(cdata), template_shift)
+                                rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                elts[:, elt_count] = f(ddata).astype(numpy.float32)
                                 
-                                elt_count         += 1
+                            elt_count         += 1
 
                         groups[elec] += 1
                         all_times[indices, min_times[midx]:max_times[midx]] = True

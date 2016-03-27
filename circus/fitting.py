@@ -316,7 +316,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         inds_t, inds_temp = subset, tmp_mat.asarray()[0, :][subset].astype(numpy.int32)
                         del tmp_mat
                     else:
-                        inds_t, inds_temp = subset, numpy.argmax(sub_b[:, subset], 0)
+                        inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
 
                     if refractory > 0:
                         sort_idx  = numpy.argsort(inds_t)
@@ -397,7 +397,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
                                     del values, sub_mask
                                 else:
-                                    mask[inds_temp[keep]] = mask[inds_temp[keep]] * values
+                                    mask[inds_temp[keep]] *= values
 
                     myslice           = inds_t[to_reject]
                     failure[myslice] += 1
@@ -409,7 +409,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             mask.set_selected_columns(cu_slice, cm_zeros)
                             del cu_slice
                     else:
-                        mask[:, myslice[sub_idx]]  = 0
+                        mask[:, myslice[sub_idx]] = 0
 
                     if full_gpu:
                         del sub_b

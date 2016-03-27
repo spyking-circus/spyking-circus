@@ -1022,7 +1022,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
                 tmp_1 = loc_templates[srows]
 
                 srows = numpy.where(rows % N_t >= (N_t - idelay))[0]
-                tmp_2 = loc_templates2[srows, :]
+                tmp_2 = loc_templates2[srows]
                 
                 if use_gpu:
                     tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr())
@@ -1079,8 +1079,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
             else:
                 maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
             for i in xrange(N_tm-1):
-                rows                = numpy.arange(i*N_tm+i+1, (i+1)*N_tm)
-                maxoverlap[i, i+1:] = numpy.max(overlap[rows, :].toarray(), 1)
+                maxoverlap[i, i+1:] = overlap[i*N_tm+i+1:(i+1)*N_tm].max(1)
                 maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
             myfile.close()  
             myfile2.close()
