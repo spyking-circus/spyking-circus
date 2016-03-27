@@ -122,7 +122,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         if gpass == 1:
-            sdata = all_gather_array(smart_search[numpy.arange(comm.rank, N_e, comm.size)], comm, 0)
+            sdata = all_gather_array(smart_search[comm.rank::comm.size], comm, 0)
 
         if comm.rank == 0:
             if gpass == 0:
@@ -163,7 +163,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
             loop_nb_elts       = int(params.getfloat('clustering', 'nb_elts') * nb_elecs * loop_max_elts_elec)
         else:
-            chunks_to_load     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
+            chunks_to_load     = all_chunks[comm.rank::comm.size]
             loop_max_elts_elec = max_elts_elec
             loop_nb_elts       = nb_elts
 
@@ -277,7 +277,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 if len(to_update) < loop_max_elts_elec:
                                     if alignment:
                                         idx   = numpy.where(indices == elec)[0]
-                                        zdata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, indices]
+                                        zdata = numpy.take(local_chunk[peak-2*template_shift:peak+2*template_shift+1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
                                             f        = scipy.interpolate.UnivariateSpline(xdata, zdata, s=0)
@@ -292,7 +292,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                             sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
-                                        sub_mat = local_chunk[peak-template_shift:peak+template_shift+1, indices]
+                                        sub_mat = numpy.take(local_chunk[peak-template_shift:peak+template_shift+1], indices, axis=1)
 
                                     sub_mat    = numpy.dot(basis_rec, sub_mat)
                                     nx, ny     = sub_mat.shape
@@ -617,8 +617,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             pbar = get_progressbar(len(numpy.arange(comm.rank, N_e, comm.size)))
 
         x, y       = numpy.mgrid[0:N_t, 0:N_t]
-        x          = x.flatten()
-        y          = y.flatten()
+        x          = x.ravel()
+        y          = y.ravel()
         cdic       = {}
         all_labels = {}
         all_times  = {}
@@ -687,7 +687,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         cdic[i,j,li,lj] = [data_i, data_j]
                     
                     if (numpy.any(data_i != 0) or numpy.any(data_j != 0)):
-                        new_data = scipy.linalg.toeplitz(data_j, data_i).flatten()
+                        new_data = scipy.linalg.toeplitz(data_j, data_i).ravel()
                         idx      = new_data.nonzero()
                         data     = numpy.concatenate((data, new_data[idx]))
                         row      = numpy.concatenate((row, ci*N_t + x[idx]))
@@ -695,7 +695,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             autocorr = scipy.sparse.bsr_matrix((data, (row, col)), shape=(len(elecs)*N_t, len(elecs)*N_t), blocksize=(N_t, N_t), dtype=numpy.float32)
             autocorr = autocorr + autocorr.T - scipy.sparse.diags(autocorr.diagonal(), 0)
-            stas     = stas.flatten()
+            stas     = stas.ravel()
             #print "2", time.time() - start
             
             #print "Optimization for electrode", ielec
@@ -754,14 +754,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     templates[indices, :] = tmp_templates
 
                 slice_temp = templates[indices]
-                templates  = templates.flatten()
+                templates  = templates.ravel()
                 dx         = templates.nonzero()[0].astype(numpy.int32)
 
                 temp_x     = numpy.concatenate((temp_x, dx))
                 temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
-                norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
+                norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/(N_e*N_t))
 
                 amplitudes, ortho = io.get_amplitudes(params, result['times_' + str(ielec)][myslice], ielec, indices, slice_temp, nodes)
                 variations         = 5*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
@@ -774,14 +774,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 offset        = total_nb_clusters + count_templates
                 sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                 sub_templates[indices, :] = ortho
-                sub_templates = sub_templates.flatten()
+                sub_templates = sub_templates.ravel()
                 dx            = sub_templates.nonzero()[0].astype(numpy.int32)
 
                 temp_x     = numpy.concatenate((temp_x, dx))
                 temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
 
-                norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
+                norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.ravel()**2)/(N_e*N_t))
 
                 count_templates += 1
                 g_count         += 1
@@ -933,14 +933,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     templates[indices, :] = tmp_templates
 
-                templates  = templates.flatten()
+                templates  = templates.ravel()
                 dx         = templates.nonzero()[0].astype(numpy.int32)
 
                 temp_x     = numpy.concatenate((temp_x, dx))
                 temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
-                norms[g_count] = numpy.sqrt(numpy.sum(templates.flatten()**2)/(N_e*N_t))
+                norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/(N_e*N_t))
 
                 x, y, z          = sub_data.shape
                 sub_data_flat    = sub_data.reshape(x, y*z)
@@ -979,14 +979,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     sub_templates[indices, :] = tmp_templates
 
-                sub_templates = sub_templates.flatten()
+                sub_templates = sub_templates.ravel()
                 dx            = sub_templates.nonzero()[0].astype(numpy.int32)
 
                 temp_x     = numpy.concatenate((temp_x, dx))
                 temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.int32)))
                 temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
 
-                norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.flatten()**2)/(N_e*N_t))
+                norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.ravel()**2)/(N_e*N_t))
 
                 count_templates += 1
                 g_count         += 1
