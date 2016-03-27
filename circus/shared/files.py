@@ -447,13 +447,13 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = local_chunk[:, nodes]
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        local_chunk = local_chunk[:, neighs]
+        local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
             idx   = numpy.where(neighs == src)[0]
@@ -495,7 +495,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
     N_total      = params.getint('data', 'N_total')
     alignment    = params.getboolean('data', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    template     = template.flatten()
+    template     = template.ravel()
     covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
     norm_temp    = numpy.sum(template**2)
 
@@ -526,13 +526,13 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
 
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = local_chunk[:, nodes]
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
         
-        local_chunk = local_chunk[:, neighs]
+        local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
             idx   = numpy.where(neighs == src)[0]
@@ -550,7 +550,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
-        local_chunk       = local_chunk.T.flatten()
+        local_chunk       = local_chunk.T.ravel()
         amplitudes[count] = numpy.dot(local_chunk, template)/norm_temp
         snippet     = (template - amplitudes[count]*local_chunk).reshape(len(template), 1)
         covariance += numpy.dot(snippet, snippet.T)
@@ -581,7 +581,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     local_chunk -= dtype_offset
     if nodes is not None:
         if not numpy.all(nodes == numpy.arange(N_total)):
-            local_chunk = local_chunk[:, nodes]
+            local_chunk = numpy.take(local_chunk, nodes, axis=1)
     return numpy.ascontiguousarray(local_chunk), local_shape
 
 
@@ -712,9 +712,9 @@ def load_data(params, data, extension=''):
         file_name = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
         if os.path.exists(file_name):
             data       = h5py.File(file_name, 'r')
-            clusters   = data.get('clusters').flatten()
+            clusters   = data.get('clusters').ravel()
             N_clusters = len(numpy.unique(clusters))
-            spiketimes = data.get('spikes').flatten()
+            spiketimes = data.get('spikes').ravel()
             return clusters, spiketimes, N_clusters
         else:
             raise Exception('Need to provide a spike-cluster file!')
@@ -1035,7 +1035,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
                 dx, dy     = data.nonzero()
                 ddx        = local_idx[dx].astype(numpy.int32)
                 ddy        = to_consider[dy].astype(numpy.int32)
-                data       = data.flatten()
+                data       = data.ravel()
                 dd         = data.nonzero()[0].astype(numpy.int32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
                 over_y     = numpy.concatenate((over_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))

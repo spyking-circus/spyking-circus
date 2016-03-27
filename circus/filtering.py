@@ -39,7 +39,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             b, a          = signal.butter(3, (cut_off/(sampling_rate/2.), 0.95), 'pass')
             all_chunks    = numpy.arange(nb_chunks)
-            to_process    = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
+            to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
             if comm.rank == 0:
@@ -71,7 +71,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
                 if remove_median:
                     if not numpy.all(nodes == numpy.arange(N_total)):
-                        global_median = numpy.median(local_chunk[:, nodes], 1)
+                        global_median = numpy.median(numpy.take(local_chunk, nodes], axis=1), 1)
                     else:
                         global_median = numpy.median(local_chunk, 1)
                     for i in nodes:
