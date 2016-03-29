@@ -49,6 +49,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     alpha_ngt = 2.0
     alpha_noi = 2.0
     
+    # Cut data into two halves.
+    train_size = 0.9
+    data_block = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    N = len(data_block)
+    data_len = N / N_total
+    time_min = template_shift
+    time_max = int(train_size * float(data_len - 1)) - template_shift
+    time_min_test = int(train_size * float(data_len - 1)) + template_shift
+    time_max_test = (data_len - 1) - template_shift
+    
+    
     ############################################################################
     
     # TODO: move this section to the right location.
@@ -149,6 +160,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # Retrieve the spike times of the "ground truth cell".
     spike_times_gt = io.load_data(params, 'juxta-triggers')
+
+    ##### TODO: clean temporary zone
+    # Filter out the end of the data (~30%).
+    spike_times_gt_test = spike_times_gt[time_min_test <= spike_times_gt]
+    spike_times_gt = spike_times_gt[spike_times_gt <= time_max]
+    ##### end temporary zone
     
     # Load the spikes of all the "ground truth cells".
     spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
@@ -240,6 +257,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # Retrieve the spike times of the "non ground truth cell".
     spike_times_ngt_tmp = io.load_data(params, 'extra-triggers')
+
+    ##### TODO: clean temporary zone
+    # Filter out the end of the data (~30%).
+    spike_times_ngt_tmp = [t[t <= time_max] for t in spike_times_ngt_tmp]
+    ##### end temporary zone
     
     # Filter the spike times of the "non ground truth cell".
     ## Restrict to spikes which happened in the vicinity.
@@ -305,12 +327,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(["Noise samples..."], level='info', logger=params)
     
     # Extract the noise times.
-    data_block = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     ## Draw times uniformly.
-    N = len(data_block)
-    data_len = N / N_total
-    time_min = template_shift
-    time_max = (data_len - 1) - template_shift
     size = spike_times_ngt_tmp.size
     spike_times_noi = numpy.random.random_integers(time_min, time_max, size)
     spike_times_noi = numpy.unique(spike_times_noi)
@@ -991,8 +1008,69 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # wclf.set_params(eta0=learning_rate_init)
             wclf.set_params(warm_start=True)
             wclf.fit(X_train, y_train)
-            # Classifer prediction on train set.
-            y_pred = wclf.predict(X_test)
+            
+            
+            ##### TODO: fix depreciated zone
+            
+            time_chunk_size = 5000
+            nb_time_chunks = (time_max_test - time_min_test + 1) / time_chunk_size
+            if 0 < (time_max_test - time_min_test + 1) % time_chunk_size:
+                nb_time_chunks = nb_time_chunks + 1
+            ##### TODO: remove temporary zone
+            time_pred = nb_time_chunks * [None]
+            ##### end temporary zone
+            y_pred = nb_time_chunks * [None]
+            for time_chunk in xrange(0, nb_time_chunks):
+                ##### TODO: remove temporary zone
+                if comm.rank == 0:
+                    print("{} / {}".format(time_chunk, nb_time_chunks))
+                ##### end temporary zone
+                time_start = time_min_test + time_chunk * time_chunk_size
+                time_end = time_min_test + (time_chunk + 1) * time_chunk_size
+                time_end = min(time_end, time_max_test + 1)
+                spike_times_ = numpy.arange(time_start, time_end)
+                # Load the snippets
+                spikes_ = load_chunk(params, spike_times_, chans=chans)
+                # Reshape data.
+                N_t = spikes_.shape[0]
+                N_e = spikes_.shape[1]
+                N_ = spikes_.shape[2]
+                spikes_ = spikes_.reshape(N_t, N_e * N_)
+                spikes_ = spikes_.T
+                # Compute the PCA coordinates.
+                X_ = numpy.dot(spikes_, basis_proj)
+                X_ = X_.T
+                # Reshape data.
+                X_ = X_.reshape(N_p * N_e, N_)
+                X_ = X_.T
+                # Normalize data.
+                X_ = X_ / norm_scale
+                # Add quadratic features.
+                X_ = with_quadratic_feature(X_, pairwise=True)
+                ##### TODO: remove temporary zone
+                time_pred[time_chunk] = spike_times_
+                ##### end temporary zone
+                # Compute the predictions.
+                y_pred[time_chunk] = wclf.predict(X_)
+                # y_pred[time_chunk] = wclf.decision_function(X_)
+            ##### TODO: remove temporary zone
+            time_pred = numpy.concatenate(time_pred)
+            ##### end temporary zone
+            y_pred = numpy.concatenate(y_pred)
+            
+            # TODO: filter y_pred with a time window (i.e. at least ? time slot between detections).
+            
+            # TODO: remove following lines
+            # # Classifer prediction on train set.
+            # y_pred = wclf.predict(X_test)
+
+            # Retrieve the ground truth labeling.
+            # TODO: find suitable dtype.
+            y_test = numpy.ones(time_max_test - time_min_test + 1)
+            indices = spike_times_gt_test - time_min_test
+            y_test[indices] = 0
+            
+            # TODO: consider matches in a time window instead of exact matches.
             # Compute true positives, false negatives, true negatives and false
             # positives.
             p = (y_test == 0.0)
@@ -1004,6 +1082,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             # Construct and save the confusion matrix
             confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
             confusion_matrices[count] = confusion_matrix
+            
+            ##### end depreciated zone
+            
             
             if comm.rank == 0:
                 pbar.update(count)

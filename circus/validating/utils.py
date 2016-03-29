@@ -55,6 +55,28 @@ def load_chunk(params, spike_times, chans=None):
         spikes[:, :, count] = local_chunk
     return spikes
 
+def with_quadratic_feature(X_raw, pairwise=False):
+    N = X_raw.shape[0]
+    K = X_raw.shape[1]
+    if pairwise:
+        # With pairwise product of feature vector elements.
+        M = K + K * (K + 1) / 2
+        shape = (N, M)
+    else:
+        # Without pairwise product of feature vector elments.
+        M = K
+        shape = (N, M)
+    X = numpy.zeros(shape)
+    X[:, :K] = X_raw
+    if pairwise:
+        # Add the pairwise product of feature vector elements.
+        k = 0
+        for i in xrange(0, K):
+            for j in xrange(i, K):
+                X[:, K + k] = numpy.multiply(X[:, i], X[:, j])
+                k = k + 1
+    return X
+
 
 
 # Extracellular ################################################################
