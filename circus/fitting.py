@@ -336,13 +336,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         best_amp  = sub_b[inds_temp, inds_t]/n_scalar
                         best_amp2 = b[inds_temp + n_tm, inds_t]/n_scalar
 
-                    best_amp_n   = best_amp/norm_templates[inds_temp]
-                    best_amp2_n  = best_amp2/norm_templates[inds_temp + n_tm]
+                    best_amp_n   = best_amp/numpy.take(norm_templates, inds_temp)
+                    best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + n_tm)
 
                     all_idx      = ((best_amp_n >= amp_limits[inds_temp, 0]) & (best_amp_n <= amp_limits[inds_temp, 1]))
                     to_keep      = numpy.where(all_idx == True)[0]
                     to_reject    = numpy.where(all_idx == False)[0]
-                    ts           = local_peaktimes[inds_t[to_keep]]
+                    ts           = numpy.take(local_peaktimes, inds_t[to_keep])
                     good         = (ts >= local_bounds[0]) & (ts < local_bounds[1])
 
                     # We reduce to only the good times that will be kept

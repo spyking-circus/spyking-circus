@@ -98,13 +98,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             min_times       = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
             max_times       = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
             argmax_peak     = numpy.random.permutation(numpy.arange(len(local_peaktimes)))
-            all_idx         = local_peaktimes[argmax_peak]
+            all_idx         = numpy.take(local_peaktimes, argmax_peak)
 
             #print "Selection of the peaks with spatio-temporal masks..."
             for idx, peak in zip(argmax_peak, all_idx):
                 elec    = numpy.argmax(numpy.abs(local_chunk[peak]))
-                indices = inv_nodes[edges[nodes[elec]]]
-                myslice = all_times[indices, min_times[idx]:max_times[idx]]
+                indices = numpy.take(inv_nodes, edges[nodes[elec]])
                 all_times[indices, min_times[idx]:max_times[idx]] = True
         else:
             all_times   = numpy.zeros((N_e, len(local_chunk)), dtype=numpy.bool)
@@ -124,8 +123,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         for elec in all_electrodes[numpy.arange(comm.rank, nb_temp_white, comm.size)]:
             res            = numpy.zeros((0, N_t), dtype=numpy.float32)
             scount         = 0
-            indices        = inv_nodes[edges[nodes[elec]]]
-            all_times_elec = numpy.any(all_times[indices], 0)
+            indices        = numpy.take(inv_nodes, edges[nodes[elec]])
+            all_times_elec = numpy.any(numpy.take(all_times, indices), 0)
             esubset        = numpy.where(all_times_elec == False)[0]
             bound          = len(esubset) - N_t
             while (scount < bound) and (len(res) < max_silence_2):
@@ -305,10 +304,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                 if skip_artefact:
                     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                    indices        = inv_nodes[edges[nodes[i]]]
+                    indices        = numpy.take(inv_nodes, edges[nodes[i]])
                     for idx in xrange(len(peaktimes)):
                         values      = local_chunk[idx, indices]
-                        is_artefact = numpy.any(values < -20*thresholds[indices])
+                        is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
                         if not is_artefact:
                             real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
                     peaktimes = peaktimes[real_peaktimes]
@@ -335,14 +334,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 n_times         = len(local_peaktimes)
                 argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
-                all_idx         = local_peaktimes[argmax_peak]
+                all_idx         = numpy.take(local_peaktimes, argmax_peak)
 
                 #print "Selection of the peaks with spatio-temporal masks..."
                 for midx, peak in zip(argmax_peak, all_idx):
                     if elt_count == nb_elts:
                         break
                     elec    = numpy.argmin(local_chunk[peak])
-                    indices = inv_nodes[edges[nodes[elec]]]
+                    indices = numpy.take(inv_nodes, edges[nodes[elec]])
                     myslice = all_times[indices, min_times[midx]:max_times[midx]]
                     is_local_min = elec in all_minimas[all_peaktimes == peak]
                     if is_local_min and not myslice.any():
@@ -354,8 +353,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                             elts[:, elt_count]  = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
                             if alignment:
-                                ydata = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
-                                f     = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
+                                ydata    = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
+                                f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
                                 smoothed = smooth(f(cdata), template_shift)
                                 rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)

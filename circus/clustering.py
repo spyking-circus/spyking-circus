@@ -200,10 +200,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     if skip_artefact:
                         real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                        indices   = inv_nodes[edges[nodes[i]]]
+                        indices   = numpy.take(inv_nodes, edges[nodes[i]])
                         for idx in xrange(len(peaktimes)):
                             values      = local_chunk[idx, indices]
-                            is_artefact = numpy.any(values < -20*thresholds[indices])
+                            is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
                             if not is_artefact:
                                 real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
                         peaktimes = peaktimes[real_peaktimes]
@@ -238,7 +238,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             subset  = result['all_times_' + str(elec)] - local_offset
                             peaks   = subset[numpy.where((subset >= 0) & (subset < (local_shape)))[0]]
                             inter   = numpy.in1d(local_peaktimes, peaks)
-                            indices = inv_nodes[edges[nodes[elec]]]
+                            indices = numpy.take(inv_nodes, edges[nodes[elec]])
                             remove  = numpy.where(inter == True)[0]
                             for t in remove:
                                 if safety_space:
@@ -256,7 +256,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         
                         if ((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank)):
 
-                            indices = inv_nodes[edges[nodes[elec]]]
+                            indices = numpy.take(inv_nodes, edges[nodes[elec]])
 
                             if safety_space:
                                 myslice = all_times[indices, min_times[midx]:max_times[midx]]
