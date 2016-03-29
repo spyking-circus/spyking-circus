@@ -210,9 +210,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."                
             local_chunk = local_chunk.T            
-            sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
+            sub_mat     = numpy.zeros((N_e, 2*template_shift+1, n_t), dtype=numpy.float32)
             for count, idx in enumerate(local_peaktimes):
-                sub_mat[:, count] = local_chunk[:, idx-template_shift: idx+template_shift+1].flatten()
+                sub_mat[:, :, count] = local_chunk[:, idx-template_shift: idx+template_shift+1]
+            sub_mat = sub_mat.reshape(N_e*(2*template_shift+1), n_t)
 
             #window    = numpy.tile(numpy.arange(-template_shift, template_shift+1), n_t)
             #indices   = numpy.repeat(local_peaktimes, temp_2_shift+1)
