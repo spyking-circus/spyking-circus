@@ -113,7 +113,7 @@ def read_probe(parser):
     try:
         with open(parser.get('data', 'mapping'), 'r') as f:
             probetext = f.read()
-            exec probetext in probe
+            exec(probetext, probe)
     except Exception as ex:
         print_error(["Something wrong with the syntax of the probe file:\n" + str(ex)])
         sys.exit(0)

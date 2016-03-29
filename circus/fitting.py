@@ -181,9 +181,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
                 peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
                 if skip_artefact:
-                    values    = local_chunk[peaktimes, i]
-                    idx       = numpy.where(values >= -20*thresholds[i])[0]
-                    peaktimes = peaktimes[idx]
+                    real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+                    indices   = numpy.take(inv_nodes, edges[nodes[i]])
+                    for idx in xrange(len(peaktimes)):
+                        values      = local_chunk[idx, indices]
+                        is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
+                        if not is_artefact:
+                            real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
+                    peaktimes = peaktimes[real_peaktimes]
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
             idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
@@ -208,6 +213,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, count] = local_chunk[:, idx-template_shift: idx+template_shift+1].flatten()
+
+            #window    = numpy.tile(numpy.arange(-template_shift, template_shift+1), n_t)
+            #indices   = numpy.repeat(local_peaktimes, temp_2_shift+1)
+            #indices  += window
+            #sub_mat   = numpy.take(local_chunk, indices, axis=0).reshape(n_t, 2*template_shift+1, N_e).T.reshape(N_e*(2*template_shift+1), n_t)
 
             del local_chunk
 
