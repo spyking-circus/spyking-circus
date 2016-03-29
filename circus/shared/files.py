@@ -61,7 +61,7 @@ def detect_header(filename, value='MCS'):
         return value, None
 
 def copy_header(header, file_in, file_out):
-    fin  = open(file_in, 'r')
+    fin  = open(file_in, 'rb')
     fout = open(file_out, 'wb')
     data = fin.read(header)
     fout.write(data)
@@ -597,7 +597,7 @@ def prepare_preview(params, preview_filename):
     local_chunk  = datablock[0:chunk_len]
 
     output = open(preview_filename, 'wb')
-    fid    = open(data_file, 'r')
+    fid    = open(data_file, 'rb')
     # We copy the header 
     for i in xrange(data_offset):
         output.write(fid.read(1))

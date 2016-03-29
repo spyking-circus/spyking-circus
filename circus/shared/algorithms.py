@@ -138,13 +138,15 @@ def merging(groups, sim_same_elec, data):
         
         for ic1 in xrange(len(clusters)):
             idx1 = numpy.where(groups == clusters[ic1])[0]
-            m1   = numpy.median(numpy.take(data, idx1), 0)
+            sd1  = numpy.take(data, idx1, axis=0)
+            m1   = numpy.median(sd1, 0)
             for ic2 in xrange(ic1+1, len(clusters)):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
-                m2   = numpy.median(numpy.take(data, idx2), 0)
+                sd2  = numpy.take(data, idx2, axis=0)
+                m2   = numpy.median(sd2, 0)
                 v_n  = m1 - m2      
-                pr_1 = numpy.dot(numpy.take(data, idx1), v_n)
-                pr_2 = numpy.dot(numpy.take(data, idx2), v_n)
+                pr_1 = numpy.dot(sd1, v_n)
+                pr_2 = numpy.dot(sd2, v_n)
 
                 norm = numpy.median(numpy.abs(pr_1 - numpy.median(pr_1)))**2 + numpy.median(numpy.abs(pr_2 - numpy.median(pr_2)))**2
                 dist = numpy.abs(numpy.median(pr_1) - numpy.median(pr_2))/numpy.sqrt(norm)
@@ -439,7 +441,7 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
 
     for count, k in enumerate(sorted_temp):
 
-        electrodes    = inv_nodes[edges[nodes[best_elec[k]]]]
+        electrodes    = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
         overlap_k     = overlap[k*nb_temp:(k+1)*nb_temp].tolil()
         is_in_area    = numpy.in1d(best_elec, electrodes)
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
@@ -461,7 +463,7 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
                     is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
                     is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
-                        new_template = (a1*templates[:, i] + a2*templates[:, j]).toarray().ravel()
+                        new_template = (a1*templates[:, i].toarray() + a2*templates[:, j].toarray()).ravel()
                         similarity   = numpy.corrcoef(templates[:, k].toarray().ravel(), new_template)[0, 1]
                         if similarity > cc_merge:
                             if k not in mixtures:
