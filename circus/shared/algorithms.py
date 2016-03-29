@@ -39,7 +39,7 @@ def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
     dc      = (max_dis + min_dis) / 2
 
     while True:
-        nneighs = numpy.sum(distances < dc) / float(len(distances))
+        nneighs = numpy.mean(distances < dc)
         if nneighs >= bounds[0] and nneighs <= bounds[1]:
             break
         # binary search
