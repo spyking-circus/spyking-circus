@@ -306,11 +306,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                     indices        = numpy.take(inv_nodes, edges[nodes[i]])
                     for idx in xrange(len(peaktimes)):
-                        values      = local_chunk[idx, indices]
+                        values      = numpy.take(local_chunk[idx], indices)
                         is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
                         if not is_artefact:
                             real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                    peaktimes = peaktimes[real_peaktimes]
+                    peaktimes = numpy.take(peaktimes, real_peaktimes)
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
