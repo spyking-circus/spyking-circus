@@ -18,8 +18,8 @@ from .utils import *
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
-    if comm.rank == 0:
-        io.print_and_log(["Start validation..."], level='info', logger=params)
+    #if comm.rank == 0:
+    #    io.print_and_log(["Start validation..."], level='default', logger=params)
     
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
@@ -151,7 +151,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
     if comm.rank == 0:
-        io.print_and_log(["Ground truth cell's samples..."], level='info', logger=params)
+        io.print_and_log(["Collecting ground truth cell's samples..."], level='default', logger=params)
     
     # Detect the spikes times of the "ground truth cell".
     if comm.rank == 0:
