@@ -46,8 +46,8 @@ Syntax is circus-gui-python datafile [extension]
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
     output_path    = params.get('data', 'file_out_suff') + '.GUI'
-    if os.path.exists(output_path):
-        shutil.rmtree(output_path)
+    # if os.path.exists(output_path):
+    #     shutil.rmtree(output_path)
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
 
@@ -155,7 +155,7 @@ Syntax is circus-gui-python datafile [extension]
             elec     = best_elec[target]
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
-            times_i  = spikes[idx]
+            times_i  = numpy.take(spikes, idx)
             sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes)
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
