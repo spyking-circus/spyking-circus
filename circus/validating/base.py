@@ -10,6 +10,7 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import StandardScaler
 
 import h5py
+from datetime import datetime
 
 from ..shared.utils import *
 from ..shared import plot
@@ -31,6 +32,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sampling_rate = params.getint('data', 'sampling_rate')
     N_e = params.getint('data', 'N_e')
     template_shift = params.getint('data', 'template_shift')
+    file_out_suff = params.get('data', 'file_out_suff')
     nb_repeats = params.getint('clustering', 'nb_repeats')
     max_iter = params.getint('validating', 'max_iter')
     learning_rate_init = params.getfloat('validating', 'learning_rate')
@@ -39,7 +41,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
-    file_out_suff = params.get('data', 'file_out_suff')
+    skip_demo = params.getboolean('validating', 'skip_demo')
     
     # TODO: remove following lines.
     make_plots_snippets = False
@@ -714,246 +716,253 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### LEARNING #############################################################
     
-    if comm.rank == 0:
-        io.print_and_log(["Start learning..."], level='debug', logger=params)
-    
-    
     # mode = 'decision'
     mode = 'prediction'
+
+    model = 'sgd'
     
     # Preprocess dataset.
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size)
     
-    if comm.rank == 0:
-        if verbose:
-            msg = [
-                "# X_train.shape: {}".format(X_train.shape),
-                "# X_test.shape: {}".format(X_test.shape),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    model = 'sgd'
-    # Declare model.
-    if model == 'mlp':
-        clf = MLPClassifier(hidden_layer_sizes=(),
-                            activation='logistic',
-                            algorithm='sgd',
-                            alpha=1.0e-12,
-                            tol=1.0e-8,
-                            learning_rate='adaptive',
-                            random_state=0,
-                            momentum=0.05,
-                            nesterovs_momentum=False)
-    elif model == 'perceptron':
-        clf = Perceptron(penalty='l2',
-                         alpha=1.0e-12,
-                         fit_intercept=True,
-                         random_state=0)
-    elif model == 'sgd':
-        _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
-        clf = SGDClassifier(loss='log',
-                            fit_intercept=True,
-                            random_state=2,
-                            learning_rate='optimal',
-                            eta0=sys.float_info.epsilon,
-                            class_weight=class_weights[0])
-    
-    # Initialize model (i.e. fake launch, weights initialization).
-    if model == 'mlp':
-        clf.set_params(max_iter=1)
-        clf.set_params(learning_rate_init=sys.float_info.epsilon)
-        clf.set_params(warm_start=False)
-    elif model == 'perceptron' or model == 'sgd':
-        clf.set_params(n_iter=1)
-        clf.set_params(eta0=sys.float_info.epsilon)
-        clf.set_params(warm_start=False)
-    clf.fit(X_train, y_train)
-    
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
-            # Plot prediction.
-            title = "Initial prediction (random)"
-            plot_filename = "beer-prediction-init-random.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                     title=title, save=path)
-            # Plot decision function.
-            title = "Initial decision function (random)"
-            plot_filename = "beer-decision-function-init-random.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                     title=title, save=path)
-    
-    if comm.rank == 0:
-        if verbose:
-            y_pred = clf.predict(X_test)
-            score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
-            msg = [
-                # # Print the current loss.
-                # "# clf.loss_: {}".format(clf.loss_),
-                # # Print the loss curve.
-                # "# clf.loss_curve_: {}".format(clf.loss_curve_),
-                # # Print the number of iterations the algorithm has ran.
-                # "# clf.n_iter_: {}".format(clf.n_iter_),
-                # Print the score on the test set.
-                "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
-    if model == 'mlp':
-        clf.coefs_ = [coefs_init[1:, :]]
-        clf.intercepts_ = [coefs_init[:1, :]]
-    elif model == 'perceptron' or model == 'sgd':
-        clf.coef_ = coefs_init[1:, :].reshape(1, -1)
-        clf.intercept_ = coefs_init[:1, :].ravel()
-    
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
-            # Plot prediction.
-            title = "Initial prediction (ellipsoid)"
-            plot_filename = "beer-prediction-init-ellipsoid.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                     title=title, save=path)
-            # Plot decision function.
-            title = "Initial decision function (ellipsoid)"
-            plot_filename = "beer-decision-function-init-ellipsoid.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                     title=title, save=path)
-    
-    if comm.rank == 0:
-        if verbose:
-            y_pred = clf.predict(X_test)
-            score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
-            msg = [
-                # # Print the current loss.
-                # "# clf.loss_: {}".format(clf.loss_),
-                # # Print the loss curve.
-                # "# clf.loss_curve_: {}".format(clf.loss_curve_),
-                # # Print the number of iterations the algorithm has ran.
-                # "# clf.n_iter_: {}".format(clf.n_iter_),
-                # Print the score on the test set.
-                "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    # Train model.
-    if model == 'mlp':
-        clf.set_params(max_iter=max_iter)
-        clf.set_params(learning_rate_init=learning_rate_init)
-        clf.set_params(warm_start=True)
-    elif model == 'perceptron' or model == 'sgd':
-        n_iter = min(max_iter, 1000000 / N_max)
-        clf.set_params(n_iter=n_iter)
-        clf.set_params(eta0=learning_rate_init)
-        clf.set_params(warm_start=True)
-    clf.fit(X_train, y_train)
-    
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
-            # Plot final prediction.
-            title = "Final prediction "
-            plot_filename = "beer-prediction-final.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                     title=title, save=path)
-            # Plot final decision function.
-            title = "Final decision function"
-            plot_filename = "beer-decision-function-final.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                     title=title, save=path)
-    
-    if comm.rank == 0:
-        if verbose:
-            y_pred = clf.predict(X_test)
-            score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
-            msg = [
-                # # Print the current loss computed with the loss function.
-                # "# clf.loss_: {}".format(clf.loss_),
-                # # Print the loss curve.
-                # "# clf.loss_curve_: {}".format(clf.loss_curve_),
-                # # Print the number of iterations the algorithm has ran.
-                # "# clf.n_iter_: {}".format(clf.n_iter_),
-                # Print the score on the test set.
-                "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    
-    # # TODO: uncomment (i.e. compute loss curve for perceptron and sgd)
-    # #       should find a replacement since perceptron and sgd do not give
-    # #       access to the loss values.
-    # if make_plots:
-    #     # Plot the loss curve.
-    #     plot_filename = "loss-curve.png"
-    #     path = os.path.join(plot_path, plot_filename)
-    #     plot.view_loss_curve(clf.loss_curve_, save=path)
-    
-    
-    # Retrieve the coefficients of the ellipsoid.
-    if model == 'mlp':
-        bias = clf.intercepts_[0].flatten()
-        weights = clf.coefs_[0].flatten()
-    elif model == 'perceptron' or model == 'sgd':
-        bias = clf.intercept_.flatten()
-        weights = clf.coef_.flatten()
-    # Concatenate the coefficients.
-    coefs = numpy.concatenate((bias, weights))
-    coefs = coefs.reshape(-1, 1)
-    
-    
-    A, b, c = ellipsoid_coefs_to_matrix(coefs)
+    if not skip_demo:
+        
+        if comm.rank == 0:
+            io.print_and_log(["Start learning..."], level='debug', logger=params)
+        
+        
+        if comm.rank == 0:
+            if verbose:
+                msg = [
+                    "# X_train.shape: {}".format(X_train.shape),
+                    "# X_test.shape: {}".format(X_test.shape),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
+        
+        # Declare model.
+        if model == 'mlp':
+            clf = MLPClassifier(hidden_layer_sizes=(),
+                                activation='logistic',
+                                algorithm='sgd',
+                                alpha=1.0e-12,
+                                tol=1.0e-8,
+                                learning_rate='adaptive',
+                                random_state=0,
+                                momentum=0.05,
+                                nesterovs_momentum=False)
+        elif model == 'perceptron':
+            clf = Perceptron(penalty='l2',
+                             alpha=1.0e-12,
+                             fit_intercept=True,
+                             random_state=0)
+        elif model == 'sgd':
+            _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
+            clf = SGDClassifier(loss='log',
+                                fit_intercept=True,
+                                random_state=2,
+                                learning_rate='optimal',
+                                eta0=sys.float_info.epsilon,
+                                class_weight=class_weights[0])
+        
+        # Initialize model (i.e. fake launch, weights initialization).
+        if model == 'mlp':
+            clf.set_params(max_iter=1)
+            clf.set_params(learning_rate_init=sys.float_info.epsilon)
+            clf.set_params(warm_start=False)
+        elif model == 'perceptron' or model == 'sgd':
+            clf.set_params(n_iter=1)
+            clf.set_params(eta0=sys.float_info.epsilon)
+            clf.set_params(warm_start=False)
+        clf.fit(X_train, y_train)
+        
+        if comm.rank == 0:
+            if make_plots not in ['None', '']:
+                # Plot prediction.
+                title = "Initial prediction (random)"
+                plot_filename = "beer-prediction-init-random.%s" %make_plots
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                                         title=title, save=path)
+                # Plot decision function.
+                title = "Initial decision function (random)"
+                plot_filename = "beer-decision-function-init-random.%s" %make_plots
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+                                         title=title, save=path)
+        
+        if comm.rank == 0:
+            if verbose:
+                y_pred = clf.predict(X_test)
+                score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
+                msg = [
+                    # # Print the current loss.
+                    # "# clf.loss_: {}".format(clf.loss_),
+                    # # Print the loss curve.
+                    # "# clf.loss_curve_: {}".format(clf.loss_curve_),
+                    # # Print the number of iterations the algorithm has ran.
+                    # "# clf.n_iter_: {}".format(clf.n_iter_),
+                    # Print the score on the test set.
+                    "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
+        
+        coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
+        if model == 'mlp':
+            clf.coefs_ = [coefs_init[1:, :]]
+            clf.intercepts_ = [coefs_init[:1, :]]
+        elif model == 'perceptron' or model == 'sgd':
+            clf.coef_ = coefs_init[1:, :].reshape(1, -1)
+            clf.intercept_ = coefs_init[:1, :].ravel()
+        
+        if comm.rank == 0:
+            if make_plots not in ['None', '']:
+                # Plot prediction.
+                title = "Initial prediction (ellipsoid)"
+                plot_filename = "beer-prediction-init-ellipsoid.%s" %make_plots
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                                         title=title, save=path)
+                # Plot decision function.
+                title = "Initial decision function (ellipsoid)"
+                plot_filename = "beer-decision-function-init-ellipsoid.%s" %make_plots
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+                                         title=title, save=path)
+        
+        if comm.rank == 0:
+            if verbose:
+                y_pred = clf.predict(X_test)
+                score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
+                msg = [
+                    # # Print the current loss.
+                    # "# clf.loss_: {}".format(clf.loss_),
+                    # # Print the loss curve.
+                    # "# clf.loss_curve_: {}".format(clf.loss_curve_),
+                    # # Print the number of iterations the algorithm has ran.
+                    # "# clf.n_iter_: {}".format(clf.n_iter_),
+                    # Print the score on the test set.
+                    "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
+        
+        # Train model.
+        if model == 'mlp':
+            clf.set_params(max_iter=max_iter)
+            clf.set_params(learning_rate_init=learning_rate_init)
+            clf.set_params(warm_start=True)
+        elif model == 'perceptron' or model == 'sgd':
+            n_iter = min(max_iter, 1000000 / N_max)
+            clf.set_params(n_iter=n_iter)
+            clf.set_params(eta0=learning_rate_init)
+            clf.set_params(warm_start=True)
+        clf.fit(X_train, y_train)
+        
+        if comm.rank == 0:
+            if make_plots not in ['None', '']:
+                # Plot final prediction.
+                title = "Final prediction "
+                plot_filename = "beer-prediction-final.%s" %make_plots
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                                         title=title, save=path)
+                # Plot final decision function.
+                title = "Final decision function"
+                plot_filename = "beer-decision-function-final.%s" %make_plots
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+                                         title=title, save=path)
+        
+        if comm.rank == 0:
+            if verbose:
+                y_pred = clf.predict(X_test)
+                score = accuracy_score(y_test, y_pred, class_weights=class_weights[0])
+                msg = [
+                    # # Print the current loss computed with the loss function.
+                    # "# clf.loss_: {}".format(clf.loss_),
+                    # # Print the loss curve.
+                    # "# clf.loss_curve_: {}".format(clf.loss_curve_),
+                    # # Print the number of iterations the algorithm has ran.
+                    # "# clf.n_iter_: {}".format(clf.n_iter_),
+                    # Print the score on the test set.
+                    "# accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
+        
+        
+        # # TODO: uncomment (i.e. compute loss curve for perceptron and sgd)
+        # #       should find a replacement since perceptron and sgd do not give
+        # #       access to the loss values.
+        # if make_plots:
+        #     # Plot the loss curve.
+        #     plot_filename = "loss-curve.png"
+        #     path = os.path.join(plot_path, plot_filename)
+        #     plot.view_loss_curve(clf.loss_curve_, save=path)
+        
+        
+        # Retrieve the coefficients of the ellipsoid.
+        if model == 'mlp':
+            bias = clf.intercepts_[0].flatten()
+            weights = clf.coefs_[0].flatten()
+        elif model == 'perceptron' or model == 'sgd':
+            bias = clf.intercept_.flatten()
+            weights = clf.coef_.flatten()
+        # Concatenate the coefficients.
+        coefs = numpy.concatenate((bias, weights))
+        coefs = coefs.reshape(-1, 1)
+        
+        
+        A, b, c = ellipsoid_coefs_to_matrix(coefs)
     
     
     
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
-    if comm.rank == 0:
+    if not skip_demo:
         
-        io.print_and_log(["Sanity plot (classifier projection)..."],
-                         level='debug', logger=params)
-        
-        
-        if make_plots not in ['None', '']:
-            # Plot final classifier.
-            title = "Final classifier"
-            plot_filename = "beer-classifier-projection-final.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
-                                 A, b, c, title=title, save=path, verbose=verbose)
+        if comm.rank == 0:
+            
+            io.print_and_log(["Sanity plot (classifier projection)..."],
+                             level='debug', logger=params)
+            
+            
+            if make_plots not in ['None', '']:
+                # Plot final classifier.
+                title = "Final classifier"
+                plot_filename = "beer-classifier-projection-final.%s" %make_plots
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
+                                     A, b, c, title=title, save=path, verbose=verbose)
     
     
     
     # MAHALANOBIS DISTRIBUTIONS ################################################
     
-    if comm.rank == 0:
+    if not skip_demo:
         
-        io.print_and_log(["Computing final Mahalanobis distributions..."],
-                         level='debug', logger=params)
-        
-        
-        # Compute the Mahalanobis distributions.
-        mu = numpy.mean(X_gt, axis=0)
-        Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
-        Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
-        Mhlnb_noi = squared_Mahalanobis_distance(A, mu, X_noi)
-        
-        if verbose:
-            msg = [
-                "# Mhlnb_gt: {}".format(Mhlnb_gt),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-        
-        if make_plots not in ['None', '']:
-            # Plot Mahalanobis distributions.
-            title = "Final Mahalanobis distributions"
-            plot_filename = "beer-mahalanobis-final.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
-                                               title=title, save=path)
+        if comm.rank == 0:
+            
+            io.print_and_log(["Computing final Mahalanobis distributions..."],
+                             level='debug', logger=params)
+            
+            
+            # Compute the Mahalanobis distributions.
+            mu = numpy.mean(X_gt, axis=0)
+            Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
+            Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
+            Mhlnb_noi = squared_Mahalanobis_distance(A, mu, X_noi)
+            
+            if verbose:
+                msg = [
+                    "# Mhlnb_gt: {}".format(Mhlnb_gt),
+                ]
+                io.print_and_log(msg, level='default', logger=params)
+            
+            if make_plots not in ['None', '']:
+                # Plot Mahalanobis distributions.
+                title = "Final Mahalanobis distributions"
+                plot_filename = "beer-mahalanobis-final.%s" %make_plots
+                path = os.path.join(plot_path, plot_filename)
+                plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
+                                                   title=title, save=path)
     
     
     
@@ -1021,14 +1030,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ##### end temporary zone
             y_pred = nb_time_chunks * [None]
             for time_chunk in xrange(0, nb_time_chunks):
+                
+                if comm.rank == 0:
+                    print("##### New temporal chunk")
+                    dt = datetime.now()
+                
                 ##### TODO: remove temporary zone
-                #if comm.rank == 0:
-                #    print("{} / {}".format(time_chunk, nb_time_chunks))
+                # if comm.rank == 0:
+                #     print("{} / {}".format(time_chunk, nb_time_chunks))
                 ##### end temporary zone
                 time_start = time_min_test + time_chunk * time_chunk_size
                 time_end = time_min_test + (time_chunk + 1) * time_chunk_size
                 time_end = min(time_end, time_max_test + 1)
                 spike_times_ = numpy.arange(time_start, time_end)
+                
+                if comm.rank == 0:
+                    dt_ = datetime.now()
+                    print("Misc: {}s".format((dt_ - dt).total_seconds()))
+                    dt = datetime.now()
+                
                 # Load the snippets
                 spikes_ = load_chunk(params, spike_times_, chans=chans)
                 # Reshape data.
@@ -1043,16 +1063,34 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 # Reshape data.
                 X_ = X_.reshape(N_p * N_e, N_)
                 X_ = X_.T
+                
+                if comm.rank == 0:
+                    dt_ = datetime.now()
+                    print("Load snippets: {}s".format((dt_ - dt).total_seconds()))
+                    dt = datetime.now()
+                
                 # Normalize data.
                 X_ = X_ / norm_scale
                 # Add quadratic features.
                 X_ = with_quadratic_feature(X_, pairwise=True)
+                
+                if comm.rank == 0:
+                    dt_ = datetime.now()
+                    print("Add quadratic features: {}s".format((dt_ - dt).total_seconds()))
+                    dt = datetime.now()
+                
                 ##### TODO: remove temporary zone
                 time_pred[time_chunk] = spike_times_
                 ##### end temporary zone
                 # Compute the predictions.
                 y_pred[time_chunk] = wclf.predict(X_)
                 # y_pred[time_chunk] = wclf.decision_function(X_)
+                
+                if comm.rank == 0:
+                    dt_ = datetime.now()
+                    print("Classifier predictions: {}s".format((dt_ - dt).total_seconds()))
+                    dt = datetime.now()
+                
             ##### TODO: remove temporary zone
             time_pred = numpy.concatenate(time_pred)
             ##### end temporary zone

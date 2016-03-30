@@ -76,6 +76,7 @@ juxta          = True      # If True, then spike detection on juxtacellular trac
 test_size      = 0.5       # Portion of the dataset to include in the test split
 radius_factor  = 0.6       # Radius factor which modulates radius for the validation
 juxta_dtype    = uint16    # Type of the juxtacellular data
+skip_demo      = True      # If True, then focuse on the computation of the ROC curve
 
 [noedits]
 filter_done    = False     # Will become True automatically after filtering.

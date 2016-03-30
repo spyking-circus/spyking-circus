@@ -66,8 +66,15 @@ def with_quadratic_feature(X_raw, pairwise=False):
         # Without pairwise product of feature vector elments.
         M = K
         shape = (N, M)
-    X = numpy.zeros(shape)
+    
+    # if comm.rank == 0:
+    #     print("N, M: {}, {}".format(N, M))
+    
+    # X = numpy.zero(shape)
+    X = numpy.empty(shape)
     X[:, :K] = X_raw
+    
+    ##### Initial try (~ 0.5s)
     if pairwise:
         # Add the pairwise product of feature vector elements.
         k = 0
@@ -75,6 +82,36 @@ def with_quadratic_feature(X_raw, pairwise=False):
             for j in xrange(i, K):
                 X[:, K + k] = numpy.multiply(X[:, i], X[:, j])
                 k = k + 1
+    
+    ##### Second try (~ 0.6s)
+    # if pairwise:
+    #     # Add the pairwise product of feature vector elements.
+    #     k = 0
+    #     for i in xrange(0, K):
+    #         for j in xrange(i, K):
+    #             X[:, K + k] = X[:, [i, j]].prod(axis=1)
+    #             k = k + 1
+    
+    ##### Third try (~ 0.6s)
+    # if pairwise:
+    #     import itertools
+    #     comb = itertools.combinations(range(K), 2)
+    #     for k, c in enumerate(comb):
+    #         X[:, K + k] = X[:, c].prod(axis=1)
+    
+    ##### Fourth try (~ 16s)
+    # if pairwise:
+    #     def func(x_raw):
+    #         x = np.empty(M)
+    #         x[:K] = x_raw
+    #         k = 0
+    #         for i in xrange(0, K):
+    #             for j in xrange(i, K):
+    #                 x[K + k] = x_raw[i] * x_raw[j]
+    #                 k = k + 1
+    #         return x
+    #     X = numpy.apply_along_axis(func, 1, X_raw)
+    
     return X
 
 

@@ -1185,11 +1185,12 @@ def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=Fal
     t_ = p.transform(t)
     O_ = p.transform(numpy.multiply(O, s).T + t)
     if verbose:
-        msg = [
-            "# s (i.e. demi-axes)",
-            "%s" %(s,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+        # msg = [
+        #     "# s (i.e. demi-axes)",
+        #     "%s" %(s,),
+        # ]
+        # io.print_and_log(msg, level='default', logger=params)
+        pass
     # Find plot limits.
     pad = 0.3
     x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
@@ -1219,11 +1220,12 @@ def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=Fal
     b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, mean_) + b)
     c_ = numpy.dot(numpy.dot(A, mean_) + b, mean_) + c
     if verbose:
-        msg = [
-            "# mean_",
-            "%s" %(mean_,),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+        # msg = [
+        #     "# mean_",
+        #     "%s" %(mean_,),
+        # ]
+        # io.print_and_log(msg, level='default', logger=params)
+        pass
     # Find the apparent contour of the classifier.
     A__, b__, c__ = find_apparent_contour(A_, b_, c_)
     # Plot classifier.
