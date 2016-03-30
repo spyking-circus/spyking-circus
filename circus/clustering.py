@@ -216,8 +216,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     local_borders = (template_shift, local_shape - template_shift)
                 idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
-                all_peaktimes   = all_peaktimes[idx]
-                all_minimas     = all_minimas[idx]
+                all_peaktimes   = numpy.compress(idx, all_peaktimes)
+                all_minimas     = numpy.compress(idx, all_minimas)
 
                 local_peaktimes = numpy.unique(all_peaktimes)
                 local_offset    = gidx*chunk_size
@@ -231,12 +231,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     n_times         = len(local_peaktimes)
                     argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
-                    all_idx         = local_peaktimes[argmax_peak]
+                    all_idx         = numpy.take(local_peaktimes, argmax_peak)
 
                     if gpass > 1:
                         for elec in xrange(N_e):
                             subset  = result['all_times_' + str(elec)] - local_offset
-                            peaks   = subset[numpy.where((subset >= 0) & (subset < (local_shape)))[0]]
+                            peaks   = numpy.compress((subset >= 0) & (subset < (local_shape)), subset)
                             inter   = numpy.in1d(local_peaktimes, peaks)
                             indices = numpy.take(inv_nodes, edges[nodes[elec]])
                             remove  = numpy.where(inter == True)[0]
@@ -638,11 +638,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if not all_labels.has_key(i):
                     all_labels[i] = callfile.get('clusters_%d' %i)[:]
                     all_times[i]  = callfile.get('times_%d' %i)[:]
-                mask      = numpy.where(all_labels[i] > -1)[0]
-                labels_i  = all_labels[i][mask]
+                mask      = (all_labels[i] > -1)
+                labels_i  = numpy.compress(mask, all_labels[i])
                 unique_i  = numpy.unique(labels_i)
                 if len(unique_i) > 0:
-                    times_i = all_times[i][mask]
+                    times_i = numpy.compress(mask, all_times[i])
                     elecs   = numpy.concatenate((elecs, i*numpy.ones(len(unique_i))))
                     labels  = numpy.concatenate((labels, unique_i))
                     indices = inv_nodes[edges[nodes[i]]]
@@ -667,13 +667,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 i        = elecs[ci]
                 li       = labels[ci]
                 mask_i   = all_labels[i] == li
-                spikes_i = all_times[i][mask_i]
+                spikes_i = numpy.compress(mask_i, all_times[i])
 
                 for cj in xrange(ci, len(elecs)):
                     j        = elecs[cj]
                     lj       = labels[cj]
                     mask_j   = all_labels[j] == lj
-                    spikes_j = all_times[j][mask_j]
+                    spikes_j = numpy.compress(mask_j, all_times[j])
 
                     if cdic.has_key((i,j,li,lj)):
                         data_i   = cdic[i, j, li, lj][0]
@@ -995,7 +995,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if n_data > 1:
                     save     = [plot_path, '%d.%s' %(ielec, make_plots)]
                     idx      = numpy.where(indices == ielec)[0][0]
-                    sub_data = data[:,:,idx]
+                    sub_data = numpy.take(data,idx, axis=2)
                     nb_temp  = cluster_results[ielec]['n_clus']
                     vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0] 
                     sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))

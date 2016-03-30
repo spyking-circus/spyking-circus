@@ -191,8 +191,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = peaktimes[real_peaktimes]
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
-            idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
-            local_peaktimes = spiketimes[idx] - gidx*chunk_size
+            idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)
+            local_peaktimes = numpy.compress(idx, spiketimes) - gidx*chunk_size
 
         if spike_range > 0:
             spikes = numpy.unique(local_peaktimes)
@@ -204,7 +204,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
-        local_peaktimes = local_peaktimes[idx]
+        local_peaktimes = numpy.compress(idx, local_peaktimes)
         n_t             = len(local_peaktimes)
 
         if n_t > 0:

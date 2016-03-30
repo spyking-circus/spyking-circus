@@ -89,7 +89,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
-        local_peaktimes = local_peaktimes[idx]
+        local_peaktimes = numpy.compress(idx, local_peaktimes)
 
         if len(local_peaktimes) > 0:
 
@@ -320,8 +320,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 local_borders = (template_shift, local_shape - template_shift)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
-            all_peaktimes   = all_peaktimes[idx]
-            all_minimas     = all_minimas[idx]
+            all_peaktimes   = numpy.compress(idx, all_peaktimes)
+            all_minimas     = numpy.compress(idx, all_minimas)
 
             local_peaktimes = numpy.unique(all_peaktimes)
 
