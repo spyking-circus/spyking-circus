@@ -371,7 +371,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         idx_b    = numpy.compress(myslice, y)
                         ytmp     = numpy.compress(myslice, itmp)
                         indices  = numpy.zeros((S_over, len(ytmp)), dtype=numpy.float32)
-                        indices[ytmp, 0:len(ytmp)] = 1
+                        indices[ytmp, numpy.arange(len(ytmp))] = 1
 
                         if full_gpu: 
                             indices  = cmt.CUDAMatrix(indices)
