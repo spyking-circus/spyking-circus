@@ -238,7 +238,7 @@ def load_parameters(file_name):
         ['validating', 'learning_rate', 'float', '1.0e-3'],
         ['validating', 'roc_sampling', 'int', '10'],
         ['validating', 'verbose', 'bool', 'False'],
-        ['validating', 'make_plots', 'bool', 'False'],
+        ['validating', 'make_plots', 'string', 'png'],
         ['validating', 'test_size', 'float', '0.3'],
         ['validating', 'radius_factor', 'float', '0.6'],
         ['validating', 'safety_space', 'bool', 'True'],

@@ -141,8 +141,8 @@ def extract_extra_thresholds(params):
     loc_nbs_chunks = comm.gather(loc_nb_chunks, root=0)
     
     if comm.rank == 0:
-        io.print_and_log(["Extract extracellular medians"],
-                         level='info', logger=params)
+        io.print_and_log(["Computing extracellular medians..."],
+                         level='default', logger=params)
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
@@ -181,8 +181,8 @@ def extract_extra_thresholds(params):
     comm.Barrier()
     
     if comm.rank == 0:
-        io.print_and_log(["Extract extracellular median absolute deviations"],
-                         level='info', logger=params)
+        io.print_and_log(["Computing extracellular thresholds..."],
+                         level='default', logger=params)
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
@@ -493,7 +493,7 @@ def extract_extra_spikes_(params):
     loc_nb_chunks = len(loc_all_chunks)
     
     if comm.rank == 0:
-        io.print_and_log(["Extract extracellular spikes"], level='info', logger=params)
+        io.print_and_log(["Collecting extracellular spikes..."], level='default', logger=params)
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
@@ -639,7 +639,7 @@ def extract_juxta_spikes_(params):
     beer_file.close()
 
     if comm.rank == 0:
-        io.print_and_log(["Extract juxtacellular spikes"], level='info', logger=params)
+        io.print_and_log(["Extract juxtacellular spikes"], level='debug', logger=params)
     
     # Detect juxta spike times.
     k = 6.0
