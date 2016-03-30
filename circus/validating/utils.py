@@ -449,7 +449,7 @@ def extract_extra_spikes_(params):
             loc_borders = (template_shift, loc_shape - template_shift)
         peak_flags = (loc_borders[0] <= peak_times) & (peak_times < loc_borders[1])
         peak_times = numpy.compress(peak_flags, peak_times)
-        peak_channels = numpy.compresss(peak_flags, peak_channels)
+        peak_channels = numpy.compress(peak_flags, peak_channels)
         # Filter unique peak times.
         loc_peak_times = numpy.unique(peak_times)
         n_times = len(loc_peak_times)
