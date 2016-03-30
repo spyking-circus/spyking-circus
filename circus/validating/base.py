@@ -53,7 +53,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     train_size = 0.9
     data_block = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     N = len(data_block)
-    data_len = N / N_total
+    data_len = N // N_total
     time_min = template_shift
     time_max = int(train_size * float(data_len - 1)) - template_shift
     time_min_test = int(train_size * float(data_len - 1)) + template_shift
@@ -414,7 +414,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if pairwise:
         # With pairwise product of feature vector elements.
-        M = N + N * (N + 1) / 2
+        M = N + N * (N + 1) // 2
         shape = (N_gt + N_ngt + N_noi, M)
     else:
         # Without pairwise product of feature vector elments.
@@ -674,7 +674,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         io.print_and_log(["Sanity plot (classifier projection)..."],
-                         level='info', logger=params)
+                         level='debug', logger=params)
         
         
         if make_plots not in ['None', '']:
@@ -692,8 +692,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         
-        io.print_and_log(["Compute intial Mahalanobis distributions..."],
-                         level='info', logger=params)
+        io.print_and_log(["Intialising Mahalanobis distributions..."],
+                         level='debug', logger=params)
         
         
         # Compute mahalanobis distributions.
@@ -715,7 +715,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### LEARNING #############################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Learning..."], level='info', logger=params)
+        io.print_and_log(["Start learning..."], level='default', logger=params)
     
     
     # mode = 'decision'
@@ -914,7 +914,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         
         io.print_and_log(["Sanity plot (classifier projection)..."],
-                         level='info', logger=params)
+                         level='debug', logger=params)
         
         
         if make_plots not in ['None', '']:
@@ -931,8 +931,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         
-        io.print_and_log(["Compute final Mahalanobis distributions..."],
-                         level='info', logger=params)
+        io.print_and_log(["Computing final Mahalanobis distributions..."],
+                         level='debug', logger=params)
         
         
         # Compute the Mahalanobis distributions.
@@ -965,7 +965,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### WEIGHTED LEARNING ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Weighted learning..."], level='info', logger=params)
+        io.print_and_log(["Starting the weighted learning..."], level='default', logger=params)
     
     
     _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
@@ -1003,7 +1003,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             wclf.coef_ = coefs_init[1:, :].reshape(1, -1)
             wclf.intercept_ = coefs_init[:1, :].ravel()
             # Train classifier.
-            n_iter = min(max_iter, 1000000 / N_max)
+            n_iter = min(max_iter, 1000000 // N_max)
             wclf.set_params(n_iter=n_iter)
             # wclf.set_params(eta0=learning_rate_init)
             wclf.set_params(warm_start=True)
@@ -1013,7 +1013,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ##### TODO: fix depreciated zone
             
             time_chunk_size = 5000
-            nb_time_chunks = (time_max_test - time_min_test + 1) / time_chunk_size
+            nb_time_chunks = (time_max_test - time_min_test + 1) // time_chunk_size
             if 0 < (time_max_test - time_min_test + 1) % time_chunk_size:
                 nb_time_chunks = nb_time_chunks + 1
             ##### TODO: remove temporary zone
@@ -1155,6 +1155,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ############################################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Validation done."], level='info', logger=params)
+        io.print_and_log(["Validation done."], level='debug', logger=params)
     
     return

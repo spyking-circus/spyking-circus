@@ -38,7 +38,7 @@ def load_chunk(params, spike_times, chans=None):
     ## Compute some additional parameters of the spike data.
     N_tr = spike_times.shape[0]
     datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    template_shift = int((N_t - 1) / 2)
+    template_shift = int((N_t - 1) // 2)
     ## Load the spike data.
     spikes = numpy.zeros((N_t, N_filt, N_tr))
     for (count, idx) in enumerate(spike_times):
@@ -48,7 +48,7 @@ def load_chunk(params, spike_times, chans=None):
         local_chunk = datablock[chunk_start:chunk_end]
         # Reshape, slice and cast data.
         local_chunk = local_chunk.reshape(N_t, N_total)
-        local_chunk = local_chunk[:, chans]
+        local_chunk = numpy.take(local_chunk, chans, axis=1)
         local_chunk = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
         # Save data.
@@ -60,7 +60,7 @@ def with_quadratic_feature(X_raw, pairwise=False):
     K = X_raw.shape[1]
     if pairwise:
         # With pairwise product of feature vector elements.
-        M = K + K * (K + 1) / 2
+        M = K + K * (K + 1) // 2
         shape = (N, M)
     else:
         # Without pairwise product of feature vector elments.
@@ -448,8 +448,8 @@ def extract_extra_spikes_(params):
         else:
             loc_borders = (template_shift, loc_shape - template_shift)
         peak_flags = (loc_borders[0] <= peak_times) & (peak_times < loc_borders[1])
-        peak_times = peak_times[peak_flags]
-        peak_channels = peak_channels[peak_flags]
+        peak_times = numpy.compress(peak_flags, peak_times)
+        peak_channels = numpy.compresss(peak_flags, peak_channels)
         # Filter unique peak times.
         loc_peak_times = numpy.unique(peak_times)
         n_times = len(loc_peak_times)
