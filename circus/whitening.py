@@ -124,7 +124,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             res            = numpy.zeros((0, N_t), dtype=numpy.float32)
             scount         = 0
             indices        = numpy.take(inv_nodes, edges[nodes[elec]])
-            all_times_elec = numpy.any(numpy.take(all_times, indices), 0)
+            all_times_elec = numpy.any(numpy.take(all_times, indices, axis=0), 0)
             esubset        = numpy.where(all_times_elec == False)[0]
             bound          = len(esubset) - N_t
             while (scount < bound) and (len(res) < max_silence_2):
@@ -346,8 +346,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     is_local_min = elec in all_minimas[all_peaktimes == peak]
                     if is_local_min and not myslice.any():
                         upper_bounds = max_elts_elec
-                        if take_all:
-                            upper_bounds //= len(indices)
 
                         if groups[elec] < upper_bounds:
 
