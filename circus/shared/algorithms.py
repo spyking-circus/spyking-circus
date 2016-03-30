@@ -21,7 +21,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=0, max_clusters=10, sav
     gidx   = numpy.where(xdata >= threshold)[0]
     ymdata = ydata[gidx]  
     xmdata = xdata[gidx]
-    subidx = gidx[numpy.argsort(xmdata*numpy.log(1 + ymdata))[::-1]]
+    subidx = numpy.take(gidx, numpy.argsort(xmdata*numpy.log(1 + ymdata))[::-1])
 
     if display:
         ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
@@ -39,7 +39,7 @@ def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
     dc      = (max_dis + min_dis) / 2
 
     while True:
-        nneighs = numpy.sum(distances < dc) / float(len(distances))
+        nneighs = numpy.mean(distances < dc)
         if nneighs >= bounds[0] and nneighs <= bounds[1]:
             break
         # binary search
@@ -65,16 +65,16 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
         if compute_rho:
             for i in xrange(N):
                 indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
-                tmp     = numpy.argsort(dist[indices])[:max(1, int(mratio*N))]
-                rho[i]  = numpy.sum(dist[indices[tmp]])  
+                tmp     = numpy.argsort(numpy.take(dist, indices))[:max(1, int(mratio*N))]
+                rho[i]  = numpy.sum(numpy.take(dist, numpy.take(indices, tmp)))  
 
     else:
         M = len(update)
 
         for i in xrange(N):
-            dist     = distancematrix(data[i].reshape(1, len(data[i])), update).flatten()
+            dist     = distancematrix(data[i].reshape(1, len(data[i])), update).ravel()
             tmp      = numpy.argsort(dist)[:max(1, int(mratio*M))]
-            rho[i]   = numpy.sum(dist[tmp])
+            rho[i]   = numpy.sum(numpy.take(dist, tmp))
     return rho, dist
 
 
@@ -138,13 +138,15 @@ def merging(groups, sim_same_elec, data):
         
         for ic1 in xrange(len(clusters)):
             idx1 = numpy.where(groups == clusters[ic1])[0]
-            m1   = numpy.median(data[idx1], 0)
+            sd1  = numpy.take(data, idx1, axis=0)
+            m1   = numpy.median(sd1, 0)
             for ic2 in xrange(ic1+1, len(clusters)):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
-                m2   = numpy.median(data[idx2], 0)
+                sd2  = numpy.take(data, idx2, axis=0)
+                m2   = numpy.median(sd2, 0)
                 v_n  = m1 - m2      
-                pr_1 = numpy.dot(data[idx1], v_n)
-                pr_2 = numpy.dot(data[idx2], v_n)
+                pr_1 = numpy.dot(sd1, v_n)
+                pr_2 = numpy.dot(sd2, v_n)
 
                 norm = numpy.median(numpy.abs(pr_1 - numpy.median(pr_1)))**2 + numpy.median(numpy.abs(pr_2 - numpy.median(pr_2)))**2
                 dist = numpy.abs(numpy.median(pr_1) - numpy.median(pr_2))/numpy.sqrt(norm)
@@ -368,8 +370,7 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
         for i in xrange(nb_temp-1):
-            rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
-            distances[i, i+1:] = numpy.max(overlap[rows, :].toarray(), 1)
+            distances[i, i+1:] = numpy.max(overlap[i*nb_temp+i+1:(i+1)*nb_temp].toarray(), 1)
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
@@ -426,8 +427,7 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
 
     for i in xrange(nb_temp-1):
-        rows               = numpy.arange(i*nb_temp+i+1, (i+1)*nb_temp)
-        distances[i, i+1:] = numpy.argmax(overlap[rows, :].toarray(), 1)
+        distances[i, i+1:] = numpy.argmax(overlap[i*nb_temp+i+1:(i+1)*nb_temp].toarray(), 1)
         distances[i+1:, i] = distances[i, i+1:]
 
     all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
@@ -435,23 +435,21 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(all_temp)).start()
 
-    sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1][all_temp]
+    sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
     M              = numpy.zeros((2, 2), dtype=numpy.float32)
     V              = numpy.zeros((2, 1), dtype=numpy.float32)
 
     for count, k in enumerate(sorted_temp):
 
-        electrodes    = inv_nodes[edges[nodes[best_elec[k]]]]
-        rows          = numpy.arange(k*nb_temp, (k+1)*nb_temp)
-        overlap_k     = overlap[rows, :].tolil()
+        electrodes    = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
+        overlap_k     = overlap[k*nb_temp:(k+1)*nb_temp].tolil()
         is_in_area    = numpy.in1d(best_elec, electrodes)
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
         been_found    = False
 
         for i in all_idx:
             if not been_found:
-                rows      = numpy.arange(i*nb_temp, (i+1)*nb_temp)
-                overlap_i = overlap[rows, :].tolil()
+                overlap_i = overlap[i*nb_temp:(i+1)*nb_temp].tolil()
                 M[0, 0]   = overlap_0[i, i]
                 V[0, 0]   = overlap_k[i, distances[k, i]]
                 for j in all_idx[i+1:]:
@@ -465,8 +463,8 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
                     is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
                     is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
-                        new_template = a1*templates[:, i].toarray() + a2*templates[:, j].toarray()
-                        similarity   = numpy.corrcoef(templates[:, k].toarray().flatten(), new_template.flatten())[0, 1]
+                        new_template = (a1*templates[:, i].toarray() + a2*templates[:, j].toarray()).ravel()
+                        similarity   = numpy.corrcoef(templates[:, k].toarray().ravel(), new_template)[0, 1]
                         if similarity > cc_merge:
                             if k not in mixtures:
                                 mixtures  += [k]

@@ -181,13 +181,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
                 peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
                 if skip_artefact:
-                    values    = local_chunk[peaktimes, i]
-                    idx       = numpy.where(values >= -20*thresholds[i])[0]
-                    peaktimes = peaktimes[idx]
+                    real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+                    indices   = numpy.take(inv_nodes, edges[nodes[i]])
+                    for idx in xrange(len(peaktimes)):
+                        values      = numpy.take(local_chunk[idx], indices)
+                        is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
+                        if not is_artefact:
+                            real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
+                    peaktimes = numpy.take(peaktimes, real_peaktimes)
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
-            idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
-            local_peaktimes = spiketimes[idx] - gidx*chunk_size
+            idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)
+            local_peaktimes = numpy.compress(idx, spiketimes) - gidx*chunk_size
 
         if spike_range > 0:
             spikes = numpy.unique(local_peaktimes)
@@ -199,15 +204,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
-        local_peaktimes = local_peaktimes[idx]
+        local_peaktimes = numpy.compress(idx, local_peaktimes)
         n_t             = len(local_peaktimes)
 
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."                
             local_chunk = local_chunk.T            
-            sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
+            sub_mat     = numpy.zeros((N_e, 2*template_shift+1, n_t), dtype=numpy.float32)
             for count, idx in enumerate(local_peaktimes):
-                sub_mat[:, count] = local_chunk[:, idx-template_shift: idx+template_shift+1].flatten()
+                sub_mat[:, :, count] = local_chunk[:, idx-template_shift: idx+template_shift+1]
+            sub_mat = sub_mat.reshape(N_e*(2*template_shift+1), n_t)
+
+            #window    = numpy.tile(numpy.arange(-template_shift, template_shift+1), n_t)
+            #indices   = numpy.repeat(local_peaktimes, temp_2_shift+1)
+            #indices  += window
+            #sub_mat   = numpy.take(local_chunk, indices, axis=0).reshape(n_t, 2*template_shift+1, N_e).T.reshape(N_e*(2*template_shift+1), n_t)
 
             del local_chunk
 
@@ -316,7 +327,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         inds_t, inds_temp = subset, tmp_mat.asarray()[0, :][subset].astype(numpy.int32)
                         del tmp_mat
                     else:
-                        inds_t, inds_temp = subset, numpy.argmax(sub_b[:, subset], 0)
+                        inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
 
                     if refractory > 0:
                         sort_idx  = numpy.argsort(inds_t)
@@ -336,13 +347,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         best_amp  = sub_b[inds_temp, inds_t]/n_scalar
                         best_amp2 = b[inds_temp + n_tm, inds_t]/n_scalar
 
-                    best_amp_n   = best_amp/norm_templates[inds_temp]
-                    best_amp2_n  = best_amp2/norm_templates[inds_temp + n_tm]
+                    best_amp_n   = best_amp/numpy.take(norm_templates, inds_temp)
+                    best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + n_tm)
 
                     all_idx      = ((best_amp_n >= amp_limits[inds_temp, 0]) & (best_amp_n <= amp_limits[inds_temp, 1]))
                     to_keep      = numpy.where(all_idx == True)[0]
                     to_reject    = numpy.where(all_idx == False)[0]
-                    ts           = local_peaktimes[inds_t[to_keep]]
+                    ts           = numpy.take(local_peaktimes, inds_t[to_keep])
                     good         = (ts >= local_bounds[0]) & (ts < local_bounds[1])
 
                     # We reduce to only the good times that will be kept
@@ -357,9 +368,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     for count, keep in enumerate(to_keep):
 
                         myslice  = x == count
-                        idx_b    = y[myslice]
-                        indices  = numpy.zeros((S_over, len(itmp[myslice])), dtype=numpy.float32)
-                        indices[itmp[myslice], numpy.arange(len(itmp[myslice]))] = 1
+                        idx_b    = numpy.compress(myslice, y)
+                        ytmp     = numpy.compress(myslice, itmp)
+                        indices  = numpy.zeros((S_over, len(ytmp)), dtype=numpy.float32)
+                        indices[ytmp, numpy.arange(len(ytmp))] = 1
 
                         if full_gpu: 
                             indices  = cmt.CUDAMatrix(indices)
@@ -397,19 +409,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
                                     del values, sub_mask
                                 else:
-                                    mask[inds_temp[keep]] = mask[inds_temp[keep]] * values
+                                    mask[inds_temp[keep]] *= values
 
-                    myslice           = inds_t[to_reject]
+                    myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
-                    sub_idx           = numpy.where(failure[myslice] >= nb_chances)[0]
+                    sub_idx           = (numpy.take(failure, myslice) >= nb_chances)
                     if full_gpu:
                         N = len(sub_idx)
                         if N > 0:
-                            cu_slice = cmt.CUDAMatrix(myslice[sub_idx].reshape(1, N))
+                            cu_slice = cmt.CUDAMatrix(numpy.compress(sub_idx, myslice).reshape(1, N))
                             mask.set_selected_columns(cu_slice, cm_zeros)
                             del cu_slice
                     else:
-                        mask[:, myslice[sub_idx]]  = 0
+                        mask[:, numpy.compress(sub_idx, myslice)] = 0
 
                     if full_gpu:
                         del sub_b

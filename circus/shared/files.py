@@ -61,7 +61,7 @@ def detect_header(filename, value='MCS'):
         return value, None
 
 def copy_header(header, file_in, file_out):
-    fin  = open(file_in, 'r')
+    fin  = open(file_in, 'rb')
     fout = open(file_out, 'wb')
     data = fin.read(header)
     fout.write(data)
@@ -113,7 +113,7 @@ def read_probe(parser):
     try:
         with open(parser.get('data', 'mapping'), 'r') as f:
             probetext = f.read()
-            exec probetext in probe
+            exec(probetext, probe)
     except Exception as ex:
         print_error(["Something wrong with the syntax of the probe file:\n" + str(ex)])
         sys.exit(0)
@@ -216,6 +216,7 @@ def load_parameters(file_name):
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['whitening', 'chunk_size', 'int', '60'],
+                  ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
                   ['clustering', 'make_plots', 'string', 'png'],
@@ -446,13 +447,13 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = local_chunk[:, nodes]
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        local_chunk = local_chunk[:, neighs]
+        local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
             idx   = numpy.where(neighs == src)[0]
@@ -494,7 +495,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
     N_total      = params.getint('data', 'N_total')
     alignment    = params.getboolean('data', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    template     = template.flatten()
+    template     = template.ravel()
     covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
     norm_temp    = numpy.sum(template**2)
 
@@ -525,13 +526,13 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
 
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = local_chunk[:, nodes]
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
         
-        local_chunk = local_chunk[:, neighs]
+        local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
             idx   = numpy.where(neighs == src)[0]
@@ -549,7 +550,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
-        local_chunk       = local_chunk.T.flatten()
+        local_chunk       = local_chunk.T.ravel()
         amplitudes[count] = numpy.dot(local_chunk, template)/norm_temp
         snippet     = (template - amplitudes[count]*local_chunk).reshape(len(template), 1)
         covariance += numpy.dot(snippet, snippet.T)
@@ -580,7 +581,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     local_chunk -= dtype_offset
     if nodes is not None:
         if not numpy.all(nodes == numpy.arange(N_total)):
-            local_chunk = local_chunk[:, nodes]
+            local_chunk = numpy.take(local_chunk, nodes, axis=1)
     return numpy.ascontiguousarray(local_chunk), local_shape
 
 
@@ -596,7 +597,7 @@ def prepare_preview(params, preview_filename):
     local_chunk  = datablock[0:chunk_len]
 
     output = open(preview_filename, 'wb')
-    fid    = open(data_file, 'r')
+    fid    = open(data_file, 'rb')
     # We copy the header 
     for i in xrange(data_offset):
         output.write(fid.read(1))
@@ -711,9 +712,9 @@ def load_data(params, data, extension=''):
         file_name = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
         if os.path.exists(file_name):
             data       = h5py.File(file_name, 'r')
-            clusters   = data.get('clusters').flatten()
+            clusters   = data.get('clusters').ravel()
             N_clusters = len(numpy.unique(clusters))
-            spiketimes = data.get('spikes').flatten()
+            spiketimes = data.get('spikes').ravel()
             return clusters, spiketimes, N_clusters
         else:
             raise Exception('Need to provide a spike-cluster file!')
@@ -1021,7 +1022,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
                 tmp_1 = loc_templates[srows]
 
                 srows = numpy.where(rows % N_t >= (N_t - idelay))[0]
-                tmp_2 = loc_templates2[srows, :]
+                tmp_2 = loc_templates2[srows]
                 
                 if use_gpu:
                     tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr())
@@ -1032,17 +1033,17 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
                     data  = data.toarray()
 
                 dx, dy     = data.nonzero()
-                ddx        = local_idx[dx].astype(numpy.int32)
-                ddy        = to_consider[dy].astype(numpy.int32)
-                data       = data.flatten()
+                ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
+                ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
+                data       = data.ravel()
                 dd         = data.nonzero()[0].astype(numpy.int32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
                 over_y     = numpy.concatenate((over_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                over_data  = numpy.concatenate((over_data, data[dd]))
+                over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
                 if idelay < N_t:
                     over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
                     over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                    over_data  = numpy.concatenate((over_data, data[dd]))
+                    over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
         if comm.rank == 0:
             pbar.update(count)
@@ -1078,8 +1079,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
             else:
                 maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
             for i in xrange(N_tm-1):
-                rows                = numpy.arange(i*N_tm+i+1, (i+1)*N_tm)
-                maxoverlap[i, i+1:] = numpy.max(overlap[rows, :].toarray(), 1)
+                maxoverlap[i, i+1:] = numpy.max(overlap[i*N_tm+i+1:(i+1)*N_tm].toarray(), 1)
                 maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
             myfile.close()  
             myfile2.close()
