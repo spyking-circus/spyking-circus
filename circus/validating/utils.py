@@ -134,8 +134,7 @@ def extract_extra_thresholds(params):
     
     # Distribute chunks over the CPUs.
     all_chunks = numpy.arange(nb_chunks)
-    loc_indices = numpy.arange(comm.rank, nb_chunks, comm.size)
-    loc_all_chunks = all_chunks[loc_indices]
+    loc_all_chunks = all_chunks[comm.rank::comm.size]
     loc_nb_chunks = len(loc_all_chunks)
     
     loc_nbs_chunks = comm.gather(loc_nb_chunks, root=0)
@@ -319,13 +318,12 @@ def plot_extracted_extra_spikes(loc_all_chunks, data_len, mpi_input, data_dtype,
                 loc_peak_elecs[peak_index] = elec
                 if safety_space:
                     all_times[neighs, min_times[peak_index]:max_times[peak_index]] = True
-                    # all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
                 else:
                     all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
-    loc_peak_times = loc_peak_times[loc_peak_flags]
-    loc_peak_elecs = loc_peak_elecs[loc_peak_flags]
+    loc_peak_times = numpy.compress(loc_peak_flags, loc_peak_times)
+    loc_peak_elecs = numpy.compress(loc_peak_flags, loc_peak_elecs)
     
-    time = loc_peak_times
+    time    = loc_peak_times
     channel = loc_peak_elecs
     
     pos = numpy.random.rand(time.size) - 0.5    
@@ -481,15 +479,14 @@ def extract_extra_spikes_(params):
                         # all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
                     else:
                         all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
-        loc_peak_times = loc_peak_times[loc_peak_flags]
-        loc_peak_elecs = loc_peak_elecs[loc_peak_flags]
+        loc_peak_times = numpy.compress(loc_peak_flags, loc_peak_times)
+        loc_peak_elecs = numpy.compress(loc_peak_flags, loc_peak_elecs)
         
         return loc_peak_times, loc_peak_elecs
     
     # Distribute chunks over CPUs.
     all_chunks = numpy.arange(nb_chunks)
-    loc_indices = numpy.arange(comm.rank, nb_chunks, comm.size)
-    loc_all_chunks = all_chunks[loc_indices]
+    loc_all_chunks = all_chunks[comm.rank::comm.size]
     loc_nb_chunks = len(loc_all_chunks)
     
     if comm.rank == 0:

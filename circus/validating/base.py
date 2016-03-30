@@ -440,7 +440,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ## Create the output dataset.
     y_raw = numpy.vstack((y_gt, y_ngt, y_noi))
-    y_raw = y_raw.flatten()
+    y_raw = y_raw.ravel()
     y = y_raw
     
     if comm.rank == 0:
@@ -476,7 +476,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### INITIAL PARAMETER ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Initialising parameters..."], level='default', logger=params)
+        io.print_and_log(["Initializing parameters..."], level='default', logger=params)
     
     
     method = 'covariance'
@@ -715,7 +715,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### LEARNING #############################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Start learning..."], level='default', logger=params)
+        io.print_and_log(["Start learning..."], level='debug', logger=params)
     
     
     # mode = 'decision'
@@ -1022,8 +1022,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             y_pred = nb_time_chunks * [None]
             for time_chunk in xrange(0, nb_time_chunks):
                 ##### TODO: remove temporary zone
-                if comm.rank == 0:
-                    print("{} / {}".format(time_chunk, nb_time_chunks))
+                #if comm.rank == 0:
+                #    print("{} / {}".format(time_chunk, nb_time_chunks))
                 ##### end temporary zone
                 time_start = time_min_test + time_chunk * time_chunk_size
                 time_end = time_min_test + (time_chunk + 1) * time_chunk_size
