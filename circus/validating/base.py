@@ -394,9 +394,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     X_raw = numpy.vstack((X_gt, X_ngt, X_noi))
     norm_scale = numpy.mean(numpy.linalg.norm(X_raw, axis=1))
-    X_gt = X_gt / norm_scale
-    X_ngt = X_ngt / norm_scale
-    X_noi = X_noi / norm_scale
+    X_gt  /= norm_scale
+    X_ngt /= norm_scale
+    X_noi /= norm_scale
     
     
     
@@ -850,7 +850,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             clf.set_params(learning_rate_init=learning_rate_init)
             clf.set_params(warm_start=True)
         elif model == 'perceptron' or model == 'sgd':
-            n_iter = min(max_iter, 1000000 / N_max)
+            n_iter = min(max_iter, 1000000 // N_max)
             clf.set_params(n_iter=n_iter)
             clf.set_params(eta0=learning_rate_init)
             clf.set_params(warm_start=True)
@@ -1070,7 +1070,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     dt = datetime.now()
                 
                 # Normalize data.
-                X_ = X_ / norm_scale
+                X_ /= norm_scale
                 # Add quadratic features.
                 X_ = with_quadratic_feature(X_, pairwise=True)
                 

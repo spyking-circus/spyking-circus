@@ -580,11 +580,14 @@ def extract_extra_spikes_(params):
     if comm.rank == 0:
         msg = [
             "Total number of extracellular spikes extracted: {}".format(channels.size),
-        ] + [
+        ] 
+        msg2 = [
             "Number of extracellular spikes extracted on channel {}: {}".format(i, channels[channels == i].size) for i in numpy.unique(channels)
         ]
         io.print_and_log(msg, level='info', logger=params)
+        io.print_and_log(msg2, level='debug', logger=params)
     
+
     if comm.rank == 0:
         path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(path, 'a', libver='latest')
