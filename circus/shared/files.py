@@ -1033,17 +1033,17 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
                     data  = data.toarray()
 
                 dx, dy     = data.nonzero()
-                ddx        = local_idx[dx].astype(numpy.int32)
-                ddy        = to_consider[dy].astype(numpy.int32)
+                ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
+                ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
                 data       = data.ravel()
                 dd         = data.nonzero()[0].astype(numpy.int32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
                 over_y     = numpy.concatenate((over_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                over_data  = numpy.concatenate((over_data, data[dd]))
+                over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
                 if idelay < N_t:
                     over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
                     over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                    over_data  = numpy.concatenate((over_data, data[dd]))
+                    over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
         if comm.rank == 0:
             pbar.update(count)

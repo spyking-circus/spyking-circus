@@ -903,22 +903,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 electrodes[g_count] = ielec
                 myslice          = numpy.where(cluster_results[ielec]['groups'] == group)[0]
                 if extraction == 'median-pca':
-                    sub_data         = data[myslice]
+                    sub_data         = numpy.take(data, myslice, axis=0)
                     first_component  = numpy.median(sub_data, axis=0)
                     tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 elif extraction == 'mean-pca':
-                    sub_data         = data[myslice]
+                    sub_data         = numpy.take(data, myslice, axis=0)
                     first_component  = numpy.mean(sub_data, axis=0)
                     tmp_templates    = numpy.dot(first_component.T, basis_rec)
                 elif extraction == 'median-raw':                
                     labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                    times_i          = result['times_' + str(ielec)][labels_i]
+                    times_i          = numpy.take(result['times_' + str(ielec)], labels_i)
                     sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
                     first_component  = numpy.median(sub_data, 0)
                     tmp_templates    = first_component
                 elif extraction == 'mean-raw':                
                     labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                    times_i          = result['times_' + str(ielec)][labels_i]
+                    times_i          = numpy.take(result['times_' + str(ielec)], labels_i)
                     sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes)
                     first_component  = numpy.mean(sub_data, 0)
                     tmp_templates    = first_component

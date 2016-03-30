@@ -368,9 +368,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     for count, keep in enumerate(to_keep):
 
                         myslice  = x == count
-                        idx_b    = y[myslice]
-                        indices  = numpy.zeros((S_over, len(itmp[myslice])), dtype=numpy.float32)
-                        indices[itmp[myslice], numpy.arange(len(itmp[myslice]))] = 1
+                        idx_b    = numpy.compress(myslice, y)
+                        ytmp     = numpy.compress(myslice, itmp)
+                        indices  = numpy.zeros((S_over, len(ytmp)), dtype=numpy.float32)
+                        indices[ytmp, 0:len(ytmp)] = 1
 
                         if full_gpu: 
                             indices  = cmt.CUDAMatrix(indices)
@@ -410,17 +411,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 else:
                                     mask[inds_temp[keep]] *= values
 
-                    myslice           = inds_t[to_reject]
+                    myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
-                    sub_idx           = numpy.where(failure[myslice] >= nb_chances)[0]
+                    sub_idx           = (numpy.take(failure, myslice) >= nb_chances)
                     if full_gpu:
                         N = len(sub_idx)
                         if N > 0:
-                            cu_slice = cmt.CUDAMatrix(myslice[sub_idx].reshape(1, N))
+                            cu_slice = cmt.CUDAMatrix(numpy.compress(sub_idx, myslice).reshape(1, N))
                             mask.set_selected_columns(cu_slice, cm_zeros)
                             del cu_slice
                     else:
-                        mask[:, myslice[sub_idx]] = 0
+                        mask[:, numpy.compress(sub_idx, myslice)] = 0
 
                     if full_gpu:
                         del sub_b
