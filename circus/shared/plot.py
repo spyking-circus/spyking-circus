@@ -1137,124 +1137,134 @@ def view_accuracy(data1, data2, title=None, save=None):
         pylab.savefig(save)
         pylab.close(fig)
     return
-    
 
-def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=False):
+
+def view_classifier(params, data_1, data_2, save=None, verbose=False):
     '''Plot classifier'''
     # Retrieve parameters.
-    params = load_parameters(file_name)
+
+    
+
     from circus.validating.utils import Projection, find_rotation, find_apparent_contour
-    p = Projection()
-    p = p.fit(X, y)
-    X_gt, X_ngt, X_noi = X
-    y_gt, y_ngt, y_noi = y
-    X_raw = numpy.vstack(tuple(X))
-    # Data transformation.
-    X_raw_ = p.transform(X_raw)
-    X_gt_ = p.transform(X_gt)
-    X_ngt_ = p.transform(X_ngt)
-    X_noi_ = p.transform(X_noi)
-    # Means transformation.
-    mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
-    mu_gt_ = p.transform(mu_gt)
-    mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
-    mu_ngt_ = p.transform(mu_ngt)
-    mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
-    mu_noi_ = p.transform(mu_noi)
-    # Ellipse transformation.
-    f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
-    t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
-    s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A))
-    # TODO: remove following line if possible.
-    s = numpy.abs(s)
-    s = numpy.sqrt(s)
-    t_ = p.transform(t)
-    O_ = p.transform(numpy.multiply(O, s).T + t)
-    if verbose:
-        # msg = [
-        #     "# s (i.e. demi-axes)",
-        #     "%s" %(s,),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
-    # Find plot limits.
-    pad = 0.3
-    x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
-    x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
-    x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
-    y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
-    y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
-    y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
-    # Retrieve the projection vectors.
-    v1, v2 = p.get_vectors()
-    if verbose:
-        # msg = [
-        #     "# norm(v1)",
-        #     "%s" %(numpy.linalg.norm(v1),),
-        #     "# norm(v2)",
-        #     "%s" %(numpy.linalg.norm(v2),),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
-    # Find a rotation which maps theses vectors on the two first vectors of the
-    # canonical basis of R^m.
-    R = find_rotation(v1, v2)
-    # Apply rotation to the classifier.
-    R_ = R.T
-    mean_ = p.get_mean()
-    A_ = numpy.dot(numpy.dot(R_.T, A), R_)
-    b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, mean_) + b)
-    c_ = numpy.dot(numpy.dot(A, mean_) + b, mean_) + c
-    if verbose:
-        # msg = [
-        #     "# mean_",
-        #     "%s" %(mean_,),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
-    # Find the apparent contour of the classifier.
-    A__, b__, c__ = find_apparent_contour(A_, b_, c_)
-    # Plot classifier.
+
     fig = pylab.figure()
-    ax = fig.gca()
-    ## Plot datasets.
-    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
-    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
-    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
-    ## Plot ellipse transformation.
-    for i in xrange(0, O_.shape[0]):
-        ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
-    ## Plot ellipse apparent contour.
-    n = 300
-    x_r = numpy.linspace(x_min, x_max, n)
-    y_r = numpy.linspace(y_min, y_max, n)
-    xx, yy = numpy.meshgrid(x_r, y_r)
-    zz = numpy.zeros(xx.shape)
-    for i in xrange(0, xx.shape[0]):
-        for j in xrange(0, xx.shape[1]):
-            v = numpy.array([xx[i, j], yy[i, j]])
-            zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
-    vv = numpy.array([0.0])
-    # vv = numpy.arange(0.0, 1.0, 0.1)
-    # vv = numpy.arange(0.0, 20.0)
-    ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
-    # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
-    # ax.clabel(cs, inline=1, fontsize=10)
-    ## Plot means of datasets.
-    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-    ## Plot aspect.
-    # ax.set_aspect('equal')
-    ax.grid()
-    ax.set_xlim([x_min, x_max])
-    ax.set_ylim([y_min, y_max])
-    if title is None:
-        ax.set_title("Classifier")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("1st component")
-    ax.set_ylabel("2nd component")
+    for count, item in enumerate([data_1, data_2]):
+        X, y, A, b, c = item
+        ax = fig.add_subplot(1, 2, count+1)
+        p = Projection()
+        p = p.fit(X, y)
+        X_gt, X_ngt, X_noi = X
+        y_gt, y_ngt, y_noi = y
+        X_raw = numpy.vstack(tuple(X))
+        # Data transformation.
+        X_raw_ = p.transform(X_raw)
+        X_gt_ = p.transform(X_gt)
+        X_ngt_ = p.transform(X_ngt)
+        X_noi_ = p.transform(X_noi)
+        # Means transformation.
+        mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
+        mu_gt_ = p.transform(mu_gt)
+        mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
+        mu_ngt_ = p.transform(mu_ngt)
+        mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
+        mu_noi_ = p.transform(mu_noi)
+        # Ellipse transformation.
+        f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
+        t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
+        s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A))
+        # TODO: remove following line if possible.
+        s = numpy.abs(s)
+        s = numpy.sqrt(s)
+        t_ = p.transform(t)
+        O_ = p.transform(numpy.multiply(O, s).T + t)
+        if verbose:
+            # msg = [
+            #     "# s (i.e. demi-axes)",
+            #     "%s" %(s,),
+            # ]
+            # io.print_and_log(msg, level='default', logger=params)
+            pass
+        # Find plot limits.
+        pad = 0.3
+        x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
+        x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
+        x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
+        y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
+        y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
+        y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
+        # Retrieve the projection vectors.
+        v1, v2 = p.get_vectors()
+        if verbose:
+            # msg = [
+            #     "# norm(v1)",
+            #     "%s" %(numpy.linalg.norm(v1),),
+            #     "# norm(v2)",
+            #     "%s" %(numpy.linalg.norm(v2),),
+            # ]
+            # io.print_and_log(msg, level='default', logger=params)
+            pass
+        # Find a rotation which maps theses vectors on the two first vectors of the
+        # canonical basis of R^m.
+        R = find_rotation(v1, v2)
+        # Apply rotation to the classifier.
+        R_ = R.T
+        mean_ = p.get_mean()
+        A_ = numpy.dot(numpy.dot(R_.T, A), R_)
+        b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, mean_) + b)
+        c_ = numpy.dot(numpy.dot(A, mean_) + b, mean_) + c
+        if verbose:
+            # msg = [
+            #     "# mean_",
+            #     "%s" %(mean_,),
+            # ]
+            # io.print_and_log(msg, level='default', logger=params)
+            pass
+        # Find the apparent contour of the classifier.
+        A__, b__, c__ = find_apparent_contour(A_, b_, c_)
+        # Plot classifier.
+        
+        ## Plot datasets.
+        ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
+        ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='k', s=5, lw=0.1)
+        ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='r', s=5, lw=0.1)
+        ## Plot ellipse transformation.
+        for i in xrange(0, O_.shape[0]):
+            ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
+        ## Plot ellipse apparent contour.
+        n = 300
+        x_r = numpy.linspace(x_min, x_max, n)
+        y_r = numpy.linspace(y_min, y_max, n)
+        xx, yy = numpy.meshgrid(x_r, y_r)
+        zz = numpy.zeros(xx.shape)
+        for i in xrange(0, xx.shape[0]):
+            for j in xrange(0, xx.shape[1]):
+                v = numpy.array([xx[i, j], yy[i, j]])
+                zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
+        vv = numpy.array([0.0])
+        # vv = numpy.arange(0.0, 1.0, 0.1)
+        # vv = numpy.arange(0.0, 20.0)
+        ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
+        # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
+        # ax.clabel(cs, inline=1, fontsize=10)
+        ## Plot means of datasets.
+        ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        ## Plot aspect.
+        # ax.set_aspect('equal')
+        ax.grid()
+        ax.set_xlim([x_min, x_max])
+        ax.set_ylim([y_min, y_max])
+
+        if count == 0:
+            ax.set_title("Before")
+            ax.set_xlabel("1st component")
+            ax.set_ylabel("2nd component")
+        else:
+            ax.set_title("After")
+            ax.set_xlabel("1st component")
+        
+
     if save is None:
         pylab.show()
     else:
@@ -1262,20 +1272,27 @@ def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=Fal
         pylab.close(fig)
     return
 
-def view_mahalanobis_distribution(d_gt, d_ngt, d_noi, title=None, save=None):
-    '''Plot Mahalanobis distribution'''
+def view_mahalanobis_distribution(data_1, data_2, save=None):
+    '''Plot Mahalanobis distribution Before and After'''
     fig = pylab.figure()
-    ax = fig.gca()
-    ax.hist(d_noi, bins=50, color='red', alpha=0.5, label="noise")
-    ax.hist(d_ngt, bins=50, color='blue', alpha=0.5, label="non ground truth")
-    ax.hist(d_gt, bins=75, color='green', alpha=0.5, label="ground truth")
+    ax = fig.add_subplot(1,2,1)
+    d_gt, d_ngt, d_noi = data_1
+    ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
+    ax.hist(d_ngt, bins=50, color='b', alpha=0.5, label="Non GT")
+    ax.hist(d_gt, bins=75, color='r', alpha=0.5, label="GT")
     ax.grid(True)
-    if title is None:
-        ax.set_title("Mahalanobis distribution")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("squared Mahalanobis distance")
+    ax.set_title("Before")
     ax.set_ylabel("")
+
+    d_gt, d_ngt, d_noi = data_2
+    ax = fig.add_subplot(1,2,2)
+    ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
+    ax.hist(d_ngt, bins=50, color='b', alpha=0.5, label="Non GT")
+    ax.hist(d_gt, bins=75, color='r', alpha=0.5, label="GT")
+    ax.grid(True)
+    ax.set_title("After")
+    ax.set_ylabel("")
+
     ax.legend()
     if save is None:
         pylab.show()
@@ -1284,35 +1301,46 @@ def view_mahalanobis_distribution(d_gt, d_ngt, d_noi, title=None, save=None):
         pylab.close(fig)
     return
 
-def view_classification(clf, X, X_raw, y, mode='predict', title=None, save=None):
-    if mode == 'predict':
-        c = clf.predict(X)
-        vmax = 1.0
-        vmin = 0.0
-    elif mode == 'decision_function':
-        c = clf.decision_function(X)
-        vmax = max(abs(numpy.amin(c)), abs(numpy.amax(c)))
-        vmin = - vmax
-    else:
-        raise Exception
+def view_classification(data_1, data_2, title=None, save=None):
+    
+    fig    = pylab.figure()
+    count  = 0
+    panels = [0, 2, 1, 3]
+    for item in [data_1, data_2]:
+        clf, cld, X, X_raw, y = item
+        for mode in ['predict', 'decision_function']:
+            ax = fig.add_subplot(2, 2, panels[count]+1)
 
-    from circus.validating.utils import Projection
-    p = Projection()
-    _ = p.fit(X_raw, y)
-    X_raw_ = p.transform(X_raw)
-    # Plot figure.
-    fig = pylab.figure()
-    ax = fig.gca()
-    sc = ax.scatter(X_raw_[:, 0], X_raw_[:, 1], c=c, s=5, lw=0.1, cmap='bwr',
-                    vmin=vmin, vmax=vmax)
-    fig.colorbar(sc)
-    ax.grid(True)
-    if title is None:
-        ax.set_title("Classification")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("1st component")
-    ax.set_ylabel("2nd component")
+            if mode == 'predict':
+                c    = clf
+                vmax = 1.0
+                vmin = 0.0
+            elif mode == 'decision_function':
+                c    = cld
+                vmax = max(abs(numpy.amin(c)), abs(numpy.amax(c)))
+                vmin = - vmax
+
+            from circus.validating.utils import Projection
+            p = Projection()
+            _ = p.fit(X_raw, y)
+            X_raw_ = p.transform(X_raw)
+            # Plot figure.
+            sc = ax.scatter(X_raw_[:, 0], X_raw_[:, 1], c=c, s=5, lw=0.1, cmap='bwr',
+                            vmin=vmin, vmax=vmax)
+            fig.colorbar(sc)
+            ax.grid(True)
+            if panels[count] in [0, 1]:
+                if panels[count] == 0:
+                    ax.set_title('Classification Before')
+                    ax.set_ylabel("2nd component")
+                if panels[count] == 1:
+                    ax.set_title('Classification After')
+            elif panels[count] in [2, 3]:
+                ax.set_xlabel("1st component")
+                if panels[count] == 2:
+                    ax.set_ylabel("2nd component")
+            count += 1
+
     if save is None:
         pylab.show()
     else:

@@ -637,7 +637,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if make_plots not in ['None', '']:
             # Plot normalized accuracy curve.
             title = "Normalized accuracy curve for the initial parameter"
-            plot_filename = "beer-normalized-accuray-plot.%s" %make_plots
+            plot_filename = "beer-accuray.%s" %make_plots
             path = os.path.join(plot_path, plot_filename)
 
             data1 = Mhlnb[indices], accs, Mhlnb[indices[i_opt]], accs[i_opt]
@@ -690,12 +690,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         if make_plots not in ['None', '']:
             # Plot initial classifier (ellipsoid).
-            title = "Initial classifier (ellipsoid)"
-            plot_filename = "beer-classifier-projection-init.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
-                                 A_init, b_init, c_init,
-                                 title=title, save=path, verbose=verbose)
+            #title = "Initial classifier (ellipsoid)"
+            #plot_filename = "beer-classifier-projection-init.%s" %make_plots
+            #path = os.path.join(plot_path, plot_filename)
+
+            data_class_1 = [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi], A_init, b_init, c_init
+
     
     
     
@@ -713,13 +713,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
         Mhlnb_noi = squared_Mahalanobis_distance(A_init, mu, X_noi)
         
-        if make_plots not in ['None', '']:
-            # Plot Mahalanobis distributions.
-            title = "Mahalanobis distributions (ellipsoid)"
-            plot_filename = "beer-mahalanobis-init.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
-                                               title=title, save=path)
+        data_mal1 = Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi
     
     
     
@@ -783,20 +777,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             clf.set_params(warm_start=False)
         clf.fit(X_train, y_train)
         
-        if comm.rank == 0:
-            if make_plots not in ['None', '']:
-                # Plot prediction.
-                title = "Initial prediction (random)"
-                plot_filename = "beer-prediction-init-random.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                         title=title, save=path)
-                # Plot decision function.
-                title = "Initial decision function (random)"
-                plot_filename = "beer-decision-function-init-random.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                         title=title, save=path)
+        #if comm.rank == 0:
+            #if make_plots not in ['None', '']:
+            #    # Plot prediction.
+            #    title = "Initial prediction (random)"
+            #    plot_filename = "beer-prediction-init-random.%s" %make_plots
+            #    path = os.path.join(plot_path, plot_filename)
+            #    plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+            #                             title=title, save=path)
+            #    # Plot decision function.
+            #    title = "Initial decision function (random)"
+            #    plot_filename = "beer-decision-function-init-random.%s" %make_plots
+            #    path = os.path.join(plot_path, plot_filename)
+            #    plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+            #                             title=title, save=path)
         
         if comm.rank == 0:
             if verbose:
@@ -825,17 +819,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             if make_plots not in ['None', '']:
                 # Plot prediction.
-                title = "Initial prediction (ellipsoid)"
-                plot_filename = "beer-prediction-init-ellipsoid.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                         title=title, save=path)
+                #title = "Initial prediction (ellipsoid)"
+                #plot_filename = "beer-prediction-init-ellipsoid.%s" %make_plots
+                #path = os.path.join(plot_path, plot_filename)
+                #plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                #                         title=title, save=path)
+
+                pred_1 = clf.predict(X), clf.decision_function(X), X, X_raw, y_raw
                 # Plot decision function.
-                title = "Initial decision function (ellipsoid)"
-                plot_filename = "beer-decision-function-init-ellipsoid.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                         title=title, save=path)
+                #title = "Initial decision function (ellipsoid)"
+                #plot_filename = "beer-decision-function-init-ellipsoid.%s" %make_plots
+                #path = os.path.join(plot_path, plot_filename)
+                #plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+                #                         title=title, save=path)
         
         if comm.rank == 0:
             if verbose:
@@ -868,17 +864,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             if make_plots not in ['None', '']:
                 # Plot final prediction.
-                title = "Final prediction "
-                plot_filename = "beer-prediction-final.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                         title=title, save=path)
+                #title = "Final prediction "
+                #plot_filename = "beer-prediction-final.%s" %make_plots
+                #path = os.path.join(plot_path, plot_filename)
+                #plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                #                         title=title, save=path)
                 # Plot final decision function.
-                title = "Final decision function"
-                plot_filename = "beer-decision-function-final.%s" %make_plots
+                #title = "Final decision function"
+                plot_filename = "beer-decision.%s" %make_plots
+                pred_2 = clf.predict(X), clf.decision_function(X), X, X_raw, y_raw
+
                 path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                         title=title, save=path)
+                plot.view_classification(pred_1, pred_2, save=path)
         
         if comm.rank == 0:
             if verbose:
@@ -936,10 +933,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if make_plots not in ['None', '']:
                 # Plot final classifier.
                 title = "Final classifier"
-                plot_filename = "beer-classifier-projection-final.%s" %make_plots
+                plot_filename = "beer-classifier-projection.%s" %make_plots
+
+                data_class_2 = [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi], A, b, c
+
                 path = os.path.join(plot_path, plot_filename)
-                plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
-                                     A, b, c, title=title, save=path, verbose=verbose)
+                plot.view_classifier(params, data_class_1, data_class_2, save=path, verbose=verbose)
     
     
     
@@ -958,6 +957,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
             Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
             Mhlnb_noi = squared_Mahalanobis_distance(A, mu, X_noi)
+
+            data_mal2 = Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi
             
             if verbose:
                 msg = [
@@ -968,10 +969,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if make_plots not in ['None', '']:
                 # Plot Mahalanobis distributions.
                 title = "Final Mahalanobis distributions"
-                plot_filename = "beer-mahalanobis-final.%s" %make_plots
+                plot_filename = "beer-mahalanobis.%s" %make_plots
                 path = os.path.join(plot_path, plot_filename)
-                plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
-                                                   title=title, save=path)
+                plot.view_mahalanobis_distribution(data_mal1, data_mal2, save=path)
     
     
     
