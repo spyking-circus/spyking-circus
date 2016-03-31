@@ -7,7 +7,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     
     Arguments
     ---------
-    benchmark : {'fitting', 'clustering', 'synchrony', 'pca-validation'}
+    benchmark : {'fitting', 'clustering', 'synchrony', 'pca-validation', 'smart-search', 'drifts'}
         
     """
     
@@ -78,12 +78,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude       = amplitude_min + (amplitude_max - amplitude_min) * numpy.random.random_sample(nb_insert)
     if benchmark == 'smart-search':
         nb_insert       = 10
-        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]/2-1, 1)[0]]
+        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]//2-1, 1)[0]]
         rate            = 1 + 5*numpy.arange(nb_insert)
         amplitude       = 2
     if benchmark == 'drifts':
         n_point         = 5
-        n_cells         = numpy.random.random_integers(0, templates.shape[1]/2-1, n_point**2)
+        n_cells         = numpy.random.random_integers(0, templates.shape[1]//2-1, n_point**2)
         x, y            = numpy.mgrid[0:n_point,0:n_point]
         rate            = 5*numpy.ones(n_point)[x.flatten()]
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
@@ -125,7 +125,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    N_tm_init             = templates.shape[1] / 2
+    N_tm_init             = templates.shape[1]//2
     thresholds            = io.load_data(params, 'thresholds')
     limits                = io.load_data(params, 'limits')
     best_elecs            = io.load_data(params, 'electrodes')
@@ -210,11 +210,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                         # shuffled template.
                         gmin = new_temp.min()
                         data = numpy.where(new_temp == gmin)
-                        scaling = - thresholds[data[0][0]] / gmin
-                        # For each hypothesized cell compute the correlation
-                        # coefficient matrix between its template and this new
-                        # shuffled template.
-                        for i in xrange(templates.shape[1] / 2):
+                        scaling = -thresholds[data[0][0]]/gmin
+                        for i in xrange(templates.shape[1]//2):
                             match = templates[:, i].toarray().reshape(N_e, N_t)
                             d = numpy.corrcoef(match.flatten(),
                                                scaling * new_temp.flatten())[0, 1]
@@ -225,10 +222,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             # Go to the next shuffled electrode.
             count += 1
 
-        # Display information about the selected template.
-        if comm.rank == 0:
-            print("Template %d is shuffled from electrode %d to %d (max similarity is %g)"
-                  %(cell_id, best_elec, n_elec, similarity))
+        #if comm.rank == 0:
+        #    print "Template", cell_id, "is shuffled from electrode", best_elec, "to", n_elec, "(max similarity is %g)" %similarity
+
+        N_tm           = templates.shape[1]//2
+        to_insert      = numpy.zeros(reference.shape, dtype=numpy.float32)
+        to_insert[new_indices] = scaling*amplitude[gcount]*templates[:, cell_id].toarray().reshape(N_e, N_t)[indices]
+        to_insert2     = numpy.zeros(reference.shape, dtype=numpy.float32)
+        to_insert2[new_indices] = scaling*amplitude[gcount]*templates[:, cell_id + N_tm].toarray().reshape(N_e, N_t)[indices]
 
         ## Insert the selected template.
         
@@ -324,9 +325,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
         io.purge(file_out, '.data')
 
-    # Compute the shift to center template.
-    template_shift = int((N_t - 1) / 2)
-    # Distribute the chunks of data to process among the threads/processes.
+
+    template_shift = int((N_t-1)//2)
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)
@@ -358,14 +358,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
         if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
             chunk_len  = last_chunk_len
-            chunk_size = last_chunk_len / N_total
+            chunk_size = last_chunk_len // N_total
 
-        result         = {'spiketimes' : [], 'amplitudes' : [],
+        result         = {'spiketimes' : [], 'amplitudes' : [], 
                           'templates' : [], 'real_amps' : [],
                           'voltages' : []}
         offset         = gidx * chunk_size
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len,
-                                                 chunk_size, nodes=nodes)
+        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
 
         if benchmark == 'pca-validation':
             # Clear the current data chunk.

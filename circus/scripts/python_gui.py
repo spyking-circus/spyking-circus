@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os
+import os, shutil
 import sys
 import subprocess
 import pkg_resources
@@ -42,11 +42,12 @@ Syntax is circus-gui-python datafile [extension]
     params         = circus.shared.utils.io.load_parameters(filename)
     sampling_rate  = float(params.getint('data', 'sampling_rate'))
     data_dtype     = params.get('data', 'data_dtype')
-    gain           = 1
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
     output_path    = params.get('data', 'file_out_suff') + '.GUI'
+    # if os.path.exists(output_path):
+    #     shutil.rmtree(output_path)
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
 
@@ -110,6 +111,7 @@ Syntax is circus-gui-python datafile [extension]
 
         numpy.save(os.path.join(output_path, 'templates'), to_write)
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
+        return N_tm
 
 
     def write_pcs(path, params, extension, spikes, labels, mode="a"):
@@ -127,8 +129,8 @@ Syntax is circus-gui-python datafile [extension]
         inv_nodes[nodes] = numpy.argsort(nodes)
 
         for count, elec in enumerate(best_elec):
-            nb_loc                = len(edges[elec])
-            pc_features_ind[count, numpy.arange(nb_loc)] = edges[elec]
+            nb_loc                = len(edges[nodes[elec]])
+            pc_features_ind[count, numpy.arange(nb_loc)] = inv_nodes[edges[nodes[elec]]]
 
         basis_proj, basis_rec = load_data(params, 'basis')
 
@@ -137,21 +139,23 @@ Syntax is circus-gui-python datafile [extension]
         elif mode == "s":
             nb_pcs = 0
             for target in xrange(N_tm):
-                nb_pcs += min(500, numpy.where(labels == target)[0])
+                nb_pcs += min(500, len(numpy.where(labels == target)[0]))
 
         pc_features = numpy.zeros((nb_pcs, nb_features, max_loc_channel), dtype=numpy.float32)
         count       = 0
 
-        pbar = get_progressbar(N_tm)
+        pbar    = get_progressbar(N_tm)
+        all_idx = numpy.zeros(0, dtype=numpy.int32)
         for target in xrange(N_tm):
             if mode == "s":
-                idx  = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
+                idx     = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
+                all_idx = numpy.concatenate((all_idx, idx))
             elif mode == "a":
                 idx  = numpy.where(labels == target)[0]
             elec     = best_elec[target]
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
-            times_i  = spikes[idx]
+            times_i  = numpy.take(spikes, idx)
             sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes)
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
@@ -166,6 +170,8 @@ Syntax is circus-gui-python datafile [extension]
         
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
         numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
+        if mode == "s":
+            numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx)
 
     print_and_log(["Exporting data for the phy GUI..."], 'info', params)
     
@@ -173,11 +179,13 @@ Syntax is circus-gui-python datafile [extension]
     numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe))
     nodes, edges   = get_nodes_and_edges(params)
     numpy.save(os.path.join(output_path, 'channel_map'), nodes)
-    similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
-    numpy.save(os.path.join(output_path, 'templates_similarities'), similarities)
 
     spikes, clusters = write_results(output_path, params, extension)    
-    write_templates(output_path, params, extension)
+    N_tm = write_templates(output_path, params, extension)
+    similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
+    norm = params.getint('data', 'N_e')*params.getint('data', 'N_t')
+    numpy.save(os.path.join(output_path, 'similar_templates'), similarities[:N_tm, :N_tm]/norm)
+
 
     key = ''
     while key not in ['a', 's', 'n']:

@@ -111,6 +111,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.params     = params
         self.N_e        = params.getint('data', 'N_e')
         self.N_t        = params.getint('data', 'N_t')
+        self.N_total    = params.getint('data', 'N_total')
         self.sampling_rate = params.getint('data', 'sampling_rate')
         self.file_out_suff = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
@@ -127,6 +128,11 @@ class MergeWindow(QtGui.QMainWindow):
         self.templates  = io.load_data(params, 'templates')
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
+        nodes, edges    = io.get_nodes_and_edges(params)
+        self.nodes      = nodes
+        self.edges      = edges
+        self.inv_nodes  = numpy.zeros(self.N_total, dtype=numpy.int32)
+        self.inv_nodes[nodes] = numpy.argsort(nodes)
         
         self.norms      = numpy.zeros(len(self.indices), dtype=numpy.float32)
         self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
@@ -149,8 +155,19 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.init_gui_layout()
 
+        self.probe      = io.read_probe(params)
+        self.x_position = []
+        self.y_position = []
+        self.order      = []
+        for key in self.probe['channel_groups'].keys():
+            for item in self.probe['channel_groups'][key]['geometry'].keys():
+                if item in self.probe['channel_groups'][key]['channels']:
+                    self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
+                    self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
+
         self.generate_data()
         self.selected_points = set()
+        self.selected_templates = set()
         self.inspect_templates = []
         self.inspect_colors_templates = []
         self.inspect_points = []
@@ -177,7 +194,7 @@ class MergeWindow(QtGui.QMainWindow):
         #
         # # Connect matplotlib events
         for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3,
-                    self.ui.detail, self.ui.data_overview]:
+                    self.ui.detail, self.ui.data_overview, self.ui.waveforms]:
             fig.mpl_connect('scroll_event', self.zoom)
             fig.mpl_connect('button_press_event', self.on_mouse_press)
 
@@ -188,6 +205,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.ui.btn_select.clicked.connect(self.add_to_selection)
         self.ui.btn_unselect.clicked.connect(self.remove_selection)
         self.ui.btn_delete.clicked.connect(self.remove_templates)
+        self.ui.btn_suggest_templates.clicked.connect(self.suggest_pairs)
+        self.ui.btn_suggest_pairs.clicked.connect(self.suggest_templates)
         self.ui.btn_unselect_template.clicked.connect(self.remove_selection_templates)
 
         self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
@@ -214,10 +233,10 @@ class MergeWindow(QtGui.QMainWindow):
         elif self.mpi_wait[0] == 2:
             sys.exit(0)
 
-    def handle_close(self, event):
+    def closeEvent(self, event):
         if self.comm.rank == 0:
             self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
-        sys.exit(0)
+        super(MergeWindow, self).closeEvent(event)
 
     def init_gui_layout(self):
         self.ui = uic.loadUi(os.path.join(os.path.dirname(__file__), './qt_merge.ui'), self)
@@ -229,6 +248,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.detail_ax     = self.ui.detail.axes
         self.data_ax       = self.ui.data_overview.axes
         self.current_order = self.ui.cmb_sorting.currentIndex()
+        self.mpl_toolbar = NavigationToolbar(self.ui.waveforms, None)
+        self.mpl_toolbar.pan()
         self.ui.show()
 
     def generate_data(self):
@@ -263,14 +284,18 @@ class MergeWindow(QtGui.QMainWindow):
         
         sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
         
-        n_pairs          = len(sub_real_indices)*(len(real_indices) - 1)/2.
+        n_pairs          = len(sub_real_indices)*(len(real_indices) - 1)//2.
         n_size           = 2*self.max_delay + 1
 
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
-        for temp_id1 in sub_real_indices:
+        if comm.rank == 0:
+            io.print_and_log(['Updating the data...'], 'default', self.params)
+            pbar = get_progressbar(len(sub_real_indices))
+
+        for count, temp_id1 in enumerate(sub_real_indices):
             for temp_id2 in real_indices[real_indices > temp_id1]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
@@ -279,6 +304,11 @@ class MergeWindow(QtGui.QMainWindow):
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.vstack((self.raw_control, b))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
+            if comm.rank == 0:
+                pbar.update(count)
+
+        if comm.rank == 0:
+            pbar.finish()
 
         self.pairs       = gather_array(self.pairs, self.comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, self.comm, 0, 1)
@@ -288,11 +318,11 @@ class MergeWindow(QtGui.QMainWindow):
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
         control = self.raw_control[:, abs(self.raw_lags) <= lag]
-        norm_factor = (control.mean(1) + data.mean(1) + 1)[:, np.newaxis]
-        score  = ((control - data)/norm_factor).mean(axis=1)
-        score2 = (control - data).mean(axis=1)
-        score3 = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
-        return score3, score, score2
+        norm_factor = (control.mean(1) + data.mean(1) + 1.)[:, np.newaxis]
+        score  = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
+        score2 = ((control - data)/norm_factor).mean(axis=1)
+        score3 = (control/(1. + control.mean(1))[:, np.newaxis]).mean(axis=1)
+        return score, score2, score3
 
     def plot_scores(self):
         # Left: Scores
@@ -302,28 +332,31 @@ class MergeWindow(QtGui.QMainWindow):
             self.collections = []
             for ax, x, y in [(self.score_ax1, self.score_x, self.score_y),
                              (self.score_ax2, self.norms[self.to_consider], self.rates[self.to_consider]),
-                             (self.score_ax3, self.score_x, self.score_z)]:
+                             (self.score_ax3, self.score_z, self.score_y)]:
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
-            self.score_ax1.set_ylabel('CC metric')
-            self.score_ax1.set_xticklabels([])
+            self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
+            self.score_ax1.set_ylabel('Normalized CC metric')
+            self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
             self.score_ax2.set_ylabel('# Spikes')
-            self.score_ax3.set_xlabel('Template similarity')
+            self.score_ax3.set_xlabel('Reversed CC')
             self.score_ax3.set_ylabel('Normalized CC metric')
-            self.waveforms_ax.set_xlabel('Time [ms]')
-            self.waveforms_ax.set_ylabel('Amplitude')
+            self.waveforms_ax.set_xticks([])
+            self.waveforms_ax.set_yticks([])
+            #self.waveforms_ax.set_xlabel('Time [ms]')
+            #self.waveforms_ax.set_ylabel('Amplitude')
             
         else:
             for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
                                                                  (self.norms[self.to_consider], self.rates[self.to_consider]),
-                                                                 (self.score_x, self.score_z)]):
+                                                                 (self.score_z, self.score_y)]):
                 collection.set_offsets(np.hstack([x[np.newaxis, :].T,
                                                   y[np.newaxis, :].T]))
         
         for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
                                      (self.score_ax2, self.rates[self.to_consider], self.norms[self.to_consider]),
-                                     (self.score_ax3, self.score_z, self.score_x)]:
+                                     (self.score_ax3, self.score_y, self.score_z)]:
             ymin, ymax = min(score_y), max(score_y)
             yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
             ax.set_ylim((ymax + ymin)*0.5 - yrange, (ymax + ymin)*0.5 + yrange)
@@ -401,7 +434,7 @@ class MergeWindow(QtGui.QMainWindow):
         elif self.score_ax == self.score_ax2:
             score_x, score_y = self.norms[self.to_consider], self.rates[self.to_consider]
         elif self.score_ax == self.score_ax3:
-            score_x, score_y = self.score_x, self.score_z
+            score_x, score_y = self.score_z, self.score_y
 
         in_selection = ((score_x >= xmin) &
                         (score_x <= xmax) &
@@ -423,16 +456,21 @@ class MergeWindow(QtGui.QMainWindow):
         if event.inaxes == self.score_ax1:
             x = self.score_x
             y = self.score_y
-            link_with_x = self.score_ax3.set_xlim
-            link_with_y = None
+            link_with_x = None
+            link_with_y = self.score_ax3.set_ylim
         elif event.inaxes == self.score_ax3:
-            x = self.score_x
-            y = self.score_z
-            link_with_x = self.score_ax1.set_xlim
-            link_with_y = self.score_ax2.set_xlim
+            x = self.score_z
+            y = self.score_y
+            link_with_x = None
+            link_with_y = self.score_ax1.set_ylim
         elif event.inaxes == self.score_ax2:
             x = self.norms[self.to_consider]
             y = self.rates[self.to_consider]
+            link_with_x = None
+            link_with_y = None
+        elif event.inaxes == self.waveforms_ax:
+            x = self.x_position
+            y = self.y_position
             link_with_x = None
             link_with_y = None
         else:
@@ -474,7 +512,7 @@ class MergeWindow(QtGui.QMainWindow):
         if link_with_y is not None:
             link_with_y(newymin, newymax)
 
-        for fig in [self.ui.score_1, self.ui.score_3, self.ui.score_2]:
+        for fig in [self.ui.score_1, self.ui.score_3, self.ui.score_2, self.ui.waveforms]:
             fig.draw_idle()
 
 
@@ -484,7 +522,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.score_x, self.score_y, self.score_z = self.calc_scores(lag=self.use_lag)
         self.points = [zip(self.score_x, self.score_y),
                        zip(self.norms[self.to_consider], self.rates[self.to_consider]),
-                       zip(self.score_x, self.score_z)]
+                       zip(self.score_z, self.score_y)]
         self.line_lag1.set_xdata((lag, lag))
         self.line_lag2.set_xdata((-lag, -lag))
         self.data_ax.set_xlabel('lag (ms) -- cutoff: %.2fms' % self.use_lag)
@@ -565,13 +603,16 @@ class MergeWindow(QtGui.QMainWindow):
             tmp   = self.templates[:, p]
             tmp   = tmp.toarray().reshape(self.N_e, self.N_t)
             elec  = numpy.argmin(numpy.min(tmp, 1))
-            xaxis = numpy.linspace(0, (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
             thr   = self.thresholds[elec]
-            self.waveforms_ax.plot(xaxis, tmp[elec], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
-            self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
 
-        self.waveforms_ax.set_xlabel('Time [ms]')
-        self.waveforms_ax.set_ylabel('Amplitude')
+            indices = self.inv_nodes[self.edges[self.nodes[elec]]]
+            for sidx in indices:
+                xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
+                self.waveforms_ax.plot(xaxis, self.y_position[sidx] + tmp[sidx], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
+                #self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
+
+        self.waveforms_ax.set_xlabel('Probe Space')
+        self.waveforms_ax.set_ylabel('Probe Space')
 
         for fig in [self.ui.waveforms]:
             fig.draw_idle()
@@ -581,15 +622,17 @@ class MergeWindow(QtGui.QMainWindow):
         for collection in self.collections:
             if collection.axes == self.score_ax2:
                 fcolors = collection.get_facecolors()
+                colorin = colorConverter.to_rgba('black', alpha=0.5)
                 colorout = colorConverter.to_rgba('black')
                 fcolors[:] = colorout 
+                for p in self.selected_templates:
+                    fcolors[p] = colorin
                 for idx, p in enumerate(self.inspect_templates):
                     fcolors[p] = colorConverter.to_rgba(self.inspect_colors_templates[idx])
             else:
                 fcolors = collection.get_facecolors()
-                colorin = colorConverter.to_rgba('black', alpha=0.25)
+                colorin = colorConverter.to_rgba('black', alpha=0.5)
                 colorout = colorConverter.to_rgba('black')
-
                 fcolors[:] = colorout
                 for p in self.selected_points:
                     fcolors[p] = colorin
@@ -600,7 +643,7 @@ class MergeWindow(QtGui.QMainWindow):
             fig.draw_idle()
 
 
-    def update_inspect_template(self, indices, add_or_remove=None):
+    def update_inspect_template(self, indices, add_or_remove=None, link=True):
         all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
         indices = self.to_consider[list(indices)]
         
@@ -618,19 +661,20 @@ class MergeWindow(QtGui.QMainWindow):
         self.inspect_colors_templates = [all_colors[idx % len(all_colors)]
                                for idx in self.inspect_templates]
 
-        '''
         is_selected_1 = numpy.where(numpy.in1d(self.pairs[:, 0], self.inspect_templates) == True)[0]
         is_selected_2 = numpy.where(numpy.in1d(self.pairs[:, 1], self.inspect_templates) == True)[0]
         is_selected = numpy.unique(numpy.concatenate((is_selected_1, is_selected_2)))
-        self.inspect_points = []
-        self.update_inspect(is_selected, 'add')
-        '''
+        if link:
+            self.inspect_points = set()
+            self.update_inspect(is_selected, 'add', False)
 
         self.update_score_plot()
+        self.update_detail_plot()
+        self.update_data_plot()
         self.update_waveforms()
 
 
-    def update_inspect(self, indices, add_or_remove=None):
+    def update_inspect(self, indices, add_or_remove=None, link=True):
         all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
         if add_or_remove is 'add':
@@ -642,9 +686,19 @@ class MergeWindow(QtGui.QMainWindow):
         # We use a deterministic mapping to colors, based on their index
         self.inspect_colors = [all_colors[idx % len(all_colors)]
                                for idx in self.inspect_points]
+        
+        if link:
+            self.inspect_templates = set()
+            all_templates = numpy.unique(self.pairs[list(indices)].flatten())
+            indices = []
+            for i in all_templates:
+                indices += [numpy.where(self.to_consider == i)[0][0]]
+            self.update_inspect_template(indices, 'add', False)
+
         self.update_score_plot()
         self.update_detail_plot()
         self.update_data_plot()
+        self.update_waveforms()
 
     def update_selection(self, indices, add_or_remove=None):
         if add_or_remove is None:
@@ -672,6 +726,19 @@ class MergeWindow(QtGui.QMainWindow):
         self.inspect_templates = set()
         self.update_inspect_template(self.inspect_templates, add_or_remove='remove')
 
+    def suggest_templates(self, event):
+        self.inspect_points = set()
+        indices  = numpy.where(self.score_x >= 0.9)[0]
+        mad      = numpy.median(numpy.abs(self.score_y[indices] - numpy.median(self.score_y[indices])))
+        nindices = numpy.where(self.score_y[indices] >= 2*mad)[0]
+        self.update_inspect(indices[nindices], add_or_remove='add')
+
+    def suggest_pairs(self, event):
+        self.inspect_templates = set()
+        indices = numpy.where(self.norms[self.to_consider] <= 1)[0]
+        self.update_inspect_template(indices, add_or_remove='add')
+
+
     def on_mouse_press(self, event):
         if event.inaxes in [self.score_ax1, self.score_ax2, self.score_ax3]:
             if self.ui.btn_lasso.isChecked():
@@ -689,8 +756,8 @@ class MergeWindow(QtGui.QMainWindow):
                     x = self.norms[self.to_consider]
                     y = self.rates[self.to_consider]
                 elif event.inaxes == self.score_ax3:
-                    x = self.score_x
-                    y = self.score_z
+                    x = self.score_z
+                    y = self.score_y
                 elif event.inaxes == self.waveforms_ax:
                     pass
                 else:
@@ -766,10 +833,11 @@ class MergeWindow(QtGui.QMainWindow):
         self.to_delete = numpy.concatenate((self.to_delete, self.to_consider[self.inspect_templates]))
 
         self.generate_data()
-        self.collections       = None
-        self.selected_points   = set()
-        self.inspect_points    = set()
-        self.inspect_templates = set()
+        self.collections        = None
+        self.selected_points    = set()
+        self.selected_templates = set()
+        self.inspect_points     = set()
+        self.inspect_templates  = set()
         self.score_ax1.clear()
         self.score_ax2.clear()
         self.score_ax3.clear()
@@ -836,13 +904,17 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.generate_data()
         self.collections = None
-        self.selected_points = set()
+        self.selected_points    = set()
+        self.selected_templates = set()
+        self.inspect_points     = set()
+        self.inspect_templates  = set()
         self.score_ax1.clear()
         self.score_ax2.clear()
         self.score_ax3.clear()
         self.update_lag(self.use_lag)
         self.update_data_sort_order()
         self.update_detail_plot()
+        self.update_waveforms()
         self.plot_scores()
         # do lengthy process
         
@@ -881,7 +953,8 @@ class MergeWindow(QtGui.QMainWindow):
             mydata.close()
             
             mydata  = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'r+', libver='latest')
-            to_keep = numpy.unique(self.indices)
+            to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
+            to_keep = numpy.array(list(to_keep))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
             for c, i in enumerate(to_keep):
                 maxoverlaps[c, :] = self.overlap[i, to_keep]*self.shape[0] * self.shape[1]
@@ -899,10 +972,12 @@ class PreviewGUI(QtGui.QMainWindow):
 
         self.show_fit         = show_fit
         self.params           = params
+        self.maxtime          = io.data_stats(params, show=False) - 1
         self.init_gui_layout()
         self.probe            = io.read_probe(params)
         self.N_e              = params.getint('data', 'N_e')
         self.N_t              = params.getint('data', 'N_t')
+        self.spike_thresh     = params.getint('data', 'spike_thresh')
         self.N_total          = params.getint('data', 'N_total')
         self.sampling_rate    = params.getint('data', 'sampling_rate')
         self.template_shift   = params.getint('data', 'template_shift')
@@ -925,11 +1000,13 @@ class PreviewGUI(QtGui.QMainWindow):
         self.get_data()
         self.x_position = []
         self.y_position = []
-        self.order   = []
+        self.order      = []
         for key in self.probe['channel_groups'].keys():
             for item in self.probe['channel_groups'][key]['geometry'].keys():
-                self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
-                self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
+                if item in self.probe['channel_groups'][key]['channels']:
+                    self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
+                    self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
+
 
         self.points = zip(self.x_position, self.y_position)
 
@@ -954,15 +1031,34 @@ class PreviewGUI(QtGui.QMainWindow):
         self.ui.raw_data.mpl_connect('scroll_event', self.zoom)
         self.ui.raw_data.mpl_connect('motion_notify_event', self.update_statusbar)
         self.ui.raw_data.mpl_connect('figure_leave_event', lambda event: self.statusbar.clearMessage())
-        #self.fig.canvas.mpl_connect('close_event', self.handle_close)
         self.btn_rectangle.clicked.connect(self.update_rect_selector)
         self.btn_lasso.clicked.connect(self.update_rect_selector)
         self.btn_picker.clicked.connect(self.update_rect_selector)
+        self.get_time.valueChanged.connect(self.update_time)
+        self.get_threshold.valueChanged.connect(self.update_threshold)
+        if self.show_fit:
+            self.time_box.setEnabled(True)
+        else:
+            self.threshold_box.setEnabled(True)
+        self.get_time.setValue(self.t_start)
+        self.get_threshold.setValue(self.spike_thresh)
 
         # Select the most central point at start
         idx = np.argmin((self.x_position - np.mean(self.x_position)) ** 2 +
                         (self.y_position - np.mean(self.y_position)) ** 2)
         self.update_inspect({idx})
+
+
+    def update_threshold(self):
+        self.user_threshold = self.get_threshold.value()
+        self.update_data_plot()
+
+    def update_time(self):
+        if self.show_fit:
+            self.t_start  = min(self.maxtime, int(self.get_time.value()))
+            self.t_stop   = self.t_start + 1
+            self.get_data()
+            self.update_data_plot()
 
     def get_data(self):
         self.chunk_size       = self.sampling_rate
@@ -990,7 +1086,7 @@ class PreviewGUI(QtGui.QMainWindow):
                     for spike, (amp1, amp2) in zip(self.result['spiketimes'][key][idx], self.result['amplitudes'][key][idx]):
                         spike -= self.t_start*self.sampling_rate
                         tmp1   = self.templates[:, elec].toarray().reshape(self.N_e, self.N_t)
-                        tmp2   = self.templates[:, elec+self.templates.shape[1]/2].toarray().reshape(self.N_e, self.N_t)
+                        tmp2   = self.templates[:, elec+self.templates.shape[1]//2].toarray().reshape(self.N_e, self.N_t)
                         self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
             except Exception:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
@@ -1012,17 +1108,22 @@ class PreviewGUI(QtGui.QMainWindow):
         self.ui.show()
 
     def increase_time(self, event):
-        self.t_start += 1
-        self.t_stop  += 1
-        self.get_data()
-        self.update_data_plot()
+        if self.show_fit:
+            if self.t_start < self.maxtime:
+                self.t_start += 1
+                self.t_stop  += 1
+            self.get_data()
+            self.get_time.setValue(self.t_start)
+            self.update_data_plot()
 
     def decrease_time(self, event):
-        if self.t_start > 0:
-            self.t_start -= 1
-            self.t_stop  -= 1
-            self.get_data()
-            self.update_data_plot()
+        if self.show_fit:
+            if self.t_start > 0:
+                self.t_start -= 1
+                self.t_stop  -= 1
+                self.get_data()
+                self.get_time.setValue(self.t_start)
+                self.update_data_plot()
 
     def plot_electrodes(self):
         if not getattr(self, 'collections', None):
@@ -1159,13 +1260,16 @@ class PreviewGUI(QtGui.QMainWindow):
     def update_data_plot(self):
         self.data_x.clear()
         indices         = self.inspect_points
-        yspacing        = numpy.max(np.abs(self.data))*1.01
+        if len(indices) > 0:
+            yspacing  = numpy.max(np.abs(self.data[:, indices]))*1.01
+        else:
+            yspaceing = 0 
 
         if not self.show_fit:
             for count, idx in enumerate(indices):
                 data_line, = self.data_x.plot(self.time,
                                               count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
-                thr = self.thresholds[idx]
+                thr = self.thresholds[idx]*(self.user_threshold/self.spike_thresh)
                 self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], ':',
                                  color=self.inspect_colors[count], lw=2)
         else:
@@ -1191,7 +1295,10 @@ class PreviewGUI(QtGui.QMainWindow):
             status_bar.showMessage(u'x: %.0fμm  y: %.0fμm' % (event.xdata, event.ydata))
         elif event.inaxes == self.data_x:
             yspacing = numpy.max(np.abs(self.data))*1.05
-            row = int((event.ydata + 0.5*yspacing)/yspacing)
+            if yspacing != 0:
+                row = int((event.ydata + 0.5*yspacing)/yspacing)
+            else:
+                row = int((event.ydata))
             if row < 0 or row >= len(self.inspect_points):
                 status_bar.clearMessage()
             else:

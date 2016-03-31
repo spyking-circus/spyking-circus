@@ -1,16 +1,23 @@
+from __future__ import print_function
 import os
 from os.path import join as pjoin
-import sys
+import sys, subprocess
+
+requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+
+try:
+  subprocess.check_call(['nvcc', '--version'])
+  requires += ['cudamat==0.3circus']
+  HAVE_CUDA = True
+except (OSError, subprocess.CalledProcessError):
+  print("CUDA not found")
+  HAVE_CUDA = False
 
 from setuptools import setup
+from setuptools.command.install import install
 
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
-
-if sys.version_info.major < 3:
-    requires = ['progressbar', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
-elif sys.version_info.major == 3:
-    requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
 
 if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
     # We seem to be running under a "conda build"
@@ -27,6 +34,7 @@ setup(name='spyking-circus',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
       packages=['circus', 'circus.shared', 'circus.scripts'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
+      dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
       install_requires=requires,
       entry_points={
           'console_scripts': [
@@ -49,11 +57,13 @@ setup(name='spyking-circus',
                                pjoin('icons', 'gimp-tool-rect-select.png')],
                     'circus.shared': ['qt_merge.ui', 'qt_preview.ui']},
       data_files=[(data_path, [pjoin('circus', 'config.params')]),
+                  (pjoin(data_path, 'probes'), [pjoin('probes', 'mea_64.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'mea_252.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'small_mea_252.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'wide_mea_252.prb')]),
-                  (pjoin(data_path, 'probes'), [pjoin('probes', 'groundtruth.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'imec.prb')]),
+                  (pjoin(data_path, 'probes'), [pjoin('probes', 'kampff_32.prb')]),
+                  (pjoin(data_path, 'probes'), [pjoin('probes', 'kampff_128.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'mea_4225.prb')])],
       use_2to3=True,
       classifiers=[
@@ -67,3 +77,17 @@ setup(name='spyking-circus',
           'Topic :: Scientific/Engineering :: Bio-Informatics'
       ],
       zip_safe=False)
+
+msg = ['################################################################################',
+'# Probes files and parameter template have been copied to $HOME/spyking-circus #']
+
+
+if HAVE_CUDA:
+  msg += ['# GPU support has been correctly installed                                     #']
+else:
+  msg += ['# GPU support was NOT installed. Be sure to have a valid nvcc command          #']
+
+msg += ['################################################################################']
+
+for line in msg:
+  print(line)

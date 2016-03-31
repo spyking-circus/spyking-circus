@@ -17,6 +17,7 @@ multi-files    = False                  # If several files mydata_0,1,..,n.dat s
 [filtering]
 cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
 filter         = True      # If True, then a low-pass filtering is performed
+remove_median  = False     # If True, median over all channels is substracted to each channels (movement artifacts)
 
 [whitening]
 chunk_size     = 60        # Size of the data chunks [in s]
@@ -45,14 +46,14 @@ remove_mixture = True       # At the end of the clustering, we remove mixtures o
 
 [fitting]
 chunk          = 1         # Size of chunks used during fitting [in second]
-gpu_only       = True      # Use GPU for computation of b's AND fitting
+gpu_only       = False     # Use GPU for computation of b's AND fitting
 amp_limits     = (0.3, 5)  # Amplitudes for the templates during spike detection
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
 refractory     = 0         # Refractory period, in ms [0 is None]
 max_chunk      = inf       # Fit only up to max_chunk   
 
 [merging]
-cc_overlap     = 0.25      # Only templates with CC higher than cc_overlap may be merged
+cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2         # Bin size for computing CC [in ms]
 
 [extracting]

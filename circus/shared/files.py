@@ -7,8 +7,7 @@ import ConfigParser as configparser
 import colorama
 from colorama import Fore
 
-from circus.shared.mpi import gather_array
-from circus.shared.utils import smooth
+from .mpi import gather_array
 import logging
 
 def purge(file, pattern):
@@ -62,7 +61,7 @@ def detect_header(filename, value='MCS'):
         return value, None
 
 def copy_header(header, file_in, file_out):
-    fin  = open(file_in, 'r')
+    fin  = open(file_in, 'rb')
     fout = open(file_out, 'wb')
     data = fin.read(header)
     fout.write(data)
@@ -115,7 +114,7 @@ def read_probe(parser):
     try:
         with open(parser.get('data', 'mapping'), 'r') as f:
             probetext = f.read()
-            exec probetext in probe
+            exec(probetext, probe)
     except Exception as ex:
         print_error(["Something wrong with the syntax of the probe file:\n" + str(ex)])
         sys.exit(0)
@@ -183,7 +182,7 @@ def load_parameters(file_name):
             #sys.exit(0)
 
     parser.set('data', 'N_e', str(N_e))   
-    parser.set('fitting', 'space_explo', '1')
+    parser.set('fitting', 'space_explo', '0.5')
     parser.set('fitting', 'nb_chances', '3')
 
     dtype_offset = parser.get('data', 'dtype_offset')
@@ -219,6 +218,7 @@ def load_parameters(file_name):
         ['data', 'alignment', 'bool', 'True'],
         ['data', 'skip_artefact', 'bool', 'False'],
         ['data', 'multi-files', 'bool', 'False'],
+        ['filtering', 'remove_median', 'bool', 'False'],
         ['whitening', 'chunk_size', 'int', '60'],
         ['clustering', 'max_clusters', 'int', '10'],
         ['clustering', 'nb_repeats', 'int', '3'],
@@ -423,7 +423,7 @@ def print_error(lines):
 
 
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
-
+    from .utils import smooth  # avoid import issues
     
     N_t          = params.getint('data', 'N_t')
     if not all_labels:
@@ -471,22 +471,29 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = local_chunk[:, nodes]
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        local_chunk = local_chunk[:, neighs]
+        local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
-            f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
-            smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
-            rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
-            ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-            local_chunk = f(ddata, ydata).astype(numpy.float32)
+            if len(ydata) == 1:
+                f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+                smoothed    = smooth(f(cdata), template_shift)
+                rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+            else:
+                f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
+                smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
+                rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                local_chunk = f(ddata, ydata).astype(numpy.float32)
 
         if all_labels:
             lc        = numpy.where(nb_labels == lb)[0]
@@ -501,6 +508,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     return stas
 
 def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
+    from .utils import smooth  # avoid import issues
 
     N_t          = params.getint('data', 'N_t')
     amplitudes   = numpy.zeros(len(times_i), dtype=numpy.float32)
@@ -511,7 +519,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
     N_total      = params.getint('data', 'N_total')
     alignment    = params.getboolean('data', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    template     = template.flatten()
+    template     = template.ravel()
     covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
     norm_temp    = numpy.sum(template**2)
 
@@ -542,24 +550,31 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
 
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = local_chunk[:, nodes]
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
         
-        local_chunk = local_chunk[:, neighs]
+        local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
-            f     = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0)
-            smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
-            rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
-            ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-            local_chunk = f(ddata, ydata).astype(numpy.float32)
+            if len(ydata) == 1:
+                f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+                smoothed    = smooth(f(cdata), template_shift)
+                rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+            else:
+                f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
+                smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
+                rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                local_chunk = f(ddata, ydata).astype(numpy.float32)
 
-        local_chunk       = local_chunk.T.flatten()
+        local_chunk       = local_chunk.T.ravel()
         amplitudes[count] = numpy.dot(local_chunk, template)/norm_temp
         snippet     = (template - amplitudes[count]*local_chunk).reshape(len(template), 1)
         covariance += numpy.dot(snippet, snippet.T)
@@ -590,7 +605,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     local_chunk -= dtype_offset
     if nodes is not None:
         if not numpy.all(nodes == numpy.arange(N_total)):
-            local_chunk = local_chunk[:, nodes]
+            local_chunk = numpy.take(local_chunk, nodes, axis=1)
     return numpy.ascontiguousarray(local_chunk), local_shape
 
 
@@ -606,7 +621,7 @@ def prepare_preview(params, preview_filename):
     local_chunk  = datablock[0:chunk_len]
 
     output = open(preview_filename, 'wb')
-    fid    = open(data_file, 'r')
+    fid    = open(data_file, 'rb')
     # We copy the header 
     for i in xrange(data_offset):
         output.write(fid.read(1))
@@ -751,9 +766,9 @@ def load_data(params, data, extension=''):
         file_name = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
         if os.path.exists(file_name):
             data       = h5py.File(file_name, 'r')
-            clusters   = data.get('clusters').flatten()
+            clusters   = data.get('clusters').ravel()
             N_clusters = len(numpy.unique(clusters))
-            spiketimes = data.get('spikes').flatten()
+            spiketimes = data.get('spikes').ravel()
             return clusters, spiketimes, N_clusters
         else:
             raise Exception('Need to provide a spike-cluster file!')
@@ -1033,7 +1048,10 @@ def get_results(params, extension=''):
     myfile.close()
     return result
 
-def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, normalize=True, maxoverlap=True, verbose=True, half=False):
+def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0):
+
+    import h5py
+    parallel_hdf5  = h5py.get_config().mpi
 
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
@@ -1067,9 +1085,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
     cuda_string = 'using %d CPU...' %comm.size
     
-    try:
+    if use_gpu:
         import cudamat as cmt
-        HAVE_CUDA = True
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
                 gpu_id = int(comm.rank//nb_cpu)
@@ -1080,15 +1097,16 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
         cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
-    except Exception:
-        HAVE_CUDA = False
 
-    if HAVE_CUDA:
+    if use_gpu:
         cuda_string = 'using %d GPU...' %comm.size
 
     #print "Normalizing the templates..."
     if normalize:
         norm_templates = load_data(params, 'norm-templates')[:N_tm]
+        for idx in xrange(N_tm):
+            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+            templates.data[myslice] /= norm_templates[idx]
 
     all_delays      = numpy.arange(1, N_t+1)
 
@@ -1112,7 +1130,8 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
     over_x    = numpy.zeros(0, dtype=numpy.int32)
     over_y    = numpy.zeros(0, dtype=numpy.int32)
     over_data = numpy.zeros(0, dtype=numpy.float32)
-    
+    rows      = numpy.arange(N_e*N_t)
+                
     for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
         
         local_idx = numpy.where(best_elec == ielec)[0]
@@ -1123,52 +1142,41 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
 
         if len_local > 0:
 
-            loc_templates = templates[:, local_idx].toarray().reshape(N_e, N_t, len(local_idx))
             to_consider   = numpy.arange(upper_bounds)
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
             
-            nb_elements = loc_templates.shape[2]
-            
-            if normalize:
-                loc_templates /= norm_templates[local_idx]
+            loc_templates  = templates[:, local_idx].tocsr()
+            loc_templates2 = templates[:, to_consider].tocsr()
             
             for idelay in all_delays:
 
-                size  = N_e*idelay    
-                tmp_1 = loc_templates[:, :idelay]
-                
-                if HAVE_CUDA:
-                    tmp_1 = cmt.CUDAMatrix(tmp_1.reshape(size, nb_elements))
-                else:
-                    tmp_1 = tmp_1.reshape(size, nb_elements)
-                
-                loc_templates2 = templates[:, to_consider].toarray().reshape(N_e, N_t, len(to_consider))
-                tmp_2          = loc_templates2[:, -idelay:, :]
-                if normalize:
-                    tmp_2 /= norm_templates[to_consider]
+                srows = numpy.where(rows % N_t < idelay)[0]
+                tmp_1 = loc_templates[srows]
 
-                lb_2  = tmp_2.shape[2]
+                srows = numpy.where(rows % N_t >= (N_t - idelay))[0]
+                tmp_2 = loc_templates2[srows]
                 
-                if HAVE_CUDA:
-                    tmp_2 = cmt.CUDAMatrix(tmp_2.reshape(size, lb_2))
-                    data  = cmt.dot(tmp_1.T, tmp_2).asarray()
+                if use_gpu:
+                    tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr())
+                    tmp_2 = cmt.CUDAMatrix(tmp_2.toarray())
+                    data  = cmt.sparse_dot(tmp_1, tmp_2).asarray()
                 else:
-                    tmp_2 = tmp_2.reshape(size, lb_2)
-                    data  = numpy.dot(tmp_1.T, tmp_2).reshape(nb_elements, lb_2)
+                    data  = tmp_1.T.dot(tmp_2)
+                    data  = data.toarray()
 
                 dx, dy     = data.nonzero()
-                ddx        = local_idx[dx].astype(numpy.int32)
-                ddy        = to_consider[dy].astype(numpy.int32)
-                data       = data.flatten()
+                ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
+                ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
+                data       = data.ravel()
                 dd         = data.nonzero()[0].astype(numpy.int32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
                 over_y     = numpy.concatenate((over_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                over_data  = numpy.concatenate((over_data, data[dd]))
+                over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
                 if idelay < N_t:
                     over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
                     over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                    over_data  = numpy.concatenate((over_data, data[dd]))
+                    over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
         if comm.rank == 0:
             pbar.update(count)
@@ -1204,8 +1212,7 @@ def get_overlaps(comm, params, extension='', erase=False, parallel_hdf5=False, n
             else:
                 maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
             for i in xrange(N_tm-1):
-                rows                = numpy.arange(i*N_tm+i+1, (i+1)*N_tm)
-                maxoverlap[i, i+1:] = numpy.max(overlap[rows, :].toarray(), 1)
+                maxoverlap[i, i+1:] = numpy.max(overlap[i*N_tm+i+1:(i+1)*N_tm].toarray(), 1)
                 maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
             myfile.close()  
             myfile2.close()

@@ -14,22 +14,26 @@ import shutil
 
 import numpy as np
 import h5py
-from circus.shared.files import detect_header
-
-from phy.detect.spikedetekt import SpikeDetekt
-from phy.electrode import load_probe
-from phy.io.h5 import open_h5
-from phy.io.kwik import create_kwik, KwikCreator, KwikModel
-from phy.utils.event import ProgressReporter
-from phy.traces.waveform import WaveformLoader, SpikeLoader
-from phy.traces.filter import bandpass_filter, apply_filter
-from phy.utils.logging import info
-from phy.utils.array import _spikes_per_cluster
+from circus.shared.files import detect_header, print_and_log
 
 extract_features = True #False is working now with max's branch
 filtered_datfile = True
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+
+    ## Uncomment those two lines if you still want to use phy
+    io.print_and_log(['kwik support is deprecated: use circus-gui-python instead'], 'info', params)
+    sys.exit(0)
+
+    from phy.detect.spikedetekt import SpikeDetekt
+    from phy.electrode import load_probe
+    from phy.io.h5 import open_h5
+    from phy.io.kwik import create_kwik, KwikCreator, KwikModel
+    from phy.utils.event import ProgressReporter
+    from phy.traces.waveform import WaveformLoader, SpikeLoader
+    from phy.traces.filter import bandpass_filter, apply_filter
+    from phy.utils.logging import info
+    from phy.utils.array import _spikes_per_cluster
 
     def _read_spikes(basename):
       with open_h5(basename + '.result.hdf5', 'r') as f:

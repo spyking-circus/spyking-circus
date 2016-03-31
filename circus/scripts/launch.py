@@ -40,7 +40,7 @@ def main():
         import cudamat as cmt
         cmt.init()
         HAVE_CUDA = True
-        nb_gpu    = 1
+        nb_gpu    = 0
     except Exception:
         HAVE_CUDA = False
 
@@ -85,7 +85,7 @@ Options are:
                          - (extra) converting [to export to phy format]
                          - (extra) benchmarking [with -o and -t]
     -c or --cpu      : number of CPU (default 1)
-    -g or --gpu      : number of GPU (default 1 if CUDA available)
+    -g or --gpu      : number of GPU (default 0)
     -H or --hostfile : hostfile for MPI (default is ~/spyking-circus/circus.hosts)
     -b or --batch    : datafile is a list of commands to launch, in a batch mode
     -p or --preview  : GUI to display the first second filtered with thresholds
@@ -191,7 +191,7 @@ Options are:
         if not batch_mode:
             stationary = params.getboolean('data', 'stationary')
         else:
-             stationary = False
+            stationary = False
 
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
@@ -220,7 +220,7 @@ Options are:
         if not preview:
             length = io.data_stats(params)
 
-            if length >= 3600 and stationary:
+            if length >= 5*3600 and stationary:
                 print_info(['Long recording detected: maybe turn off the stationary mode'])
 
         # Launch the subtasks
@@ -289,26 +289,16 @@ Options are:
                                 nb_tasks = str(nb_cpu)
 
                         if subtask != 'benchmarking':
-                            if platform.system() == 'Windows':
-                                args += ['-np', nb_tasks, sys.executable,
-                                       'spyking-circus-subtask',
-                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
-                            else:                
-                                args += ['-np', nb_tasks,
-                                       'spyking-circus-subtask',
-                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
+                            args += ['-np', nb_tasks,
+                                     'spyking-circus-subtask',
+                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
                         else:
                             if (output is None) or (benchmark is None):
                                 print_error(["To generate synthetic datasets, you must provide output and type"])
                                 sys.exit()
-                            if platform.system() == 'Windows':
-                                args += ['-np', nb_tasks, sys.executable,
-                                       'spyking-circus-subtask',
-                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
-                            else:
-                                args += ['-np', nb_tasks,
-                                       'spyking-circus-subtask',
-                                       subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                            args += ['-np', nb_tasks,
+                                     'spyking-circus-subtask',
+                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
 
                         write_to_logger(params, ['Launching task %s' %subtask], 'debug')
                         write_to_logger(params, ['Command: %s' %str(args)], 'debug')

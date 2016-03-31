@@ -3,14 +3,9 @@ package:
   version: "0.3"
 
 requirements:
-  # Note: hdf5storage and termcolor are not available in the standard anaconda
-  # repository, you need to add the "auto" channel for it (and this channel
-  # only includes hdf5storage for linux-64 and termcolor for linux-32, linux-64
-  # and mac-osx for termcolor)
   build:
     - python
-    - progressbar # [py2k]
-    - progressbar2 # [not py2k]
+    - progressbar2
     - mpi4py
     - numpy
     - cython
@@ -21,8 +16,7 @@ requirements:
     - colorama
   run:
     - python
-    - progressbar # [py2k]
-    - progressbar2 # [not py2k]
+    - progressbar2
     - mpi4py
     - numpy
     - cython
@@ -31,7 +25,8 @@ requirements:
     - h5py
     - setuptools
     - colorama
-
+    - qt
+    - pyqt
 source:
   path: ..
 
