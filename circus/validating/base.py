@@ -185,15 +185,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         idx_gt = numpy.random.choice(N_gt, size=N_gt_max, replace=False)
         spikes_gt = spikes_gt[:, :, idx_gt]
     
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
+    #if comm.rank == 0:
+    #    if make_plots not in ['None', '']:
             #plot_filename = "beer-trigger-times-gt.%s" %make_plots
             #path = os.path.join(plot_path, plot_filename)
             #plot.view_trigger_times(filename, spike_times_gt, color='green', save=path)
-            if make_plots_snippets:
-                directory = "beer-trigger-snippets-gt"
-                path = os.path.join(plot_path, directory)
-                plot.view_trigger_snippets(spikes_gt, chans, save=path)
+    #        if make_plots_snippets:
+    #            directory = "beer-trigger-snippets-gt"
+    #            path = os.path.join(plot_path, directory)
+    #            plot.view_trigger_snippets(spikes_gt, chans, save=path)
     
     # Reshape data.
     N_t = spikes_gt.shape[0]
@@ -289,15 +289,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Load the spikes of all the "non ground truth cells".
     spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
     
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
+    #if comm.rank == 0:
+    #    if make_plots not in ['None', '']:
         #    plot_filename = "beer-trigger-times-ngt.%s" %make_plots
         #    path = os.path.join(plot_path, plot_filename)
         #    plot.view_trigger_times(filename, spike_times_ngt, color='blue', save=path)
-            if make_plots_snippets:
-                directory = "beer-trigger-snippets-ngt"
-                path = os.path.join(plot_path, directory)
-                plot.view_trigger_snippets(spikes_ngt, chans, save=path)
+    #        if make_plots_snippets:
+    #            directory = "beer-trigger-snippets-ngt"
+    #            path = os.path.join(plot_path, directory)
+    #            plot.view_trigger_snippets(spikes_ngt, chans, save=path)
     
     # Reshape data.
     N_t = spikes_ngt.shape[0]
@@ -352,15 +352,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Load the chunks for noise.
     spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
     
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
-            plot_filename = "beer-trigger-times.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_trigger_times(filename, [spike_times_gt, spike_times_ngt, spike_times_noi], color=['g', 'b', 'r'], save=path)
-            if make_plots_snippets:
-                directory = "beer-trigger-snippets-noi"
-                path = os.path.join(plot_path, directory)
-                plot.view_trigger_snippets(spikes_noi, chans, save=path)
+    #if comm.rank == 0:
+    #    if make_plots not in ['None', '']:
+    #        plot_filename = "beer-trigger-times.%s" %make_plots
+    #        path = os.path.join(plot_path, plot_filename)
+    #        plot.view_trigger_times(filename, [spike_times_gt, spike_times_ngt, spike_times_noi], color=['g', 'b', 'r'], save=path)
+            #if make_plots_snippets:
+            #    directory = "beer-trigger-snippets-noi"
+            #    path = os.path.join(plot_path, directory)
+            #    plot.view_trigger_snippets(spikes_noi, chans, save=path)
     
     # Reshape data.
     N_t = spikes_noi.shape[0]
@@ -474,11 +474,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if make_plots not in ['None', '']:
             plot_filename = "beer-datasets.%s" %make_plots
             path = os.path.join(plot_path, plot_filename)
-            Xs = [X_ngt, X_noi, X_gt]
+            xs = [X_ngt, X_noi, X_gt]
             ys = [y_ngt, y_noi, y_gt]
-            colors = ['b', 'r', 'g']
-            labels = ["non ground truth", "noise", "ground truth"]
-            plot.view_datasets(Xs, ys, colors=colors, labels=labels, save=path)
+            colors = ['r', 'b', 'k']
+            labels = ["GT", "Non GT", "Noise"]
+            plot.view_datasets(params, xs, ys, [spike_times_gt, spike_times_ngt, spike_times_noi], colors=colors, labels=labels, save=path)
     
     
     
@@ -597,13 +597,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
         
-        if make_plots not in ['None', '']:
-            # Plot accuracy curve.
-            title = "Accuracy curve for the initial parameter"
-            plot_filename = "beer-accuracy-plot.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
-                               accs[i_opt], title=title, save=path)
+        #if make_plots not in ['None', '']:
+        #    # Plot accuracy curve.
+        #    title = "Accuracy curve for the initial parameter"
+        #    plot_filename = "beer-accuracy-plot.%s" %make_plots
+        #    path = os.path.join(plot_path, plot_filename)
+        #    plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
+        #                       accs[i_opt], title=title, save=path)
     
     # Compute the normalized accuracy for various cutoffs.
     tprs = numpy.zeros(num)
@@ -639,9 +639,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             title = "Normalized accuracy curve for the initial parameter"
             plot_filename = "beer-normalized-accuray-plot.%s" %make_plots
             path = os.path.join(plot_path, plot_filename)
-            plot.view_normalized_accuracy(Mhlnb[indices], tprs, tnrs, norm_accs,
-                                          Mhlnb[indices[i_opt]], norm_accs[i_opt],
-                                          title=title, save=path)
+
+            data1 = Mhlnb[indices], accs, Mhlnb[indices[i_opt]], accs[i_opt]
+            data2 = Mhlnb[indices], tprs, tnrs, norm_accs, Mhlnb[indices[i_opt]], norm_accs[i_opt]
+
+            plot.view_accuracy(data1, data2, title=title, save=path)
     
     # Set cutoff equal to the optimal cutoff.
     # cutoff = cutoff_opt_acc

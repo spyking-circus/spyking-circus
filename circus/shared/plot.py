@@ -913,43 +913,6 @@ def view_triggers_bis(file_name, mode='random', save=True):
 
 # Validating plots #############################################################
 
-def view_trigger_times(file_name, all_trigger_times, color=['b'], title=None, save=None):
-    params = load_parameters(file_name)
-    N_total = params.getint('data', 'N_total')
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
-    ttmax = (nb_chunks * chunk_len + last_chunk_len) / N_total
-
-    fig = pylab.figure()
-    ax  = fig.add_subplot(1, 1, 1)
-    ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='dashed')
-    sizes = []
-
-    for count, trigger_times in enumerate(all_trigger_times):
-        x  = numpy.concatenate((numpy.array([0]),
-                               trigger_times,
-                               numpy.array([ttmax - 1]),))
-        x = x.astype('float') * 100.0 / float(ttmax - 1)
-        sizes += [x.size]
-        y = numpy.linspace(0.0, 100.0, x.size)
-        ax.step(x, y, color=color[count], linestyle='solid', where='post')
-    ax.grid(True)
-    ax.set_xlim(0.0, 100.0)
-    ax.set_ylim(0.0, 100.0)
-    ax.set_aspect('equal')
-    ax.legend(('GT (%d samples)' %sizes[0], 'Non GT (%d samples)' %sizes[1], 'Noise (%d samples' %sizes[0]), loc='best')
-    if title is None:
-        ax.set_title("Empirical distribution of triggers")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("cumulative share of samples (in %)")
-    ax.set_ylabel("cumulative share of triggers (in %)")
-    if save is None:
-        pylab.show()
-    else:
-        pylab.savefig(save)
-        pylab.close(fig)
-    return
-
 def view_trigger_snippets_bis(trigger_snippets, elec_index, save=None):
     fig = pylab.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -1028,13 +991,13 @@ def view_dataset(X, color='blue', title=None, save=None):
         pylab.close(fig)
     return
 
-def view_datasets(Xs, ys, colors=None, labels=None, save=None):
+def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, save=None):
     if colors is None:
-        colors = ['b'] * len(Xs)
+        colors = ['b'] * len(xs)
     from circus.validating.utils import Projection, find_rotation
     p = Projection()
-    p = p.fit(Xs, ys)
-    x = p.transform(Xs)
+    p = p.fit(xs, ys)
+    x = p.transform(xs)
     pad = 0.05
     x_dif = numpy.amax(x[:, 0]) - numpy.amin(x[:, 0])
     x_min = numpy.amin(x[:, 0]) - pad * x_dif
@@ -1043,10 +1006,10 @@ def view_datasets(Xs, ys, colors=None, labels=None, save=None):
     y_min = numpy.amin(x[:, 1]) - pad * y_dif
     y_max = numpy.amax(x[:, 1]) + pad * y_dif
     fig = pylab.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    ax = fig.add_subplot(1, 2, 1)
     k = 0
     handles = []
-    for (i, X) in enumerate(Xs):
+    for (i, X) in enumerate(xs):
         l = X.shape[0]
         if labels is None:
             ax.scatter(x[k:k+l, 0], x[k:k+l, 1], c=colors[i], s=5, lw=0.1)
@@ -1066,8 +1029,31 @@ def view_datasets(Xs, ys, colors=None, labels=None, save=None):
                      box.width, box.height * 0.85])
     handles = [handles[2], handles[0], handles[1]]
     labels = [labels[2], labels[0], labels[1]]
-    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15),
-              fancybox=False, shadow=False, ncol=3)
+    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
+
+    N_total = params.getint('data', 'N_total')
+    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
+    ttmax = (nb_chunks * chunk_len + last_chunk_len) // N_total
+
+    ax = fig.add_subplot(1, 2, 2)
+    sizes = []
+
+    for count, trigger_times in enumerate(all_trigger_times):
+        x  = numpy.concatenate((numpy.array([0]),
+                               trigger_times,
+                               numpy.array([ttmax - 1]),))
+        x = x.astype('float') * 100.0 / float(ttmax - 1)
+        sizes += [x.size]
+        y = numpy.linspace(0.0, 100.0, x.size)
+        ax.step(x, y, color=colors[count], linestyle='solid', where='post')
+    ax.grid(True)
+    ax.set_xlim(0.0, 100.0)
+    ax.set_ylim(0.0, 100.0)
+    ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='dashed')
+    ax.set_aspect('equal')
+    ax.set_title("Empirical distribution of triggers")
+    ax.set_xlabel("cumulative share of samples (in %)")
+    ax.set_ylabel("cumulative share of triggers (in %)")
     if save is None:
         pylab.show()
     else:
@@ -1107,39 +1093,31 @@ def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None, xlim=None, ylim=
         pylab.close(fig)
     return
 
-def view_accuracy(cutoffs, accs, cutoff, acc, title=None, save=None):
+def view_accuracy(data1, data2, title=None, save=None):
     '''Plot accuracy curve'''
+    
+    cutoffs, accs, cutoff, acc = data1
+
     fig = pylab.figure()
-    ax = fig.gca()
+    ax = fig.add_subplot(1, 2, 1)
     ax.plot(cutoffs, accs, color='blue', linestyle='solid')
     ax.plot(cutoff, acc, color='blue', marker='o')
     ax.grid(True)
     ax.set_xlim([numpy.amin(cutoffs), numpy.amax(cutoffs)])
     ax.set_ylim([0.0, 1.0])
-    if title is None:
-        ax.set_title("Accuracy curve")
-    else:
-        ax.set_title(title)
+    ax.set_title("Accuracy curve")
     ax.set_xlabel("cutoff")
     ax.set_ylabel("accuracy")
     # Save accuracy plot.
-    if save is None:
-        pylab.show()
-    else:
-        pylab.savefig(save)
-        pylab.close(fig)
-    return
 
-def view_normalized_accuracy(cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc,
-                             title=None, save=None):
-    '''Plot normalized accuracy curve'''
+    cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc = data2
     labels = [
         "true positive rate",
         "true negative rate",
         "normalized accuracy",
     ]
-    fig = pylab.figure()
-    ax = fig.gca()
+
+    ax = fig.add_subplot(1, 2, 2)
     h1, = ax.plot(cutoffs, tprs, color='green', linestyle='solid', label=labels[0])
     h2, = ax.plot(cutoffs, tnrs, color='red', linestyle='solid', label=labels[1])
     h3, = ax.plot(cutoffs, norm_accs, color='blue', linestyle='solid', label=labels[2])
@@ -1147,19 +1125,19 @@ def view_normalized_accuracy(cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc,
     ax.grid(True)
     ax.set_xlim([numpy.amin(cutoffs), numpy.amax(cutoffs)])
     ax.set_ylim([0.0, 1.0])
-    if title is None:
-        ax.set_title("Normalized accuracy curve")
-    else:
-        ax.set_title(title)
+    ax.set_title("Normalized accuracy curve")
     ax.set_xlabel("cutoff")
     ax.set_ylabel("")
     ax.legend([h1, h2, h3], labels)
+
+
     if save is None:
         pylab.show()
     else:
         pylab.savefig(save)
         pylab.close(fig)
     return
+    
 
 def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=False):
     '''Plot classifier'''
