@@ -6,6 +6,7 @@ from scipy import signal
 
 import circus.shared.algorithms as algo
 from ..shared.utils import *
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 
 
@@ -721,3 +722,346 @@ def extract_juxta_spikes(filename, params):
             io.print_and_log(msg, 'info', params)
     
     return
+
+
+
+# Validating utils #############################################################
+
+class Projection(object):
+    
+    # TODO: test class.
+    
+    def __init__(self, tol=0):
+        self.tol = tol
+        self.fitted = False
+    
+    def fit(self, X, y):
+        if type(X) is list:
+            X = numpy.vstack(tuple(X))
+        if type(y) is list:
+            y = numpy.vstack(tuple(y))
+            y = y.ravel()
+        self.lda = LDA(n_components=1, tol=self.tol)
+        self.lda = self.lda.fit(X, y)
+        self.v1 = self.lda.scalings_[:, 0]
+        self.v1 = self.v1 / numpy.linalg.norm(self.v1)
+        self.mean = self.lda.xbar_
+        self.v2 = numpy.ones(self.v1.size)
+        self.v2 = self.v2 - numpy.dot(self.v1, self.v2) * self.v1 / numpy.linalg.norm(self.v1)
+        self.v2 = self.v2 / numpy.linalg.norm(self.v2)
+        self.fitted = True
+        return self
+    
+    def transform(self, X):
+        if not self.fitted:
+            raise Exception("Must be fitted first")
+        if type(X) is list:
+            X = numpy.vstack(tuple(X))
+        x1 = numpy.dot(X - self.mean, self.v1).reshape(-1, 1)
+        x2 = numpy.dot(X - self.mean, self.v2).reshape(-1, 1)
+        x = numpy.hstack((x1, x2))
+        return x
+    
+    def get_vectors(self):
+        return self.v1, self.v2
+    
+    def get_mean(self):
+        return self.mean
+
+def accuracy_score(y_true, y_pred, class_weights=None):
+    """Accuracy classification score."""
+    mask = (y_true == y_pred)
+    if class_weights is None:
+        m = y_true[mask].size
+        n = y_true.size
+        score = float(m) / float(n)
+    else:
+        m1 = numpy.count_nonzero(y_true[mask])
+        m0 = y_true[mask].size - m1
+        n1 = numpy.count_nonzero(y_true)
+        n0 = y_true.size - n1
+        score = (class_weights[0] * float(m0) + class_weights[1] * float(m1)) \
+                / (class_weights[0] * float(n0) + class_weights[1] * float(n1))
+    return score
+
+# Useful function to convert an ellispoid in standard form to an ellispoid
+# in general form.
+def ellipsoid_standard_to_general(t, s, O, verbose=False, logger=None):
+    # Translation from standard matrix to general matrix.
+    d = numpy.divide(1.0, numpy.power(s, 2.0))
+    D = numpy.diag(d)
+    A = O * D * O.T
+    ##### TODO: remove test zone
+    w, v = numpy.linalg.eigh(A)
+    if verbose:
+        msg = [
+            # "# det(A)",
+            # "%s" %(numpy.linalg.det(A),),
+            "# Eigenvalues",
+            "%s" %(w,),
+        ]
+        io.print_and_log(msg, level='default', logger=logger)
+    ##### end test zone
+    b = - 2.0 * numpy.dot(t, A)
+    c = numpy.dot(t, numpy.dot(A, t)) - 1
+    # Translation from general matrix to coefficients.
+    N = t.size
+    coefs = numpy.zeros(1 + N + (N + 1) * N / 2)
+    coefs[0] = c
+    for i in xrange(0, N):
+        coefs[1 + i] = b[i]
+    k = 0
+    for i in xrange(0, N):
+        coefs[1 + N + k] = A[i, i]
+        k = k + 1
+        for j in xrange(i + 1, N):
+            # TODO: remove test zone
+            # coefs[1 + N + k] = A[i, j]
+            # coefs[1 + N + k] = A[j, i]
+            coefs[1 + N + k] = A[i, j] + A[j, i]
+            # end test zone
+            k = k + 1
+    return coefs
+
+# Useful function to convert an ellispoid in general form to an ellispoid in
+# standard form.
+def ellipsoid_general_to_standard(coefs, verbose=False, logger=None):
+    """
+    Convert an ellipsoid in general form:
+        a_{0}
+        + a_{1} x1 + ... + a_{m} xm
+        + a_{1, 1} * x1 * x1 + ... + a_{1, m} * x1 * xm
+        + ...
+        + a_{m, m} xm * xm
+        = 0
+    To standard form (TODO: check validity):
+        (x1 - x1') * phi1(t_{1, 2}, ..., t_{m-1, m})
+        + ...
+        + (xm - xm') * phim(t_{1, 2}, ..., t_{m-1, m})
+    The ellipse has center [x1', ..., xm']^T, semi-axes b1, ... and bm, and
+    the angle to the semi-major axis is t.
+    """
+    # Convert to float.
+    coefs = coefs.astype('float')
+    K = coefs.size
+    # Retrieve the number of dimension (i.e. N).
+    # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
+    N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
+    if verbose:
+        msg = [
+            "# K",
+            "%s" %(K,),
+            "# N",
+            "%s" %(N,),
+        ]
+        io.print_and_log(msg, level='default', logger=logger)
+    # Retrieve the matrix representation.
+    A = numpy.zeros((N, N))
+    k = 0
+    for i in xrange(0, N):
+        A[i, i] = coefs[1 + N + k]
+        k = k + 1
+        for j in xrange(i + 1, N):
+            A[i, j] = coefs[1 + N + k] / 2.0
+            A[j, i] = coefs[1 + N + k] / 2.0
+            k = k + 1
+    b = coefs[1:1+N]
+    c = coefs[0]
+    # Compute the center of the ellipsoid.
+    center = - 0.5 * numpy.dot(numpy.linalg.inv(A), b)
+    
+    ##### TODO: remove test zone
+    if verbose:
+        msg = [
+            "# Test of symmetry",
+            "%s" %(numpy.all(A == A.T),),
+        ]
+        io.print_and_log(msg, level='default', logger=logger)
+    ##### end test zone
+    
+    # Each eigenvector of A lies along one of the axes.
+    evals, evecs = numpy.linalg.eigh(A)
+    
+    ##### TODO: remove print zone.
+    if verbose:
+        msg = [
+            "# Semi-axes computation",
+            "## det(A)",
+            "%s" %(numpy.linalg.det(A),),
+            "## evals",
+            "%s" %(evals,),
+        ]
+        io.print_and_log(msg, level='default', logger=logger)
+    ##### end print zone.
+    
+    # Semi-axes from reduced canonical equation.
+    ##### TODO: remove test zone.
+    # eaxis = numpy.sqrt(- c / evals)
+    eaxis = numpy.sqrt(numpy.abs(-c / evals))
+    ##### end test zone
+    return center, eaxis, evecs
+
+def ellipsoid_matrix_to_coefs(A, b, c):
+    N = b.size
+    K = 1 + N + (N + 1) * N / 2
+    coefs = numpy.zeros(K)
+    coefs[0] = c
+    coefs[1:1+N] = b
+    k = 0
+    for i in xrange(0, N):
+        coefs[1 + N + k] = A[i, i]
+        k = k + 1
+        for j in xrange(i + 1, N):
+            coefs[1 + N + k] = A[i, j] + A[j, i]
+            k = k + 1
+    coefs = coefs.reshape(-1, 1)
+    return coefs
+
+def ellipsoid_coefs_to_matrix(coefs):
+    K = coefs.size
+    # Retrieve the number of dimension (i.e. N).
+    # (i.e. solve: 1 + N + (N + 1) * N / 2 = K)
+    N = int(- 1.5 + numpy.sqrt(1.5 ** 2.0 - 4.0 * 0.5 * (1.0 - float(K))))
+    # Retrieve A.
+    A = numpy.zeros((N, N))
+    k = 0
+    for i in xrange(0, N):
+        A[i, i] = coefs[1 + N + k, 0]
+        k = k + 1
+        for j in xrange(i + 1, N):
+            A[i, j] = coefs[1 + N + k, 0] / 2.0
+            A[j, i] = coefs[1 + N + k, 0] / 2.0
+            k = k + 1
+    # Retrieve b.
+    b = coefs[1:1+N, 0]
+    # Retrieve c.
+    c = coefs[0, 0]
+    return A, b, c
+
+def find_rotation(v1, v2, verbose=False, logger=None):
+    '''Find a rotation which maps these two vectors of the two first vectors of
+    the canonical basis.'''
+    N = v1.size
+    x = numpy.copy(v1)
+    R = numpy.eye(N)
+    for i in xrange(1, N):
+        x1 = x[0]
+        x2 = x[i]
+        n = numpy.sqrt(x1 * x1 + x2 * x2)
+        if n == 0.0:
+            cos = 1.0
+            sin = 0.0
+        else:
+            cos = x1 / n
+            sin = x2 / n
+        R_ = numpy.eye(N)
+        R_[0, 0] = cos
+        R_[0, i] = sin
+        R_[i, 0] = - sin
+        R_[i, i] = cos
+        x = numpy.dot(R_, x)
+        R = numpy.dot(R_, R)
+    x = numpy.dot(R, v2)
+    for i in xrange(2, N):
+        x1 = x[1]
+        x2 = x[i]
+        n = numpy.sqrt(x1 * x1 + x2 * x2)
+        if n == 0.0:
+            cos = 1.0
+            sin = 0.0
+        else:
+            cos = x1 / n
+            sin = x2 / n
+        R_ = numpy.eye(N)
+        R_[1, 1] = cos
+        R_[1, i] = sin
+        R_[i, 1] = - sin
+        R_[i, i] = cos
+        x = numpy.dot(R_, x)
+        R = numpy.dot(R_, R)
+    if verbose:
+        # u1 = numpy.dot(R, v1)
+        # u1[numpy.abs(u1) < 1.0e-10] = 0.0
+        # u2 = numpy.dot(R, v2)
+        # u2[numpy.abs(u2) < 1.0e-10] = 0.0
+        # msg = [
+        #     "# R * v1",
+        #     "%s" %(u1,),
+        #     "# R * v2",
+        #     "%s" %(u2,),
+        # ]
+        # io.print_and_log(msg, level='default', logger=logger)
+        pass
+    return R
+
+def find_apparent_contour(A, b, c):
+    '''Find the apparent contour of a classifier'''
+    xs = [numpy.array([0.0, 0.0]),
+          numpy.array([1.0, 0.0]),
+          numpy.array([0.0, 1.0])]
+    # Solve the linear system 2 * A.T * y + b = 0 for fixed couples (y_1, y_2).
+    ys = []
+    for x in xs:
+        c1 = 2.0 * A[2:, 2:].T
+        c2 = - (numpy.dot(2.0 * A[:2, 2:].T, x) + b[2:])
+        yx = numpy.linalg.solve(c1, c2)
+        ys.append(yx)
+    # Solve the linear system to express (y_3, ..., y_m) with (y_1, y_2).
+    k = ys[0].size
+    c1 = numpy.eye(k)
+    c1 = numpy.tile(c1, (3, 3))
+    for (i, x) in enumerate(xs):
+        for (j, v) in enumerate(x):
+            c1[i*k:(i+1)*k, j*k:(j+1)*k] = v * c1[i*k:(i+1)*k, j*k:(j+1)*k]
+    c2 = numpy.concatenate(tuple(ys))
+    m = numpy.linalg.solve(c1, c2)
+    # Reconstruct alpha.
+    alpha_1 = numpy.eye(2)
+    alpha_2 = numpy.hstack((m[0:k].reshape(-1, 1), m[k:2*k].reshape(-1, 1)))
+    alpha = numpy.vstack((alpha_1, alpha_2))
+    # Reconstruct beta.
+    beta_1 = numpy.zeros(2)
+    beta_2 = m[2*k:3*k]
+    beta = numpy.concatenate((beta_1, beta_2))
+    # Reconstruct the apparent contour.
+    A_ = numpy.dot(alpha.T, numpy.dot(A, alpha))
+    b_ = numpy.dot(alpha.T, 2.0 * numpy.dot(A, beta) + b)
+    c_ = numpy.dot(numpy.dot(A, beta) + b, beta) + c
+    return(A_, b_, c_)
+
+def evaluate_ellipse(A, b, c, X):
+    '''Compute ellipse values for various points'''
+    x2 = numpy.sum(numpy.multiply(X.T, numpy.dot(A, X.T)), axis=0)
+    x1 = numpy.dot(b, X.T)
+    x0 = c
+    d2 = x2 + x1 + x0
+    return d2
+
+def squared_Mahalanobis_distance(A, mu, X):
+    '''Compute squared Mahalanobis distance for various points'''
+    N = X.shape[0]
+    d2 = numpy.zeros(N)
+    for i in xrange(0, N):
+        d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
+    return d2
+
+def get_class_weights(y_gt, y_ngt, y_noi, n=7):
+    '''Compute different class weights for the stochastic gradient descent'''
+    n_class_0 = float(y_gt.size)
+    n_class_1 = float(y_ngt.size + y_noi.size)
+    n_samples = n_class_0 + n_class_1
+    n_classes = 2.0
+    alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
+    betas = numpy.linspace(0.0, 2.0, n + 2)[1:-1]
+    class_weights = []
+    for i in xrange(0, n):
+        alpha = alphas[i]
+        beta = betas[i]
+        weight_0 = alpha * n_samples / (n_classes * n_class_0)
+        weight_1 = beta * n_samples / (n_classes * n_class_1)
+        class_weight = {
+            0: n_classes * weight_0 / (weight_0 + weight_1),
+            1: n_classes * weight_1 / (weight_0 + weight_1),
+        }
+        class_weights.append(class_weight)
+    return alphas, betas, class_weights

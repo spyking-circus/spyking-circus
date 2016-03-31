@@ -1,5 +1,17 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import sys, h5py
+
+from ..shared.utils import *
+from ..shared import plot
+from datetime import datetime
+
+try:
+    import sklearn
+except Exception:
+    if comm.rank == 0:
+        print "Sklearn is not installed! Install spyking-circus with the beer extension (see documentation)"
+    sys.exit(0)
 
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
@@ -8,13 +20,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
 from sklearn.preprocessing import StandardScaler
-
-import h5py
-from datetime import datetime
-
-from ..shared.utils import *
-from ..shared import plot
 from .utils import *
+
 
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):

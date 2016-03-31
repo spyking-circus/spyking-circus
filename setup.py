@@ -45,6 +45,7 @@ setup(name='spyking-circus',
               'circus-multi=circus.scripts.circus_multi:main'
           ],
       },
+      extras_require={'beer': ['scikit-learn']},
       package_data={'circus': ['config.params',
                                # Only include the actual GUI, not other test scripts
                                pjoin('matlab_GUI', 'SortingGUI.m'),
