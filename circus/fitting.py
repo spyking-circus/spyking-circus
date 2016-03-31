@@ -415,7 +415,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     failure[myslice] += 1
                     sub_idx           = (numpy.take(failure, myslice) >= nb_chances)
                     if full_gpu:
-                        N = len(sub_idx)
+                        N = numpy.sum(sub_idx)
                         if N > 0:
                             cu_slice = cmt.CUDAMatrix(numpy.compress(sub_idx, myslice).reshape(1, N))
                             mask.set_selected_columns(cu_slice, cm_zeros)
