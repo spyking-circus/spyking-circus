@@ -936,7 +936,7 @@ def view_trigger_times(file_name, all_trigger_times, color=['b'], title=None, sa
     ax.set_xlim(0.0, 100.0)
     ax.set_ylim(0.0, 100.0)
     ax.set_aspect('equal')
-    ax.legend(('GT (%d samples)' %sizes[0], 'Non GT (%d samples)' %sizes[1], 'Noise (%d samples' %sizes[0]))
+    ax.legend(('GT (%d samples)' %sizes[0], 'Non GT (%d samples)' %sizes[1], 'Noise (%d samples' %sizes[0]), loc='best')
     if title is None:
         ax.set_title("Empirical distribution of triggers")
     else:
