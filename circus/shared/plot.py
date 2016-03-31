@@ -1031,6 +1031,7 @@ def view_dataset(X, color='blue', title=None, save=None):
 def view_datasets(Xs, ys, colors=None, labels=None, save=None):
     if colors is None:
         colors = ['b'] * len(Xs)
+    from circus.validating.utils import Projection, find_rotation
     p = Projection()
     p = p.fit(Xs, ys)
     x = p.transform(Xs)
@@ -1164,6 +1165,7 @@ def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=Fal
     '''Plot classifier'''
     # Retrieve parameters.
     params = load_parameters(file_name)
+    from circus.validating.utils import Projection, find_rotation, find_apparent_contour
     p = Projection()
     p = p.fit(X, y)
     X_gt, X_ngt, X_noi = X
@@ -1315,6 +1317,8 @@ def view_classification(clf, X, X_raw, y, mode='predict', title=None, save=None)
         vmin = - vmax
     else:
         raise Exception
+
+    from circus.validating.utils import Projection
     p = Projection()
     _ = p.fit(X_raw, y)
     X_raw_ = p.transform(X_raw)

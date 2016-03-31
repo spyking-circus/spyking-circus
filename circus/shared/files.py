@@ -236,7 +236,7 @@ def load_parameters(file_name):
         ['validating', 'val_chan', 'int', '-1'],
         ['validating', 'max_iter', 'int', '200'],
         ['validating', 'learning_rate', 'float', '1.0e-3'],
-        ['validating', 'roc_sampling', 'int', '10'],
+        ['validating', 'roc_sampling', 'int', '20'],
         ['validating', 'verbose', 'bool', 'False'],
         ['validating', 'make_plots', 'string', 'png'],
         ['validating', 'test_size', 'float', '0.3'],
