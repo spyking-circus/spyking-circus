@@ -913,28 +913,34 @@ def view_triggers_bis(file_name, mode='random', save=True):
 
 # Validating plots #############################################################
 
-def view_trigger_times(file_name, trigger_times, color='blue', title=None, save=None):
+def view_trigger_times(file_name, all_trigger_times, color=['b'], title=None, save=None):
     params = load_parameters(file_name)
     N_total = params.getint('data', 'N_total')
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
     ttmax = (nb_chunks * chunk_len + last_chunk_len) / N_total
-    x = numpy.concatenate((numpy.array([0]),
-                           trigger_times,
-                           numpy.array([ttmax - 1]),))
-    x = x.astype('float') * 100.0 / float(ttmax - 1)
-    y = numpy.linspace(0.0, 100.0, x.size)
+
     fig = pylab.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    ax  = fig.add_subplot(1, 1, 1)
     ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='dashed')
-    ax.step(x, y, color=color, linestyle='solid', where='post')
+    sizes = []
+
+    for count, trigger_times in enumerate(all_trigger_times):
+        x  = numpy.concatenate((numpy.array([0]),
+                               trigger_times,
+                               numpy.array([ttmax - 1]),))
+        x = x.astype('float') * 100.0 / float(ttmax - 1)
+        sizes += [x.size]
+        y = numpy.linspace(0.0, 100.0, x.size)
+        ax.step(x, y, color=color[count], linestyle='solid', where='post')
     ax.grid(True)
     ax.set_xlim(0.0, 100.0)
     ax.set_ylim(0.0, 100.0)
     ax.set_aspect('equal')
+    ax.legend(('GT (%d samples)' %sizes[0], 'Non GT (%d samples)' %sizes[1], 'Noise (%d samples' %sizes[0]))
     if title is None:
-        ax.set_title("Empirical distribution of triggers ({} samples)".format(x.size))
+        ax.set_title("Empirical distribution of triggers")
     else:
-        ax.set_title(title + " ({} samples)".format(x.size))
+        ax.set_title(title)
     ax.set_xlabel("cumulative share of samples (in %)")
     ax.set_ylabel("cumulative share of triggers (in %)")
     if save is None:

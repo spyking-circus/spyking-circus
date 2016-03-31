@@ -40,7 +40,7 @@ def load_chunk(params, spike_times, chans=None):
     datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     template_shift = int((N_t - 1) // 2)
     ## Load the spike data.
-    spikes = numpy.zeros((N_t, N_filt, N_tr))
+    spikes = numpy.zeros((N_t, N_filt, N_tr), dtype=numpy.float32)
     for (count, idx) in enumerate(spike_times):
         chunk_len = chunk_size * N_total
         chunk_start = (idx - template_shift) * N_total
@@ -71,16 +71,16 @@ def with_quadratic_feature(X_raw, pairwise=False):
     #     print("N, M: {}, {}".format(N, M))
     
     # X = numpy.zero(shape)
-    X = numpy.empty(shape)
+    X        = numpy.empty(shape, dtype=numpy.float32)
     X[:, :K] = X_raw
     
     ##### Initial try (~ 0.5s)
     if pairwise:
         # Add the pairwise product of feature vector elements.
         k = 0
-        for i in xrange(0, K):
+        for i in xrange(K):
             for j in xrange(i, K):
-                X[:, K + k] = numpy.multiply(X[:, i], X[:, j])
+                X[:, K + k] = X[:, i] * X[:, j]
                 k = k + 1
     
     ##### Second try (~ 0.6s)
@@ -183,7 +183,7 @@ def extract_extra_thresholds(params):
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
     
-    medians = numpy.zeros((N_elec, loc_nb_chunks))
+    medians = numpy.zeros((N_elec, loc_nb_chunks), dtype=numpy.float32)
     
     # For each chunk attributed to the current CPU.
     for count, gidx in enumerate(loc_all_chunks):
@@ -223,7 +223,7 @@ def extract_extra_thresholds(params):
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
     
-    mads = numpy.zeros((N_elec, loc_nb_chunks))
+    mads = numpy.zeros((N_elec, loc_nb_chunks), dtype=numpy.float32)
     
     # For each chunk attributed to the current CPU.
     for count, gidx in enumerate(loc_all_chunks):

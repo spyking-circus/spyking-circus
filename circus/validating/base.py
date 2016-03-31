@@ -180,9 +180,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         if make_plots not in ['None', '']:
-            plot_filename = "beer-trigger-times-gt.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_trigger_times(filename, spike_times_gt, color='green', save=path)
+            #plot_filename = "beer-trigger-times-gt.%s" %make_plots
+            #path = os.path.join(plot_path, plot_filename)
+            #plot.view_trigger_times(filename, spike_times_gt, color='green', save=path)
             if make_plots_snippets:
                 directory = "beer-trigger-snippets-gt"
                 path = os.path.join(plot_path, directory)
@@ -202,7 +202,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     X_gt = X_gt.T
     
     # Define the outputs (i.e. 0 for ground truth samples).
-    y_gt = numpy.zeros((N_gt, 1))
+    y_gt = numpy.zeros((N_gt, 1), dtype=numpy.float32)
     
     if comm.rank == 0:
         if verbose:
@@ -212,10 +212,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
         
-        if make_plots not in ['None', '']:
-            plot_filename = "beer-dataset-gt.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_dataset(X_gt, color='green', title="Ground-truth dataset", save=path)
+        #if make_plots not in ['None', '']:
+        #    plot_filename = "beer-dataset-gt.%s" %make_plots
+        #    path = os.path.join(plot_path, plot_filename)
+        #    plot.view_dataset(X_gt, color='green', title="Ground-truth dataset", save=path)
     
    
     
@@ -284,9 +284,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         if make_plots not in ['None', '']:
-            plot_filename = "beer-trigger-times-ngt.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_trigger_times(filename, spike_times_ngt, color='blue', save=path)
+        #    plot_filename = "beer-trigger-times-ngt.%s" %make_plots
+        #    path = os.path.join(plot_path, plot_filename)
+        #    plot.view_trigger_times(filename, spike_times_ngt, color='blue', save=path)
             if make_plots_snippets:
                 directory = "beer-trigger-snippets-ngt"
                 path = os.path.join(plot_path, directory)
@@ -316,10 +316,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
         
-        if make_plots not in ['None', '']:
-            plot_filename = "beer-dataset-ngt.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_dataset(X_ngt, color='blue', title="Non ground-truth dataset", save=path)
+        #if make_plots not in ['None', '']:
+        #    plot_filename = "beer-dataset-ngt.%s" %make_plots
+        #    path = os.path.join(plot_path, plot_filename)
+        #    plot.view_dataset(X_ngt, color='blue', title="Non ground-truth dataset", save=path)
     
     
     
@@ -347,9 +347,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         if make_plots not in ['None', '']:
-            plot_filename = "beer-trigger-times-noi.%s" %make_plots
+            plot_filename = "beer-trigger-times.%s" %make_plots
             path = os.path.join(plot_path, plot_filename)
-            plot.view_trigger_times(filename, spike_times_noi, color='red', save=path)
+            plot.view_trigger_times(filename, [spike_times_gt, spike_times_ngt, spike_times_noi], color=['g', 'b', 'r'], save=path)
             if make_plots_snippets:
                 directory = "beer-trigger-snippets-noi"
                 path = os.path.join(plot_path, directory)
@@ -379,10 +379,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
         
-        if make_plots not in ['None', '']:
-            plot_filename = "beer-dataset-noi.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_dataset(X_noi, color='red', title="Noise dataset", save=path)
+        #if make_plots not in ['None', '']:
+        #    plot_filename = "beer-dataset-noi.%s" %make_plots
+        #    path = os.path.join(plot_path, plot_filename)
+        #    plot.view_dataset(X_noi, color='red', title="Noise dataset", save=path)
     
     
     
@@ -422,7 +422,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         # Without pairwise product of feature vector elments.
         M = N
         shape = (N_gt + N_ngt + N_noi, M)
-    X = numpy.zeros(shape)
+    X = numpy.zeros(shape, dtype=numpy.float32)
     X[:, :N] = X_raw
     
     if pairwise:
@@ -1031,9 +1031,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             y_pred = nb_time_chunks * [None]
             for time_chunk in xrange(0, nb_time_chunks):
                 
-                if comm.rank == 0:
-                    print("##### New temporal chunk")
-                    dt = datetime.now()
+                #if comm.rank == 0:
+                #    print("##### New temporal chunk")
+                #    dt = datetime.now()
                 
                 ##### TODO: remove temporary zone
                 # if comm.rank == 0:
@@ -1044,10 +1044,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 time_end = min(time_end, time_max_test + 1)
                 spike_times_ = numpy.arange(time_start, time_end)
                 
-                if comm.rank == 0:
-                    dt_ = datetime.now()
-                    print("Misc: {}s".format((dt_ - dt).total_seconds()))
-                    dt = datetime.now()
+                #if comm.rank == 0:
+                #    dt_ = datetime.now()
+                #    print("Misc: {}s".format((dt_ - dt).total_seconds()))
+                #    dt = datetime.now()
                 
                 # Load the snippets
                 spikes_ = load_chunk(params, spike_times_, chans=chans)
@@ -1064,20 +1064,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 X_ = X_.reshape(N_p * N_e, N_)
                 X_ = X_.T
                 
-                if comm.rank == 0:
-                    dt_ = datetime.now()
-                    print("Load snippets: {}s".format((dt_ - dt).total_seconds()))
-                    dt = datetime.now()
+                #if comm.rank == 0:
+                #    dt_ = datetime.now()
+                #    print("Load snippets: {}s".format((dt_ - dt).total_seconds()))
+                #    dt = datetime.now()
                 
                 # Normalize data.
                 X_ /= norm_scale
                 # Add quadratic features.
                 X_ = with_quadratic_feature(X_, pairwise=True)
-                
-                if comm.rank == 0:
-                    dt_ = datetime.now()
-                    print("Add quadratic features: {}s".format((dt_ - dt).total_seconds()))
-                    dt = datetime.now()
+
+                #if comm.rank == 0:
+                #    dt_ = datetime.now()
+                #    print("Add quadratic features: {}s".format((dt_ - dt).total_seconds()))
+                #    dt = datetime.now()
                 
                 ##### TODO: remove temporary zone
                 time_pred[time_chunk] = spike_times_
@@ -1086,10 +1086,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 y_pred[time_chunk] = wclf.predict(X_)
                 # y_pred[time_chunk] = wclf.decision_function(X_)
                 
-                if comm.rank == 0:
-                    dt_ = datetime.now()
-                    print("Classifier predictions: {}s".format((dt_ - dt).total_seconds()))
-                    dt = datetime.now()
+                #if comm.rank == 0:
+                #    dt_ = datetime.now()
+                #    print("Classifier predictions: {}s".format((dt_ - dt).total_seconds()))
+                #    dt = datetime.now()
                 
             ##### TODO: remove temporary zone
             time_pred = numpy.concatenate(time_pred)
