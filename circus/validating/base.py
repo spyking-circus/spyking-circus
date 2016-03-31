@@ -48,10 +48,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
-    skip_demo = params.getboolean('validating', 'skip_demo')
     
-    # TODO: remove following lines.
+
+    skip_demo = False
+    verbose   = False
     make_plots_snippets = False
+    
+
     # N_max = 1000000
     N_max = 12000
     alpha_gt = 1.0

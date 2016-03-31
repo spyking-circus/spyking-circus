@@ -404,8 +404,8 @@ def extract_extra_spikes_(params):
     alignment      = params.getboolean('data', 'alignment')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    safety_time = params.getfloat('validating', 'safety_time')
-    safety_space = params.getboolean('validating', 'safety_space')
+    safety_time = params.getfloat('clustering', 'safety_time')
+    safety_space = params.getboolean('clustering', 'safety_space')
     data_filename = params.get('data', 'data_file')
     data_dtype = params.get('data', 'data_dtype')
     chunk_size = params.getint('data', 'chunk_size')
@@ -610,7 +610,7 @@ def extract_extra_spikes_(params):
 
 def extract_extra_spikes(filename, params):
     extra_done = params.getboolean('noedits', 'extra_done')
-    do_extra = params.getboolean('validating', 'extra')
+    do_extra = True #params.getboolean('validating', 'extra')
     
     if extra_done:
         if comm.rank == 0:
@@ -701,7 +701,7 @@ def extract_juxta_spikes_(params):
 
 def extract_juxta_spikes(filename, params):
     juxta_done = params.getboolean('noedits', 'juxta_done')
-    do_juxta = params.getboolean('validating', 'juxta')
+    do_juxta = True #params.getboolean('validating', 'juxta')
     
     if juxta_done:
         if comm.rank == 0:
