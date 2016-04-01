@@ -1347,7 +1347,7 @@ def view_classification(data_1, data_2, title=None, save=None):
                 ax.set_xlabel("1st component")
                 if panels[count] == 2:
                     ax.set_ylabel("2nd component")
-                if panel[count] == 3:
+                if panels[count] == 3:
                     cb.set_label('Decision function')
             count += 1
 
