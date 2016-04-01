@@ -1024,17 +1024,19 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
     ax.set_title("Datasets")
     ax.set_xlabel("1st component")
     ax.set_ylabel("2nd component")
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0 + box.height * 0.15,
-                     box.width, box.height * 0.85])
-    handles = [handles[2], handles[0], handles[1]]
-    labels = [labels[2], labels[0], labels[1]]
-    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
+    #box = ax.get_position()
+    #ax.set_position([box.x0, box.y0 + box.height * 0.15,
+    #                 box.width, box.height * 0.85])
+    #handles = [handles[2], handles[0], handles[1]]
+    #labels = [labels[2], labels[0], labels[1]]
+    #ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
+
 
     N_total = params.getint('data', 'N_total')
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
     ttmax = (nb_chunks * chunk_len + last_chunk_len) // N_total
 
+    pylab.subplots_adjust(wspace=0.3)
     ax = fig.add_subplot(1, 2, 2)
     sizes = []
 
@@ -1049,8 +1051,9 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
     ax.grid(True)
     ax.set_xlim(0.0, 100.0)
     ax.set_ylim(0.0, 100.0)
+    ax.legend(('GT', 'Non GT', 'Noise'), loc='best')
     ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='dashed')
-    ax.set_aspect('equal')
+    #ax.set_aspect('equal')
     ax.set_title("Empirical distribution of triggers")
     ax.set_xlabel("cumulative share of samples (in %)")
     ax.set_ylabel("cumulative share of triggers (in %)")

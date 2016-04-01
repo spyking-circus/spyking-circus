@@ -336,7 +336,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### NOISE SAMPLES ########################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Collecting noise samples..."], level='default', logger=params)
+        io.print_and_log(["Collecting noise samples..."], level='debug', logger=params)
     
     # Extract the noise times.
     ## Draw times uniformly.
@@ -399,7 +399,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # NORMALIZE DATASETS #######################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Normalizing datasets..."], level='default', logger=params)
+        io.print_and_log(["Normalizing datasets..."], level='debug', logger=params)
     
     
     X_raw = numpy.vstack((X_gt, X_ngt, X_noi))
@@ -477,8 +477,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if make_plots not in ['None', '']:
             plot_filename = "beer-datasets.%s" %make_plots
             path = os.path.join(plot_path, plot_filename)
-            xs = [X_ngt, X_noi, X_gt]
-            ys = [y_ngt, y_noi, y_gt]
+            xs = [X_gt, X_ngt, X_noi]
+            ys = [y_gt, y_ngt, y_noi]
             colors = ['r', 'b', 'k']
             labels = ["GT", "Non GT", "Noise"]
             plot.view_datasets(params, xs, ys, [spike_times_gt, spike_times_ngt, spike_times_noi], colors=colors, labels=labels, save=path)
@@ -488,7 +488,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### INITIAL PARAMETER ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Initializing parameters..."], level='default', logger=params)
+        io.print_and_log(["Initializing parameters for the classifier..."], level='default', logger=params)
     
     
     method = 'covariance'
@@ -986,9 +986,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### WEIGHTED LEARNING ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Starting the weighted learning..."], level='default', logger=params)
-    
-    
+        io.print_and_log(["Estimating the ROC curve..."], level='default', logger=params)
+        
     _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
     
     # Distribute weights over the CPUs.
