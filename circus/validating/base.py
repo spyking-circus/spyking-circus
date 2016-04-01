@@ -62,7 +62,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     alpha_noi = 2.0
     
     # Cut data into two halves.
-    train_size = 0.9
+    train_size = 1.0 - test_size
     data_block = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     N = len(data_block)
     data_len = N // N_total
@@ -178,12 +178,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     n_class_0 = numpy.count_nonzero(mask)
     n_class_1 = time_max_test - time_min_test + 1 - n_class_0
     
-    # if comm.rank == 0:
-    #     msg = [
-    #         "n_class_0: {}".format(n_class_0),
-    #         "n_class_1: {}".format(n_class_1),
-    #     ]
-    #     io.print_and_log(msg, level='default', logger=params)
+    if comm.rank == 0:
+        msg = [
+            "n_class_0: {}".format(n_class_0),
+            "n_class_1: {}".format(n_class_1),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
     
     # sys.exit(0)
     
@@ -775,11 +775,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # mode = 'decision'
     mode = 'prediction'
-
+    
     model = 'sgd'
     
     # Preprocess dataset.
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size)
+    if not skip_demo:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    else:
+        X_train = X
+        y_train = y
     
     if not skip_demo:
         
@@ -1106,8 +1110,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #    dt = datetime.now()
                 
                 ##### TODO: remove temporary zone
-                # if comm.rank == 0:
-                #     print("{} / {}".format(time_chunk, nb_time_chunks))
+                if comm.rank == 0:
+                    print("{} / {}".format(time_chunk, nb_time_chunks))
                 ##### end temporary zone
                 time_start = time_min_test + time_chunk * time_chunk_size
                 time_end = time_min_test + (time_chunk + 1) * time_chunk_size
@@ -1122,7 +1126,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 # Load the snippets
                 #spikes_ = load_chunk(params, spike_times_, chans=chans)
                 spikes_ = get_stas(params, spike_times_, numpy.zeros(len(spike_times_)), chan, chans, nodes=nodes, auto_align=False).T
-
+                
                 # Reshape data.
                 N_t = spikes_.shape[0]
                 N_e = spikes_.shape[1]
@@ -1179,10 +1183,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             # TODO: filter y_pred with a time window (i.e. at least ? time slot between detections).
             
-            # TODO: remove following lines
-            # # Classifer prediction on train set.
-            # y_pred = wclf.predict(X_test)
-
             # Retrieve the ground truth labeling.
             # TODO: find suitable dtype.
             y_test = numpy.ones(time_max_test - time_min_test + 1)
