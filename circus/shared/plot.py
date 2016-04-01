@@ -1582,22 +1582,3 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
         pylab.savefig(save)
         pylab.close(fig)
     return
-
-
-
-
-if __name__ == "__main__":
-    # Retrieve parameter.
-    if len(sys.argv) < 2:
-        raise Exception("No path given as parameter")
-    path = sys.argv[1]
-    path = os.path.abspath(path)
-    dirname = os.path.dirname(path)
-    basename = os.path.basename(path)
-    filename = "{}.dat".format(basename)
-    path = os.path.join(dirname, filename)
-    # Check if data exists.
-    if not os.path.exists(path):
-        raise Exception("File '{}' can not be found".format(path))
-    # Compute performance.
-    main(dirname, basename)
