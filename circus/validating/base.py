@@ -3,6 +3,7 @@ import matplotlib.gridspec as gridspec
 import sys, h5py
 
 from ..shared.utils import *
+from ..shared.files import get_stas
 from ..shared import plot
 from datetime import datetime
 
@@ -43,13 +44,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats = params.getint('clustering', 'nb_repeats')
     max_iter = params.getint('validating', 'max_iter')
     learning_rate_init = params.getfloat('validating', 'learning_rate')
-    verbose = params.getboolean('validating', 'verbose')
     make_plots = params.get('validating', 'make_plots')
     roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
     
-
+    verbose   = False
     skip_demo = False
     verbose   = False
     make_plots_snippets = False
@@ -146,7 +146,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #       instead of an arbitrary selection.
         # TODO: remove default implementation which select a random channel.
         chan = numpy.random.randint(0, N_e)
-    chans = get_neighbors(params, chan=chan)
+    nodes, chans = get_neighbors(params, chan=chan)
     chan_index = numpy.argwhere(chans == chan)[0]
     
     
@@ -180,8 +180,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### end temporary zone
     
     # Load the spikes of all the "ground truth cells".
-    spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
-    
+    #spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
+    spikes_gt = get_stas(params, spike_times_gt, numpy.zeros(len(spike_times_gt)), chan, chans, nodes=nodes, auto_align=False).T
+
     # Downsample to get the wanted number of spikes.
     N_gt = spikes_gt.shape[2]
     if N_gt_max < N_gt:
@@ -290,8 +291,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
     
     # Load the spikes of all the "non ground truth cells".
-    spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
-    
+    #spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
+    spikes_ngt = get_stas(params, spike_times_ngt, numpy.zeros(len(spike_times_ngt)), chan, chans, nodes=nodes, auto_align=False).T
+
     #if comm.rank == 0:
     #    if make_plots not in ['None', '']:
         #    plot_filename = "beer-trigger-times-ngt.%s" %make_plots
@@ -353,8 +355,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spike_times_noi = spike_times_noi[idxs_noi]
     
     # Load the chunks for noise.
-    spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
-    
+    #spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
+    spikes_noi = get_stas(params, spike_times_noi, numpy.zeros(len(spike_times_noi)), chan, chans, nodes=nodes, auto_align=False).T
+
     #if comm.rank == 0:
     #    if make_plots not in ['None', '']:
     #        plot_filename = "beer-trigger-times.%s" %make_plots

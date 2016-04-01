@@ -21,7 +21,7 @@ def get_neighbors(params, chan=None):
         inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
         inv_nodes[nodes] = numpy.argsort(nodes)
         chans = inv_nodes[edges[nodes[chan]]]
-    return chans
+    return nodes, chans
 
 def load_chunk(params, spike_times, chans=None):
     """Auxiliary function to load spike data given spike times."""
@@ -376,7 +376,7 @@ def plot_extracted_extra_spikes(loc_all_chunks, data_len, mpi_input, data_dtype,
         for peak_index, peak_time in zip(argmax_peak, all_indices):
             # Select electrode showing lowest amplitude.
             elec = numpy.argmin(loc_chunk[peak_time, :])
-            neighs = get_neighbors(params, chan=elec)
+            _, neighs = get_neighbors(params, chan=elec)
             if safety_space:
                 mslice = all_times[neighs, min_times[peak_index]:max_times[peak_index]]
             else:
@@ -534,7 +534,7 @@ def extract_extra_spikes_(params):
             for peak_index, peak_time in zip(argmax_peak, all_indices):
                 # Select electrode showing lowest amplitude.
                 elec = numpy.argmin(loc_chunk[peak_time, :])
-                neighs = get_neighbors(params, chan=elec)
+                _, neighs = get_neighbors(params, chan=elec)
                 if safety_space:
                     mslice = all_times[neighs, min_times[peak_index]:max_times[peak_index]]
                 else:

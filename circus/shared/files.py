@@ -424,7 +424,7 @@ def print_error(lines):
     print Fore.RED + "------------------------------------------------------------------"
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, auto_align=True):
     from .utils import smooth  # avoid import issues
     
     N_t          = params.getint('data', 'N_t')
@@ -442,7 +442,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('data', 'alignment')
+    alignment    = params.getboolean('data', 'alignment') and auto_align
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
