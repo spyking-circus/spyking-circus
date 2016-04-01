@@ -153,11 +153,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     chan = params.getint('validating', 'nearest_elec')
     if chan == -1:
         # Set best channel as the channel with the highest change in amplitude.
-        juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
+        nodes, chans = get_neighbors(params, chan=None)
+        #juxta_spikes      = load_chunk(params, spike_times_juxta, chans=None)
+        juxta_spikes      = get_stas(params, spike_times_juxta, numpy.zeros(len(spike_times_juxta)), 0, chans, nodes=nodes, auto_align=False).T
         mean_juxta_spikes = numpy.mean(juxta_spikes, axis=2)
-        max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0)
-        min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0)
-        dif_juxta_spikes = max_juxta_spikes - min_juxta_spikes
+        max_juxta_spikes  = numpy.amax(mean_juxta_spikes, axis=0)
+        min_juxta_spikes  = numpy.amin(mean_juxta_spikes, axis=0)
+        dif_juxta_spikes  = max_juxta_spikes - min_juxta_spikes
         chan = numpy.argmax(dif_juxta_spikes)
         if comm.rank == 0:
             msg = ["Validation channel is set to {}".format(chan)]
@@ -166,12 +168,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pass            
 
     nodes, chans = get_neighbors(params, chan=chan)
-    chan_index = numpy.argwhere(chans == chan)[0]
     
     if make_plots not in ['None', '']:
         plot_filename = "beer-trigger-times.%s" %make_plots
         path = os.path.join(plot_path, plot_filename)
-        plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:,:,chans], save=path)
+        plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], save=path)
 
 
     ##### TODO: clean temporary zone

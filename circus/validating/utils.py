@@ -13,13 +13,13 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 def get_neighbors(params, chan=None):
     N_total = params.getint('data', 'N_total')
     nodes, edges = io.get_nodes_and_edges(params, validating=True)
+    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.argsort(nodes)
     if chan is None:
         # Select all the channels.
-        chans = numpy.arange(0, nodes.size)
+        chans = inv_nodes[nodes]
     else:
         # Select only the neighboring channels of the best channel.
-        inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
-        inv_nodes[nodes] = numpy.argsort(nodes)
         chans = inv_nodes[edges[nodes[chan]]]
     return nodes, chans
 
