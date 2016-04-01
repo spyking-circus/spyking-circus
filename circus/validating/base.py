@@ -178,12 +178,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     n_class_0 = numpy.count_nonzero(mask)
     n_class_1 = time_max_test - time_min_test + 1 - n_class_0
     
-    if comm.rank == 0:
-        msg = [
-            "n_class_0: {}".format(n_class_0),
-            "n_class_1: {}".format(n_class_1),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    # if comm.rank == 0:
+    #     msg = [
+    #         "n_class_0: {}".format(n_class_0),
+    #         "n_class_1: {}".format(n_class_1),
+    #     ]
+    #     io.print_and_log(msg, level='default', logger=params)
     
     # sys.exit(0)
     
@@ -1110,8 +1110,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #    dt = datetime.now()
                 
                 ##### TODO: remove temporary zone
-                if comm.rank == 0:
-                    print("{} / {}".format(time_chunk, nb_time_chunks))
+                # if comm.rank == 0:
+                #     print("{} / {}".format(time_chunk, nb_time_chunks))
                 ##### end temporary zone
                 time_start = time_min_test + time_chunk * time_chunk_size
                 time_end = time_min_test + (time_chunk + 1) * time_chunk_size
