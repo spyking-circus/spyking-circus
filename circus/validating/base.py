@@ -232,15 +232,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_gt = spike_times_gt[spike_times_gt <= time_max]
     ##### end temporary zone
     
-    # Load the spikes of all the "ground truth cells".
-    #spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
-    spikes_gt = get_stas(params, spike_times_gt, numpy.zeros(len(spike_times_gt)), chan, chans, nodes=nodes, auto_align=False).T
-
-    # Downsample to get the wanted number of spikes.
-    N_gt = spikes_gt.shape[2]
-    if N_gt_max < N_gt:
-        idx_gt = numpy.random.choice(N_gt, size=N_gt_max, replace=False)
-        spikes_gt = spikes_gt[:, :, idx_gt]
+    idx = numpy.sort(numpy.random.permutation(numpy.arange(len(spike_times_gt)))[:N_gt_max])
+    spikes_gt = get_stas(params, spike_times_gt[idx], numpy.zeros(len(idx)), chan, chans, nodes=nodes, auto_align=False).T
     
     #if comm.rank == 0:
     #    if make_plots not in ['None', '']:
@@ -336,17 +329,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
     ## Restrict to spikes which are far from ground truth spikes.
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
-    ## Downsample to get the wanted number of spikes.
-    N_ngt = spike_times_ngt_tmp.shape[0]
-    if N_ngt_max < N_ngt:
-        idxs_ngt = numpy.random.choice(N_ngt, size=N_ngt_max, replace=False)
-        idxs_ngt = numpy.sort(idxs_ngt)
-        spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
-    else:
-        spike_times_ngt = spike_times_ngt_tmp
-    # Load the spikes of all the "non ground truth cells".
-    #spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
-    spikes_ngt = get_stas(params, spike_times_ngt, numpy.zeros(len(spike_times_ngt)), chan, chans, nodes=nodes, auto_align=False).T
+    
+    idx = numpy.sort(numpy.random.permutation(numpy.arange(len(spike_times_ngt)))[:N_ngt_max])
+    spikes_ngt = get_stas(params, spike_times_ngt, numpy.zeros(len(idx)), chan, chans, nodes=nodes, auto_align=False).T
 
     #if comm.rank == 0:
     #    if make_plots not in ['None', '']:
@@ -402,14 +387,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ## Restrict to spikes which are far from ground truth spikes.
     spike_times_noi = numpy.setdiff1d(spike_times_noi, spike_times_fbd)
     ## Downsample to get the wanted number of spikes.
-    N_noi = spike_times_noi.shape[0]
-    if N_noi_max < N_noi:
-        idxs_noi = numpy.random.choice(N_noi, size=N_noi_max, replace=False)
-        idxs_noi = numpy.sort(idxs_noi)
-        spike_times_noi = spike_times_noi[idxs_noi]
-    # Load the chunks for noise.
-    #spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
-    spikes_noi = get_stas(params, spike_times_noi, numpy.zeros(len(spike_times_noi)), chan, chans, nodes=nodes, auto_align=False).T
+    
+    idx = numpy.sort(numpy.random.permutation(numpy.arange(len(spike_times_noi)))[:N_noi_max])
+    spikes_noi = get_stas(params, spike_times_noi, numpy.zeros(len(idx)), chan, chans, nodes=nodes, auto_align=False).T
 
     #if comm.rank == 0:
     #    if make_plots not in ['None', '']:

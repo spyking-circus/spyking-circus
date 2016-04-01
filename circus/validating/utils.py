@@ -640,24 +640,22 @@ def extract_extra_spikes_(params):
     
 
 def extract_extra_spikes(filename, params):
-    extra_done = params.getboolean('noedits', 'extra_done')
-    do_extra = True #params.getboolean('validating', 'extra')
     
-    if extra_done:
+    do_extra = True
+    try:
+        data = load_data(params, 'extra-triggers')
+        do_extra = False
+    except Exception:
+        do_extra = True
+
+    if not do_extra:
         if comm.rank == 0:
             msg = [
                 "Spike detection for extracellular traces has already been done"
             ]
             io.print_and_log(msg, 'info', params)
-    elif do_extra:
-        extract_extra_spikes_(params)
-        if comm.rank == 0:
-            io.change_flag(filename, 'extra_done', 'True')
     else:
-        msg = [
-            "Extracellular spike times extraction disabled"
-        ]
-        io.print_and_log(msg, 'info', params)
+        extract_extra_spikes_(params)
     
     return
 
@@ -731,10 +729,14 @@ def extract_juxta_spikes_(params):
 
 
 def extract_juxta_spikes(filename, params):
-    juxta_done = params.getboolean('noedits', 'juxta_done')
-    do_juxta = True #params.getboolean('validating', 'juxta')
-    
-    if juxta_done:
+    do_juxta = True
+    try:
+        data = load_data(params, 'juxta-triggers')
+        do_juxta = False
+    except Exception:
+        do_juxta = True
+
+    if not do_juxta:
         if comm.rank == 0:
             msg = [
                 "Spike detection for juxtacellular traces has already been done"
@@ -742,14 +744,6 @@ def extract_juxta_spikes(filename, params):
             io.print_and_log(msg, 'info', params)
     elif do_juxta:
         extract_juxta_spikes_(params)
-        if comm.rank == 0:
-            io.change_flag(filename, 'juxta_done', 'True')
-    else:
-        if comm.rank == 0:
-            msg = [
-                "Juxtacellular spike times extraction disabled"
-            ]
-            io.print_and_log(msg, 'info', params)
     return
 
 
