@@ -643,7 +643,7 @@ def extract_extra_spikes(filename, params):
     
     do_extra = True
     try:
-        data = load_data(params, 'extra-triggers')
+        data = io.load_data(params, 'extra-triggers')
         do_extra = False
     except Exception:
         do_extra = True
@@ -731,7 +731,7 @@ def extract_juxta_spikes_(params):
 def extract_juxta_spikes(filename, params):
     do_juxta = True
     try:
-        data = load_data(params, 'juxta-triggers')
+        data = io.load_data(params, 'juxta-triggers')
         do_juxta = False
     except Exception:
         do_juxta = True

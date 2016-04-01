@@ -233,7 +233,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### end temporary zone
     
     idx = numpy.sort(numpy.random.permutation(numpy.arange(len(spike_times_gt)))[:N_gt_max])
-    spikes_gt = get_stas(params, spike_times_gt[idx], numpy.zeros(len(idx)), chan, chans, nodes=nodes, auto_align=False).T
+    spike_times_gt = spike_times_gt[idx]
+    spikes_gt = get_stas(params, spike_times_gt, numpy.zeros(len(idx)), chan, chans, nodes=nodes, auto_align=False).T
     
     #if comm.rank == 0:
     #    if make_plots not in ['None', '']:
@@ -330,7 +331,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ## Restrict to spikes which are far from ground truth spikes.
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
     
-    idx = numpy.sort(numpy.random.permutation(numpy.arange(len(spike_times_ngt)))[:N_ngt_max])
+    idx = numpy.sort(numpy.random.permutation(numpy.arange(len(spike_times_ngt_tmp)))[:N_ngt_max])
+    spike_times_ngt = spike_times_ngt_tmp[idx]
     spikes_ngt = get_stas(params, spike_times_ngt, numpy.zeros(len(idx)), chan, chans, nodes=nodes, auto_align=False).T
 
     #if comm.rank == 0:
@@ -389,7 +391,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ## Downsample to get the wanted number of spikes.
     
     idx = numpy.sort(numpy.random.permutation(numpy.arange(len(spike_times_noi)))[:N_noi_max])
-    spikes_noi = get_stas(params, spike_times_noi, numpy.zeros(len(idx)), chan, chans, nodes=nodes, auto_align=False).T
+    spikes_noi = get_stas(params, spike_times_noi[idx], numpy.zeros(len(idx)), chan, chans, nodes=nodes, auto_align=False).T
 
     #if comm.rank == 0:
     #    if make_plots not in ['None', '']:
