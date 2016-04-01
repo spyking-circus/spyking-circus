@@ -816,8 +816,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                              random_state=0)
         elif model == 'sgd':
             ##### TODO: clean temporary zone
-            # _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
-            _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=1)
+            _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
+            # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=1)
             ##### end temporary zone
             clf = SGDClassifier(loss='log',
                                 fit_intercept=True,
@@ -1108,10 +1108,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #    print("##### New temporal chunk")
                 #    dt = datetime.now()
                 
-                ##### TODO: remove temporary zone
+                ##### TODO: remove debug zone
                 # if comm.rank == 0:
                 #     print("{} / {}".format(time_chunk, nb_time_chunks))
-                ##### end temporary zone
+                ##### end debug zone
                 time_start = time_min_test + time_chunk * time_chunk_size
                 time_end = time_min_test + (time_chunk + 1) * time_chunk_size
                 time_end = min(time_end, time_max_test + 1)

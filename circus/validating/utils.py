@@ -1078,11 +1078,6 @@ def get_class_weights(y_gt, y_ngt, y_noi, n=7):
     '''Compute different class weights for the stochastic gradient descent'''
     n_class_0 = float(y_gt.size)
     n_class_1 = float(y_ngt.size + y_noi.size)
-    ##### TODO: remove temporary zone
-    print("n_class_0: {}".format(n_class_0))
-    print("n_class_1: {}".format(n_class_1))
-    sys.exit(0)
-    ##### end temporary zone
     n_samples = n_class_0 + n_class_1
     n_classes = 2.0
     alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
