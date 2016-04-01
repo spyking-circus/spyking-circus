@@ -30,8 +30,23 @@ def load_chunk(params, spike_times, chans=None):
     data_offset = params.getint('data', 'data_offset')
     data_dtype = params.get('data', 'data_dtype')
     chunk_size = params.getint('data', 'chunk_size')
+    alignment  = params.getboolean('data', 'alignment')
     N_total = params.getint('data', 'N_total')
+    do_temporal_whitening = params.getboolean('whitening', 'temporal')
+    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+    template_shift        = params.getint('data', 'template_shift')
     N_t = params.getint('data', 'N_t')
+
+    if do_spatial_whitening:
+        spatial_whitening  = io.load_data(params, 'spatial_whitening')
+    if do_temporal_whitening:     
+        temporal_whitening = io.load_data(params, 'temporal_whitening')
+
+    if alignment:
+        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
+        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
+
+    
     dtype_offset = params.getint('data', 'dtype_offset')
     if chans is None:
         chans, _ = io.get_nodes_and_edges(params)
@@ -44,14 +59,30 @@ def load_chunk(params, spike_times, chans=None):
     spikes = numpy.zeros((N_t, N_filt, N_tr), dtype=numpy.float32)
     for (count, idx) in enumerate(spike_times):
         chunk_len = chunk_size * N_total
-        chunk_start = (idx - template_shift) * N_total
-        chunk_end = (idx + template_shift + 1)  * N_total
+        #if alignment:
+        #    chunk_start = (idx - 2*template_shift)*N_total
+        #    chunk_end   = (idx + 2*template_shift+1)*N_total
+        if True:#else:
+            chunk_start = (idx - template_shift) * N_total
+            chunk_end = (idx + template_shift + 1)  * N_total
         local_chunk = datablock[chunk_start:chunk_end]
         # Reshape, slice and cast data.
-        local_chunk = local_chunk.reshape(N_t, N_total)
+        #if alignment:
+        #    local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
+        if True:#else:
+            local_chunk = local_chunk.reshape(N_t, N_total)
+        
+        #if do_spatial_whitening:
+        #    local_chunk = numpy.dot(local_chunk, spatial_whitening)
+        #if do_temporal_whitening:
+        #    local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+
         local_chunk = numpy.take(local_chunk, chans, axis=1)
         local_chunk = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
+
+        
+
         # Save data.
         spikes[:, :, count] = local_chunk
     return spikes
@@ -659,12 +690,13 @@ def extract_juxta_spikes_(params):
     juxta_data = numpy.ascontiguousarray(juxta_data)
     
     # Filter juxtacellular trace.
-    juxta_data = highpass(juxta_data, sampling_rate=sampling_rate)
-    
+    juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
+    juxta_data -= numpy.median(juxta_data)
+
     # Compute median and median absolute deviation.
     juxta_median = numpy.median(juxta_data)
-    juxta_ad = numpy.abs(juxta_data - juxta_median)
-    juxta_mad = numpy.median(juxta_ad, axis=0)
+    juxta_ad     = numpy.abs(juxta_data - juxta_median)
+    juxta_mad   = numpy.median(juxta_ad, axis=0)
     
     # Save medians and median absolute deviations to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='latest')
@@ -681,9 +713,8 @@ def extract_juxta_spikes_(params):
     
     # Detect juxta spike times.
     k = 6.0
-    data = juxta_data - juxta_median
     threshold = k * juxta_mad
-    juxta_spike_times = algo.detect_peaks(data, threshold, valley=True, mpd=dist_peaks)
+    juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=True, mpd=dist_peaks)
     
     # Save juxta spike times to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='latest')
@@ -713,14 +744,12 @@ def extract_juxta_spikes(filename, params):
         extract_juxta_spikes_(params)
         if comm.rank == 0:
             io.change_flag(filename, 'juxta_done', 'True')
-        pass
     else:
         if comm.rank == 0:
             msg = [
                 "Juxtacellular spike times extraction disabled"
             ]
             io.print_and_log(msg, 'info', params)
-    
     return
 
 
