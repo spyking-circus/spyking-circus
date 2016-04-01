@@ -176,11 +176,6 @@ def load_parameters(file_name):
     for key in probe['channel_groups'].keys():
         N_e += len(probe['channel_groups'][key]['channels'])
 
-    if nb_channels is not None:
-        if N_e != nb_channels:
-            print_and_log(["MCS file: mistmatch between number of electrodes and data header"], 'error', parser)
-            #sys.exit(0)
-
     parser.set('data', 'N_e', str(N_e))   
     parser.set('fitting', 'space_explo', '0.5')
     parser.set('fitting', 'nb_chances', '3')
@@ -231,24 +226,17 @@ def load_parameters(file_name):
         ['clustering', 'cc_merge', 'float', '0.975'],
         ['clustering', 'extraction', 'string', 'median-raw'],
         ['clustering', 'remove_mixture', 'bool', 'True'],
-        ['extracting', 'cc_merge', 'float', '0.95'],
-        ['extracting', 'noise_thr', 'float', '1.'],
-        ['validating', 'val_chan', 'int', '-1'],
+        ['extracting', 'cc_merge', 'float', '0.975'],
+        ['extracting', 'noise_thr', 'float', '0.8'],
+        ['validating', 'nearest_elec', 'string', 'auto'],
         ['validating', 'max_iter', 'int', '200'],
         ['validating', 'learning_rate', 'float', '1.0e-3'],
-        ['validating', 'roc_sampling', 'int', '20'],
-        ['validating', 'verbose', 'bool', 'False'],
+        ['validating', 'roc_sampling', 'int', '10'],
         ['validating', 'make_plots', 'string', 'png'],
         ['validating', 'test_size', 'float', '0.3'],
-        ['validating', 'radius_factor', 'float', '0.6'],
-        ['validating', 'safety_space', 'bool', 'True'],
-        ['validating', 'safety_time', 'float', '1'],
-        ['validating', 'extra', 'bool', 'True'],
-        ['validating', 'juxta', 'bool', 'True'],
+        ['validating', 'radius_factor', 'float', '0.5'],
         ['validating', 'juxta_dtype', 'string', 'uint16'],
-        ['validating', 'test_size', 'float', '0.5'],
-        ['validating', 'skip_demo', 'bool', 'True'],
-        ['merging', 'cc_overlap', 'float', '0.25'],
+        ['merging', 'cc_overlap', 'float', '0.5'],
         ['merging', 'cc_bin', 'float', '2'],
         ['noedits', 'filter_done', 'bool', 'False'],
         ['noedits', 'extra_done', 'bool', 'False'],
@@ -325,6 +313,20 @@ def load_parameters(file_name):
     if not test:
         print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
+    test = parser.get('validating', 'make_plots') in fileformats
+    if not test:
+        print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
+        sys.exit(0)
+
+
+    test = parser.get('validating', 'nearest_elec')
+    if test == 'auto':
+        parser.set('validating', 'nearest_elec', '-1')
+
+    if nb_channels is not None:
+        if N_e != nb_channels:
+            print_and_log(["MCS file: mistmatch between number of electrodes and data header"], 'error', parser)
+            sys.exit(0)
 
     return parser
 
@@ -422,7 +424,7 @@ def print_error(lines):
     print Fore.RED + "------------------------------------------------------------------"
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, auto_align=True):
     from .utils import smooth  # avoid import issues
     
     N_t          = params.getint('data', 'N_t')
@@ -440,7 +442,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('data', 'alignment')
+    alignment    = params.getboolean('data', 'alignment') and auto_align
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -895,7 +897,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.beer.hdf5'
         if os.path.exists(filename):
             bfile = h5py.File(filename, 'r', libver='latest')
-            confusion_matrices = bfile.get('confusion-matrices')[:]
+            confusion_matrices = bfile.get('confusion_matrices')[:]
             bfile.close()
             return confusion_matrices
         else:

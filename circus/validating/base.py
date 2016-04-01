@@ -3,6 +3,7 @@ import matplotlib.gridspec as gridspec
 import sys, h5py
 
 from ..shared.utils import *
+from ..shared.files import get_stas
 from ..shared import plot
 from datetime import datetime
 
@@ -43,15 +44,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats = params.getint('clustering', 'nb_repeats')
     max_iter = params.getint('validating', 'max_iter')
     learning_rate_init = params.getfloat('validating', 'learning_rate')
-    verbose = params.getboolean('validating', 'verbose')
     make_plots = params.get('validating', 'make_plots')
     roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
-    skip_demo = params.getboolean('validating', 'skip_demo')
     
-    # TODO: remove following lines.
+    verbose   = False
+    skip_demo = False
+    verbose   = False
     make_plots_snippets = False
+    
+
     # N_max = 1000000
     N_max = 12000
     alpha_gt = 1.0
@@ -150,7 +153,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_p = basis_proj.shape[1]
     
     # Select only the neighboring channels of the best channel.
-    chan = params.getint('validating', 'val_chan')
+    chan = params.getint('validating', 'nearest_elec')
     if chan == -1:
         # Set best channel as the channel with the highest change in amplitude.
         juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
@@ -164,7 +167,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.print_and_log(msg, level='default', logger=params)
     else:
         pass
-    chans = get_neighbors(params, chan=chan)
+    nodes, chans = get_neighbors(params, chan=chan)
     chan_index = numpy.argwhere(chans == chan)[0]
     
     ##### TODO: clean temporary zone
@@ -175,12 +178,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     n_class_0 = numpy.count_nonzero(mask)
     n_class_1 = time_max_test - time_min_test + 1 - n_class_0
     
-    if comm.rank == 0:
-        msg = [
-            "n_class_0: {}".format(n_class_0),
-            "n_class_1: {}".format(n_class_1),
-        ]
-        io.print_and_log(msg, level='default', logger=params)
+    # if comm.rank == 0:
+    #     msg = [
+    #         "n_class_0: {}".format(n_class_0),
+    #         "n_class_1: {}".format(n_class_1),
+    #     ]
+    #     io.print_and_log(msg, level='default', logger=params)
     
     # sys.exit(0)
     
@@ -225,23 +228,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### end temporary zone
     
     # Load the spikes of all the "ground truth cells".
-    spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
-    
+    #spikes_gt = load_chunk(params, spike_times_gt, chans=chans)
+    spikes_gt = get_stas(params, spike_times_gt, numpy.zeros(len(spike_times_gt)), chan, chans, nodes=nodes, auto_align=False).T
+
     # Downsample to get the wanted number of spikes.
     N_gt = spikes_gt.shape[2]
     if N_gt_max < N_gt:
         idx_gt = numpy.random.choice(N_gt, size=N_gt_max, replace=False)
         spikes_gt = spikes_gt[:, :, idx_gt]
     
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
+    #if comm.rank == 0:
+    #    if make_plots not in ['None', '']:
             #plot_filename = "beer-trigger-times-gt.%s" %make_plots
             #path = os.path.join(plot_path, plot_filename)
             #plot.view_trigger_times(filename, spike_times_gt, color='green', save=path)
-            if make_plots_snippets:
-                directory = "beer-trigger-snippets-gt"
-                path = os.path.join(plot_path, directory)
-                plot.view_trigger_snippets(spikes_gt, chans, save=path)
+    #        if make_plots_snippets:
+    #            directory = "beer-trigger-snippets-gt"
+    #            path = os.path.join(plot_path, directory)
+    #            plot.view_trigger_snippets(spikes_gt, chans, save=path)
     
     # Reshape data.
     N_t = spikes_gt.shape[0]
@@ -335,17 +339,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
     
     # Load the spikes of all the "non ground truth cells".
-    spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
-    
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
+    #spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
+    spikes_ngt = get_stas(params, spike_times_ngt, numpy.zeros(len(spike_times_ngt)), chan, chans, nodes=nodes, auto_align=False).T
+
+    #if comm.rank == 0:
+    #    if make_plots not in ['None', '']:
         #    plot_filename = "beer-trigger-times-ngt.%s" %make_plots
         #    path = os.path.join(plot_path, plot_filename)
         #    plot.view_trigger_times(filename, spike_times_ngt, color='blue', save=path)
-            if make_plots_snippets:
-                directory = "beer-trigger-snippets-ngt"
-                path = os.path.join(plot_path, directory)
-                plot.view_trigger_snippets(spikes_ngt, chans, save=path)
+    #        if make_plots_snippets:
+    #            directory = "beer-trigger-snippets-ngt"
+    #            path = os.path.join(plot_path, directory)
+    #            plot.view_trigger_snippets(spikes_ngt, chans, save=path)
     
     # Reshape data.
     N_t = spikes_ngt.shape[0]
@@ -381,7 +386,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### NOISE SAMPLES ########################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Collecting noise samples..."], level='default', logger=params)
+        io.print_and_log(["Collecting noise samples..."], level='debug', logger=params)
     
     # Extract the noise times.
     ## Draw times uniformly.
@@ -398,17 +403,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spike_times_noi = spike_times_noi[idxs_noi]
     
     # Load the chunks for noise.
-    spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
-    
-    if comm.rank == 0:
-        if make_plots not in ['None', '']:
-            plot_filename = "beer-trigger-times.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_trigger_times(filename, [spike_times_gt, spike_times_ngt, spike_times_noi], color=['g', 'b', 'r'], save=path)
-            if make_plots_snippets:
-                directory = "beer-trigger-snippets-noi"
-                path = os.path.join(plot_path, directory)
-                plot.view_trigger_snippets(spikes_noi, chans, save=path)
+    #spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
+    spikes_noi = get_stas(params, spike_times_noi, numpy.zeros(len(spike_times_noi)), chan, chans, nodes=nodes, auto_align=False).T
+
+    #if comm.rank == 0:
+    #    if make_plots not in ['None', '']:
+    #        plot_filename = "beer-trigger-times.%s" %make_plots
+    #        path = os.path.join(plot_path, plot_filename)
+    #        plot.view_trigger_times(filename, [spike_times_gt, spike_times_ngt, spike_times_noi], color=['g', 'b', 'r'], save=path)
+            #if make_plots_snippets:
+            #    directory = "beer-trigger-snippets-noi"
+            #    path = os.path.join(plot_path, directory)
+            #    plot.view_trigger_snippets(spikes_noi, chans, save=path)
     
     # Reshape data.
     N_t = spikes_noi.shape[0]
@@ -444,7 +450,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # NORMALIZE DATASETS #######################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Normalizing datasets..."], level='default', logger=params)
+        io.print_and_log(["Normalizing datasets..."], level='debug', logger=params)
     
     
     X_raw = numpy.vstack((X_gt, X_ngt, X_noi))
@@ -522,18 +528,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if make_plots not in ['None', '']:
             plot_filename = "beer-datasets.%s" %make_plots
             path = os.path.join(plot_path, plot_filename)
-            Xs = [X_ngt, X_noi, X_gt]
-            ys = [y_ngt, y_noi, y_gt]
-            colors = ['b', 'r', 'g']
-            labels = ["non ground truth", "noise", "ground truth"]
-            plot.view_datasets(Xs, ys, colors=colors, labels=labels, save=path)
+            xs = [X_gt, X_ngt, X_noi]
+            ys = [y_gt, y_ngt, y_noi]
+            colors = ['r', 'b', 'k']
+            labels = ["GT", "Non GT", "Noise"]
+            plot.view_datasets(params, xs, ys, [spike_times_gt, spike_times_ngt, spike_times_noi], colors=colors, labels=labels, save=path)
     
     
     
     ##### INITIAL PARAMETER ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Initializing parameters..."], level='default', logger=params)
+        io.print_and_log(["Initializing parameters for the classifier..."], level='default', logger=params)
     
     
     method = 'covariance'
@@ -645,13 +651,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
         
-        if make_plots not in ['None', '']:
-            # Plot accuracy curve.
-            title = "Accuracy curve for the initial parameter"
-            plot_filename = "beer-accuracy-plot.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
-                               accs[i_opt], title=title, save=path)
+        #if make_plots not in ['None', '']:
+        #    # Plot accuracy curve.
+        #    title = "Accuracy curve for the initial parameter"
+        #    plot_filename = "beer-accuracy-plot.%s" %make_plots
+        #    path = os.path.join(plot_path, plot_filename)
+        #    plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
+        #                       accs[i_opt], title=title, save=path)
     
     # Compute the normalized accuracy for various cutoffs.
     tprs = numpy.zeros(num)
@@ -685,11 +691,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if make_plots not in ['None', '']:
             # Plot normalized accuracy curve.
             title = "Normalized accuracy curve for the initial parameter"
-            plot_filename = "beer-normalized-accuray-plot.%s" %make_plots
+            plot_filename = "beer-accuray.%s" %make_plots
             path = os.path.join(plot_path, plot_filename)
-            plot.view_normalized_accuracy(Mhlnb[indices], tprs, tnrs, norm_accs,
-                                          Mhlnb[indices[i_opt]], norm_accs[i_opt],
-                                          title=title, save=path)
+
+            data1 = Mhlnb[indices], accs, Mhlnb[indices[i_opt]], accs[i_opt]
+            data2 = Mhlnb[indices], tprs, tnrs, norm_accs, Mhlnb[indices[i_opt]], norm_accs[i_opt]
+
+            plot.view_accuracy(data1, data2, title=title, save=path)
     
     # Set cutoff equal to the optimal cutoff.
     # cutoff = cutoff_opt_acc
@@ -713,12 +721,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
         
-        if make_plots not in ['None', '']:
+        #if make_plots not in ['None', '']:
             # Plot ROC curve.
-            title = "ROC curve for the inital parameter"
-            plot_filename = "beer-roc-curve-initial.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
+        #    title = "ROC curve for the inital parameter"
+        #    plot_filename = "beer-roc-curve-initial.%s" %make_plots
+        #    path = os.path.join(plot_path, plot_filename)
+        #    plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
     
     # Scale the ellipse according to the chosen cutoff.
     A_init = (1.0 / cutoff) * A_init
@@ -736,12 +744,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         if make_plots not in ['None', '']:
             # Plot initial classifier (ellipsoid).
-            title = "Initial classifier (ellipsoid)"
-            plot_filename = "beer-classifier-projection-init.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
-                                 A_init, b_init, c_init,
-                                 title=title, save=path, verbose=verbose)
+            #title = "Initial classifier (ellipsoid)"
+            #plot_filename = "beer-classifier-projection-init.%s" %make_plots
+            #path = os.path.join(plot_path, plot_filename)
+
+            data_class_1 = [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi], A_init, b_init, c_init
+
     
     
     
@@ -759,13 +767,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
         Mhlnb_noi = squared_Mahalanobis_distance(A_init, mu, X_noi)
         
-        if make_plots not in ['None', '']:
-            # Plot Mahalanobis distributions.
-            title = "Mahalanobis distributions (ellipsoid)"
-            plot_filename = "beer-mahalanobis-init.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
-                                               title=title, save=path)
+        data_mal1 = Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi
     
     
     
@@ -832,20 +834,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             clf.set_params(warm_start=False)
         clf.fit(X_train, y_train)
         
-        if comm.rank == 0:
-            if make_plots not in ['None', '']:
-                # Plot prediction.
-                title = "Initial prediction (random)"
-                plot_filename = "beer-prediction-init-random.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                         title=title, save=path)
-                # Plot decision function.
-                title = "Initial decision function (random)"
-                plot_filename = "beer-decision-function-init-random.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                         title=title, save=path)
+        #if comm.rank == 0:
+            #if make_plots not in ['None', '']:
+            #    # Plot prediction.
+            #    title = "Initial prediction (random)"
+            #    plot_filename = "beer-prediction-init-random.%s" %make_plots
+            #    path = os.path.join(plot_path, plot_filename)
+            #    plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+            #                             title=title, save=path)
+            #    # Plot decision function.
+            #    title = "Initial decision function (random)"
+            #    plot_filename = "beer-decision-function-init-random.%s" %make_plots
+            #    path = os.path.join(plot_path, plot_filename)
+            #    plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+            #                             title=title, save=path)
         
         if comm.rank == 0:
             if verbose:
@@ -874,17 +876,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             if make_plots not in ['None', '']:
                 # Plot prediction.
-                title = "Initial prediction (ellipsoid)"
-                plot_filename = "beer-prediction-init-ellipsoid.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                         title=title, save=path)
+                #title = "Initial prediction (ellipsoid)"
+                #plot_filename = "beer-prediction-init-ellipsoid.%s" %make_plots
+                #path = os.path.join(plot_path, plot_filename)
+                #plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                #                         title=title, save=path)
+
+                pred_1 = clf.predict(X), clf.decision_function(X), X, X_raw, y_raw
                 # Plot decision function.
-                title = "Initial decision function (ellipsoid)"
-                plot_filename = "beer-decision-function-init-ellipsoid.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                         title=title, save=path)
+                #title = "Initial decision function (ellipsoid)"
+                #plot_filename = "beer-decision-function-init-ellipsoid.%s" %make_plots
+                #path = os.path.join(plot_path, plot_filename)
+                #plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+                #                         title=title, save=path)
         
         if comm.rank == 0:
             if verbose:
@@ -917,17 +921,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             if make_plots not in ['None', '']:
                 # Plot final prediction.
-                title = "Final prediction "
-                plot_filename = "beer-prediction-final.%s" %make_plots
-                path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-                                         title=title, save=path)
+                #title = "Final prediction "
+                #plot_filename = "beer-prediction-final.%s" %make_plots
+                #path = os.path.join(plot_path, plot_filename)
+                #plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+                #                         title=title, save=path)
                 # Plot final decision function.
-                title = "Final decision function"
-                plot_filename = "beer-decision-function-final.%s" %make_plots
+                #title = "Final decision function"
+                plot_filename = "beer-decision.%s" %make_plots
+                pred_2 = clf.predict(X), clf.decision_function(X), X, X_raw, y_raw
+
                 path = os.path.join(plot_path, plot_filename)
-                plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-                                         title=title, save=path)
+                plot.view_classification(pred_1, pred_2, save=path)
         
         if comm.rank == 0:
             if verbose:
@@ -985,10 +990,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if make_plots not in ['None', '']:
                 # Plot final classifier.
                 title = "Final classifier"
-                plot_filename = "beer-classifier-projection-final.%s" %make_plots
+                plot_filename = "beer-classifier-projection.%s" %make_plots
+
+                data_class_2 = [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi], A, b, c
+
                 path = os.path.join(plot_path, plot_filename)
-                plot.view_classifier(filename, [X_gt, X_ngt, X_noi], [y_gt, y_ngt, y_noi],
-                                     A, b, c, title=title, save=path, verbose=verbose)
+                plot.view_classifier(params, data_class_1, data_class_2, save=path, verbose=verbose)
     
     
     
@@ -1007,6 +1014,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
             Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
             Mhlnb_noi = squared_Mahalanobis_distance(A, mu, X_noi)
+
+            data_mal2 = Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi
             
             if verbose:
                 msg = [
@@ -1017,10 +1026,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if make_plots not in ['None', '']:
                 # Plot Mahalanobis distributions.
                 title = "Final Mahalanobis distributions"
-                plot_filename = "beer-mahalanobis-final.%s" %make_plots
+                plot_filename = "beer-mahalanobis.%s" %make_plots
                 path = os.path.join(plot_path, plot_filename)
-                plot.view_mahalanobis_distribution(Mhlnb_gt, Mhlnb_ngt, Mhlnb_noi,
-                                                   title=title, save=path)
+                plot.view_mahalanobis_distribution(data_mal1, data_mal2, save=path)
     
     
     
@@ -1032,7 +1040,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### WEIGHTED LEARNING ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Starting the weighted learning..."], level='default', logger=params)
+        io.print_and_log(["Estimating the ROC curve..."], level='default', logger=params)
     
     
     ##### TODO: clean temporary zone
@@ -1112,7 +1120,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #    dt = datetime.now()
                 
                 # Load the snippets
-                spikes_ = load_chunk(params, spike_times_, chans=chans)
+                #spikes_ = load_chunk(params, spike_times_, chans=chans)
+                spikes_ = get_stas(params, spike_times_, numpy.zeros(len(spike_times_)), chan, chans, nodes=nodes, auto_align=False).T
+
                 # Reshape data.
                 N_t = spikes_.shape[0]
                 N_e = spikes_.shape[1]
@@ -1260,8 +1270,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #                     xlim=[0.0, 0.25], ylim=[0.75, 1.0])
             # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
             #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
-            plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
-                                xlim=[0.0, 1.0], ylim=[0.0, 1.0])
+            plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
     
     
     

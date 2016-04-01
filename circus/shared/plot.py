@@ -913,43 +913,6 @@ def view_triggers_bis(file_name, mode='random', save=True):
 
 # Validating plots #############################################################
 
-def view_trigger_times(file_name, all_trigger_times, color=['b'], title=None, save=None):
-    params = load_parameters(file_name)
-    N_total = params.getint('data', 'N_total')
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
-    ttmax = (nb_chunks * chunk_len + last_chunk_len) / N_total
-
-    fig = pylab.figure()
-    ax  = fig.add_subplot(1, 1, 1)
-    ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='dashed')
-    sizes = []
-
-    for count, trigger_times in enumerate(all_trigger_times):
-        x  = numpy.concatenate((numpy.array([0]),
-                               trigger_times,
-                               numpy.array([ttmax - 1]),))
-        x = x.astype('float') * 100.0 / float(ttmax - 1)
-        sizes += [x.size]
-        y = numpy.linspace(0.0, 100.0, x.size)
-        ax.step(x, y, color=color[count], linestyle='solid', where='post')
-    ax.grid(True)
-    ax.set_xlim(0.0, 100.0)
-    ax.set_ylim(0.0, 100.0)
-    ax.set_aspect('equal')
-    ax.legend(('GT (%d samples)' %sizes[0], 'Non GT (%d samples)' %sizes[1], 'Noise (%d samples' %sizes[0]), loc='best')
-    if title is None:
-        ax.set_title("Empirical distribution of triggers")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("cumulative share of samples (in %)")
-    ax.set_ylabel("cumulative share of triggers (in %)")
-    if save is None:
-        pylab.show()
-    else:
-        pylab.savefig(save)
-        pylab.close(fig)
-    return
-
 def view_trigger_snippets_bis(trigger_snippets, elec_index, save=None):
     fig = pylab.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -1028,13 +991,13 @@ def view_dataset(X, color='blue', title=None, save=None):
         pylab.close(fig)
     return
 
-def view_datasets(Xs, ys, colors=None, labels=None, save=None):
+def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, save=None):
     if colors is None:
-        colors = ['b'] * len(Xs)
+        colors = ['b'] * len(xs)
     from circus.validating.utils import Projection, find_rotation
     p = Projection()
-    p = p.fit(Xs, ys)
-    x = p.transform(Xs)
+    p = p.fit(xs, ys)
+    x = p.transform(xs)
     pad = 0.05
     x_dif = numpy.amax(x[:, 0]) - numpy.amin(x[:, 0])
     x_min = numpy.amin(x[:, 0]) - pad * x_dif
@@ -1043,10 +1006,10 @@ def view_datasets(Xs, ys, colors=None, labels=None, save=None):
     y_min = numpy.amin(x[:, 1]) - pad * y_dif
     y_max = numpy.amax(x[:, 1]) + pad * y_dif
     fig = pylab.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    ax = fig.add_subplot(1, 2, 1)
     k = 0
     handles = []
-    for (i, X) in enumerate(Xs):
+    for (i, X) in enumerate(xs):
         l = X.shape[0]
         if labels is None:
             ax.scatter(x[k:k+l, 0], x[k:k+l, 1], c=colors[i], s=5, lw=0.1)
@@ -1061,45 +1024,39 @@ def view_datasets(Xs, ys, colors=None, labels=None, save=None):
     ax.set_title("Datasets")
     ax.set_xlabel("1st component")
     ax.set_ylabel("2nd component")
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0 + box.height * 0.15,
-                     box.width, box.height * 0.85])
-    handles = [handles[2], handles[0], handles[1]]
-    labels = [labels[2], labels[0], labels[1]]
-    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15),
-              fancybox=False, shadow=False, ncol=3)
-    if save is None:
-        pylab.show()
-    else:
-        pylab.savefig(save)
-        pylab.close(fig)
-    return
+    #box = ax.get_position()
+    #ax.set_position([box.x0, box.y0 + box.height * 0.15,
+    #                 box.width, box.height * 0.85])
+    #handles = [handles[2], handles[0], handles[1]]
+    #labels = [labels[2], labels[0], labels[1]]
+    #ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
 
-def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None, xlim=None, ylim=None):
-    '''Plot ROC curve'''
-    fig = pylab.figure()
-    ax = fig.gca()
-    ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
-    ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
-    if fpr is not None and tpr is not None:
-        ax.plot(fpr, tpr, color='blue', marker='o', zorder=4)
-    ax.set_aspect('equal')
+
+    N_total = params.getint('data', 'N_total')
+    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
+    ttmax = (nb_chunks * chunk_len + last_chunk_len) // N_total
+
+    pylab.subplots_adjust(wspace=0.3)
+    ax = fig.add_subplot(1, 2, 2)
+    sizes = []
+
+    for count, trigger_times in enumerate(all_trigger_times):
+        x  = numpy.concatenate((numpy.array([0]),
+                               trigger_times,
+                               numpy.array([ttmax - 1]),))
+        x = x.astype('float') * 100.0 / float(ttmax - 1)
+        sizes += [x.size]
+        y = numpy.linspace(0.0, 100.0, x.size)
+        ax.step(x, y, color=colors[count], linestyle='solid', where='post')
     ax.grid(True)
-    if xlim is None:
-        ax.set_xlim([0.0, 1.0])
-    else:
-        ax.set_xlim(xlim)
-    if ylim is None:
-        ax.set_ylim([0.0, 1.0])
-    else:
-        ax.set_ylim(ylim)
-    if title is None:
-        ax.set_title("ROC curve")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("false positive rate")
-    ax.set_ylabel("true positive rate")
-    # Save ROC plot.
+    ax.set_xlim(0.0, 100.0)
+    ax.set_ylim(0.0, 100.0)
+    ax.legend(('GT', 'Non GT', 'Noise'), loc='best')
+    ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='dashed')
+    #ax.set_aspect('equal')
+    ax.set_title("Empirical distribution of triggers")
+    ax.set_xlabel("cumulative share of samples (in %)")
+    ax.set_ylabel("cumulative share of triggers (in %)")
     if save is None:
         pylab.show()
     else:
@@ -1107,39 +1064,31 @@ def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None, xlim=None, ylim=
         pylab.close(fig)
     return
 
-def view_accuracy(cutoffs, accs, cutoff, acc, title=None, save=None):
+def view_accuracy(data1, data2, title=None, save=None):
     '''Plot accuracy curve'''
+    
+    cutoffs, accs, cutoff, acc = data1
+
     fig = pylab.figure()
-    ax = fig.gca()
+    ax = fig.add_subplot(1, 2, 1)
     ax.plot(cutoffs, accs, color='blue', linestyle='solid')
     ax.plot(cutoff, acc, color='blue', marker='o')
     ax.grid(True)
     ax.set_xlim([numpy.amin(cutoffs), numpy.amax(cutoffs)])
     ax.set_ylim([0.0, 1.0])
-    if title is None:
-        ax.set_title("Accuracy curve")
-    else:
-        ax.set_title(title)
+    ax.set_title("Accuracy curve")
     ax.set_xlabel("cutoff")
     ax.set_ylabel("accuracy")
     # Save accuracy plot.
-    if save is None:
-        pylab.show()
-    else:
-        pylab.savefig(save)
-        pylab.close(fig)
-    return
 
-def view_normalized_accuracy(cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc,
-                             title=None, save=None):
-    '''Plot normalized accuracy curve'''
+    cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc = data2
     labels = [
         "true positive rate",
         "true negative rate",
         "normalized accuracy",
     ]
-    fig = pylab.figure()
-    ax = fig.gca()
+
+    ax = fig.add_subplot(1, 2, 2)
     h1, = ax.plot(cutoffs, tprs, color='green', linestyle='solid', label=labels[0])
     h2, = ax.plot(cutoffs, tnrs, color='red', linestyle='solid', label=labels[1])
     h3, = ax.plot(cutoffs, norm_accs, color='blue', linestyle='solid', label=labels[2])
@@ -1147,13 +1096,12 @@ def view_normalized_accuracy(cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc,
     ax.grid(True)
     ax.set_xlim([numpy.amin(cutoffs), numpy.amax(cutoffs)])
     ax.set_ylim([0.0, 1.0])
-    if title is None:
-        ax.set_title("Normalized accuracy curve")
-    else:
-        ax.set_title(title)
+    ax.set_title("Normalized accuracy curve")
     ax.set_xlabel("cutoff")
     ax.set_ylabel("")
     ax.legend([h1, h2, h3], labels)
+
+
     if save is None:
         pylab.show()
     else:
@@ -1161,122 +1109,133 @@ def view_normalized_accuracy(cutoffs, tprs, tnrs, norm_accs, cutoff, norm_acc,
         pylab.close(fig)
     return
 
-def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=False):
+
+def view_classifier(params, data_1, data_2, save=None, verbose=False):
     '''Plot classifier'''
     # Retrieve parameters.
-    params = load_parameters(file_name)
+
+    
+
     from circus.validating.utils import Projection, find_rotation, find_apparent_contour
-    p = Projection()
-    p = p.fit(X, y)
-    X_gt, X_ngt, X_noi = X
-    y_gt, y_ngt, y_noi = y
-    X_raw = numpy.vstack(tuple(X))
-    # Data transformation.
-    X_raw_ = p.transform(X_raw)
-    X_gt_ = p.transform(X_gt)
-    X_ngt_ = p.transform(X_ngt)
-    X_noi_ = p.transform(X_noi)
-    # Means transformation.
-    mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
-    mu_gt_ = p.transform(mu_gt)
-    mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
-    mu_ngt_ = p.transform(mu_ngt)
-    mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
-    mu_noi_ = p.transform(mu_noi)
-    # Ellipse transformation.
-    f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
-    t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
-    s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A))
-    # TODO: remove following line if possible.
-    s = numpy.abs(s)
-    s = numpy.sqrt(s)
-    t_ = p.transform(t)
-    O_ = p.transform(numpy.multiply(O, s).T + t)
-    if verbose:
-        # msg = [
-        #     "# s (i.e. demi-axes)",
-        #     "%s" %(s,),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
-    # Find plot limits.
-    pad = 0.3
-    x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
-    x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
-    x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
-    y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
-    y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
-    y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
-    # Retrieve the projection vectors.
-    v1, v2 = p.get_vectors()
-    if verbose:
-        # msg = [
-        #     "# norm(v1)",
-        #     "%s" %(numpy.linalg.norm(v1),),
-        #     "# norm(v2)",
-        #     "%s" %(numpy.linalg.norm(v2),),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
-    # Find a rotation which maps theses vectors on the two first vectors of the
-    # canonical basis of R^m.
-    R = find_rotation(v1, v2)
-    # Apply rotation to the classifier.
-    R_ = R.T
-    mean_ = p.get_mean()
-    A_ = numpy.dot(numpy.dot(R_.T, A), R_)
-    b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, mean_) + b)
-    c_ = numpy.dot(numpy.dot(A, mean_) + b, mean_) + c
-    if verbose:
-        # msg = [
-        #     "# mean_",
-        #     "%s" %(mean_,),
-        # ]
-        # io.print_and_log(msg, level='default', logger=params)
-        pass
-    # Find the apparent contour of the classifier.
-    A__, b__, c__ = find_apparent_contour(A_, b_, c_)
-    # Plot classifier.
+
     fig = pylab.figure()
-    ax = fig.gca()
-    ## Plot datasets.
-    ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
-    ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='r', s=5, lw=0.1)
-    ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='g', s=5, lw=0.1)
-    ## Plot ellipse transformation.
-    for i in xrange(0, O_.shape[0]):
-        ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
-    ## Plot ellipse apparent contour.
-    n = 300
-    x_r = numpy.linspace(x_min, x_max, n)
-    y_r = numpy.linspace(y_min, y_max, n)
-    xx, yy = numpy.meshgrid(x_r, y_r)
-    zz = numpy.zeros(xx.shape)
-    for i in xrange(0, xx.shape[0]):
-        for j in xrange(0, xx.shape[1]):
-            v = numpy.array([xx[i, j], yy[i, j]])
-            zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
-    vv = numpy.array([0.0])
-    # vv = numpy.arange(0.0, 1.0, 0.1)
-    # vv = numpy.arange(0.0, 20.0)
-    ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
-    # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
-    # ax.clabel(cs, inline=1, fontsize=10)
-    ## Plot means of datasets.
-    ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-    ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-    ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-    ## Plot aspect.
-    # ax.set_aspect('equal')
-    ax.grid()
-    ax.set_xlim([x_min, x_max])
-    ax.set_ylim([y_min, y_max])
-    if title is None:
-        ax.set_title("Classifier")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("1st component")
-    ax.set_ylabel("2nd component")
+    for count, item in enumerate([data_1, data_2]):
+        X, y, A, b, c = item
+        ax = fig.add_subplot(1, 2, count+1)
+        p = Projection()
+        p = p.fit(X, y)
+        X_gt, X_ngt, X_noi = X
+        y_gt, y_ngt, y_noi = y
+        X_raw = numpy.vstack(tuple(X))
+        # Data transformation.
+        X_raw_ = p.transform(X_raw)
+        X_gt_ = p.transform(X_gt)
+        X_ngt_ = p.transform(X_ngt)
+        X_noi_ = p.transform(X_noi)
+        # Means transformation.
+        mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
+        mu_gt_ = p.transform(mu_gt)
+        mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
+        mu_ngt_ = p.transform(mu_ngt)
+        mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
+        mu_noi_ = p.transform(mu_noi)
+        # Ellipse transformation.
+        f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
+        t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
+        s, O = numpy.linalg.eigh(numpy.linalg.inv((1.0 / f) * A))
+        # TODO: remove following line if possible.
+        s = numpy.abs(s)
+        s = numpy.sqrt(s)
+        t_ = p.transform(t)
+        O_ = p.transform(numpy.multiply(O, s).T + t)
+        if verbose:
+            # msg = [
+            #     "# s (i.e. demi-axes)",
+            #     "%s" %(s,),
+            # ]
+            # io.print_and_log(msg, level='default', logger=params)
+            pass
+        # Find plot limits.
+        pad = 0.3
+        x_dif = numpy.amax(X_raw_[:, 0]) - numpy.amin(X_raw_[:, 0])
+        x_min = numpy.amin(X_raw_[:, 0]) - pad * x_dif
+        x_max = numpy.amax(X_raw_[:, 0]) + pad * x_dif
+        y_dif = numpy.amax(X_raw_[:, 1]) - numpy.amin(X_raw_[:, 1])
+        y_min = numpy.amin(X_raw_[:, 1]) - pad * y_dif
+        y_max = numpy.amax(X_raw_[:, 1]) + pad * y_dif
+        # Retrieve the projection vectors.
+        v1, v2 = p.get_vectors()
+        if verbose:
+            # msg = [
+            #     "# norm(v1)",
+            #     "%s" %(numpy.linalg.norm(v1),),
+            #     "# norm(v2)",
+            #     "%s" %(numpy.linalg.norm(v2),),
+            # ]
+            # io.print_and_log(msg, level='default', logger=params)
+            pass
+        # Find a rotation which maps theses vectors on the two first vectors of the
+        # canonical basis of R^m.
+        R = find_rotation(v1, v2)
+        # Apply rotation to the classifier.
+        R_ = R.T
+        mean_ = p.get_mean()
+        A_ = numpy.dot(numpy.dot(R_.T, A), R_)
+        b_ = numpy.dot(R_.T, 2.0 * numpy.dot(A, mean_) + b)
+        c_ = numpy.dot(numpy.dot(A, mean_) + b, mean_) + c
+        if verbose:
+            # msg = [
+            #     "# mean_",
+            #     "%s" %(mean_,),
+            # ]
+            # io.print_and_log(msg, level='default', logger=params)
+            pass
+        # Find the apparent contour of the classifier.
+        A__, b__, c__ = find_apparent_contour(A_, b_, c_)
+        # Plot classifier.
+        
+        ## Plot datasets.
+        ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
+        ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='k', s=5, lw=0.1)
+        ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='r', s=5, lw=0.1)
+        ## Plot ellipse transformation.
+        for i in xrange(0, O_.shape[0]):
+            ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
+        ## Plot ellipse apparent contour.
+        n = 300
+        x_r = numpy.linspace(x_min, x_max, n)
+        y_r = numpy.linspace(y_min, y_max, n)
+        xx, yy = numpy.meshgrid(x_r, y_r)
+        zz = numpy.zeros(xx.shape)
+        for i in xrange(0, xx.shape[0]):
+            for j in xrange(0, xx.shape[1]):
+                v = numpy.array([xx[i, j], yy[i, j]])
+                zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
+        vv = numpy.array([0.0])
+        # vv = numpy.arange(0.0, 1.0, 0.1)
+        # vv = numpy.arange(0.0, 20.0)
+        ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
+        # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
+        # ax.clabel(cs, inline=1, fontsize=10)
+        ## Plot means of datasets.
+        ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        ## Plot aspect.
+        # ax.set_aspect('equal')
+        ax.grid()
+        ax.set_xlim([x_min, x_max])
+        ax.set_ylim([y_min, y_max])
+
+        if count == 0:
+            ax.set_title("Before")
+            ax.set_xlabel("1st component")
+            ax.set_ylabel("2nd component")
+        else:
+            ax.set_title("After")
+            ax.set_xlabel("1st component")
+        
+
     if save is None:
         pylab.show()
     else:
@@ -1284,20 +1243,31 @@ def view_classifier(file_name, X, y, A, b, c, title=None, save=None, verbose=Fal
         pylab.close(fig)
     return
 
-def view_mahalanobis_distribution(d_gt, d_ngt, d_noi, title=None, save=None):
-    '''Plot Mahalanobis distribution'''
+def view_mahalanobis_distribution(data_1, data_2, save=None):
+    '''Plot Mahalanobis distribution Before and After'''
     fig = pylab.figure()
-    ax = fig.gca()
-    ax.hist(d_noi, bins=50, color='red', alpha=0.5, label="noise")
-    ax.hist(d_ngt, bins=50, color='blue', alpha=0.5, label="non ground truth")
-    ax.hist(d_gt, bins=75, color='green', alpha=0.5, label="ground truth")
+    ax = fig.add_subplot(1,2,1)
+    d_gt, d_ngt, d_noi = data_1
+    ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
+    ax.hist(d_ngt, bins=50, color='b', alpha=0.5, label="Non GT")
+    ax.hist(d_gt, bins=75, color='r', alpha=0.5, label="GT")
     ax.grid(True)
-    if title is None:
-        ax.set_title("Mahalanobis distribution")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("squared Mahalanobis distance")
+    ax.set_title("Before")
     ax.set_ylabel("")
+    ax.set_xlabel('# Samples')
+    ax.set_xlabel('Distances')
+
+    d_gt, d_ngt, d_noi = data_2
+    ax = fig.add_subplot(1,2,2)
+    ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
+    ax.hist(d_ngt, bins=50, color='b', alpha=0.5, label="Non GT")
+    ax.hist(d_gt, bins=75, color='r', alpha=0.5, label="GT")
+    ax.grid(True)
+    ax.set_title("After")
+    ax.set_ylabel("")
+    ax.set_xlabel('Distances')
+
+
     ax.legend()
     if save is None:
         pylab.show()
@@ -1306,35 +1276,49 @@ def view_mahalanobis_distribution(d_gt, d_ngt, d_noi, title=None, save=None):
         pylab.close(fig)
     return
 
-def view_classification(clf, X, X_raw, y, mode='predict', title=None, save=None):
-    if mode == 'predict':
-        c = clf.predict(X)
-        vmax = 1.0
-        vmin = 0.0
-    elif mode == 'decision_function':
-        c = clf.decision_function(X)
-        vmax = max(abs(numpy.amin(c)), abs(numpy.amax(c)))
-        vmin = - vmax
-    else:
-        raise Exception
+def view_classification(data_1, data_2, title=None, save=None):
+    
+    fig    = pylab.figure()
+    count  = 0
+    panels = [0, 2, 1, 3]
+    for item in [data_1, data_2]:
+        clf, cld, X, X_raw, y = item
+        for mode in ['predict', 'decision_function']:
+            ax = fig.add_subplot(2, 2, panels[count]+1)
 
-    from circus.validating.utils import Projection
-    p = Projection()
-    _ = p.fit(X_raw, y)
-    X_raw_ = p.transform(X_raw)
-    # Plot figure.
-    fig = pylab.figure()
-    ax = fig.gca()
-    sc = ax.scatter(X_raw_[:, 0], X_raw_[:, 1], c=c, s=5, lw=0.1, cmap='bwr',
-                    vmin=vmin, vmax=vmax)
-    fig.colorbar(sc)
-    ax.grid(True)
-    if title is None:
-        ax.set_title("Classification")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("1st component")
-    ax.set_ylabel("2nd component")
+            if mode == 'predict':
+                c    = clf
+                vmax = 1.0
+                vmin = 0.0
+            elif mode == 'decision_function':
+                c    = cld
+                vmax = max(abs(numpy.amin(c)), abs(numpy.amax(c)))
+                vmin = - vmax
+
+            from circus.validating.utils import Projection
+            p = Projection()
+            _ = p.fit(X_raw, y)
+            X_raw_ = p.transform(X_raw)
+            # Plot figure.
+            sc = ax.scatter(X_raw_[:, 0], X_raw_[:, 1], c=c, s=5, lw=0.1, cmap='bwr',
+                            vmin=vmin, vmax=vmax)
+            cb = fig.colorbar(sc)
+            ax.grid(True)
+            if panels[count] in [0, 1]:
+                if panels[count] == 0:
+                    ax.set_title('Classification Before')
+                    ax.set_ylabel("2nd component")
+                if panels[count] == 1:
+                    ax.set_title('Classification After')
+                    cb.set_label('Prediction')
+            elif panels[count] in [2, 3]:
+                ax.set_xlabel("1st component")
+                if panels[count] == 2:
+                    ax.set_ylabel("2nd component")
+                if panels[count] == 3:
+                    cb.set_label('Decision function')
+            count += 1
+
     if save is None:
         pylab.show()
     else:
@@ -1357,6 +1341,241 @@ def view_loss_curve(losss, title=None, save=None):
     ax.set_xlabel("iteration")
     ax.set_ylabel("loss")
     ax.set_xlim([x_min - 1, x_max + 1])
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+
+def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
+    '''Plot ROC curve'''
+    fig = pylab.figure()
+    pylab.subplots_adjust(wspace=0.3)
+
+    HAVE_RESULT = True
+
+    if HAVE_RESULT:
+        ax = fig.add_subplot(121)
+    else:
+        ax = fig.add_subplot(111)
+
+    ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
+    ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
+    if fpr is not None and tpr is not None:
+        ax.plot(fpr, tpr, color='blue', marker='o', zorder=4)
+    ax.set_aspect('equal')
+    ax.grid(True)
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.0])
+    ax.set_title("ROC curve")
+    ax.set_xlabel("false positive rate")
+    ax.set_ylabel("true positive rate")
+
+    def get_fprs(confusion_matrices):
+        """Get false positive rates"""
+        # Compute false positive rates.
+        fprs = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
+        # Add false positive rate endpoints.
+        fprs = [1.0] + fprs + [0.0]
+        return fprs
+
+    def get_tprs(confusion_matrices):
+        """Get true positive rates"""
+        # Compute true positive rates.
+        tprs = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+        # Add true positive rate endpoints.
+        tprs = [1.0] + tprs + [0.0]
+        return tprs
+
+    def get_fpers(confusion_matrices):
+        """Get false positive error rates"""
+        # Compute false positive error rates.
+        fpers = [M[1, 0] / (M[0, 0] + M[1, 0]) for M in confusion_matrices]
+        # Add false positive error rate endpoints.
+        fpers = [1.0] + fpers + [0.0]
+        return fpers
+
+    def get_fners(confusion_matrices):
+        """ Get false negative error rates"""
+        # Compute false negative error rates.
+        fners = [M[0, 1] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+        # Add false negative error rate endpoints.
+        fners = [0.0] + fners + [1.0]
+        return fners
+
+
+    if HAVE_RESULT:
+        ax = fig.add_subplot(122)
+        # Retrieve the juxtacellular spiketimes and the confusion matrices.
+
+        all_times = load_data(params, "juxta-triggers")
+        confusion_matrices = load_data(params, "confusion-matrices")
+        
+        thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
+        #print("Time difference threshold: {}".format(thresh))
+
+        # Retrieve the SpyKING CIRCUS spiketimes.
+
+        result = load_data(params, "results")
+        data   = result['spiketimes']
+
+        # Retrieve the templates.
+        templates = load_data(params, 'templates')
+        
+        # Retrieve the thresholds.
+        thresholds   = load_data(params, 'thresholds')
+        
+        n_temp = len(data)
+        res = numpy.zeros((n_temp, 2))
+        rates = []
+        nb_total = len(all_times)
+        nb_fitted = 0
+        
+        # Count the number of spiketimes sorted by SpyKING CIRCUS.
+        for i in xrange(n_temp):
+            nb_fitted += len(data['temp_' + str(i)])
+        
+        print("Number of spikes {}/{} with {} templates".format(nb_fitted, nb_total, n_temp))
+        
+        ## First pass to detect what are the scores
+        for i in xrange(n_temp):
+            spikes = data['temp_' + str(i)]
+            #rint "Template", i, "with", len(spikes), "spikes"
+            # Compute the false positive rate
+            for spike in all_times:
+                idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                if len(idx) > 0:
+                    res[i, 0] += 1
+            if len(all_times) > 0:
+                res[i, 0] /= float(len(all_times))
+            # Compute the positive predictive value
+            for spike in spikes:
+                idx = numpy.where(abs(all_times - spike) <= thresh)[0]
+                if len(idx) > 0:
+                    res[i, 1] += 1
+            if len(spikes) > 0:
+                res[i, 1] /= float(len(spikes))
+        
+        idx = numpy.argmax(numpy.mean(res, 1))
+        selection = [idx]
+        error = res[idx]
+        find_next = True
+        source_temp = templates[:, idx].toarray().flatten()
+        temp_match = []
+        dmax = 0.1
+        for i in xrange(templates.shape[1]/2):
+            d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
+            if d > dmax and i not in selection:
+                temp_match += [i]
+        
+        if 0 < len(temp_match):
+
+            while (find_next == True):
+
+                temp_match = [i for i in temp_match if i not in selection]
+                
+                local_errors = numpy.zeros((len(temp_match), 2))
+                
+                for mcount, tmp in enumerate(temp_match):
+
+                    # Gather selected spikes.
+                    spikes = []
+                    for xtmp in selection + [tmp]:
+                        spikes += data['temp_' + str(xtmp)].tolist()
+                    spikes = numpy.array(spikes, dtype=numpy.int32)
+
+                    # Compute true positive rate.
+                    count = 0
+                    for spike in all_times:
+                        idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
+                        if len(idx) > 0:
+                            count += 1
+                    if len(all_times) > 0:
+                        local_errors[mcount, 0] = count/float(len(all_times))
+
+                    # Compute positive predictive value
+                    count = 0
+                    for spike in spikes:
+                        idx = numpy.where(numpy.abs(all_times- spike) < thresh)[0]
+                        if len(idx) > 0:
+                            count += 1
+                    if len(spikes) > 0:
+                        local_errors[mcount, 1]  = count/(float(len(spikes)))
+                
+                errors = numpy.mean(local_errors, 1)
+                if numpy.max(errors) > numpy.mean(error):
+                    idx        = numpy.argmax(errors)
+                    selection += [temp_match[idx]]
+                    error      = local_errors[idx]
+                else:
+                    find_next = False
+        
+        error = 100 * (1 - error)
+        res = 100 * (1 - res)
+        
+        print("Best error is obtained with templates {} : {}".format(selection, error))
+        for i in selection:
+            nb_spikes = len(data['temp_' + str(i)])
+        #    print("Template {} with {} spikes has error: {}".format(i, nb_spikes, res[i, :]))
+
+        ##### TODO: clean quarantine zone
+        # ## Finally, we compute the ROC curve.
+        # fprs = get_fprs(confusion_matrices)
+        # tprs = get_tprs(confusion_matrices)
+        # ## And scale convert it in percent.
+        # fprs = [100.0 * fpr for fpr in fprs]
+        # tprs = [100.0 * tpr for tpr in tprs]
+        
+        ## Finally, we compute the performance curve.
+        fpers = get_fpers(confusion_matrices)
+        fners = get_fners(confusion_matrices)
+        ## And scale convert it in percent.
+        fpers = [100.0 * fper for fper in fpers]
+        fners = [100.0 * fner for fner in fners]
+        ##### end quarantine zone
+        
+        ##### TODO: clean quarantine zone
+        # figure()
+        # plot(res[:, 0])
+        # plot(res[:, 1])
+        # pylab.ylabel('Error [%]')
+        # pylab.xlabel('Template')
+        # tight_layout()
+        # show()
+        
+        anot_size = 8
+        # TODO: check which is the fpr and which is the tpr
+        # scatter(res[:, 0], res[:, 1])
+        ax.scatter(res[:, 1], res[:, 0])
+        for i in xrange(res.shape[0]):
+            txt = str(i)
+            # pos = (res[i, 0], res[i, 1])
+            pos = (res[i, 1], res[i, 0])
+            ax.annotate(txt, pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
+        ax.scatter(error[1], error[0])
+        pos = (error[1], error[0])
+        ax.annotate("best", pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
+        # plot(fprs, tprs)
+        ax.plot(fpers, fners)
+        ax.scatter(fpers, fners, color='r')
+        ax.set_xlim(-5, 105)
+        ax.set_ylim(-5, 105)
+        ax.grid(True)
+        # xlabel("false postive rate")
+        ax.set_aspect('equal')
+        ax.grid(True)
+#        ax.set_xlim([0.0, 1.0])
+#        ax.set_ylim([0.0, 1.0])
+        ax.set_xlabel("false positive error rate")
+        # ylabel("true positive rate")
+        ax.set_ylabel("false negative error rate")
+        ax.set_title("best = {}".format(selection))
+
+    ##### end quarantine zone
+
+    # Save ROC plot.
     if save is None:
         pylab.show()
     else:

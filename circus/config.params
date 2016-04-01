@@ -1,32 +1,32 @@
 [data]
-data_offset    = MCS                    # Length of the header ('MCS' is auto for MCS file)
-mapping        = probes/mea_252.prb     # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
-suffix         =                        # Suffix to add to generated files
-data_dtype     = uint16                 # Type of the data
-dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
-spike_thresh   = 6                      # Threshold for spike detection
-skip_artefact  = False                  # Skip part of signals with large fluctuations
-sampling_rate  = 20000                  # Sampling rate of the data [Hz]
-N_t            = 5                      # Width of the templates [in ms]
-stationary     = True                   # Should be False for long recordings: adaptive thresholds
-radius         = auto                   # Radius [in um] (if auto, read from the prb file)
-alignment      = True                   # Realign the waveforms by oversampling
-global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
-multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation
+data_offset    = MCS                 # Length of the header ('MCS' is auto for MCS file)
+mapping        = probes/mea_252.prb  # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+suffix         =                     # Suffix to add to generated files
+data_dtype     = uint16              # Type of the data
+dtype_offset   = auto                # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
+spike_thresh   = 6                   # Threshold for spike detection
+skip_artefact  = False               # Ignore parts of signals with large fluctuations
+sampling_rate  = 20000               # Sampling rate of the data [Hz]
+N_t            = 5                   # Width of the templates [in ms]
+stationary     = True                # Should be False for long recordings [> 5h]: adaptive thresholds [experimental]
+radius         = auto                # Radius [in um] (if auto, read from the prb file)
+alignment      = True                # Realign the waveforms by oversampling
+global_tmp     = True                # should be False if local /tmp/ has enough space (better for clusters)
+multi-files    = False               # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
 
 [filtering]
-cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
-filter         = True      # If True, then a low-pass filtering is performed
-remove_median  = False     # If True, median over all channels is substracted to each channels (movement artifacts)
+cut_off        = 500        # Cut off frequency for the butterworth filter [Hz]
+filter         = True       # If True, then a low-pass filtering is performed
+remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
 
 [whitening]
-chunk_size     = 60        # Size of the data chunks [in s]
-safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
-temporal       = False     # Perform temporal whitening
-spatial        = True      # Perform spatial whitening
-max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
-nb_elts        = 0.8       # Fraction of max_elts that should be obtained per electrode [0-1]
-output_dim     = 5         # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
+chunk_size     = 60         # Size of the data chunks [in s]
+safety_time    = 1          # Temporal zone around which templates are isolated [in ms]
+temporal       = False      # Perform temporal whitening
+spatial        = True       # Perform spatial whitening
+max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
+nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
+output_dim     = 5          # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 
 [clustering]
 extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw, or quadratic
@@ -46,15 +46,25 @@ remove_mixture = True       # At the end of the clustering, we remove mixtures o
 
 [fitting]
 chunk          = 1         # Size of chunks used during fitting [in second]
-gpu_only       = False     # Use GPU for computation of b's AND fitting
+gpu_only       = False     # Use GPU for computation of b's AND fitting [not optimized yet]
 amp_limits     = (0.3, 5)  # Amplitudes for the templates during spike detection
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
-refractory     = 0         # Refractory period, in ms [0 is None]
+refractory     = 0         # Refractory period, in ms [0 is None] [DEPRECATED]
 max_chunk      = inf       # Fit only up to max_chunk   
 
 [merging]
 cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2         # Bin size for computing CC [in ms]
+
+[validating]
+nearest_elec   = auto      # Validation channel (e.g. electrode closest to the ground truth cell)
+max_iter       = 200       # Maximum number of iterations of the stochastic gradient descent (SGD)
+learning_rate  = 1.0e-3    # Initial learning rate which controls the step-size of the SGD
+roc_sampling   = 10        # Number of points to estimate the ROC curve of the BEER estimate
+make_plots     = png       # Generate sanity plots of the validation [Nothing or None if no plots]
+test_size      = 0.3       # Portion of the dataset to include in the test split
+radius_factor  = 0.5       # Radius factor to modulate physical radius during validation
+juxta_dtype    = uint16    # Type of the juxtacellular data
 
 [extracting]
 safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
@@ -63,23 +73,7 @@ output_dim     = 5         # Percentage of variance explained while performing P
 cc_merge       = 0.975     # If CC between two templates is higher, they are merged
 noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
-[validating]
-val_chan       = -1        # Validation channel (e.g. electrode closest to the ground truth cell)
-max_iter       = 200       # Maximum number of iterations of the stochastic gradient descent (SGD)
-learning_rate  = 1.0e-3    # Initial learning rate which controls the step-size of the SGD
-roc_sampling   = 20        # Number of wanted points to render the ROC curve of the BEER estimate
-verbose        = False     # Show details of the validation
-make_plots     = False     # Generate sanity plots of the validation
-safety_space   = True      # If True, we exclude spikes in the vicinity of selected spikes
-safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
-extra          = True      # If True, then spike detection on extracellular traces is performed
-juxta          = True      # If True, then spike detection on juxtacellular traces is performed
-test_size      = 0.5       # Portion of the dataset to include in the test split
-radius_factor  = 0.6       # Radius factor which modulates radius for the validation
-juxta_dtype    = uint16    # Type of the juxtacellular data
-skip_demo      = True      # If True, then focuse on the computation of the ROC curve
-
 [noedits]
 filter_done    = False     # Will become True automatically after filtering.
-extra_done     = False     # Will become True automatically after spike detection on the extracellular traces.
-juxta_done     = False     # Will become True automatically after spike detection on the juxtacellular trace.
+extra_done     = False     # Will become True automatically after detection of extracellular spikes.
+juxta_done     = False     # Will become True automatically after detection of juxtacellular spikes.
