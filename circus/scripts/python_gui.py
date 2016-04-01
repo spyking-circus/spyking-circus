@@ -175,7 +175,7 @@ Syntax is circus-gui-python datafile [extension]
 
     print_and_log(["Exporting data for the phy GUI..."], 'info', params)
     
-    numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.linalg.inv(load_data(params, 'spatial_whitening')))
+    numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening'))
     numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe))
     nodes, edges   = get_nodes_and_edges(params)
     numpy.save(os.path.join(output_path, 'channel_map'), nodes)
