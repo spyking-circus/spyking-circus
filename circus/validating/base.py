@@ -673,12 +673,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
         
-        if make_plots not in ['None', '']:
+        #if make_plots not in ['None', '']:
             # Plot ROC curve.
-            title = "ROC curve for the inital parameter"
-            plot_filename = "beer-roc-curve-initial.%s" %make_plots
-            path = os.path.join(plot_path, plot_filename)
-            plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
+        #    title = "ROC curve for the inital parameter"
+        #    plot_filename = "beer-roc-curve-initial.%s" %make_plots
+        #    path = os.path.join(plot_path, plot_filename)
+        #    plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
     
     # Scale the ellipse according to the chosen cutoff.
     A_init = (1.0 / cutoff) * A_init
@@ -1201,8 +1201,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #                     xlim=[0.0, 0.25], ylim=[0.75, 1.0])
             # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
             #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
-            plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
-                                xlim=[0.0, 1.0], ylim=[0.0, 1.0])
+            plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
     
     
     

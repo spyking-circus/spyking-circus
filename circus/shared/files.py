@@ -897,7 +897,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.beer.hdf5'
         if os.path.exists(filename):
             bfile = h5py.File(filename, 'r', libver='latest')
-            confusion_matrices = bfile.get('confusion-matrices')[:]
+            confusion_matrices = bfile.get('confusion_matrices')[:]
             bfile.close()
             return confusion_matrices
         else:

@@ -1064,38 +1064,6 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
         pylab.close(fig)
     return
 
-def view_roc_curve(fprs, tprs, fpr, tpr, title=None, save=None, xlim=None, ylim=None):
-    '''Plot ROC curve'''
-    fig = pylab.figure()
-    ax = fig.gca()
-    ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
-    ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
-    if fpr is not None and tpr is not None:
-        ax.plot(fpr, tpr, color='blue', marker='o', zorder=4)
-    ax.set_aspect('equal')
-    ax.grid(True)
-    if xlim is None:
-        ax.set_xlim([0.0, 1.0])
-    else:
-        ax.set_xlim(xlim)
-    if ylim is None:
-        ax.set_ylim([0.0, 1.0])
-    else:
-        ax.set_ylim(ylim)
-    if title is None:
-        ax.set_title("ROC curve")
-    else:
-        ax.set_title(title)
-    ax.set_xlabel("false positive rate")
-    ax.set_ylabel("true positive rate")
-    # Save ROC plot.
-    if save is None:
-        pylab.show()
-    else:
-        pylab.savefig(save)
-        pylab.close(fig)
-    return
-
 def view_accuracy(data1, data2, title=None, save=None):
     '''Plot accuracy curve'''
     
@@ -1287,7 +1255,7 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     ax.set_title("Before")
     ax.set_ylabel("")
     ax.set_xlabel('# Samples')
-    ax.set_ylabel('Distances')
+    ax.set_xlabel('Distances')
 
     d_gt, d_ngt, d_noi = data_2
     ax = fig.add_subplot(1,2,2)
@@ -1297,7 +1265,7 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     ax.grid(True)
     ax.set_title("After")
     ax.set_ylabel("")
-    ax.set_ylabel('Distances')
+    ax.set_xlabel('Distances')
 
 
     ax.legend()
@@ -1373,6 +1341,241 @@ def view_loss_curve(losss, title=None, save=None):
     ax.set_xlabel("iteration")
     ax.set_ylabel("loss")
     ax.set_xlim([x_min - 1, x_max + 1])
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
+
+def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
+    '''Plot ROC curve'''
+    fig = pylab.figure()
+    pylab.subplots_adjust(wspace=0.3)
+
+    HAVE_RESULT = True
+
+    if HAVE_RESULT:
+        ax = fig.add_subplot(121)
+    else:
+        ax = fig.add_subplot(111)
+
+    ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
+    ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
+    if fpr is not None and tpr is not None:
+        ax.plot(fpr, tpr, color='blue', marker='o', zorder=4)
+    ax.set_aspect('equal')
+    ax.grid(True)
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.0])
+    ax.set_title("ROC curve")
+    ax.set_xlabel("false positive rate")
+    ax.set_ylabel("true positive rate")
+
+    def get_fprs(confusion_matrices):
+        """Get false positive rates"""
+        # Compute false positive rates.
+        fprs = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
+        # Add false positive rate endpoints.
+        fprs = [1.0] + fprs + [0.0]
+        return fprs
+
+    def get_tprs(confusion_matrices):
+        """Get true positive rates"""
+        # Compute true positive rates.
+        tprs = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+        # Add true positive rate endpoints.
+        tprs = [1.0] + tprs + [0.0]
+        return tprs
+
+    def get_fpers(confusion_matrices):
+        """Get false positive error rates"""
+        # Compute false positive error rates.
+        fpers = [M[1, 0] / (M[0, 0] + M[1, 0]) for M in confusion_matrices]
+        # Add false positive error rate endpoints.
+        fpers = [1.0] + fpers + [0.0]
+        return fpers
+
+    def get_fners(confusion_matrices):
+        """ Get false negative error rates"""
+        # Compute false negative error rates.
+        fners = [M[0, 1] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+        # Add false negative error rate endpoints.
+        fners = [0.0] + fners + [1.0]
+        return fners
+
+
+    if HAVE_RESULT:
+        ax = fig.add_subplot(122)
+        # Retrieve the juxtacellular spiketimes and the confusion matrices.
+
+        all_times = load_data(params, "juxta-triggers")
+        confusion_matrices = load_data(params, "confusion-matrices")
+        
+        thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
+        #print("Time difference threshold: {}".format(thresh))
+
+        # Retrieve the SpyKING CIRCUS spiketimes.
+
+        result = load_data(params, "results")
+        data   = result['spiketimes']
+
+        # Retrieve the templates.
+        templates = load_data(params, 'templates')
+        
+        # Retrieve the thresholds.
+        thresholds   = load_data(params, 'thresholds')
+        
+        n_temp = len(data)
+        res = numpy.zeros((n_temp, 2))
+        rates = []
+        nb_total = len(all_times)
+        nb_fitted = 0
+        
+        # Count the number of spiketimes sorted by SpyKING CIRCUS.
+        for i in xrange(n_temp):
+            nb_fitted += len(data['temp_' + str(i)])
+        
+        print("Number of spikes {}/{} with {} templates".format(nb_fitted, nb_total, n_temp))
+        
+        ## First pass to detect what are the scores
+        for i in xrange(n_temp):
+            spikes = data['temp_' + str(i)]
+            #rint "Template", i, "with", len(spikes), "spikes"
+            # Compute the false positive rate
+            for spike in all_times:
+                idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                if len(idx) > 0:
+                    res[i, 0] += 1
+            if len(all_times) > 0:
+                res[i, 0] /= float(len(all_times))
+            # Compute the positive predictive value
+            for spike in spikes:
+                idx = numpy.where(abs(all_times - spike) <= thresh)[0]
+                if len(idx) > 0:
+                    res[i, 1] += 1
+            if len(spikes) > 0:
+                res[i, 1] /= float(len(spikes))
+        
+        idx = numpy.argmax(numpy.mean(res, 1))
+        selection = [idx]
+        error = res[idx]
+        find_next = True
+        source_temp = templates[:, idx].toarray().flatten()
+        temp_match = []
+        dmax = 0.1
+        for i in xrange(templates.shape[1]/2):
+            d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
+            if d > dmax and i not in selection:
+                temp_match += [i]
+        
+        if 0 < len(temp_match):
+
+            while (find_next == True):
+
+                temp_match = [i for i in temp_match if i not in selection]
+                
+                local_errors = numpy.zeros((len(temp_match), 2))
+                
+                for mcount, tmp in enumerate(temp_match):
+
+                    # Gather selected spikes.
+                    spikes = []
+                    for xtmp in selection + [tmp]:
+                        spikes += data['temp_' + str(xtmp)].tolist()
+                    spikes = numpy.array(spikes, dtype=numpy.int32)
+
+                    # Compute true positive rate.
+                    count = 0
+                    for spike in all_times:
+                        idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
+                        if len(idx) > 0:
+                            count += 1
+                    if len(all_times) > 0:
+                        local_errors[mcount, 0] = count/float(len(all_times))
+
+                    # Compute positive predictive value
+                    count = 0
+                    for spike in spikes:
+                        idx = numpy.where(numpy.abs(all_times- spike) < thresh)[0]
+                        if len(idx) > 0:
+                            count += 1
+                    if len(spikes) > 0:
+                        local_errors[mcount, 1]  = count/(float(len(spikes)))
+                
+                errors = numpy.mean(local_errors, 1)
+                if numpy.max(errors) > numpy.mean(error):
+                    idx        = numpy.argmax(errors)
+                    selection += [temp_match[idx]]
+                    error      = local_errors[idx]
+                else:
+                    find_next = False
+        
+        error = 100 * (1 - error)
+        res = 100 * (1 - res)
+        
+        print("Best error is obtained with templates {} : {}".format(selection, error))
+        for i in selection:
+            nb_spikes = len(data['temp_' + str(i)])
+        #    print("Template {} with {} spikes has error: {}".format(i, nb_spikes, res[i, :]))
+
+        ##### TODO: clean quarantine zone
+        # ## Finally, we compute the ROC curve.
+        # fprs = get_fprs(confusion_matrices)
+        # tprs = get_tprs(confusion_matrices)
+        # ## And scale convert it in percent.
+        # fprs = [100.0 * fpr for fpr in fprs]
+        # tprs = [100.0 * tpr for tpr in tprs]
+        
+        ## Finally, we compute the performance curve.
+        fpers = get_fpers(confusion_matrices)
+        fners = get_fners(confusion_matrices)
+        ## And scale convert it in percent.
+        fpers = [100.0 * fper for fper in fpers]
+        fners = [100.0 * fner for fner in fners]
+        ##### end quarantine zone
+        
+        ##### TODO: clean quarantine zone
+        # figure()
+        # plot(res[:, 0])
+        # plot(res[:, 1])
+        # pylab.ylabel('Error [%]')
+        # pylab.xlabel('Template')
+        # tight_layout()
+        # show()
+        
+        anot_size = 8
+        # TODO: check which is the fpr and which is the tpr
+        # scatter(res[:, 0], res[:, 1])
+        ax.scatter(res[:, 1], res[:, 0])
+        for i in xrange(res.shape[0]):
+            txt = str(i)
+            # pos = (res[i, 0], res[i, 1])
+            pos = (res[i, 1], res[i, 0])
+            ax.annotate(txt, pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
+        ax.scatter(error[1], error[0])
+        pos = (error[1], error[0])
+        ax.annotate("best", pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
+        # plot(fprs, tprs)
+        ax.plot(fpers, fners)
+        ax.scatter(fpers, fners, color='r')
+        ax.set_xlim(-5, 105)
+        ax.set_ylim(-5, 105)
+        ax.grid(True)
+        # xlabel("false postive rate")
+        ax.set_aspect('equal')
+        ax.grid(True)
+#        ax.set_xlim([0.0, 1.0])
+#        ax.set_ylim([0.0, 1.0])
+        ax.set_xlabel("false positive error rate")
+        # ylabel("true positive rate")
+        ax.set_ylabel("false negative error rate")
+        ax.set_title("best = {}".format(selection))
+
+    ##### end quarantine zone
+
+    # Save ROC plot.
     if save is None:
         pylab.show()
     else:
