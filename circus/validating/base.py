@@ -139,7 +139,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_p = basis_proj.shape[1]
     
     # Select only the neighboring channels of the best channel.
-    chan = params.getint('validating', 'val_chan')
+    chan = params.getint('validating', 'nearest_elec')
     if chan == -1:
         # Automatic selection of the validation channel.
         # TODO: select the channel with the highest changes in amplitudes

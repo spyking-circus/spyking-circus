@@ -231,17 +231,16 @@ def load_parameters(file_name):
         ['clustering', 'cc_merge', 'float', '0.975'],
         ['clustering', 'extraction', 'string', 'median-raw'],
         ['clustering', 'remove_mixture', 'bool', 'True'],
-        ['extracting', 'cc_merge', 'float', '0.95'],
+        ['extracting', 'cc_merge', 'float', '0.975'],
         ['extracting', 'noise_thr', 'float', '1.'],
-        ['validating', 'val_chan', 'int', '-1'],
+        ['validating', 'nearest_elec', 'string', 'auto'],
         ['validating', 'max_iter', 'int', '200'],
         ['validating', 'learning_rate', 'float', '1.0e-3'],
         ['validating', 'roc_sampling', 'int', '20'],
         ['validating', 'make_plots', 'string', 'png'],
         ['validating', 'test_size', 'float', '0.3'],
-        ['validating', 'radius_factor', 'float', '0.6'],
+        ['validating', 'radius_factor', 'float', '0.5'],
         ['validating', 'juxta_dtype', 'string', 'uint16'],
-        ['validating', 'test_size', 'float', '0.5'],
         ['merging', 'cc_overlap', 'float', '0.25'],
         ['merging', 'cc_bin', 'float', '2'],
         ['noedits', 'filter_done', 'bool', 'False'],
@@ -319,6 +318,15 @@ def load_parameters(file_name):
     if not test:
         print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
+    test = parser.get('validating', 'make_plots') in fileformats
+    if not test:
+        print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
+        sys.exit(0)
+
+
+    test = parser.get('validating', 'nearest_elec')
+    if test == 'auto':
+        parser.set('validating', 'nearest_elec', '-1')
 
     return parser
 
