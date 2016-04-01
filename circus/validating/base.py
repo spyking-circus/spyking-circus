@@ -183,7 +183,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             "n_class_0: {}".format(n_class_0),
             "n_class_1: {}".format(n_class_1),
         ]
-        io.print_and_log(msg, level='debug', logger=params)
+        io.print_and_log(msg, level='default', logger=params)
     
     # sys.exit(0)
     
@@ -337,7 +337,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         idxs_ngt = numpy.random.choice(N_ngt, size=N_ngt_max, replace=False)
         idxs_ngt = numpy.sort(idxs_ngt)
         spike_times_ngt = spike_times_ngt_tmp[idxs_ngt]
-    
+    else:
+        spike_times_ngt = spike_times_ngt_tmp
     # Load the spikes of all the "non ground truth cells".
     #spikes_ngt = load_chunk(params, spike_times_ngt, chans=chans)
     spikes_ngt = get_stas(params, spike_times_ngt, numpy.zeros(len(spike_times_ngt)), chan, chans, nodes=nodes, auto_align=False).T
@@ -1110,8 +1111,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #    dt = datetime.now()
                 
                 ##### TODO: remove temporary zone
-                if comm.rank == 0:
-                    print("{} / {}".format(time_chunk, nb_time_chunks))
+                # if comm.rank == 0:
+                #     print("{} / {}".format(time_chunk, nb_time_chunks))
                 ##### end temporary zone
                 time_start = time_min_test + time_chunk * time_chunk_size
                 time_end = time_min_test + (time_chunk + 1) * time_chunk_size
