@@ -1287,7 +1287,7 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     ax.set_title("Before")
     ax.set_ylabel("")
     ax.set_xlabel('# Samples')
-    ax.set_ylabel('Distances')
+    ax.set_xlabel('Distances')
 
     d_gt, d_ngt, d_noi = data_2
     ax = fig.add_subplot(1,2,2)
@@ -1297,7 +1297,7 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     ax.grid(True)
     ax.set_title("After")
     ax.set_ylabel("")
-    ax.set_ylabel('Distances')
+    ax.set_xlabel('Distances')
 
 
     ax.legend()
