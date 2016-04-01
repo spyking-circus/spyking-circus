@@ -1286,6 +1286,8 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     ax.grid(True)
     ax.set_title("Before")
     ax.set_ylabel("")
+    ax.set_xlabel('# Samples')
+    ax.set_ylabel('Distances')
 
     d_gt, d_ngt, d_noi = data_2
     ax = fig.add_subplot(1,2,2)
@@ -1295,6 +1297,8 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     ax.grid(True)
     ax.set_title("After")
     ax.set_ylabel("")
+    ax.set_ylabel('Distances')
+
 
     ax.legend()
     if save is None:
@@ -1330,7 +1334,7 @@ def view_classification(data_1, data_2, title=None, save=None):
             # Plot figure.
             sc = ax.scatter(X_raw_[:, 0], X_raw_[:, 1], c=c, s=5, lw=0.1, cmap='bwr',
                             vmin=vmin, vmax=vmax)
-            fig.colorbar(sc)
+            cb = fig.colorbar(sc)
             ax.grid(True)
             if panels[count] in [0, 1]:
                 if panels[count] == 0:
@@ -1338,10 +1342,13 @@ def view_classification(data_1, data_2, title=None, save=None):
                     ax.set_ylabel("2nd component")
                 if panels[count] == 1:
                     ax.set_title('Classification After')
+                    cb.set_label('Prediction')
             elif panels[count] in [2, 3]:
                 ax.set_xlabel("1st component")
                 if panels[count] == 2:
                     ax.set_ylabel("2nd component")
+                if panel[count] == 3:
+                    cb.set_label('Decision function')
             count += 1
 
     if save is None:
