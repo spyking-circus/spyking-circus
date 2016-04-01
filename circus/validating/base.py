@@ -142,8 +142,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Retrieve the spike times of the juxtacellular trace.
     spike_times_juxta = io.load_data(params, 'juxta-triggers')
     
-    
-    
     ############################################################################
     
     
@@ -165,10 +163,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             msg = ["Validation channel is set to {}".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
     else:
-        pass
+        pass            
+
     nodes, chans = get_neighbors(params, chan=chan)
     chan_index = numpy.argwhere(chans == chan)[0]
     
+    if make_plots not in ['None', '']:
+        plot_filename = "beer-trigger-times.%s" %make_plots
+        path = os.path.join(plot_path, plot_filename)
+        plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:,:,chans], save=path)
+
+
     ##### TODO: clean temporary zone
     # Compute the weights of the classes.
     mask_min = time_min_test <= spike_times_juxta

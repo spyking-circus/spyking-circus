@@ -969,6 +969,29 @@ def view_trigger_snippets(trigger_snippets, chans, save=None):
         pylab.close(fig)
     return
 
+
+def view_trigger_times(params, spike_times_juxta, juxta_spikes, save=None):
+    fig = pylab.figure()
+    ax  = fig.add_subplot(1, 2, 1)
+    sampling_rate = params.getint('data', 'sampling_rate')
+    isis = numpy.diff(spike_times_juxta)*1000/sampling_rate
+    numpy.diff(isis)
+    x, y = numpy.histogram(isis, bins=numpy.linspace(0, 100, 50))
+    ax.plot(y[1:], x/float(x.sum()))
+    ax.set_xlabel('Time [ms]')
+    ax.set_ylabel('Probability')
+    ax.set_title('ISI')
+
+    ax.add_subplot(1, 2, 2)
+    
+
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    return
+
 def view_dataset(X, color='blue', title=None, save=None):
     n_components = 2
     pca = PCA(n_components)
