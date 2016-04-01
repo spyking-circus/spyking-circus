@@ -293,19 +293,24 @@ def load_parameters(file_name):
             print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', parser)
             sys.exit(0)
 
-    test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') <= 1)
+    test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') < 1)
     if not test:
-        print_and_log(["nclus_min in clustering should be in [0,1]"], 'error', parser)
+        print_and_log(["nclus_min in clustering should be in [0,1["], 'error', parser)
         sys.exit(0)
  
-    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') <= 1)
+    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') < 1)
     if not test:
-        print_and_log(["smart_search in clustering should be in [0,1]"], 'error', parser)
+        print_and_log(["smart_search in clustering should be in [0,1["], 'error', parser)
         sys.exit(0)
 
     test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)
     if not test:
         print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', parser)
+        sys.exit(0)
+
+    test = (parser.getfloat('validating', 'test_size') > 0) and (parser.getfloat('validating', 'test_size') < 1)
+    if not test:
+        print_and_log(["test_size in validating should be in ]0,1["], 'error', parser)
         sys.exit(0)
 
     fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
