@@ -176,11 +176,6 @@ def load_parameters(file_name):
     for key in probe['channel_groups'].keys():
         N_e += len(probe['channel_groups'][key]['channels'])
 
-    if nb_channels is not None:
-        if N_e != nb_channels:
-            print_and_log(["MCS file: mistmatch between number of electrodes and data header"], 'error', parser)
-            #sys.exit(0)
-
     parser.set('data', 'N_e', str(N_e))   
     parser.set('fitting', 'space_explo', '0.5')
     parser.set('fitting', 'nb_chances', '3')
@@ -327,6 +322,11 @@ def load_parameters(file_name):
     test = parser.get('validating', 'nearest_elec')
     if test == 'auto':
         parser.set('validating', 'nearest_elec', '-1')
+
+    if nb_channels is not None:
+        if N_e != nb_channels:
+            print_and_log(["MCS file: mistmatch between number of electrodes and data header"], 'error', parser)
+            sys.exit(0)
 
     return parser
 
