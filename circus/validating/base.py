@@ -163,7 +163,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         dif_juxta_spikes = max_juxta_spikes - min_juxta_spikes
         chan = numpy.argmax(dif_juxta_spikes)
         if comm.rank == 0:
-            msg = ["Validation channel set to {}".format(chan)]
+            msg = ["Validation channel is set to {}".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
     else:
         pass
@@ -183,7 +183,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             "n_class_0: {}".format(n_class_0),
             "n_class_1: {}".format(n_class_1),
         ]
-        io.print_and_log(msg, level='default', logger=params)
+        io.print_and_log(msg, level='debug', logger=params)
     
     # sys.exit(0)
     
