@@ -51,7 +51,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     verbose   = False
     skip_demo = False
-    verbose   = False
     make_plots_snippets = False
     
 
@@ -183,7 +182,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             "n_class_0: {}".format(n_class_0),
             "n_class_1: {}".format(n_class_1),
         ]
-        io.print_and_log(msg, level='default', logger=params)
+        io.print_and_log(msg, level='debug', logger=params)
     
     # sys.exit(0)
     
@@ -402,8 +401,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         idxs_noi = numpy.random.choice(N_noi, size=N_noi_max, replace=False)
         idxs_noi = numpy.sort(idxs_noi)
         spike_times_noi = spike_times_noi[idxs_noi]
-    else:
-        spike_times_noi = spike_times_noi
     # Load the chunks for noise.
     #spikes_noi = load_chunk(params, spike_times_noi, chans=chans)
     spikes_noi = get_stas(params, spike_times_noi, numpy.zeros(len(spike_times_noi)), chan, chans, nodes=nodes, auto_align=False).T
