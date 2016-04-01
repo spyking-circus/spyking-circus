@@ -1064,7 +1064,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #    dt = datetime.now()
                 
                 # Load the snippets
-                spikes_ = load_chunk(params, spike_times_, chans=chans)
+                #spikes_ = load_chunk(params, spike_times_, chans=chans)
+                spikes_ = get_stas(params, spike_times_, numpy.zeros(len(spike_times_)), chan, chans, nodes=nodes, auto_align=False).T
+
                 # Reshape data.
                 N_t = spikes_.shape[0]
                 N_e = spikes_.shape[1]
