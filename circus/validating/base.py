@@ -124,12 +124,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
     # sys.exit(0)
     
-    ############################################################################
-    
-    
     
     # Initialize the random seed.
     _ = numpy.random.seed(0)
+    
+    
+    
+    ###### JUXTACELLULAR SPIKE DETECTION #######################################
+    
+    # Detect the spikes times of the juxtacellular trace.
+    if comm.rank == 0:
+        extract_juxta_spikes(filename, params)
+    comm.Barrier()
+    
+    # Retrieve the spike times of the juxtacellular trace.
+    spike_times_juxta = io.load_data(params, 'juxta-triggers')
+    
+    
+    
+    ############################################################################
+    
     
     # Retrieve PCA basis.
     basis_proj, basis_rec = io.load_data(params, 'basis')
@@ -138,13 +152,52 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Select only the neighboring channels of the best channel.
     chan = params.getint('validating', 'val_chan')
     if chan == -1:
-        # Automatic selection of the validation channel.
-        # TODO: select the channel with the highest changes in amplitudes
-        #       instead of an arbitrary selection.
-        # TODO: remove default implementation which select a random channel.
-        chan = numpy.random.randint(0, N_e)
+        # Set best channel as the channel with the highest change in amplitude.
+        juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
+        mean_juxta_spikes = numpy.mean(juxta_spikes, axis=2)
+        max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0)
+        min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0)
+        dif_juxta_spikes = max_juxta_spikes - min_juxta_spikes
+        chan = numpy.argmax(dif_juxta_spikes)
+        if comm.rank == 0:
+            msg = ["Validation channel set to {}".format(chan)]
+            io.print_and_log(msg, level='default', logger=params)
+    else:
+        pass
     chans = get_neighbors(params, chan=chan)
     chan_index = numpy.argwhere(chans == chan)[0]
+    
+    ##### TODO: clean temporary zone
+    # Compute the weights of the classes.
+    mask_min = time_min_test <= spike_times_juxta
+    mask_max = spike_times_juxta <= time_max_test
+    mask = numpy.logical_and(mask_min, mask_max)
+    n_class_0 = numpy.count_nonzero(mask)
+    n_class_1 = time_max_test - time_min_test + 1 - n_class_0
+    
+    if comm.rank == 0:
+        msg = [
+            "n_class_0: {}".format(n_class_0),
+            "n_class_1: {}".format(n_class_1),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
+    
+    # sys.exit(0)
+    
+    # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=7)
+    # if comm.rank == 0:
+    #     print("")
+    #     for item in class_weights:
+    #         print(item)
+    # 
+    # n_class_0 = 1881
+    # n_class_1 = 9600
+    # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=7)
+    # if comm.rank == 0:
+    #     print("")
+    #     for item in class_weights:
+    #         print(item)
+    ##### end temporary zone
     
     
 
@@ -162,13 +215,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["Collecting ground truth cell's samples..."], level='default', logger=params)
     
-    # Detect the spikes times of the "ground truth cell".
-    if comm.rank == 0:
-        extract_juxta_spikes(filename, params)
-    comm.Barrier()
-    
     # Retrieve the spike times of the "ground truth cell".
-    spike_times_gt = io.load_data(params, 'juxta-triggers')
+    spike_times_gt = spike_times_juxta
 
     ##### TODO: clean temporary zone
     # Filter out the end of the data (~30%).
@@ -762,7 +810,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                              fit_intercept=True,
                              random_state=0)
         elif model == 'sgd':
-            _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
+            ##### TODO: clean temporary zone
+            # _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=1)
+            _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=1)
+            ##### end temporary zone
             clf = SGDClassifier(loss='log',
                                 fit_intercept=True,
                                 random_state=2,
@@ -984,7 +1035,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(["Starting the weighted learning..."], level='default', logger=params)
     
     
-    _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
+    ##### TODO: clean temporary zone
+    # _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
+    _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=roc_sampling)
+    ##### end temporary zone
     
     # Distribute weights over the CPUs.
     loc_indices = numpy.arange(comm.rank, roc_sampling, comm.size)
@@ -1036,6 +1090,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             time_pred = nb_time_chunks * [None]
             ##### end temporary zone
             y_pred = nb_time_chunks * [None]
+            y_decf = nb_time_chunks * [None]
             for time_chunk in xrange(0, nb_time_chunks):
                 
                 #if comm.rank == 0:
@@ -1091,7 +1146,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 ##### end temporary zone
                 # Compute the predictions.
                 y_pred[time_chunk] = wclf.predict(X_)
-                # y_pred[time_chunk] = wclf.decision_function(X_)
+                y_decf[time_chunk] = wclf.decision_function(X_)
                 
                 #if comm.rank == 0:
                 #    dt_ = datetime.now()
@@ -1102,6 +1157,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             time_pred = numpy.concatenate(time_pred)
             ##### end temporary zone
             y_pred = numpy.concatenate(y_pred)
+            y_decf = numpy.concatenate(y_decf)
+            
+            ##### TODO: remove temporary zone
+            # mask = (y_pred == 0)
+            # time_pred = time_pred[mask]
+            # print("CPU {}: {} {}".format(comm.rank, time_pred.shape, time_pred))
+            # filename = "{}.decf-{}-{}.npy".format(file_out_suff, comm.rank, count)
+            # numpy.save(filename, y_decf)
+            ##### end temporary zone
             
             # TODO: filter y_pred with a time window (i.e. at least ? time slot between detections).
             
@@ -1138,6 +1202,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     if comm.rank == 0:
         pbar.finish()
+    
+    ##### TODO: remove temporary zone
+    # sys.exit(0)
+    ##### end temporary zone
     
     comm.Barrier()
     

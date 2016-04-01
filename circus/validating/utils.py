@@ -15,7 +15,7 @@ def get_neighbors(params, chan=None):
     nodes, edges = io.get_nodes_and_edges(params, validating=True)
     if chan is None:
         # Select all the channels.
-        chans = nodes
+        chans = numpy.arange(0, nodes.size)
     else:
         # Select only the neighboring channels of the best channel.
         inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
@@ -654,7 +654,7 @@ def extract_juxta_spikes_(params):
     
     # Read juxtacellular trace.
     juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
-    juxta_data = juxta_data.astype(numpy.float32)
+    #juxta_data = juxta_data.astype(numpy.float32)
     # juxta_data = juxta_data - dtype_offset
     juxta_data = numpy.ascontiguousarray(juxta_data)
     
@@ -1049,6 +1049,11 @@ def get_class_weights(y_gt, y_ngt, y_noi, n=7):
     '''Compute different class weights for the stochastic gradient descent'''
     n_class_0 = float(y_gt.size)
     n_class_1 = float(y_ngt.size + y_noi.size)
+    ##### TODO: remove temporary zone
+    print("n_class_0: {}".format(n_class_0))
+    print("n_class_1: {}".format(n_class_1))
+    sys.exit(0)
+    ##### end temporary zone
     n_samples = n_class_0 + n_class_1
     n_classes = 2.0
     alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
@@ -1065,3 +1070,26 @@ def get_class_weights(y_gt, y_ngt, y_noi, n=7):
         }
         class_weights.append(class_weight)
     return alphas, betas, class_weights
+
+##### TODO: clean temporary zone
+def get_class_weights_bis(n_class_0, n_class_1, n=7):
+    '''Compute different class weights for the stochastic gradient descent'''
+    n_class_0 = float(n_class_0)
+    n_class_1 = float(n_class_1)
+    n_samples = n_class_0 + n_class_1
+    n_classes = 2.0
+    alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
+    betas = numpy.linspace(0.0, 2.0, n + 2)[1:-1]
+    class_weights = []
+    for i in xrange(0, n):
+        alpha = alphas[i]
+        beta = betas[i]
+        weight_0 = alpha * n_samples / (n_classes * n_class_0)
+        weight_1 = beta * n_samples / (n_classes * n_class_1)
+        class_weight = {
+            0: n_classes * weight_0 / (weight_0 + weight_1),
+            1: n_classes * weight_1 / (weight_0 + weight_1),
+        }
+        class_weights.append(class_weight)
+    return alphas, betas, class_weights
+##### end temporary zone
