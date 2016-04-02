@@ -238,9 +238,7 @@ def load_parameters(file_name):
         ['validating', 'juxta_dtype', 'string', 'uint16'],
         ['merging', 'cc_overlap', 'float', '0.5'],
         ['merging', 'cc_bin', 'float', '2'],
-        ['noedits', 'filter_done', 'bool', 'False'],
-        ['noedits', 'extra_done', 'bool', 'False'],
-        ['noedits', 'juxta_done', 'bool', 'False'],
+        ['noedits', 'filter_done', 'bool', 'False']
     ]
 
     for item in new_values:
