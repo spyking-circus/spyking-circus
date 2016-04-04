@@ -162,7 +162,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         dif_juxta_spikes  = max_juxta_spikes - min_juxta_spikes
         chan = numpy.argmax(dif_juxta_spikes)
         if comm.rank == 0:
-            msg = ["Validation channel is set to {}".format(chan)]
+            msg = ["Ground truth neuron is close to channel {}".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
     else:
         pass            
@@ -221,7 +221,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
     if comm.rank == 0:
-        io.print_and_log(["Collecting ground truth cell's samples..."], level='default', logger=params)
+        io.print_and_log(["Collecting ground truth cell's samples..."], level='debug', logger=params)
     
     # Retrieve the spike times of the "ground truth cell".
     spike_times_gt = spike_times_juxta
@@ -526,7 +526,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### INITIAL PARAMETER ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Initializing parameters for the classifier..."], level='default', logger=params)
+        io.print_and_log(["Initializing parameters for the non-linear classifier..."], level='default', logger=params)
     
     
     method = 'covariance'
