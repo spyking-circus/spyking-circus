@@ -238,9 +238,7 @@ def load_parameters(file_name):
         ['validating', 'juxta_dtype', 'string', 'uint16'],
         ['merging', 'cc_overlap', 'float', '0.5'],
         ['merging', 'cc_bin', 'float', '2'],
-        ['noedits', 'filter_done', 'bool', 'False'],
-        ['noedits', 'extra_done', 'bool', 'False'],
-        ['noedits', 'juxta_done', 'bool', 'False'],
+        ['noedits', 'filter_done', 'bool', 'False']
     ]
 
     for item in new_values:
@@ -293,19 +291,24 @@ def load_parameters(file_name):
             print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', parser)
             sys.exit(0)
 
-    test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') <= 1)
+    test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') < 1)
     if not test:
-        print_and_log(["nclus_min in clustering should be in [0,1]"], 'error', parser)
+        print_and_log(["nclus_min in clustering should be in [0,1["], 'error', parser)
         sys.exit(0)
  
-    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') <= 1)
+    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') < 1)
     if not test:
-        print_and_log(["smart_search in clustering should be in [0,1]"], 'error', parser)
+        print_and_log(["smart_search in clustering should be in [0,1["], 'error', parser)
         sys.exit(0)
 
     test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)
     if not test:
         print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', parser)
+        sys.exit(0)
+
+    test = (parser.getfloat('validating', 'test_size') > 0) and (parser.getfloat('validating', 'test_size') < 1)
+    if not test:
+        print_and_log(["test_size in validating should be in ]0,1["], 'error', parser)
         sys.exit(0)
 
     fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
@@ -425,7 +428,6 @@ def print_error(lines):
 
 
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, auto_align=True):
-    from .utils import smooth  # avoid import issues
     
     N_t          = params.getint('data', 'N_t')
     if not all_labels:
@@ -486,14 +488,12 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
                 f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                smoothed    = smooth(f(cdata), template_shift)
-                rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                rmin        = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
-                smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
-                rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                rmin        = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
@@ -510,7 +510,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     return stas
 
 def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
-    from .utils import smooth  # avoid import issues
 
     N_t          = params.getint('data', 'N_t')
     amplitudes   = numpy.zeros(len(times_i), dtype=numpy.float32)
@@ -565,14 +564,12 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
                 f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                smoothed    = smooth(f(cdata), template_shift)
-                rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                rmin        = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
-                smoothed    = smooth(f(cdata, idx)[:, 0], template_shift)
-                rmin        = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                rmin        = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 

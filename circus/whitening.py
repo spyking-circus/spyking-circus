@@ -361,8 +361,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             if alignment:
                                 ydata    = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
                                 f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
-                                smoothed = smooth(f(cdata), template_shift)
-                                rmin     = (numpy.argmin(smoothed) - len(cdata)/2.)/5.
+                                rmin     = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                 elts[:, elt_count] = f(ddata).astype(numpy.float32)
                                 

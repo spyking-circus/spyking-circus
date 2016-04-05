@@ -13,13 +13,13 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 def get_neighbors(params, chan=None):
     N_total = params.getint('data', 'N_total')
     nodes, edges = io.get_nodes_and_edges(params, validating=True)
+    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.argsort(nodes)
     if chan is None:
         # Select all the channels.
-        chans = nodes
+        chans = inv_nodes[nodes]
     else:
         # Select only the neighboring channels of the best channel.
-        inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
-        inv_nodes[nodes] = numpy.argsort(nodes)
         chans = inv_nodes[edges[nodes[chan]]]
     return nodes, chans
 
@@ -640,24 +640,22 @@ def extract_extra_spikes_(params):
     
 
 def extract_extra_spikes(filename, params):
-    extra_done = params.getboolean('noedits', 'extra_done')
-    do_extra = True #params.getboolean('validating', 'extra')
     
-    if extra_done:
+    do_extra = True
+    try:
+        data = io.load_data(params, 'extra-triggers')
+        do_extra = False
+    except Exception:
+        do_extra = True
+
+    if not do_extra:
         if comm.rank == 0:
             msg = [
                 "Spike detection for extracellular traces has already been done"
             ]
             io.print_and_log(msg, 'info', params)
-    elif do_extra:
-        extract_extra_spikes_(params)
-        if comm.rank == 0:
-            io.change_flag(filename, 'extra_done', 'True')
     else:
-        msg = [
-            "Extracellular spike times extraction disabled"
-        ]
-        io.print_and_log(msg, 'info', params)
+        extract_extra_spikes_(params)
     
     return
 
@@ -685,7 +683,7 @@ def extract_juxta_spikes_(params):
     
     # Read juxtacellular trace.
     juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
-    juxta_data = juxta_data.astype(numpy.float32)
+    #juxta_data = juxta_data.astype(numpy.float32)
     # juxta_data = juxta_data - dtype_offset
     juxta_data = numpy.ascontiguousarray(juxta_data)
     
@@ -731,10 +729,14 @@ def extract_juxta_spikes_(params):
 
 
 def extract_juxta_spikes(filename, params):
-    juxta_done = params.getboolean('noedits', 'juxta_done')
-    do_juxta = True #params.getboolean('validating', 'juxta')
-    
-    if juxta_done:
+    do_juxta = True
+    try:
+        data = io.load_data(params, 'juxta-triggers')
+        do_juxta = False
+    except Exception:
+        do_juxta = True
+
+    if not do_juxta:
         if comm.rank == 0:
             msg = [
                 "Spike detection for juxtacellular traces has already been done"
@@ -742,14 +744,6 @@ def extract_juxta_spikes(filename, params):
             io.print_and_log(msg, 'info', params)
     elif do_juxta:
         extract_juxta_spikes_(params)
-        if comm.rank == 0:
-            io.change_flag(filename, 'juxta_done', 'True')
-    else:
-        if comm.rank == 0:
-            msg = [
-                "Juxtacellular spike times extraction disabled"
-            ]
-            io.print_and_log(msg, 'info', params)
     return
 
 
@@ -1094,3 +1088,26 @@ def get_class_weights(y_gt, y_ngt, y_noi, n=7):
         }
         class_weights.append(class_weight)
     return alphas, betas, class_weights
+
+##### TODO: clean temporary zone
+def get_class_weights_bis(n_class_0, n_class_1, n=7):
+    '''Compute different class weights for the stochastic gradient descent'''
+    n_class_0 = float(n_class_0)
+    n_class_1 = float(n_class_1)
+    n_samples = n_class_0 + n_class_1
+    n_classes = 2.0
+    alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
+    betas = numpy.linspace(0.0, 2.0, n + 2)[1:-1]
+    class_weights = []
+    for i in xrange(0, n):
+        alpha = alphas[i]
+        beta = betas[i]
+        weight_0 = alpha * n_samples / (n_classes * n_class_0)
+        weight_1 = beta * n_samples / (n_classes * n_class_1)
+        class_weight = {
+            0: n_classes * weight_0 / (weight_0 + weight_1),
+            1: n_classes * weight_1 / (weight_0 + weight_1),
+        }
+        class_weights.append(class_weight)
+    return alphas, betas, class_weights
+##### end temporary zone
