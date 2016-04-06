@@ -62,7 +62,7 @@ def detect_header(filename, value='MCS'):
 
 def copy_header(header, file_in, file_out):
     fin  = open(file_in, 'rb')
-    fout = open(file_out, 'wb')
+    fout = open(file_out, 'w')
     data = fin.read(header)
     fout.write(data)
     fin.close()
