@@ -528,8 +528,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if gpass >= 1:
             tmp_h5py.close()
         gpass += 1
-        
-    os.remove(result['dist_file'])
+    
+    try:
+        os.remove(result['dist_file'])
+    except Exception:
+        pass
 
     comm.Barrier()
 
