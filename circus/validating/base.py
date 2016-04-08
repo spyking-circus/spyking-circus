@@ -70,6 +70,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     time_min_test = int(train_size * float(data_len - 1)) + template_shift
     time_max_test = (data_len - 1) - template_shift
     
+    print(time_min_test)
+    print(time_max_test)
+    sys.exit(0)
+    
     
     ############################################################################
     
@@ -1035,8 +1039,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     
     ##### TODO: clean temporary zone
-    # _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
-    _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=roc_sampling)
+    _, _, class_weights = get_class_weights(y_gt, y_ngt, y_noi, n=roc_sampling)
+    # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=roc_sampling)
     ##### end temporary zone
     
     # Distribute weights over the CPUs.
@@ -1046,6 +1050,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # Preallocation to collect results.
     confusion_matrices = loc_nb_class_weights * [None]
+    time_preds = loc_nb_class_weights * [None]
+    y_preds = loc_nb_class_weights * [None]
+    y_decfs = loc_nb_class_weights * [None]
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_class_weights)
@@ -1085,9 +1092,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             nb_time_chunks = (time_max_test - time_min_test + 1) // time_chunk_size
             if 0 < (time_max_test - time_min_test + 1) % time_chunk_size:
                 nb_time_chunks = nb_time_chunks + 1
-            ##### TODO: remove temporary zone
             time_pred = nb_time_chunks * [None]
-            ##### end temporary zone
             y_pred = nb_time_chunks * [None]
             y_decf = nb_time_chunks * [None]
             for time_chunk in xrange(0, nb_time_chunks):
@@ -1142,9 +1147,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #    print("Add quadratic features: {}s".format((dt_ - dt).total_seconds()))
                 #    dt = datetime.now()
                 
-                ##### TODO: remove temporary zone
                 time_pred[time_chunk] = spike_times_
-                ##### end temporary zone
                 # Compute the predictions.
                 y_pred[time_chunk] = wclf.predict(X_)
                 y_decf[time_chunk] = wclf.decision_function(X_)
@@ -1154,9 +1157,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 #    print("Classifier predictions: {}s".format((dt_ - dt).total_seconds()))
                 #    dt = datetime.now()
                 
-            ##### TODO: remove temporary zone
             time_pred = numpy.concatenate(time_pred)
-            ##### end temporary zone
             y_pred = numpy.concatenate(y_pred)
             y_decf = numpy.concatenate(y_decf)
             
@@ -1189,6 +1190,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
             confusion_matrices[count] = confusion_matrix
             
+            ##### TODO: remove temporary zone
+            time_preds[count] = time_pred
+            y_preds[count] = y_pred
+            y_decfs[count] = y_decf
+            ##### end temporary zone
+            
             ##### end depreciated zone
             
             
@@ -1200,11 +1207,85 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
     
-    ##### TODO: remove temporary zone
-    # sys.exit(0)
-    ##### end temporary zone
-    
     comm.Barrier()
+    
+    
+    ##### TODO: remove temporary zone
+    # Gather results on the root CPU.
+    indices = comm.gather(loc_indices, root=0)
+    time_preds_tmp = comm.gather(time_preds, root=0)
+    y_preds_tmp = comm.gather(y_preds, root=0)
+    y_decfs_tmp = comm.gather(y_decfs, root=0)
+    
+    if comm.rank == 0:
+        
+        beer_filename = "{}.beer.hdf5".format(file_out_suff)
+        beer_file = h5py.File(beer_filename, 'a', libver='latest')
+        group_name = "beer_spiketimes"
+        if group_name in beer_file.keys():
+            del beer_file[group_name]
+        beer_file.create_group(group_name)
+        for indices_, loc_time_preds, loc_y_preds, loc_y_decfs in zip(indices, time_preds_tmp, y_preds_tmp, y_decfs_tmp):
+            for index, time_pred, y_pred, y_decf in zip(indices_, loc_time_preds, loc_y_preds, loc_y_decfs):
+                filename = "{}/time_pred_{}".format(group_name, index)
+                print(filename)
+                beer_file.create_dataset(filename, data=time_pred)
+                filename = "{}/y_pred_{}".format(group_name, index)
+                print(filename)
+                beer_file.create_dataset(filename, data=y_pred)
+                filename = "{}/y_decf_{}".format(group_name, index)
+                print(filename)
+                beer_file.create_dataset(filename, data=y_decf)
+                filename = "{}/temp_{}".format(group_name, index)
+                print(filename)
+                mask = (y_pred == 0.0)
+                temp = time_pred[mask]
+                beer_file.create_dataset(filename, data=temp)
+        beer_file.close()
+        
+        ##### TODO: remove depreciated zone.
+        
+        # # Reorder things properly.
+        # time_preds = roc_sampling * [None]
+        # y_preds = roc_sampling * [None]
+        # y_decfs = roc_sampling * [None]
+        # for (loc_indices, loc_time_preds_tmp) in zip(indices, time_preds_tmp):
+        #     for (loc_index, loc_time_pred) in zip(loc_indices, loc_time_preds_tmp):
+        #         time_preds[loc_index] = loc_time_pred
+        # for (loc_indices, loc_y_preds_tmp) in zip(indices, y_preds_tmp):
+        #     for (loc_index, loc_y_pred) in zip(loc_indices, loc_y_preds_tmp):
+        #         y_preds[loc_index] = loc_y_pred
+        # for (loc_indices, loc_y_decfs_tmp) in zip(indices, y_decfs_tmp):
+        #     for (loc_index, loc_y_decf) in zip(loc_indices, loc_y_decfs_tmp):
+        #         y_decfs[loc_index] = loc_y_decf
+        # # Save things.
+        # beer_filename = "{}.beer.hdf5".format(file_out_suff)
+        # beer_file = h5py.File(beer_filename, 'a', libver='latest')
+        # group_name = "beer_spiketimes"
+        # if group_name in beer_file.keys():
+        #     del beer_file[group_name]
+        # beer_file.create_group(group_name)
+        # for loc_index, time_pred, y_pred, y_decf in zip(loc_indices, time_preds, y_preds, y_decfs):
+        #     filename = "{}/time_pred_{}".format(group_name, loc_index)
+        #     print(filename)
+        #     beer_file.create_dataset(filename, data=time_pred)
+        #     filename = "{}/y_pred_{}".format(group_name, loc_index)
+        #     print(filename)
+        #     beer_file.create_dataset(filename, data=y_pred)
+        #     filename = "{}/y_decf_{}".format(group_name, loc_index)
+        #     print(filename)
+        #     beer_file.create_dataset(filename, data=y_decfs)
+        #     filename = "{}/temp_{}".format(group_name, loc_index)
+        #     print(filename)
+        #     mask = (y_pred == 1.0)
+        #     temp = time_pred[mask]
+        #     beer_file.create_dataset(filename, data=temp)
+        # beer_file.close()
+        
+        ##### end depreciated zone.
+    
+    ##### end temorary zone
+    
     
     # Gather results on the root CPU.
     indices = comm.gather(loc_indices, root=0)
@@ -1259,6 +1340,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
             plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
     
+    
+    ##### TODO: remove temporary zone
+    sys.exit(0)
+    ##### end temporary zone
     
     
     ############################################################################

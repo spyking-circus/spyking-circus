@@ -865,6 +865,7 @@ def load_data(params, data, extension=''):
         if os.path.exists(filename):
             beer_file = h5py.File(filename, 'r', libver='latest')
             juxta_spike_times = beer_file.get('juxta_spiketimes/elec_0')[:]
+            beer_file.close()
             return juxta_spike_times
         else:
             raise Exception('No triggers found! Check suffix or check if file `{}` exists ?'.format(filename))
@@ -874,10 +875,12 @@ def load_data(params, data, extension=''):
             beer_file = h5py.File(filename, 'r', libver='latest')
             N_e = params.getint('data', 'N_e')
             extra_spike_times = N_e * [None]
-            for e in xrange(0, N_e):
-                key = "extra_spiketimes/elec_{}".format(e)
-                extra_spike_times[e] = beer_file.get(key)[:]
-            beer_file.close()
+            try:
+                for e in xrange(0, N_e):
+                    key = "extra_spiketimes/elec_{}".format(e)
+                    extra_spike_times[e] = beer_file.get(key)[:]
+            finally:
+                beer_file.close()
             return extra_spike_times
         else:
             raise Exception('No triggers found! Check if file `{}` exists ?'.format(filename))

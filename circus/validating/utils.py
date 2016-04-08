@@ -645,7 +645,7 @@ def extract_extra_spikes(filename, params):
     try:
         data = io.load_data(params, 'extra-triggers')
         do_extra = False
-    except Exception:
+    except Exception as e:
         do_extra = True
 
     if not do_extra:
