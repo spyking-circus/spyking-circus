@@ -46,7 +46,7 @@ def detect_header(filename, value='MCS'):
         while ((stop is False) and (header <= 2000)):
             header      += 1
             char         = fid.read(1)
-            header_text += str(char)
+            header_text += char.decode('Windows-1252')
             if (header > 2):
                 if (header_text[header-3:header] == 'EOH'):
                     stop = True
@@ -62,7 +62,7 @@ def detect_header(filename, value='MCS'):
 
 def copy_header(header, file_in, file_out):
     fin  = open(file_in, 'rb')
-    fout = open(file_out, 'w')
+    fout = open(file_out, 'wb')
     data = fin.read(header)
     fout.write(data)
     fin.close()
