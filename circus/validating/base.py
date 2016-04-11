@@ -52,6 +52,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     verbose   = False
     skip_demo = False
     make_plots_snippets = False
+    # test_method = 'full' # full test set
+    test_method = 'downsampled' # downsampled test set
     
 
     # N_max = 1000000
@@ -60,19 +62,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     alpha_ngt = 2.0
     alpha_noi = 2.0
     
-    # Cut data into two halves.
-    train_size = 1.0 - test_size
-    data_block = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    N = len(data_block)
-    data_len = N // N_total
-    time_min = template_shift
-    time_max = int(train_size * float(data_len - 1)) - template_shift
-    time_min_test = int(train_size * float(data_len - 1)) + template_shift
-    time_max_test = (data_len - 1) - template_shift
-    
-    print(time_min_test)
-    print(time_max_test)
-    sys.exit(0)
+    if test_method == 'full':
+        # Cut data into two halves.
+        train_size = 1.0 - test_size
+        data_block = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+        N = len(data_block)
+        data_len = N // N_total
+        time_min = template_shift
+        time_max = int(train_size * float(data_len - 1)) - template_shift
+        time_min_test = int(train_size * float(data_len - 1)) + template_shift
+        time_max_test = (data_len - 1) - template_shift
+        
+        print("Time min test: {}".format(time_min_test))
+        print("Time max test: {}".format(time_max_test))
+    elif test_method == 'downsampled':
+        data_block = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+        N = len(data_block)
+        data_len = N // N_total
+        time_min = template_shift
+        time_max = (data_len - 1) - template_shift
+    else:
+        raise Exception("Unknown test method: {}".format(test_method))
     
     
     ############################################################################
@@ -180,35 +190,37 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     ##### TODO: clean temporary zone
-    # Compute the weights of the classes.
-    mask_min = time_min_test <= spike_times_juxta
-    mask_max = spike_times_juxta <= time_max_test
-    mask = numpy.logical_and(mask_min, mask_max)
-    n_class_0 = numpy.count_nonzero(mask)
-    n_class_1 = time_max_test - time_min_test + 1 - n_class_0
-    
-    if comm.rank == 0:
-        msg = [
-            "n_class_0: {}".format(n_class_0),
-            "n_class_1: {}".format(n_class_1),
-        ]
-        io.print_and_log(msg, level='debug', logger=params)
-    
-    # sys.exit(0)
-    
-    # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=7)
-    # if comm.rank == 0:
-    #     print("")
-    #     for item in class_weights:
-    #         print(item)
-    # 
-    # n_class_0 = 1881
-    # n_class_1 = 9600
-    # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=7)
-    # if comm.rank == 0:
-    #     print("")
-    #     for item in class_weights:
-    #         print(item)
+    if test_method == 'full':
+        
+        # Compute the weights of the classes.
+        mask_min = time_min_test <= spike_times_juxta
+        mask_max = spike_times_juxta <= time_max_test
+        mask = numpy.logical_and(mask_min, mask_max)
+        n_class_0 = numpy.count_nonzero(mask)
+        n_class_1 = time_max_test - time_min_test + 1 - n_class_0
+        
+        if comm.rank == 0:
+            msg = [
+                "n_class_0: {}".format(n_class_0),
+                "n_class_1: {}".format(n_class_1),
+            ]
+            io.print_and_log(msg, level='debug', logger=params)
+        
+        # sys.exit(0)
+        
+        # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=7)
+        # if comm.rank == 0:
+        #     print("")
+        #     for item in class_weights:
+        #         print(item)
+        # 
+        # n_class_0 = 1881
+        # n_class_1 = 9600
+        # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=7)
+        # if comm.rank == 0:
+        #     print("")
+        #     for item in class_weights:
+        #         print(item)
     ##### end temporary zone
     
     
@@ -232,8 +244,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     ##### TODO: clean temporary zone
     # Filter out the end of the data (~30%).
-    spike_times_gt_test = spike_times_gt[time_min_test <= spike_times_gt]
-    spike_times_gt = spike_times_gt[spike_times_gt <= time_max]
+    if test_method == 'full':
+        spike_times_gt_test = spike_times_gt[time_min_test <= spike_times_gt]
+        spike_times_gt = spike_times_gt[spike_times_gt <= time_max]
+    elif test_method == 'downsampled':
+        pass
+    else:
+        raise Exception("Unknown test method: {}".format(test_method))
     ##### end temporary zone
     
     idx = numpy.sort(numpy.random.permutation(numpy.arange(len(spike_times_gt)))[:N_gt_max])
@@ -323,8 +340,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_times_ngt_tmp = io.load_data(params, 'extra-triggers')
 
     ##### TODO: clean temporary zone
-    # Filter out the end of the data (~30%).
-    spike_times_ngt_tmp = [t[t <= time_max] for t in spike_times_ngt_tmp]
+    if test_method == 'full':
+        # Filter out the end of the data (~30%).
+        spike_times_ngt_tmp = [t[t <= time_max] for t in spike_times_ngt_tmp]
+    elif test_method == 'downsampled':
+        pass
+    else:
+        raise Exception("Unknown test method: {}".format(test_method))
     ##### end temporary zone
     
     # Filter the spike times of the "non ground truth cell".
@@ -776,6 +798,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         X_train = X
         y_train = y
     
+    ##### TODO: remove temporary zone
+    if test_method == 'full':
+        X_train, X_test, y_train, y_test = X, None, y, None
+    elif test_method == 'downsampled':
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    else:
+        raise Exception("Unknown test mode: {}".format(test_method))
+    ##### end temporary zone
+    
     if not skip_demo:
         
         if comm.rank == 0:
@@ -1050,9 +1081,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # Preallocation to collect results.
     confusion_matrices = loc_nb_class_weights * [None]
-    time_preds = loc_nb_class_weights * [None]
-    y_preds = loc_nb_class_weights * [None]
     y_decfs = loc_nb_class_weights * [None]
+    y_preds = loc_nb_class_weights * [None]
+    if test_method == 'full':
+        time_preds = loc_nb_class_weights * [None]
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_class_weights)
@@ -1088,119 +1120,145 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             ##### TODO: fix depreciated zone
             
-            time_chunk_size = 5000
-            nb_time_chunks = (time_max_test - time_min_test + 1) // time_chunk_size
-            if 0 < (time_max_test - time_min_test + 1) % time_chunk_size:
-                nb_time_chunks = nb_time_chunks + 1
-            time_pred = nb_time_chunks * [None]
-            y_pred = nb_time_chunks * [None]
-            y_decf = nb_time_chunks * [None]
-            for time_chunk in xrange(0, nb_time_chunks):
+            if test_method == 'full':
                 
-                #if comm.rank == 0:
-                #    print("##### New temporal chunk")
-                #    dt = datetime.now()
+                time_chunk_size = 5000
+                nb_time_chunks = (time_max_test - time_min_test + 1) // time_chunk_size
+                if 0 < (time_max_test - time_min_test + 1) % time_chunk_size:
+                    nb_time_chunks = nb_time_chunks + 1
+                y_pred = nb_time_chunks * [None]
+                y_decf = nb_time_chunks * [None]
+                time_pred = nb_time_chunks * [None]
+                for time_chunk in xrange(0, nb_time_chunks):
+                    
+                    #if comm.rank == 0:
+                    #    print("##### New temporal chunk")
+                    #    dt = datetime.now()
+                    
+                    ##### TODO: remove debug zone
+                    # if comm.rank == 0:
+                    #     print("{} / {}".format(time_chunk, nb_time_chunks))
+                    ##### end debug zone
+                    time_start = time_min_test + time_chunk * time_chunk_size
+                    time_end = time_min_test + (time_chunk + 1) * time_chunk_size
+                    time_end = min(time_end, time_max_test + 1)
+                    spike_times_ = numpy.arange(time_start, time_end)
+                    
+                    #if comm.rank == 0:
+                    #    dt_ = datetime.now()
+                    #    print("Misc: {}s".format((dt_ - dt).total_seconds()))
+                    #    dt = datetime.now()
+                    
+                    # Load the snippets
+                    #spikes_ = load_chunk(params, spike_times_, chans=chans)
+                    spikes_ = get_stas(params, spike_times_, numpy.zeros(len(spike_times_)), chan, chans, nodes=nodes, auto_align=False).T
+                    
+                    # Reshape data.
+                    N_t = spikes_.shape[0]
+                    N_e = spikes_.shape[1]
+                    N_ = spikes_.shape[2]
+                    spikes_ = spikes_.reshape(N_t, N_e * N_)
+                    spikes_ = spikes_.T
+                    # Compute the PCA coordinates.
+                    X_ = numpy.dot(spikes_, basis_proj)
+                    X_ = X_.T
+                    # Reshape data.
+                    X_ = X_.reshape(N_p * N_e, N_)
+                    X_ = X_.T
+                    
+                    # if comm.rank == 0:
+                    #    dt_ = datetime.now()
+                    #    print("Load snippets: {}s".format((dt_ - dt).total_seconds()))
+                    #    dt = datetime.now()
+                    
+                    # Normalize data.
+                    X_ /= norm_scale
+                    # Add quadratic features.
+                    X_ = with_quadratic_feature(X_, pairwise=True)
+                    
+                    #if comm.rank == 0:
+                    #    dt_ = datetime.now()
+                    #    print("Add quadratic features: {}s".format((dt_ - dt).total_seconds()))
+                    #    dt = datetime.now()
+                    
+                    time_pred[time_chunk] = spike_times_
+                    # Compute the predictions.
+                    y_pred[time_chunk] = wclf.predict(X_)
+                    y_decf[time_chunk] = wclf.decision_function(X_)
+                    
+                    #if comm.rank == 0:
+                    #    dt_ = datetime.now()
+                    #    print("Classifier predictions: {}s".format((dt_ - dt).total_seconds()))
+                    #    dt = datetime.now()
+                    
+                time_pred = numpy.concatenate(time_pred)
+                y_pred = numpy.concatenate(y_pred)
+                y_decf = numpy.concatenate(y_decf)
                 
-                ##### TODO: remove debug zone
-                # if comm.rank == 0:
-                #     print("{} / {}".format(time_chunk, nb_time_chunks))
-                ##### end debug zone
-                time_start = time_min_test + time_chunk * time_chunk_size
-                time_end = time_min_test + (time_chunk + 1) * time_chunk_size
-                time_end = min(time_end, time_max_test + 1)
-                spike_times_ = numpy.arange(time_start, time_end)
+                ##### TODO: remove temporary zone
+                # mask = (y_pred == 0)
+                # time_pred = time_pred[mask]
+                # print("CPU {}: {} {}".format(comm.rank, time_pred.shape, time_pred))
+                # filename = "{}.decf-{}-{}.npy".format(file_out_suff, comm.rank, count)
+                # numpy.save(filename, y_decf)
+                ##### end temporary zone
                 
-                #if comm.rank == 0:
-                #    dt_ = datetime.now()
-                #    print("Misc: {}s".format((dt_ - dt).total_seconds()))
-                #    dt = datetime.now()
+                # TODO: filter y_pred with a time window (i.e. at least ? time slot between detections).
                 
-                # Load the snippets
-                #spikes_ = load_chunk(params, spike_times_, chans=chans)
-                spikes_ = get_stas(params, spike_times_, numpy.zeros(len(spike_times_)), chan, chans, nodes=nodes, auto_align=False).T
+                # Retrieve the ground truth labeling.
+                # TODO: find suitable dtype.
+                y_test = numpy.ones(time_max_test - time_min_test + 1)
+                indices = spike_times_gt_test - time_min_test
+                y_test[indices] = 0
                 
-                # Reshape data.
-                N_t = spikes_.shape[0]
-                N_e = spikes_.shape[1]
-                N_ = spikes_.shape[2]
-                spikes_ = spikes_.reshape(N_t, N_e * N_)
-                spikes_ = spikes_.T
-                # Compute the PCA coordinates.
-                X_ = numpy.dot(spikes_, basis_proj)
-                X_ = X_.T
-                # Reshape data.
-                X_ = X_.reshape(N_p * N_e, N_)
-                X_ = X_.T
+                # TODO: consider matches in a time window instead of exact matches.
+                # Compute true positives, false negatives, true negatives and false
+                # positives.
+                p = (y_test == 0.0)
+                tp = float(numpy.count_nonzero(y_pred[p] == y_test[p]))
+                fn = float(numpy.count_nonzero(y_pred[p] != y_test[p]))
+                n = (y_test == 1.0)
+                tn = float(numpy.count_nonzero(y_pred[n] == y_test[n]))
+                fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
+                # Construct and save the confusion matrix
+                confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
+                confusion_matrices[count] = confusion_matrix
                 
-                #if comm.rank == 0:
-                #    dt_ = datetime.now()
-                #    print("Load snippets: {}s".format((dt_ - dt).total_seconds()))
-                #    dt = datetime.now()
+                ##### TODO: remove temporary zone
+                time_preds[count] = time_pred
+                y_preds[count] = y_pred
+                y_decfs[count] = y_decf
+                ##### end temporary zone
                 
-                # Normalize data.
-                X_ /= norm_scale
-                # Add quadratic features.
-                X_ = with_quadratic_feature(X_, pairwise=True)
-
-                #if comm.rank == 0:
-                #    dt_ = datetime.now()
-                #    print("Add quadratic features: {}s".format((dt_ - dt).total_seconds()))
-                #    dt = datetime.now()
+                ##### end depreciated zone
                 
-                time_pred[time_chunk] = spike_times_
-                # Compute the predictions.
-                y_pred[time_chunk] = wclf.predict(X_)
-                y_decf[time_chunk] = wclf.decision_function(X_)
+            elif test_method == 'downsampled':
                 
-                #if comm.rank == 0:
-                #    dt_ = datetime.now()
-                #    print("Classifier predictions: {}s".format((dt_ - dt).total_seconds()))
-                #    dt = datetime.now()
+                # Compute the prediction on the test set.
+                y_pred = wclf.predict(X_test)
+                y_decf = wclf.decision_function(X_test)
+                # Compute true positive, false negative, true negatives and
+                # false positives.
+                p = (y_test == 0.0)
+                tp = float(numpy.count_nonzero(y_pred[p] == y_test[p]))
+                fn = float(numpy.count_nonzero(y_pred[p] != y_test[p]))
+                n = (y_test == 1.0)
+                tn = float(numpy.count_nonzero(y_pred[n] == y_test[n]))
+                fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
+                # Construct the confusion matrix.
+                confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
+                # Save results.
+                y_preds[count] = y_pred
+                y_decfs[count] = y_decf
+                confusion_matrices[count] = confusion_matrix
                 
-            time_pred = numpy.concatenate(time_pred)
-            y_pred = numpy.concatenate(y_pred)
-            y_decf = numpy.concatenate(y_decf)
-            
-            ##### TODO: remove temporary zone
-            # mask = (y_pred == 0)
-            # time_pred = time_pred[mask]
-            # print("CPU {}: {} {}".format(comm.rank, time_pred.shape, time_pred))
-            # filename = "{}.decf-{}-{}.npy".format(file_out_suff, comm.rank, count)
-            # numpy.save(filename, y_decf)
-            ##### end temporary zone
-            
-            # TODO: filter y_pred with a time window (i.e. at least ? time slot between detections).
-            
-            # Retrieve the ground truth labeling.
-            # TODO: find suitable dtype.
-            y_test = numpy.ones(time_max_test - time_min_test + 1)
-            indices = spike_times_gt_test - time_min_test
-            y_test[indices] = 0
-            
-            # TODO: consider matches in a time window instead of exact matches.
-            # Compute true positives, false negatives, true negatives and false
-            # positives.
-            p = (y_test == 0.0)
-            tp = float(numpy.count_nonzero(y_pred[p] == y_test[p]))
-            fn = float(numpy.count_nonzero(y_pred[p] != y_test[p]))
-            n = (y_test == 1.0)
-            tn = float(numpy.count_nonzero(y_pred[n] == y_test[n]))
-            fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
-            # Construct and save the confusion matrix
-            confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
-            confusion_matrices[count] = confusion_matrix
-            
-            ##### TODO: remove temporary zone
-            time_preds[count] = time_pred
-            y_preds[count] = y_pred
-            y_decfs[count] = y_decf
-            ##### end temporary zone
-            
-            ##### end depreciated zone
-            
+            else:
+                
+                raise Exception("Unknown test method: {}".format(test_method))
             
             if comm.rank == 0:
                 pbar.update(count)
+            
     else:
         raise Exception("Unsupported classifier: model={}".format(model))
     
@@ -1213,9 +1271,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     ##### TODO: remove temporary zone
     # Gather results on the root CPU.
     indices = comm.gather(loc_indices, root=0)
-    time_preds_tmp = comm.gather(time_preds, root=0)
     y_preds_tmp = comm.gather(y_preds, root=0)
     y_decfs_tmp = comm.gather(y_decfs, root=0)
+    if test_method == 'full':
+        time_preds_tmp = comm.gather(time_preds, root=0)
     
     if comm.rank == 0:
         
@@ -1225,22 +1284,32 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if group_name in beer_file.keys():
             del beer_file[group_name]
         beer_file.create_group(group_name)
-        for indices_, loc_time_preds, loc_y_preds, loc_y_decfs in zip(indices, time_preds_tmp, y_preds_tmp, y_decfs_tmp):
-            for index, time_pred, y_pred, y_decf in zip(indices_, loc_time_preds, loc_y_preds, loc_y_decfs):
-                filename = "{}/time_pred_{}".format(group_name, index)
-                print(filename)
-                beer_file.create_dataset(filename, data=time_pred)
-                filename = "{}/y_pred_{}".format(group_name, index)
-                print(filename)
-                beer_file.create_dataset(filename, data=y_pred)
-                filename = "{}/y_decf_{}".format(group_name, index)
-                print(filename)
-                beer_file.create_dataset(filename, data=y_decf)
-                filename = "{}/temp_{}".format(group_name, index)
-                print(filename)
-                mask = (y_pred == 0.0)
-                temp = time_pred[mask]
-                beer_file.create_dataset(filename, data=temp)
+        if test_method == 'full':
+            for indices_, loc_time_preds, loc_y_preds, loc_y_decfs in zip(indices, time_preds_tmp, y_preds_tmp, y_decfs_tmp):
+                for index, time_pred, y_pred, y_decf in zip(indices_, loc_time_preds, loc_y_preds, loc_y_decfs):
+                    filename = "{}/time_pred_{}".format(group_name, index)
+                    print(filename)
+                    beer_file.create_dataset(filename, data=time_pred)
+                    filename = "{}/y_pred_{}".format(group_name, index)
+                    print(filename)
+                    beer_file.create_dataset(filename, data=y_pred)
+                    filename = "{}/y_decf_{}".format(group_name, index)
+                    print(filename)
+                    beer_file.create_dataset(filename, data=y_decf)
+                    filename = "{}/temp_{}".format(group_name, index)
+                    print(filename)
+                    mask = (y_pred == 0.0)
+                    temp = time_pred[mask]
+                    beer_file.create_dataset(filename, data=temp)
+        elif test_method == 'downsampled':
+            for indices_, loc_y_preds, loc_y_decfs in zip(indices, y_preds_tmp, y_decfs_tmp):
+                for index, y_pred, y_decf in zip(indices_, loc_y_preds, loc_y_decfs):
+                    filename = "{}/y_pred_{}".format(group_name, index)
+                    print(filename)
+                    beer_file.create_dataset(filename, data=y_pred)
+                    filename = "{}/y_decf_{}".format(group_name, index)
+                    print(filename)
+                    beer_file.create_dataset(filename, data=y_decf)
         beer_file.close()
         
         ##### TODO: remove depreciated zone.
@@ -1340,11 +1409,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
             plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
     
-    
-    ##### TODO: remove temporary zone
-    sys.exit(0)
-    ##### end temporary zone
-    
+        
     
     ############################################################################
     
