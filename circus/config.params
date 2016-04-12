@@ -65,6 +65,7 @@ make_plots     = png       # Generate sanity plots of the validation [Nothing or
 test_size      = 0.3       # Portion of the dataset to include in the test split
 radius_factor  = 0.5       # Radius factor to modulate physical radius during validation
 juxta_dtype    = uint16    # Type of the juxtacellular data
+juxta_thresh   = 6         # Threshold for juxtacellular detection
 
 [extracting]
 safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
