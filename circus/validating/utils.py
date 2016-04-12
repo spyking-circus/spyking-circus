@@ -430,6 +430,7 @@ def extract_extra_spikes_(params):
     
     sampling_rate = params.getint('data', 'sampling_rate')
     dist_peaks     = params.getint('data', 'dist_peaks')
+    spike_thresh   = params.getfloat('data', 'spike_thresh')
     skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
@@ -566,7 +567,7 @@ def extract_extra_spikes_(params):
     
     data_len = chunk_len
     
-    k = 6.0
+    k = spike_thresh
     
     
     ##### TODO: remove test zone (i.e. plots of extracellular spike times).
@@ -677,6 +678,7 @@ def extract_juxta_spikes_(params):
     sampling_rate = params.getint('data', 'sampling_rate')
     dist_peaks = params.getint('data', 'dist_peaks')
     juxta_dtype = params.get('validating', 'juxta_dtype')
+    juxta_thresh = params.getfloat('validating', 'juxta_thresh')
     
     juxta_filename = "{}.juxta.dat".format(file_out_suff)
     beer_path = "{}.beer.hdf5".format(file_out_suff)
@@ -710,7 +712,7 @@ def extract_juxta_spikes_(params):
         io.print_and_log(["Extract juxtacellular spikes"], level='debug', logger=params)
     
     # Detect juxta spike times.
-    k = 6.0
+    k = juxta_thresh
     threshold = k * juxta_mad
     juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=True, mpd=dist_peaks)
     
