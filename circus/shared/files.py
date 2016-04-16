@@ -742,7 +742,7 @@ def load_data(params, data, extension=''):
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'waveforms':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveforms')[:]
         myfile.close()
         return waveforms
