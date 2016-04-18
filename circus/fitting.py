@@ -13,6 +13,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
+    matched_filter = params.getboolean('data', 'matched-filter')
     skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
@@ -75,6 +76,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         templates = cmt.SparseCUDAMatrix(templates)
 
     info_string   = ''
+
+if matched_filter:
+        waveform = io.load_data(params, 'waveforms')
 
     if comm.rank == 0:
         if use_gpu:
@@ -178,8 +182,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #print "Extracting the peaks..."
         if not spikedetekt:
             local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+
+            if matched_filter:
+                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform, axis=0, mode='constant') / len(waveform)
+
             for i in xrange(N_e):
-                peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                if matched_filter:
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], 0.5)
+                else:
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                 if skip_artefact:
                     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                     indices   = numpy.take(inv_nodes, edges[nodes[i]])

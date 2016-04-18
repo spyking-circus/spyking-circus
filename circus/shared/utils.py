@@ -8,7 +8,7 @@ from math import log, sqrt
 from scipy import linalg
 import scipy.interpolate
 import numpy, pylab, os, mpi4py, progressbar, tempfile
-import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters
+import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
 from mpi import *
 import files as io
 

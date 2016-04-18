@@ -215,6 +215,7 @@ def load_parameters(file_name):
                   ['data', 'alignment', 'bool', 'True'],
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
+                  ['data', 'matched-filter', 'bool', 'True'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
@@ -357,6 +358,7 @@ def data_stats(params, show=True, export_times=False):
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Stationarity                : %s" %params.getboolean('data', 'stationary'),
              "Waveform alignment          : %s" %params.getboolean('data', 'alignment'),
+             "Matched filters             : %s" %params.getboolean('data', 'matched-filter'),
              "Skip strong artefacts       : %s" %params.getboolean('data', 'skip_artefact'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction')]
     
