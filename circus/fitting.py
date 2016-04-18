@@ -77,7 +77,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     info_string   = ''
 
-if matched_filter:
+    if matched_filter:
         waveform = io.load_data(params, 'waveforms')
 
     if comm.rank == 0:
@@ -188,7 +188,7 @@ if matched_filter:
 
             for i in xrange(N_e):
                 if matched_filter:
-                    peaktimes = algo.detect_peaks(filter_chunk[:, i], 0.5)
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], 1)
                 else:
                     peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                 if skip_artefact:

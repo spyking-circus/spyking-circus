@@ -205,7 +205,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     
                 for i in xrange(N_e):
                     if matched_filter:
-                        peaktimes = algo.detect_peaks(filter_chunk[:, i], 0.5, mpd=dist_peaks)
+                        peaktimes = algo.detect_peaks(filter_chunk[:, i], 1, mpd=dist_peaks)
                     else:
                         peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     if skip_artefact:
