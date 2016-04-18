@@ -1282,22 +1282,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         beer_file = h5py.File(beer_filename, 'a', libver='latest')
         group_name = "beer_spiketimes"
         if group_name in beer_file.keys():
-            del beer_file[group_name]
+            beer_file.pop(group_name)
         beer_file.create_group(group_name)
         if test_method == 'full':
             for indices_, loc_time_preds, loc_y_preds, loc_y_decfs in zip(indices, time_preds_tmp, y_preds_tmp, y_decfs_tmp):
                 for index, time_pred, y_pred, y_decf in zip(indices_, loc_time_preds, loc_y_preds, loc_y_decfs):
                     filename = "{}/time_pred_{}".format(group_name, index)
-                    print(filename)
+                    #print(filename)
                     beer_file.create_dataset(filename, data=time_pred)
                     filename = "{}/y_pred_{}".format(group_name, index)
-                    print(filename)
+                    #print(filename)
                     beer_file.create_dataset(filename, data=y_pred)
                     filename = "{}/y_decf_{}".format(group_name, index)
-                    print(filename)
+                    #print(filename)
                     beer_file.create_dataset(filename, data=y_decf)
                     filename = "{}/temp_{}".format(group_name, index)
-                    print(filename)
+                    #print(filename)
                     mask = (y_pred == 0.0)
                     temp = time_pred[mask]
                     beer_file.create_dataset(filename, data=temp)
@@ -1305,10 +1305,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for indices_, loc_y_preds, loc_y_decfs in zip(indices, y_preds_tmp, y_decfs_tmp):
                 for index, y_pred, y_decf in zip(indices_, loc_y_preds, loc_y_decfs):
                     filename = "{}/y_pred_{}".format(group_name, index)
-                    print(filename)
+                    #print(filename)
                     beer_file.create_dataset(filename, data=y_pred)
                     filename = "{}/y_decf_{}".format(group_name, index)
-                    print(filename)
+                    #print(filename)
                     beer_file.create_dataset(filename, data=y_decf)
         beer_file.close()
         
@@ -1374,13 +1374,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         class_weights_ = numpy.array([[cw[0], cw[1]] for cw in class_weights])
         class_weights_key = "class_weights"
         if class_weights_key in beer_file.keys():
-            del beer_file[class_weights_key]
+            beer_file.pop(class_weights_key)
         beer_file.create_dataset(class_weights_key, data=class_weights_)
         ## Save confusion matrices.
         confusion_matrices_ = numpy.array(confusion_matrices)
         confusion_matrices_key = "confusion_matrices"
         if confusion_matrices_key in beer_file.keys():
-            del beer_file[confusion_matrices_key]
+            beer_file.pop(confusion_matrices_key)
         beer_file.create_dataset(confusion_matrices_key, data=confusion_matrices_)
         beer_file.close()
         # Compute false positive rates and true positive rates.
@@ -1407,8 +1407,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #                     xlim=[0.0, 0.25], ylim=[0.75, 1.0])
             # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
             #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
-            plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
-    
+            error = plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
+            filename = "{}.beer.hdf5".format(file_out_suff)
+            beer_file = h5py.File(filename, 'r+', libver='latest')
+            if 'circus_error' in beer_file.keys():
+                beer_file.pop('circus_error')
+            beer_file.create_dataset('circus_error', data=numpy.array(error, dtype=numpy.float32))
+            beer_file.close()  
         
     
     ############################################################################

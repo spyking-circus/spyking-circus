@@ -1609,4 +1609,4 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
     else:
         pylab.savefig(save)
         pylab.close(fig)
-    return
+    return error
