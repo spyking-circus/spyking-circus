@@ -1587,7 +1587,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
         ax.annotate("best", pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
         # plot(fprs, tprs)
         ax.plot(fpers, fners)
-        ax.scatter(fpers, fners, color='r')
+        #ax.scatter(fpers, fners, color='r')
         ax.set_xlim(-5, 105)
         ax.set_ylim(-5, 105)
         ax.grid(True)
