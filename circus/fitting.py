@@ -78,8 +78,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     info_string   = ''
 
     if matched_filter:
-        waveform = load_data(params, 'waveforms')
+        waveform  = io.load_data(params, 'waveforms')
         waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
+        matched_tresholds = io.load_data(params, 'matched-thresholds')
 
 
     if comm.rank == 0:
@@ -190,9 +191,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             for i in xrange(N_e):
                 if matched_filter:
-                    peaktimes = algo.detect_peaks(filter_chunk[:, i], 0.75)
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds[i])
                 else:
-                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
                 if skip_artefact:
                     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                     indices   = numpy.take(inv_nodes, edges[nodes[i]])
@@ -227,11 +228,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, :, count] = local_chunk[:, idx-template_shift: idx+template_shift+1]
             sub_mat = sub_mat.reshape(N_e*(2*template_shift+1), n_t)
-
-            #window    = numpy.tile(numpy.arange(-template_shift, template_shift+1), n_t)
-            #indices   = numpy.repeat(local_peaktimes, temp_2_shift+1)
-            #indices  += window
-            #sub_mat   = numpy.take(local_chunk, indices, axis=0).reshape(n_t, 2*template_shift+1, N_e).T.reshape(N_e*(2*template_shift+1), n_t)
 
             del local_chunk
 
