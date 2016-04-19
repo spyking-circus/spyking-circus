@@ -212,6 +212,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
         self.ui.btn_merge.clicked.connect(self.do_merge)
         self.ui.btn_finalize.clicked.connect(self.finalize)
+        self.ui.btn_merge_and_finalize.clicked.connect(self.merge_and_finalize)
         self.ui.btn_set_lag.clicked.connect(lambda event: setattr(self.lag_selector,
                                                                   'active', True))
         # TODO: Tooltips
@@ -850,7 +851,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.app.restoreOverrideCursor()
 
 
-    def do_merge(self, event):
+    def do_merge(self, event, regenerate=True):
         # This simply removes the data points for now
         io.print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', self.params)
         
@@ -902,20 +903,21 @@ class MergeWindow(QtGui.QMainWindow):
                 self.rates[to_keep] += self.rates[to_remove]
                 self.indices[idx]    = self.indices[to_keep]
 
-        self.generate_data()
-        self.collections = None
-        self.selected_points    = set()
-        self.selected_templates = set()
-        self.inspect_points     = set()
-        self.inspect_templates  = set()
-        self.score_ax1.clear()
-        self.score_ax2.clear()
-        self.score_ax3.clear()
-        self.update_lag(self.use_lag)
-        self.update_data_sort_order()
-        self.update_detail_plot()
-        self.update_waveforms()
-        self.plot_scores()
+        if regenerate:
+            self.generate_data()
+            self.collections = None
+            self.selected_points    = set()
+            self.selected_templates = set()
+            self.inspect_points     = set()
+            self.inspect_templates  = set()
+            self.score_ax1.clear()
+            self.score_ax2.clear()
+            self.score_ax3.clear()
+            self.update_lag(self.use_lag)
+            self.update_data_sort_order()
+            self.update_detail_plot()
+            self.update_waveforms()
+            self.plot_scores()
         # do lengthy process
         
         self.app.restoreOverrideCursor()
@@ -963,6 +965,11 @@ class MergeWindow(QtGui.QMainWindow):
         self.app.restoreOverrideCursor()
         
         sys.exit(0)
+
+    def merge_and_finalize(self, event):
+
+        self.do_merge(event, regenerate=False)
+        self.finalize(event)
 
 
 class PreviewGUI(QtGui.QMainWindow):
