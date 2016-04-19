@@ -433,7 +433,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 gdata      = gdata.reshape((comm.size, N_e))
                 thresholds = numpy.mean(gdata, 0)
                 bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
-                bfile.pop('matched_thresholds')
                 io.write_datasets(bfile, ['matched_thresholds'], {'matched_thresholds' : thresholds})
                 bfile.close()
             comm.Barrier()
