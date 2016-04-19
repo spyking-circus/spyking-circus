@@ -78,7 +78,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     info_string   = ''
 
     if matched_filter:
-        waveform = io.load_data(params, 'waveforms')
+        waveform = load_data(params, 'waveforms')
+        waveforms /= (numpy.abs(numpy.sum(waveforms))* len(waveforms))
+
 
     if comm.rank == 0:
         if use_gpu:
@@ -184,7 +186,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
 
             if matched_filter:
-                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform, axis=0, mode='constant') / len(waveform)
+                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform, axis=0, mode='constant')
 
             for i in xrange(N_e):
                 if matched_filter:

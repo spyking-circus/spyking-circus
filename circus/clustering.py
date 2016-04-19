@@ -64,7 +64,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     if matched_filter:
-        waveform = io.load_data(params, 'waveforms')
+        waveform   = load_data(params, 'waveforms')
+        waveforms /= (numpy.abs(numpy.sum(waveforms))* len(waveforms))
 
     result   = {}
 
@@ -201,7 +202,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     thresholds *= spike_thresh
 
                 if matched_filter:
-                    filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform, axis=0, mode='constant') / len(waveform)
+                    filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform, axis=0, mode='constant')
                     
                 for i in xrange(N_e):
                     if matched_filter:

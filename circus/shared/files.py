@@ -663,6 +663,13 @@ def load_data(params, data, extension=''):
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
+    if data == 'matched-thresholds':
+        spike_thresh = params.getfloat('data', 'matched_thresh')
+        if os.path.exists(file_out + '.basis.hdf5'):
+            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+            thresholds = myfile.get('matched_thresholds')[:]
+            myfile.close()
+            return spike_thresh * thresholds 
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile  = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
