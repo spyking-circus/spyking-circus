@@ -216,6 +216,7 @@ def load_parameters(file_name):
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['data', 'matched-filter', 'bool', 'True'],
+                  ['data', 'matched_thresh', 'float', '4'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
@@ -664,12 +665,12 @@ def load_data(params, data, extension=''):
             myfile.close()
             return spike_thresh * thresholds 
     if data == 'matched-thresholds':
-        spike_thresh = params.getfloat('data', 'matched_thresh')
+        matched_thresh = params.getfloat('data', 'matched_thresh')
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds')[:]
             myfile.close()
-            return spike_thresh * thresholds 
+            return matched_thresh * thresholds 
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile  = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')

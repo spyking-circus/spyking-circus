@@ -65,7 +65,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if matched_filter:
         waveform   = load_data(params, 'waveforms')
-        waveforms /= (numpy.abs(numpy.sum(waveforms))* len(waveforms))
+        waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
 
     result   = {}
 
