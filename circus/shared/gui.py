@@ -371,7 +371,8 @@ class MergeWindow(QtGui.QMainWindow):
     def plot_data(self):
         # Right: raw data
         all_raw_data = self.raw_data/(1 + self.raw_data.mean(1)[:, np.newaxis])
-        cmax         = 0.1*all_raw_data.max()
+        cmax         = 0.5*all_raw_data.max()
+        cmin         = 0.5*all_raw_data.min()
         self.update_sort_idcs()
         all_raw_data = all_raw_data[self.sort_idcs, :]
 
@@ -383,7 +384,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.data_ax.spines['right'].set_visible(False)
         self.data_ax.spines['left'].set_visible(False)
         self.data_ax.spines['top'].set_visible(False)
-        self.data_image.set_clim(0, cmax)
+        self.data_image.set_clim(cmin, cmax)
         self.inspect_markers = self.data_ax.scatter([], [], marker='<',
                                                     clip_on=False, s=40)
         self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
@@ -588,10 +589,11 @@ class MergeWindow(QtGui.QMainWindow):
         self.data_ax.set_ylim(0, len(self.sort_idcs))
         all_raw_data  = self.raw_data
         all_raw_data /= (1 + self.raw_data.mean(1)[:, np.newaxis])
-        cmax          = 0.1*all_raw_data.max()
+        cmax          = 0.5*all_raw_data.max()
+        cmin          = 0.5*all_raw_data.min()
         all_raw_data  = all_raw_data[self.sort_idcs, :]
         self.data_image.set_data(all_raw_data)
-        self.data_image.set_clim(0, cmax)
+        self.data_image.set_clim(cmin, cmax)
         self.data_selection.set_y(len(self.sort_idcs)-len(self.selected_points))
         self.data_selection.set_height(len(self.selected_points))
         self.update_data_plot()
