@@ -116,6 +116,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for i in xrange(N_over):
         c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
     
+    del overlaps
+
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
