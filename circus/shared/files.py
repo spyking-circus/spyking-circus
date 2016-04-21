@@ -663,6 +663,9 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     myip   = int(socket.gethostbyname(socket.getfqdn()).replace('.', ''))
     allips = all_gather_array(numpy.array([myip], dtype=numpy.float32), comm, 0)
 
+    intsize   = MPI.INT.Get_size()
+    floatsize = MPI.FLOAT.Get_size() 
+
     machines = numpy.unique(allips)
     distinct_machines = []
     for m in machines:
@@ -696,8 +699,6 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             long_size  = int(comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
             short_size = int(comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
 
-            intsize   = MPI.INT.Get_size()
-            floatsize = MPI.FLOAT.Get_size() 
             if comm.rank == 0:
                 indptr_bytes  = short_size * intsize
                 indices_bytes = long_size * intsize
@@ -775,8 +776,6 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             long_size  = int(comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
             short_size = int(comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
 
-            intsize   = MPI.INT.Get_size()
-            floatsize = MPI.FLOAT.Get_size() 
             if comm.rank == 0:
                 indptr_bytes  = short_size * intsize
                 indices_bytes = long_size * intsize
@@ -816,7 +815,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             c_overs[i].indptr  = indptr
 
             comm.Barrier()
-        
+                    
         if comm.rank in distinct_machines:
             del overlaps
 
