@@ -663,6 +663,11 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     myip   = int(socket.gethostbyname(socket.getfqdn()).replace('.', ''))
     allips = all_gather_array(numpy.array([myip], dtype=numpy.float32), comm, 0)
 
+    machines = numpy.unique(allips)
+    distinct_machines = []
+    for m in machines:
+        distinct_machines += [numpy.where(allips == m)[0][0]]
+
     if data == 'templates':
         N_e = params.getint('data', 'N_e')
         N_t = params.getint('data', 'N_t')
@@ -671,7 +676,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             nb_ptr  = 0
             nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms').shape[0]
 
-            if comm.rank == 0:
+            if comm.rank in distinct_machines:
                 temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
                 temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
                 temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]    
@@ -720,7 +725,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
 
             comm.Barrier()
 
-            if comm.rank == 0:
+            if comm.rank in distinct_machines:
                 data[:]    = sparse_mat.data
                 indices[:] = sparse_mat.indices
                 indptr[:]  = sparse_mat.indptr
@@ -745,7 +750,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
         S_over     = over_shape[1]
         c_overs    = {}
             
-        if comm.rank == 0:
+        if comm.rank in distinct_machines:
             over_x     = c_overlap.get('over_x')[:]
             over_y     = c_overlap.get('over_y')[:]
             over_data  = c_overlap.get('over_data')[:]
@@ -762,7 +767,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
 
         for i in xrange(N_over):
             
-            if comm.rank == 0:
+            if comm.rank in distinct_machines:
                 sparse_mat = overlaps[i*N_over:(i+1)*N_over]
                 nb_data    = len(sparse_mat.data)
                 nb_ptr     = len(sparse_mat.indptr)
@@ -799,7 +804,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
 
             comm.Barrier()
 
-            if comm.rank == 0:
+            if comm.rank in distinct_machines:
                 data[:]    = sparse_mat.data
                 indices[:] = sparse_mat.indices
                 indptr[:]  = sparse_mat.indptr
@@ -812,7 +817,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
 
             comm.Barrier()
         
-        if comm.rank == 0:
+        if comm.rank in distinct_machines:
             del overlaps
 
         return c_overs
