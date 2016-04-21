@@ -54,7 +54,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_sync_threads()
 
     if SHARED_MEMORY:
-        templates  = io.load_templates_memshared(params, comm, 'templates', normalize=True, transpose=True)
+        templates  = io.load_data_memshared(params, comm, 'templates', normalize=True, transpose=True)
         N_tm, x    = templates.shape
     else:
         templates  = io.load_data(params, 'templates')
@@ -97,18 +97,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     thresholds = io.load_data(params, 'thresholds')
-    c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
 
-    over_x     = c_overlap.get('over_x')[:]
-    over_y     = c_overlap.get('over_y')[:]
-    over_data  = c_overlap.get('over_data')[:]
-    over_shape = c_overlap.get('over_shape')[:]
-    c_overlap.close()
+    if SHARED_MEMORY:
+        c_overs    = io.load_data_memshared(params, comm, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)        
+        c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        over_shape = c_overlap.get('over_shape')[:]
+        N_over     = int(numpy.sqrt(over_shape[0]))
+        S_over     = over_shape[1]
+    else:
+        c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        over_x     = c_overlap.get('over_x')[:]
+        over_y     = c_overlap.get('over_y')[:]
+        over_data  = c_overlap.get('over_data')[:]
+        c_overlap.close()
+
+        # To be faster, we rearrange the overlaps into a dictionnary
+        c_overs   = {}
+        overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
+        del over_x, over_y, over_data
+        
+        for i in xrange(N_over):
+            c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
+        
+        del overlaps
 
     if comm.rank == 0:
         io.print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
         io.purge(file_out_suff, '.data')
-
 
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -118,16 +133,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if spikedetekt:
         spiketimes = io.load_data(params, 'spikedetekt')
 
-    # To be faster, we rearrange the overlaps into a dictionnary
-    N_over    = int(numpy.sqrt(over_shape[0]))
-    S_over    = over_shape[1]
-    c_overs   = {}
-    overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
-    del over_x, over_y, over_data
-    
-    for i in xrange(N_over):
-        c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
-    
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
@@ -226,11 +231,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, :, count] = local_chunk[:, idx-template_shift: idx+template_shift+1]
             sub_mat = sub_mat.reshape(N_e*(2*template_shift+1), n_t)
-
-            #window    = numpy.tile(numpy.arange(-template_shift, template_shift+1), n_t)
-            #indices   = numpy.repeat(local_peaktimes, temp_2_shift+1)
-            #indices  += window
-            #sub_mat   = numpy.take(local_chunk, indices, axis=0).reshape(n_t, 2*template_shift+1, N_e).T.reshape(N_e*(2*template_shift+1), n_t)
 
             del local_chunk
 

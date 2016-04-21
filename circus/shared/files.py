@@ -649,7 +649,7 @@ def get_nodes_and_edges(parameters):
     return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
 
 
-def load_templates_memshared(params, comm, data, extension='', normalize=False, transpose=False):
+def load_data_memshared(params, comm, data, extension='', normalize=False, transpose=False, nb_cpu=1, nb_gpu=0, use_gpu=False):
 
     from mpi4py import MPI
 
@@ -731,8 +731,82 @@ def load_templates_memshared(params, comm, data, extension='', normalize=False, 
             return templates
         else:
             raise Exception('No templates found! Check suffix?')
+    elif data == "overlaps":
+        
+        c_overlap  = get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        over_shape = c_overlap.get('over_shape')[:]
+        N_over     = int(numpy.sqrt(over_shape[0]))
+        S_over     = over_shape[1]
+        c_overs    = {}
+            
+        if comm.rank == 0:
+            over_x     = c_overlap.get('over_x')[:]
+            over_y     = c_overlap.get('over_y')[:]
+            over_data  = c_overlap.get('over_data')[:]
+            c_overlap.close()
 
+            # To be faster, we rearrange the overlaps into a dictionnary
+            overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
+            del over_x, over_y, over_data
 
+        comm.Barrier()                
+        
+        nb_data = 0
+        nb_ptr  = 0
+
+        for i in xrange(N_over):
+            
+            if comm.rank == 0:
+                sparse_mat = overlaps[i*N_over:(i+1)*N_over]
+                nb_data    = len(sparse_mat.data)
+                nb_ptr     = len(sparse_mat.indptr)
+
+            long_size  = int(comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
+            short_size = int(comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
+
+            intsize   = MPI.INT.Get_size()
+            floatsize = MPI.FLOAT.Get_size() 
+            if comm.rank == 0:
+                indptr_bytes  = short_size * intsize
+                indices_bytes = long_size * intsize
+                data_bytes    = long_size * floatsize
+            else:
+                indptr_bytes  = 0
+                indices_bytes = 0
+                data_bytes    = 0
+
+            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=comm)
+            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=comm)
+            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=comm)
+
+            buf_data, _    = win_data.Shared_query(0)
+            buf_indices, _ = win_indices.Shared_query(0)
+            buf_indptr, _  = win_indptr.Shared_query(0)
+                
+            buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+            buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
+            buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
+                                
+            data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
+            indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+
+            comm.Barrier()
+
+            if comm.rank == 0:
+                data[:]    = sparse_mat.data
+                indices[:] = sparse_mat.indices
+                indptr[:]  = sparse_mat.indptr
+                del sparse_mat
+
+            c_overs[i]         = scipy.sparse.csr_matrix((N_over, over_shape[1]), dtype=numpy.float32)
+            c_overs[i].data    = data
+            c_overs[i].indices = indices
+            c_overs[i].indptr  = indptr
+
+            comm.Barrier()
+        return c_overs
+    
 
 def load_data(params, data, extension=''):
 
