@@ -648,6 +648,92 @@ def get_nodes_and_edges(parameters):
 
     return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
 
+
+def load_templates_memshared(params, comm, data, extension='', normalize=False, transpose=False):
+
+    from mpi4py import MPI
+
+    file_out        = params.get('data', 'file_out')
+    file_out_suff   = params.get('data', 'file_out_suff')
+    data_file_noext = params.get('data', 'data_file_noext')
+
+    if data == 'templates':
+        N_e = params.getint('data', 'N_e')
+        N_t = params.getint('data', 'N_t')
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+            nb_data = 0
+            nb_ptr  = 0
+            nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms').shape[0]
+
+            if comm.rank == 0:
+                temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
+                temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
+                temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]    
+                sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
+                if normalize:
+                    norm_templates = load_data(params, 'norm-templates')
+                    for idx in xrange(sparse_mat.shape[1]):
+                        myslice = numpy.arange(sparse_mat.indptr[idx], sparse_mat.indptr[idx+1])
+                        sparse_mat.data[myslice] /= norm_templates[idx]
+                if transpose:
+                    sparse_mat = sparse_mat.T
+
+                nb_data = len(sparse_mat.data)
+                nb_ptr  = len(sparse_mat.indptr)
+
+            comm.Barrier()                
+            long_size  = int(comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
+            short_size = int(comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
+
+            intsize   = MPI.INT.Get_size()
+            floatsize = MPI.FLOAT.Get_size() 
+            if comm.rank == 0:
+                indptr_bytes  = short_size * intsize
+                indices_bytes = long_size * intsize
+                data_bytes    = long_size * floatsize
+            else:
+                indptr_bytes  = 0
+                indices_bytes = 0
+                data_bytes    = 0
+
+            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=comm)
+            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=comm)
+            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=comm)
+
+            buf_data, _    = win_data.Shared_query(0)
+            buf_indices, _ = win_indices.Shared_query(0)
+            buf_indptr, _  = win_indptr.Shared_query(0)
+                
+            buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+            buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
+            buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
+                                
+            data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
+            indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+
+            comm.Barrier()
+
+            if comm.rank == 0:
+                data[:]    = sparse_mat.data
+                indices[:] = sparse_mat.indices
+                indptr[:]  = sparse_mat.indptr
+                del sparse_mat
+
+            comm.Barrier()
+            if not transpose:
+                templates = scipy.sparse.csc_matrix((N_e*N_t, nb_templates), dtype=numpy.float32)
+            else:
+                templates = scipy.sparse.csr_matrix((nb_templates, N_e*N_t), dtype=numpy.float32)
+            templates.data    = data
+            templates.indices = indices
+            templates.indptr  = indptr
+            return templates
+        else:
+            raise Exception('No templates found! Check suffix?')
+
+
+
 def load_data(params, data, extension=''):
 
     file_out        = params.get('data', 'file_out')

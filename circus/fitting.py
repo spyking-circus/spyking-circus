@@ -46,10 +46,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    templates      = io.load_data(params, 'templates')
+    templates      = io.load_templates_memshared(params, comm, 'templates', normalize=True, transpose=True)
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
-    x,        N_tm = templates.shape
+    N_tm, x        = templates.shape
     template_shift = int((N_t-1)//2)
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
@@ -65,12 +65,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         amp_limits       = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
+    
+    #for idx in xrange(templates.shape[1]):
+    #    myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+    #    templates.data[myslice] /= norm_templates[idx]
+    
+    #templates = templates.T
 
-    for idx in xrange(templates.shape[1]):
-        myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-        templates.data[myslice] /= norm_templates[idx]
-
-    templates = templates.T
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates)
 
@@ -116,8 +117,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for i in xrange(N_over):
         c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
     
-    del overlaps
-
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
