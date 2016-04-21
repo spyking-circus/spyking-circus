@@ -805,6 +805,10 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             c_overs[i].indptr  = indptr
 
             comm.Barrier()
+        
+        if comm.rank == 0:
+            del overlaps
+
         return c_overs
     
 
@@ -948,10 +952,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     duration       = data_stats(params, show=False)
-    templates      = load_data(params, 'templates')
+    templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
     refractory     = int(0.5*sampling_rate*1e-3)
-    x, N_tm        = templates.shape
+    N_tm           = len(templates)
 
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
@@ -1076,12 +1080,31 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
 
+    try:
+        SHARED_MEMORY = True
+        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+    except NotImplementedError:
+        SHARED_MEMORY = False
+
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     if maxoverlap:
-        templates  = load_data(params, 'templates', extension=extension)
+        if SHARED_MEMORY:
+            load_data_memshared(params, comm, 'templates', extension=extension, normalize=normalize)
+        else:
+            templates  = load_data(params, 'templates', extension=extension)
     else:
-        templates  = load_data(params, 'templates')
+        if SHARED_MEMORY:
+            load_data_memshared(params, comm, 'templates', normalize=normalize)
+        else:
+            templates  = load_data(params, 'templates')
+    
+    if not SHARED_MEMORY and normalize:
+        norm_templates = load_data(params, 'norm-templates')[:N_tm]
+        for idx in xrange(N_tm):
+            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+            templates.data[myslice] /= norm_templates[idx]
+
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
     if extension == '-merged':
         best_elec  = load_data(params, 'electrodes', extension)
@@ -1122,14 +1145,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
         cmt.cuda_sync_threads()
 
     if use_gpu:
-        cuda_string = 'using %d GPU...' %comm.size
-
-    #print "Normalizing the templates..."
-    if normalize:
-        norm_templates = load_data(params, 'norm-templates')[:N_tm]
-        for idx in xrange(N_tm):
-            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-            templates.data[myslice] /= norm_templates[idx]
+        cuda_string = 'using %d GPU...' %comm.size    
 
     all_delays      = numpy.arange(1, N_t+1)
 
