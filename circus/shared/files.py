@@ -1080,6 +1080,8 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
 
+    from mpi4py import MPI
+
     try:
         SHARED_MEMORY = True
         MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
@@ -1090,12 +1092,12 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     if maxoverlap:
         if SHARED_MEMORY:
-            load_data_memshared(params, comm, 'templates', extension=extension, normalize=normalize)
+            templates  = load_data_memshared(params, comm, 'templates', extension=extension, normalize=normalize)
         else:
             templates  = load_data(params, 'templates', extension=extension)
     else:
         if SHARED_MEMORY:
-            load_data_memshared(params, comm, 'templates', normalize=normalize)
+            templates  = load_data_memshared(params, comm, 'templates', normalize=normalize)
         else:
             templates  = load_data(params, 'templates')
     
