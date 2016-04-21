@@ -59,6 +59,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     else:
         templates  = io.load_data(params, 'templates')
         x, N_tm    = templates.shape
+
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     template_shift = int((N_t-1)//2)

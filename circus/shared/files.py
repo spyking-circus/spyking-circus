@@ -1101,6 +1101,14 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
 
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+    filename       = file_out_suff + '.overlap%s.hdf5' %extension
+
+    if os.path.exists(filename) and not erase:
+        return h5py.File(filename, 'r')
+    else:
+        if os.path.exists(filename) and erase and (comm.rank == 0):
+            os.remove(filename)
+
     if maxoverlap:
         if SHARED_MEMORY:
             templates  = load_data_memshared(params, comm, 'templates', extension=extension, normalize=normalize)
@@ -1118,7 +1126,6 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
             myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
             templates.data[myslice] /= norm_templates[idx]
 
-    filename       = file_out_suff + '.overlap%s.hdf5' %extension
     if extension == '-merged':
         best_elec  = load_data(params, 'electrodes', extension)
     else:
@@ -1131,12 +1138,6 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
 
     if half:
         N_tm //= 2
-
-    if os.path.exists(filename) and not erase:
-        return h5py.File(filename, 'r')
-    else:
-        if os.path.exists(filename) and erase and (comm.rank == 0):
-            os.remove(filename)
     
     comm.Barrier()
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
