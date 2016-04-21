@@ -666,11 +666,11 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     intsize   = MPI.INT.Get_size()
     floatsize = MPI.FLOAT.Get_size() 
 
+    sub_comm = comm.Split(myip, 0)
     machines = numpy.unique(allips)
-    distinct_machines = []
-    for m in machines:
-        distinct_machines += [numpy.where(allips == m)[0][0]]
 
+    print sub_comm.rank, myip
+    
     if data == 'templates':
         N_e = params.getint('data', 'N_e')
         N_t = params.getint('data', 'N_t')
@@ -679,7 +679,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             nb_ptr  = 0
             nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms').shape[0]
 
-            if comm.rank in distinct_machines:
+            if sub_comm.rank == 0:
                 temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
                 temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
                 temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]    
@@ -695,11 +695,11 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 nb_data = len(sparse_mat.data)
                 nb_ptr  = len(sparse_mat.indptr)
 
-            comm.Barrier()                
-            long_size  = int(comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
-            short_size = int(comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
+            sub_comm.Barrier()                
+            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
+            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
 
-            if comm.rank == 0:
+            if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
                 indices_bytes = long_size * intsize
                 data_bytes    = long_size * floatsize
@@ -708,9 +708,9 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 indices_bytes = 0
                 data_bytes    = 0
 
-            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=comm)
-            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=comm)
-            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=comm)
+            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
+            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
 
             buf_data, _    = win_data.Shared_query(0)
             buf_indices, _ = win_indices.Shared_query(0)
@@ -724,15 +724,15 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
             indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
 
-            comm.Barrier()
+            sub_comm.Barrier()
 
-            if comm.rank in distinct_machines:
+            if sub_comm.rank == 0:
                 data[:]    = sparse_mat.data
                 indices[:] = sparse_mat.indices
                 indptr[:]  = sparse_mat.indptr
                 del sparse_mat
 
-            comm.Barrier()
+            sub_comm.Barrier()
             if not transpose:
                 templates = scipy.sparse.csc_matrix((N_e*N_t, nb_templates), dtype=numpy.float32)
             else:
@@ -740,6 +740,9 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             templates.data    = data
             templates.indices = indices
             templates.indptr  = indptr
+
+            sub_comm.Free()
+
             return templates
         else:
             raise Exception('No templates found! Check suffix?')
@@ -751,7 +754,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
         S_over     = over_shape[1]
         c_overs    = {}
             
-        if comm.rank in distinct_machines:
+        if sub_comm.rank == 0:
             over_x     = c_overlap.get('over_x')[:]
             over_y     = c_overlap.get('over_y')[:]
             over_data  = c_overlap.get('over_data')[:]
@@ -761,22 +764,22 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
             del over_x, over_y, over_data
 
-        comm.Barrier()                
+        sub_comm.Barrier()                
         
         nb_data = 0
         nb_ptr  = 0
 
         for i in xrange(N_over):
             
-            if comm.rank in distinct_machines:
+            if sub_comm.rank == 0:
                 sparse_mat = overlaps[i*N_over:(i+1)*N_over]
                 nb_data    = len(sparse_mat.data)
                 nb_ptr     = len(sparse_mat.indptr)
 
-            long_size  = int(comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
-            short_size = int(comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
+            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
+            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
 
-            if comm.rank == 0:
+            if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
                 indices_bytes = long_size * intsize
                 data_bytes    = long_size * floatsize
@@ -785,9 +788,9 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 indices_bytes = 0
                 data_bytes    = 0
 
-            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=comm)
-            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=comm)
-            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=comm)
+            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
+            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
 
             buf_data, _    = win_data.Shared_query(0)
             buf_indices, _ = win_indices.Shared_query(0)
@@ -801,9 +804,9 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
             indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
 
-            comm.Barrier()
+            sub_comm.Barrier()
 
-            if comm.rank in distinct_machines:
+            if sub_comm.rank == 0:
                 data[:]    = sparse_mat.data
                 indices[:] = sparse_mat.indices
                 indptr[:]  = sparse_mat.indptr
@@ -814,10 +817,12 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             c_overs[i].indices = indices
             c_overs[i].indptr  = indptr
 
-            comm.Barrier()
+            sub_comm.Barrier()
                     
-        if comm.rank in distinct_machines:
+        if sub_comm.rank == 0:
             del overlaps
+
+        sub_comm.Free()
 
         return c_overs
     
