@@ -6,6 +6,7 @@ import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 import colorama
 from colorama import Fore
+from mpi import all_gather_array
 
 from .mpi import gather_array
 import logging
@@ -656,6 +657,11 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     file_out        = params.get('data', 'file_out')
     file_out_suff   = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
+
+    ## First we need to identify machines in the MPI ring
+    import socket
+    myip   = int(socket.gethostbyname(socket.getfqdn()).replace('.', ''))
+    allips = all_gather_array(numpy.array([myip], dtype=numpy.float32), comm, 0)
 
     if data == 'templates':
         N_e = params.getint('data', 'N_e')
