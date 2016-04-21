@@ -8,6 +8,13 @@ from .shared.utils import *
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
+    SHARED_MEMORY = False
+    try:
+        SHARED_MEMORY = True
+        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+    except NotImplementedError:
+        SHARED_MEMORY = False
+
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')
     N_e            = params.getint('data', 'N_e')
@@ -46,10 +53,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    templates      = io.load_templates_memshared(params, comm, 'templates', normalize=True, transpose=True)
+    if SHARED_MEMORY:
+        templates  = io.load_templates_memshared(params, comm, 'templates', normalize=True, transpose=True)
+        N_tm, x    = templates.shape
+    else:
+        templates  = io.load_data(params, 'templates')
+        x, N_tm    = templates.shape
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
-    N_tm, x        = templates.shape
     template_shift = int((N_t-1)//2)
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
@@ -66,11 +77,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     norm_templates = io.load_data(params, 'norm-templates')
     
-    #for idx in xrange(templates.shape[1]):
-    #    myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-    #    templates.data[myslice] /= norm_templates[idx]
-    
-    #templates = templates.T
+    if not SHARED_MEMORY:
+        for idx in xrange(templates.shape[1]):
+            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+            templates.data[myslice] /= norm_templates[idx]
+        templates = templates.T
 
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates)
