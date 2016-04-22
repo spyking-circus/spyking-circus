@@ -55,12 +55,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # test_method = 'full' # full test set
     test_method = 'downsampled' # downsampled test set
     
-
+    
     # N_max = 1000000
     N_max = 12000
+    # N_max = 6000
+    # N_max = 3000
+    # N_max = 1500
     alpha_gt = 1.0
-    alpha_ngt = 2.0
-    alpha_noi = 2.0
+    alpha_ngt = 5.0
+    alpha_noi = 5.0
     
     if test_method == 'full':
         # Cut data into two halves.
@@ -232,6 +235,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_ngt_max = int((alpha_ngt / alpha) * float(N_max))
     N_noi_max = int((alpha_noi / alpha) * float(N_max))
     
+    ##### TODO: remove debug zone
+    if comm.rank == 0:
+        print("alpha_gt: {}".format(alpha_gt))
+        print("alpha_ngt: {}".format(alpha_ngt))
+        print("alpha_noi: {}".format(alpha_noi))
+        print("alpha: {}".format(alpha))
+        print("N_max: {}".format(N_max))
+        print("N_gt_max: {}".format(N_gt_max))
+        print("N_ngt_max: {}".format(N_ngt_max))
+        print("N_noi_max: {}".format(N_noi_max))
+        N_total = N_gt_max + N_ngt_max + N_noi_max
+        print("N_total: {}".format(N_total))
+    # sys.exit(0)
+    ##### end debug zone
+    
     
     
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
@@ -241,7 +259,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     # Retrieve the spike times of the "ground truth cell".
     spike_times_gt = spike_times_juxta
-
+    
+    ##### TODO: remove debug zone
+    if comm.rank == 0:
+        N_gt = spike_times_gt.size
+        print("N_gt: {}".format(N_gt))
+    # sys.exit(0)
+    ##### end debug zone
+    
     ##### TODO: clean temporary zone
     # Filter out the end of the data (~30%).
     if test_method == 'full':
@@ -479,6 +504,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["Samples..."], level='debug', logger=params)
     
+    ##### TODO: remove debug zone
+    if comm.rank == 0:
+        print("N_gt: {}".format(y_gt.size))
+        print("N_ngt: {}".format(y_ngt.size))
+        print("N_noi: {}".format(y_noi.size))
+    # sys.exit(0)
+    ##### end debug zone
+    
     # Option to include the pairwise product of feature vector elements.
     pairwise = True
     
@@ -528,6 +561,96 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 "# y.shape: {}".format(y.shape),
             ]
             io.print_and_log(msg, level='default', logger=params)
+    
+    
+    ##### DATASET PROBABILITIES ################################################
+    
+    # Original probabilities without match window.
+    b_origin_ = float(spike_times_juxta.size) / float(time_max - time_min + 1)
+    
+    # Original probabilities with match window.
+    thresh = int(float(sampling_rate) * 2.0 * 1.0e-3)
+    tmp = numpy.zeros(time_max - time_min + 1, dtype='bool')
+    indices = numpy.repeat(spike_times_juxta, 2 * thresh + 1)
+    indices = numpy.reshape(indices, (spike_times_juxta.size, 2 * thresh + 1))
+    indices = indices + numpy.arange(- thresh, thresh + 1)
+    indices = numpy.reshape(indices, (-1,))
+    indices = indices[time_min <= indices]
+    indices = indices[indices <= time_max]
+    indices = indices - time_min
+    tmp[indices] = True
+    b_origin = float(numpy.count_nonzero(tmp)) / float(time_max - time_min + 1)
+    
+    if comm.rank == 0:
+        
+        # print("")
+        # print("spike_times_juxta.size: {}".format(spike_times_juxta.size))
+        # print("spike_times_juxta[:10]: {}".format(spike_times_juxta[:10]))
+        # print("time_min: {}".format(time_min))
+        # print("time_max: {}".format(time_max))
+        # print("thresh: {}".format(thresh))
+        # print("tmp.size: {}".format(tmp.size))
+        # print("tmp: {}".format(tmp))
+        # print("numpy.count_nonzero(tmp): {}".format(numpy.count_nonzero(tmp)))
+        
+        print("")
+        print("    b_origin_: {}".format(b_origin_))
+        print("1 - b_origin_: {}".format(1.0 - b_origin_))
+        print("ratio: 1:{}".format(int((1.0 - b_origin_) / b_origin_)))
+        print("    b_origin: {}".format(b_origin))
+        print("1 - b_origin: {}".format(1.0 - b_origin))
+        print("ratio: 1:{}".format(int((1.0 - b_origin) / b_origin)))
+        print("b_origin / b_origin_: {}".format(b_origin / b_origin_))
+    
+    
+    # Undersampled probabilities without match window.
+    b_under_ = float(spike_times_gt.size) / float(spike_times_gt.size + spike_times_ngt.size + spike_times_noi.size)
+    
+    # Training probabilities with math window.
+    thresh = int(float(sampling_rate) * 2.0 * 1.0e-3)
+    tmp_0 = numpy.zeros(time_max - time_min + 1, dtype='bool')
+    tmp_1 = numpy.zeros(time_max - time_min + 1, dtype='bool')
+    indices_0 = numpy.repeat(spike_times_gt, 2 * thresh + 1)
+    indices_0 = numpy.reshape(indices_0, (spike_times_gt.size, 2 * thresh + 1))
+    indices_0 = indices_0 + numpy.arange(- thresh, thresh + 1)
+    indices_0 = numpy.reshape(indices_0, (-1,))
+    indices_0 = indices_0[time_min <= indices_0]
+    indices_0 = indices_0[indices_0 <= time_max]
+    indices_0 = indices_0 - time_min
+    tmp_0[indices_0] = True
+    spike_times = numpy.concatenate((spike_times_gt, spike_times_ngt, spike_times_noi))
+    indices_1 = numpy.repeat(spike_times, 2 * thresh + 1)
+    indices_1 = numpy.reshape(indices_1, (spike_times.size, 2 * thresh + 1))
+    indices_1 = indices_1 + numpy.arange(- thresh, thresh + 1)
+    indices_1 = numpy.reshape(indices_1, (-1,))
+    indices_1 = indices_1[time_min <= indices_1]
+    indices_1 = indices_1[indices_1 <= time_max]
+    indices_1 = indices_1 - time_min
+    tmp_1[indices_1] = True
+    b_under = float(numpy.count_nonzero(tmp_0)) / float(numpy.count_nonzero(tmp_1))
+    
+    alpha_under = (b_origin * (1.0 - b_under)) / (b_under * (1.0 - b_origin))
+    
+    if comm.rank == 0:
+        
+        # print("")
+        # print("spike_times_gt.size: {}".format(spike_times_gt.size))
+        # print("spike_times_gt[:10]: {}".format(spike_times_gt[:10]))
+        # print("spike_times_ngt.size: {}".format(spike_times_ngt.size))
+        # print("spike_times_ngt[:10]: {}".format(spike_times_ngt[:10]))
+        # print("spike_times_noi.size: {}".format(spike_times_noi.size))
+        # print("spike_times_noi[:10]: {}".format(spike_times_noi[:10]))
+        # print("numpy.count_nonzero(tmp_0): {}".format(numpy.count_nonzero(tmp_0)))
+        # print("numpy.count_nonzero(tmp_1): {}".format(numpy.count_nonzero(tmp_1)))
+        
+        print("")
+        print("      b_under_: {}".format(b_under_))
+        print("1.0 - b_under_: {}".format(1.0 - b_under_))
+        print("ratio: 1:{}".format(int((1.0 - b_under_) / b_under_)))
+        print("      b_under: {}".format(b_under))
+        print("1.0 - b_under: {}".format(1.0 - b_under))
+        print("ratio: 1:{}".format(int((1.0 - b_under) / b_under)))
+        print("alpha_under: {}".format(alpha_under))
     
     
     
@@ -791,21 +914,146 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     model = 'sgd'
     
+    ##### TODO: clean temporary zone
+    def split_train_test(X, y, test_size=0.5, seed=0):
+        size = X.shape[0]
+        indices = numpy.random.permutation(size)
+        thresh = int((1.0 - test_size) * float(size))
+        indices_train = indices[:thresh]
+        indices_test = indices[thresh:]
+        return indices_train, indices_test
+    ##### end temporary zone
+    
     # Preprocess dataset.
     if not skip_demo:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+        ##### TODO: clean temporary zone
+        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+        indices_train, indices_test = split_train_test(X, y, test_size=0.3)
+        X_train = X[indices_train, :]
+        X_test = X[indices_test, :]
+        y_train = y[indices_train]
+        y_test = y[indices_test]
+        ##### end temporary zone
     else:
         X_train = X
+        X_test = None
         y_train = y
+        y_test = None
     
     ##### TODO: remove temporary zone
     if test_method == 'full':
         X_train, X_test, y_train, y_test = X, None, y, None
     elif test_method == 'downsampled':
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+        indices_train, indices_test = split_train_test(X, y, test_size=0.3)
+        X_train = X[indices_train, :]
+        X_test = X[indices_test, :]
+        y_train = y[indices_train]
+        y_test = y[indices_test]
     else:
         raise Exception("Unknown test mode: {}".format(test_method))
     ##### end temporary zone
+    
+    
+    ##### TODO: remove temporary zone
+    # TODO: compute the probabilities of the training set and the test set.
+    
+    spike_times = numpy.concatenate((spike_times_gt, spike_times_ngt, spike_times_noi))
+    
+    spike_times_gt_train = spike_times[indices_train[indices_train < spike_times_gt.size]]
+    spike_times_gt_test = spike_times[indices_test[indices_test < spike_times_gt.size]]
+    
+    spike_times_train = spike_times[indices_train]
+    spike_times_test = spike_times[indices_test]
+    
+    # Training probabilities without match window.
+    b_train_ = float(spike_times_gt_train.size) / float(spike_times_train.size)
+    
+    # Training probabilities with math window.
+    thresh = int(float(sampling_rate) * 2.0 * 1.0e-3)
+    tmp_0 = numpy.zeros(time_max - time_min + 1, dtype='bool')
+    indices_0 = numpy.repeat(spike_times_gt_train, 2 * thresh + 1)
+    indices_0 = numpy.reshape(indices_0, (spike_times_gt_train.size, 2 * thresh + 1))
+    indices_0 = indices_0 + numpy.arange(- thresh, thresh + 1)
+    indices_0 = numpy.reshape(indices_0, (-1,))
+    indices_0 = indices_0[time_min <= indices_0]
+    indices_0 = indices_0[indices_0 <= time_max]
+    indices_0 = indices_0 - time_min
+    tmp_0[indices_0] = True
+    tmp_1 = numpy.zeros(time_max - time_min + 1, dtype='bool')
+    indices_1 = numpy.repeat(spike_times_train, 2 * thresh + 1)
+    indices_1 = numpy.reshape(indices_1, (spike_times_train.size, 2 * thresh + 1))
+    indices_1 = indices_1 + numpy.arange(- thresh, thresh + 1)
+    indices_1 = numpy.reshape(indices_1, (-1,))
+    indices_1 = indices_1[time_min <= indices_1]
+    indices_1 = indices_1[indices_1 <= time_max]
+    indices_1 = indices_1 - time_min
+    tmp_1[indices_1] = True
+    b_train = float(numpy.count_nonzero(tmp_0)) / float(numpy.count_nonzero(tmp_1))
+    
+    # Testing probabilities without match window.
+    b_test_ = float(spike_times_gt_test.size) / float(spike_times_test.size)
+    
+    # Testing probabilities with match window.
+    thresh = int(float((sampling_rate) * 2.0 * 1.0e-3))
+    tmp_0 = numpy.zeros(time_max - time_min + 1, dtype='bool')
+    indices_0 = numpy.repeat(spike_times_gt_test, 2 * thresh + 1)
+    indices_0 = numpy.reshape(indices_0, (spike_times_gt_test.size, 2 * thresh + 1))
+    indices_0 = indices_0 + numpy.arange(- thresh, thresh + 1)
+    indices_0 = numpy.reshape(indices_0, (-1,))
+    indices_0 = indices_0[time_min <= indices_0]
+    indices_0 = indices_0[indices_0 <= time_max]
+    indices_0 = indices_0 - time_min
+    tmp_0[indices_0] = True
+    tmp_1 = numpy.zeros(time_max - time_min + 1, dtype='bool')
+    indices_1 = numpy.repeat(spike_times_test, 2 * thresh + 1)
+    indices_1 = numpy.reshape(indices_1, (spike_times_test.size, 2 * thresh + 1))
+    indices_1 = indices_1 + numpy.arange(- thresh, thresh + 1)
+    indices_1 = numpy.reshape(indices_1, (-1,))
+    indices_1 = indices_1[time_min <= indices_1]
+    indices_1 = indices_1[indices_1 <= time_max]
+    indices_1 = indices_1 - time_min
+    tmp_1[indices_1] = True
+    b_test = float(numpy.count_nonzero(tmp_0)) / float(numpy.count_nonzero(tmp_1))
+    
+    alpha_train = (b_origin * (1.0 - b_train)) / (b_train * (1.0 - b_origin))
+    alpha_test = (b_origin * (1.0 - b_test)) / (b_test * (1.0 - b_origin))
+    
+    if comm.rank == 0:
+        
+        # print("")
+        # print("spike_times_gt.size: {}".format(spike_times_gt.size))
+        # print("spike_times_gt[:10]: {}".format(spike_times_gt[:10]))
+        # print("spike_times_ngt.size: {}".format(spike_times_ngt.size))
+        # print("spike_times_ngt[:10]: {}".format(spike_times_ngt[:10]))
+        # print("spike_times_noi.size: {}".format(spike_times_noi.size))
+        # print("spike_times_noi[:10]: {}".format(spike_times_noi[:10]))
+        # print("numpy.count_nonzero(tmp_0): {}".format(numpy.count_nonzero(tmp_0)))
+        # print("numpy.count_nonzero(tmp_1): {}".format(numpy.count_nonzero(tmp_1)))
+        
+        print("")
+        print("      b_train_: {}".format(b_train_))
+        print("1.0 - b_train_: {}".format(1.0 - b_train_))
+        print("ratio: 1:{}".format(int((1.0 - b_train_) / b_train_)))
+        print("      b_train: {}".format(b_train))
+        print("1.0 - b_train: {}".format(1.0 - b_train))
+        print("ratio: 1:{}".format(int((1.0 - b_train) / b_train)))
+        print("alpha_train: {}".format(alpha_train))
+        
+        print("")
+        print("      b_test_: {}".format(b_test_))
+        print("1.0 - b_test_: {}".format(1.0 - b_test_))
+        print("ratio: 1:{}".format(int((1.0 - b_test_) / b_test_)))
+        print("      b_test: {}".format(b_test))
+        print("1.0 - b_test: {}".format(1.0 - b_test))
+        print("ratio: 1:{}".format(int((1.0 - b_test) / b_test)))
+        print("alpha_test: {}".format(alpha_test))
+    
+    
+    # sys.exit(0)
+    
+    ##### end temporary zone
+    
     
     if not skip_demo:
         
@@ -1222,6 +1470,38 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
                 # Construct and save the confusion matrix
                 confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
+                ##### TODO: remove test zone
+                
+                print("")
+                print(confusion_matrix)
+                
+                # TODO: take the base rate change into account.
+                pp = (tp + fn) / (tp + fn + fp + tn)
+                pn = (fp + tn) / (tp + fn + fp + tn)
+                
+                print("pp: {}".format(pp))
+                print("pn: {}".format(pn))
+                print("pp + pn: {}".format(pp + pn))
+                
+                print("b_origin: {}".format(b_origin))
+                print("b_test: {}".format(b_test))
+                
+                pp_ = b_origin * (pp * (1.0 - b_test)) / (b_origin * pp + b_test * (1.0 - pp - b_origin))
+                pn_ = (1.0 - b_origin) * pn * b_test / (b_origin * (1.0 - pn - b_test) + pn * b_test)
+                
+                print("pp_: {}".format(pp_))
+                print("pn_: {}".format(pn_))
+                print("pp_ + pn_: {}".format(pp_ + pn_))
+                
+                # TODO: uncomment to take the base rate change into account.
+                # confusion_matrix[0, 0] = pp_ * (time_max - time_min) * tp / (tp + fn)
+                # confusion_matrix[0, 1] = pp_ * (time_max - time_min) * fn / (tp + fn)
+                # confusion_matrix[1, 0] = pn_ * (time_max - time_min) * fp / (fp + tn)
+                # confusion_matrix[1, 1] = pn_ * (time_max - time_min) * tn / (fp + tn)
+                
+                print(confusion_matrix)
+                
+                ##### end test zone
                 confusion_matrices[count] = confusion_matrix
                 
                 ##### TODO: remove temporary zone
@@ -1247,6 +1527,38 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 fp = float(numpy.count_nonzero(y_pred[n] != y_test[n]))
                 # Construct the confusion matrix.
                 confusion_matrix = numpy.array([[tp, fn], [fp, tn]])
+                ##### TODO: remove test zone
+                
+                print("")
+                print(confusion_matrix)
+                
+                # TODO: take the base rate change into account.
+                pp = (tp + fn) / (tp + fn + fp + tn)
+                pn = (fp + tn) / (tp + fn + fp + tn)
+                
+                print("pp: {}".format(pp))
+                print("pn: {}".format(pn))
+                print("pp + pn: {}".format(pp + pn))
+                
+                print("b_origin: {}".format(b_origin))
+                print("b_test: {}".format(b_test))
+                
+                pp_ = b_origin * (pp * (1.0 - b_test)) / (b_origin * pp + b_test * (1.0 - pp - b_origin))
+                pn_ = (1.0 - b_origin) * pn * b_test / (b_origin * (1.0 - pn - b_test) + pn * b_test)
+                
+                print("pp_: {}".format(pp_))
+                print("pn_: {}".format(pn_))
+                print("pp_ + pn_: {}".format(pp_ + pn_))
+                
+                # TODO: uncomment to take the base rate change into account.
+                # confusion_matrix[0, 0] = pp_ * (time_max - time_min) * tp / (tp + fn)
+                # confusion_matrix[0, 1] = pp_ * (time_max - time_min) * fn / (tp + fn)
+                # confusion_matrix[1, 0] = pn_ * (time_max - time_min) * fp / (fp + tn)
+                # confusion_matrix[1, 1] = pn_ * (time_max - time_min) * tn / (fp + tn)
+                
+                print(confusion_matrix)
+                
+                ##### end test zone
                 # Save results.
                 y_preds[count] = y_pred
                 y_decfs[count] = y_decf

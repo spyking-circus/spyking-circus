@@ -1436,8 +1436,8 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
 
     if HAVE_RESULT:
         ax = fig.add_subplot(122)
+        
         # Retrieve the juxtacellular spiketimes and the confusion matrices.
-
         all_times = load_data(params, "juxta-triggers")
         confusion_matrices = load_data(params, "confusion-matrices")
         
@@ -1445,7 +1445,6 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
         #print("Time difference threshold: {}".format(thresh))
 
         # Retrieve the SpyKING CIRCUS spiketimes.
-
         result = load_data(params, "results")
         data   = result['spiketimes']
 
@@ -1470,7 +1469,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
         ## First pass to detect what are the scores
         for i in xrange(n_temp):
             spikes = data['temp_' + str(i)]
-            #rint "Template", i, "with", len(spikes), "spikes"
+            # print "Template", i, "with", len(spikes), "spikes"
             # Compute the false positive rate
             for spike in all_times:
                 idx = numpy.where(abs(spikes - spike) <= thresh)[0]
@@ -1486,6 +1485,17 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
             if len(spikes) > 0:
                 res[i, 1] /= float(len(spikes))
         
+        ##### TODO: remove test zone
+        # selected_times = []
+        # 
+        # if test_method == 'downsampled':
+        #     # For each template detected by SpyKING CIRCUS
+        #     for i in xrange(n_temp):
+        #         spikes = data['temp_' + str(i)]
+        #         for spike in selected_times:
+        #             # TODO: determine if 'spike' is a 'tp', 'fn' or 'fp'
+        ##### end test zone
+        
         idx = numpy.argmax(numpy.mean(res, 1))
         selection = [idx]
         error = res[idx]
@@ -1498,6 +1508,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
             if d > dmax and i not in selection:
                 temp_match += [i]
         
+        ## Second pass to reach the best score with greedy aggregations
         if 0 < len(temp_match):
 
             while (find_next == True):
@@ -1574,6 +1585,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
         # show()
         
         anot_size = 8
+        ## Plot the performances of each templates.
         # TODO: check which is the fpr and which is the tpr
         # scatter(res[:, 0], res[:, 1])
         ax.scatter(res[:, 1], res[:, 0])
@@ -1582,25 +1594,24 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
             # pos = (res[i, 0], res[i, 1])
             pos = (res[i, 1], res[i, 0])
             ax.annotate(txt, pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
+        ## Plot the performances of the best aggregations of templates.
         ax.scatter(error[1], error[0])
         pos = (error[1], error[0])
         ax.annotate("best", pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
+        ## Plot the performances of the BEER.
         # plot(fprs, tprs)
         ax.plot(fpers, fners)
         ax.scatter(fpers, fners, color='r')
+        ## Enhance figure.
         ax.set_xlim(-5, 105)
         ax.set_ylim(-5, 105)
         ax.grid(True)
-        # xlabel("false postive rate")
         ax.set_aspect('equal')
         ax.grid(True)
-#        ax.set_xlim([0.0, 1.0])
-#        ax.set_ylim([0.0, 1.0])
         ax.set_xlabel("false positive error rate")
-        # ylabel("true positive rate")
         ax.set_ylabel("false negative error rate")
         ax.set_title("best = {}".format(selection))
-
+        
     ##### end quarantine zone
 
     # Save ROC plot.
