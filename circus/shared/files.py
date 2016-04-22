@@ -667,8 +667,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     floatsize = MPI.FLOAT.Get_size() 
 
     sub_comm = comm.Split(myip, 0)
-    machines = numpy.unique(allips)
-
+    
     print sub_comm.rank, myip
     
     if data == 'templates':
