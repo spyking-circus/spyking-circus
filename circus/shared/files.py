@@ -7,7 +7,7 @@ import ConfigParser as configparser
 import colorama
 from colorama import Fore
 from mpi import all_gather_array
-
+from mpi4py import MPI
 from .mpi import gather_array
 import logging
 
@@ -652,8 +652,6 @@ def get_nodes_and_edges(parameters):
 
 def load_data_memshared(params, comm, data, extension='', normalize=False, transpose=False, nb_cpu=1, nb_gpu=0, use_gpu=False):
 
-    from mpi4py import MPI
-
     file_out        = params.get('data', 'file_out')
     file_out_suff   = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
@@ -1089,8 +1087,6 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
 
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
-
-    from mpi4py import MPI
 
     try:
         SHARED_MEMORY = True

@@ -8,7 +8,6 @@ from .shared.utils import *
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
-    SHARED_MEMORY = False
     try:
         SHARED_MEMORY = True
         MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
@@ -125,6 +124,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
         
         del overlaps
+
+    comm.Barrier()
 
     if comm.rank == 0:
         io.print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
