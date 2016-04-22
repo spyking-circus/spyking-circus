@@ -659,16 +659,12 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     data_file_noext = params.get('data', 'data_file_noext')
 
     ## First we need to identify machines in the MPI ring
-    import socket
-    myip   = int(socket.gethostbyname(socket.getfqdn()).replace('.', ''))
-    allips = all_gather_array(numpy.array([myip], dtype=numpy.float32), comm, 0)
+    from uuid import getnode as get_mac
+    myip = int(get_mac()) % 100000
 
     intsize   = MPI.INT.Get_size()
     floatsize = MPI.FLOAT.Get_size() 
-
-    sub_comm = comm.Split(myip, 0)
-    
-    print sub_comm.rank, myip
+    sub_comm  = comm.Split(myip, 0)
     
     if data == 'templates':
         N_e = params.getint('data', 'N_e')
