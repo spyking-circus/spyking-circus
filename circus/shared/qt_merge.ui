@@ -193,7 +193,9 @@
           <string>Suggest Pairs</string>
          </property>
          <property name="icon">
-          <iconset theme="help-about"/>
+          <iconset theme="help-about">
+           <normaloff/>
+          </iconset>
          </property>
         </widget>
        </item>
@@ -252,7 +254,9 @@
           <string>Suggest Templates</string>
          </property>
          <property name="icon">
-          <iconset theme="help-about"/>
+          <iconset theme="help-about">
+           <normaloff/>
+          </iconset>
          </property>
         </widget>
        </item>
@@ -329,6 +333,16 @@
           </widget>
          </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_merge_and_finalize">
+         <property name="text">
+          <string>Merge and Finalize</string>
+         </property>
+         <property name="icon">
+          <iconset theme="system-run"/>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QPushButton" name="btn_finalize">

@@ -23,6 +23,13 @@ def main():
     import h5py
     parallel_hdf5 = h5py.get_config().mpi
 
+    from mpi4py import MPI
+    try:
+        SHARED_MEMORY = True
+        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+    except NotImplementedError:
+        SHARED_MEMORY = False
+
     user_path  = pjoin(os.path.expanduser('~'), 'spyking-circus')
     tasks_list = None
 
@@ -96,6 +103,7 @@ Options are:
     if len(argv) < 2:
         print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
         print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
+        print Fore.GREEN + "Shared memory :", Fore.CYAN + str(SHARED_MEMORY)
         print ""
         print Fore.GREEN + "###################################################################"
         print ""
@@ -106,6 +114,7 @@ Options are:
         if filename in ['-h', '--help']:
             print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
             print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
+            print Fore.GREEN + "Shared memory :", Fore.CYAN + str(SHARED_MEMORY)
             print ""
             print Fore.GREEN + "##################################################################"
             print ""
@@ -206,6 +215,7 @@ Options are:
         if HAVE_CUDA:
             print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
         print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
+        print Fore.GREEN + "Shared memory :", Fore.CYAN + str(SHARED_MEMORY)
         print Fore.GREEN + "Hostfile      :", Fore.CYAN + hostfile
         print ""
         print Fore.GREEN + "##################################################################"
