@@ -110,6 +110,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         over_x     = c_overlap.get('over_x')[:]
         over_y     = c_overlap.get('over_y')[:]
         over_data  = c_overlap.get('over_data')[:]
+        over_shape = c_overlap.get('over_shape')[:]
         N_over     = int(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
         c_overlap.close()
