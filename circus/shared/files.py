@@ -1118,12 +1118,6 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
             templates  = load_data_memshared(params, comm, 'templates', normalize=normalize)
         else:
             templates  = load_data(params, 'templates')
-    
-    if not SHARED_MEMORY and normalize:
-        norm_templates = load_data(params, 'norm-templates')[:N_tm]
-        for idx in xrange(N_tm):
-            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-            templates.data[myslice] /= norm_templates[idx]
 
     if extension == '-merged':
         best_elec  = load_data(params, 'electrodes', extension)
@@ -1134,6 +1128,12 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     x,        N_tm = templates.shape
+
+    if not SHARED_MEMORY and normalize:
+        norm_templates = load_data(params, 'norm-templates')[:N_tm]
+        for idx in xrange(N_tm):
+            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+            templates.data[myslice] /= norm_templates[idx]
 
     if half:
         N_tm //= 2
