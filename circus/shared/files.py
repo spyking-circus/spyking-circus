@@ -236,6 +236,7 @@ def load_parameters(file_name):
         ['validating', 'test_size', 'float', '0.3'],
         ['validating', 'radius_factor', 'float', '0.5'],
         ['validating', 'juxta_dtype', 'string', 'uint16'],
+        ['validating', 'juxta_thresh', 'float', '6.0'],
         ['merging', 'cc_overlap', 'float', '0.5'],
         ['merging', 'cc_bin', 'float', '2'],
         ['noedits', 'filter_done', 'bool', 'False']
@@ -741,7 +742,7 @@ def load_data(params, data, extension=''):
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'waveforms':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveforms')[:]
         myfile.close()
         return waveforms

@@ -1601,7 +1601,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
         ## Plot the performances of the BEER.
         # plot(fprs, tprs)
         ax.plot(fpers, fners)
-        ax.scatter(fpers, fners, color='r')
+        #ax.scatter(fpers, fners, color='r')
         ## Enhance figure.
         ax.set_xlim(-5, 105)
         ax.set_ylim(-5, 105)
@@ -1620,4 +1620,4 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
     else:
         pylab.savefig(save)
         pylab.close(fig)
-    return
+    return error
