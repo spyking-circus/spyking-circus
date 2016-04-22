@@ -212,7 +212,7 @@ def load_parameters(file_name):
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['data', 'matched-filter', 'bool', 'True'],
-                  ['data', 'matched_thresh', 'float', '4'],
+                  ['data', 'matched_thresh', 'float', '5'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
