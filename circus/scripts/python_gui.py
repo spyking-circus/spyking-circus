@@ -52,7 +52,7 @@ Syntax is circus-gui-python datafile [extension]
     if os.path.exists(output_path):
         key = ''
         while key not in ['y', 'n']:
-            key = raw_input("Export already made! Do you want to erase everything? (y)es / (n)o")
+            key = raw_input("Export already made! Do you want to erase everything? (y)es / (n)o ")
             if key =='y':
                 do_export = True
             else:
