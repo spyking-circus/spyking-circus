@@ -388,7 +388,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
         res['rec']  = res['proj'].T
-        res['waveforms'] = numpy.mean(gdata, 0)
+        res['waveform']  = numpy.mean(gdata, 0)
+        idx              = numpy.random.permutation(numpy.arange(gdata.shape[1]))[:500]
+        res['waveforms'] = gdata[:, idx]
         bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
         io.print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
@@ -408,7 +410,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if do_temporal_whitening:
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
-        waveform  = io.load_data(params, 'waveforms')
+        waveform  = io.load_data(params, 'waveform')
         waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
 
         for gidx in [all_chunks[comm.rank]]:

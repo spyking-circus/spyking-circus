@@ -90,7 +90,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     info_string   = ''
 
     if matched_filter:
-        waveform  = io.load_data(params, 'waveforms')
+        waveform  = io.load_data(params, 'waveform')
         waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
         matched_tresholds = io.load_data(params, 'matched-thresholds')
 
