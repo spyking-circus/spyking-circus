@@ -143,15 +143,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
           pbar.finish()
 
         comm.Barrier()
+
         pc_features = gather_array(pc_features.reshape(nb_pcs, nb_features*max_loc_channel), comm, 0, 1)
         nb_total_pc = len(pc_features)
         pc_features = pc_features.reshape(nb_total_pc, nb_features, max_loc_channel)
 
-        numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
-        numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
-        if mode == 1:
-            all_idx = gather_array(all_idx, comm, 0, dtype='int32')
-            numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx)
+        all_idx  = gather_array(all_idx, comm, 0, dtype='int32')
+        sort_idx = numpy.argsort(all_idx)
+        
+        if comm.rank == 0:
+          numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx])
+          numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
+          numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
+        
 
     do_export = True
     if comm.rank == 0:
