@@ -211,6 +211,8 @@ def load_parameters(file_name):
                   ['data', 'alignment', 'bool', 'True'],
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
+                  ['data', 'matched-filter', 'bool', 'True'],
+                  ['data', 'matched_thresh', 'float', '4'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
@@ -358,6 +360,7 @@ def data_stats(params, show=True, export_times=False):
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Stationarity                : %s" %params.getboolean('data', 'stationary'),
              "Waveform alignment          : %s" %params.getboolean('data', 'alignment'),
+             "Matched filters             : %s" %params.getboolean('data', 'matched-filter'),
              "Skip strong artefacts       : %s" %params.getboolean('data', 'skip_artefact'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction')]
     
@@ -572,7 +575,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     local_chunk  = datablock[idx*chunk_len+padding[0]:(idx+1)*chunk_len+padding[1]]
     del datablock
-    local_shape  = chunk_size + (padding[1]-padding[0])/N_total
+    local_shape  = chunk_size + (padding[1]-padding[0])//N_total
     local_chunk  = local_chunk.reshape(local_shape, N_total)
     local_chunk  = local_chunk.astype(numpy.float32)
     local_chunk -= dtype_offset
@@ -833,6 +836,13 @@ def load_data(params, data, extension=''):
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
+    if data == 'matched-thresholds':
+        matched_thresh = params.getfloat('data', 'matched_thresh')
+        if os.path.exists(file_out + '.basis.hdf5'):
+            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+            thresholds = myfile.get('matched_thresholds')[:]
+            myfile.close()
+            return matched_thresh * thresholds 
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile  = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
@@ -855,6 +865,11 @@ def load_data(params, data, extension=''):
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
+    elif data == 'waveform':
+        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        waveforms  = myfile.get('waveform')[:]
+        myfile.close()
+        return waveforms
     elif data == 'waveforms':
         myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveforms')[:]
