@@ -27,6 +27,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
     output_path    = params.get('data', 'file_out_suff') + '.GUI'
+    extension      = ''
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('data', 'N_t')
 
     def generate_mapping(probe):
         p         = {}
