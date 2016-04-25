@@ -153,7 +153,7 @@ class TestCompleteWorkflow(unittest.TestCase):
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
 
     def test_all_two_CPU(self):
-        #mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        #mpi_launch('fitting', self.file_name, 2, 0, 'False')
+        mpi_launch('clustering', self.file_name, 2, 0, 'False')
+        mpi_launch('fitting', self.file_name, 2, 0, 'False')
         res = get_performance(self.file_name, 'test')
 

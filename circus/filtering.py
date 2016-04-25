@@ -13,11 +13,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     cut_off        = params.getint('filtering', 'cut_off')
+    remove_median  = params.getboolean('filtering', 'remove_median')
+    nodes, edges   = io.get_nodes_and_edges(params)
     #################################################################
 
     if filter_done:
         if comm.rank == 0:
-            io.print_and_log(["Filtering has already been done with cut off at %dHz" %cut_off], 'info', params)
+            to_write = ["Filtering has already been done with cut off at %dHz" %cut_off]
+            if remove_median:
+                to_write += ["Median over all channels was substracted to each channels"]
+            io.print_and_log(to_write, 'info', params)
 
     elif do_filter:
 
@@ -34,11 +39,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             b, a          = signal.butter(3, (cut_off/(sampling_rate/2.), 0.95), 'pass')
             all_chunks    = numpy.arange(nb_chunks)
-            to_process    = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
+            to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
             if comm.rank == 0:
                 to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off, int(0.95*(sampling_rate/2)))]
+                if remove_median:
+                    to_write += ["Median over all channels is substracted to each channels"]
                 io.print_and_log(to_write, 'info', params)
                 pbar = get_progressbar(loc_nb_chunks)
 
@@ -56,9 +63,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk   = local_chunk.reshape(local_shape, N_total)
                 local_chunk   = local_chunk.astype(numpy.float32)
                 local_chunk  -= dtype_offset
-                for i in xrange(N_total):
-                    local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                for i in nodes:
+                    try:
+                        local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                    except Exception:
+                        pass
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
+                if remove_median:
+                    if not numpy.all(nodes == numpy.arange(N_total)):
+                        global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
+                    else:
+                        global_median = numpy.median(local_chunk, 1)
+                    for i in nodes:
+                        local_chunk[:, i] -= global_median
+
                 local_chunk  += dtype_offset
                 local_chunk   = local_chunk.astype(data_dtype)
                 local_chunk   = local_chunk.reshape(local_shape * N_total)
