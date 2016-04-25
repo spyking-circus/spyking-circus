@@ -931,144 +931,260 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         fprs = [1.0] + fprs + [0.0]
         tprs = [1.0] + tprs + [0.0]
         
+        
         ##### TODO: clean temporary zone
         # TODO: compute the error of SpyKING CIRCUS.
         
-        # # Retrieve the juxtacellular spiketimes.
-        # juxta_times = load_data(params, "juxta-triggers")
-        # # Retrieve the extracellular spiketimes.
-        # extra_times = load_data(params, "extra-triggers")
-        # # Filter out the extracellular spiketimes not in the neighborhood.
-        # extra_times = [extra_times[chan] for chan in chans]
-        spike_times_gt = spike_times_gt
-        spike_times_ngt = spike_times_ngt
+        # mode = 'perso'
+        mode = 'harris'
         
-        # Define the "matching threshold".
-        thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
-        
-        # Retrieve the SpyKING CIRCUS spiketimes.
-        result = io.load_data(params, "results")
-        data   = result['spiketimes']
-        
-        # Retrieve the templates.
-        templates = io.load_data(params, 'templates')
-        
-        n_temp = len(data)
-        res = numpy.zeros((n_temp, 2))
-        tot = numpy.zeros((n_temp, 2))
-        
-        # First pass to detect what are the scores.
-        for i in xrange(n_temp):
-            spikes = data['temp_' + str(i)]
-            # Compute the false positive rate.
-            for spike in spike_times_gt:
-                idx = numpy.where(abs(spikes - spike) <= thresh)[0]
-                if 0 < len(idx):
-                    res[i, 0] += 1.0
-                    tot[i, 0] += 1.0
-            for spike in spike_times_ngt:
-                idx = numpy.where(abs(spikes - spike) <= thresh)[0]
-                if 0 < len(idx):
-                    tot[i, 0] += 1.0
-            if 0.0 < tot[i, 0]:
-                res[i, 0] /= tot[i, 0]
-            # Compute the positive predictive value.
-            for spike in spikes:
-                idx = numpy.where(abs(spike_times_gt - spike) <= thresh)[0]
-                if 0 < len(idx):
-                    res[i, 1] += 1.0
-                    tot[i, 1] += 1.0
-            for spike in spikes:
-                idx = numpy.where(abs(spike_times_ngt - spike) <= thresh)[0]
-                if 0 < len(idx):
-                    tot[i, 1] += 1.0
-            if 0 < tot[i, 1]:
-                res[i, 1] /= tot[i, 1]
-        
-        idx = numpy.argmax(numpy.mean(res, 1))
-        selection = [idx]
-        error = res[idx]
-        find_next = True
-        source_temp = templates[:, idx].toarray().flatten()
-        temp_match = []
-        dmax = 0.1
-        for i in xrange(templates.shape[1]/2):
-            d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
-            ##### TODO: remove debug zone
-            # print("i, d: {}, {}".format(i, d))
-            ##### end debug zone
-            if d > dmax and i not in selection:
-                temp_match += [i]
-        ##### TODO: remove debug zone
-        # print("temp_match: {}".format(temp_match))
-        ##### end debug zone
-        
-        ## Second pass to reach the best score with greedy aggregations
-        if 0 < len(temp_match):
+        if mode == 'perso':
             
-            while (find_next == True):
-                
-                temp_match = [i for i in temp_match if i not in selection]
-                
-                local_errors = numpy.zeros((len(temp_match), 2))
-                
-                for mcount, tmp in enumerate(temp_match):
-                    
-                    # Gather selected spikes.
-                    spikes = []
-                    for xtmp in selection + [tmp]:
-                        spikes += data['temp_' + str(xtmp)].tolist()
-                    spikes = numpy.array(spikes, dtype=numpy.int32)
-                    
-                    # Compute true positive rate.
-                    count = 0.0
-                    total = 0.0
-                    for spike in spike_times_gt:
-                        idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
-                        if 0 < len(idx):
-                            count += 1.0
-                            total += 1.0
-                    for spike in spike_times_ngt:
-                        idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
-                        if 0 < len(idx):
-                            total += 1.0
-                    if 0.0 < total:
-                        local_errors[mcount, 0] = count / total
-                    
-                    # Compute positive predictive value
-                    count = 0.0
-                    total = 0.0
-                    for spike in spikes:
-                        idx = numpy.where(numpy.abs(spike_times_gt - spike) < thresh)[0]
-                        if 0 < len(idx):
-                            count += 1.0
-                            total += 1.0
-                    for spike in spikes:
-                        idx = numpy.where(numpy.abs(spike_times_ngt - spike) < thresh)[0]
-                        if 0 < len(idx):
-                            total += 1.0
-                    if 0.0 < total:
-                        local_errors[mcount, 1]  = count / total
-                
-                errors = numpy.mean(local_errors, 1)
+            # # Retrieve the juxtacellular spiketimes.
+            # juxta_times = load_data(params, "juxta-triggers")
+            # # Retrieve the extracellular spiketimes.
+            # extra_times = load_data(params, "extra-triggers")
+            # # Filter out the extracellular spiketimes not in the neighborhood.
+            # extra_times = [extra_times[chan] for chan in chans]
+            spike_times_gt = spike_times_gt
+            spike_times_ngt = spike_times_ngt
+            
+            # Define the "matching threshold".
+            thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
+            # thresh = int(params.getint('data', 'sampling_rate')*0.25*1e-3)
+            
+            # Retrieve the SpyKING CIRCUS spiketimes.
+            result = io.load_data(params, "results")
+            data   = result['spiketimes']
+            
+            # Retrieve the templates.
+            templates = io.load_data(params, 'templates')
+            
+            n_temp = len(data)
+            res = numpy.zeros((n_temp, 2))
+            tot = numpy.zeros((n_temp, 2))
+            
+            # First pass to detect what are the scores.
+            for i in xrange(n_temp):
+                spikes = data['temp_' + str(i)]
+                # Compute the false positive rate.
+                for spike in spike_times_gt:
+                    idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                    if 0 < len(idx):
+                        res[i, 0] += 1.0
+                        tot[i, 0] += 1.0
+                for spike in spike_times_ngt:
+                    idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                    if 0 < len(idx):
+                        tot[i, 0] += 1.0
+                if 0.0 < tot[i, 0]:
+                    res[i, 0] /= tot[i, 0]
+                # Compute the positive predictive value.
+                for spike in spikes:
+                    idx = numpy.where(abs(spike_times_gt - spike) <= thresh)[0]
+                    if 0 < len(idx):
+                        res[i, 1] += 1.0
+                        tot[i, 1] += 1.0
+                for spike in spikes:
+                    idx = numpy.where(abs(spike_times_ngt - spike) <= thresh)[0]
+                    if 0 < len(idx):
+                        tot[i, 1] += 1.0
+                if 0 < tot[i, 1]:
+                    res[i, 1] /= tot[i, 1]
+            
+            idx = numpy.argmax(numpy.mean(res, 1))
+            selection = [idx]
+            error = res[idx]
+            find_next = True
+            source_temp = templates[:, idx].toarray().flatten()
+            temp_match = []
+            dmax = 0.1
+            for i in xrange(templates.shape[1]/2):
+                d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
                 ##### TODO: remove debug zone
-                # print("numpy.max(errors): {}".format(numpy.max(errors)))
-                # print("numpy.mean(error): {}".format(numpy.mean(error)))
+                # print("i, d: {}, {}".format(i, d))
                 ##### end debug zone
-                if numpy.max(errors) > numpy.mean(error):
-                    idx        = numpy.argmax(errors)
-                    selection += [temp_match[idx]]
-                    error      = local_errors[idx]
-                else:
-                    find_next = False
+                if d > dmax and i not in selection:
+                    temp_match += [i]
+            ##### TODO: remove debug zone
+            # print("temp_match: {}".format(temp_match))
+            ##### end debug zone
+            
+            ## Second pass to reach the best score with greedy aggregations
+            if 0 < len(temp_match):
+                
+                while (find_next == True):
+                    
+                    temp_match = [i for i in temp_match if i not in selection]
+                    
+                    local_errors = numpy.zeros((len(temp_match), 2))
+                    
+                    for mcount, tmp in enumerate(temp_match):
+                        
+                        # Gather selected spikes.
+                        spikes = []
+                        for xtmp in selection + [tmp]:
+                            spikes += data['temp_' + str(xtmp)].tolist()
+                        spikes = numpy.array(spikes, dtype=numpy.int32)
+                        
+                        # Compute true positive rate.
+                        count = 0.0
+                        total = 0.0
+                        for spike in spike_times_gt:
+                            idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
+                            if 0 < len(idx):
+                                count += 1.0
+                                total += 1.0
+                        for spike in spike_times_ngt:
+                            idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
+                            if 0 < len(idx):
+                                total += 1.0
+                        if 0.0 < total:
+                            local_errors[mcount, 0] = count / total
+                        
+                        # Compute positive predictive value
+                        count = 0.0
+                        total = 0.0
+                        for spike in spikes:
+                            idx = numpy.where(numpy.abs(spike_times_gt - spike) < thresh)[0]
+                            if 0 < len(idx):
+                                count += 1.0
+                                total += 1.0
+                        for spike in spikes:
+                            idx = numpy.where(numpy.abs(spike_times_ngt - spike) < thresh)[0]
+                            if 0 < len(idx):
+                                total += 1.0
+                        if 0.0 < total:
+                            local_errors[mcount, 1]  = count / total
+                    
+                    errors = numpy.mean(local_errors, 1)
+                    ##### TODO: remove debug zone
+                    # print("numpy.max(errors): {}".format(numpy.max(errors)))
+                    # print("numpy.mean(error): {}".format(numpy.mean(error)))
+                    ##### end debug zone
+                    if numpy.max(errors) > numpy.mean(error):
+                        idx        = numpy.argmax(errors)
+                        selection += [temp_match[idx]]
+                        error      = local_errors[idx]
+                    else:
+                        find_next = False
+            
+            error = 100 * (1 - error)
+            res = 100 * (1 - res)
+            
+            scerror = dict()
+            scerror['res'] = res
+            scerror['selection'] = selection
+            scerror['error'] = error
         
-        error = 100 * (1 - error)
-        res = 100 * (1 - res)
-        
-        scerror = dict()
-        scerror['res'] = res
-        scerror['selection'] = selection
-        scerror['error'] = error
+        elif mode == 'harris':
+            
+            spike_times_gt = spike_times_gt
+            
+            # Define the "matching threshold".
+            thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
+            # thresh = int(params.getint('data', 'sampling_rate')*0.25*1e-3)
+            
+            # Retrieve the SpyKING CIRCUS spiketimes.
+            result = io.load_data(params, "results")
+            data   = result['spiketimes']
+            
+            # Retrieve the templates.
+            templates = io.load_data(params, 'templates')
+            
+            n_temp = len(data)
+            res = numpy.zeros((n_temp, 2))
+            
+            # First pass to detect what are the scores.
+            for i in xrange(n_temp):
+                spikes = data['temp_' + str(i)]
+                # Compute the false positive rate.
+                for spike in spike_times_gt:
+                    idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                    if 0 < len(idx):
+                        res[i, 0] += 1.0
+                if 0 < spike_times_gt.size:
+                    res[i, 0] /= float(spike_times_gt.size)
+                # Compute the positive predictive value.
+                for spike in spikes:
+                    idx = numpy.where(abs(spike_times_gt - spike) <= thresh)[0]
+                    if 0 < len(idx):
+                        res[i, 1] += 1.0
+                if 0 < spikes.size:
+                    res[i, 1] /= float(spikes.size)
+            
+            idx = numpy.argmax(numpy.mean(res, 1))
+            selection = [idx]
+            error = res[idx]
+            find_next = True
+            source_temp = templates[:, idx].toarray().flatten()
+            temp_match = []
+            dmax = 0.1
+            for i in xrange(templates.shape[1]/2):
+                d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
+                ##### TODO: remove debug zone
+                # print("i, d: {}, {}".format(i, d))
+                ##### end debug zone
+                if d > dmax and i not in selection:
+                    temp_match += [i]
+            ##### TODO: remove debug zone
+            # print("temp_match: {}".format(temp_match))
+            ##### end debug zone
+            
+            ## Second pass to reach the best score with greedy aggregations
+            if 0 < len(temp_match):
+                
+                while (find_next == True):
+                    
+                    temp_match = [i for i in temp_match if i not in selection]
+                    
+                    local_errors = numpy.zeros((len(temp_match), 2))
+                    
+                    for mcount, tmp in enumerate(temp_match):
+                        
+                        # Gather selected spikes.
+                        spikes = []
+                        for xtmp in selection + [tmp]:
+                            spikes += data['temp_' + str(xtmp)].tolist()
+                        spikes = numpy.array(spikes, dtype=numpy.int32)
+                        
+                        # Compute true positive rate.
+                        count = 0.0
+                        for spike in spike_times_gt:
+                            idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
+                            if 0 < len(idx):
+                                count += 1.0
+                        if 0 < spike_times_gt.size:
+                            local_errors[mcount, 0] = count / float(spike_times_gt.size)
+                        
+                        # Compute positive predictive value
+                        count = 0.0
+                        for spike in spikes:
+                            idx = numpy.where(numpy.abs(spike_times_gt - spike) < thresh)[0]
+                            if 0 < len(idx):
+                                count += 1.0
+                        if 0 < spikes.size:
+                            local_errors[mcount, 1]  = count / float(spikes.size)
+                    
+                    errors = numpy.mean(local_errors, 1)
+                    ##### TODO: remove debug zone
+                    # print("numpy.max(errors): {}".format(numpy.max(errors)))
+                    # print("numpy.mean(error): {}".format(numpy.mean(error)))
+                    ##### end debug zone
+                    if numpy.max(errors) > numpy.mean(error):
+                        idx        = numpy.argmax(errors)
+                        selection += [temp_match[idx]]
+                        error      = local_errors[idx]
+                    else:
+                        find_next = False
+            
+            error = 100 * (1 - error)
+            res = 100 * (1 - res)
+            
+            scerror = dict()
+            scerror['res'] = res
+            scerror['selection'] = selection
+            scerror['error'] = error
         
         ##### end temporary zone
         
