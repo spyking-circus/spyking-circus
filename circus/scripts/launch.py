@@ -234,7 +234,7 @@ Options are:
                     ('fitting', 'mpirun'),
                     ('extracting', 'mpirun'),
                     ('gathering', 'python'),
-                    ('converting', 'python'),
+                    ('converting', 'mpirun'),
                     ('benchmarking', 'mpirun'),
                     ('merging', 'mpirun')]
 
