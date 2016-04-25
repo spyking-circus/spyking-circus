@@ -1,12 +1,3 @@
-"""Conversion script from template matching files to Kwik.
-
-There are several improvements:
-
-* Don't load all features and masks in memory (need for KwikCreator to accept
-  features and masks as generators, not lists).
-
-"""
-
 from .shared.utils import *
 import os
 import os.path as op
@@ -91,8 +82,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
         return N_tm
 
-    def write_pcs(path, params, comm, extension, spikes, labels, mode=2):
+    def write_pcs(path, params, comm, extension, mode=0):
 
+        spikes          = numpy.load(os.path.join(output_path, 'spike_times.npy'))
+        labels          = numpy.load(os.path.join(output_path, 'spike_templates.npy'))
         max_loc_channel = get_max_loc_channel(params)
         nb_features     = params.getint('whitening', 'output_dim')
         nodes, edges    = get_nodes_and_edges(params)
@@ -217,4 +210,5 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             make_pcs = make_pcs[0]
 
         comm.Barrier()
-        #write_pcs(output_path, params, comm, extension, spikes, clusters, make_pcs)
+        if make_pcs < 2:
+            write_pcs(output_path, params, comm, extension, make_pcs)
