@@ -7,6 +7,7 @@ import circus
 import logging
 
 import numpy as np
+from circus.shared.mpi import gather_array
 import h5py
 from circus.shared.files import print_error, print_info, print_and_log, write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, load_data, get_stas
 from circus.shared.utils import get_progressbar
@@ -104,21 +105,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         basis_proj, basis_rec = load_data(params, 'basis')
 
+        to_process = numpy.arange(comm.rank, N_tm, comm.size)
+
         if mode == 0:
-            nb_pcs = len(spikes)
+            nb_pcs = len(spikes)/comm.size
         elif mode == 1:
             nb_pcs = 0
-            for target in xrange(N_tm):
-                nb_pcs += min(500, len(numpy.where(labels == target)[0]))
+            for target in to_process:
+                nb_pcs += min(100, len(numpy.where(labels == target)[0]))
 
         pc_features = numpy.zeros((nb_pcs, nb_features, max_loc_channel), dtype=numpy.float32)
         count       = 0
 
-        pbar    = get_progressbar(N_tm)
+        if comm.rank == 0:
+          pbar    = get_progressbar(len(to_process))
+
         all_idx = numpy.zeros(0, dtype=numpy.int32)
-        for target in xrange(N_tm):
+        for gcount, target in enumerate(to_process):
             if mode == 1:
-                idx     = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
+                idx     = numpy.random.permutation(numpy.where(labels == target)[0])[:100]
                 all_idx = numpy.concatenate((all_idx, idx))
             elif mode == 0:
                 idx  = numpy.where(labels == target)[0]
@@ -129,20 +134,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes)
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
-            if mode == 1:
-                pc_features[count:count+len(idx), :, :len(indices)] = pcs                    
-                count += len(idx)
-            else:
-                pc_features[idx, :, :len(indices)] = pcs
+            pc_features[count:count+len(idx), :, :len(indices)] = pcs                    
+            count += len(idx)
+            
+            if comm.rank == 0:
+              pbar.update(gcount)
+        if comm.rank == 0:
+          pbar.finish()
 
-            pbar.update(target)
-        pbar.finish()
-        
+
+        comm.Barrier()
+        pc_features = gather_array(pc_features.reshape(nb_pcs, nb_features*max_loc_channel), comm, 0, 1)
+        nb_total_pc = len(pc_features)
+        pc_features = pc_features.reshape(nb_total_pc, nb_features, max_loc_channel)
+
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
         numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
         if mode == 1:
+            all_idx = gather_array(all_idx, comm, dtype='int32')
             numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx)
-
 
     do_export = True
     if comm.rank == 0:

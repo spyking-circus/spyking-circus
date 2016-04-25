@@ -9,8 +9,9 @@ import numpy, h5py
 from circus.shared.files import print_error, print_info, print_and_log, write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, load_data, get_stas
 from circus.shared.utils import get_progressbar
 
-import logging
 import numpy as np
+
+import logging
 
 from phy import add_default_handler
 from phy.utils._misc import _read_python
@@ -50,7 +51,7 @@ Syntax is circus-gui-python datafile [extension]
     do_export      = True
 
     if not os.path.exists(output_path):
-        print_and_log(['Data should have been exported first with the converting method!'], 'error', params)
+        print_and_log(['Data should be first exported with the converting method!'], 'error', params)
     else:
 
         print_and_log(["Launching the phy GUI..."], 'info', params)
