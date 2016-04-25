@@ -1152,21 +1152,27 @@ def view_classifier(params, data_1, data_2, save=None, verbose=False):
         ax = fig.add_subplot(1, 2, count+1)
         p = Projection()
         p = p.fit(X, y)
-        X_gt, X_ngt, X_noi = X
-        y_gt, y_ngt, y_noi = y
+        if len(X) == 3:
+            X_gt, X_ngt, X_noi = X
+            y_gt, y_ngt, y_noi = y
+        elif len(X) == 2:
+            X_gt, X_ngt = X
+            y_gt, y_ngt = y
         X_raw = numpy.vstack(tuple(X))
         # Data transformation.
         X_raw_ = p.transform(X_raw)
         X_gt_ = p.transform(X_gt)
         X_ngt_ = p.transform(X_ngt)
-        X_noi_ = p.transform(X_noi)
+        if len(X) == 3:
+            X_noi_ = p.transform(X_noi)
         # Means transformation.
         mu_gt = numpy.mean(X_gt, axis=0).reshape(1, -1)
         mu_gt_ = p.transform(mu_gt)
         mu_ngt = numpy.mean(X_ngt, axis=0).reshape(1, -1)
         mu_ngt_ = p.transform(mu_ngt)
-        mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
-        mu_noi_ = p.transform(mu_noi)
+        if len(X) == 3:
+            mu_noi = numpy.mean(X_noi, axis=0).reshape(1, -1)
+            mu_noi_ = p.transform(mu_noi)
         # Ellipse transformation.
         f = 0.25 * numpy.dot(numpy.dot(b, numpy.linalg.inv(A)), b) - c
         t = - 0.5 * numpy.dot(numpy.linalg.inv(A), b).reshape(1, -1)
@@ -1224,7 +1230,8 @@ def view_classifier(params, data_1, data_2, save=None, verbose=False):
         
         ## Plot datasets.
         ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
-        ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='k', s=5, lw=0.1)
+        if len(X) == 3:
+            ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='k', s=5, lw=0.1)
         ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='r', s=5, lw=0.1)
         ## Plot ellipse transformation.
         for i in xrange(0, O_.shape[0]):
@@ -1248,7 +1255,8 @@ def view_classifier(params, data_1, data_2, save=None, verbose=False):
         ## Plot means of datasets.
         ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
         ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
+        if len(X) == 3:
+            ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
         ## Plot aspect.
         # ax.set_aspect('equal')
         ax.grid()
@@ -1275,8 +1283,12 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     '''Plot Mahalanobis distribution Before and After'''
     fig = pylab.figure()
     ax = fig.add_subplot(1,2,1)
-    d_gt, d_ngt, d_noi = data_1
-    ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
+    if len(data_1) == 3:
+        d_gt, d_ngt, d_noi = data_1
+    elif len(data_1) == 2:
+        d_gt, d_ngt = data_1
+    if len(data_1) == 3:
+        ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
     ax.hist(d_ngt, bins=50, color='b', alpha=0.5, label="Non GT")
     ax.hist(d_gt, bins=75, color='r', alpha=0.5, label="GT")
     ax.grid(True)
@@ -1284,18 +1296,22 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     ax.set_ylabel("")
     ax.set_xlabel('# Samples')
     ax.set_xlabel('Distances')
-
-    d_gt, d_ngt, d_noi = data_2
+    
+    if len(data_2) == 3:
+        d_gt, d_ngt, d_noi = data_2
+    elif len(data_2) == 2:
+        d_gt, d_ngt = data_2
     ax = fig.add_subplot(1,2,2)
-    ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
+    if len(data_2) == 3:
+        ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
     ax.hist(d_ngt, bins=50, color='b', alpha=0.5, label="Non GT")
     ax.hist(d_gt, bins=75, color='r', alpha=0.5, label="GT")
     ax.grid(True)
     ax.set_title("After")
     ax.set_ylabel("")
     ax.set_xlabel('Distances')
-
-
+    
+    
     ax.legend()
     if save is None:
         pylab.show()

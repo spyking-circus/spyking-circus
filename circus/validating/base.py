@@ -30,6 +30,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #if comm.rank == 0:
     #    io.print_and_log(["Start validation..."], level='default', logger=params)
     
+    ##### TODO: remove temporary zone
+    from .alternative import main_alternative
+    main_alternative(filename, params, nb_cpu, nb_gpu, use_gpu)
+    sys.exit(0)
+    ##### end temporary zone
+    
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
     
@@ -62,8 +68,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # N_max = 3000
     # N_max = 1500
     alpha_gt = 1.0
-    alpha_ngt = 5.0
-    alpha_noi = 5.0
+    alpha_ngt = 2.0
+    alpha_noi = 2.0
     
     if test_method == 'full':
         # Cut data into two halves.
@@ -182,9 +188,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             msg = ["Ground truth neuron is close to channel {}".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
     else:
-        pass            
+        pass
 
     nodes, chans = get_neighbors(params, chan=chan)
+    
+    ##### TODO: remove debug zone
+    if comm.rank == 0:
+        msg = [
+            "nodes.size: {}".format(nodes.size),
+            # "nodes: {}".format(nodes),
+            "chans.size: {}".format(chans.size),
+            # "chans: {}".format(chans),
+            "number_dimensions: {}".format(chans.size * 5),
+        ]
+        io.print_and_log(msg, level='default', logger=params)
+    ##### end debug zone
     
     if make_plots not in ['None', '']:
         plot_filename = "beer-trigger-times.%s" %make_plots

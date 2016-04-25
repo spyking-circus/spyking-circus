@@ -6,6 +6,7 @@ from scipy import signal
 
 import circus.shared.algorithms as algo
 from ..shared.utils import *
+from ..shared import plot
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 
@@ -1070,10 +1071,13 @@ def squared_Mahalanobis_distance(A, mu, X):
         d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
     return d2
 
-def get_class_weights(y_gt, y_ngt, y_noi, n=7):
+def get_class_weights(y_gt, y_ngt, y_noi=None, n=7):
     '''Compute different class weights for the stochastic gradient descent'''
     n_class_0 = float(y_gt.size)
-    n_class_1 = float(y_ngt.size + y_noi.size)
+    if y_noi is None:
+        n_class_1 = float(y_ngt.size)
+    else:
+        n_class_1 = float(y_ngt.size + y_noi.size)
     n_samples = n_class_0 + n_class_1
     n_classes = 2.0
     alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
