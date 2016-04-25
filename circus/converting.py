@@ -28,8 +28,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
-    output_path    = params.get('data', 'file_out_suff') + '.GUI'
     extension      = ''
+    output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
 
@@ -72,7 +72,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
         return spikes[idx], clusters[idx]
 
-
     def write_templates(path, params, extension):
 
         max_loc_channel = get_max_loc_channel(params)
@@ -91,7 +90,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         numpy.save(os.path.join(output_path, 'templates'), to_write)
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
         return N_tm
-
 
     def write_pcs(path, params, comm, extension, spikes, labels, mode=2):
 
@@ -219,5 +217,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             make_pcs = make_pcs[0]
 
         comm.Barrier()
-        print comm.rank, make_pcs
         #write_pcs(output_path, params, comm, extension, spikes, clusters, make_pcs)

@@ -45,15 +45,13 @@ Syntax is circus-gui-python datafile [extension]
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
-    output_path    = params.get('data', 'file_out_suff') + '.GUI'
+    output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
     
     do_export      = True
 
     if not os.path.exists(output_path):
-        io.print_and_log('Data should have been exported first with the converting method!', 'error', params)
+        print_and_log(['Data should have been exported first with the converting method!'], 'error', params)
     else:
-        N_e            = params.getint('data', 'N_e')
-        N_t            = params.getint('data', 'N_t')
 
         print_and_log(["Launching the phy GUI..."], 'info', params)
 
