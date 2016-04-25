@@ -931,6 +931,72 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         fprs = [1.0] + fprs + [0.0]
         tprs = [1.0] + tprs + [0.0]
         
+        ##### TODO: clean temporary zone
+        # TODO: compute the error of SpyKING CIRCUS.
+        
+        # # Retrieve the juxtacellular spiketimes.
+        # juxta_times = load_data(params, "juxta-triggers")
+        # # Retrieve the extracellular spiketimes.
+        # extra_times = load_data(params, "extra-triggers")
+        # # Filter out the extracellular spiketimes not in the neighborhood.
+        # extra_times = [extra_times[chan] for chan in chans]
+        spike_times_gt = spike_times_gt
+        spike_times_ngt = spike_times_ngt
+        
+        # Define the "matching threshold".
+        thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
+        
+        # Retrieve the SpyKING CIRCUS spiketimes.
+        result = io.load_data(params, "results")
+        data   = result['spiketimes']
+        
+        n_temp = len(data)
+        res = numpy.zeros((n_temp, 2))
+        tot = numpy.zeros((n_temp, 2))
+        
+        # First pass to detect what are the scores.
+        for i in xrange(n_temp):
+            spikes = data['temp_' + str(i)]
+            # Compute the false positive rate.
+            for spike in spike_times_gt:
+                idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                if 0 < len(idx):
+                    res[i, 0] += 1.0
+                    tot[i, 0] += 1.0
+            for spike in spike_times_ngt:
+                idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                if 0 < len(idx):
+                    tot[i, 0] += 1.0
+            if 0.0 < tot[i, 0]:
+                res[i, 0] /= tot[i, 0]
+            # Compute the positive predictive value.
+            for spike in spikes:
+                idx = numpy.where(abs(spike_times_gt - spike) <= thresh)[0]
+                if 0 < len(idx):
+                    res[i, 1] += 1.0
+                    tot[i, 1] += 1.0
+            for spike in spikes:
+                idx = numpy.where(abs(spike_times_ngt - spike) <= thresh)[0]
+                if 0 < len(idx):
+                    tot[i, 1] += 1.0
+            if 0 < tot[i, 1]:
+                res[i, 1] /= tot[i, 1]
+        
+        idx = numpy.argmax(numpy.mean(res, 1))
+        selection = [idx]
+        error = res[idx]
+        find_next = True
+        
+        error = 100 * (1 - error)
+        res = 100 * (1 - res)
+        
+        scerror = dict()
+        scerror['res'] = res
+        scerror['selection'] = selection
+        scerror['error'] = error
+        
+        ##### end temporary zone
+        
         if verbose:
             msg = [
                 "# class_weights: {}".format(class_weights),
@@ -948,7 +1014,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             #                     xlim=[0.0, 0.25], ylim=[0.75, 1.0])
             # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
             #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
-            error = plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
+            # error = plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
+            error = plot.view_roc_curve(params, fprs, tprs, None, None, scerror=scerror, save=path)
             filename = "{}.beer.hdf5".format(file_out_suff)
             beer_file = h5py.File(filename, 'r+', libver='latest')
             if 'circus_error' in beer_file.keys():

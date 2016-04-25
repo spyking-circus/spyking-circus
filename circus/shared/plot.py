@@ -1393,7 +1393,7 @@ def view_loss_curve(losss, title=None, save=None):
     return
 
 
-def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
+def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
     '''Plot ROC curve'''
     fig = pylab.figure()
     pylab.subplots_adjust(wspace=0.3)
@@ -1453,127 +1453,138 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, save=None):
     if HAVE_RESULT:
         ax = fig.add_subplot(122)
         
-        # Retrieve the juxtacellular spiketimes and the confusion matrices.
-        all_times = load_data(params, "juxta-triggers")
+        # Retrieve the confusion matrices.
         confusion_matrices = load_data(params, "confusion-matrices")
         
-        thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
-        #print("Time difference threshold: {}".format(thresh))
-
-        # Retrieve the SpyKING CIRCUS spiketimes.
-        result = load_data(params, "results")
-        data   = result['spiketimes']
-
-        # Retrieve the templates.
-        templates = load_data(params, 'templates')
-        
-        # Retrieve the thresholds.
-        thresholds   = load_data(params, 'thresholds')
-        
-        n_temp = len(data)
-        res = numpy.zeros((n_temp, 2))
-        rates = []
-        nb_total = len(all_times)
-        nb_fitted = 0
-        
-        # Count the number of spiketimes sorted by SpyKING CIRCUS.
-        for i in xrange(n_temp):
-            nb_fitted += len(data['temp_' + str(i)])
-        
-        print("Number of spikes {}/{} with {} templates".format(nb_fitted, nb_total, n_temp))
-        
-        ## First pass to detect what are the scores
-        for i in xrange(n_temp):
-            spikes = data['temp_' + str(i)]
-            # print "Template", i, "with", len(spikes), "spikes"
-            # Compute the false positive rate
-            for spike in all_times:
-                idx = numpy.where(abs(spikes - spike) <= thresh)[0]
-                if len(idx) > 0:
-                    res[i, 0] += 1
-            if len(all_times) > 0:
-                res[i, 0] /= float(len(all_times))
-            # Compute the positive predictive value
-            for spike in spikes:
-                idx = numpy.where(abs(all_times - spike) <= thresh)[0]
-                if len(idx) > 0:
-                    res[i, 1] += 1
-            if len(spikes) > 0:
-                res[i, 1] /= float(len(spikes))
-        
-        ##### TODO: remove test zone
-        # selected_times = []
-        # 
-        # if test_method == 'downsampled':
-        #     # For each template detected by SpyKING CIRCUS
-        #     for i in xrange(n_temp):
-        #         spikes = data['temp_' + str(i)]
-        #         for spike in selected_times:
-        #             # TODO: determine if 'spike' is a 'tp', 'fn' or 'fp'
-        ##### end test zone
-        
-        idx = numpy.argmax(numpy.mean(res, 1))
-        selection = [idx]
-        error = res[idx]
-        find_next = True
-        source_temp = templates[:, idx].toarray().flatten()
-        temp_match = []
-        dmax = 0.1
-        for i in xrange(templates.shape[1]/2):
-            d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
-            if d > dmax and i not in selection:
-                temp_match += [i]
-        
-        ## Second pass to reach the best score with greedy aggregations
-        if 0 < len(temp_match):
-
-            while (find_next == True):
-
-                temp_match = [i for i in temp_match if i not in selection]
-                
-                local_errors = numpy.zeros((len(temp_match), 2))
-                
-                for mcount, tmp in enumerate(temp_match):
-
-                    # Gather selected spikes.
-                    spikes = []
-                    for xtmp in selection + [tmp]:
-                        spikes += data['temp_' + str(xtmp)].tolist()
-                    spikes = numpy.array(spikes, dtype=numpy.int32)
-
-                    # Compute true positive rate.
-                    count = 0
-                    for spike in all_times:
-                        idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
-                        if len(idx) > 0:
-                            count += 1
-                    if len(all_times) > 0:
-                        local_errors[mcount, 0] = count/float(len(all_times))
-
-                    # Compute positive predictive value
-                    count = 0
-                    for spike in spikes:
-                        idx = numpy.where(numpy.abs(all_times- spike) < thresh)[0]
-                        if len(idx) > 0:
-                            count += 1
-                    if len(spikes) > 0:
-                        local_errors[mcount, 1]  = count/(float(len(spikes)))
-                
-                errors = numpy.mean(local_errors, 1)
-                if numpy.max(errors) > numpy.mean(error):
-                    idx        = numpy.argmax(errors)
-                    selection += [temp_match[idx]]
-                    error      = local_errors[idx]
-                else:
-                    find_next = False
-        
-        error = 100 * (1 - error)
-        res = 100 * (1 - res)
+        if scerror is None:
+            
+            # Retrieve the juxtacellular spiketimes.
+            all_times = load_data(params, "juxta-triggers")
+            
+            thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
+            #print("Time difference threshold: {}".format(thresh))
+            
+            # Retrieve the SpyKING CIRCUS spiketimes.
+            result = load_data(params, "results")
+            data   = result['spiketimes']
+            
+            # Retrieve the templates.
+            templates = load_data(params, 'templates')
+            
+            # Retrieve the thresholds.
+            thresholds   = load_data(params, 'thresholds')
+            
+            n_temp = len(data)
+            res = numpy.zeros((n_temp, 2))
+            rates = []
+            nb_total = len(all_times)
+            nb_fitted = 0
+            
+            # Count the number of spiketimes sorted by SpyKING CIRCUS.
+            for i in xrange(n_temp):
+                nb_fitted += len(data['temp_' + str(i)])
+            
+            print("Number of spikes {}/{} with {} templates".format(nb_fitted, nb_total, n_temp))
+            
+            ## First pass to detect what are the scores
+            for i in xrange(n_temp):
+                spikes = data['temp_' + str(i)]
+                # print "Template", i, "with", len(spikes), "spikes"
+                # Compute the false positive rate
+                for spike in all_times:
+                    idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                    if len(idx) > 0:
+                        res[i, 0] += 1
+                if len(all_times) > 0:
+                    res[i, 0] /= float(len(all_times))
+                # Compute the positive predictive value
+                for spike in spikes:
+                    idx = numpy.where(abs(all_times - spike) <= thresh)[0]
+                    if len(idx) > 0:
+                        res[i, 1] += 1
+                if len(spikes) > 0:
+                    res[i, 1] /= float(len(spikes))
+            
+            ##### TODO: remove test zone
+            # selected_times = []
+            # 
+            # if test_method == 'downsampled':
+            #     # For each template detected by SpyKING CIRCUS
+            #     for i in xrange(n_temp):
+            #         spikes = data['temp_' + str(i)]
+            #         for spike in selected_times:
+            #             # TODO: determine if 'spike' is a 'tp', 'fn' or 'fp'
+            ##### end test zone
+            
+            idx = numpy.argmax(numpy.mean(res, 1))
+            selection = [idx]
+            error = res[idx]
+            find_next = True
+            source_temp = templates[:, idx].toarray().flatten()
+            temp_match = []
+            dmax = 0.1
+            for i in xrange(templates.shape[1]/2):
+                d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
+                if d > dmax and i not in selection:
+                    temp_match += [i]
+            
+            ## Second pass to reach the best score with greedy aggregations
+            if 0 < len(temp_match):
+            
+                while (find_next == True):
+                    
+                    temp_match = [i for i in temp_match if i not in selection]
+                    
+                    local_errors = numpy.zeros((len(temp_match), 2))
+                    
+                    for mcount, tmp in enumerate(temp_match):
+                        
+                        # Gather selected spikes.
+                        spikes = []
+                        for xtmp in selection + [tmp]:
+                            spikes += data['temp_' + str(xtmp)].tolist()
+                        spikes = numpy.array(spikes, dtype=numpy.int32)
+                        
+                        # Compute true positive rate.
+                        count = 0
+                        for spike in all_times:
+                            idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
+                            if len(idx) > 0:
+                                count += 1
+                        if len(all_times) > 0:
+                            local_errors[mcount, 0] = count/float(len(all_times))
+                        
+                        # Compute positive predictive value
+                        count = 0
+                        for spike in spikes:
+                            idx = numpy.where(numpy.abs(all_times- spike) < thresh)[0]
+                            if len(idx) > 0:
+                                count += 1
+                        if len(spikes) > 0:
+                            local_errors[mcount, 1]  = count/(float(len(spikes)))
+                    
+                    errors = numpy.mean(local_errors, 1)
+                    if numpy.max(errors) > numpy.mean(error):
+                        idx        = numpy.argmax(errors)
+                        selection += [temp_match[idx]]
+                        error      = local_errors[idx]
+                    else:
+                        find_next = False
+            
+            error = 100 * (1 - error)
+            res = 100 * (1 - res)
+            
+        else:
+            
+            res = scerror['res']
+            selection = scerror['selection']
+            error = scerror['error']
+            
         
         print("Best error is obtained with templates {} : {}".format(selection, error))
-        for i in selection:
-            nb_spikes = len(data['temp_' + str(i)])
-        #    print("Template {} with {} spikes has error: {}".format(i, nb_spikes, res[i, :]))
+        # for i in selection:
+        #     nb_spikes = len(data['temp_' + str(i)])
+        #     print("Template {} with {} spikes has error: {}".format(i, nb_spikes, res[i, :]))
 
         ##### TODO: clean quarantine zone
         # ## Finally, we compute the ROC curve.
