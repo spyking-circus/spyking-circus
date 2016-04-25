@@ -107,12 +107,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         to_process = numpy.arange(comm.rank, N_tm, comm.size)
 
-        if mode == 0:
-            nb_pcs = len(spikes)/comm.size
-        elif mode == 1:
-            nb_pcs = 0
-            for target in to_process:
-                nb_pcs += min(100, len(numpy.where(labels == target)[0]))
+        nb_pcs = 0
+        for target in to_process:
+            if mode == 0:
+                nb_pcs += len(numpy.where(labels == target)[0])
+            elif mode == 1:
+                nb_pcs += min(500, len(numpy.where(labels == target)[0]))
 
         pc_features = numpy.zeros((nb_pcs, nb_features, max_loc_channel), dtype=numpy.float32)
         count       = 0
@@ -123,7 +123,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_process):
             if mode == 1:
-                idx     = numpy.random.permutation(numpy.where(labels == target)[0])[:100]
+                idx     = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
                 all_idx = numpy.concatenate((all_idx, idx))
             elif mode == 0:
                 idx  = numpy.where(labels == target)[0]
@@ -142,7 +142,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
           pbar.finish()
 
-
         comm.Barrier()
         pc_features = gather_array(pc_features.reshape(nb_pcs, nb_features*max_loc_channel), comm, 0, 1)
         nb_total_pc = len(pc_features)
@@ -151,7 +150,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
         numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
         if mode == 1:
-            all_idx = gather_array(all_idx, comm, dtype='int32')
+            all_idx = gather_array(all_idx, comm, 0, dtype='int32')
             numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx)
 
     do_export = True
@@ -200,7 +199,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             key = ''
             while key not in ['a', 's', 'n']:
-                print ("Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o")
+                print("Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o")
                 key = raw_input('')
                 
             if key == 'a':
