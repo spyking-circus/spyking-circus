@@ -532,6 +532,9 @@ class PCA(object):
             ratio_cumsum = explained_variance_ratio_.cumsum()
             n_components = np.sum(ratio_cumsum < n_components) + 1
 
+        # Fix DepreciationWarning (i.e. do not index using non-integer numbers)
+        n_components = int(n_components)
+
         # Compute noise covariance using Probabilistic PCA model
         # The sigma2 maximum likelihood (cf. eq. 12.46)
         if n_components < min(n_features, n_samples):
