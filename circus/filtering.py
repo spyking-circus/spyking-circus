@@ -1,5 +1,5 @@
 from scipy import signal
-
+from .shared import plot
 from .shared.utils import *
 
 
@@ -81,7 +81,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 local_chunk  += dtype_offset
                 local_chunk   = local_chunk.astype(data_dtype)
-                local_chunk   = local_chunk.reshape(local_shape * N_total)
+                local_chunk   = local_chunk.ravel()
 
                 mpi_output.Write_at(gidx*chunk_len+offset, local_chunk)
 
@@ -100,6 +100,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             chunk_size     = params.getint('whitening', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int32)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int32)
+            make_plots     = params.get('triggers', 'make_plots')
+            plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
@@ -111,65 +114,57 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 io.print_and_log(['Error in the trigger files'], 'error', params)
                 sys.exit(0)
 
-            borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
-            if last_chunk_len > 0:
-                nb_chunks += 1
-
-            all_chunks    = numpy.arange(nb_chunks)
-            to_process    = all_chunks[comm.rank::comm.size]
-            loc_nb_chunks = len(to_process)
+            local_times   = artefacts[:, 0][comm.rank::comm.size]
+            local_labels  = artefacts[:, 1][comm.rank::comm.size]
 
             if comm.rank == 0:
                 to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
                 io.print_and_log(to_write, 'info', params)
-                pbar = get_progressbar(loc_nb_chunks)
+                pbar = get_progressbar(len(local_times))
+                if not os.path.exists(plot_path):
+                    os.makedirs(plot_path)
 
-
+            comm.Barrier()
             # First we need to get the average artefacts
             art_dict = {}
             for count, artefact in enumerate(numpy.unique(artefacts[:, 1])):
                 indices  = numpy.where(artefacts[:, 1] == artefact)[0]
                 tmp      = numpy.where(windows[:, 0] == artefact)[0]
                 tau      = windows[tmp, 1]
-                times    = numpy.random.permutation(artefacts[indices, 0])[:500]
+                times    = numpy.sort(numpy.random.permutation(artefacts[indices, 0])[:500])
+                if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
+                    if comm.rank == 0:
+                        io.print_and_log(['Stimulation times for artefact %d are to close!' %artefact], 'error', params)
+                    sys.exit(0)
                 art_dict[count] = io.get_artefact(params, times, tau, nodes)
+                if make_plots not in ['None', '']:
+                    save     = [plot_path, '%d.%s' %(artefact, make_plots)]
+                    plot.view_artefact(art_dict[count], save=save)
 
-            # for count, gidx in enumerate(to_process):
+            data_len = tau * N_total
+            count    = 0
 
-            #     if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
-            #         data_len   = last_chunk_len
-            #         chunk_size = last_chunk_len//N_total
-            #     else:
-            #         data_len   = chunk_len
+            for label, time in zip(local_labels, local_times):
 
-            #     local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-            #     mpi_input.Read_at(gidx*chunk_len, local_chunk)
-            #     local_shape   = chunk_size
-            #     local_chunk   = local_chunk.reshape(local_shape, N_total)
-            #     local_chunk   = local_chunk.astype(numpy.float32)
-            #     local_chunk  -= dtype_offset
-            #     for i in nodes:
-            #         try:
-            #             local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
-            #         except Exception:
-            #             pass
-            #         local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
-            #     if remove_median:
-            #         if not numpy.all(nodes == numpy.arange(N_total)):
-            #             global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
-            #         else:
-            #             global_median = numpy.median(local_chunk, 1)
-            #         for i in nodes:
-            #             local_chunk[:, i] -= global_median
+                local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
+                mpi_input.Read_at(N_total * time, local_chunk)
+                local_shape   = chunk_size
+                local_chunk   = local_chunk.reshape(tau, N_total)
+                local_chunk   = local_chunk.astype(numpy.float32)
+                local_chunk  -= dtype_offset
+                for idx, i in enumerate(nodes):
+                    local_chunk[:, i] -= art_dict[label][idx]
+                    
+                local_chunk  += dtype_offset
+                local_chunk   = local_chunk.astype(data_dtype)
+                local_chunk   = local_chunk.ravel()
 
-            #     local_chunk  += dtype_offset
-            #     local_chunk   = local_chunk.astype(data_dtype)
-            #     local_chunk   = local_chunk.reshape(local_shape * N_total)
+                mpi_output.Write_at(N_total*time + offset, local_chunk)
 
-            #     mpi_output.Write_at(gidx*chunk_len+offset, local_chunk)
+                count        += 1
 
-            #     if comm.rank == 0:
-            #         pbar.update(count)
+                if comm.rank == 0:
+                    pbar.update(count)
 
             if comm.rank == 0:
                 pbar.finish()
