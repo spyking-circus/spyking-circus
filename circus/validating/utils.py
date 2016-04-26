@@ -465,7 +465,7 @@ def extract_extra_spikes_(params):
     if comm.rank == 0:
         # Save medians and median absolute deviations to BEER file.
         path = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(path, 'r+', libver='latest')
+        beer_file = h5py.File(path, 'a', libver='latest')
         ## Save medians.
         extra_medians_key = "extra_medians"
         if extra_medians_key in beer_file.keys():
@@ -624,7 +624,7 @@ def extract_extra_spikes_(params):
 
     if comm.rank == 0:
         path = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(path, 'r+', libver='latest')
+        beer_file = h5py.File(path, 'a', libver='latest')
         group_name = "extra_spiketimes"
         if group_name in beer_file.keys():
             beer_file.pop(group_name)
@@ -700,7 +700,7 @@ def extract_juxta_spikes_(params):
     juxta_mad   = numpy.median(juxta_ad, axis=0)
     
     # Save medians and median absolute deviations to BEER file.
-    beer_file = h5py.File(beer_path, 'r+', libver='latest')
+    beer_file = h5py.File(beer_path, 'a', libver='latest')
     if "juxta_median" in beer_file.keys():
         beer_file.pop("juxta_median")
     beer_file.create_dataset("juxta_median", data=juxta_median)
@@ -718,7 +718,7 @@ def extract_juxta_spikes_(params):
     juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=True, mpd=dist_peaks)
     
     # Save juxta spike times to BEER file.
-    beer_file = h5py.File(beer_path, 'r+', libver='latest')
+    beer_file = h5py.File(beer_path, 'a', libver='latest')
     group_name = "juxta_spiketimes"
     if group_name in beer_file.keys():
         beer_file.pop(group_name)
