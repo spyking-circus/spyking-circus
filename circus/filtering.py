@@ -171,7 +171,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             comm.Barrier()
 
-
         myfile   = MPI.File()
         data_mpi = get_mpi_type(data_dtype)
 
