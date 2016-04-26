@@ -212,6 +212,8 @@ def load_parameters(file_name):
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['triggers', 'clean_artefact', 'bool', 'False'],
+                  ['triggers', 'before_filter', 'bool', 'True'],
+                  ['triggers', 'make_plots', 'string', 'png'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
@@ -230,6 +232,7 @@ def load_parameters(file_name):
                   ['merging', 'cc_overlap', 'float', '0.5'],
                   ['merging', 'cc_bin', 'float', '2']]
 
+
     for item in new_values:
         section, name, val_type, value = item
         try:
@@ -244,6 +247,10 @@ def load_parameters(file_name):
         except Exception:
             parser.set(section, name, value)
   
+
+    parser.set('triggers', 'trig_file', os.path.abspath(parser.get('triggers', 'trig_file')))
+    parser.set('triggers', 'trig_windows', os.path.abspath(parser.get('triggers', 'trig_windows')))
+
     chunk_size = parser.getint('data', 'chunk_size')
     parser.set('data', 'chunk_size', str(chunk_size*sampling_rate))
     chunk_size = parser.getint('whitening', 'chunk_size')
