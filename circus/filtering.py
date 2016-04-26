@@ -93,7 +93,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             comm.Barrier()
 
-        def remove_artefacts(params, comm, mpi_input, mpi_output, offset=0):
+        def remove_artefacts(params, comm, mpi_input, mpi_output, offset, max_offset):
 
             N_total        = params.getint('data', 'N_total')
             cut_off        = params.getint('filtering', 'cut_off')
@@ -102,6 +102,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int32)
             make_plots     = params.get('triggers', 'make_plots')
             plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+
+            offset        /= N_total
+            max_offset    /= N_total
 
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
@@ -131,7 +134,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 indices  = numpy.where(artefacts[:, 1] == artefact)[0]
                 tmp      = numpy.where(windows[:, 0] == artefact)[0]
                 tau      = windows[tmp, 1]
-                times    = numpy.sort(numpy.random.permutation(artefacts[indices, 0])[:500])
+                pspikes  = artefacts[indices, 0]
+                mask     = (pspikes >= offset) & (pspike < max_offset)
+                pspikes  = pspikes[mask]
+                times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
                 if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
                     if comm.rank == 0:
                         io.print_and_log(['Stimulation times for artefact %d are to close!' %artefact], 'error', params)
@@ -146,20 +152,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             for label, time in zip(local_labels, local_times):
 
-                local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                mpi_input.Read_at(N_total * time, local_chunk)
-                local_shape   = chunk_size
-                local_chunk   = local_chunk.reshape(tau, N_total)
-                local_chunk   = local_chunk.astype(numpy.float32)
-                local_chunk  -= dtype_offset
-                for idx, i in enumerate(nodes):
-                    local_chunk[:, i] -= art_dict[label][idx]
-                    
-                local_chunk  += dtype_offset
-                local_chunk   = local_chunk.astype(data_dtype)
-                local_chunk   = local_chunk.ravel()
+                if (time >= offset) and (time < max_offset):
+                    local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
+                    mpi_input.Read_at(N_total * time, local_chunk)
+                    local_shape   = chunk_size
+                    local_chunk   = local_chunk.reshape(tau, N_total)
+                    local_chunk   = local_chunk.astype(numpy.float32)
+                    local_chunk  -= dtype_offset
+                    for idx, i in enumerate(nodes):
+                        local_chunk[:, i] -= art_dict[label][idx]
+                        
+                    local_chunk  += dtype_offset
+                    local_chunk   = local_chunk.astype(data_dtype)
+                    local_chunk   = local_chunk.ravel()
 
-                mpi_output.Write_at(N_total*time + offset, local_chunk)
+                    mpi_output.Write_at(N_total*time + offset, local_chunk)
 
                 count        += 1
 
@@ -178,13 +185,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
             mpi_in.Set_view(data_offset, data_mpi, data_mpi)
 
+            max_offset = (mpi_in.size//data_mpi.size)
+
             if clean_artefact and before_filter:
-                remove_artefacts(params, comm, mpi_in, mpi_in)
+                remove_artefacts(params, comm, mpi_in, mpi_in, offset=0, max_offset=max_offset)
 
             filter_file(params, comm, mpi_in, mpi_in)
 
             if clean_artefact and not before_filter:
-                remove_artefacts(params, comm, mpi_in, mpi_in)
+                remove_artefacts(params, comm, mpi_in, mpi_in, offset=0, max_offset=max_offset)
 
             mpi_in.Close()
         else:
@@ -208,13 +217,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file: %s' %params.get('data', 'data_file') ], 'debug')
 
+                max_offset = offset + (mpi_in.size//data_mpi.size)               
+
                 if clean_artefact and before_filter:
-                    remove_artefacts(params, comm, mpi_input, mpi_output, offset)
+                    remove_artefacts(params, comm, mpi_input, mpi_output, offset, max_spike=max_offset)
 
                 filter_file(params, comm, mpi_in, mpi_out, offset)
 
                 if clean_artefact and not before_filter:
-                    remove_artefacts(params, comm, mpi_input, mpi_output, offset)
+                    remove_artefacts(params, comm, mpi_input, mpi_output, offset, max_spike=max_offset)
 
                 offset += (mpi_in.size//data_mpi.size)               
                 mpi_in.Close()
