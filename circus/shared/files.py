@@ -138,7 +138,7 @@ def load_parameters(file_name):
         sys.exit(0)
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers']
     for section in sections:
         if parser.has_section(section):
             for (key, value) in parser.items(section):
@@ -211,6 +211,7 @@ def load_parameters(file_name):
                   ['data', 'alignment', 'bool', 'True'],
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
+                  ['triggers', 'clean_artefact', 'bool', 'False'],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
