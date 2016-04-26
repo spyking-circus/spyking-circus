@@ -101,7 +101,7 @@ class SymmetricVCursor(widgets.AxesWidget):
 
 class MergeWindow(QtGui.QMainWindow):
 
-    def __init__(self, comm, params, app):
+    def __init__(self, comm, params, app, extension):
         super(MergeWindow, self).__init__()
 
         if comm.rank == 0:
@@ -109,6 +109,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.app        = app
         self.comm       = comm
         self.params     = params
+        self.extension  = extension
         self.N_e        = params.getint('data', 'N_e')
         self.N_t        = params.getint('data', 'N_t')
         self.N_total    = params.getint('data', 'N_total')
@@ -120,12 +121,12 @@ class MergeWindow(QtGui.QMainWindow):
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
 
-        self.clusters   = io.load_data(params, 'clusters')
-        self.result     = io.load_data(params, 'results')
-        self.overlap    = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('maxoverlap')[:]
-        self.shape      = h5py.File(self.file_out_suff + '.templates.hdf5', libver='latest').get('temp_shape')[:]
-        self.electrodes = io.load_data(params, 'electrodes')
-        self.templates  = io.load_data(params, 'templates')
+        self.clusters   = io.load_data(params, 'clusters', extension)
+        self.result     = io.load_data(params, 'results', extension)
+        self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %extension, libver='latest').get('maxoverlap')[:]
+        self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %extension, libver='latest').get('temp_shape')[:]
+        self.electrodes = io.load_data(params, 'electrodes', extension)
+        self.templates  = io.load_data(params, 'templates', extension)
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
         nodes, edges    = io.get_nodes_and_edges(params)
@@ -936,8 +937,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.all_merges = self.comm.bcast(self.all_merges, root=0)
         self.to_delete  = self.comm.bcast(self.to_delete, root=0)
         
-        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension='-merged')
-        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension='-merged')
+        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.extension)
+        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.extension)
 
         if self.comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
@@ -948,7 +949,7 @@ class MergeWindow(QtGui.QMainWindow):
                 new_result['amplitudes'][key_after] = self.result['amplitudes'].pop(key_before)
             
             keys = ['spiketimes', 'amplitudes']
-            mydata = h5py.File(self.file_out_suff + '.result-merged.hdf5', 'w', libver='latest')
+            mydata = h5py.File(self.file_out_suff + '.result%s.hdf5' %self.extension, 'w', libver='latest')
             for key in keys:
                 mydata.create_group(key)
                 for temp in new_result[key].keys():
@@ -956,7 +957,7 @@ class MergeWindow(QtGui.QMainWindow):
                     mydata.create_dataset(tmp_path, data=new_result[key][temp])
             mydata.close()
             
-            mydata  = h5py.File(self.file_out_suff + '.templates-merged.hdf5', 'r+', libver='latest')
+            mydata  = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.extension, 'r+', libver='latest')
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
             to_keep = numpy.array(list(to_keep))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)

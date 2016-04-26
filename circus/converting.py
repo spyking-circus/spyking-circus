@@ -12,7 +12,7 @@ import h5py
 from circus.shared.files import print_error, print_info, print_and_log, write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, load_data, get_stas
 from circus.shared.utils import get_progressbar
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
     params         = circus.shared.utils.io.load_parameters(filename)
     sampling_rate  = float(params.getint('data', 'sampling_rate'))
@@ -20,7 +20,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
-    extension      = ''
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
