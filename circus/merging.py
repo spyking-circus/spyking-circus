@@ -11,14 +11,21 @@ else:
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
-
     file_out_suff = params.get('data', 'file_out_suff')
+    extension_in  = extension
     
-    #if comm.rank == 0:
+    if comm.rank == 0:
     
-        #if os.path.exists(file_out_suff, '*.results%d.hdf5' %extension)
+        print os.path.exists(file_out_suff + '.result%s.hdf5' %extension), file_out_suff + '.result%s.hdf5' %extension
 
-        #io.purge(file_out_suff, '-merged')
+        if os.path.exists(file_out_suff + '.result%s.hdf5' %extension):
+            key = ''
+            while key not in ['y', 'n']:
+                print("Export already made! Do you want to erase everything? (y)es / (n)o ")
+                key = raw_input('')
+                if key =='y':
+                    io.purge(file_out_suff, extension)
+                    extension_in = ''
 
 
     comm.Barrier()
@@ -28,5 +35,5 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         pylab.style.use('ggplot')
     except Exception:
         pass
-    mygui = gui.MergeWindow(comm, params, app, extension)
+    mygui = gui.MergeWindow(comm, params, app, extension_in, extension)
     sys.exit(app.exec_())
