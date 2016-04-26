@@ -98,19 +98,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             N_total        = params.getint('data', 'N_total')
             cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
-
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int32)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int32)
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
             windows[:, 1] *= int(sampling_rate*1e-3)
-            nb_stimuli     = len(numpy.unique(artefacts[:, 0]))
+            nb_stimuli     = len(numpy.unique(artefacts[:, 1]))
             mytest         = nb_stimuli == len(windows)
 
-            sys.exit(0)
             if not mytest:
-                print_and_log(['Error in the trigger files'], 'error', params)
+                io.print_and_log(['Error in the trigger files'], 'error', params)
                 sys.exit(0)
 
             borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
@@ -128,8 +126,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
             # First we need to get the average artefacts
-
-
+            art_dict = {}
+            for count, artefact in enumerate(numpy.unique(artefacts[:, 1])):
+                indices  = numpy.where(artefacts[:, 1] == artefact)[0]
+                tmp      = numpy.where(windows[:, 0] == artefact)[0]
+                tau      = windows[tmp, 1]
+                times    = numpy.random.permutation(artefacts[indices, 0])[:500]
+                art_dict[count] = io.get_artefact(params, times, tau, nodes)
 
             # for count, gidx in enumerate(to_process):
 
