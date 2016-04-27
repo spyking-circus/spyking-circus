@@ -155,7 +155,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if (time >= offset) and (time < max_offset):
                     local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
                     mpi_input.Read_at(N_total * time, local_chunk)
-                    local_shape   = chunk_size
                     local_chunk   = local_chunk.reshape(tau, N_total)
                     local_chunk   = local_chunk.astype(numpy.float32)
                     local_chunk  -= dtype_offset
