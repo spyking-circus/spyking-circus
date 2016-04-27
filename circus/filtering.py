@@ -109,9 +109,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            windows[:, 1] *= int(sampling_rate*1e-3)
-            nb_stimuli     = len(numpy.unique(artefacts[:, 1]))
-            mytest         = nb_stimuli == len(windows)
+            artefacts[:, 0] *= int(sampling_rate*1e-3)
+            windows[:, 1]   *= int(sampling_rate*1e-3)
+            nb_stimuli       = len(numpy.unique(artefacts[:, 1]))
+            mytest           = nb_stimuli == len(windows)
 
             if not mytest:
                 io.print_and_log(['Error in the trigger files'], 'error', params)
