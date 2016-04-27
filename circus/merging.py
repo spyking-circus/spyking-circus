@@ -16,9 +16,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     
     if comm.rank == 0:
     
-        print os.path.exists(file_out_suff + '.result%s.hdf5' %extension), file_out_suff + '.result%s.hdf5' %extension
-
-        if os.path.exists(file_out_suff + '.result%s.hdf5' %extension):
+        if (extension != '') and (os.path.exists(file_out_suff + '.result%s.hdf5' %extension)):
             key = ''
             while key not in ['y', 'n']:
                 print("Export already made! Do you want to erase everything? (y)es / (n)o ")
