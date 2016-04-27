@@ -5,8 +5,8 @@ suffix         =                        # Suffix to add to generated files
 data_dtype     = uint16                 # Type of the data
 dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
 spike_thresh   = 6                      # Threshold for spike detection
-matched-filter = True                   # If True, we perform spike detection with matched filters
-matched_thresh = 4                      # Threshold for detection if matched filter is True
+matched-filter = False                  # If True, we perform spike detection with matched filters
+matched_thresh = 5                      # Threshold for detection if matched filter is True
 skip_artefact  = False                  # Skip part of signals with large fluctuations
 sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 N_t            = 5                      # Width of the templates [in ms]
@@ -20,6 +20,13 @@ multi-files    = False                  # If several files mydata_0,1,..,n.dat s
 cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
 filter         = True      # If True, then a low-pass filtering is performed
 remove_median  = False     # If True, median over all channels is substracted to each channels (movement artifacts)
+
+[triggers]
+trig_file      =           # If external stimuli need to be considered as putative artefacts (see documentation)
+trig_windows   =           # The time windows of those external stimuli [in ms]
+clean_artefact = False     # If True, external artefacts induced by triggers will be suppressed from data
+before_filter  = True      # By default, this operation is performed before filtering. Can be after if False
+make_plots     = png       # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 [whitening]
 chunk_size     = 60        # Size of the data chunks [in s]

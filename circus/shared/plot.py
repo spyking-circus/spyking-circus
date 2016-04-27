@@ -224,6 +224,17 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
 
 
 
+def view_artefact(data, save=False):
+    
+    fig          = pylab.figure()    
+    pylab.plot(data.T)
+    if save:
+        pylab.savefig(os.path.join(save[0], 'artefact_%s' %save[1]))
+        pylab.close()
+    else:
+        pylab.show()
+    del fig
+
 
 def view_waveforms(file_name, temp_id, n_spikes=2000):
     

@@ -68,6 +68,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     n_tm           = N_tm//2
     n_scalar       = N_e*N_t
     last_spikes    = numpy.zeros((n_tm, 1), dtype=numpy.int32)
+    temp_window    = numpy.arange(-template_shift, template_shift+1)
 
     if not amp_auto:
         amp_limits       = numpy.zeros((n_tm, 2))
@@ -170,6 +171,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' %comm.rank, 'wb')
     templates_file  = open(file_out_suff + '.templates-%d.data' %comm.rank, 'wb')
 
+
     comm.Barrier()
 
     if use_gpu and do_spatial_whitening:
@@ -243,14 +245,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes)
         n_t             = len(local_peaktimes)
+        len_chunk       = local_chunk.shape[0]
 
         if n_t > 0:
-            #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."                
-            local_chunk = local_chunk.T            
-            sub_mat     = numpy.zeros((N_e, 2*template_shift+1, n_t), dtype=numpy.float32)
+            #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."     
+
+            local_chunk = local_chunk.T.ravel()
+            sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
+            indices     = numpy.zeros(0, dtype=numpy.int32)
+            for idx in xrange(N_e):
+                indices = numpy.concatenate((indices, len_chunk*idx + temp_window))
+
             for count, idx in enumerate(local_peaktimes):
-                sub_mat[:, :, count] = local_chunk[:, idx-template_shift: idx+template_shift+1]
-            sub_mat = sub_mat.reshape(N_e*(2*template_shift+1), n_t)
+                sub_mat[:, count] = numpy.take(local_chunk, indices + idx)
 
             del local_chunk
 
