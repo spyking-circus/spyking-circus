@@ -150,17 +150,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             data_len = tau * N_total
             count    = 0
-
+            
             for label, time in zip(local_labels, local_times):
 
                 if (time >= offset) and (time < max_offset):
+
+                    mshape   = tau
+                    if (max_offset - time) < tau:
+                        data_len = (max_offset - time)*N_total
+                        mshape   = max_offset - time
+
                     local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
                     mpi_input.Read_at(N_total * time, local_chunk)
-                    local_chunk   = local_chunk.reshape(tau, N_total)
+                    local_chunk   = local_chunk.reshape(mshape, N_total)
                     local_chunk   = local_chunk.astype(numpy.float32)
                     local_chunk  -= dtype_offset
                     for idx, i in enumerate(nodes):
-                        local_chunk[:, i] -= art_dict[label][idx]
+                        local_chunk[:, i] -= art_dict[label][idx, :mshape]
                         
                     local_chunk  += dtype_offset
                     local_chunk   = local_chunk.astype(data_dtype)
