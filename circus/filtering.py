@@ -109,17 +109,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 0] *= int(sampling_rate*1e-3)
+            artefacts[:, 1] *= int(sampling_rate*1e-3)
             windows[:, 1]   *= int(sampling_rate*1e-3)
-            nb_stimuli       = len(numpy.unique(artefacts[:, 1]))
+            nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
             if not mytest:
                 io.print_and_log(['Error in the trigger files'], 'error', params)
                 sys.exit(0)
 
-            local_times   = artefacts[:, 0][comm.rank::comm.size]
-            local_labels  = artefacts[:, 1][comm.rank::comm.size]
+            local_labels  = artefacts[:, 0][comm.rank::comm.size]
+            local_times   = artefacts[:, 1][comm.rank::comm.size]
 
             if comm.rank == 0:
                 to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
@@ -131,11 +131,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
             # First we need to get the average artefacts
             art_dict = {}
-            for count, artefact in enumerate(numpy.unique(artefacts[:, 1])):
-                indices  = numpy.where(artefacts[:, 1] == artefact)[0]
+            for count, artefact in enumerate(numpy.unique(artefacts[:, 0])):
+                indices  = numpy.where(artefacts[:, 0] == artefact)[0]
                 tmp      = numpy.where(windows[:, 0] == artefact)[0]
                 tau      = windows[tmp, 1]
-                pspikes  = artefacts[indices, 0]
+                pspikes  = artefacts[indices, 1]
                 mask     = (pspikes >= offset) & (pspike < max_offset)
                 pspikes  = pspikes[mask]
                 times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
