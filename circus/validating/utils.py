@@ -524,6 +524,7 @@ def extract_extra_spikes_(params):
         n_times = len(loc_peak_times)
         loc_peak_flags = numpy.zeros(n_times, dtype='bool')
         loc_peak_elecs = numpy.zeros(n_times, dtype='int')
+        loc_peak_values = numpy.zeros(n_times, dtype='float')
         if 0 < len(loc_peak_times):
             diff_times = loc_peak_times[-1] - loc_peak_times[0]
             all_times = numpy.zeros((N_elec, diff_times + 1), dtype='bool')
@@ -545,6 +546,7 @@ def extract_extra_spikes_(params):
                 if is_local_min and not mslice.any():
                     loc_peak_flags[peak_index] = True
                     loc_peak_elecs[peak_index] = elec
+                    loc_peak_values[peak_index] = - loc_chunk[peak_time, elec]
                     if safety_space:
                         all_times[neighs, min_times[peak_index]:max_times[peak_index]] = True
                         # all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
@@ -552,8 +554,9 @@ def extract_extra_spikes_(params):
                         all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
         loc_peak_times = numpy.compress(loc_peak_flags, loc_peak_times)
         loc_peak_elecs = numpy.compress(loc_peak_flags, loc_peak_elecs)
+        loc_peak_values = numpy.compress(loc_peak_flags, loc_peak_values)
         
-        return loc_peak_times, loc_peak_elecs
+        return loc_peak_times, loc_peak_elecs, loc_peak_values
     
     # Distribute chunks over CPUs.
     all_chunks = numpy.arange(nb_chunks)
@@ -583,33 +586,38 @@ def extract_extra_spikes_(params):
     # Preallocation for results.
     times = len(loc_all_chunks) * [None]
     channels = len(loc_all_chunks) * [None]
+    values = len(loc_all_chunks) * [None]
     
     # For each chunk attributed to the current CPU.
     for (count, gidx) in enumerate(loc_all_chunks):
-        time, channel = extract_chunk_spikes(data_len, gidx, k=k)
+        time, channel, value = extract_chunk_spikes(data_len, gidx, k=k)
         times[count] = time + gidx * chunk_size
         channels[count] = channel
+        values[count] = value
         if comm.rank == 0:
             pbar.update(count)
     
-    # Concatenate times and channels.
+    # Concatenate times, channels and values.
     times = numpy.hstack(times)
     channels = numpy.hstack(channels)
+    values = numpy.hstack(values)
     
     if comm.rank == 0:
         pbar.finish()
     
     comm.Barrier()
     
-    # Gather times and channels.
+    # Gather times, channels and values.
     times = gather_array(times, comm, 0, dtype='int64')
     channels = gather_array(channels, comm, 0, dtype='int64')
+    values = gather_array(values, comm, 0, dtype='float64')
     
     if comm.rank == 0:
-        # Sort times and channels according to time.
+        # Sort times, channels and values according to time.
         idx = numpy.argsort(times)
         times = times[idx]
         channels = channels[idx]
+        values = values[idx]
     
     if comm.rank == 0:
         msg = [
@@ -621,7 +629,7 @@ def extract_extra_spikes_(params):
         io.print_and_log(msg, level='info', logger=params)
         io.print_and_log(msg2, level='debug', logger=params)
     
-
+    
     if comm.rank == 0:
         path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(path, 'a', libver='latest')
@@ -633,6 +641,14 @@ def extract_extra_spikes_(params):
             mask = (channels == i)
             triggers = times[mask]
             beer_file.create_dataset("{}/elec_{}".format(group_name, i), data=triggers)
+        group_name = "extra_spike_values"
+        if group_name in beer_file.keys():
+            beer_file.pop(group_name)
+        beer_file.create_group(group_name)
+        for i in numpy.arange(0, N_elec):
+            mask = (channels == i)
+            data = values[mask]
+            beer_file.create_dataset("{}/elec_{}".format(group_name, i), data=data)
         beer_file.close()
     
     comm.Barrier()
@@ -646,7 +662,10 @@ def extract_extra_spikes(filename, params):
     do_extra = True
     try:
         data = io.load_data(params, 'extra-triggers')
+        ##### TODO: clean temporary zone
+        # do_extra = False
         do_extra = False
+        ##### end temporary zone
     except Exception as e:
         do_extra = True
 
@@ -658,7 +677,7 @@ def extract_extra_spikes(filename, params):
             io.print_and_log(msg, 'info', params)
     else:
         extract_extra_spikes_(params)
-    
+
     return
 
 
@@ -715,7 +734,8 @@ def extract_juxta_spikes_(params):
     # Detect juxta spike times.
     k = juxta_thresh
     threshold = k * juxta_mad
-    juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=True, mpd=dist_peaks)
+    valley = True
+    juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=valley, mpd=dist_peaks)
     
     # Save juxta spike times to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='latest')
@@ -727,6 +747,26 @@ def extract_juxta_spikes_(params):
     beer_file.create_dataset(key, data=juxta_spike_times)
     beer_file.close()
     
+    ##### TODO: clean debug zone
+    # Find juxta spike values of juxta spike times.
+    juxta_spike_values = numpy.zeros_like(juxta_spike_times, dtype='float')
+    for i, t in enumerate(juxta_spike_times):
+        if valley:
+            juxta_spike_values[i] = - juxta_data[t]
+        else:
+            juxta_spike_values[i] = + juxta_data[t]
+    
+    # Save juxta spike values to BEER file.
+    beer_file = h5py.File(beer_path, 'a', libver='latest')
+    group_name = "juxta_spike_values"
+    if group_name in beer_file.keys():
+        beer_file.pop(group_name)
+    beer_file.create_group(group_name)
+    key = "{}/elec_0".format(group_name)
+    beer_file.create_dataset(key, data=juxta_spike_values)
+    beer_file.close()
+    ##### end debug zone
+    
     return
 
 
@@ -735,7 +775,10 @@ def extract_juxta_spikes(filename, params):
     do_juxta = True
     try:
         data = io.load_data(params, 'juxta-triggers')
-        do_juxta = False
+        ##### TODO: clean temporary zone
+        # do_juxta = False
+        do_juxta = True
+        ##### end temporary zone
     except Exception:
         do_juxta = True
 

@@ -989,6 +989,7 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, save=None):
     ax.set_xlabel('Time [ms]')
     ax.set_ylabel('Amplitude')
 
+    fig.tight_layout()
 
     if save is None:
         pylab.show()

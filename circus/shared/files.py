@@ -862,15 +862,50 @@ def load_data(params, data, extension=''):
             return triggers, spikes
         else:
             raise Exception('No triggers found! Check suffix or check if file `%s` exists ?' %filename)
+    elif data == 'juxta-mad':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                juxta_mad = beer_file.get('juxta_mad').value
+            finally:
+                beer_file.close()
+            return juxta_mad
+        else:
+            raise Exception('No median absolute deviation found! Check suffix or check if file `{}` exists ?'.format(filename))
     elif data == 'juxta-triggers':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
             beer_file = h5py.File(filename, 'r', libver='latest')
-            juxta_spike_times = beer_file.get('juxta_spiketimes/elec_0')[:]
-            beer_file.close()
+            try:
+                juxta_spike_times = beer_file.get('juxta_spiketimes/elec_0')[:]
+            finally:
+                beer_file.close()
             return juxta_spike_times
         else:
             raise Exception('No triggers found! Check suffix or check if file `{}` exists ?'.format(filename))
+    elif data == 'juxta-values':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                juxta_spike_values = beer_file.get('juxta_spike_values/elec_0')[:]
+            finally:
+                beer_file.close()
+            return juxta_spike_values
+        else:
+            raise Exception('No values found! Check suffix or check if file `{}` exists ?'.format(filename))
+    elif data == 'extra-mads':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                extra_mads = beer_file.get('extra_mads')[:]
+            finally:
+                beer_file.close()
+            return extra_mads
+        else:
+            raise Exception('No median absolute deviation found! Check suffix or check if file `{}` exists ?'.format(filename))
     elif data == 'extra-triggers':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
@@ -886,6 +921,21 @@ def load_data(params, data, extension=''):
             return extra_spike_times
         else:
             raise Exception('No triggers found! Check if file `{}` exists ?'.format(filename))
+    elif data == 'extra-values':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            N_e = params.getint('data', 'N_e')
+            extra_spike_values = N_e * [None]
+            try:
+                for e in xrange(0, N_e):
+                    key = "extra_spike_values/elec_{}".format(e)
+                    extra_spike_values[e] = beer_file.get(key)[:]
+            finally:
+                beer_file.close()
+            return extra_spike_values
+        else:
+            raise Exception('No values found! Check suffix or check if file `{}` exists ?'.format(filename))
     elif data == 'class-weights':
         filename = file_out_suff + '.beer.hdf5'
         if os.path.exists(filename):
