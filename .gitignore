@@ -14,8 +14,9 @@ tests/plots
 /circus.egg-info
 /dist
 /build
+*.egg
 
-#Generated python
+# Generated python
 *.pyc
 *.egg-info
 
@@ -23,3 +24,5 @@ tests/plots
 *~
 *.bak
 
+# SpyKING CIRCUS files
+*.hosts
