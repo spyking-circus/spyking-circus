@@ -61,6 +61,37 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Retrieve the spike times of the juxtacellular trace.
     spike_times_juxta = io.load_data(params, 'juxta-triggers')
     
+    # Compute the cumulative distribution of juxta spike times according to the threshold value.
+    spike_values_juxta = io.load_data(params, 'juxta-values')
+    juxta_thresh = params.getfloat('validating', 'juxta_thresh')
+    juxta_mad = io.load_data(params, 'juxta-mad')
+    
+    spike_values_juxta = numpy.sort(spike_values_juxta) / juxta_mad
+    threshs = numpy.concatenate((numpy.array([juxta_thresh]), spike_values_juxta))
+    counts = numpy.arange(spike_values_juxta.size, -1, -1)
+    import matplotlib.patches as patches
+    unknown_zone = patches.Rectangle((0.0, 0), juxta_thresh, spike_values_juxta.size,
+                                     hatch='/', facecolor='white', zorder=3)
+    
+    if make_plots not in ['None', '']:
+        plot_filename = "beer-juxta-distribution.{}".format(make_plots)
+        path = os.path.join(plot_path, plot_filename)
+        import pylab
+        fig = pylab.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        ax.set_position((0.1, 0.15, 0.8, 0.75))
+        ax.step(threshs, counts, 'k', where='post')
+        ax.add_patch(unknown_zone)
+        ax.grid(True)
+        ax.set_xlim(0.0, numpy.amax(spike_values_juxta))
+        ax.set_ylim(0, spike_values_juxta.size)
+        ax.set_title("Juxtacellular threshold detection")
+        ax.set_xlabel("threshold")
+        ax.set_ylabel("number of spikes")
+        fig.text(0.02, 0.02, "median absolute deviation: {:.2f}".format(juxta_mad))
+        pylab.savefig(path)
+        pylab.close()
+    
     
     
     ############################################################################
@@ -164,6 +195,158 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Retrieve the spike times of the "non ground truth cell".
     spike_times_ngt_tmp = io.load_data(params, 'extra-triggers')
     
+    
+    ##### TODO: clean temporary zone
+    
+    # Compute the cumulative distribution of extra spike times according to the threshold values.
+    spike_times_extra = spike_times_ngt_tmp
+    spike_values_extra = io.load_data(params, 'extra-values')
+    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_mads = io.load_data(params, 'extra-mads')
+    
+    N_e = params.getint('data', 'N_e')
+    threshs = N_e * [None]
+    counts = N_e * [None]
+    for e in xrange(0, N_e):
+        spike_values_extra[e] = numpy.sort(spike_values_extra[e]) / extra_mads[e]
+    xmax = max([numpy.amax(s) for s in spike_values_extra])
+    ymax = max([s.size + 1 for s in spike_values_extra])
+    for e in xrange(0, N_e):
+        threshs[e] = numpy.concatenate((numpy.array([extra_thresh]), spike_values_extra[e], numpy.array([xmax])))
+        counts[e] = numpy.concatenate((numpy.arange(spike_values_extra[e].size, -1, -1), numpy.array([0])))
+    
+    import matplotlib.patches as patches
+    import matplotlib
+    unknown_zone = patches.Rectangle((0.0, 0), extra_thresh, ymax,
+                                     hatch='/', facecolor='white', zorder=3)
+    
+    if make_plots not in ['None', '']:
+        plot_filename = "beer-extra-distributions.{}".format(make_plots)
+        path = os.path.join(plot_path, plot_filename)
+        import pylab
+        fig = pylab.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        for e in xrange(0, N_e):
+            color = matplotlib.cm.inferno(float(e) / float(N_e))
+            ax.step(threshs[e], counts[e], color=color, where='post')
+        ax.add_patch(unknown_zone)
+        ax.grid(True)
+        ax.set_xlim(0.0, xmax)
+        ax.set_ylim(0, ymax)
+        ax.set_title("Extracellular threshold detection")
+        ax.set_xlabel("threshold")
+        ax.set_ylabel("number of spikes")
+        pylab.savefig(path)
+        pylab.close()
+    
+    # Compute the cumulative distribution of extra spike times according to the threshold values.
+    spike_times_extra = spike_times_ngt_tmp
+    spike_values_extra = io.load_data(params, 'extra-values')
+    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_mads = io.load_data(params, 'extra-mads')
+    
+    N_e = params.getint('data', 'N_e')
+    for e in xrange(0, N_e):
+        spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
+    spike_values_extra = numpy.concatenate(spike_values_extra)
+    spike_values_extra = numpy.sort(spike_values_extra)
+    counts = numpy.arange(spike_values_extra.size - 1, -1, -1)
+    spike_values_extra = numpy.concatenate((numpy.array([extra_thresh]), spike_values_extra))
+    counts = numpy.concatenate((numpy.array([counts[0]]), counts))
+    xmax = numpy.amax(spike_values_extra)
+    ymax = numpy.amax(counts)
+    
+    import matplotlib.patches as patches
+    import matplotlib
+    unknown_zone = patches.Rectangle((0.0, 0), extra_thresh, ymax,
+                                     hatch='/', facecolor='white', zorder=3)
+    
+    if make_plots not in ['None', '']:
+        plot_filename = "beer-extra-distributions-bis.{}".format(make_plots)
+        path = os.path.join(plot_path, plot_filename)
+        import pylab
+        fig = pylab.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        ax.step(spike_values_extra, counts, color='black', where='post')
+        ax.add_patch(unknown_zone)
+        ax.grid(True)
+        ax.set_xlim(0.0, xmax)
+        ax.set_ylim(0, ymax)
+        ax.set_title("Extracellular threshold detection")
+        ax.set_xlabel("threshold")
+        ax.set_ylabel("number of spikes")
+        pylab.savefig(path)
+        pylab.close()
+    
+    # Compute the proportion of juxtacellular spikes present in the extracelllar
+    # spikes according to the threshold value.
+    spike_times_juxta = spike_times_gt
+    spike_values_juxta = io.load_data(params, 'juxta-values')
+    juxta_thresh = params.getfloat('validating', 'juxta_thresh')
+    juxta_mad = io.load_data(params, 'juxta-mad')
+    juxta_thresh = max(5.0, juxta_thresh)
+    mask = juxta_thresh * juxta_mad <= spike_values_juxta
+    spike_times_juxta = spike_times_juxta[mask]
+    spike_values_juxta = spike_values_juxta[mask]
+    
+    spike_times_extra = spike_times_ngt_tmp
+    spike_values_extra = io.load_data(params, 'extra-values')
+    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_mads = io.load_data(params, 'extra-mads')
+    
+    thresh = int(params.getint('data', 'sampling_rate')*5.0e-3) # "matching threshold"
+    
+    N_e = params.getint('data', 'N_e')
+    for e in xrange(0, N_e):
+        spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
+    spike_times_extra = numpy.concatenate(spike_times_extra)
+    spike_values_extra = numpy.concatenate(spike_values_extra)
+    
+    matches = []
+    lag = int(params.getint('data', 'sampling_rate')*0.0e-3)
+    for spike_time_juxta in spike_times_juxta:
+        idx = numpy.where(abs(spike_times_extra - spike_time_juxta - lag) <= thresh)[0]
+        if 0 < len(idx):
+            matches.append(numpy.amax(spike_values_extra[idx]))
+            # print(spike_time_juxta)
+        else:
+            pass
+            print(spike_time_juxta)
+    matches = sorted(matches)
+    counts = numpy.arange(len(matches) - 1, -1, -1)
+    matches = numpy.concatenate((numpy.array([extra_thresh]), matches))
+    counts = numpy.concatenate((numpy.array([counts[0]]), counts))
+    counts = 100.0 * counts.astype('float') / float(spike_times_juxta.size)
+    
+    import matplotlib.patches as patches
+    import matplotlib
+    unknown_zone = patches.Rectangle((0.0, 0), extra_thresh, 100.0,
+                                     hatch='/', facecolor='white', zorder=3)
+    
+    if make_plots not in ['None', '']:
+        plot_filename = "beer-proportion.{}".format(make_plots)
+        path = os.path.join(plot_path, plot_filename)
+        import pylab
+        fig = pylab.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        ax.set_position((0.1, 0.15, 0.8, 0.75))
+        ax.step(matches, counts, color='black', where='post')
+        ax.add_patch(unknown_zone)
+        ax.grid(True)
+        ax.set_xlim(0.0, numpy.amax(matches))
+        ax.set_ylim(0.0, 100.0)
+        ax.set_title("Proportion of juxta spike times near extra spike times")
+        ax.set_xlabel("extra threshold")
+        ax.set_ylabel("proportion (%)")
+        fig.text(0.02, 0.02, "matching jitter: {} timestamps".format(thresh))
+        fig.text(0.42, 0.02, "juxta threshold: {}".format(juxta_thresh))
+        fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(0.8 * juxta_thresh, counts[numpy.where(matches <= 0.8 * juxta_thresh)[0][-1]]))
+        pylab.savefig(path)
+        pylab.close()
+    
+    ##### end temporary zone
+    
+    
     # Filter the spike times of the "non ground truth cell".
     ## Restrict to spikes which happened in the vicinity.
     spike_times_ngt_tmp = [spike_times_ngt_tmp[chan] for chan in chans]
@@ -173,6 +356,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
     
     spike_times_ngt = spike_times_ngt_tmp
+    
     
     if comm.rank == 0:
         if verbose:
@@ -894,7 +1078,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                     beer_file.create_dataset(filename, data=y_decf)
         beer_file.close()
     
-    ##### end temorary zone
+    ##### end temporary zone
     
     
     # Gather results on the root CPU.
@@ -933,7 +1117,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         
         
         ##### TODO: clean temporary zone
-        # TODO: compute the error of SpyKING CIRCUS.
         
         # mode = 'perso'
         mode = 'harris'
@@ -971,12 +1154,26 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                 for spike in spike_times_gt:
                     idx = numpy.where(abs(spikes - spike) <= thresh)[0]
                     if 0 < len(idx):
+                        # There is at least one spike for this template next to this ground truth spike.
                         res[i, 0] += 1.0
-                        tot[i, 0] += 1.0
-                for spike in spike_times_ngt:
-                    idx = numpy.where(abs(spikes - spike) <= thresh)[0]
-                    if 0 < len(idx):
-                        tot[i, 0] += 1.0
+                    tot[i, 0] += 1.0
+                # for spike in spike_times_ngt:
+                #     idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                #     if 0 < len(idx):
+                #         # There is at least one spike for this template next to this non ground truth spike.
+                #         tot[i, 0] += 1.0
+                ##### TODO: remove debug zone
+                if verbose:
+                    msg = [
+                        "i: {}".format(i),
+                        "data['temp_i'].size: {}".format(spikes.size),
+                        "spike_times_gt.size: {}".format(spike_times_gt.size),
+                        "spike_times_ngt.size: {}".format(spike_times_ngt.size),
+                        "res[i, 0]: {}".format(res[i, 0]),
+                        "tot[i, 0]: {}".format(tot[i, 0]),
+                    ]
+                    io.print_and_log(msg, level='default', logger=params)
+                ##### end debug zone
                 if 0.0 < tot[i, 0]:
                     res[i, 0] /= tot[i, 0]
                 # Compute the positive predictive value.
@@ -989,6 +1186,14 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                     idx = numpy.where(abs(spike_times_ngt - spike) <= thresh)[0]
                     if 0 < len(idx):
                         tot[i, 1] += 1.0
+                ##### TODO: remove debug zone
+                if verbose:
+                    msg = [
+                        "res[i, 1]: {}".format(res[i, 1]),
+                        "tot[i, 1]: {}".format(tot[i, 1]),
+                    ]
+                    io.print_and_log(msg, level='default', logger=params)
+                ##### end debug zone
                 if 0 < tot[i, 1]:
                     res[i, 1] /= tot[i, 1]
             
