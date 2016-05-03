@@ -237,6 +237,7 @@ def load_parameters(file_name):
         ['validating', 'radius_factor', 'float', '0.5'],
         ['validating', 'juxta_dtype', 'string', 'uint16'],
         ['validating', 'juxta_thresh', 'float', '6.0'],
+        ['validating', 'juxta_valley', 'bool', 'False'],
         ['merging', 'cc_overlap', 'float', '0.5'],
         ['merging', 'cc_bin', 'float', '2'],
         ['noedits', 'filter_done', 'bool', 'False']

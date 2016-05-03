@@ -735,6 +735,7 @@ def extract_juxta_spikes_(params):
     dist_peaks = params.getint('data', 'dist_peaks')
     juxta_dtype = params.get('validating', 'juxta_dtype')
     juxta_thresh = params.getfloat('validating', 'juxta_thresh')
+    juxta_valley = params.getboolean('validating', 'juxta_valley')
     
     juxta_filename = "{}.juxta.dat".format(file_out_suff)
     beer_path = "{}.beer.hdf5".format(file_out_suff)
@@ -770,8 +771,7 @@ def extract_juxta_spikes_(params):
     # Detect juxta spike times.
     k = juxta_thresh
     threshold = k * juxta_mad
-    valley = True
-    juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=valley, mpd=dist_peaks)
+    juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=juxta_valley, mpd=dist_peaks)
     
     # Save juxta spike times to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='latest')
@@ -787,7 +787,7 @@ def extract_juxta_spikes_(params):
     # Find juxta spike values of juxta spike times.
     juxta_spike_values = numpy.zeros_like(juxta_spike_times, dtype='float')
     for i, t in enumerate(juxta_spike_times):
-        if valley:
+        if juxta_valley:
             juxta_spike_values[i] = - juxta_data[t]
         else:
             juxta_spike_values[i] = + juxta_data[t]
