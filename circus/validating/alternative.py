@@ -329,14 +329,14 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_values_extra = numpy.concatenate(spike_values_extra)
     
     ##### TODO: remove debug zone
-    if comm.rank == 0:
-        tmp_indices = numpy.argsort(spike_values_extra)
-        tmp_indices = tmp_indices[::-1]
-        numpy.save("/home/baptiste/tmp/spike_times_extra_{}.npy".format(int(extra_thresh)), spike_times_extra[tmp_indices])
-        numpy.save("/home/baptiste/tmp/spike_values_extra_{}.npy".format(int(extra_thresh)), spike_values_extra[tmp_indices])
-        tmp_indices = tmp_indices[:5]
-        print(spike_times_extra[tmp_indices])
-        print(spike_values_extra[tmp_indices])
+    # if comm.rank == 0:
+    #     tmp_indices = numpy.argsort(spike_values_extra)
+    #     tmp_indices = tmp_indices[::-1]
+    #     numpy.save("/home/baptiste/tmp/spike_times_extra_{}.npy".format(int(extra_thresh)), spike_times_extra[tmp_indices])
+    #     numpy.save("/home/baptiste/tmp/spike_values_extra_{}.npy".format(int(extra_thresh)), spike_values_extra[tmp_indices])
+    #     tmp_indices = tmp_indices[:5]
+    #     print(spike_times_extra[tmp_indices])
+    #     print(spike_values_extra[tmp_indices])
     ##### end debug zone
     
     matches = []
