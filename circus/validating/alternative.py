@@ -149,10 +149,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         # print("elec: {}".format(elec))
         # print("justa_spike.shape: {}".format(juxta_spikes.shape))
         ##### end debug zone
-        ##### TODO: remove debug zone
-        # plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], save=path)
         plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], juxta_spikes_, save=path)
-        ##### end debug zone
     
     
     
@@ -322,18 +319,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_values_extra = io.load_data(params, 'extra-values')
     extra_thresh = params.getfloat('data', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
-
-    ##### TODO: remove debug zone
-    # print(extra_thresh)
-    # print(extra_mads)
-    # 
-    # for i in xrange(0, len(spike_times_extra)):
-    #     print("i={}".format(i))
-    #     print(spike_times_extra[i][:5])
-    #     print(spike_times_extra[i].size)
-    ##### end debug zone
     
-    thresh = int(params.getint('data', 'sampling_rate')*2.0e-3) # "matching threshold"
+    thresh = int(params.getint('data', 'sampling_rate')*5.0e-3) # "matching threshold"
     
     N_e = params.getint('data', 'N_e')
     for e in xrange(0, N_e):
@@ -341,17 +328,30 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_times_extra = numpy.concatenate(spike_times_extra)
     spike_values_extra = numpy.concatenate(spike_values_extra)
     
+    ##### TODO: remove debug zone
+    if comm.rank == 0:
+        tmp_indices = numpy.argsort(spike_values_extra)
+        tmp_indices = tmp_indices[::-1]
+        numpy.save("/home/baptiste/tmp/spike_times_extra_{}.npy".format(int(extra_thresh)), spike_times_extra[tmp_indices])
+        numpy.save("/home/baptiste/tmp/spike_values_extra_{}.npy".format(int(extra_thresh)), spike_values_extra[tmp_indices])
+        tmp_indices = tmp_indices[:5]
+        print(spike_times_extra[tmp_indices])
+        print(spike_values_extra[tmp_indices])
+    ##### end debug zone
+    
     matches = []
-    # lag = int(params.getint('data', 'sampling_rate')*0.0e-3)
     for spike_time_juxta in spike_times_juxta:
-        # idx = numpy.where(abs(spike_times_extra - spike_time_juxta - lag) <= thresh)[0]
         idx = numpy.where(abs(spike_times_extra - spike_time_juxta) <= thresh)[0]
         if 0 < len(idx):
+            # # Print the juxta spike times matched with extra spike times.
+            # if comm.rank == 0:
+            #     print(spike_time_juxta)
             matches.append(numpy.amax(spike_values_extra[idx]))
-            # print(spike_time_juxta)
         else:
+            # # Print the juxta spike times not matched with extra spike times.
+            # if comm.rank == 0:
+            #     print(spike_time_juxta)
             pass
-            # print(spike_time_juxta)
     matches = sorted(matches)
     counts = numpy.arange(len(matches) - 1, -1, -1)
     matches = numpy.concatenate((numpy.array([extra_thresh]), matches))
@@ -360,7 +360,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     import matplotlib.patches as patches
     import matplotlib
-    unknown_zone = patches.Rectangle((0.0, 0), min(0.8 * extra_thresh, numpy.amin(matches)), 100.0,
+    unknown_zone = patches.Rectangle((0.0, 0), extra_thresh, 100.0,
                                      hatch='/', facecolor='white', zorder=3, fill=False)
     
     if make_plots not in ['None', '']:

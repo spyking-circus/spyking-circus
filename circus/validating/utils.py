@@ -82,11 +82,43 @@ def load_chunk(params, spike_times, chans=None):
         local_chunk = local_chunk.astype(numpy.float32)
         local_chunk -= dtype_offset
 
-        
-
         # Save data.
         spikes[:, :, count] = local_chunk
     return spikes
+
+
+def get_juxta_stas(params, times_i, labels_i):
+    '''Extract STAs from the juxtacellular trace.'''
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    sampling_rate = params.getint('data', 'sampling_rate')
+    N_t = params.getint('data', 'N_t')
+    juxta_dtype = params.get('validating', 'juxta_dtype')
+    
+    juxta_filename = "{}.juxta.dat".format(file_out_suff)
+    beer_path = "{}.beer.hdf5".format(file_out_suff)
+    
+    # Read juxtacellular trace.
+    juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
+    #juxta_data = juxta_data.astype(numpy.float32)
+    # juxta_data = juxta_data - dtype_offset
+    juxta_data = numpy.ascontiguousarray(juxta_data)
+    
+    # Filter juxtacellular trace.
+    juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
+    juxta_data -= numpy.median(juxta_data)
+
+    # Extract STAs.
+    stas_shape = (len(times_i), N_t)
+    stas = numpy.zeros(stas_shape)
+    for i, time in enumerate(times_i):
+        imin = time - (N_t - 1) / 2
+        imax = time + (N_t - 1) / 2 + 1
+        # TODO: check if imin < 0  or juxta_data.size < imax.
+        stas[i] = juxta_data[imin:imax]
+    
+    return stas
+
 
 def with_quadratic_feature(X_raw, pairwise=False):
     N = X_raw.shape[0]
@@ -478,7 +510,7 @@ def extract_extra_spikes_(params):
         beer_file.create_dataset(extra_mads_key, data=extra_mads)
         beer_file.close()
     
-    def extract_chunk_spikes(data_len, gidx, k=6.0):
+    def extract_chunk_spikes(data_len, gidx, extra_thresh, valley=True):
         """Detect spikes from a chunk of the extracellular traces"""
         
         loc_chunk, loc_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
@@ -501,14 +533,18 @@ def extract_extra_spikes_(params):
         # For each electrode.
         for e in xrange(0, N_elec):
             # Extract the peaks of the current chunk.
-            threshold = k * extra_mads[e]
-            peak_times[e] = algo.detect_peaks(loc_chunk[:, e], threshold, valley=True, mpd=dist_peaks)
+            threshold = extra_thresh * extra_mads[e]
+            peak_times[e] = algo.detect_peaks(loc_chunk[:, e], threshold, valley=valley, mpd=dist_peaks)
             peak_channels[e] = e * numpy.ones(peak_times[e].size, dtype='int')
             if skip_artefact:
                 # Remove strong artifacts.
                 peak_values = loc_chunk[peak_times[e], e]
-                peak_indices = numpy.where(-10.0 * threshold <= peak_values)[0]
+                if valley:
+                    peak_indices = numpy.where(-10.0 * threshold <= peak_values)[0]
+                else:
+                    peak_indices = numpy.where(peak_values <= +10.0 * threshold)[0]
                 peak_times[e] = peak_times[e][peak_indices]
+                peak_channels[e] = peak_channels[e][peak_indices]
         peak_times = numpy.concatenate(peak_times)
         peak_channels = numpy.concatenate(peak_channels)
         # Remove the useless borders.
@@ -521,6 +557,10 @@ def extract_extra_spikes_(params):
         peak_channels = numpy.compress(peak_flags, peak_channels)
         # Filter unique peak times.
         loc_peak_times = numpy.unique(peak_times)
+        ##### TODO: remove debug zone
+        # if gidx < 1:
+        #     numpy.save("tmp/loc_peak_times_{}_{}_.npy".format(gidx, int(extra_thresh)), loc_peak_times)
+        ##### end debug zone
         n_times = len(loc_peak_times)
         loc_peak_flags = numpy.zeros(n_times, dtype='bool')
         loc_peak_elecs = numpy.zeros(n_times, dtype='int')
@@ -531,12 +571,26 @@ def extract_extra_spikes_(params):
             min_times = numpy.maximum(loc_peak_times - loc_peak_times[0] - safety_time, 0)
             max_times = numpy.minimum(loc_peak_times - loc_peak_times[0] + safety_time + 1, diff_times)
             # Shuffle peaks.
-            argmax_peak = numpy.random.permutation(numpy.arange(n_times))
+            ##### TODO: clean temporary zone
+            # argmax_peak = numpy.random.permutation(numpy.arange(n_times))
+            if valley:
+                for i, loc_peak_time in enumerate(loc_peak_times):
+                    loc_peak_values[i] = numpy.amin(loc_chunk[loc_peak_time, :])
+                argmax_peak = numpy.argsort(loc_peak_values)
+            else:
+                for i, loc_peak_time in enumerate(loc_peak_times):
+                    loc_peak_values[i] = numpy.amax(loc_chunk[loc_peak_time, :])
+                argmax_peak = numpy.argsort(loc_peak_values)
+                argmes_peak = argmax_peak[::-1]
+            ##### end temporary zone
             all_indices = loc_peak_times[argmax_peak]
             # Select peaks with spatio-temporal masks.
             for peak_index, peak_time in zip(argmax_peak, all_indices):
                 # Select electrode showing lowest amplitude.
-                elec = numpy.argmin(loc_chunk[peak_time, :])
+                if valley:
+                    elec = numpy.argmin(loc_chunk[peak_time, :])
+                else:
+                    elec = numpy.argmax(loc_chunk[peak_time, :])
                 _, neighs = get_neighbors(params, chan=elec)
                 if safety_space:
                     mslice = all_times[neighs, min_times[peak_index]:max_times[peak_index]]
@@ -546,7 +600,10 @@ def extract_extra_spikes_(params):
                 if is_local_min and not mslice.any():
                     loc_peak_flags[peak_index] = True
                     loc_peak_elecs[peak_index] = elec
-                    loc_peak_values[peak_index] = - loc_chunk[peak_time, elec]
+                    if valley:
+                        loc_peak_values[peak_index] = - loc_chunk[peak_time, elec]
+                    else:
+                        loc_peak_values[peak_index] = loc_chunk[peak_time, elec]
                     if safety_space:
                         all_times[neighs, min_times[peak_index]:max_times[peak_index]] = True
                         # all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
@@ -555,6 +612,14 @@ def extract_extra_spikes_(params):
         loc_peak_times = numpy.compress(loc_peak_flags, loc_peak_times)
         loc_peak_elecs = numpy.compress(loc_peak_flags, loc_peak_elecs)
         loc_peak_values = numpy.compress(loc_peak_flags, loc_peak_values)
+
+        ##### TODO: remove debug zone
+        # if gidx < 1:
+        #     numpy.save("tmp/loc_peak_times_{}_{}.npy".format(gidx, int(extra_thresh)), loc_peak_times)
+        #     numpy.save("tmp/loc_peak_elecs_{}_{}.npy".format(gidx, int(extra_thresh)), loc_peak_elecs)
+        #     numpy.save("tmp/loc_peak_values_{}_{}.npy".format(gidx, int(extra_thresh)), loc_peak_values)
+        #     numpy.save("tmp/loc_chunk_{}_{}.npy".format(gidx, int(extra_thresh)), loc_chunk)
+        ##### end debug zone
         
         return loc_peak_times, loc_peak_elecs, loc_peak_values
     
@@ -571,8 +636,7 @@ def extract_extra_spikes_(params):
     
     data_len = chunk_len
     
-    k = spike_thresh
-    
+    extra_valley = True
     
     ##### TODO: remove test zone (i.e. plots of extracellular spike times).
     # plot_extracted_extra_spikes(loc_all_chunks, data_len, mpi_input, data_dtype,
@@ -582,7 +646,6 @@ def extract_extra_spikes_(params):
     # sys.exit(0)
     ##### end test zone
     
-    
     # Preallocation for results.
     times = len(loc_all_chunks) * [None]
     channels = len(loc_all_chunks) * [None]
@@ -590,7 +653,7 @@ def extract_extra_spikes_(params):
     
     # For each chunk attributed to the current CPU.
     for (count, gidx) in enumerate(loc_all_chunks):
-        time, channel, value = extract_chunk_spikes(data_len, gidx, k=k)
+        time, channel, value = extract_chunk_spikes(data_len, gidx, spike_thresh, valley=extra_valley)
         times[count] = time + gidx * chunk_size
         channels[count] = channel
         values[count] = value
@@ -662,10 +725,7 @@ def extract_extra_spikes(filename, params):
     do_extra = True
     try:
         data = io.load_data(params, 'extra-triggers')
-        ##### TODO: clean temporary zone
-        # do_extra = False
         do_extra = False
-        ##### end temporary zone
     except Exception as e:
         do_extra = True
 
@@ -690,41 +750,6 @@ def highpass(data, BUTTER_ORDER=3, sampling_rate=10000, cut_off=500.0):
     return signal.filtfilt(b, a, data)
 
 
-##### TODO: move temporary zone
-
-def get_juxta_stas(params, times_i, labels_i):
-    '''Extract STAs from the juxtacellular trace.'''
-
-    file_out_suff = params.get('data', 'file_out_suff')
-    sampling_rate = params.getint('data', 'sampling_rate')
-    N_t = params.getint('data', 'N_t')
-    juxta_dtype = params.get('validating', 'juxta_dtype')
-    
-    juxta_filename = "{}.juxta.dat".format(file_out_suff)
-    beer_path = "{}.beer.hdf5".format(file_out_suff)
-    
-    # Read juxtacellular trace.
-    juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
-    #juxta_data = juxta_data.astype(numpy.float32)
-    # juxta_data = juxta_data - dtype_offset
-    juxta_data = numpy.ascontiguousarray(juxta_data)
-    
-    # Filter juxtacellular trace.
-    juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
-    juxta_data -= numpy.median(juxta_data)
-
-    # Extract STAs.
-    stas_shape = (len(times_i), N_t)
-    stas = numpy.zeros(stas_shape)
-    for i, time in enumerate(times_i):
-        imin = time - (N_t - 1) / 2
-        imax = time + (N_t - 1) / 2 + 1
-        # TODO: check if imin < 0  or juxta_data.size < imax.
-        stas[i] = juxta_data[imin:imax]
-    
-    return stas
-
-##### end temporary zone
 
 def extract_juxta_spikes_(params):
     '''Detect spikes from the extracellular traces'''
@@ -769,8 +794,7 @@ def extract_juxta_spikes_(params):
         io.print_and_log(["Extract juxtacellular spikes"], level='debug', logger=params)
     
     # Detect juxta spike times.
-    k = juxta_thresh
-    threshold = k * juxta_mad
+    threshold = juxta_thresh * juxta_mad
     juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=juxta_valley, mpd=dist_peaks)
     
     # Save juxta spike times to BEER file.
@@ -783,7 +807,6 @@ def extract_juxta_spikes_(params):
     beer_file.create_dataset(key, data=juxta_spike_times)
     beer_file.close()
     
-    ##### TODO: clean debug zone
     # Find juxta spike values of juxta spike times.
     juxta_spike_values = numpy.zeros_like(juxta_spike_times, dtype='float')
     for i, t in enumerate(juxta_spike_times):
@@ -801,7 +824,6 @@ def extract_juxta_spikes_(params):
     key = "{}/elec_0".format(group_name)
     beer_file.create_dataset(key, data=juxta_spike_values)
     beer_file.close()
-    ##### end debug zone
     
     return
 
@@ -811,10 +833,7 @@ def extract_juxta_spikes(filename, params):
     do_juxta = True
     try:
         data = io.load_data(params, 'juxta-triggers')
-        ##### TODO: clean temporary zone
-        # do_juxta = False
-        do_juxta = True
-        ##### end temporary zone
+        do_juxta = False
     except Exception:
         do_juxta = True
 
