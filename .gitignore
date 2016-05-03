@@ -24,5 +24,8 @@ tests/plots
 *~
 *.bak
 
+# Generated SSH
+.#*
+
 # SpyKING CIRCUS files
 *.hosts

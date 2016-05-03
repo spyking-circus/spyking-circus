@@ -105,24 +105,42 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     if chan == -1:
         # Set best channel as the channel with the highest change in amplitude.
         nodes, chans = get_neighbors(params, chan=None)
-        #juxta_spikes      = load_chunk(params, spike_times_juxta, chans=None)
-        juxta_spikes      = get_stas(params, spike_times_juxta, numpy.zeros(len(spike_times_juxta)), 0, chans, nodes=nodes, auto_align=False).T
+        spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
+        #juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
+        juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         mean_juxta_spikes = numpy.mean(juxta_spikes, axis=2)
-        max_juxta_spikes  = numpy.amax(mean_juxta_spikes, axis=0)
-        min_juxta_spikes  = numpy.amin(mean_juxta_spikes, axis=0)
-        dif_juxta_spikes  = max_juxta_spikes - min_juxta_spikes
+        max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0)
+        min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0)
+        dif_juxta_spikes = max_juxta_spikes - min_juxta_spikes
         chan = numpy.argmax(dif_juxta_spikes)
+        nodes, chans = get_neighbors(params, chan=chan)
         if comm.rank == 0:
-            msg = ["Ground truth neuron is close to channel {}".format(chan)]
+            msg = ["Ground truth neuron is close to channel {} (set automatically)".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
     else:
-        pass
-    
-    nodes, chans = get_neighbors(params, chan=chan)
+        nodes, chans = get_neighbors(params, chan=chan)
+        ##### TODO: clean temporary zone
+        elec = numpy.where(chans == chan)[0][0]
+        chan = elec
+        ##### end temporary zone
+        spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
+        juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False)
+        if comm.rank == 0:
+            msg = ["Ground truth neuron is close to channel {} (set manually)".format(chan)]
+            io.print_and_log(msg, level='default', logger=params)
     
     if make_plots not in ['None', '']:
         plot_filename = "beer-trigger-times.%s" %make_plots
         path = os.path.join(plot_path, plot_filename)
+        ##### TODO: remove debug zone
+        # print("nodes: {}".format(nodes))
+        # print("nodes.size: {}".format(nodes.size))
+        # print("chans: {}".format(chans))
+        # print("chans.size: {}".format(chans.size))
+        # print("chan: {}".format(chan))
+        # print("elec: {}".format(elec))
+        # print("justa_spike.shape: {}".format(juxta_spikes.shape))
+        ##### end debug zone
         plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], save=path)
     
     
@@ -293,8 +311,18 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_values_extra = io.load_data(params, 'extra-values')
     extra_thresh = params.getfloat('data', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
+
+    ##### TODO: remove debug zone
+    # print(extra_thresh)
+    # print(extra_mads)
+    # 
+    # for i in xrange(0, len(spike_times_extra)):
+    #     print("i={}".format(i))
+    #     print(spike_times_extra[i][:5])
+    #     print(spike_times_extra[i].size)
+    ##### end debug zone
     
-    thresh = int(params.getint('data', 'sampling_rate')*5.0e-3) # "matching threshold"
+    thresh = int(params.getint('data', 'sampling_rate')*2.0e-3) # "matching threshold"
     
     N_e = params.getint('data', 'N_e')
     for e in xrange(0, N_e):
@@ -303,15 +331,16 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_values_extra = numpy.concatenate(spike_values_extra)
     
     matches = []
-    lag = int(params.getint('data', 'sampling_rate')*0.0e-3)
+    # lag = int(params.getint('data', 'sampling_rate')*0.0e-3)
     for spike_time_juxta in spike_times_juxta:
-        idx = numpy.where(abs(spike_times_extra - spike_time_juxta - lag) <= thresh)[0]
+        # idx = numpy.where(abs(spike_times_extra - spike_time_juxta - lag) <= thresh)[0]
+        idx = numpy.where(abs(spike_times_extra - spike_time_juxta) <= thresh)[0]
         if 0 < len(idx):
             matches.append(numpy.amax(spike_values_extra[idx]))
             # print(spike_time_juxta)
         else:
             pass
-            print(spike_time_juxta)
+            # print(spike_time_juxta)
     matches = sorted(matches)
     counts = numpy.arange(len(matches) - 1, -1, -1)
     matches = numpy.concatenate((numpy.array([extra_thresh]), matches))
@@ -320,8 +349,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     import matplotlib.patches as patches
     import matplotlib
-    unknown_zone = patches.Rectangle((0.0, 0), extra_thresh, 100.0,
-                                     hatch='/', facecolor='white', zorder=3)
+    unknown_zone = patches.Rectangle((0.0, 0), min(0.8 * extra_thresh, numpy.amin(matches)), 100.0,
+                                     hatch='/', facecolor='white', zorder=3, fill=False)
     
     if make_plots not in ['None', '']:
         plot_filename = "beer-proportion.{}".format(make_plots)
@@ -340,9 +369,16 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         ax.set_ylabel("proportion (%)")
         fig.text(0.02, 0.02, "matching jitter: {} timestamps".format(thresh))
         fig.text(0.42, 0.02, "juxta threshold: {}".format(juxta_thresh))
-        fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(0.8 * juxta_thresh, counts[numpy.where(matches <= 0.8 * juxta_thresh)[0][-1]]))
+        tmp_indices = numpy.where(matches <= 0.8 * extra_thresh)[0]
+        if 0 < len(tmp_indices):
+            tmp_index = tmp_indices[-1]
+        else:
+            tmp_index = 0
+        fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(max(0.8 * extra_thresh, numpy.amin(matches)), counts[tmp_index]))
         pylab.savefig(path)
         pylab.close()
+
+    sys.exit(0)
     
     ##### end temporary zone
     
