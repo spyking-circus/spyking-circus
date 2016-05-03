@@ -6,7 +6,8 @@ import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 import colorama
 from colorama import Fore
-
+from mpi import all_gather_array
+from mpi4py import MPI
 from .mpi import gather_array
 import logging
 
@@ -46,7 +47,7 @@ def detect_header(filename, value='MCS'):
         while ((stop is False) and (header <= 2000)):
             header      += 1
             char         = fid.read(1)
-            header_text += str(char)
+            header_text += char.decode('Windows-1252')
             if (header > 2):
                 if (header_text[header-3:header] == 'EOH'):
                     stop = True
@@ -275,6 +276,11 @@ def load_parameters(file_name):
         f_next, extension = os.path.splitext(multi_file)
     else:
         parser.set('data', 'data_file', file_name)
+
+    if nb_channels is not None:
+        if N_e != nb_channels:
+            print_and_log(["MCS file: mistmatch between number of electrodes and data header"], 'error', parser)
+            #sys.exit(0)
 
     try:
         os.makedirs(f_next)
@@ -600,8 +606,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     local_chunk  = datablock[idx*chunk_len+padding[0]:(idx+1)*chunk_len+padding[1]]
     del datablock
-    local_shape  = chunk_size + (padding[1]-padding[0])/N_total
-    local_shape  = int(local_shape) # fix DepreciationWarning (i.e. do not index using non-integer numbers)
+    local_shape  = chunk_size + (padding[1]-padding[0])//N_total
     local_chunk  = local_chunk.reshape(local_shape, N_total)
     local_chunk  = local_chunk.astype(numpy.float32)
     local_chunk -= dtype_offset
@@ -697,6 +702,177 @@ def get_nodes_and_edges(parameters, validating=False):
             nodes   += [i]
 
     return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
+
+
+def load_data_memshared(params, comm, data, extension='', normalize=False, transpose=False, nb_cpu=1, nb_gpu=0, use_gpu=False):
+
+    file_out        = params.get('data', 'file_out')
+    file_out_suff   = params.get('data', 'file_out_suff')
+    data_file_noext = params.get('data', 'data_file_noext')
+
+    ## First we need to identify machines in the MPI ring
+    from uuid import getnode as get_mac
+    myip = int(get_mac()) % 100000
+
+    intsize   = MPI.INT.Get_size()
+    floatsize = MPI.FLOAT.Get_size() 
+    sub_comm  = comm.Split(myip, 0)
+    
+    if data == 'templates':
+        N_e = params.getint('data', 'N_e')
+        N_t = params.getint('data', 'N_t')
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+            nb_data = 0
+            nb_ptr  = 0
+            nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms').shape[0]
+
+            if sub_comm.rank == 0:
+                temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
+                temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
+                temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]    
+                sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
+                if normalize:
+                    norm_templates = load_data(params, 'norm-templates')
+                    for idx in xrange(sparse_mat.shape[1]):
+                        myslice = numpy.arange(sparse_mat.indptr[idx], sparse_mat.indptr[idx+1])
+                        sparse_mat.data[myslice] /= norm_templates[idx]
+                if transpose:
+                    sparse_mat = sparse_mat.T
+
+                nb_data = len(sparse_mat.data)
+                nb_ptr  = len(sparse_mat.indptr)
+
+            sub_comm.Barrier()                
+            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
+            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
+
+            if sub_comm.rank == 0:
+                indptr_bytes  = short_size * intsize
+                indices_bytes = long_size * intsize
+                data_bytes    = long_size * floatsize
+            else:
+                indptr_bytes  = 0
+                indices_bytes = 0
+                data_bytes    = 0
+
+            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
+            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
+
+            buf_data, _    = win_data.Shared_query(0)
+            buf_indices, _ = win_indices.Shared_query(0)
+            buf_indptr, _  = win_indptr.Shared_query(0)
+                
+            buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+            buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
+            buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
+                                
+            data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
+            indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+
+            sub_comm.Barrier()
+
+            if sub_comm.rank == 0:
+                data[:]    = sparse_mat.data
+                indices[:] = sparse_mat.indices
+                indptr[:]  = sparse_mat.indptr
+                del sparse_mat
+
+            sub_comm.Barrier()
+            if not transpose:
+                templates = scipy.sparse.csc_matrix((N_e*N_t, nb_templates), dtype=numpy.float32)
+            else:
+                templates = scipy.sparse.csr_matrix((nb_templates, N_e*N_t), dtype=numpy.float32)
+            templates.data    = data
+            templates.indices = indices
+            templates.indptr  = indptr
+
+            sub_comm.Free()
+
+            return templates
+        else:
+            raise Exception('No templates found! Check suffix?')
+    elif data == "overlaps":
+        
+        c_overlap  = get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        over_shape = c_overlap.get('over_shape')[:]
+        N_over     = int(numpy.sqrt(over_shape[0]))
+        S_over     = over_shape[1]
+        c_overs    = {}
+            
+        if sub_comm.rank == 0:
+            over_x     = c_overlap.get('over_x')[:]
+            over_y     = c_overlap.get('over_y')[:]
+            over_data  = c_overlap.get('over_data')[:]
+            c_overlap.close()
+
+            # To be faster, we rearrange the overlaps into a dictionnary
+            overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
+            del over_x, over_y, over_data
+
+        sub_comm.Barrier()                
+        
+        nb_data = 0
+        nb_ptr  = 0
+
+        for i in xrange(N_over):
+            
+            if sub_comm.rank == 0:
+                sparse_mat = overlaps[i*N_over:(i+1)*N_over]
+                nb_data    = len(sparse_mat.data)
+                nb_ptr     = len(sparse_mat.indptr)
+
+            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
+            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
+
+            if sub_comm.rank == 0:
+                indptr_bytes  = short_size * intsize
+                indices_bytes = long_size * intsize
+                data_bytes    = long_size * floatsize
+            else:
+                indptr_bytes  = 0
+                indices_bytes = 0
+                data_bytes    = 0
+
+            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
+            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
+
+            buf_data, _    = win_data.Shared_query(0)
+            buf_indices, _ = win_indices.Shared_query(0)
+            buf_indptr, _  = win_indptr.Shared_query(0)
+                
+            buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+            buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
+            buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
+                                
+            data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
+            indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+
+            sub_comm.Barrier()
+
+            if sub_comm.rank == 0:
+                data[:]    = sparse_mat.data
+                indices[:] = sparse_mat.indices
+                indptr[:]  = sparse_mat.indptr
+                del sparse_mat
+
+            c_overs[i]         = scipy.sparse.csr_matrix((N_over, over_shape[1]), dtype=numpy.float32)
+            c_overs[i].data    = data
+            c_overs[i].indices = indices
+            c_overs[i].indptr  = indptr
+
+            sub_comm.Barrier()
+                    
+        if sub_comm.rank == 0:
+            del overlaps
+
+        sub_comm.Free()
+
+        return c_overs
+    
 
 def load_data(params, data, extension=''):
     """
@@ -974,10 +1150,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     duration       = data_stats(params, show=False)
-    templates      = load_data(params, 'templates')
+    templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
     refractory     = int(0.5*sampling_rate*1e-3)
-    x, N_tm        = templates.shape
+    N_tm           = len(templates)
 
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
@@ -1108,13 +1284,33 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
 
+    try:
+        SHARED_MEMORY = True
+        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+    except NotImplementedError:
+        SHARED_MEMORY = False
+
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
-    if maxoverlap:
-        templates  = load_data(params, 'templates', extension=extension)
-    else:
-        templates  = load_data(params, 'templates')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
+
+    if os.path.exists(filename) and not erase:
+        return h5py.File(filename, 'r')
+    else:
+        if os.path.exists(filename) and erase and (comm.rank == 0):
+            os.remove(filename)
+
+    if maxoverlap:
+        if SHARED_MEMORY:
+            templates  = load_data_memshared(params, comm, 'templates', extension=extension, normalize=normalize)
+        else:
+            templates  = load_data(params, 'templates', extension=extension)
+    else:
+        if SHARED_MEMORY:
+            templates  = load_data_memshared(params, comm, 'templates', normalize=normalize)
+        else:
+            templates  = load_data(params, 'templates')
+
     if extension == '-merged':
         best_elec  = load_data(params, 'electrodes', extension)
     else:
@@ -1125,14 +1321,14 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     N_t            = params.getint('data', 'N_t')
     x,        N_tm = templates.shape
 
+    if not SHARED_MEMORY and normalize:
+        norm_templates = load_data(params, 'norm-templates')[:N_tm]
+        for idx in xrange(N_tm):
+            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+            templates.data[myslice] /= norm_templates[idx]
+
     if half:
         N_tm //= 2
-
-    if os.path.exists(filename) and not erase:
-        return h5py.File(filename, 'r')
-    else:
-        if os.path.exists(filename) and erase and (comm.rank == 0):
-            os.remove(filename)
     
     comm.Barrier()
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
@@ -1154,14 +1350,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
         cmt.cuda_sync_threads()
 
     if use_gpu:
-        cuda_string = 'using %d GPU...' %comm.size
-
-    #print "Normalizing the templates..."
-    if normalize:
-        norm_templates = load_data(params, 'norm-templates')[:N_tm]
-        for idx in xrange(N_tm):
-            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-            templates.data[myslice] /= norm_templates[idx]
+        cuda_string = 'using %d GPU...' %comm.size    
 
     all_delays      = numpy.arange(1, N_t+1)
 

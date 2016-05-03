@@ -394,7 +394,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
         res['rec']  = res['proj'].T
-        res['waveforms'] = gdata[:, :100]
+        idx              = numpy.random.permutation(numpy.arange(gdata.shape[0]))[:1000]
+        res['waveforms'] = gdata[idx, :]
         bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
         io.print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)

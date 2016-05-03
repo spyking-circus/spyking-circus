@@ -8,6 +8,12 @@ from .shared.utils import *
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
+    try:
+        SHARED_MEMORY = True
+        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+    except NotImplementedError:
+        SHARED_MEMORY = False
+
     #################################################################
     sampling_rate  = params.getint('data', 'sampling_rate')
     N_e            = params.getint('data', 'N_e')
@@ -46,16 +52,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    templates      = io.load_data(params, 'templates')
+    if SHARED_MEMORY:
+        templates  = io.load_data_memshared(params, comm, 'templates', normalize=True, transpose=True)
+        N_tm, x    = templates.shape
+    else:
+        templates  = io.load_data(params, 'templates')
+        x, N_tm    = templates.shape
+
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
-    x,        N_tm = templates.shape
     template_shift = int((N_t-1)//2)
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
     n_scalar       = N_e*N_t
     last_spikes    = numpy.zeros((n_tm, 1), dtype=numpy.int32)
+    temp_window    = numpy.arange(-template_shift, template_shift+1)
 
     if not amp_auto:
         amp_limits       = numpy.zeros((n_tm, 2))
@@ -65,12 +77,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         amp_limits       = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
+    
+    if not SHARED_MEMORY:
+        for idx in xrange(templates.shape[1]):
+            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+            templates.data[myslice] /= norm_templates[idx]
+        templates = templates.T
 
-    for idx in xrange(templates.shape[1]):
-        myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-        templates.data[myslice] /= norm_templates[idx]
-
-    templates = templates.T
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates)
 
@@ -85,18 +98,39 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     thresholds = io.load_data(params, 'thresholds')
-    c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
 
-    over_x     = c_overlap.get('over_x')[:]
-    over_y     = c_overlap.get('over_y')[:]
-    over_data  = c_overlap.get('over_data')[:]
-    over_shape = c_overlap.get('over_shape')[:]
-    c_overlap.close()
+    if SHARED_MEMORY:
+        c_overs    = io.load_data_memshared(params, comm, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)        
+        c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        over_shape = c_overlap.get('over_shape')[:]
+        N_over     = int(numpy.sqrt(over_shape[0]))
+        S_over     = over_shape[1]
+    else:
+        c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        over_x     = c_overlap.get('over_x')[:]
+        over_y     = c_overlap.get('over_y')[:]
+        over_data  = c_overlap.get('over_data')[:]
+        over_shape = c_overlap.get('over_shape')[:]
+        N_over     = int(numpy.sqrt(over_shape[0]))
+        S_over     = over_shape[1]
+        c_overlap.close()
+
+        # To be faster, we rearrange the overlaps into a dictionnary. This has a cost: twice the memory usage for 
+        # a short period of time
+        c_overs   = {}
+        overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
+        del over_x, over_y, over_data
+        
+        for i in xrange(N_over):
+            c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
+        
+        del overlaps
+
+    comm.Barrier()
 
     if comm.rank == 0:
         io.print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
         io.purge(file_out_suff, '.data')
-
 
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -106,16 +140,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if spikedetekt:
         spiketimes = io.load_data(params, 'spikedetekt')
 
-    # To be faster, we rearrange the overlaps into a dictionnary
-    N_over    = int(numpy.sqrt(over_shape[0]))
-    S_over    = over_shape[1]
-    c_overs   = {}
-    overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
-    del over_x, over_y, over_data
-    
-    for i in xrange(N_over):
-        c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
-    
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
@@ -139,6 +163,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' %comm.rank, 'wb')
     amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' %comm.rank, 'wb')
     templates_file  = open(file_out_suff + '.templates-%d.data' %comm.rank, 'wb')
+
 
     comm.Barrier()
 
@@ -206,19 +231,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes)
         n_t             = len(local_peaktimes)
+        len_chunk       = local_chunk.shape[0]
 
         if n_t > 0:
-            #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."                
-            local_chunk = local_chunk.T            
-            sub_mat     = numpy.zeros((N_e, 2*template_shift+1, n_t), dtype=numpy.float32)
-            for count, idx in enumerate(local_peaktimes):
-                sub_mat[:, :, count] = local_chunk[:, idx-template_shift: idx+template_shift+1]
-            sub_mat = sub_mat.reshape(N_e*(2*template_shift+1), n_t)
+            #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."     
 
-            #window    = numpy.tile(numpy.arange(-template_shift, template_shift+1), n_t)
-            #indices   = numpy.repeat(local_peaktimes, temp_2_shift+1)
-            #indices  += window
-            #sub_mat   = numpy.take(local_chunk, indices, axis=0).reshape(n_t, 2*template_shift+1, N_e).T.reshape(N_e*(2*template_shift+1), n_t)
+            local_chunk = local_chunk.T.ravel()
+            sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
+            indices     = numpy.zeros(0, dtype=numpy.int32)
+            for idx in xrange(N_e):
+                indices = numpy.concatenate((indices, len_chunk*idx + temp_window))
+
+            for count, idx in enumerate(local_peaktimes):
+                sub_mat[:, count] = numpy.take(local_chunk, indices + idx)
 
             del local_chunk
 

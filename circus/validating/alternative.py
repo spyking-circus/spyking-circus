@@ -380,16 +380,15 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         ax.set_ylabel("proportion (%)")
         fig.text(0.02, 0.02, "matching jitter: {} timestamps".format(thresh))
         fig.text(0.42, 0.02, "juxta threshold: {}".format(juxta_thresh))
-        tmp_indices = numpy.where(matches <= 0.8 * extra_thresh)[0]
+        tmp_indices = numpy.where(matches <= extra_thresh)[0]
         if 0 < len(tmp_indices):
             tmp_index = tmp_indices[-1]
         else:
             tmp_index = 0
-        fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(max(0.8 * extra_thresh, numpy.amin(matches)), counts[tmp_index]))
+        fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(max(extra_thresh, numpy.amin(matches)), counts[tmp_index]))
         pylab.savefig(path)
         pylab.close()
 
-    sys.exit(0)
     
     ##### end temporary zone
     
