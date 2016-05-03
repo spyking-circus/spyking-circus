@@ -970,11 +970,11 @@ def view_trigger_snippets(trigger_snippets, chans, save=None):
     return
 
 
-def view_trigger_times(params, spike_times_juxta, juxta_spikes, save=None):
+def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=None, save=None):
     fig = pylab.figure()
     pylab.subplots_adjust(wspace=0.3)
-    ax  = fig.add_subplot(1, 2, 1)
 
+    ax = pylab.subplot2grid((2, 2), (0, 0), rowspan=2)
     sampling_rate = params.getint('data', 'sampling_rate')
     isis = numpy.diff(spike_times_juxta)*1000/sampling_rate
     x, y = numpy.histogram(isis, bins=numpy.linspace(0, 100, 50))
@@ -983,11 +983,27 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, save=None):
     ax.set_ylabel('Probability')
     ax.set_title('ISI')
 
-    ax = fig.add_subplot(1, 2, 2)
-    for i in numpy.random.permutation(juxta_spikes.shape[1])[:500]:
+    selected_juxta_indices = numpy.random.permutation(juxta_spikes.shape[1])[:500]
+
+    if juxta_spikes_ is not None:
+        ax = pylab.subplot2grid((2, 2), (0, 1))
+        for i in selected_juxta_indices:
+            ax.plot(juxta_spikes_[:, i], '0.5')
+        ax.plot(numpy.mean(juxta_spikes_, axis=1), '0.25')
+        ax.set_xlabel('Time [ms]')
+        ax.set_ylabel('Amplitude [au]')
+        ax.set_title('Juxta STA')
+
+    if juxta_spikes_ is None:
+        ax = pylab.subplot2grid((2, 2), (0, 1), rowspan=2)
+    else:
+        ax = pylab.subplot2grid((2, 2), (1, 1))
+    for i in selected_juxta_indices:
         ax.plot(juxta_spikes[:, i], '0.5')
+    ax.plot(numpy.mean(juxta_spikes, axis=1), '0.25')
     ax.set_xlabel('Time [ms]')
-    ax.set_ylabel('Amplitude')
+    ax.set_ylabel('Amplitude [au]')
+    ax.set_title('Extra STA')
 
     fig.tight_layout()
 

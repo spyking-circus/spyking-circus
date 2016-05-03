@@ -690,6 +690,42 @@ def highpass(data, BUTTER_ORDER=3, sampling_rate=10000, cut_off=500.0):
     return signal.filtfilt(b, a, data)
 
 
+##### TODO: move temporary zone
+
+def get_juxta_stas(params, times_i, labels_i):
+    '''Extract STAs from the juxtacellular trace.'''
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    sampling_rate = params.getint('data', 'sampling_rate')
+    N_t = params.getint('data', 'N_t')
+    juxta_dtype = params.get('validating', 'juxta_dtype')
+    
+    juxta_filename = "{}.juxta.dat".format(file_out_suff)
+    beer_path = "{}.beer.hdf5".format(file_out_suff)
+    
+    # Read juxtacellular trace.
+    juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
+    #juxta_data = juxta_data.astype(numpy.float32)
+    # juxta_data = juxta_data - dtype_offset
+    juxta_data = numpy.ascontiguousarray(juxta_data)
+    
+    # Filter juxtacellular trace.
+    juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
+    juxta_data -= numpy.median(juxta_data)
+
+    # Extract STAs.
+    stas_shape = (len(times_i), N_t)
+    stas = numpy.zeros(stas_shape)
+    for i, time in enumerate(times_i):
+        imin = time - (N_t - 1) / 2
+        imax = time + (N_t - 1) / 2 + 1
+        # TODO: check if imin < 0  or juxta_data.size < imax.
+        stas[i] = juxta_data[imin:imax]
+    
+    return stas
+
+##### end temporary zone
+
 def extract_juxta_spikes_(params):
     '''Detect spikes from the extracellular traces'''
     

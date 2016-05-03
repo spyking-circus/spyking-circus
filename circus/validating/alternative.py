@@ -108,6 +108,10 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
         #juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
         juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
+        ##### TODO: remove debug zone
+        spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
+        juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
+        ##### end debug zone
         mean_juxta_spikes = numpy.mean(juxta_spikes, axis=2)
         max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0)
         min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0)
@@ -124,7 +128,11 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         chan = elec
         ##### end temporary zone
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
-        juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False)
+        juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
+        ##### TODO: remove debug zone
+        spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
+        juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
+        ##### end debug zone
         if comm.rank == 0:
             msg = ["Ground truth neuron is close to channel {} (set manually)".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
@@ -141,7 +149,10 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         # print("elec: {}".format(elec))
         # print("justa_spike.shape: {}".format(juxta_spikes.shape))
         ##### end debug zone
-        plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], save=path)
+        ##### TODO: remove debug zone
+        # plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], save=path)
+        plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], juxta_spikes_, save=path)
+        ##### end debug zone
     
     
     
