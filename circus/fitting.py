@@ -39,6 +39,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     spike_range    = int(params.getfloat('fitting', 'spike_range')*sampling_rate*1e-3)
+    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
 
     if use_gpu:
