@@ -27,7 +27,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
     
-    verbose   = True
+    verbose   = False
     skip_demo = False
     make_plots_snippets = False
     # test_method = 'full' # full test set
