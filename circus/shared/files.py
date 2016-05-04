@@ -179,6 +179,11 @@ def load_parameters(file_name):
     parser.set('fitting', 'space_explo', '0.5')
     parser.set('fitting', 'nb_chances', '3')
 
+    parser.set('clustering', 'dispersion', '5')
+    parser.set('clustering', 'm_ratio', '0.01')
+    parser.set('clustering', 'sub_dim', '5')
+
+
     dtype_offset = parser.get('data', 'dtype_offset')
     if dtype_offset == 'auto':
         if parser.get('data', 'data_dtype') == 'uint16':
