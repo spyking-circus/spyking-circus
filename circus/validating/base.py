@@ -524,9 +524,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     
     ##### TODO: remove debug zone
     if comm.rank == 0:
-        print("N_gt: {}".format(y_gt.size))
-        print("N_ngt: {}".format(y_ngt.size))
-        print("N_noi: {}".format(y_noi.size))
+        if verbose:
+            print("N_gt: {}".format(y_gt.size))
+            print("N_ngt: {}".format(y_ngt.size))
+            print("N_noi: {}".format(y_noi.size))
     # sys.exit(0)
     ##### end debug zone
     
