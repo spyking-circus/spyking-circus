@@ -1,4 +1,6 @@
     # -*- coding: utf-8 -*-
+import warnings
+warnings.filterwarnings("ignore")
 import matplotlib
 matplotlib.use('Agg')
 import os, sys, time
