@@ -108,10 +108,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
         #juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
         juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
-        ##### TODO: remove debug zone
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
-        ##### end debug zone
         mean_juxta_spikes = numpy.mean(juxta_spikes, axis=2)
         max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0)
         min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0)
@@ -129,10 +127,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         ##### end temporary zone
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
         juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
-        ##### TODO: remove debug zone
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
-        ##### end debug zone
         if comm.rank == 0:
             msg = ["Ground truth neuron is close to channel {} (set manually)".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
@@ -235,7 +231,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     counts = N_e * [None]
     for e in xrange(0, N_e):
         spike_values_extra[e] = numpy.sort(spike_values_extra[e]) / extra_mads[e]
-    xmax = max([numpy.amax(s) for s in spike_values_extra])
+    xmax = max([0.0] + [numpy.amax(s) for s in spike_values_extra if 0 < s.size])
     ymax = max([s.size + 1 for s in spike_values_extra])
     for e in xrange(0, N_e):
         threshs[e] = numpy.concatenate((numpy.array([extra_thresh]), spike_values_extra[e], numpy.array([xmax])))
@@ -319,8 +315,9 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_values_extra = io.load_data(params, 'extra-values')
     extra_thresh = params.getfloat('data', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
-    
-    thresh = int(params.getint('data', 'sampling_rate')*5.0e-3) # "matching threshold"
+
+    matching_jitter = 2.0 # ms
+    thresh = int(params.getint('data', 'sampling_rate') * matching_jitter * 1.0e-3) # "matching threshold"
     
     N_e = params.getint('data', 'N_e')
     for e in xrange(0, N_e):
@@ -378,14 +375,14 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         ax.set_title("Proportion of juxta spike times near extra spike times")
         ax.set_xlabel("extra threshold")
         ax.set_ylabel("proportion (%)")
-        fig.text(0.02, 0.02, "matching jitter: {} timestamps".format(thresh))
+        fig.text(0.02, 0.02, "matching jitter: {} ms".format(matching_jitter))
         fig.text(0.42, 0.02, "juxta threshold: {}".format(juxta_thresh))
         tmp_indices = numpy.where(matches <= extra_thresh)[0]
         if 0 < len(tmp_indices):
             tmp_index = tmp_indices[-1]
         else:
             tmp_index = 0
-        fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(max(extra_thresh, numpy.amin(matches)), counts[tmp_index]))
+        fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(extra_thresh, counts[tmp_index]))
         pylab.savefig(path)
         pylab.close()
 
@@ -1179,8 +1176,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             spike_times_ngt = spike_times_ngt
             
             # Define the "matching threshold".
-            thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
-            # thresh = int(params.getint('data', 'sampling_rate')*0.25*1e-3)
+            matching_jitter = 2.0 # ms
+            thresh = int(params.getint('data', 'sampling_rate') * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results")
@@ -1309,11 +1306,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                             local_errors[mcount, 1]  = count / total
                     
                     errors = numpy.mean(local_errors, 1)
-                    ##### TODO: remove debug zone
-                    # print("numpy.max(errors): {}".format(numpy.max(errors)))
-                    # print("numpy.mean(error): {}".format(numpy.mean(error)))
-                    ##### end debug zone
-                    if numpy.max(errors) > numpy.mean(error):
+                    if 0 < errors.size and numpy.max(errors) > numpy.mean(error):
                         idx        = numpy.argmax(errors)
                         selection += [temp_match[idx]]
                         error      = local_errors[idx]
@@ -1333,8 +1326,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             spike_times_gt = spike_times_gt
             
             # Define the "matching threshold".
-            thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
-            # thresh = int(params.getint('data', 'sampling_rate')*0.25*1e-3)
+            matching_jitter = 2.0
+            thresh = int(params.getint('data', 'sampling_rate') * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results")
@@ -1418,11 +1411,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                             local_errors[mcount, 1]  = count / float(spikes.size)
                     
                     errors = numpy.mean(local_errors, 1)
-                    ##### TODO: remove debug zone
-                    # print("numpy.max(errors): {}".format(numpy.max(errors)))
-                    # print("numpy.mean(error): {}".format(numpy.mean(error)))
-                    ##### end debug zone
-                    if numpy.max(errors) > numpy.mean(error):
+                    if 0 < errors.size and numpy.max(errors) > numpy.mean(error):
                         idx        = numpy.argmax(errors)
                         selection += [temp_match[idx]]
                         error      = local_errors[idx]
