@@ -84,8 +84,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #print "Extracting the peaks..."
         local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
         for i in xrange(N_e):
-            peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
-            local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+            if sign_peaks in ['negative', 'both']:
+                peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
+                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+            if sign_peaks in ['positive', 'both']:
+                peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], mpd=dist_peaks)
+                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
         local_peaktimes = numpy.unique(local_peaktimes)
 
@@ -224,13 +228,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
-    skip_artefact  = params.getboolean('data', 'skip_artefact')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
     file_out       = params.get('data', 'file_out')
-    spike_thresh   = params.getfloat('data', 'spike_thresh')
-    stationary     = params.getboolean('data', 'stationary')
+    skip_artefact  = params.getboolean('detection', 'skip_artefact')
+    spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    stationary     = params.getboolean('detection', 'stationary')
     nodes, edges   = io.get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
