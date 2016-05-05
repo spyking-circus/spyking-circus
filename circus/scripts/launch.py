@@ -39,6 +39,7 @@ def main():
     benchmark  = None
     preview    = False
     result     = False
+    extension  = ''
 
     if not os.path.exists(user_path):
         os.makedirs(user_path)
@@ -91,6 +92,7 @@ Options are:
     -b or --batch    : datafile is a list of commands to launch, in a batch mode
     -p or --preview  : GUI to display the first second filtered with thresholds
     -r or --result   : GUI to display the results on top of raw data 
+    -e or --extension: For merging and converting, if extension should be added
     -o or --output   : output file [for generation of synthetic benchmarks]
     -t or --type     : benchmark type [fitting, clustering, synchrony]'''
 
@@ -125,8 +127,8 @@ Options are:
             print_error(["The data file %s can not be found!" %filename])
             sys.exit()
         else:
-            f_next, extension = os.path.splitext(filename)
-            if extension == '.params':
+            f_next, extens = os.path.splitext(filename)
+            if extens == '.params':
                 print_error(['You should launch the code on the data file!'])
                 sys.exit(0)
 
@@ -144,7 +146,7 @@ Options are:
             elif batch_mode:
                 tasks_list = filename
 
-            opts, args  = getopt.getopt(argv[2:], "hvbprm:H:c:g:o:t:", ["help", "method=", "hostfile=", "cpu=", "gpu=", "output=", "type="])
+            opts, args  = getopt.getopt(argv[2:], "hvbprm:H:c:g:o:t:e:", ["help", "method=", "hostfile=", "cpu=", "gpu=", "output=", "type=", "extension="])
 
     for opt, arg in opts:
         if opt in ('-h', '--help'):
@@ -174,6 +176,8 @@ Options are:
             preview = True
         elif opt in ('-r', '--result'):
             result = True
+        elif opt in ('-e', '--extension'):
+            extension = arg
 
     # Print info
     if not batch_mode:
@@ -234,7 +238,7 @@ Options are:
                     ('fitting', 'mpirun'),
                     ('extracting', 'mpirun'),
                     ('gathering', 'python'),
-                    ('converting', 'python'),
+                    ('converting', 'mpirun'),
                     ('benchmarking', 'mpirun'),
                     ('merging', 'mpirun')]
 
@@ -291,17 +295,21 @@ Options are:
                             else:
                                 nb_tasks = str(nb_cpu)
 
-                        if subtask != 'benchmarking':
-                            args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
-                        else:
+                        if subtask == 'benchmarking':
                             if (output is None) or (benchmark is None):
                                 print_error(["To generate synthetic datasets, you must provide output and type"])
                                 sys.exit()
                             args += ['-np', nb_tasks,
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                        elif subtask in ['merging', 'converting']:
+                            args += ['-np', nb_tasks,
+                                     'spyking-circus-subtask',
+                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, extension]
+                        else: 
+                            args += ['-np', nb_tasks,
+                                     'spyking-circus-subtask',
+                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
 
                         write_to_logger(params, ['Launching task %s' %subtask], 'debug')
                         write_to_logger(params, ['Command: %s' %str(args)], 'debug')

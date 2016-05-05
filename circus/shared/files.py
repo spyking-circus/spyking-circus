@@ -138,7 +138,7 @@ def load_parameters(file_name):
         sys.exit(0)
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers']
     for section in sections:
         if parser.has_section(section):
             for (key, value) in parser.items(section):
@@ -216,6 +216,13 @@ def load_parameters(file_name):
                   ['data', 'alignment', 'bool', 'True'],
                   ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
+                  ['data', 'matched-filter', 'bool', 'False'],
+                  ['data', 'matched_thresh', 'float', '5'],
+                  ['triggers', 'clean_artefact', 'bool', 'False'],
+                  ['triggers', 'before_filter', 'bool', 'True'],
+                  ['triggers', 'make_plots', 'string', 'png'],
+                  ['triggers', 'trig_file', 'string', ''],
+                  ['triggers', 'trig_windows', 'string', ''],
                   ['whitening', 'chunk_size', 'int', '60'],
                   ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
@@ -234,6 +241,7 @@ def load_parameters(file_name):
                   ['merging', 'cc_overlap', 'float', '0.5'],
                   ['merging', 'cc_bin', 'float', '2']]
 
+
     for item in new_values:
         section, name, val_type, value = item
         try:
@@ -248,6 +256,10 @@ def load_parameters(file_name):
         except Exception:
             parser.set(section, name, value)
   
+
+    parser.set('triggers', 'trig_file', os.path.abspath(parser.get('triggers', 'trig_file')))
+    parser.set('triggers', 'trig_windows', os.path.abspath(parser.get('triggers', 'trig_windows')))
+
     chunk_size = parser.getint('data', 'chunk_size')
     parser.set('data', 'chunk_size', str(chunk_size*sampling_rate))
     chunk_size = parser.getint('whitening', 'chunk_size')
@@ -363,6 +375,7 @@ def data_stats(params, show=True, export_times=False):
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Stationarity                : %s" %params.getboolean('data', 'stationary'),
              "Waveform alignment          : %s" %params.getboolean('data', 'alignment'),
+             "Matched filters             : %s" %params.getboolean('data', 'matched-filter'),
              "Skip strong artefacts       : %s" %params.getboolean('data', 'skip_artefact'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction')]
     
@@ -405,7 +418,6 @@ def print_error(lines):
 
 
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
-    from .utils import smooth  # avoid import issues
     
     N_t          = params.getint('data', 'N_t')
     if not all_labels:
@@ -486,6 +498,36 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 stas += local_chunk.T
 
     return stas
+
+
+def get_artefact(params, times_i, tau, nodes):
+    
+
+    artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
+    data_file    = params.get('data', 'data_file')
+    data_offset  = params.getint('data', 'data_offset')
+    dtype_offset = params.getint('data', 'dtype_offset')
+    data_dtype   = params.get('data', 'data_dtype')
+    N_total      = params.getint('data', 'N_total')
+    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+
+    for time in times_i:
+        padding      = N_total * time
+        local_chunk  = datablock[padding:padding + tau*N_total]
+        local_chunk  = local_chunk.reshape(tau, N_total)
+        local_chunk  = local_chunk.astype(numpy.float32)
+        local_chunk -= dtype_offset
+        
+        if nodes is not None:
+            if not numpy.all(nodes == numpy.arange(N_total)):
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
+
+        artefact += local_chunk.T
+
+    return artefact/len(times_i)
+
+
+
 
 def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
     from .utils import smooth  # avoid import issues
@@ -838,6 +880,13 @@ def load_data(params, data, extension=''):
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
+    elif data == 'matched-thresholds':
+        matched_thresh = params.getfloat('data', 'matched_thresh')
+        if os.path.exists(file_out + '.basis.hdf5'):
+            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+            thresholds = myfile.get('matched_thresholds')[:]
+            myfile.close()
+            return matched_thresh * thresholds 
     elif data == 'spatial_whitening':
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile  = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
@@ -860,6 +909,11 @@ def load_data(params, data, extension=''):
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
+    elif data == 'waveform':
+        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        waveforms  = myfile.get('waveform')[:]
+        myfile.close()
+        return waveforms
     elif data == 'waveforms':
         myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveforms')[:]

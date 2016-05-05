@@ -14,6 +14,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     skip_artefact  = params.getboolean('data', 'skip_artefact')
     spike_thresh   = params.getfloat('data', 'spike_thresh')
+    matched_filter = params.getboolean('data', 'matched-filter')
+    matched_thresh = params.getfloat('data', 'matched_thresh')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
@@ -386,9 +388,53 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
         res['rec']  = res['proj'].T
+        res['waveform']  = numpy.median(gdata, 0)
         idx              = numpy.random.permutation(numpy.arange(gdata.shape[0]))[:1000]
         res['waveforms'] = gdata[idx, :]
         bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
         io.print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
         bfile.close()
+
+    comm.Barrier()
+
+    if matched_filter:
+
+        if comm.rank == 0:
+            io.print_and_log(["Because of matched filters, need to recompute the thresholds..."], 'default', params)
+
+        if do_spatial_whitening:
+            spatial_whitening  = io.load_data(params, 'spatial_whitening')
+            if use_gpu:
+                spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+        if do_temporal_whitening:
+            temporal_whitening = io.load_data(params, 'temporal_whitening')
+
+        waveform  = io.load_data(params, 'waveform')
+        waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
+
+        for gidx in [all_chunks[comm.rank]]:
+            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+            if do_spatial_whitening:
+                if use_gpu:
+                    local_chunk = cmt.CUDAMatrix(local_chunk)
+                    local_chunk = local_chunk.dot(spatial_whitening).asarray()
+                else:
+                    local_chunk = numpy.dot(local_chunk, spatial_whitening)
+            if do_temporal_whitening:
+                local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+
+            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform, axis=0, mode='constant')
+
+            thresholds = numpy.zeros(N_e, dtype=numpy.float32)
+            for i in xrange(N_e):
+                u             = numpy.median(local_chunk[:, i], 0)
+                thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
+            gdata      = gather_array(thresholds, comm)
+            if comm.rank == 0:
+                gdata      = gdata.reshape((comm.size, N_e))
+                thresholds = numpy.mean(gdata, 0)
+                bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+                io.write_datasets(bfile, ['matched_thresholds'], {'matched_thresholds' : thresholds})
+                bfile.close()
+            comm.Barrier()

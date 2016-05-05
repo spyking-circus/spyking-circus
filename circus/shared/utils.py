@@ -10,7 +10,7 @@ from math import log, sqrt
 from scipy import linalg
 import scipy.interpolate
 import numpy, pylab, os, mpi4py, progressbar, tempfile
-import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters
+import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
 from mpi import *
 import files as io
 
@@ -475,14 +475,14 @@ class PCA(object):
         X_new : array-like, shape (n_samples, n_components)
         """
         U, S, V = self._fit(X)
-        U = U[:, :self.n_components_]
+        U = U[:, :int(self.n_components_)]
 
         if self.whiten:
             # X_new = X * V / S * sqrt(n_samples) = U * sqrt(n_samples)
             U *= sqrt(X.shape[0])
         else:
             # X_new = X * V = U * S * V^T * V = U * S
-            U *= S[:self.n_components_]
+            U *= S[:int(self.n_components_)]
 
         return U
 
@@ -535,16 +535,16 @@ class PCA(object):
         # Compute noise covariance using Probabilistic PCA model
         # The sigma2 maximum likelihood (cf. eq. 12.46)
         if n_components < min(n_features, n_samples):
-            self.noise_variance_ = explained_variance_[n_components:].mean()
+            self.noise_variance_ = explained_variance_[int(n_components):].mean()
         else:
             self.noise_variance_ = 0.
 
         # store n_samples to revert whitening when getting covariance
         self.n_samples_ = n_samples
 
-        self.components_ = components_[:n_components]
-        self.explained_variance_ = explained_variance_[:n_components]
-        explained_variance_ratio_ = explained_variance_ratio_[:n_components]
+        self.components_ = components_[:int(n_components)]
+        self.explained_variance_ = explained_variance_[:int(n_components)]
+        explained_variance_ratio_ = explained_variance_ratio_[:int(n_components)]
         self.explained_variance_ratio_ = explained_variance_ratio_
         self.n_components_ = n_components
 

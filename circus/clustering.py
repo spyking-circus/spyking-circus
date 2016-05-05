@@ -15,6 +15,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
+    matched_filter = params.getboolean('data', 'matched-filter')
     skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
@@ -62,6 +63,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
+
+    if matched_filter:
+        waveform  = io.load_data(params, 'waveform')
+        waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
+        matched_tresholds = io.load_data(params, 'matched-thresholds')
 
     result   = {}
 
@@ -197,8 +203,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
                     thresholds *= spike_thresh
 
+                if matched_filter:
+                    filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform, axis=0, mode='constant')
+                    
                 for i in xrange(N_e):
-                    peaktimes     = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                    if matched_filter:
+                        peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds[i], mpd=dist_peaks)
+                    else:
+                        peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                     if skip_artefact:
                         real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                         indices   = numpy.take(inv_nodes, edges[nodes[i]])
