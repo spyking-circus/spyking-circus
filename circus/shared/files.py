@@ -138,7 +138,7 @@ def load_parameters(file_name):
         sys.exit(0)
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers', 'detection']
     for section in sections:
         if parser.has_section(section):
             for (key, value) in parser.items(section):
@@ -212,12 +212,14 @@ def load_parameters(file_name):
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
-                  ['data', 'stationary', 'bool', 'True'],
                   ['data', 'alignment', 'bool', 'True'],
-                  ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
-                  ['data', 'matched-filter', 'bool', 'False'],
-                  ['data', 'matched_thresh', 'float', '5'],
+                  ['detection', 'stationary', 'bool', 'True'],
+                  ['detection', 'matched-filter', 'bool', 'False'],
+                  ['detection', 'matched_thresh', 'float', '5'],
+                  ['detection', 'skip_artefact', 'bool', 'False'],
+                  ['detection', 'peaks', 'string', 'negative'],
+                  ['detection', 'spike_thresh', 'float', '6'],
                   ['triggers', 'clean_artefact', 'bool', 'False'],
                   ['triggers', 'before_filter', 'bool', 'True'],
                   ['triggers', 'make_plots', 'string', 'png'],
@@ -268,6 +270,11 @@ def load_parameters(file_name):
     test = (parser.get('clustering', 'extraction') in ['quadratic', 'median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
     if not test:
         print_and_log(["Only 5 extraction modes: quadratic, median-raw, median-pca, mean-raw or mean-pca!"], 'error', parser)
+        sys.exit(0)
+
+    test = (parser.get('detection', 'peaks') in ['negative', 'positive', 'both'])
+    if not test:
+        print_and_log(["Only 3 detection modes: positive, negative, both"], 'error', parser)
         sys.exit(0)
 
     if parser.getboolean('data', 'multi-files'):
@@ -874,14 +881,14 @@ def load_data(params, data, extension=''):
     data_file_noext = params.get('data', 'data_file_noext')
 
     if data == 'thresholds':
-        spike_thresh = params.getfloat('data', 'spike_thresh')
+        spike_thresh = params.getfloat('detection', 'spike_thresh')
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
     elif data == 'matched-thresholds':
-        matched_thresh = params.getfloat('data', 'matched_thresh')
+        matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds')[:]

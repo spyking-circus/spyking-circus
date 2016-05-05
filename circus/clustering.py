@@ -15,14 +15,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
-    matched_filter = params.getboolean('data', 'matched-filter')
-    skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('data', 'alignment')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
-    spike_thresh   = params.getfloat('data', 'spike_thresh')
-    stationary     = params.getboolean('data', 'stationary')
+    matched_filter = params.getboolean('detection', 'matched-filter')
+    skip_artefact  = params.getboolean('detection', 'skip_artefact')
+    spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    stationary     = params.getboolean('detection', 'stationary')
     if params.get('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     else:

@@ -196,7 +196,7 @@ Options are:
         io.change_flag(filename, 'safety_time', '0')
     else: 
         if not batch_mode:
-            stationary = params.getboolean('data', 'stationary')
+            stationary = params.getboolean('detection', 'stationary')
         else:
             stationary = False
 
