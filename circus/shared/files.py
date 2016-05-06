@@ -380,6 +380,7 @@ def data_stats(params, show=True, export_times=False):
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
+             "Threshold crossing          : %s" %params.get('detection', 'peaks'),
              "Stationarity                : %s" %params.getboolean('detection', 'stationary'),
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
@@ -424,7 +425,7 @@ def print_error(lines):
     print Fore.RED + "------------------------------------------------------------------"
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg'):
     
     N_t          = params.getint('data', 'N_t')
     if not all_labels:
@@ -485,12 +486,18 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
                 f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                rmin        = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                if pos == 'neg':
+                    rmin    = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                elif pos =='pos':
+                    rmin    = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
-                rmin        = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                if pos == 'neg':
+                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                elif pos == 'pos':
+                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
