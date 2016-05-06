@@ -121,6 +121,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         result['clusters_' + str(i)]  = numpy.zeros(0, dtype=numpy.int32)
+        result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
         
@@ -236,25 +237,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if sign_peaks in ['positive', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                         for i in xrange(N_e):
-                            peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
+                            peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i], mpd=dist_peaks)
                             all_peaktimes   = numpy.concatenate((all_peaktimes, peaktimes))
                             all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
                     if sign_peaks in ['negative', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                         for i in xrange(N_e):
-                            peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
+                            peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i], mpd=dist_peaks)
                             all_peaktimes   = numpy.concatenate((all_peaktimes, peaktimes))
                             all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
                 else:
                     for i in xrange(N_e):
                         if sign_peaks == 'negative':
-                            peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                            peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                         elif sign_peaks == 'positive':
-                            peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
+                            peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False, mpd=dist_peaks)
                         elif sign_peaks == 'both':
-                            peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
+                            peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)                    
                         # if skip_artefact:
                         #     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                         #     indices   = numpy.take(inv_nodes, edges[nodes[i]])
@@ -403,9 +404,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         
                                 if to_accept:
                                     elt_count += 1
-                                    if gpass > 0:
+                                    if gpass <= 1:
                                         to_add = numpy.array([peak + local_offset], dtype=numpy.int32)
                                         result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
+                                    if gpass == 1:
+                                        result['peaks_' + str(elec)] = numpy.concatenate((result['peaks_' + str(elec)], [int(negative_peak)]))
                                     if safety_space:
                                         all_times[indices, min_times[midx]:max_times[midx]] = True
                                     else:
@@ -1102,7 +1105,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             thresholds[ielec], sub_tmp,
                             numpy.array(myamps), save=save)
 
-                result['data_' + str(ielec)]     = numpy.concatenate((result['data_' + str(ielec)], result['data_%s_'%p + str(ielec)]))
+                result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], result['data_%s_'%p + str(ielec)]))
                 if len(result['clusters_' + str(ielec)]) > 0:
                     max_offset = numpy.max(result['clusters_' + str(ielec)]) + 1
                 else:
@@ -1110,8 +1113,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mask = result['clusters_%s_' %p + str(ielec)] > -1
                 result['clusters_%s_' %p + str(ielec)][mask] += max_offset
                 result['clusters_' + str(ielec)] = numpy.concatenate((result['clusters_' + str(ielec)], result['clusters_%s_' %p + str(ielec)]))
-                result['peaks_' + str(ielec)]    = numpy.zeros(0, dtype=numpy.int32)
-
+                
             io.write_datasets(cfile, to_write, result, ielec)
 
             if comm.rank == 0:
