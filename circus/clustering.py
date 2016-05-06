@@ -319,7 +319,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             negative_peak = False
                             loc_peak      = 'pos'
                         elif sign_peaks == 'both':
-                            if numpy.abs(numpy.argmax(local_chunk[peak])) > numpy.abs(numpy.argmin(local_chunk[peak])):
+                            if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
                                 elec = numpy.argmax(local_chunk[peak])
                                 negative_peak = False
                                 loc_peak      = 'pos'
