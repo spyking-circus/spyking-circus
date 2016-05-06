@@ -212,8 +212,8 @@ def load_parameters(file_name):
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
-                  ['data', 'alignment', 'bool', 'True'],
                   ['data', 'multi-files', 'bool', 'False'],
+                  ['detection', 'alignment', 'bool', 'True'],
                   ['detection', 'stationary', 'bool', 'True'],
                   ['detection', 'matched-filter', 'bool', 'False'],
                   ['detection', 'matched_thresh', 'float', '5'],
@@ -274,7 +274,7 @@ def load_parameters(file_name):
 
     test = (parser.get('detection', 'peaks') in ['negative', 'positive', 'both'])
     if not test:
-        print_and_log(["Only 3 detection modes: positive, negative, both"], 'error', parser)
+        print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', parser)
         sys.exit(0)
 
     if parser.getboolean('data', 'multi-files'):
@@ -380,10 +380,10 @@ def data_stats(params, show=True, export_times=False):
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
-             "Stationarity                : %s" %params.getboolean('data', 'stationary'),
-             "Waveform alignment          : %s" %params.getboolean('data', 'alignment'),
-             "Matched filters             : %s" %params.getboolean('data', 'matched-filter'),
-             "Skip strong artefacts       : %s" %params.getboolean('data', 'skip_artefact'),
+             "Stationarity                : %s" %params.getboolean('detection', 'stationary'),
+             "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
+             "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
+             "Skip strong artefacts       : %s" %params.getboolean('detection', 'skip_artefact'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction')]
     
     if multi_files:
@@ -441,7 +441,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('data', 'alignment')
+    alignment    = params.getboolean('detection', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -546,7 +546,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('data', 'alignment')
+    alignment    = params.getboolean('detection', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     template     = template.ravel()
     covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)

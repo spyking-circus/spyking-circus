@@ -16,9 +16,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
-    alignment      = params.getboolean('data', 'alignment')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
+    sign_peaks     = params.get('detection', 'peaks')
+    alignment      = params.getboolean('detection', 'alignment')
     matched_filter = params.getboolean('detection', 'matched-filter')
     skip_artefact  = params.getboolean('detection', 'skip_artefact')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -195,7 +196,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
                 #print "Extracting the peaks..."
                 all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                all_minimas   = numpy.zeros(0, dtype=numpy.int32)
+                all_extremas  = numpy.zeros(0, dtype=numpy.int32)
 
                 if not stationary:
                     for i in xrange(N_e):
@@ -210,18 +211,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if matched_filter:
                         peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds[i], mpd=dist_peaks)
                     else:
-                        peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
-                    if skip_artefact:
-                        real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                        indices   = numpy.take(inv_nodes, edges[nodes[i]])
-                        for idx in xrange(len(peaktimes)):
-                            values      = numpy.take(local_chunk[idx], indices)
-                            is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
-                            if not is_artefact:
-                                real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                        peaktimes = numpy.take(peaktimes, real_peaktimes)
+                        if sign_peaks == 'negative':
+                            peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                        elif sign_peaks == 'positive':
+                            peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False, mpd=dist_peaks)
+                        elif sign_peaks == 'both':
+                            peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
+                    # if skip_artefact:
+                    #     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+                    #     indices   = numpy.take(inv_nodes, edges[nodes[i]])
+                    #     for idx in xrange(len(peaktimes)):
+                    #         values      = numpy.take(local_chunk[idx], indices)
+                    #         is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
+                    #         if not is_artefact:
+                    #             real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
+                    #     peaktimes = numpy.take(peaktimes, real_peaktimes)
                     all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
-                    all_minimas   = numpy.concatenate((all_minimas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
+                    all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 
                 #print "Removing the useless borders..."
                 if alignment:
@@ -230,7 +236,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     local_borders = (template_shift, local_shape - template_shift)
                 idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
                 all_peaktimes   = numpy.compress(idx, all_peaktimes)
-                all_minimas     = numpy.compress(idx, all_minimas)
+                all_extremas    = numpy.compress(idx, all_extremas)
 
                 local_peaktimes = numpy.unique(all_peaktimes)
                 local_offset    = gidx*chunk_size
@@ -265,7 +271,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         if elt_count == loop_nb_elts:
                             break
 
-                        elec = numpy.argmin(local_chunk[peak])
+                        if sign_peaks == 'negative':
+                            elec = numpy.argmin(local_chunk[peak])
+                            negative_peak = True
+                        elif sign_peaks == 'positive':
+                            elec = numpy.argmax(local_chunk[peak])
+                            negative_peak = False
+                        elif sign_peaks == 'both':
+                            if numpy.abs(numpy.argmax(local_chunk[peak])) > numpy.abs(numpy.argmin(local_chunk[peak])):
+                                elec = numpy.argmax(local_chunk[peak])
+                                negative_peak = False
+                            else:
+                                elec = numpy.argmin(local_chunk[peak])
+                                negative_peak = True
                         
                         if ((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank)):
 
@@ -276,9 +294,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 myslice = all_times[elec, min_times[midx]:max_times[midx]]
 
-                            is_local_min = elec in all_minimas[all_peaktimes == peak]
+                            is_local_extrema = elec in all_extremas[all_peaktimes == peak]
 
-                            if is_local_min and not myslice.any():
+                            if is_local_extrema and not myslice.any():
 
                                 to_accept  = False
 
@@ -294,12 +312,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
                                             f        = scipy.interpolate.UnivariateSpline(xdata, zdata, s=0)
-                                            rmin     = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                                            if negative_peak:
+                                                rmin = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                                            else:
+                                                rmin = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
                                             ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
                                             f        = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
-                                            rmin     = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                                            if negative_peak:
+                                                rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                                            else:
+                                                rmin = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
                                             ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                             sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
