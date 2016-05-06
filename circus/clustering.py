@@ -58,7 +58,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     to_write         = ['data_', 'clusters_', 'debug_', 'pca_', 'times_']
     #################################################################
 
-    basis_proj, basis_rec = io.load_data(params, 'basis')
+    if sign_peaks in ['negative', 'both']:
+        basis_proj_neg, basis_rec_neg = io.load_data(params, 'basis')
+    if sign_peaks in ['positive', 'both']:
+        basis_proj_pos, basis_rec_pos = io.load_data(params, 'basis-pos')
+
     thresholds = io.load_data(params, 'thresholds')
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -66,9 +70,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     if matched_filter:
-        waveform  = io.load_data(params, 'waveform')
-        waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
-        matched_tresholds = io.load_data(params, 'matched-thresholds')
+        if sign_peaks in ['negative', 'both']:
+            waveform_neg  = io.load_data(params, 'waveform')
+            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
+            matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
+        if sign_peaks in ['positive', 'both']:
+            waveform_pos  = io.load_data(params, 'waveform-pos')
+            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
+            matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
     result   = {}
 
