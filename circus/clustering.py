@@ -200,6 +200,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loop_max_elts_elec = max_elts_elec
             loop_nb_elts       = nb_elts
 
+        loop_max_elts_elec /= len(search_peaks)
+
         if comm.rank == 0:
             pbar = get_progressbar(loop_nb_elts)
 
@@ -1102,7 +1104,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 result['data_' + str(ielec)]     = numpy.concatenate((result['data_' + str(ielec)], result['data_%s_'%p + str(ielec)]))
                 if len(result['clusters_' + str(ielec)]) > 0:
-                    max_offset = numpy.max(result['clusters_' + str(ielec)])
+                    max_offset = numpy.max(result['clusters_' + str(ielec)]) + 1
                 else:
                     max_offset = 0
                 mask = result['clusters_%s_' %p + str(ielec)] > -1
