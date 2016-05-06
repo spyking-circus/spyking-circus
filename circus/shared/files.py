@@ -543,7 +543,7 @@ def get_artefact(params, times_i, tau, nodes):
 
 
 
-def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
+def get_amplitudes(params, times_i, src, neighs, template, nodes=None, pos='neg'):
     from .utils import smooth  # avoid import issues
 
     N_t          = params.getint('data', 'N_t')
@@ -599,12 +599,18 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
                 f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                rmin        = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                if pos == 'neg':
+                    rmin    = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                elif pos =='pos':
+                    rmin    = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
-                rmin        = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                if pos == 'neg':
+                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                elif pos == 'pos':
+                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 

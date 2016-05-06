@@ -55,7 +55,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sub_output_dim = params.getint('clustering', 'sub_dim')   
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    to_write         = ['clusters_', 'times_']
+    to_write         = ['clusters_', 'times_', 'data_', 'peaks_']
     #################################################################
 
     if sign_peaks == 'negative':
@@ -64,10 +64,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         search_peaks = ['pos']
     elif sign_peaks == 'both':
         search_peaks = ['neg', 'pos']
-
-    for p in search_peaks:
-        to_write += ['data_%s_' %p]
-        to_write += ['pca_%s_' %p]
 
     basis = {}
 
@@ -124,6 +120,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for i in xrange(N_e):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
+        result['clusters_' + str(i)]  = numpy.zeros(0, dtype=numpy.int32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
         
@@ -180,6 +177,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 for p in search_peaks:
                     result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
                     result['data_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
+                    result['data_'  + str(i)]      = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
                     if numpy.any(smart_search > 0):
                         result['sub_%s_' %p + str(i)] = numpy.zeros((0, result['pca_%s_' %p + str(i)].shape[1]), dtype=numpy.float32)
 
@@ -543,6 +541,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result.pop('tmp_%s_' %p + str(ielec))                    
                     n_data  = len(result['data_%s_' %p + str(ielec)])
                     n_min   = numpy.maximum(20, int(nclus_min*n_data))
+
+                    if p == 'pos':
+                        flag = 'positive'
+                    elif p == 'neg':
+                        flag = 'negative'
+
                     if (n_data > 1):
                         #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
@@ -588,11 +592,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         mask                                = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
                         cluster_results[p][ielec]['n_clus'] = len(numpy.unique(cluster_results[p][ielec]['groups'][mask]))
                         n_clusters                          = []
-                        result['clusters_' + str(ielec)]    = cluster_results[p][ielec]['groups']
+                        result['clusters_%s_' %p + str(ielec)] = cluster_results[p][ielec]['groups']
                         for i in numpy.unique(cluster_results[p][ielec]['groups'][mask]):
                             n_clusters += [numpy.sum(cluster_results[p][ielec]['groups'][mask] == i)]
             
-                        line = ["Node %d: %d-%d templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], ielec, n_data, str(n_clusters))]
+                        line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
                         io.print_and_log(line, 'default', params)
                         if (merged[0]-merged[1]) == max_clusters:
                             local_hits += 1
@@ -600,8 +604,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         cluster_results[p][ielec]['groups'] = numpy.zeros(0, dtype=numpy.int32)
                         cluster_results[p][ielec]['n_clus'] = 0
-                        result['clusters_' + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
-                        line = ["Node %d: not enough spikes on channel %d" %(comm.rank, ielec)]
+                        result['clusters_%s_' %p + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
+                        line = ["Node %d: not enough %s spikes on channel %d" %(comm.rank, flag, ielec)]
                         io.print_and_log(line, 'default', params)
 
                     local_nb_clusters += cluster_results[p][ielec]['n_clus']
@@ -973,9 +977,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             pbar = get_progressbar(local_nb_clusters)
 
-        for p in search_peaks:
+        for ielec in range(comm.rank, N_e, comm.size):
+        
+            for p in search_peaks:
 
-            for ielec in range(comm.rank, N_e, comm.size):
                 #print "Dealing with cluster", ielec
                 n_data   = len(result['data_%s_' %p + str(ielec)])
                 n_neighb = len(edges[nodes[ielec]])
@@ -1095,13 +1100,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             thresholds[ielec], sub_tmp,
                             numpy.array(myamps), save=save)
 
-                io.write_datasets(cfile, to_write, result, ielec)
+                result['data_' + str(ielec)]     = numpy.concatenate((result['data_' + str(ielec)], result['data_%s_'%p + str(ielec)]))
+                if len(result['clusters_' + str(ielec)]) > 0:
+                    max_offset = numpy.max(result['clusters_' + str(ielec)])
+                else:
+                    max_offset = 0
+                mask = result['clusters_%s_' %p + str(ielec)] > -1
+                result['clusters_%s_' %p + str(ielec)][mask] += max_offset
+                result['clusters_' + str(ielec)] = numpy.concatenate((result['clusters_' + str(ielec)], result['clusters_%s_' %p + str(ielec)]))
+                result['peaks_' + str(ielec)]    = numpy.zeros(0, dtype=numpy.int32)
 
-                if comm.rank == 0:
-                    pbar.update(count_templates)
+            io.write_datasets(cfile, to_write, result, ielec)
 
             if comm.rank == 0:
-                pbar.finish()
+                pbar.update(count_templates)
+
+        if comm.rank == 0:
+            pbar.finish()
 
         #At the end we should have a templates variable to store.
         cfile.close()
