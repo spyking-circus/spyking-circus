@@ -22,6 +22,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
+    sign_peaks     = params.get('detection', 'peaks')
     matched_filter = params.getboolean('detection', 'matched-filter')
     skip_artefact  = params.getboolean('detection', 'skip_artefact')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -93,10 +94,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     info_string   = ''
 
     if matched_filter:
-        waveform  = io.load_data(params, 'waveform')
-        waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
-        matched_tresholds = io.load_data(params, 'matched-thresholds')
-
+        if sign_peaks in ['negative', 'both']:
+            waveform_neg  = io.load_data(params, 'waveform')
+            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
+            matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
+        if sign_peaks in ['positive', 'both']:
+            waveform_pos  = io.load_data(params, 'waveform-pos')
+            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
+            matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
     if comm.rank == 0:
         if use_gpu:
@@ -220,16 +225,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if matched_filter:
                     peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds[i])
                 else:
-                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
-                if skip_artefact:
-                    real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                    indices   = numpy.take(inv_nodes, edges[nodes[i]])
-                    for idx in xrange(len(peaktimes)):
-                        values      = numpy.take(local_chunk[idx], indices)
-                        is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
-                        if not is_artefact:
-                            real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                    peaktimes = numpy.take(peaktimes, real_peaktimes)
+                    if sign_peaks == 'negative':
+                        peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                    elif sign_peaks == 'positive':
+                        peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
+                    elif sign_peaks == 'both':
+                        peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
+                # if skip_artefact:
+                #     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+                #     indices   = numpy.take(inv_nodes, edges[nodes[i]])
+                #     for idx in xrange(len(peaktimes)):
+                #         values      = numpy.take(local_chunk[idx], indices)
+                #         is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
+                #         if not is_artefact:
+                #             real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
+                #     peaktimes = numpy.take(peaktimes, real_peaktimes)
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
             idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)
