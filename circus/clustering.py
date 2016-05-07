@@ -176,6 +176,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             # If not the first pass, we sync all the detected times among nodes and give all nodes the w/pca
             result['all_times_' + str(i)] = all_gather_array(result['loc_times_' + str(i)], comm, dtype='int32')
+            result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
             if gpass == 1:
                 for p in search_peaks:
                     result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
