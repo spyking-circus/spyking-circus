@@ -998,6 +998,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 for group in numpy.unique(cluster_results[p][ielec]['groups'][mask]):
                     electrodes[g_count] = ielec
                     myslice          = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
+                    if p == 'pos':
+                        myslice2     = numpy.where(result['peaks_' + str(ielec)] == 0)[0]
+                    elif p == 'neg':
+                        myslice2     = numpy.where(result['peaks_' + str(ielec)] == 1)[0]
                     if extraction == 'median-pca':
                         sub_data         = numpy.take(data, myslice, axis=0)
                         first_component  = numpy.median(sub_data, axis=0)
@@ -1008,13 +1012,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         tmp_templates    = numpy.dot(first_component.T, basis['rec_%s' %p])
                     elif extraction == 'median-raw':                
                         labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                        times_i          = numpy.take(result['times_' + str(ielec)], labels_i)
+                        times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
                         sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component  = numpy.median(sub_data, 0)
                         tmp_templates    = first_component
                     elif extraction == 'mean-raw':                
                         labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
-                        times_i          = numpy.take(result['times_' + str(ielec)], labels_i)
+                        times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
                         sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component  = numpy.mean(sub_data, 0)
                         tmp_templates    = first_component

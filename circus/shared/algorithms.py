@@ -263,11 +263,13 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
             result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], all_elements[elec], axis=0)
             result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec]) 
             result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], all_elements[elec])
+            result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], all_elements[elec])
+                
         
         result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_remove))
 
         cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='latest')
-        to_write = ['data_', 'clusters_', 'times_'] 
+        to_write = ['data_', 'clusters_', 'times_', 'peaks_'] 
         for ielec in xrange(N_e):
             write_datasets(cfile, to_write, result, ielec)
        
@@ -335,6 +337,7 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
                 result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
                 result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
+                result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], elements)
                 result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
                 distances                       = numpy.delete(distances, to_remove, axis=0)
                 distances                       = numpy.delete(distances, to_remove, axis=1)
