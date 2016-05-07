@@ -367,13 +367,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         to_accept  = True
                                         result['tmp_%s_' %loc_peak + str(elec)] = numpy.vstack((result['tmp_%s_' %loc_peak + str(elec)], sub_mat))
                                     elif gpass == 1:
-                                        if smart_searches[p][elec] > 0:
+                                        if smart_searches[loc_peak][elec] > 0:
                                             sub_sub_mat = numpy.dot(sub_mat, result['pca_%s_' %loc_peak + str(elec)])
                                             if len(result['data_%s_' %loc_peak + str(elec)]) == 0:
                                                 to_accept = True
                                             else:
                                                 dist = algo.distancematrix(sub_sub_mat, result['sub_%s_' %loc_peak + str(elec)])
-                                                if numpy.min(dist) >= smart_searches[p][elec]:
+                                                if numpy.min(dist) >= smart_searches[loc_peak][elec]:
                                                     to_accept = True
                                                 else:
                                                     rejected += 1
@@ -382,7 +382,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             to_accept = True
                                         if to_accept:
                                             result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
-                                            if smart_searches[p][elec] > 0:
+                                            if smart_searches[loc_peak][elec] > 0:
                                                 result['sub_%s_' %loc_peak + str(elec)] = numpy.vstack((result['sub_%s_' %loc_peak + str(elec)], sub_sub_mat))
                                                 
                                     else:
@@ -481,8 +481,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         result['tmp_%s_' %p + str(ielec)]  = pca.fit_transform(result['tmp_%s_' %p + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                         result['pca_%s_' %p + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                         rho, dist = algo.rho_estimation(result['tmp_%s_' %p + str(ielec)], compute_rho=False)
-                        target                       = params.getfloat('clustering', 'smart_search')
-                        bounds                       = [0.75*target, 1.25*target]
+                        bounds                       = [0.75*smart_search, 1.25*smart_search]
                         smart_searches[p][ielec]     = algo.autoselect_dc(dist, bounds=bounds)
                     else:
                         n_neighb                     = len(edges[nodes[ielec]])
