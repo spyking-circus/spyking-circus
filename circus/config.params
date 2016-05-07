@@ -4,17 +4,18 @@ mapping        = probes/mea_252.prb     # Mapping of the electrode (see http://s
 suffix         =                        # Suffix to add to generated files
 data_dtype     = uint16                 # Type of the data
 dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
-spike_thresh   = 6                      # Threshold for spike detection
-matched-filter = False                  # If True, we perform spike detection with matched filters
-matched_thresh = 5                      # Threshold for detection if matched filter is True
-skip_artefact  = False                  # Skip part of signals with large fluctuations
 sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 N_t            = 5                      # Width of the templates [in ms]
-stationary     = True                   # Should be False for long recordings: adaptive thresholds
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)
-alignment      = True                   # Realign the waveforms by oversampling
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
 multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation
+
+[detection]
+spike_thresh   = 6                      # Threshold for spike detection
+peaks          = negative               # Can be negative (default), positive or both
+matched-filter = False                  # If True, we perform spike detection with matched filters
+matched_thresh = 5                      # Threshold for detection if matched filter is True
+alignment      = True                   # Realign the waveforms by oversampling
 
 [filtering]
 cut_off        = 500       # Cut off frequency for the butterworth filter [Hz]
@@ -38,7 +39,7 @@ nb_elts        = 0.8       # Fraction of max_elts that should be obtained per el
 output_dim     = 5         # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 
 [clustering]
-extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw, or quadratic
+extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw
 safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
 safety_time    = auto       # Temporal zone around which templates are isolated [in ms]
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)

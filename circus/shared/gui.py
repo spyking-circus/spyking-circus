@@ -988,7 +988,8 @@ class PreviewGUI(QtGui.QMainWindow):
         self.probe            = io.read_probe(params)
         self.N_e              = params.getint('data', 'N_e')
         self.N_t              = params.getint('data', 'N_t')
-        self.spike_thresh     = params.getint('data', 'spike_thresh')
+        self.spike_thresh     = params.getint('detection', 'spike_thresh')
+        self.peaks_sign       = params.get('detection', 'peaks')  
         self.N_total          = params.getint('data', 'N_total')
         self.sampling_rate    = params.getint('data', 'sampling_rate')
         self.template_shift   = params.getint('data', 'template_shift')
@@ -1281,8 +1282,13 @@ class PreviewGUI(QtGui.QMainWindow):
                 data_line, = self.data_x.plot(self.time,
                                               count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
                 thr = self.thresholds[idx]*(self.user_threshold/self.spike_thresh)
-                self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], ':',
-                                 color=self.inspect_colors[count], lw=2)
+                if self.peaks_sign in ['negative', 'both']:
+                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], ':',
+                                     color=self.inspect_colors[count], lw=2)
+                if self.peaks_sign in ['positive', 'both']:
+                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing , thr + count * yspacing], ':',
+                                     color=self.inspect_colors[count], lw=2)
+
         else:
             for count, idx in enumerate(indices):
                 data_line, = self.data_x.plot(self.time,
@@ -1290,7 +1296,11 @@ class PreviewGUI(QtGui.QMainWindow):
                 data_line, = self.data_x.plot(self.time,
                                               count * yspacing + self.curve[idx, :], lw=1, color='k')
                 thr = self.thresholds[idx]
-                self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], ':',
+                if self.peaks_sign in ['negative', 'both']:
+                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], ':',
+                                 color=self.inspect_colors[count], lw=2)
+                if self.peaks_sign in ['positive', 'both']:
+                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], ':',
                                  color=self.inspect_colors[count], lw=2)
 
         self.data_x.set_yticklabels([])

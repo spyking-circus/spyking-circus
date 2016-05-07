@@ -19,13 +19,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
-    matched_filter = params.getboolean('data', 'matched-filter')
-    skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
-    spike_thresh   = params.getfloat('data', 'spike_thresh')
-    stationary     = params.getboolean('data', 'stationary')
+    sign_peaks     = params.get('detection', 'peaks')
+    matched_filter = params.getboolean('detection', 'matched-filter')
+    spike_thresh   = params.getfloat('detection', 'spike_thresh')
     spikedetekt    = params.getboolean('data', 'spikedetekt')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -93,10 +92,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     info_string   = ''
 
     if matched_filter:
-        waveform  = io.load_data(params, 'waveform')
-        waveform /= (numpy.abs(numpy.sum(waveform))* len(waveform))
-        matched_tresholds = io.load_data(params, 'matched-thresholds')
-
+        if sign_peaks in ['negative', 'both']:
+            waveform_neg  = io.load_data(params, 'waveform')
+            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
+            matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
+        if sign_peaks in ['positive', 'both']:
+            waveform_pos  = io.load_data(params, 'waveform-pos')
+            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
+            matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
     if comm.rank == 0:
         if use_gpu:
@@ -203,34 +206,31 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        if not stationary:
-            for i in xrange(N_e):
-                u             = numpy.median(local_chunk[:, i], 0)
-                thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
-            thresholds *= spike_thresh
-
         #print "Extracting the peaks..."
         if not spikedetekt:
             local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
 
             if matched_filter:
-                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform, axis=0, mode='constant')
 
-            for i in xrange(N_e):
-                if matched_filter:
-                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds[i])
-                else:
-                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
-                if skip_artefact:
-                    real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                    indices   = numpy.take(inv_nodes, edges[nodes[i]])
-                    for idx in xrange(len(peaktimes)):
-                        values      = numpy.take(local_chunk[idx], indices)
-                        is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
-                        if not is_artefact:
-                            real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                    peaktimes = numpy.take(peaktimes, real_peaktimes)
-                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
+                if sign_peaks in ['positive', 'both']:
+                    filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
+                    for i in xrange(N_e):
+                        peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
+                        local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+                if sign_peaks in ['negative', 'both']:
+                    filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
+                    for i in xrange(N_e):
+                        peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
+                        local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+            else:
+                for i in xrange(N_e):
+                    if sign_peaks == 'negative':
+                        peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                    elif sign_peaks == 'positive':
+                        peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
+                    elif sign_peaks == 'both':
+                        peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
+                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
             idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)
             local_peaktimes = numpy.compress(idx, spiketimes) - gidx*chunk_size

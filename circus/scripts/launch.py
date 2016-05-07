@@ -194,11 +194,6 @@ Options are:
         io.prepare_preview(params, filename)
         io.change_flag(filename, 'chunk_size', '2')
         io.change_flag(filename, 'safety_time', '0')
-    else: 
-        if not batch_mode:
-            stationary = params.getboolean('data', 'stationary')
-        else:
-            stationary = False
 
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
@@ -227,9 +222,6 @@ Options are:
 
         if not preview:
             length = io.data_stats(params)
-
-            if length >= 5*3600 and stationary:
-                print_info(['Long recording detected: maybe turn off the stationary mode'])
 
         # Launch the subtasks
         subtasks = [('filtering', 'mpirun'),

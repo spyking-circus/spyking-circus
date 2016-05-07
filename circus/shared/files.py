@@ -138,7 +138,7 @@ def load_parameters(file_name):
         sys.exit(0)
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers', 'detection']
     for section in sections:
         if parser.has_section(section):
             for (key, value) in parser.items(section):
@@ -212,12 +212,12 @@ def load_parameters(file_name):
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
-                  ['data', 'stationary', 'bool', 'True'],
-                  ['data', 'alignment', 'bool', 'True'],
-                  ['data', 'skip_artefact', 'bool', 'False'],
                   ['data', 'multi-files', 'bool', 'False'],
-                  ['data', 'matched-filter', 'bool', 'False'],
-                  ['data', 'matched_thresh', 'float', '5'],
+                  ['detection', 'alignment', 'bool', 'True'],
+                  ['detection', 'matched-filter', 'bool', 'False'],
+                  ['detection', 'matched_thresh', 'float', '5'],
+                  ['detection', 'peaks', 'string', 'negative'],
+                  ['detection', 'spike_thresh', 'float', '6'],
                   ['triggers', 'clean_artefact', 'bool', 'False'],
                   ['triggers', 'before_filter', 'bool', 'True'],
                   ['triggers', 'make_plots', 'string', 'png'],
@@ -265,9 +265,14 @@ def load_parameters(file_name):
     chunk_size = parser.getint('whitening', 'chunk_size')
     parser.set('whitening', 'chunk_size', str(chunk_size*sampling_rate))
 
-    test = (parser.get('clustering', 'extraction') in ['quadratic', 'median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
+    test = (parser.get('clustering', 'extraction') in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
     if not test:
-        print_and_log(["Only 5 extraction modes: quadratic, median-raw, median-pca, mean-raw or mean-pca!"], 'error', parser)
+        print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', parser)
+        sys.exit(0)
+
+    test = (parser.get('detection', 'peaks') in ['negative', 'positive', 'both'])
+    if not test:
+        print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', parser)
         sys.exit(0)
 
     if parser.getboolean('data', 'multi-files'):
@@ -373,10 +378,9 @@ def data_stats(params, show=True, export_times=False):
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
-             "Stationarity                : %s" %params.getboolean('data', 'stationary'),
-             "Waveform alignment          : %s" %params.getboolean('data', 'alignment'),
-             "Matched filters             : %s" %params.getboolean('data', 'matched-filter'),
-             "Skip strong artefacts       : %s" %params.getboolean('data', 'skip_artefact'),
+             "Threshold crossing          : %s" %params.get('detection', 'peaks'),
+             "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
+             "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction')]
     
     if multi_files:
@@ -417,7 +421,7 @@ def print_error(lines):
     print Fore.RED + "------------------------------------------------------------------"
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg'):
     
     N_t          = params.getint('data', 'N_t')
     if not all_labels:
@@ -434,7 +438,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('data', 'alignment')
+    alignment    = params.getboolean('detection', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -478,12 +482,18 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
                 f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                rmin        = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                if pos == 'neg':
+                    rmin    = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                elif pos =='pos':
+                    rmin    = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
-                rmin        = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                if pos == 'neg':
+                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                elif pos == 'pos':
+                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
@@ -529,7 +539,7 @@ def get_artefact(params, times_i, tau, nodes):
 
 
 
-def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
+def get_amplitudes(params, times_i, src, neighs, template, nodes=None, pos='neg'):
     from .utils import smooth  # avoid import issues
 
     N_t          = params.getint('data', 'N_t')
@@ -539,7 +549,7 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('data', 'alignment')
+    alignment    = params.getboolean('detection', 'alignment')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     template     = template.ravel()
     covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
@@ -585,12 +595,18 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
                 f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                rmin        = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                if pos == 'neg':
+                    rmin    = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                elif pos =='pos':
+                    rmin    = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
-                rmin        = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                if pos == 'neg':
+                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                elif pos == 'pos':
+                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
@@ -874,17 +890,24 @@ def load_data(params, data, extension=''):
     data_file_noext = params.get('data', 'data_file_noext')
 
     if data == 'thresholds':
-        spike_thresh = params.getfloat('data', 'spike_thresh')
+        spike_thresh = params.getfloat('detection', 'spike_thresh')
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
     elif data == 'matched-thresholds':
-        matched_thresh = params.getfloat('data', 'matched_thresh')
+        matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(file_out + '.basis.hdf5'):
             myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds')[:]
+            myfile.close()
+            return matched_thresh * thresholds 
+    elif data == 'matched-thresholds-pos':
+        matched_thresh = params.getfloat('detection', 'matched_thresh')
+        if os.path.exists(file_out + '.basis.hdf5'):
+            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+            thresholds = myfile.get('matched_thresholds_pos')[:]
             myfile.close()
             return matched_thresh * thresholds 
     elif data == 'spatial_whitening':
@@ -909,6 +932,12 @@ def load_data(params, data, extension=''):
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
+    elif data == 'basis-pos':
+        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
+        basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
+        myfile.close()
+        return basis_proj, basis_rec
     elif data == 'waveform':
         myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveform')[:]
@@ -917,6 +946,16 @@ def load_data(params, data, extension=''):
     elif data == 'waveforms':
         myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveforms')[:]
+        myfile.close()
+        return waveforms
+    elif data == 'waveform-pos':
+        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        waveforms  = myfile.get('waveform_pos')[:]
+        myfile.close()
+        return waveforms
+    elif data == 'waveforms-pos':
+        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        waveforms  = myfile.get('waveforms_pos')[:]
         myfile.close()
         return waveforms
     elif data == 'templates':
