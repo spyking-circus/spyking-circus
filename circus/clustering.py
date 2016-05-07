@@ -805,6 +805,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 result['clusters_%s_' %p + str(ielec)][mask] += max_offset
                 result['clusters_' + str(ielec)] = numpy.concatenate((result['clusters_' + str(ielec)], result['clusters_%s_' %p + str(ielec)]))
                 
+            all_indices = numpy.zeros(0, dtype=numpy.int32)
+            for p in search_peaks:
+                if p == 'pos':
+                    target = 0
+                elif p == 'neg':
+                    target = 1
+                all_indices = numpy.concatenate((all_indices, numpy.where(result['peaks_' + str(ielec)] == target)[0]))
+
+            result['times_' + str(ielec)] = result['times_' + str(ielec)][all_indices]
+            result['peaks_' + str(ielec)] = result['peaks_' + str(ielec)][all_indices]
+
             io.write_datasets(cfile, to_write, result, ielec)
 
             if comm.rank == 0:
