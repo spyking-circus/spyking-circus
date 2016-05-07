@@ -45,7 +45,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
-    smart_search   = numpy.ones(N_e, dtype=numpy.float32)*params.getfloat('clustering', 'smart_search')
+    smart_search   = params.getfloat('clustering', 'smart_search')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
@@ -62,6 +62,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         search_peaks = ['pos']
     elif sign_peaks == 'both':
         search_peaks = ['neg', 'pos']
+
+    smart_searches = {}
+    for p in search_peaks:
+        smart_searches[p] = numpy.ones(N_e, dtype=numpy.float32)*smart_search
 
     basis = {}
 
@@ -138,7 +142,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
-    if numpy.all(smart_search == 0):
+    if smart_search == 0:
         gpass = 1
     else:
         gpass = 0
@@ -149,7 +153,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         if gpass == 1:
-            sdata = all_gather_array(smart_search[comm.rank::comm.size], comm, 0)
+            sdata = all_gather_array(smart_searches[search_peaks[0]][comm.rank::comm.size], comm, 0)
 
         if comm.rank == 0:
             if gpass == 0:
@@ -177,7 +181,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
                     result['data_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
                     result['data_'  + str(i)]      = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
-                    if numpy.any(smart_search > 0):
+                    if numpy.any(smart_searches[p] > 0):
                         result['sub_%s_' %p + str(i)] = numpy.zeros((0, result['pca_%s_' %p + str(i)].shape[1]), dtype=numpy.float32)
 
 
@@ -363,13 +367,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                         to_accept  = True
                                         result['tmp_%s_' %loc_peak + str(elec)] = numpy.vstack((result['tmp_%s_' %loc_peak + str(elec)], sub_mat))
                                     elif gpass == 1:
-                                        if smart_search[elec] > 0:
+                                        if smart_searches[p][elec] > 0:
                                             sub_sub_mat = numpy.dot(sub_mat, result['pca_%s_' %loc_peak + str(elec)])
                                             if len(result['data_%s_' %loc_peak + str(elec)]) == 0:
                                                 to_accept = True
                                             else:
                                                 dist = algo.distancematrix(sub_sub_mat, result['sub_%s_' %loc_peak + str(elec)])
-                                                if numpy.min(dist) >= smart_search[elec]:
+                                                if numpy.min(dist) >= smart_searches[p][elec]:
                                                     to_accept = True
                                                 else:
                                                     rejected += 1
@@ -378,7 +382,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             to_accept = True
                                         if to_accept:
                                             result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
-                                            if smart_search[elec] > 0:
+                                            if smart_searches[p][elec] > 0:
                                                 result['sub_%s_' %loc_peak + str(elec)] = numpy.vstack((result['sub_%s_' %loc_peak + str(elec)], sub_sub_mat))
                                                 
                                     else:
@@ -479,15 +483,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         rho, dist = algo.rho_estimation(result['tmp_%s_' %p + str(ielec)], compute_rho=False)
                         target                       = params.getfloat('clustering', 'smart_search')
                         bounds                       = [0.75*target, 1.25*target]
-                        smart_search[ielec]          = algo.autoselect_dc(dist, bounds=bounds)
+                        smart_searches[p][ielec]     = algo.autoselect_dc(dist, bounds=bounds)
                     else:
                         n_neighb                     = len(edges[nodes[ielec]])
                         dimension                    = basis['proj_%s'].shape[1] * n_neighb
                         result['pca_%s_' %p + str(ielec)]  = numpy.identity(dimension, dtype=numpy.float32)
-                        smart_search[ielec]          = 0
+                        smart_searches[p][ielec]     = 0
 
-                    smart_search[ielec] *= int(len(result['tmp_%s_' %p + str(ielec)]) >= params.getfloat('clustering', 'nb_elts')*loop_max_elts_elec)
-                    if smart_search[ielec] > 0:
+                    smart_searches[p][ielec] *= int(len(result['tmp_%s_' %p + str(ielec)]) >= params.getfloat('clustering', 'nb_elts')*loop_max_elts_elec)
+                    if smart_searches[p][ielec] > 0:
                         io.print_and_log(['Smart search is actived on channel %d' % ielec], 'debug', params)
 
                 elif gpass == 1:
@@ -498,7 +502,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             data                         = pca.fit_transform(result['data_%s_' %p + str(ielec)].astype(numpy.double)).astype(numpy.float32)
                             result['pca_%s_' %p + str(ielec)]  = pca.components_.T.astype(numpy.float32)
                                 
-                        if smart_search[ielec] == 0:
+                        if smart_searches[p][ielec] == 0:
                             result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
                         rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
@@ -515,7 +519,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         result['norm_%s_' %p + str(ielec)] = 1
                         dist                         = numpy.zeros(0, dtype=numpy.float64)
 
-                        if smart_search[ielec] == 0:
+                        if smart_searches[p][ielec] == 0:
                             result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 else:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
