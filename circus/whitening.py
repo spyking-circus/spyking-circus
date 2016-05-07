@@ -15,7 +15,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
-    skip_artefact  = params.getboolean('detection', 'skip_artefact')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     matched_filter = params.getboolean('detection', 'matched-filter')
     matched_thresh = params.getfloat('detection', 'matched_thresh')
@@ -228,9 +227,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
-    skip_artefact  = params.getboolean('detection', 'skip_artefact')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    stationary     = params.getboolean('detection', 'stationary')
     nodes, edges   = io.get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -304,11 +301,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             #print "Extracting the peaks..."
             all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
             all_extremas  = numpy.zeros(0, dtype=numpy.int32)
-            if not stationary:
-                for i in xrange(N_e):
-                    u             = numpy.median(local_chunk[:, i], 0)
-                    thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
-                thresholds *= spike_thresh
 
             for i in xrange(N_e):
 
@@ -318,15 +310,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False, mpd=dist_peaks)
                 elif sign_peaks == 'both':
                     peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
-                # if skip_artefact:
-                #     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                #     indices        = numpy.take(inv_nodes, edges[nodes[i]])
-                #     for idx in xrange(len(peaktimes)):
-                #         values      = numpy.take(local_chunk[idx], indices)
-                #         is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
-                #         if not is_artefact:
-                #             real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                #     peaktimes = numpy.take(peaktimes, real_peaktimes)
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 

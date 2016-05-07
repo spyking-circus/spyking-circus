@@ -21,9 +21,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     alignment      = params.getboolean('detection', 'alignment')
     matched_filter = params.getboolean('detection', 'matched-filter')
-    skip_artefact  = params.getboolean('detection', 'skip_artefact')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    stationary     = params.getboolean('detection', 'stationary')
     if params.get('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     else:
@@ -226,12 +224,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
                 all_extremas  = numpy.zeros(0, dtype=numpy.int32)
 
-                if not stationary:
-                    for i in xrange(N_e):
-                        u             = numpy.median(local_chunk[:, i], 0)
-                        thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
-                    thresholds *= spike_thresh
-
                 if matched_filter:
 
                     if sign_peaks in ['positive', 'both']:
@@ -256,15 +248,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False, mpd=dist_peaks)
                         elif sign_peaks == 'both':
                             peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)                    
-                        # if skip_artefact:
-                        #     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                        #     indices   = numpy.take(inv_nodes, edges[nodes[i]])
-                        #     for idx in xrange(len(peaktimes)):
-                        #         values      = numpy.take(local_chunk[idx], indices)
-                        #         is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
-                        #         if not is_artefact:
-                        #             real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                        #     peaktimes = numpy.take(peaktimes, real_peaktimes)
                         all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                         all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
 

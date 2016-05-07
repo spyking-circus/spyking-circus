@@ -24,9 +24,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
     matched_filter = params.getboolean('detection', 'matched-filter')
-    skip_artefact  = params.getboolean('detection', 'skip_artefact')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    stationary     = params.getboolean('detection', 'stationary')
     spikedetekt    = params.getboolean('data', 'spikedetekt')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -208,12 +206,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        if not stationary:
-            for i in xrange(N_e):
-                u             = numpy.median(local_chunk[:, i], 0)
-                thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
-            thresholds *= spike_thresh
-
         #print "Extracting the peaks..."
         if not spikedetekt:
             local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
@@ -238,15 +230,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
                     elif sign_peaks == 'both':
                         peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
-                    # if skip_artefact:
-                    #     real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                    #     indices   = numpy.take(inv_nodes, edges[nodes[i]])
-                    #     for idx in xrange(len(peaktimes)):
-                    #         values      = numpy.take(local_chunk[idx], indices)
-                    #         is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
-                    #         if not is_artefact:
-                    #             real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                    #     peaktimes = numpy.take(peaktimes, real_peaktimes)
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
         else:
             idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)

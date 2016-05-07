@@ -214,10 +214,8 @@ def load_parameters(file_name):
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['detection', 'alignment', 'bool', 'True'],
-                  ['detection', 'stationary', 'bool', 'True'],
                   ['detection', 'matched-filter', 'bool', 'False'],
                   ['detection', 'matched_thresh', 'float', '5'],
-                  ['detection', 'skip_artefact', 'bool', 'False'],
                   ['detection', 'peaks', 'string', 'negative'],
                   ['detection', 'spike_thresh', 'float', '6'],
                   ['triggers', 'clean_artefact', 'bool', 'False'],
@@ -381,10 +379,8 @@ def data_stats(params, show=True, export_times=False):
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Threshold crossing          : %s" %params.get('detection', 'peaks'),
-             "Stationarity                : %s" %params.getboolean('detection', 'stationary'),
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
-             "Skip strong artefacts       : %s" %params.getboolean('detection', 'skip_artefact'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction')]
     
     if multi_files:
