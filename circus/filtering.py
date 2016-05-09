@@ -169,7 +169,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         pspikes  = all_times[indices]
                         mask     = (pspikes >= times[0]) & (pspikes < times[1] - tau)
                         pspikes  = pspikes[mask]
-                        mtimes   = numpy.sort(numpy.random.permutation(pspikes)[:500])
+                        mtimes   = numpy.sort(numpy.random.permutation(pspikes)[:500]) - times[0]
                         if len(numpy.where(numpy.diff(mtimes) < tau)[0]) > 0:
                             if comm.rank == 0:
                                 io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
