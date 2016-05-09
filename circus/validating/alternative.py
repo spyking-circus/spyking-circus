@@ -61,6 +61,10 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Retrieve the spike times of the juxtacellular trace.
     spike_times_juxta = io.load_data(params, 'juxta-triggers')
     
+    
+    
+    ##### PLOT INFLUENCE OF JUXTACELLULAR THRESHOLD ############################
+    
     # Compute the cumulative distribution of juxta spike times according to the threshold value.
     spike_values_juxta = io.load_data(params, 'juxta-values')
     juxta_thresh = params.getfloat('validating', 'juxta_thresh')
@@ -149,67 +153,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     
     
-    ##### GROUND TRUTH CELL'S SAMPLES ##########################################
-    
-    if comm.rank == 0:
-        io.print_and_log(["Collecting ground truth cell's samples..."], level='debug', logger=params)
-    
-    # Retrieve the spike times of the "ground truth cell".
-    spike_times_gt = spike_times_juxta
-    
-    if comm.rank == 0:
-        if verbose:
-            msg = [
-                "spike_times_gt.size: {}".format(spike_times_gt.size),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    labels = numpy.zeros(spike_times_gt.size)
-    spikes_gt = get_stas(params, spike_times_gt, labels, chan, chans, nodes=nodes, auto_align=False).T
-    
-    # Reshape data.
-    N_t = spikes_gt.shape[0]
-    N_e = spikes_gt.shape[1]
-    N_gt = spikes_gt.shape[2]
-    spikes_gt = spikes_gt.reshape(N_t, N_e * N_gt)
-    spikes_gt = spikes_gt.T
-    # Compute the PCA coordinates of each spike of the "ground truth cell".
-    X_gt = numpy.dot(spikes_gt, basis_proj)
-    X_gt = X_gt.T
-    # Reshape data.
-    X_gt = X_gt.reshape(N_p * N_e, N_gt)
-    X_gt = X_gt.T
-    
-    # Define the outputs (i.e. 0 for ground truth samples).
-    y_gt = numpy.zeros((N_gt, 1), dtype=numpy.float32)
-    
-    if comm.rank == 0:
-        if verbose:
-            msg = [
-                "X_gt.shape: {}".format(X_gt.shape),
-                "y_gt.shape: {}".format(y_gt.shape),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
-    
-    
-    
-    ############################################################################
-    
-    # Compute the forbidden spike times.
-    max_time_shift = 0.25 # ms
-    max_time_shift = int(float(sampling_rate) * max_time_shift * 1.0e-3)
-    spike_times_fbd = (2 * max_time_shift + 1) * [None]
-    for i, time_shift in enumerate(xrange(-max_time_shift, max_time_shift+1)):
-        spike_times_fbd[i] = spike_times_gt + time_shift
-    spike_times_fbd = numpy.concatenate(spike_times_fbd)
-    spike_times_fbd = numpy.unique(spike_times_fbd)
-    
-    
-    
-    ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
-    
-    if comm.rank == 0:
-        io.print_and_log(["Non ground truth cells' samples..."], level='debug', logger=params)
+    ###### EXTRACELLULAR SPIKE DETECTION #######################################
     
     # Detect the spikes times of the "non ground truth cell".
     extract_extra_spikes(filename, params)
@@ -218,7 +162,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_times_ngt_tmp = io.load_data(params, 'extra-triggers')
     
     
-    ##### TODO: clean temporary zone
+    
+    ##### PLOT INFLUENCE OF EXTRACELLULAR THRESHOLD ############################
     
     # Compute the cumulative distribution of extra spike times according to the threshold values.
     spike_times_extra = spike_times_ngt_tmp
@@ -300,9 +245,15 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         pylab.savefig(path)
         pylab.close()
     
+    
+    
+    ##### PLOT PROPORTION OF JUXTA SPIKE TIMES NEAR EXTRA SPIKE TIMES ##########
+    
     # Compute the proportion of juxtacellular spikes present in the extracelllar
     # spikes according to the threshold value.
-    spike_times_juxta = spike_times_gt
+    ##### TODO: remove quarantine zone
+    # spike_times_juxta = spike_times_gt
+    ##### end quarantine zone
     spike_values_juxta = io.load_data(params, 'juxta-values')
     juxta_thresh = params.getfloat('validating', 'juxta_thresh')
     juxta_mad = io.load_data(params, 'juxta-mad')
@@ -325,29 +276,12 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_times_extra = numpy.concatenate(spike_times_extra)
     spike_values_extra = numpy.concatenate(spike_values_extra)
     
-    ##### TODO: remove debug zone
-    # if comm.rank == 0:
-    #     tmp_indices = numpy.argsort(spike_values_extra)
-    #     tmp_indices = tmp_indices[::-1]
-    #     numpy.save("/home/baptiste/tmp/spike_times_extra_{}.npy".format(int(extra_thresh)), spike_times_extra[tmp_indices])
-    #     numpy.save("/home/baptiste/tmp/spike_values_extra_{}.npy".format(int(extra_thresh)), spike_values_extra[tmp_indices])
-    #     tmp_indices = tmp_indices[:5]
-    #     print(spike_times_extra[tmp_indices])
-    #     print(spike_values_extra[tmp_indices])
-    ##### end debug zone
-    
     matches = []
     for spike_time_juxta in spike_times_juxta:
         idx = numpy.where(abs(spike_times_extra - spike_time_juxta) <= thresh)[0]
         if 0 < len(idx):
-            # # Print the juxta spike times matched with extra spike times.
-            # if comm.rank == 0:
-            #     print(spike_time_juxta)
             matches.append(numpy.amax(spike_values_extra[idx]))
         else:
-            # # Print the juxta spike times not matched with extra spike times.
-            # if comm.rank == 0:
-            #     print(spike_time_juxta)
             pass
     matches = sorted(matches)
     counts = numpy.arange(len(matches) - 1, -1, -1)
@@ -387,18 +321,153 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         pylab.close()
 
     
+    
+    ##### GROUND TRUTH CELL'S SAMPLES ##########################################
+    
+    if comm.rank == 0:
+        ##### TODO: clean debug zone
+        # io.print_and_log(["Collecting ground truth cell's samples..."], level='debug', logger=params)
+        io.print_and_log(["Collecting ground truth cell's samples..."], level='info', logger=params)
+        ##### end debug zone
+    
+    
+    ##### TODO: clean working zone
+    
+    # Retrieve the spike times of the "ground truth cell".
+    spike_times_gt = spike_times_juxta
+    
+    # TODO: retrieve the spike times of the "ground truth cell" which are detectable on the extra trace.
+    
+    matching_jitter = 1.0 # ms
+    tresh = int(params.getint('data', 'sampling_rate') * matching_jitter * 1.0e-3) # "matching threshold"
+    matched_spike_times_juxta = numpy.zeros_like(spike_times_juxta, dtype='bool')
+    matched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
+    mismatched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
+    for i, spike_time_juxta in enumerate(spike_times_juxta):
+        diff = abs(spike_times_extra - spike_time_juxta)
+        idx = numpy.where(diff <= thresh)[0]
+        if 0 < len(idx):
+            ##### TODO: remove debug zone
+            # if comm.rank == 0 and 1 < len(idx):
+            #     print("i: {}".format(i))
+            #     print("len(idx): {}".format(len(idx)))
+            #     print("idx: {}".format(idx))
+            #     print("spike_times_extra[idx]: {}".format(spike_times_extra[idx]))
+            #     print("spike_time_gt: {}".format(spike_time_juxta))
+            #     print("diff[idx]: {}".format(diff[idx]))
+            #     print("")
+            ##### end debug zone
+            idx_ = numpy.argmin(diff[idx])
+            matched_spike_times_juxta[i] = True
+            matched_spike_times_extra[idx[idx_]] = True
+            mismatched_spike_times_extra[idx] = True
+            mismatched_spike_times_extra[idx[idx_]] = False
+        else:
+            pass
+
+    
+    # sys.exit(0)
+    
+    ##### end working zone
+
+
+    ##### TODO: clean working zone
+    
+    ##### TODO: clean temporary zone
+    # Ground truth spike times defined from the juxtacellular traces.
+    mask_gt = matched_spike_times_juxta
+    spike_times_gt = spike_times_juxta[mask_gt]
+    # # or
+    # # Ground truth spike times defined from the extracellular traces.
+    # mask_gt = matched_spike_times_extra
+    # spike_times_gt = spike_times_extra[mask_gt]
     ##### end temporary zone
+    spike_times_gt = numpy.sort(spike_times_gt)
+    
+    ##### end working zone
     
     
-    # Filter the spike times of the "non ground truth cell".
-    ## Restrict to spikes which happened in the vicinity.
-    spike_times_ngt_tmp = [spike_times_ngt_tmp[chan] for chan in chans]
-    spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
-    spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
-    ## Restrict to spikes which are far from ground truth spikes.
-    spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "spike_times_gt.size: {}".format(spike_times_gt.size),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
     
-    spike_times_ngt = spike_times_ngt_tmp
+    labels_gt = numpy.zeros(spike_times_gt.size)
+    spikes_gt = get_stas(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
+    
+    # Reshape data.
+    N_t = spikes_gt.shape[0]
+    N_e = spikes_gt.shape[1]
+    N_gt = spikes_gt.shape[2]
+    spikes_gt = spikes_gt.reshape(N_t, N_e * N_gt)
+    spikes_gt = spikes_gt.T
+    # Compute the PCA coordinates of each spike of the "ground truth cell".
+    X_gt = numpy.dot(spikes_gt, basis_proj)
+    X_gt = X_gt.T
+    # Reshape data.
+    X_gt = X_gt.reshape(N_p * N_e, N_gt)
+    X_gt = X_gt.T
+    
+    # Define the outputs (i.e. 0 for ground truth samples).
+    y_gt = numpy.zeros((N_gt, 1), dtype=numpy.float32)
+    
+    if comm.rank == 0:
+        if verbose:
+            msg = [
+                "X_gt.shape: {}".format(X_gt.shape),
+                "y_gt.shape: {}".format(y_gt.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
+    
+    
+    
+    ############################################################################
+    
+    ##### TODO: clean working zone
+    
+    # # Compute the forbidden spike times.
+    # max_time_shift = 0.25 # ms
+    # max_time_shift = int(float(sampling_rate) * max_time_shift * 1.0e-3)
+    # spike_times_fbd = (2 * max_time_shift + 1) * [None]
+    # for i, time_shift in enumerate(xrange(-max_time_shift, max_time_shift+1)):
+    #     spike_times_fbd[i] = spike_times_gt + time_shift
+    # spike_times_fbd = numpy.concatenate(spike_times_fbd)
+    # spike_times_fbd = numpy.unique(spike_times_fbd)
+    
+    ##### end working zone
+    
+    
+    
+    ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
+    
+    if comm.rank == 0:
+        ##### TODO: clean debug zone
+        # io.print_and_log(["Collecting non ground truth cells' samples..."], level='debug', logger=params)
+        io.print_and_log(["Collecting non ground truth cells' samples..."], level='info', logger=params)
+        ##### end debug zone
+    
+    
+    ##### TODO: clean working zone
+    
+    # # Filter the spike times of the "non ground truth cell".
+    # ## Restrict to spikes which happened in the vicinity.
+    # spike_times_ngt_tmp = [spike_times_ngt_tmp[chan] for chan in chans]
+    # spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
+    # spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
+    # ## Restrict to spikes which are far from ground truth spikes.
+    # spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
+    
+    # spike_times_ngt = spike_times_ngt_tmp
+    
+    
+    mask_ngt = numpy.logical_or(matched_spike_times_extra, mismatched_spike_times_extra)
+    mask_ngt = numpy.logical_not(mask_ngt)
+    spike_times_ngt = spike_times_extra[mask_ngt]
+    spike_times_ngt = numpy.sort(spike_times_ngt)
+    
+    ##### end working zone
     
     
     if comm.rank == 0:
@@ -408,8 +477,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
     
-    labels = numpy.zeros(spike_times_ngt.size)
-    spikes_ngt = get_stas(params, spike_times_ngt, labels, chan, chans, nodes=nodes, auto_align=False).T
+    labels_ngt = numpy.zeros(spike_times_ngt.size)
+    spikes_ngt = get_stas(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
     
     # Reshape data.
     N_t = spikes_ngt.shape[0]
@@ -1161,8 +1230,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         
         ##### TODO: clean temporary zone
         
-        # mode = 'perso'
-        mode = 'harris'
+        mode = 'perso'
+        # mode = 'harris'
         
         if mode == 'perso':
             
@@ -1188,57 +1257,46 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
-            tot = numpy.zeros((n_temp, 2))
+            ##### TODO: remove quarantine zone
+            # tot = numpy.zeros((n_temp, 2))
+            ##### end quarantine zone
             
             # First pass to detect what are the scores.
             for i in xrange(n_temp):
-                spikes = data['temp_' + str(i)]
+                # Retrieve the spike times for the i-th detected template.
+                spike_times = data['temp_' + str(i)]
                 # Compute the false positive rate.
-                for spike in spike_times_gt:
-                    idx = numpy.where(abs(spikes - spike) <= thresh)[0]
+                for spike_time_gt in spike_times_gt:
+                    idx = numpy.where(abs(spike_times - spike_time_gt) <= thresh)[0]
                     if 0 < len(idx):
                         # There is at least one spike for this template next to this ground truth spike.
                         res[i, 0] += 1.0
-                    tot[i, 0] += 1.0
-                # for spike in spike_times_ngt:
-                #     idx = numpy.where(abs(spikes - spike) <= thresh)[0]
-                #     if 0 < len(idx):
-                #         # There is at least one spike for this template next to this non ground truth spike.
-                #         tot[i, 0] += 1.0
-                ##### TODO: remove debug zone
-                if verbose:
-                    msg = [
-                        "i: {}".format(i),
-                        "data['temp_i'].size: {}".format(spikes.size),
-                        "spike_times_gt.size: {}".format(spike_times_gt.size),
-                        "spike_times_ngt.size: {}".format(spike_times_ngt.size),
-                        "res[i, 0]: {}".format(res[i, 0]),
-                        "tot[i, 0]: {}".format(tot[i, 0]),
-                    ]
-                    io.print_and_log(msg, level='default', logger=params)
-                ##### end debug zone
-                if 0.0 < tot[i, 0]:
-                    res[i, 0] /= tot[i, 0]
+                if 0 < spike_times_gt.size:
+                    res[i, 0] /= float(spike_times_gt.size)
                 # Compute the positive predictive value.
-                for spike in spikes:
-                    idx = numpy.where(abs(spike_times_gt - spike) <= thresh)[0]
+                matched_spike_times = numpy.zeros_like(spike_times, dtype='bool')
+                for k, spike_time in enumerate(spike_times):
+                    idx = numpy.where(abs(spike_times_gt - spike_time) <= thresh)[0]
                     if 0 < len(idx):
                         res[i, 1] += 1.0
-                        tot[i, 1] += 1.0
-                for spike in spikes:
-                    idx = numpy.where(abs(spike_times_ngt - spike) <= thresh)[0]
+                        matched_spike_times[k] = True
+                        ##### TODO: remove quarantine zone
+                        # tot[i, 1] += 1.0
+                        ##### end quarantine zone
+                for k, spike_time in enumerate(spike_times):
+                    idx = numpy.where(abs(spike_times_ngt - spike_time) <= thresh)[0]
                     if 0 < len(idx):
-                        tot[i, 1] += 1.0
-                ##### TODO: remove debug zone
-                if verbose:
-                    msg = [
-                        "res[i, 1]: {}".format(res[i, 1]),
-                        "tot[i, 1]: {}".format(tot[i, 1]),
-                    ]
-                    io.print_and_log(msg, level='default', logger=params)
-                ##### end debug zone
-                if 0 < tot[i, 1]:
-                    res[i, 1] /= tot[i, 1]
+                        matched_spike_times[k] = True
+                        ##### TODO: remove quarantine zone
+                        # tot[i, 1] += 1.0
+                        ##### end quarantine zone
+                matched_spike_times = spike_times[matched_spike_times]
+                if 0 < matched_spike_times.size:
+                    res[i, 1] /= float(matched_spike_times.size)
+                ##### TODO: remove quarantine zone
+                # if 0 < tot[i, 1]:
+                #     res[i, 1] /= tot[i, 1]
+                ##### end quarantine zone
             
             idx = numpy.argmax(numpy.mean(res, 1))
             selection = [idx]
@@ -1270,40 +1328,35 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                     for mcount, tmp in enumerate(temp_match):
                         
                         # Gather selected spikes.
-                        spikes = []
+                        spike_times = []
                         for xtmp in selection + [tmp]:
-                            spikes += data['temp_' + str(xtmp)].tolist()
-                        spikes = numpy.array(spikes, dtype=numpy.int32)
+                            spike_times += data['temp_' + str(xtmp)].tolist()
+                        spike_times = numpy.array(spike_times, dtype=numpy.int32)
                         
                         # Compute true positive rate.
-                        count = 0.0
-                        total = 0.0
-                        for spike in spike_times_gt:
-                            idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
+                        count = 0
+                        for spike_time_gt in spike_times_gt:
+                            idx = numpy.where(numpy.abs(spike_times - spike_time_gt) < thresh)[0]
                             if 0 < len(idx):
-                                count += 1.0
-                                total += 1.0
-                        for spike in spike_times_ngt:
-                            idx = numpy.where(numpy.abs(spikes - spike) < thresh)[0]
-                            if 0 < len(idx):
-                                total += 1.0
-                        if 0.0 < total:
-                            local_errors[mcount, 0] = count / total
+                                count += 1
+                        if 0 < spike_times_gt.size:
+                            local_errors[mcount, 0] = float(count) / float(spike_times_gt.size)
                         
                         # Compute positive predictive value
-                        count = 0.0
-                        total = 0.0
-                        for spike in spikes:
-                            idx = numpy.where(numpy.abs(spike_times_gt - spike) < thresh)[0]
+                        count = 0
+                        matched_spike_times = numpy.zeros_like(spike_times)
+                        for k, spike_time in enumerate(spike_times):
+                            idx = numpy.where(numpy.abs(spike_times_gt - spike_time) < thresh)[0]
                             if 0 < len(idx):
-                                count += 1.0
-                                total += 1.0
-                        for spike in spikes:
-                            idx = numpy.where(numpy.abs(spike_times_ngt - spike) < thresh)[0]
+                                count += 1
+                                matched_spike_times[k] = True
+                        for k, spike_time in enumerate(spike_times):
+                            idx = numpy.where(numpy.abs(spike_times_ngt - spike_time) < thresh)[0]
                             if 0 < len(idx):
-                                total += 1.0
-                        if 0.0 < total:
-                            local_errors[mcount, 1]  = count / total
+                                matched_spike_times[k] = True
+                        matched_spike_times = spike_times[matched_spike_times]
+                        if 0 < matched_spike_times.size:
+                            local_errors[mcount, 1]  = float(count) / float(matched_spike_times.size)
                     
                     errors = numpy.mean(local_errors, 1)
                     if 0 < errors.size and numpy.max(errors) > numpy.mean(error):
@@ -1313,8 +1366,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                     else:
                         find_next = False
             
-            error = 100 * (1 - error)
-            res = 100 * (1 - res)
+            error = 100.0 * (1.0 - error)
+            res = 100.0 * (1.0 - res)
             
             scerror = dict()
             scerror['res'] = res
