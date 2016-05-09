@@ -116,22 +116,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             all_labels   = artefacts[:, 0]
             all_times    = artefacts[:, 1]
-            local_labels = numpy.unique(local_labels)[comm.rank::comm.size]
+            local_labels = numpy.unique(all_labels)[comm.rank::comm.size]
 
             if comm.rank == 0:
                 to_write = ["Computing averaged artefacts from %d stimuli" %(nb_stimuli)]
                 io.print_and_log(to_write, 'info', params)
-                pbar = get_progressbar(len(local_times))
+                if not multi_files:
+                    pbar = get_progressbar(len(local_labels))
+                else:
+                    pbar = get_progressbar(len(io.get_multi_files(params)))
                 if not os.path.exists(plot_path):
                     os.makedirs(plot_path)
 
             comm.Barrier()
             # First we need to get the average artefacts
             art_dict = {}
-            counts   = {}
             if not multi_files:
-                for artefact in local_labels:
-                    indices  = numpy.where(all_labels == artefact)[0]
+                for count, artefact in enumerate(local_labels):
+                    indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
                     tmp      = numpy.where(windows[:, 0] == artefact)[0]
                     tau      = windows[tmp, 1]
                     pspikes  = all_times[indices]
@@ -147,17 +149,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                         plot.view_artefact(art_dict[count], save=save)
 
+                    if comm.rank == 0:
+                        pbar.update(count)
+
+                if comm.rank == 0:
+                    pbar.finish()
+
             else:
+                counts    = {}
                 all_files = io.get_multi_files(params)
-                all_times = io.data_stats(params, show=False, export_times=True)
-                for data_file, times in zip(all_files, all_times):
+                sep_times = io.data_stats(params, show=False, export_times=True)
+                count     = 0
+                for data_file, times in zip(all_files, sep_times):
                     params.set('data', 'data_file', data_file)
                     for artefact in local_labels:
-                        indices  = numpy.where(all_labels == artefact)[0]
+                        indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
                         tmp      = numpy.where(windows[:, 0] == artefact)[0]
                         tau      = windows[tmp, 1]
                         pspikes  = all_times[indices]
-                        mask     = (pspikes >= times[0]) & (pspikes < times[1] - tau-1)
+                        mask     = (pspikes >= times[0]) & (pspikes < times[1] - tau)
                         pspikes  = pspikes[mask]
                         mtimes   = numpy.sort(numpy.random.permutation(pspikes)[:500])
                         if len(numpy.where(numpy.diff(mtimes) < tau)[0]) > 0:
@@ -170,8 +180,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             art_dict[artefact] += io.get_artefact(params, mtimes, tau, nodes, normalize=False)
                             counts[artefact] += len(mtimes)
+                    count += 1
+                    if comm.rank == 0:
+                        pbar.update(count)
+
+                if comm.rank == 0:
+                    pbar.finish()
+
                 for artefact in local_labels:
                     art_dict[artefact] /= counts[artefact]
+                    if make_plots not in ['None', '']:
+                        save     = [plot_path, '%d.%s' %(artefact, make_plots)]
+                        plot.view_artefact(art_dict[count], save=save)
 
                 params.set('data', 'data_file', all_files[0])
             return art_dict
@@ -201,12 +221,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             all_labels   = artefacts[:, 0]
             all_times    = artefacts[:, 1]
-            local_labels = numpy.unique(local_labels)[comm.rank::comm.size]
+            local_labels = numpy.unique(all_labels)[comm.rank::comm.size]
 
             if comm.rank == 0:
                 to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
                 io.print_and_log(to_write, 'info', params)
-                pbar = get_progressbar(len(local_times))
+                pbar = get_progressbar(len(all_times))
 
             comm.Barrier()
             data_len = tau * N_total
