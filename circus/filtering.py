@@ -93,7 +93,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             comm.Barrier()
 
-        def compute_artefacts(params, comm, offset=0, max_offset=max_offset):
+        def compute_artefacts(params, comm, offset=0, max_offset=None):
 
             cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
@@ -114,8 +114,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 io.print_and_log(['Error in the trigger files'], 'error', params)
                 sys.exit(0)
 
-            local_labels  = artefacts[:, 0][comm.rank::comm.size]
-            local_times   = artefacts[:, 1][comm.rank::comm.size]
+            all_labels   = artefacts[:, 0]
+            all_times    = artefacts[:, 1]
+            local_labels = numpy.unique(local_labels)[comm.rank::comm.size]
 
             if comm.rank == 0:
                 to_write = ["Computing averaged artefacts from %d stimuli" %(nb_stimuli)]
@@ -129,11 +130,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             art_dict = {}
             counts   = {}
             if not multi_files:
-                for count, artefact in enumerate(numpy.unique(local_labels[:, 0])):
-                    indices  = numpy.where(local_labels[:, 0] == artefact)[0]
+                for artefact in local_labels:
+                    indices  = numpy.where(all_labels == artefact)[0]
                     tmp      = numpy.where(windows[:, 0] == artefact)[0]
                     tau      = windows[tmp, 1]
-                    pspikes  = local_times[indices]
+                    pspikes  = all_times[indices]
                     mask     = (pspikes >= offset) & (pspikes < max_offset)
                     pspikes  = pspikes[mask]
                     times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
@@ -141,7 +142,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         if comm.rank == 0:
                             io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
                         sys.exit(0)
-                    art_dict[count] = io.get_artefact(params, times, tau, nodes)
+                    art_dict[artefact] = io.get_artefact(params, times, tau, nodes)
                     if make_plots not in ['None', '']:
                         save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                         plot.view_artefact(art_dict[count], save=save)
@@ -151,24 +152,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_times = io.data_stats(params, show=False, export_times=True)
                 for data_file, times in zip(all_files, all_times):
                     params.set('data', 'data_file', data_file)
-                    for count, artefact in enumerate(numpy.unique(local_labels[:, 0])):
-                        indices  = numpy.where(local_labels[:, 0] == artefact)[0]
+                    for artefact in local_labels:
+                        indices  = numpy.where(all_labels == artefact)[0]
                         tmp      = numpy.where(windows[:, 0] == artefact)[0]
                         tau      = windows[tmp, 1]
-                        pspikes  = local_times[indices]
-                        mask     = (pspikes >= times[0]) & (pspikes < times[1] - tau)
+                        pspikes  = all_times[indices]
+                        mask     = (pspikes >= times[0]) & (pspikes < times[1] - tau-1)
                         pspikes  = pspikes[mask]
-                        times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
-                        if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
+                        mtimes   = numpy.sort(numpy.random.permutation(pspikes)[:500])
+                        if len(numpy.where(numpy.diff(mtimes) < tau)[0]) > 0:
                             if comm.rank == 0:
                                 io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
                             sys.exit(0)
-                        if count not in art_dict.keys():
-                            art_dict[count] = io.get_artefact(params, times, tau, nodes, normalize=False)
-                            counts[count]   = len(times)
+                        if artefact not in art_dict.keys():
+                            art_dict[artefact] = io.get_artefact(params, mtimes, tau, nodes, normalize=False)
+                            counts[artefact]   = len(mtimes)
                         else:
-                            art_dict[count] += io.get_artefact(params, times, tau, nodes, normalize=False)
-                            counts[count] += len(times)
+                            art_dict[artefact] += io.get_artefact(params, mtimes, tau, nodes, normalize=False)
+                            counts[artefact] += len(mtimes)
+                for artefact in local_labels:
+                    art_dict[artefact] /= counts[artefact]
+
                 params.set('data', 'data_file', all_files[0])
             return art_dict
 
@@ -195,8 +199,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 io.print_and_log(['Error in the trigger files'], 'error', params)
                 sys.exit(0)
 
-            local_labels  = artefacts[:, 0][comm.rank::comm.size]
-            local_times   = artefacts[:, 1][comm.rank::comm.size]
+            all_labels   = artefacts[:, 0]
+            all_times    = artefacts[:, 1]
+            local_labels = numpy.unique(local_labels)[comm.rank::comm.size]
 
             if comm.rank == 0:
                 to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
@@ -207,9 +212,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             data_len = tau * N_total
             count    = 0
             
-            for label, time in zip(local_labels, local_times):
+            for label, time in zip(all_labels, all_times):
 
-                if (time >= offset) and (time < max_offset):
+                if (time >= offset) and (time < max_offset) and (label in local_labels):
 
                     mshape   = tau
                     if (max_offset - time) < tau:
@@ -274,7 +279,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.write_to_logger(params, ['Output file: %s' %params.get('data', 'data_file') ], 'debug')
 
             offset   = 0
-            art_dict = compute_artefacts(params, comm)
+            if clean_artefact:
+                art_dict = compute_artefacts(params, comm)
 
             for data_file, times in zip(all_files, all_times):
                 mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDWR)
