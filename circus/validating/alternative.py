@@ -1,3 +1,5 @@
+from matplotlib.cm import inferno
+from matplotlib.patches import Rectangle
 from sklearn.linear_model import SGDClassifier
 
 from ..shared.utils import *
@@ -73,9 +75,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_values_juxta = numpy.sort(spike_values_juxta) / juxta_mad
     threshs = numpy.concatenate((numpy.array([juxta_thresh]), spike_values_juxta))
     counts = numpy.arange(spike_values_juxta.size, -1, -1)
-    import matplotlib.patches as patches
-    unknown_zone = patches.Rectangle((0.0, 0), juxta_thresh, spike_values_juxta.size,
-                                     hatch='/', facecolor='white', zorder=3)
+    unknown_zone = Rectangle((0.0, 0), juxta_thresh, spike_values_juxta.size,
+                             hatch='/', facecolor='white', zorder=3)
     
     if make_plots not in ['None', '']:
         plot_filename = "beer-juxta-distribution.{}".format(make_plots)
@@ -182,10 +183,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         threshs[e] = numpy.concatenate((numpy.array([extra_thresh]), spike_values_extra[e], numpy.array([xmax])))
         counts[e] = numpy.concatenate((numpy.arange(spike_values_extra[e].size, -1, -1), numpy.array([0])))
     
-    import matplotlib.patches as patches
-    import matplotlib
-    unknown_zone = patches.Rectangle((0.0, 0), extra_thresh, ymax,
-                                     hatch='/', facecolor='white', zorder=3)
+    unknown_zone = Rectangle((0.0, 0), extra_thresh, ymax,
+                             hatch='/', facecolor='white', zorder=3)
     
     if make_plots not in ['None', '']:
         plot_filename = "beer-extra-distributions.{}".format(make_plots)
@@ -194,7 +193,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         fig = pylab.figure()
         ax = fig.add_subplot(1, 1, 1)
         for e in xrange(0, N_e):
-            color = matplotlib.cm.inferno(float(e) / float(N_e))
+            color = inferno(float(e) / float(N_e))
             ax.step(threshs[e], counts[e], color=color, where='post')
         ax.add_patch(unknown_zone)
         ax.grid(True)
@@ -223,10 +222,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     xmax = numpy.amax(spike_values_extra)
     ymax = numpy.amax(counts)
     
-    import matplotlib.patches as patches
-    import matplotlib
-    unknown_zone = patches.Rectangle((0.0, 0), extra_thresh, ymax,
-                                     hatch='/', facecolor='white', zorder=3)
+    unknown_zone = Rectangle((0.0, 0), extra_thresh, ymax,
+                             hatch='/', facecolor='white', zorder=3)
     
     if make_plots not in ['None', '']:
         plot_filename = "beer-extra-distributions-bis.{}".format(make_plots)
@@ -251,9 +248,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     # Compute the proportion of juxtacellular spikes present in the extracelllar
     # spikes according to the threshold value.
-    ##### TODO: remove quarantine zone
-    # spike_times_juxta = spike_times_gt
-    ##### end quarantine zone
     spike_values_juxta = io.load_data(params, 'juxta-values')
     juxta_thresh = params.getfloat('validating', 'juxta_thresh')
     juxta_mad = io.load_data(params, 'juxta-mad')
@@ -268,7 +262,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     extra_mads = io.load_data(params, 'extra-mads')
 
     matching_jitter = 2.0 # ms
-    thresh = int(params.getint('data', 'sampling_rate') * matching_jitter * 1.0e-3) # "matching threshold"
+    thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"
     
     N_e = params.getint('data', 'N_e')
     for e in xrange(0, N_e):
@@ -289,10 +283,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     counts = numpy.concatenate((numpy.array([counts[0]]), counts))
     counts = 100.0 * counts.astype('float') / float(spike_times_juxta.size)
     
-    import matplotlib.patches as patches
-    import matplotlib
-    unknown_zone = patches.Rectangle((0.0, 0), extra_thresh, 100.0,
-                                     hatch='/', facecolor='white', zorder=3, fill=False)
+    unknown_zone = Rectangle((0.0, 0), extra_thresh, 100.0,
+                             hatch='/', facecolor='white', zorder=3, fill=False)
     
     if make_plots not in ['None', '']:
         plot_filename = "beer-proportion.{}".format(make_plots)
@@ -325,21 +317,12 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
     if comm.rank == 0:
-        ##### TODO: clean debug zone
-        # io.print_and_log(["Collecting ground truth cell's samples..."], level='debug', logger=params)
-        io.print_and_log(["Collecting ground truth cell's samples..."], level='info', logger=params)
-        ##### end debug zone
+        io.print_and_log(["Collecting ground truth cell's samples..."], level='debug', logger=params)
     
-    
-    ##### TODO: clean working zone
     
     # Retrieve the spike times of the "ground truth cell".
-    spike_times_gt = spike_times_juxta
-    
-    # TODO: retrieve the spike times of the "ground truth cell" which are detectable on the extra trace.
-    
     matching_jitter = 1.0 # ms
-    tresh = int(params.getint('data', 'sampling_rate') * matching_jitter * 1.0e-3) # "matching threshold"
+    tresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"
     matched_spike_times_juxta = numpy.zeros_like(spike_times_juxta, dtype='bool')
     matched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
     mismatched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
@@ -347,16 +330,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         diff = abs(spike_times_extra - spike_time_juxta)
         idx = numpy.where(diff <= thresh)[0]
         if 0 < len(idx):
-            ##### TODO: remove debug zone
-            # if comm.rank == 0 and 1 < len(idx):
-            #     print("i: {}".format(i))
-            #     print("len(idx): {}".format(len(idx)))
-            #     print("idx: {}".format(idx))
-            #     print("spike_times_extra[idx]: {}".format(spike_times_extra[idx]))
-            #     print("spike_time_gt: {}".format(spike_time_juxta))
-            #     print("diff[idx]: {}".format(diff[idx]))
-            #     print("")
-            ##### end debug zone
             idx_ = numpy.argmin(diff[idx])
             matched_spike_times_juxta[i] = True
             matched_spike_times_extra[idx[idx_]] = True
@@ -364,13 +337,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             mismatched_spike_times_extra[idx[idx_]] = False
         else:
             pass
-
     
-    # sys.exit(0)
     
-    ##### end working zone
-
-
     ##### TODO: clean working zone
     
     ##### TODO: clean temporary zone
@@ -423,52 +391,16 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     
     
-    ############################################################################
-    
-    ##### TODO: clean working zone
-    
-    # # Compute the forbidden spike times.
-    # max_time_shift = 0.25 # ms
-    # max_time_shift = int(float(sampling_rate) * max_time_shift * 1.0e-3)
-    # spike_times_fbd = (2 * max_time_shift + 1) * [None]
-    # for i, time_shift in enumerate(xrange(-max_time_shift, max_time_shift+1)):
-    #     spike_times_fbd[i] = spike_times_gt + time_shift
-    # spike_times_fbd = numpy.concatenate(spike_times_fbd)
-    # spike_times_fbd = numpy.unique(spike_times_fbd)
-    
-    ##### end working zone
-    
-    
-    
     ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
     
     if comm.rank == 0:
-        ##### TODO: clean debug zone
-        # io.print_and_log(["Collecting non ground truth cells' samples..."], level='debug', logger=params)
-        io.print_and_log(["Collecting non ground truth cells' samples..."], level='info', logger=params)
-        ##### end debug zone
-    
-    
-    ##### TODO: clean working zone
-    
-    # # Filter the spike times of the "non ground truth cell".
-    # ## Restrict to spikes which happened in the vicinity.
-    # spike_times_ngt_tmp = [spike_times_ngt_tmp[chan] for chan in chans]
-    # spike_times_ngt_tmp = numpy.concatenate(spike_times_ngt_tmp)
-    # spike_times_ngt_tmp = numpy.unique(spike_times_ngt_tmp)
-    # ## Restrict to spikes which are far from ground truth spikes.
-    # spike_times_ngt_tmp = numpy.setdiff1d(spike_times_ngt_tmp, spike_times_fbd)
-    
-    # spike_times_ngt = spike_times_ngt_tmp
+        io.print_and_log(["Collecting non ground truth cells' samples..."], level='debug', logger=params)
     
     
     mask_ngt = numpy.logical_or(matched_spike_times_extra, mismatched_spike_times_extra)
     mask_ngt = numpy.logical_not(mask_ngt)
     spike_times_ngt = spike_times_extra[mask_ngt]
     spike_times_ngt = numpy.sort(spike_times_ngt)
-    
-    ##### end working zone
-    
     
     if comm.rank == 0:
         if verbose:
@@ -527,8 +459,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     # Option to include the pairwise product of feature vector elements.
     pairwise = True
-    
-    
     
     # Create the datasets to train the neural network.
     ## Create the input dataset.
@@ -1235,18 +1165,9 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         
         if mode == 'perso':
             
-            # # Retrieve the juxtacellular spiketimes.
-            # juxta_times = load_data(params, "juxta-triggers")
-            # # Retrieve the extracellular spiketimes.
-            # extra_times = load_data(params, "extra-triggers")
-            # # Filter out the extracellular spiketimes not in the neighborhood.
-            # extra_times = [extra_times[chan] for chan in chans]
-            spike_times_gt = spike_times_gt
-            spike_times_ngt = spike_times_ngt
-            
             # Define the "matching threshold".
             matching_jitter = 2.0 # ms
-            thresh = int(params.getint('data', 'sampling_rate') * matching_jitter * 1.0e-3)
+            thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results")
@@ -1257,9 +1178,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
-            ##### TODO: remove quarantine zone
-            # tot = numpy.zeros((n_temp, 2))
-            ##### end quarantine zone
             
             # First pass to detect what are the scores.
             for i in xrange(n_temp):
@@ -1280,23 +1198,13 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                     if 0 < len(idx):
                         res[i, 1] += 1.0
                         matched_spike_times[k] = True
-                        ##### TODO: remove quarantine zone
-                        # tot[i, 1] += 1.0
-                        ##### end quarantine zone
                 for k, spike_time in enumerate(spike_times):
                     idx = numpy.where(abs(spike_times_ngt - spike_time) <= thresh)[0]
                     if 0 < len(idx):
                         matched_spike_times[k] = True
-                        ##### TODO: remove quarantine zone
-                        # tot[i, 1] += 1.0
-                        ##### end quarantine zone
                 matched_spike_times = spike_times[matched_spike_times]
                 if 0 < matched_spike_times.size:
                     res[i, 1] /= float(matched_spike_times.size)
-                ##### TODO: remove quarantine zone
-                # if 0 < tot[i, 1]:
-                #     res[i, 1] /= tot[i, 1]
-                ##### end quarantine zone
             
             idx = numpy.argmax(numpy.mean(res, 1))
             selection = [idx]
@@ -1307,14 +1215,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             dmax = 0.1
             for i in xrange(templates.shape[1]/2):
                 d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
-                ##### TODO: remove debug zone
-                # print("i, d: {}, {}".format(i, d))
-                ##### end debug zone
                 if d > dmax and i not in selection:
                     temp_match += [i]
-            ##### TODO: remove debug zone
-            # print("temp_match: {}".format(temp_match))
-            ##### end debug zone
             
             ## Second pass to reach the best score with greedy aggregations
             if 0 < len(temp_match):
@@ -1380,7 +1282,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             
             # Define the "matching threshold".
             matching_jitter = 2.0
-            thresh = int(params.getint('data', 'sampling_rate') * matching_jitter * 1.0e-3)
+            thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results")
@@ -1419,14 +1321,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             dmax = 0.1
             for i in xrange(templates.shape[1]/2):
                 d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
-                ##### TODO: remove debug zone
-                # print("i, d: {}, {}".format(i, d))
-                ##### end debug zone
                 if d > dmax and i not in selection:
                     temp_match += [i]
-            ##### TODO: remove debug zone
-            # print("temp_match: {}".format(temp_match))
-            ##### end debug zone
             
             ## Second pass to reach the best score with greedy aggregations
             if 0 < len(temp_match):
