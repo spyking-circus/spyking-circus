@@ -103,9 +103,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             make_plots     = params.get('triggers', 'make_plots')
             plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
 
-            offset        /= N_total
-            max_offset    /= N_total
-
+            print offset, max_offset
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
@@ -136,7 +134,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 tmp      = numpy.where(windows[:, 0] == artefact)[0]
                 tau      = windows[tmp, 1]
                 pspikes  = artefacts[indices, 1]
-                mask     = (pspikes >= offset) & (pspike < max_offset)
+                mask     = (pspikes >= offset) & (pspikes < max_offset)
                 pspikes  = pspikes[mask]
                 times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
                 if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
@@ -204,6 +202,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mpi_in.Close()
         else:
             all_files = io.get_multi_files(params)
+            all_times = io.data_stats(params, show=False, export_times=True)
 
             if comm.rank == 0:
                 io.copy_header(data_offset, params.get('data', 'data_multi_file'), params.get('data', 'data_file'))
@@ -212,10 +211,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             mpi_out  = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
             mpi_out.Set_view(data_offset, data_mpi, data_mpi)
-            offset   = 0
             io.write_to_logger(params, ['Output file: %s' %params.get('data', 'data_file') ], 'debug')
 
-            for data_file in all_files:
+            offset = 0
+
+            for data_file, times in zip(all_files, all_times):
                 mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDWR)
                 if params.getboolean('data', 'MCS'):
                     data_offset, nb_channels = io.detect_header(data_file, 'MCS')
@@ -223,15 +223,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file: %s' %params.get('data', 'data_file') ], 'debug')
 
-                max_offset = offset + (mpi_in.size//data_mpi.size)               
-
                 if clean_artefact and before_filter:
-                    remove_artefacts(params, comm, mpi_in, mpi_out, offset, max_spike=max_offset)
+                    remove_artefacts(params, comm, mpi_in, mpi_out, times[0], max_offset=times[1])
 
                 filter_file(params, comm, mpi_in, mpi_out, offset)
 
                 if clean_artefact and not before_filter:
-                    remove_artefacts(params, comm, mpi_in, mpi_out, offset, max_spike=max_offset)
+                    remove_artefacts(params, comm, mpi_in, mpi_out, times[0], max_offset=times[1])
 
                 offset += (mpi_in.size//data_mpi.size)               
                 mpi_in.Close()
