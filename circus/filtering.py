@@ -231,7 +231,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 filter_file(params, comm, mpi_in, mpi_out, offset)
 
                 if clean_artefact and not before_filter:
-                    remove_artefacts(params, comm, mpi_in, mpi_output, offset, max_spike=max_offset)
+                    remove_artefacts(params, comm, mpi_in, mpi_out, offset, max_spike=max_offset)
 
                 offset += (mpi_in.size//data_mpi.size)               
                 mpi_in.Close()
