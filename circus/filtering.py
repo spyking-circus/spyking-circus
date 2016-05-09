@@ -162,6 +162,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 count     = 0
                 for data_file, times in zip(all_files, sep_times):
                     params.set('data', 'data_file', data_file)
+                    if params.getboolean('data', 'MCS'):
+                        data_offset, nb_channels = io.detect_header(data_file, 'MCS')
+                        params.set('data', 'data_offset', str(data_offset))
                     for artefact in local_labels:
                         indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
                         tmp      = numpy.where(windows[:, 0] == artefact)[0]
@@ -191,9 +194,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     art_dict[artefact] /= counts[artefact]
                     if make_plots not in ['None', '']:
                         save     = [plot_path, '%d.%s' %(artefact, make_plots)]
-                        plot.view_artefact(art_dict[count], save=save)
+                        plot.view_artefact(art_dict[artefact], save=save)
 
                 params.set('data', 'data_file', all_files[0])
+                if params.getboolean('data', 'MCS'):
+                    data_offset, nb_channels = io.detect_header(all_files[0], 'MCS')
+                    params.set('data', 'data_offset', str(data_offset))
             return art_dict
 
 
@@ -229,14 +235,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 pbar = get_progressbar(len(all_times))
 
             comm.Barrier()
-            data_len = tau * N_total
+            
             count    = 0
             
             for label, time in zip(all_labels, all_times):
 
                 if (time >= offset) and (time < max_offset) and (label in local_labels):
 
+                    tmp      = numpy.where(windows[:, 0] == label)[0]
+                    tau      = windows[tmp, 1]
                     mshape   = tau
+                    data_len = tau * N_total
                     if (max_offset - time) < tau:
                         data_len = (max_offset - time)*N_total
                         mshape   = max_offset - time
