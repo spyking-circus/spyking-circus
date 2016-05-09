@@ -14,6 +14,38 @@ import circus
 from circus.shared.files import print_error, print_info, write_to_logger
 
 
+def gather_mpi_arguments(hostfile, params):
+    from mpi4py import MPI
+    vendor = MPI.get_vendor()
+    write_to_logger(params, ['MPI detected: %s' % str(vendor)], 'debug')
+    if vendor[0] == 'Open MPI':
+        mpi_args = ['mpirun']
+        if os.getenv('LD_LIBRARY_PATH'):
+            mpi_args += ['-x', 'LD_LIBRARY_PATH']
+        if os.getenv('PATH'):
+            mpi_args += ['-x', 'PATH']
+        if os.getenv('PYTHONPATH'):
+            mpi_args += ['-x', 'PYTHONPATH']
+        if os.path.exists(hostfile):
+            mpi_args += ['-hostfile', hostfile]
+    elif vendor[0] == 'Microsoft MPI':
+        mpi_args = ['mpiexec']
+        if os.path.exists(hostfile):
+            mpi_args += ['-gmachinefile', hostfile]
+    elif vendor[0] == 'MPICH2':
+        mpi_args = ['mpiexec']
+        if os.path.exists(hostfile):
+            mpi_args += ['-f', hostfile]
+    else:
+        print_error([
+                        '%s may not be yet properly implemented: contact developpers' %
+                        vendor[0]])
+        mpi_args = ['mpirun']
+        if os.path.exists(hostfile):
+            mpi_args += ['-hostfile', hostfile]
+    return mpi_args
+
+
 def main(argv=None):
 
     if argv is None:
@@ -208,33 +240,7 @@ using the syntax -m x,y. Steps are:
                             raise
                     elif command == 'mpirun':
                         # Use mpirun to make the call
-
-                        from mpi4py import MPI
-                        vendor = MPI.get_vendor()
-                        write_to_logger(params, ['MPI detected: %s' %str(vendor)], 'debug')
-                        if vendor[0] == 'Open MPI':
-                            mpi_args = ['mpirun']
-                            if os.getenv('LD_LIBRARY_PATH'):
-                                mpi_args += ['-x', 'LD_LIBRARY_PATH']
-                            if os.getenv('PATH'):
-                                mpi_args += ['-x', 'PATH']
-                            if os.getenv('PYTHONPATH'):
-                                mpi_args += ['-x', 'PYTHONPATH']
-                            if os.path.exists(hostfile):
-                                mpi_args += ['-hostfile', hostfile]
-                        elif vendor[0] == 'Microsoft MPI':
-                            mpi_args = ['mpiexec']
-                            if os.path.exists(hostfile):
-                                mpi_args += ['-gmachinefile', hostfile]
-                        elif vendor[0] == 'MPICH2':
-                            mpi_args = ['mpiexec']
-                            if os.path.exists(hostfile):
-                                mpi_args += ['-f', hostfile]
-                        else: 
-                            print_error(['%s may not be yet properly implemented: contact developpers' %vendor[0]])
-                            mpi_args = ['mpirun']
-                            if os.path.exists(hostfile):
-                                mpi_args += ['-hostfile', hostfile]
+                        mpi_args = gather_mpi_arguments(hostfile, params)
 
                         if subtask != 'fitting':
                             nb_tasks = str(max(args.cpu, args.gpu))
@@ -291,3 +297,4 @@ using the syntax -m x,y. Steps are:
         elif result:
             mygui = gui.PreviewGUI(io.load_parameters(filename), show_fit=True)
         sys.exit(app.exec_())
+
