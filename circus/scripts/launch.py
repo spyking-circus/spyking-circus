@@ -16,9 +16,10 @@ import circus
 from circus.shared.files import print_error, print_info, write_to_logger
 
 
-def main():
+def main(argv=None):
 
-    argv = sys.argv
+    if argv is None:
+        argv = sys.argv
 
     import h5py
     parallel_hdf5 = h5py.get_config().mpi
