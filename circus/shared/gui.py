@@ -285,9 +285,6 @@ class MergeWindow(QtGui.QMainWindow):
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
         real_indices     = self.to_consider
         
-        sub_real_indices = real_indices[numpy.arange(comm.rank, len(real_indices), comm.size)]
-        
-        n_pairs          = len(sub_real_indices)*(len(real_indices) - 1)//2.
         n_size           = 2*self.max_delay + 1
 
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
@@ -296,10 +293,13 @@ class MergeWindow(QtGui.QMainWindow):
 
         if comm.rank == 0:
             io.print_and_log(['Updating the data...'], 'default', self.params)
-            pbar = get_progressbar(len(sub_real_indices))
+            pbar = get_progressbar(len(real_indices))
 
-        for count, temp_id1 in enumerate(sub_real_indices):
-            for temp_id2 in real_indices[real_indices > temp_id1]:
+        for count, temp_id1 in enumerate(real_indices):
+        
+            best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1][:10]
+
+            for temp_id2 in best_matches:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
                     spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)]
