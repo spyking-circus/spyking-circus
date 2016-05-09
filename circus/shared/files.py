@@ -510,7 +510,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     return stas
 
 
-def get_artefact(params, times_i, tau, nodes):
+def get_artefact(params, times_i, tau, nodes, normalize=True):
     
 
     artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
@@ -534,7 +534,10 @@ def get_artefact(params, times_i, tau, nodes):
 
         artefact += local_chunk.T
 
-    return artefact/len(times_i)
+    if normalize:
+        artefact /= len(times_i)
+
+    return artefact
 
 
 
