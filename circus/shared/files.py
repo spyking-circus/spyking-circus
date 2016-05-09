@@ -244,6 +244,7 @@ def load_parameters(file_name):
         ['validating', 'juxta_dtype', 'string', 'uint16'],
         ['validating', 'juxta_thresh', 'float', '6.0'],
         ['validating', 'juxta_valley', 'bool', 'False'],
+        ['validating', 'matching_jitter', 'float', '2.0'],
         ['merging', 'cc_overlap', 'float', '0.5'],
         ['merging', 'cc_bin', 'float', '2'],
         ['noedits', 'filter_done', 'bool', 'False']

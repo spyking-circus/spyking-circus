@@ -28,6 +28,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     roc_sampling = params.getint('validating', 'roc_sampling')
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
+    matching_jitter = params.getfloat('validating', 'matching_jitter')
     
     verbose   = False
     skip_demo = False
@@ -260,8 +261,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     spike_values_extra = io.load_data(params, 'extra-values')
     extra_thresh = params.getfloat('data', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
-
-    matching_jitter = 2.0 # ms
+    
     thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"
     
     N_e = params.getint('data', 'N_e')
@@ -321,7 +321,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     
     # Retrieve the spike times of the "ground truth cell".
-    matching_jitter = 1.0 # ms
     tresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"
     matched_spike_times_juxta = numpy.zeros_like(spike_times_juxta, dtype='bool')
     matched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
@@ -1166,7 +1165,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         if mode == 'perso':
             
             # Define the "matching threshold".
-            matching_jitter = 2.0 # ms
             thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
@@ -1281,7 +1279,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             spike_times_gt = spike_times_gt
             
             # Define the "matching threshold".
-            matching_jitter = 2.0
             thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
