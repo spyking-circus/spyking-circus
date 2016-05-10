@@ -26,7 +26,6 @@ remove_median  = False     # If True, median over all channels is substracted to
 trig_file      =           # If external stimuli need to be considered as putative artefacts (see documentation)
 trig_windows   =           # The time windows of those external stimuli [in ms]
 clean_artefact = False     # If True, external artefacts induced by triggers will be suppressed from data
-before_filter  = True      # By default, this operation is performed before filtering. Can be after if False
 make_plots     = png       # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 [whitening]

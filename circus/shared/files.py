@@ -219,7 +219,6 @@ def load_parameters(file_name):
                   ['detection', 'peaks', 'string', 'negative'],
                   ['detection', 'spike_thresh', 'float', '6'],
                   ['triggers', 'clean_artefact', 'bool', 'False'],
-                  ['triggers', 'before_filter', 'bool', 'True'],
                   ['triggers', 'make_plots', 'string', 'png'],
                   ['triggers', 'trig_file', 'string', ''],
                   ['triggers', 'trig_windows', 'string', ''],

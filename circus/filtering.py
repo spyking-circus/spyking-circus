@@ -13,7 +13,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
-    before_filter  = params.getboolean('triggers', 'before_filter')
     cut_off        = params.getint('filtering', 'cut_off')
     sampling_rate  = params.getint('data', 'sampling_rate')
     remove_median  = params.getboolean('filtering', 'remove_median')
@@ -182,7 +181,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             counts[artefact]   = len(mtimes)
                         else:
                             art_dict[artefact] += io.get_artefact(params, mtimes, tau, nodes, normalize=False)
-                            counts[artefact] += len(mtimes)
+                            counts[artefact]   += len(mtimes)
                     count += 1
                     if comm.rank == 0:
                         pbar.update(count)
@@ -283,13 +282,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             max_offset = (mpi_in.size//data_mpi.size)
 
-            if clean_artefact and before_filter:
-                art_dict = compute_artefacts(params, comm, offset=0, max_offset=max_offset)
-                remove_artefacts(params, comm, art_dict, mpi_in, mpi_in, offset=0, max_offset=max_offset)
-
             filter_file(params, comm, mpi_in, mpi_in)
 
-            if clean_artefact and not before_filter:
+            if clean_artefact:
                 art_dict = compute_artefacts(params, comm, offset=0, max_offset=max_offset)
                 remove_artefacts(params, comm, art_dict, mpi_in, mpi_in, offset=0, max_offset=max_offset)
 
@@ -319,13 +314,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file: %s' %params.get('data', 'data_file') ], 'debug')
 
-                if clean_artefact and before_filter:
-                    remove_artefacts(params, comm, art_dict, mpi_in, mpi_out, times[0], max_offset=times[1])
-
                 filter_file(params, comm, mpi_in, mpi_out, offset)
 
-                if clean_artefact and not before_filter:
-                    remove_artefacts(params, comm, art_dict, mpi_in, mpi_out, times[0], max_offset=times[1])
+                if clean_artefact:
+                    remove_artefacts(params, comm, art_dict, mpi_out, mpi_out, times[0], max_offset=times[1])
 
                 offset += (mpi_in.size//data_mpi.size)               
                 mpi_in.Close()
