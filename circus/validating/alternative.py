@@ -78,25 +78,27 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     counts = numpy.arange(spike_values_juxta.size, -1, -1)
     unknown_zone = Rectangle((0.0, 0), juxta_thresh, spike_values_juxta.size,
                              hatch='/', facecolor='white', zorder=3)
-    
-    if make_plots not in ['None', '']:
-        plot_filename = "beer-juxta-distribution.{}".format(make_plots)
-        path = os.path.join(plot_path, plot_filename)
-        import pylab
-        fig = pylab.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        ax.set_position((0.1, 0.15, 0.8, 0.75))
-        ax.step(threshs, counts, 'k', where='post')
-        ax.add_patch(unknown_zone)
-        ax.grid(True)
-        ax.set_xlim(0.0, numpy.amax(spike_values_juxta))
-        ax.set_ylim(0, spike_values_juxta.size)
-        ax.set_title("Juxtacellular threshold detection")
-        ax.set_xlabel("threshold")
-        ax.set_ylabel("number of spikes")
-        fig.text(0.02, 0.02, "median absolute deviation: {:.2f}".format(juxta_mad))
-        pylab.savefig(path)
-        pylab.close()
+
+    if comm.rank == 0:
+        
+        if make_plots not in ['None', '']:
+            plot_filename = "beer-juxta-distribution.{}".format(make_plots)
+            path = os.path.join(plot_path, plot_filename)
+            import pylab
+            fig = pylab.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.set_position((0.1, 0.15, 0.8, 0.75))
+            ax.step(threshs, counts, 'k', where='post')
+            ax.add_patch(unknown_zone)
+            ax.grid(True)
+            ax.set_xlim(0.0, numpy.amax(spike_values_juxta))
+            ax.set_ylim(0, spike_values_juxta.size)
+            ax.set_title("Juxtacellular threshold detection")
+            ax.set_xlabel("threshold")
+            ax.set_ylabel("number of spikes")
+            fig.text(0.02, 0.02, "median absolute deviation: {:.2f}".format(juxta_mad))
+            pylab.savefig(path)
+            pylab.close()
     
     
     
@@ -138,20 +140,22 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         if comm.rank == 0:
             msg = ["Ground truth neuron is close to channel {} (set manually)".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
-    
-    if make_plots not in ['None', '']:
-        plot_filename = "beer-trigger-times.%s" %make_plots
-        path = os.path.join(plot_path, plot_filename)
-        ##### TODO: remove debug zone
-        # print("nodes: {}".format(nodes))
-        # print("nodes.size: {}".format(nodes.size))
-        # print("chans: {}".format(chans))
-        # print("chans.size: {}".format(chans.size))
-        # print("chan: {}".format(chan))
-        # print("elec: {}".format(elec))
-        # print("justa_spike.shape: {}".format(juxta_spikes.shape))
-        ##### end debug zone
-        plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], juxta_spikes_, save=path)
+
+    if comm.rank == 0:
+        
+        if make_plots not in ['None', '']:
+            plot_filename = "beer-trigger-times.%s" %make_plots
+            path = os.path.join(plot_path, plot_filename)
+            ##### TODO: remove debug zone
+            # print("nodes: {}".format(nodes))
+            # print("nodes.size: {}".format(nodes.size))
+            # print("chans: {}".format(chans))
+            # print("chans.size: {}".format(chans.size))
+            # print("chan: {}".format(chan))
+            # print("elec: {}".format(elec))
+            # print("justa_spike.shape: {}".format(juxta_spikes.shape))
+            ##### end debug zone
+            plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], juxta_spikes_, save=path)
     
     
     
@@ -186,25 +190,27 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     unknown_zone = Rectangle((0.0, 0), extra_thresh, ymax,
                              hatch='/', facecolor='white', zorder=3)
-    
-    if make_plots not in ['None', '']:
-        plot_filename = "beer-extra-distributions.{}".format(make_plots)
-        path = os.path.join(plot_path, plot_filename)
-        import pylab
-        fig = pylab.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        for e in xrange(0, N_e):
-            color = inferno(float(e) / float(N_e))
-            ax.step(threshs[e], counts[e], color=color, where='post')
-        ax.add_patch(unknown_zone)
-        ax.grid(True)
-        ax.set_xlim(0.0, xmax)
-        ax.set_ylim(0, ymax)
-        ax.set_title("Extracellular threshold detection")
-        ax.set_xlabel("threshold")
-        ax.set_ylabel("number of spikes")
-        pylab.savefig(path)
-        pylab.close()
+
+    if comm.rank == 0:
+        
+        if make_plots not in ['None', '']:
+            plot_filename = "beer-extra-distributions.{}".format(make_plots)
+            path = os.path.join(plot_path, plot_filename)
+            import pylab
+            fig = pylab.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            for e in xrange(0, N_e):
+                color = inferno(float(e) / float(N_e))
+                ax.step(threshs[e], counts[e], color=color, where='post')
+            ax.add_patch(unknown_zone)
+            ax.grid(True)
+            ax.set_xlim(0.0, xmax)
+            ax.set_ylim(0, ymax)
+            ax.set_title("Extracellular threshold detection")
+            ax.set_xlabel("threshold")
+            ax.set_ylabel("number of spikes")
+            pylab.savefig(path)
+            pylab.close()
     
     # Compute the cumulative distribution of extra spike times according to the threshold values.
     spike_times_extra = spike_times_ngt_tmp
@@ -225,23 +231,25 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     unknown_zone = Rectangle((0.0, 0), extra_thresh, ymax,
                              hatch='/', facecolor='white', zorder=3)
-    
-    if make_plots not in ['None', '']:
-        plot_filename = "beer-extra-distributions-bis.{}".format(make_plots)
-        path = os.path.join(plot_path, plot_filename)
-        import pylab
-        fig = pylab.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        ax.step(spike_values_extra, counts, color='black', where='post')
-        ax.add_patch(unknown_zone)
-        ax.grid(True)
-        ax.set_xlim(0.0, xmax)
-        ax.set_ylim(0, ymax)
-        ax.set_title("Extracellular threshold detection")
-        ax.set_xlabel("threshold")
-        ax.set_ylabel("number of spikes")
-        pylab.savefig(path)
-        pylab.close()
+
+    if comm.rank == 0:
+        
+        if make_plots not in ['None', '']:
+            plot_filename = "beer-extra-distributions-bis.{}".format(make_plots)
+            path = os.path.join(plot_path, plot_filename)
+            import pylab
+            fig = pylab.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.step(spike_values_extra, counts, color='black', where='post')
+            ax.add_patch(unknown_zone)
+            ax.grid(True)
+            ax.set_xlim(0.0, xmax)
+            ax.set_ylim(0, ymax)
+            ax.set_title("Extracellular threshold detection")
+            ax.set_xlabel("threshold")
+            ax.set_ylabel("number of spikes")
+            pylab.savefig(path)
+            pylab.close()
     
     
     
@@ -285,33 +293,45 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     unknown_zone = Rectangle((0.0, 0), extra_thresh, 100.0,
                              hatch='/', facecolor='white', zorder=3, fill=False)
-    
-    if make_plots not in ['None', '']:
-        plot_filename = "beer-proportion.{}".format(make_plots)
-        path = os.path.join(plot_path, plot_filename)
-        import pylab
-        fig = pylab.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        ax.set_position((0.1, 0.15, 0.8, 0.75))
-        ax.step(matches, counts, color='black', where='post')
-        ax.add_patch(unknown_zone)
-        ax.grid(True)
-        ax.set_xlim(0.0, numpy.amax(matches))
-        ax.set_ylim(0.0, 100.0)
-        ax.set_title("Proportion of juxta spike times near extra spike times")
-        ax.set_xlabel("extra threshold")
-        ax.set_ylabel("proportion (%)")
-        fig.text(0.02, 0.02, "matching jitter: {} ms".format(matching_jitter))
-        fig.text(0.42, 0.02, "juxta threshold: {}".format(juxta_thresh))
-        tmp_indices = numpy.where(matches <= extra_thresh)[0]
-        if 0 < len(tmp_indices):
-            tmp_index = tmp_indices[-1]
-        else:
-            tmp_index = 0
-        fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(extra_thresh, counts[tmp_index]))
-        pylab.savefig(path)
-        pylab.close()
 
+    if comm.rank == 0:
+        
+        # Save proportion in BEER file.
+        proportion = counts[0]
+        beer_path = "{}.beer.hdf5".format(file_out_suff)
+        beer_file = h5py.File(beer_path, 'a', libver='latest')
+        beer_key = 'proportion'
+        if beer_key in beer_file.keys():
+            beer_file.pop(beer_key)
+        beer_file.create_dataset(beer_key, data=proportion)
+        beer_file.close()
+        
+        if make_plots not in ['None', '']:
+            plot_filename = "beer-proportion.{}".format(make_plots)
+            path = os.path.join(plot_path, plot_filename)
+            import pylab
+            fig = pylab.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.set_position((0.1, 0.15, 0.8, 0.75))
+            ax.step(matches, counts, color='black', where='post')
+            ax.add_patch(unknown_zone)
+            ax.grid(True)
+            ax.set_xlim(0.0, numpy.amax(matches))
+            ax.set_ylim(0.0, 100.0)
+            ax.set_title("Proportion of juxta spike times near extra spike times")
+            ax.set_xlabel("extra threshold")
+            ax.set_ylabel("proportion (%)")
+            fig.text(0.02, 0.02, "matching jitter: {} ms".format(matching_jitter))
+            fig.text(0.42, 0.02, "juxta threshold: {}".format(juxta_thresh))
+            tmp_indices = numpy.where(matches <= extra_thresh)[0]
+            if 0 < len(tmp_indices):
+                tmp_index = tmp_indices[-1]
+            else:
+                tmp_index = 0
+            fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(extra_thresh, counts[tmp_index]))
+            pylab.savefig(path)
+            pylab.close()
+    
     
     
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################

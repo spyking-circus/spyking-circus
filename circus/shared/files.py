@@ -1044,7 +1044,7 @@ def load_data(params, data, extension=''):
                 spikes[:, :, count] = local_chunk
             return triggers, spikes
         else:
-            raise Exception('No triggers found! Check suffix or check if file `%s` exists ?' %filename)
+            raise Exception('No triggers found! Check suffix or check if file `%s` exists?' %filename)
     elif data == 'juxta-mad':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
@@ -1055,7 +1055,7 @@ def load_data(params, data, extension=''):
                 beer_file.close()
             return juxta_mad
         else:
-            raise Exception('No median absolute deviation found! Check suffix or check if file `{}` exists ?'.format(filename))
+            raise Exception('No median absolute deviation found! Check suffix or check if file `{}` exists?'.format(filename))
     elif data == 'juxta-triggers':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
@@ -1066,7 +1066,7 @@ def load_data(params, data, extension=''):
                 beer_file.close()
             return juxta_spike_times
         else:
-            raise Exception('No triggers found! Check suffix or check if file `{}` exists ?'.format(filename))
+            raise Exception('No triggers found! Check suffix or check if file `{}` exists?'.format(filename))
     elif data == 'juxta-values':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
@@ -1077,7 +1077,7 @@ def load_data(params, data, extension=''):
                 beer_file.close()
             return juxta_spike_values
         else:
-            raise Exception('No values found! Check suffix or check if file `{}` exists ?'.format(filename))
+            raise Exception('No values found! Check suffix or check if file `{}` exists?'.format(filename))
     elif data == 'extra-mads':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
@@ -1088,7 +1088,7 @@ def load_data(params, data, extension=''):
                 beer_file.close()
             return extra_mads
         else:
-            raise Exception('No median absolute deviation found! Check suffix or check if file `{}` exists ?'.format(filename))
+            raise Exception('No median absolute deviation found! Check suffix or check if file `{}` exists?'.format(filename))
     elif data == 'extra-triggers':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
@@ -1103,7 +1103,7 @@ def load_data(params, data, extension=''):
                 beer_file.close()
             return extra_spike_times
         else:
-            raise Exception('No triggers found! Check if file `{}` exists ?'.format(filename))
+            raise Exception('No triggers found! Check if file `{}` exists?'.format(filename))
     elif data == 'extra-values':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
@@ -1118,7 +1118,7 @@ def load_data(params, data, extension=''):
                 beer_file.close()
             return extra_spike_values
         else:
-            raise Exception('No values found! Check suffix or check if file `{}` exists ?'.format(filename))
+            raise Exception('No values found! Check suffix or check if file `{}` exists?'.format(filename))
     elif data == 'class-weights':
         filename = file_out_suff + '.beer.hdf5'
         if os.path.exists(filename):
@@ -1127,7 +1127,7 @@ def load_data(params, data, extension=''):
             bfile.close()
             return class_weights
         else:
-            raise Exception('No class weights found! Check suffix or check if file `{}` exists ?'.format(filename))
+            raise Exception('No class weights found! Check suffix or check if file `{}` exists?'.format(filename))
     elif data == 'confusion-matrices':
         filename = file_out_suff + '.beer.hdf5'
         if os.path.exists(filename):
@@ -1136,8 +1136,19 @@ def load_data(params, data, extension=''):
             bfile.close()
             return confusion_matrices
         else:
-            raise Exception('No confusion matrices found! Check suffix or check if file `{}` exists ?'.format(filename))
-        
+            raise Exception('No confusion matrices found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'proportion':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                proportion = beer_file.get('proportion').value
+            finally:
+                beer_file.close()
+            return proportion
+        else:
+            raise Exception('No proportion found! Check suffix or check if file `{}` exists?'.format(filename))
+
 
 def write_datasets(h5file, to_write, result, electrode=None):
     for key in to_write:
