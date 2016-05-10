@@ -263,7 +263,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 offset += (mpi_in.size//data_mpi.size)               
                 mpi_in.Close()
 
-            parser.set('data', 'data_file', combined_file)
+            params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
                 art_dict   = compute_artefacts(params, comm)
