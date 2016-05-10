@@ -261,7 +261,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk   = local_chunk.astype(data_dtype)
                     local_chunk   = local_chunk.ravel()
 
-                    mpi_output.Write_at(N_total*time + offset, local_chunk)
+                    mpi_output.Write_at(N_total*time, local_chunk)
 
                 count        += 1
 
