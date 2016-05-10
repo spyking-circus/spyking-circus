@@ -523,6 +523,148 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
     return stas
 
+##### TODO: clean working zone
+
+def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
+                       mean_mode=False, all_labels=False, auto_align=True):
+    
+    # First we need to identify machines in the MPI ring.
+    from uuid import getnode as get_mac
+    myip = int(get_mac()) % 100000
+    ##### TODO: remove quarantine zone
+    # intsize = MPI.INT.Get_size()
+    ##### end quarantine zone
+    float_size = MPI.FLOAT.Get_size() 
+    sub_comm = comm.Split(myip, 0)
+    
+    # Load parameters.
+    N_t = params.getint('data', 'N_t')
+    data_file = params.get('data', 'data_file')
+    data_offset = params.getint('data', 'data_offset')
+    dtype_offset = params.getint('data', 'dtype_offset')
+    data_dtype = params.get('data', 'data_dtype')
+    N_total = params.getint('data', 'N_total')
+    alignment = params.getboolean('data', 'alignment') and auto_align
+    datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    do_temporal_whitening = params.getboolean('whitening', 'temporal')
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    template_shift = params.getint('data', 'template_shift')
+    
+    # Calculate the sizes of the data structures to share.
+    nb_triggers = 0
+    nb_neighs = 0
+    nb_ts = 0
+    if sub_comm.Get_rank() == 0:
+        if not all_labels:
+            if not mean_mode:
+                ##### TODO: clean quarantine zone
+                # nb_times = len(times_i)
+                ##### end quarantine zone
+                nb_triggers = len(times_i)
+            else:
+                nb_triggers = 1
+        else:
+            ##### TODO: remove quarantine zone
+            # nb_labels = len(numpy.unique(labels_i))
+            ##### end quarantine zone
+            nb_triggers = len(numpy.unique(labels_i))
+        nb_neighs = len(neighs)
+        nb_ts = N_t
+    
+    sub_comm.Barrier()
+    
+    # Broadcast the sizes of the data structures to share.
+    triggers_size = int(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.float32), root=0)[0])
+    neighs_size = int(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.float32), root=0)[0])
+    ts_size = int(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.float32), root=0)[0])
+    
+    # Declare the data structures to share.
+    if sub_comm.Get_rank() == 0:
+        stas_bytes = triggers_size * neighs_size * ts_size * float_size
+    else:
+        stas_bytes = 0
+    if triggers_size == 1:
+        stas_shape = (neighs_size, ts_size)
+    else:
+        stas_shape = (triggers_size, neighs_size, ts_size)
+    
+    win_stas = MPI.Win.Allocate_shared(stas_bytes, float_size, comm=sub_comm)
+    buf_stas, _ = win_stas.Shared_query(0)
+    buf_stas = numpy.array(buf_stas, dtype='B', copy=False)
+    stas = numpy.ndarray(buffer=buf_stas, dtype=numpy.float32, shape=stas_shape)
+    
+    sub_comm.Barrier()
+    
+    # Let master node initialize the data structures to share.
+    if sub_comm.Get_rank() == 0:
+        if do_spatial_whitening:
+            spatial_whitening = load_data(params, 'spatial_whitening')
+        if do_temporal_whitening:
+            temporal_whitening = load_data(params, 'temporal_whitening')
+        if alignment:
+            cdata = numpy.linspace(- template_shift, template_shift, 5 * N_t)
+            xdata = numpy.arange(- 2 * template_shift, 2 * template_shift + 1)
+        count = 0
+        for lb, time in zip(labels_i, times_i):
+            padding = N_total * time
+            if alignment:
+                local_chunk = datablock[padding - 2 * template_shift * N_total:padding + (2 * template_shift + 1) * N_total]
+                local_chunk = local_chunk.reshape(2 * N_t - 1, N_total)
+            else:
+                local_chunk = datablock[padding - template_shift * N_total:padding + (template_shift + 1) * N_total]
+                local_chunk = local_chunk.reshape(N_t, N_total)
+            local_chunk = local_chunk.astype(numpy.float32)
+            local_chunk -= dtype_offset
+            if nodes is not None:
+                if not numpy.all(nodes == numpy.arange(N_total)):
+                    local_chunk = numpy.take(local_chunk, nodes, axis=1)
+            if do_spatial_whitening:
+                local_chunk = numpy.dot(local_chunk, spatial_whitening)
+            if do_temporal_whitening:
+                local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+            local_chunk = numpy.take(local_chunk, neighs, axis=1)
+            if alignment:
+                idx = numpy.where(neighs == src)[0]
+                ydata = numpy.arange(len(neighs))
+                if len(ydata) == 1:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+                    rmin = (numpy.argmin(f(cdata)) - len(cdata) / 2.0) / 5.0
+                    ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                    local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+                else:
+                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata) - 1, 3))
+                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata) / 2.0) / 5.0
+                    ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                    local_chunk = f(ddata, ydata).astype(numpy.float32)
+            if not all_labels:
+                if not mean_mode:
+                    # #####
+                    # print(stas.shape)
+                    # print(count)
+                    # #####
+                    stas[count, :, :] = local_chunk.T
+                    count += 1
+                else:
+                    stas += local_chunk.T
+            else:
+                lc = numpy.where(nb_triggers == lb)[0]
+                stas[lc] += local_chunk.T
+    
+    sub_comm.Barrier()
+    
+    # # Let each node wrap the data structures to share.
+    # if not all_labels and mean_mode:
+    #     stas_shape = (nb_neighs, nb_ts)
+    # else:
+    #     stas_shape = (nb_triggers, nb_neighs, nb_ts)
+    # stas = numpy.reshape(stas, stas_shape)
+    
+    sub_comm.Free()
+    
+    return stas
+
+##### end working zone
+
 def get_amplitudes(params, times_i, src, neighs, template, nodes=None):
 
     N_t          = params.getint('data', 'N_t')

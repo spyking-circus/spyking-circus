@@ -3,13 +3,19 @@ from matplotlib.patches import Rectangle
 from sklearn.linear_model import SGDClassifier
 
 from ..shared.utils import *
-from ..shared.files import get_stas
+from ..shared.files import get_stas, get_stas_memshared
 from ..shared import plot
 from .utils import *
 
 
 
 def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
+    
+    try:
+        SHARED_MEMORY = False
+        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+    except NotImplementedError:
+        SHARED_MEMORY = False
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
     
@@ -381,8 +387,17 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
     
+    
+    ##### TODO: clean working zone
+    # TODO: share memory for these data structures.
+    
     labels_gt = numpy.zeros(spike_times_gt.size)
-    spikes_gt = get_stas(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
+    ##### TODO: clean test zone
+    if SHARED_MEMORY:
+        spikes_gt = get_stas_memshared(params, comm, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
+    else:
+        spikes_gt = get_stas(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
+    ##### end test zone
     
     # Reshape data.
     N_t = spikes_gt.shape[0]
@@ -400,6 +415,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Define the outputs (i.e. 0 for ground truth samples).
     y_gt = numpy.zeros((N_gt, 1), dtype=numpy.float32)
     
+    
     if comm.rank == 0:
         if verbose:
             msg = [
@@ -407,6 +423,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "y_gt.shape: {}".format(y_gt.shape),
             ]
             io.print_and_log(msg, level='default', logger=params)
+    
+    ##### end working zone
     
     
     
@@ -428,32 +446,50 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             ]
             io.print_and_log(msg, level='default', logger=params)
     
+    
+    ##### TODO: clean working zone
+    
     labels_ngt = numpy.zeros(spike_times_ngt.size)
-    spikes_ngt = get_stas(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
+    ##### TODO: clean temporary zone
+    if SHARED_MEMORY:
+        spikes_ngt = get_stas_memshared(params, comm, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
+    else:
+        spikes_ngt = get_stas(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
+    ##### TODO: end temporary zone
     
-    # Reshape data.
-    N_t = spikes_ngt.shape[0]
-    N_e = spikes_ngt.shape[1]
-    N_ngt = spikes_ngt.shape[2]
-    spikes_ngt = spikes_ngt.reshape(N_t, N_e * N_ngt)
-    spikes_ngt = spikes_ngt.T
-    # Compute the PCA coordinates of each spike of the "non ground truth cells".
-    X_ngt = numpy.dot(spikes_ngt, basis_proj)
-    X_ngt = X_ngt.T
-    # Reshape data.
-    X_ngt = X_ngt.reshape(N_p * N_e, N_ngt)
-    X_ngt = X_ngt.T
+    # # Reshape data.
+    # N_t = spikes_ngt.shape[0]
+    # N_e = spikes_ngt.shape[1]
+    # N_ngt = spikes_ngt.shape[2]
+    # spikes_ngt = spikes_ngt.reshape(N_t, N_e * N_ngt)
+    # spikes_ngt = spikes_ngt.T
+    # # Compute the PCA coordinates of each spike of the "non ground truth cells".
+    # X_ngt = numpy.dot(spikes_ngt, basis_proj)
+    # X_ngt = X_ngt.T
+    # # Reshape data.
+    # X_ngt = X_ngt.reshape(N_p * N_e, N_ngt)
+    # X_ngt = X_ngt.T
     
-    # Define the outputs (i.e. 1 for non ground truth samples).
-    y_ngt = numpy.ones((N_ngt, 1))
+    # # Define the outputs (i.e. 1 for non ground truth samples).
+    # y_ngt = numpy.ones((N_ngt, 1))
     
+    
+    # if comm.rank == 0:
+    #     if verbose:
+    #         msg = [
+    #             "X_ngt.shape: {}".format(X_ngt.shape),
+    #             "y_ngt.shape: {}".format(y_ngt.shape),
+    #         ]
+    #         io.print_and_log(msg, level='default', logger=params)
+    
+    import time
+    secs = 10.0 # s
     if comm.rank == 0:
-        if verbose:
-            msg = [
-                "X_ngt.shape: {}".format(X_ngt.shape),
-                "y_ngt.shape: {}".format(y_ngt.shape),
-            ]
-            io.print_and_log(msg, level='default', logger=params)
+        print("Start to sleep...")
+    time.sleep(secs)
+    sys.exit(0)
+    
+    ##### end working zone
     
     
     
