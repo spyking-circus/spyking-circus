@@ -92,7 +92,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             comm.Barrier()
 
-        def compute_artefacts(params, comm, offset=0, max_offset=None):
+        def compute_artefacts(params, comm):
 
             cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
@@ -120,89 +120,38 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 to_write = ["Computing averaged artefacts from %d stimuli" %(nb_stimuli)]
                 io.print_and_log(to_write, 'info', params)
-                if not multi_files:
-                    pbar = get_progressbar(len(local_labels))
-                else:
-                    pbar = get_progressbar(len(io.get_multi_files(params)))
+                pbar = get_progressbar(len(local_labels))
                 if not os.path.exists(plot_path):
                     os.makedirs(plot_path)
 
             comm.Barrier()
             # First we need to get the average artefacts
             art_dict = {}
-            if not multi_files:
-                for count, artefact in enumerate(local_labels):
-                    indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
-                    tmp      = numpy.where(windows[:, 0] == artefact)[0]
-                    tau      = windows[tmp, 1]
-                    pspikes  = all_times[indices]
-                    mask     = (pspikes >= offset) & (pspikes < max_offset)
-                    pspikes  = pspikes[mask]
-                    times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
-                    if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
-                        if comm.rank == 0:
-                            io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
-                        sys.exit(0)
-                    art_dict[artefact] = io.get_artefact(params, times, tau, nodes)
-                    if make_plots not in ['None', '']:
-                        save     = [plot_path, '%d.%s' %(artefact, make_plots)]
-                        plot.view_artefact(art_dict[count], save=save)
-
+            for count, artefact in enumerate(local_labels):
+                indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
+                tmp      = numpy.where(windows[:, 0] == artefact)[0]
+                tau      = windows[tmp, 1]
+                pspikes  = all_times[indices]
+                times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
+                if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
                     if comm.rank == 0:
-                        pbar.update(count)
+                        io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
+                    sys.exit(0)
+                art_dict[artefact] = io.get_artefact(params, times, tau, nodes)
+                if make_plots not in ['None', '']:
+                    save     = [plot_path, '%d.%s' %(artefact, make_plots)]
+                    plot.view_artefact(art_dict[count], save=save)
 
                 if comm.rank == 0:
-                    pbar.finish()
+                    pbar.update(count)
 
-            else:
-                counts    = {}
-                all_files = io.get_multi_files(params)
-                sep_times = io.data_stats(params, show=False, export_times=True)
-                count     = 0
-                for data_file, times in zip(all_files, sep_times):
-                    params.set('data', 'data_file', data_file)
-                    if params.getboolean('data', 'MCS'):
-                        data_offset, nb_channels = io.detect_header(data_file, 'MCS')
-                        params.set('data', 'data_offset', str(data_offset))
-                    for artefact in local_labels:
-                        indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
-                        tmp      = numpy.where(windows[:, 0] == artefact)[0]
-                        tau      = windows[tmp, 1]
-                        pspikes  = all_times[indices]
-                        mask     = (pspikes >= times[0]) & (pspikes < times[1] - tau)
-                        pspikes  = pspikes[mask]
-                        mtimes   = numpy.sort(numpy.random.permutation(pspikes)[:500]) - times[0]
-                        if len(numpy.where(numpy.diff(mtimes) < tau)[0]) > 0:
-                            if comm.rank == 0:
-                                io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
-                            sys.exit(0)
-                        if artefact not in art_dict.keys():
-                            art_dict[artefact] = io.get_artefact(params, mtimes, tau, nodes, normalize=False)
-                            counts[artefact]   = len(mtimes)
-                        else:
-                            art_dict[artefact] += io.get_artefact(params, mtimes, tau, nodes, normalize=False)
-                            counts[artefact]   += len(mtimes)
-                    count += 1
-                    if comm.rank == 0:
-                        pbar.update(count)
+            if comm.rank == 0:
+                pbar.finish()
 
-                if comm.rank == 0:
-                    pbar.finish()
-
-                for artefact in local_labels:
-                    art_dict[artefact] /= counts[artefact]
-                    if make_plots not in ['None', '']:
-                        save     = [plot_path, '%d.%s' %(artefact, make_plots)]
-                        plot.view_artefact(art_dict[artefact], save=save)
-
-                params.set('data', 'data_file', all_files[0])
-                if params.getboolean('data', 'MCS'):
-                    data_offset, nb_channels = io.detect_header(all_files[0], 'MCS')
-                    params.set('data', 'data_offset', str(data_offset))
             return art_dict
 
 
-        def remove_artefacts(params, comm, art_dict, mpi_input, mpi_output, offset, max_offset):
+        def remove_artefacts(params, comm, art_dict, mpi_file, max_offset):
 
             N_total        = params.getint('data', 'N_total')
             cut_off        = params.getint('filtering', 'cut_off')
@@ -239,7 +188,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             for label, time in zip(all_labels, all_times):
 
-                if (time >= offset) and (time < max_offset) and (label in local_labels):
+                if (time >= 0) and (time < max_offset) and (label in local_labels):
 
                     tmp      = numpy.where(windows[:, 0] == label)[0]
                     tau      = windows[tmp, 1]
@@ -250,7 +199,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         mshape   = max_offset - time
 
                     local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                    mpi_input.Read_at(N_total * time, local_chunk)
+                    mpi_file.Read_at(N_total * time, local_chunk)
                     local_chunk   = local_chunk.reshape(mshape, N_total)
                     local_chunk   = local_chunk.astype(numpy.float32)
                     local_chunk  -= dtype_offset
@@ -261,7 +210,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk   = local_chunk.astype(data_dtype)
                     local_chunk   = local_chunk.ravel()
 
-                    mpi_output.Write_at(N_total*time, local_chunk)
+                    mpi_file.Write_at(N_total*time, local_chunk)
 
                 count        += 1
 
@@ -280,13 +229,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
             mpi_in.Set_view(data_offset, data_mpi, data_mpi)
 
-            max_offset = (mpi_in.size//data_mpi.size)
-
             filter_file(params, comm, mpi_in, mpi_in)
 
             if clean_artefact:
-                art_dict = compute_artefacts(params, comm, offset=0, max_offset=max_offset)
-                remove_artefacts(params, comm, art_dict, mpi_in, mpi_in, offset=0, max_offset=max_offset)
+                art_dict   = compute_artefacts(params, comm)
+                max_offset = (mpi_in.size//data_mpi.size)
+                remove_artefacts(params, comm, art_dict, mpi_in, max_offset)
 
             mpi_in.Close()
         else:
@@ -298,29 +246,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 
             comm.Barrier()
             
-            mpi_out  = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
+            combined_file = params.get('data', 'data_file')
+            mpi_out       = myfile.Open(comm, combined_file, MPI.MODE_RDWR)
             mpi_out.Set_view(data_offset, data_mpi, data_mpi)
             io.write_to_logger(params, ['Output file: %s' %params.get('data', 'data_file') ], 'debug')
 
             offset   = 0
-            if clean_artefact:
-                art_dict = compute_artefacts(params, comm)
 
-            for data_file, times in zip(all_files, all_times):
+            for data_file in all_files:
                 mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDWR)
                 if params.getboolean('data', 'MCS'):
                     data_offset, nb_channels = io.detect_header(data_file, 'MCS')
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
-                io.write_to_logger(params, ['Input file: %s' %params.get('data', 'data_file') ], 'debug')
-
+                io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
                 filter_file(params, comm, mpi_in, mpi_out, offset)
-
-                if clean_artefact:
-                    remove_artefacts(params, comm, art_dict, mpi_out, mpi_out, times[0], max_offset=times[1])
-
                 offset += (mpi_in.size//data_mpi.size)               
                 mpi_in.Close()
+
+            parser.set('data', 'data_file', combined_file)
+
+            if clean_artefact:
+                art_dict   = compute_artefacts(params, comm)
+                remove_artefacts(params, comm, art_dict, mpi_out, offset)
 
             mpi_out.Close()
 
