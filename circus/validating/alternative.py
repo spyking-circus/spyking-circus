@@ -84,7 +84,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     counts = numpy.arange(spike_values_juxta.size, -1, -1)
     unknown_zone = Rectangle((0.0, 0), juxta_thresh, spike_values_juxta.size,
                              hatch='/', facecolor='white', zorder=3)
-
+    
     if comm.rank == 0:
         
         if make_plots not in ['None', '']:
@@ -457,37 +457,37 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         spikes_ngt = get_stas(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
     ##### TODO: end temporary zone
     
-    # # Reshape data.
-    # N_t = spikes_ngt.shape[0]
-    # N_e = spikes_ngt.shape[1]
-    # N_ngt = spikes_ngt.shape[2]
-    # spikes_ngt = spikes_ngt.reshape(N_t, N_e * N_ngt)
-    # spikes_ngt = spikes_ngt.T
-    # # Compute the PCA coordinates of each spike of the "non ground truth cells".
-    # X_ngt = numpy.dot(spikes_ngt, basis_proj)
-    # X_ngt = X_ngt.T
-    # # Reshape data.
-    # X_ngt = X_ngt.reshape(N_p * N_e, N_ngt)
-    # X_ngt = X_ngt.T
+    # Reshape data.
+    N_t = spikes_ngt.shape[0]
+    N_e = spikes_ngt.shape[1]
+    N_ngt = spikes_ngt.shape[2]
+    spikes_ngt = spikes_ngt.reshape(N_t, N_e * N_ngt)
+    spikes_ngt = spikes_ngt.T
+    # Compute the PCA coordinates of each spike of the "non ground truth cells".
+    X_ngt = numpy.dot(spikes_ngt, basis_proj)
+    X_ngt = X_ngt.T
+    # Reshape data.
+    X_ngt = X_ngt.reshape(N_p * N_e, N_ngt)
+    X_ngt = X_ngt.T
     
-    # # Define the outputs (i.e. 1 for non ground truth samples).
-    # y_ngt = numpy.ones((N_ngt, 1))
+    # Define the outputs (i.e. 1 for non ground truth samples).
+    y_ngt = numpy.ones((N_ngt, 1))
     
     
-    # if comm.rank == 0:
-    #     if verbose:
-    #         msg = [
-    #             "X_ngt.shape: {}".format(X_ngt.shape),
-    #             "y_ngt.shape: {}".format(y_ngt.shape),
-    #         ]
-    #         io.print_and_log(msg, level='default', logger=params)
-    
-    import time
-    secs = 10.0 # s
     if comm.rank == 0:
-        print("Start to sleep...")
-    time.sleep(secs)
-    sys.exit(0)
+        if verbose:
+            msg = [
+                "X_ngt.shape: {}".format(X_ngt.shape),
+                "y_ngt.shape: {}".format(y_ngt.shape),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
+    
+    # import time
+    # secs = 10.0 # s
+    # if comm.rank == 0:
+    #     print("Start to sleep...")
+    # time.sleep(secs)
+    # sys.exit(0)
     
     ##### end working zone
     
