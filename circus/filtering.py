@@ -228,13 +228,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if not multi_files:            
             mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
             mpi_in.Set_view(data_offset, data_mpi, data_mpi)
-
+            offset = (mpi_in.size//data_mpi.size)
             filter_file(params, comm, mpi_in, mpi_in)
 
             if clean_artefact:
                 art_dict   = compute_artefacts(params, comm)
-                max_offset = (mpi_in.size//data_mpi.size)
-                remove_artefacts(params, comm, art_dict, mpi_in, max_offset)
+                remove_artefacts(params, comm, art_dict, mpi_in, offset)
 
             mpi_in.Close()
         else:
