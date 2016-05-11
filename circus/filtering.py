@@ -140,7 +140,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 art_dict[artefact] = io.get_artefact(params, times, tau, nodes)
                 if make_plots not in ['None', '']:
                     save     = [plot_path, '%d.%s' %(artefact, make_plots)]
-                    plot.view_artefact(art_dict[count], save=save)
+                    plot.view_artefact(art_dict[artefact], save=save)
 
                 if comm.rank == 0:
                     pbar.update(count)
