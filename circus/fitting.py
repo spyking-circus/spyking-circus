@@ -25,7 +25,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    spikedetekt    = params.getboolean('data', 'spikedetekt')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size     = int(params.getfloat('fitting', 'chunk')*sampling_rate)
@@ -147,9 +146,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
-    if spikedetekt:
-        spiketimes = io.load_data(params, 'spikedetekt')
-
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
@@ -205,33 +201,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
         #print "Extracting the peaks..."
-        if not spikedetekt:
-            local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+        local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
 
-            if matched_filter:
-
-                if sign_peaks in ['positive', 'both']:
-                    filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
-                    for i in xrange(N_e):
-                        peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
-                        local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
-                if sign_peaks in ['negative', 'both']:
-                    filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
-                    for i in xrange(N_e):
-                        peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
-                        local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
-            else:
+        if matched_filter:
+            if sign_peaks in ['positive', 'both']:
+                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                 for i in xrange(N_e):
-                    if sign_peaks == 'negative':
-                        peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
-                    elif sign_peaks == 'positive':
-                        peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
-                    elif sign_peaks == 'both':
-                        peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
-                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
+                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+            if sign_peaks in ['negative', 'both']:
+                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
+                for i in xrange(N_e):
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
+                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
         else:
-            idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)
-            local_peaktimes = numpy.compress(idx, spiketimes) - gidx*chunk_size
+            for i in xrange(N_e):
+                if sign_peaks == 'negative':
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                elif sign_peaks == 'positive':
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
+                elif sign_peaks == 'both':
+                    peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
+                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
+
 
         local_peaktimes = numpy.unique(local_peaktimes)
         

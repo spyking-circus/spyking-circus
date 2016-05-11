@@ -207,7 +207,6 @@ def load_parameters(file_name):
         parser.set('data', 'radius', str(int(probe['radius'])))
 
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
-                  ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'multi-files', 'bool', 'False'],
@@ -984,12 +983,6 @@ def load_data(params, data, extension=''):
             return clusters, spiketimes, N_clusters
         else:
             raise Exception('Need to provide a spike-cluster file!')
-    elif data == 'spikedetekt':
-        file_name = params.get('data', 'data_file_noext') + ".kwik"
-        if os.path.exists(file_name):
-            return h5py.File(file_name).get('channel_groups/1/spikes/time_samples', 'r', libver='latest')[:].astype(numpy.int32)
-        else:
-            raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'clusters':
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
             myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
