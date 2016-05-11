@@ -53,7 +53,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             temp_id    = int(key.split('_')[-1])
             data       = result['spiketimes'].pop(key)
             spikes     = numpy.concatenate((spikes, data.astype(numpy.int64)))
-            amplitudes = numpy.concatenate((amplitudes, result['amplitudes'][key][:, 0]))
+            data       = result['amplitudes'].pop(key)
+            amplitudes = numpy.concatenate((amplitudes, data[:, 0]))
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.int32)))
         
         idx = numpy.argsort(spikes)
@@ -61,7 +62,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         numpy.save(os.path.join(output_path, 'spike_templates'), clusters[idx])
         numpy.save(os.path.join(output_path, 'spike_times'), spikes[idx])
         numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
-        return spikes[idx], clusters[idx]
+        return
 
     def write_templates(path, params, extension):
 
@@ -189,7 +190,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             nodes, edges   = get_nodes_and_edges(params)
             numpy.save(os.path.join(output_path, 'channel_map'), nodes)
 
-            spikes, clusters = write_results(output_path, params, extension)    
+            write_results(output_path, params, extension)    
             N_tm = write_templates(output_path, params, extension)
             similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
             norm = params.getint('data', 'N_e')*params.getint('data', 'N_t')
