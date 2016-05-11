@@ -207,8 +207,6 @@ def load_parameters(file_name):
         parser.set('data', 'radius', str(int(probe['radius'])))
 
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
-                  ['fitting', 'spike_range', 'float', '0'],
-                  ['fitting', 'min_rate', 'float', '0'],
                   ['data', 'spikedetekt', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
@@ -1056,13 +1054,12 @@ def write_datasets(h5file, to_write, result, electrode=None):
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     file_out_suff  = params.get('data', 'file_out_suff')
-    min_rate       = params.get('fitting', 'min_rate')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     duration       = data_stats(params, show=False)
     templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
-    refractory     = int(0.5*sampling_rate*1e-3)
+    refractory     = int(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
     N_tm           = len(templates)
 
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)

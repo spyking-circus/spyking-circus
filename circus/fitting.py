@@ -35,10 +35,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits     = map(float, tmp_limits)
     amp_auto       = params.getboolean('fitting', 'amp_auto')
     space_explo    = params.getfloat('fitting', 'space_explo')
-    refractory     = float(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
-    spike_range    = int(params.getfloat('fitting', 'spike_range')*sampling_rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -235,11 +233,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)
             local_peaktimes = numpy.compress(idx, spiketimes) - gidx*chunk_size
 
-        if spike_range > 0:
-            spikes = numpy.unique(local_peaktimes)
-            for spike in spikes:
-                local_peaktimes = numpy.concatenate((local_peaktimes, numpy.arange(spike-spike_range, spike+spike_range)))
-
         local_peaktimes = numpy.unique(local_peaktimes)
         
         #print "Removing the useless borders..."
@@ -274,13 +267,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_offset = gidx*chunk_size+padding[0]//N_total
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
-
-            # We penalize the neurons that are in refractory periods
-            if refractory > 0:
-                tmp     = numpy.dot(numpy.ones((n_tm, 1), dtype=numpy.int32), all_spikes.reshape((1, n_t)))
-                penalty = 1 - numpy.exp((last_spikes - tmp)/refractory)
-            else:
-                penalty = numpy.ones((n_tm, n_t), dtype=numpy.float32)
+            penalty      = numpy.ones((n_tm, n_t), dtype=numpy.float32)
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
@@ -298,32 +285,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 mask     = penalty
                 sub_b    = b[:n_tm, :]
-
-
-            if spike_range > 0:
-                term_1 = numpy.dot(numpy.ones((n_tm, 1)), local_peaktimes[:-1].reshape(1, n_t-1))
-                term_2 = numpy.dot(numpy.ones((n_tm, 1)), local_peaktimes[1:].reshape(1, n_t-1))-1
-                term_3 = numpy.hstack((numpy.zeros((term_1.shape[0], 1)), term_1))[:, :-1]
-                term_4 = numpy.hstack((numpy.zeros((term_2.shape[0], 1)), term_2))[:, :-1]
-
-                if full_gpu:
-                    c   = b.asarray()
-                    idx = numpy.where(numpy.logical_or(c[:n_tm,:-1] > c[:n_tm,1:] * (term_3 == term_4), (term_1 != term_2)))
-                    sub_mask  = numpy.ones((penalty.shape), dtype=numpy.float32)
-                    sub_mask[idx[0], idx[1]+1] = 0
-                else:
-                    idx = numpy.where(numpy.logical_or(b[:n_tm,:-1] > b[:n_tm,1:] * (term_3 == term_4), (term_1 != term_2)))
-                    mask[idx[0], idx[1]+1] = 0
-
-                if full_gpu:
-                    idx       = numpy.where(numpy.logical_or(c[:n_tm,:-1] < c[:n_tm,1:] * (term_1 == term_2), (term_1 != term_2)))
-                    sub_mask[idx] = 0
-                    sub_mask  = cmt.CUDAMatrix(sub_mask)
-                    mask.mult(sub_mask)
-                    del sub_mask
-                else:
-                    idx = numpy.where(numpy.logical_or(b[:n_tm,:-1] < b[:n_tm,1:] * (term_1 == term_2), (term_1 != term_2)))
-                    mask[idx] = 0
 
             min_time     = local_peaktimes.min()
             max_time     = local_peaktimes.max()
@@ -369,11 +330,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         del tmp_mat
                     else:
                         inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
-
-                    if refractory > 0:
-                        sort_idx  = numpy.argsort(inds_t)
-                        inds_t    = inds_t[sort_idx]
-                        inds_temp = inds_temp[sort_idx]
 
                     if full_gpu:
                         best_amp  = sub_b.asarray()[inds_temp, inds_t]/n_scalar
@@ -437,20 +393,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             result['spiketimes'] += [t_spike]
                             result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
                             result['templates']  += [inds_temp[keep]]
-                            if refractory > 0:
-                                last_spike                   = last_spikes[inds_temp[keep]]
-                                sidx                         = numpy.where(all_spikes >= t_spike)[0]
-                                last_spikes[inds_temp[keep]] = t_spike
-                                values                       = numpy.ones(n_t)
-                                values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
-                                if full_gpu:
-                                    values   = cmt.CUDAMatrix(values.reshape(1, n_t))
-                                    sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
-                                    sub_mask.mult(values)
-                                    mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
-                                    del values, sub_mask
-                                else:
-                                    mask[inds_temp[keep]] *= values
 
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
