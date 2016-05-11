@@ -46,13 +46,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
     def write_results(path, params, extension):
         result     = get_results(params, extension)
-        spikes     = numpy.zeros(0, dtype=numpy.int64)
+        spikes     = numpy.zeros(0, dtype=numpy.int32)
         clusters   = numpy.zeros(0, dtype=numpy.int32)
         amplitudes = numpy.zeros(0, dtype=numpy.float32)
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
             data       = result['spiketimes'].pop(key)
-            spikes     = numpy.concatenate((spikes, data.astype(numpy.int64)))
+            spikes     = numpy.concatenate((spikes, data))
             data       = result['amplitudes'].pop(key)
             amplitudes = numpy.concatenate((amplitudes, data[:, 0]))
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.int32)))
@@ -123,10 +123,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_process):
             if mode == 1:
-                idx     = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
-                all_idx = numpy.concatenate((all_idx, idx))
+                idx  = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
             elif mode == 0:
                 idx  = numpy.where(labels == target)[0]
+            
+            all_idx  = numpy.concatenate((all_idx, idx))
             elec     = best_elec[target]
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
@@ -146,6 +147,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         pc_features = gather_array(pc_features.reshape(nb_pcs, nb_features*max_loc_channel), comm, 0, 1)
         nb_total_pc = len(pc_features)
+
         pc_features = pc_features.reshape(nb_total_pc, nb_features, max_loc_channel)
 
         all_idx  = gather_array(all_idx, comm, 0, dtype='int32')
@@ -153,7 +155,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         
         if comm.rank == 0:
           numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx])
-          numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
+          numpy.save(os.path.join(output_path, 'pc_features'), pc_features[sort_idx]) # nspikes, nfeat, n_loc_chan
           numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
         
 
