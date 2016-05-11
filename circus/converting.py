@@ -108,6 +108,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         to_process = numpy.arange(comm.rank, N_tm, comm.size)
 
         nb_pcs = 0
+
         for target in to_process:
             if mode == 0:
                 nb_pcs += len(numpy.where(labels == target)[0])
@@ -123,10 +124,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_process):
             if mode == 1:
-                idx     = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
-                all_idx = numpy.concatenate((all_idx, idx))
+                idx  = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
             elif mode == 0:
                 idx  = numpy.where(labels == target)[0]
+
+            all_idx  = numpy.concatenate((all_idx, idx))
             elec     = best_elec[target]
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
@@ -135,7 +137,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
             pc_features[count:count+len(idx), :, :len(indices)] = pcs                    
-            count += len(idx)
+            count   += len(idx)
             
             if comm.rank == 0:
               pbar.update(gcount)
@@ -148,13 +150,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         nb_total_pc = len(pc_features)
         pc_features = pc_features.reshape(nb_total_pc, nb_features, max_loc_channel)
 
-        all_idx  = gather_array(all_idx, comm, 0, dtype='int32')
-        sort_idx = numpy.argsort(all_idx)
+        all_idx     = gather_array(all_idx, comm, 0, dtype='int32')
+        sort_idx    = numpy.argsort(all_idx)
         
         if comm.rank == 0:
-          numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx])
-          numpy.save(os.path.join(output_path, 'pc_features'), pc_features) # nspikes, nfeat, n_loc_chan
-          numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
+            if mode == 1:
+                numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx])
+            numpy.save(os.path.join(output_path, 'pc_features'), pc_features[sort_idx]) # nspikes, nfeat, n_loc_chan
+            numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
         
 
     do_export = True
@@ -171,6 +174,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
                     do_export = False
                     comm.bcast(numpy.array([0], dtype=numpy.int32), root=0)
             if do_export:
+                if os.path.exists(os.path.abspath('.phy')):
+                    shutil.rmtree(os.path.abspath('.phy'))
                 shutil.rmtree(output_path)
     else:
         if os.path.exists(output_path):
