@@ -17,6 +17,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     except NotImplementedError:
         SHARED_MEMORY = False
     
+    
+    
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
     
     data_file = params.get('data', 'data_file')
@@ -366,6 +368,20 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     ##### TODO: clean working zone
     
+    threshold_false_negatives = matched_spike_times_juxta.size - numpy.count_nonzero(matched_spike_times_juxta)
+    
+    if comm.Get_rank() == 0:
+        
+        # Save number of false negatives due to threshold in BEER file.
+        beer_path = "{}.beer.hdf5".format(file_out_suff)
+        beer_file = h5py.File(beer_path, 'a', libver='latest')
+        beer_key = 'thresh_fn'
+        if beer_key in beer_file.keys():
+            beer_file.pop(beer_key)
+        beer_file.create_dataset(beer_key, data=threshold_false_negatives)
+        beer_file.close()
+        
+    
     ##### TODO: clean temporary zone
     # Ground truth spike times defined from the juxtacellular traces.
     mask_gt = matched_spike_times_juxta
@@ -403,6 +419,11 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     N_t = spikes_gt.shape[0]
     N_e = spikes_gt.shape[1]
     N_gt = spikes_gt.shape[2]
+    ##### TODO: remove temporary zone
+    # if comm.rank == 0:
+    #     print(spikes_gt.flags)
+    # spikes_gt.shape = (N_t, N_e * N_gt)
+    ##### end temporary zone
     spikes_gt = spikes_gt.reshape(N_t, N_e * N_gt)
     spikes_gt = spikes_gt.T
     # Compute the PCA coordinates of each spike of the "ground truth cell".
@@ -461,6 +482,11 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     N_t = spikes_ngt.shape[0]
     N_e = spikes_ngt.shape[1]
     N_ngt = spikes_ngt.shape[2]
+    ##### TODO: remove temporary zone
+    # if comm.rank == 0:
+    #     print(spikes_ngt.flags)
+    # spikes_ngt.shape = (N_t, N_e * N_ngt)
+    ##### end temporary zone
     spikes_ngt = spikes_ngt.reshape(N_t, N_e * N_ngt)
     spikes_ngt = spikes_ngt.T
     # Compute the PCA coordinates of each spike of the "non ground truth cells".
@@ -1182,7 +1208,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     indices = comm.gather(loc_indices, root=0)
     confusion_matrices_tmp = comm.gather(confusion_matrices, root=0)
     
-    if comm.rank == 0:
+    if comm.Get_rank() == 0:
         
         # Reorder confusion matrices properly.
         confusion_matrices = roc_sampling * [None]
@@ -1211,14 +1237,16 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         # Add false positive rates and true positive rates endpoints.
         fprs = [1.0] + fprs + [0.0]
         tprs = [1.0] + tprs + [0.0]
-        
+    
+    
+    if comm.Get_rank() == 0:
         
         ##### TODO: clean temporary zone
         
-        mode = 'perso'
-        # mode = 'harris'
+        MODE = 'perso'
+        # MODE = 'harris'
         
-        if mode == 'perso':
+        if MODE == 'perso':
             
             # Define the "matching threshold".
             thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3)
@@ -1232,37 +1260,50 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
+            sc_contingency_matrices = numpy.zeros((n_temp, 2, 2), dtype=numpy.int)
             
             # First pass to detect what are the scores.
             for i in xrange(n_temp):
                 # Retrieve the spike times for the i-th detected template.
                 spike_times = data['temp_' + str(i)]
-                # Compute the false positive rate.
+                # Count the true positives (among actual posititves).
                 for spike_time_gt in spike_times_gt:
                     idx = numpy.where(abs(spike_times - spike_time_gt) <= thresh)[0]
                     if 0 < len(idx):
                         # There is at least one spike for this template next to this ground truth spike.
                         res[i, 0] += 1.0
+                        sc_contingency_matrices[i, 0, 0] += 1
+                # Count the false negatives.
+                sc_contingency_matrices[i, 0, 1] = spike_times_gt.size - sc_contingency_matrices[i, 0, 0]
+                # Compute the true positive rate (for actual positives).
                 if 0 < spike_times_gt.size:
                     res[i, 0] /= float(spike_times_gt.size)
-                # Compute the positive predictive value.
-                matched_spike_times = numpy.zeros_like(spike_times, dtype='bool')
+                # Count the true positives (among expected positives).
                 for k, spike_time in enumerate(spike_times):
                     idx = numpy.where(abs(spike_times_gt - spike_time) <= thresh)[0]
                     if 0 < len(idx):
                         res[i, 1] += 1.0
-                        matched_spike_times[k] = True
+                        sc_contingency_matrices[i, 1, 0] += 1
+                # Count the false positives.
+                matched_spike_times = numpy.zeros_like(spike_times, dtype='bool')
                 for k, spike_time in enumerate(spike_times):
-                    idx = numpy.where(abs(spike_times_ngt - spike_time) <= thresh)[0]
+                    idx = numpy.where(abs(spike_times_gt - spike_time) <= thresh)[0]
                     if 0 < len(idx):
                         matched_spike_times[k] = True
+                    else:
+                        idx = numpy.where(abs(spike_times_ngt - spike_time) <= thresh)[0]
+                        if 0 < len(idx):
+                            matched_spike_times[k] = True
                 matched_spike_times = spike_times[matched_spike_times]
+                sc_contingency_matrices[i, 1, 1] = matched_spike_times.size - sc_contingency_matrices[i, 1, 0]
+                # Compute the true positive rate (for expected positives).
                 if 0 < matched_spike_times.size:
                     res[i, 1] /= float(matched_spike_times.size)
             
             idx = numpy.argmax(numpy.mean(res, 1))
             selection = [idx]
             error = res[idx]
+            sc_contingency_matrix = sc_contingency_matrices[idx, :, :]
             find_next = True
             source_temp = templates[:, idx].toarray().flatten()
             temp_match = []
@@ -1278,8 +1319,10 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                 while (find_next == True):
                     
                     temp_match = [i for i in temp_match if i not in selection]
-                    
-                    local_errors = numpy.zeros((len(temp_match), 2))
+
+                    nb_temps = len(temp_match)
+                    local_errors = numpy.zeros((nb_temps, 2))
+                    local_sc_contingency_matrices = numpy.zeros((nb_temps, 2, 2), dtype=numpy.int)
                     
                     for mcount, tmp in enumerate(temp_match):
                         
@@ -1289,36 +1332,48 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                             spike_times += data['temp_' + str(xtmp)].tolist()
                         spike_times = numpy.array(spike_times, dtype=numpy.int32)
                         
-                        # Compute true positive rate.
+                        # Count true positive (among actual positives).
                         count = 0
                         for spike_time_gt in spike_times_gt:
                             idx = numpy.where(numpy.abs(spike_times - spike_time_gt) < thresh)[0]
                             if 0 < len(idx):
                                 count += 1
+                                local_sc_contingency_matrices[mcount, 0, 0] += 1
+                        # Count false negatives.
+                        local_sc_contingency_matrices[mcount, 0, 1] = spike_times_gt.size - local_sc_contingency_matrices[mcount, 0, 0]
+                        # Compute true positive rate (for actual positives).
                         if 0 < spike_times_gt.size:
                             local_errors[mcount, 0] = float(count) / float(spike_times_gt.size)
                         
-                        # Compute positive predictive value
+                        # Count true positives (among expected positives).
                         count = 0
-                        matched_spike_times = numpy.zeros_like(spike_times)
                         for k, spike_time in enumerate(spike_times):
                             idx = numpy.where(numpy.abs(spike_times_gt - spike_time) < thresh)[0]
                             if 0 < len(idx):
                                 count += 1
-                                matched_spike_times[k] = True
+                                local_sc_contingency_matrices[mcount, 1, 0] += 1
+                        # Count false positives.
+                        matched_spike_times = numpy.zeros_like(spike_times)
                         for k, spike_time in enumerate(spike_times):
-                            idx = numpy.where(numpy.abs(spike_times_ngt - spike_time) < thresh)[0]
+                            idx = numpy.where(numpy.abs(spike_times_gt - spike_time) < thresh)[0]
                             if 0 < len(idx):
                                 matched_spike_times[k] = True
+                            else:
+                                idx = numpy.where(numpy.abs(spike_times_ngt - spike_time) < thresh)[0]
+                                if 0 < len(idx):
+                                    matched_spike_times[k] = True
                         matched_spike_times = spike_times[matched_spike_times]
+                        local_sc_contingency_matrices[mcount, 1, 1] = matched_spike_times.size - local_sc_contingency_matrices[mcount, 1, 0]
+                        # Compute true positive rate (for expected positives).
                         if 0 < matched_spike_times.size:
                             local_errors[mcount, 1]  = float(count) / float(matched_spike_times.size)
                     
                     errors = numpy.mean(local_errors, 1)
                     if 0 < errors.size and numpy.max(errors) > numpy.mean(error):
-                        idx        = numpy.argmax(errors)
+                        idx = numpy.argmax(errors)
                         selection += [temp_match[idx]]
-                        error      = local_errors[idx]
+                        error = local_errors[idx]
+                        sc_contingency_matrix = local_sc_contingency_matrices[idx, :, :]
                     else:
                         find_next = False
             
@@ -1329,8 +1384,10 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             scerror['res'] = res
             scerror['selection'] = selection
             scerror['error'] = error
+            scerror['contingency_matrices'] = sc_contingency_matrices
+            scerror['contingency_matrix'] = sc_contingency_matrix
         
-        elif mode == 'harris':
+        elif MODE == 'harris':
             
             spike_times_gt = spike_times_gt
             
@@ -1429,6 +1486,37 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             scerror['error'] = error
         
         ##### end temporary zone
+    
+    
+    if comm.Get_rank() == 0:
+        
+        ##### TODO: clean working zone
+        
+        # Prepare data to be saved.
+        selection = numpy.array(scerror['selection'], dtype=numpy.int)
+        sc_contingency_matrices = scerror['contingency_matrices']
+        sc_contingency_matrix = scerror['contingency_matrix']
+        # Save data to BEER file.
+        filename = "{}.beer.hdf5".format(file_out_suff)
+        beer_file = h5py.File(filename, 'a', libver='latest')
+        ## Save selection.
+        beer_key = 'selection'
+        if beer_key in beer_file.keys():
+            beer_file.pop(beer_key)
+        beer_file.create_dataset(beer_key, data=selection)
+        ## Save contingency matrices of templates.
+        beer_key = 'sc_contingency_matrices'
+        if beer_key in beer_file.keys():
+            beer_file.pop(beer_key)
+        beer_file.create_dataset(beer_key, data=sc_contingency_matrices)
+        ## Save contingency matrix of best template.
+        beer_key = 'sc_contingency_matrix'
+        if beer_key in beer_file.keys():
+            beer_file.pop(beer_key)
+        beer_file.create_dataset(beer_key, data=sc_contingency_matrix)
+        beer_file.close()
+        
+        ##### end working zone
         
         if verbose:
             msg = [
@@ -1448,7 +1536,10 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
             #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
             # error = plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
-            error = plot.view_roc_curve(params, fprs, tprs, None, None, scerror=scerror, save=path)
+            ##### TODO: clean swap zone
+            # error = plot.view_roc_curve(params, fprs, tprs, None, None, scerror=scerror, save=path)
+            error = plot.view_roc_curve_(params, save=path)
+            ##### end swap zone
             filename = "{}.beer.hdf5".format(file_out_suff)
             beer_file = h5py.File(filename, 'r+', libver='latest')
             if 'circus_error' in beer_file.keys():

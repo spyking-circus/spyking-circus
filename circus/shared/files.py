@@ -1290,6 +1290,114 @@ def load_data(params, data, extension=''):
             return proportion
         else:
             raise Exception('No proportion found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'threshold-false-negatives':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                threshold_false_negatives = beer_file.get('thresh_fn').value
+            finally:
+                beer_file.close()
+            return threshold_false_negatives
+        else:
+            raise Exception('No threshold false negatives found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data in ['false-positive-rates', 'true-positive-rates',
+                  'false-positive-error-rates', 'false-negative-error-rates']:
+        # Retrieve saved data.
+        confusion_matrices = load_data(params, 'confusion-matrices')
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        # Correct counts of false negatives.
+        for confusion_matrix in confusion_matrices:
+            confusion_matrix[0, 1] += threshold_false_negatives
+        # Compute the wanted statistics.
+        if data == 'false-positive-rates':
+            # Compute false positive rates (i.e. FP / (FP + TN)).
+            results = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
+            # Add false positive rate endpoints.
+            results = [1.0] + results + [0.0]
+        if data == 'true-positive-rates':
+            # Compute true positive rates (i.e. TP / (TP + FN)).
+            results = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+            # Add true positive rate endpoints.
+            results = [1.0] + results + [0.0]
+        if data == 'false-positive-error-rates':
+            # Compute false positive error rates (i.e. FP / (TP + FP)).
+            results = [M[1, 0] / (M[0, 0] + M[1, 0]) for M in confusion_matrices]
+            # Add false positive error rate endpoints.
+            results = [1.0] + results + [0.0]
+        if data == 'false-negative-error-rates':
+            # Compute false negative error rates (i.e. FN / (TP + FN)).
+            results = [M[0, 1] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+            # Add false negative error rate endpoints.
+            results = [0.0] + results + [1.0]
+        results = numpy.array(results, dtype=numpy.float)
+        return results
+    elif data == 'sc-contingency-matrices':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                sc_contingency_matrices = beer_file.get('sc_contingency_matrices')[:]
+            finally:
+                beer_file.close()
+            return sc_contingency_matrices
+        else:
+            raise Exception('No contingency matrices found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data in ['sc-false-positive-error-rates', 'sc-false-negative-error-rates']:
+        # Retrieve saved data.
+        sc_contingency_matrices = load_data(params, 'sc-contingency-matrices')
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        # Correct counts of false negatives.
+        for sc_contingency_matrix in sc_contingency_matrices:
+            sc_contingency_matrix[0, 1] += threshold_false_negatives
+        # Compute the wanted statistics.
+        if data == 'sc-false-positive-error-rates':
+            # Compute false positive error rates.
+            results = [float(M[1, 1]) / float(M[1, 0] + M[1, 1]) if 0 < M[1, 0] + M[1, 1] else 0.0
+                       for M in sc_contingency_matrices]
+        if data == 'sc-false-negative-error-rates':
+            # Compute false negative error rates.
+            results = [float(M[0, 1]) / float(M[0, 0] + M[0, 1]) if 0 < M[0, 0] + M[0, 1] else 0.0
+                       for M in sc_contingency_matrices]
+        results = numpy.array(results, dtype=numpy.float)
+        return results
+    elif data == 'sc-contingency-matrix':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                sc_contingency_matrix = beer_file.get('sc_contingency_matrix')[:]
+            finally:
+                beer_file.close()
+            return sc_contingency_matrix
+        else:
+            raise Exception('No contingency matrix found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data in ['sc-best-false-positive-error-rate', 'sc-best-false-negative-error-rate']:
+        sc_contingency_matrix = load_data(params, 'sc-contingency-matrix')
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        # Correct count of false negatives.
+        sc_contingency_matrix[0, 1] += threshold_false_negatives
+        # Compute the wanted statistics.
+        if data == 'sc-best-false-positive-error-rate':
+            # Compute best false positive error rate.
+            M = sc_contingency_matrix
+            result = float(M[1, 1]) / float(M[1, 0] + M[1, 1]) if 0 < M[1, 0] + M[1, 1] else 0.0
+        if data == 'sc-best-false-negative-error-rate':
+            # Compute best false negative error rate.
+            M = sc_contingency_matrix
+            result = float(M[0, 1]) / float(M[0, 0] + M[0, 1]) if 0 < M[0, 0] + M[0, 1] else 0.0
+        return result
+    elif data == 'selection':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                selection = beer_file.get('selection')[:]
+            finally:
+                beer_file.close()
+            return selection
+        else:
+            raise Exception('No selection found! Check suffix or check if file `{}` exists?'.format(filename))
 
 
 def write_datasets(h5file, to_write, result, electrode=None):

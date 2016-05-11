@@ -1412,6 +1412,7 @@ def view_loss_curve(losss, title=None, save=None):
 
 def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
     '''Plot ROC curve'''
+    
     fig = pylab.figure()
     pylab.subplots_adjust(wspace=0.3)
 
@@ -1421,7 +1422,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         ax = fig.add_subplot(121)
     else:
         ax = fig.add_subplot(111)
-
+    
     ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
     ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
     if fpr is not None and tpr is not None:
@@ -1433,7 +1434,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
     ax.set_title("ROC curve")
     ax.set_xlabel("false positive rate")
     ax.set_ylabel("true positive rate")
-
+    
     def get_fprs(confusion_matrices):
         """Get false positive rates"""
         # Compute false positive rates.
@@ -1441,7 +1442,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # Add false positive rate endpoints.
         fprs = [1.0] + fprs + [0.0]
         return fprs
-
+    
     def get_tprs(confusion_matrices):
         """Get true positive rates"""
         # Compute true positive rates.
@@ -1449,7 +1450,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # Add true positive rate endpoints.
         tprs = [1.0] + tprs + [0.0]
         return tprs
-
+    
     def get_fpers(confusion_matrices):
         """Get false positive error rates"""
         # Compute false positive error rates.
@@ -1457,7 +1458,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # Add false positive error rate endpoints.
         fpers = [1.0] + fpers + [0.0]
         return fpers
-
+    
     def get_fners(confusion_matrices):
         """ Get false negative error rates"""
         # Compute false negative error rates.
@@ -1465,15 +1466,21 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # Add false negative error rate endpoints.
         fners = [0.0] + fners + [1.0]
         return fners
-
-
+    
+    
     if HAVE_RESULT:
+        
         ax = fig.add_subplot(122)
         
         # Retrieve the confusion matrices.
         confusion_matrices = load_data(params, "confusion-matrices")
         
         if scerror is None:
+            
+            # Parameters needed to compute scerror:
+            # params
+            # File variables needed to compute scerror:
+            # juxta-triggers, sampling-rate, matching-jitter, results, templates
             
             # Retrieve the juxtacellular spiketimes.
             all_times = load_data(params, "juxta-triggers")
@@ -1487,9 +1494,6 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
             
             # Retrieve the templates.
             templates = load_data(params, 'templates')
-            
-            # Retrieve the thresholds.
-            thresholds   = load_data(params, 'thresholds')
             
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
@@ -1521,17 +1525,6 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
                         res[i, 1] += 1
                 if len(spikes) > 0:
                     res[i, 1] /= float(len(spikes))
-            
-            ##### TODO: remove test zone
-            # selected_times = []
-            # 
-            # if test_method == 'downsampled':
-            #     # For each template detected by SpyKING CIRCUS
-            #     for i in xrange(n_temp):
-            #         spikes = data['temp_' + str(i)]
-            #         for spike in selected_times:
-            #             # TODO: determine if 'spike' is a 'tp', 'fn' or 'fp'
-            ##### end test zone
             
             idx = numpy.argmax(numpy.mean(res, 1))
             selection = [idx]
@@ -1593,16 +1586,14 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
             
         else:
             
+            # Retrieve saved errors for SpyKING CIRCUS.
             res = scerror['res']
             selection = scerror['selection']
             error = scerror['error']
-            
+        
         
         print("Best error is obtained with templates {} : {}".format(selection, error))
-        # for i in selection:
-        #     nb_spikes = len(data['temp_' + str(i)])
-        #     print("Template {} with {} spikes has error: {}".format(i, nb_spikes, res[i, :]))
-
+        
         ##### TODO: clean quarantine zone
         # ## Finally, we compute the ROC curve.
         # fprs = get_fprs(confusion_matrices)
@@ -1620,14 +1611,6 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         ##### end quarantine zone
         
         ##### TODO: clean quarantine zone
-        # figure()
-        # plot(res[:, 0])
-        # plot(res[:, 1])
-        # pylab.ylabel('Error [%]')
-        # pylab.xlabel('Template')
-        # tight_layout()
-        # show()
-        
         anot_size = 8
         ## Plot the performances of each templates.
         # TODO: check which is the fpr and which is the tpr
@@ -1643,9 +1626,8 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         pos = (error[1], error[0])
         ax.annotate("best", pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
         ## Plot the performances of the BEER.
-        # plot(fprs, tprs)
         ax.plot(fpers, fners)
-        #ax.scatter(fpers, fners, color='r')
+        # ax.scatter(fpers, fners, color='r')
         ## Enhance figure.
         ax.set_xlim(-5, 105)
         ax.set_ylim(-5, 105)
@@ -1655,9 +1637,8 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         ax.set_xlabel("false positive error rate")
         ax.set_ylabel("false negative error rate")
         ax.set_title("best = {}".format(selection))
-        
-    ##### end quarantine zone
-
+        ##### end quarantine zone
+    
     # Save ROC plot.
     if save is None:
         pylab.show()
@@ -1665,3 +1646,96 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         pylab.savefig(save)
         pylab.close(fig)
     return error
+
+
+##### TODO: clean temporary zone
+
+def view_roc_curve_(params, save=None):
+    '''Plot ROC curve.'''
+    
+    fprs = load_data(params, 'false-positive-rates')
+    tprs = load_data(params, 'true-positive-rates')
+    print("fprs: {}".format(fprs))
+    print("tprs: {}".format(tprs))
+    
+    fpers = load_data(params, 'false-positive-error-rates')
+    fners = load_data(params, 'false-negative-error-rates')
+    print("fpers: {}".format(fpers))
+    print("fners: {}".format(fners))
+    fpers = 100.0 * fpers
+    fners = 100.0 * fners
+    
+    ##### TODO: clean temporary zone
+    # res = None
+    # error = None
+    sc_fpers = load_data(params, 'sc-false-positive-error-rates')
+    sc_fners = load_data(params, 'sc-false-negative-error-rates')
+    sc_fper = load_data(params, 'sc-best-false-positive-error-rate')
+    sc_fner = load_data(params, 'sc-best-false-negative-error-rate')
+    selection = load_data(params, 'selection')
+    print("sc_fpers: {}".format(sc_fpers))
+    print("sc_fners: {}".format(sc_fners))
+    print("sc_fper: {}".format(sc_fper))
+    print("sc_fner: {}".format(sc_fner))
+    print("selection: {}".format(selection))
+    sc_fpers = 100.0 * sc_fpers
+    sc_fners = 100.0 * sc_fners
+    sc_fper = 100.0 * sc_fper
+    sc_fner = 100.0 * sc_fner
+    ##### end temporary zone
+    
+    anot_size = 8
+    
+    fig = pylab.figure()
+    pylab.subplots_adjust(wspace=0.3)
+    
+    ax = fig.add_subplot(121)
+    ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
+    ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
+    ax.set_aspect('equal')
+    ax.grid(True)
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.0])
+    ax.set_title("ROC curve")
+    ax.set_xlabel("false positive rate")
+    ax.set_ylabel("true positive rate")
+    
+    ax = fig.add_subplot(122)
+    ## Plot the performances of the BEER.
+    ax.plot(fpers, fners)
+    ## Plot the performances of each templates.
+    # ax.scatter(res[:, 1], res[:, 0])
+    ax.scatter(sc_fpers, sc_fners)
+    # for i in xrange(res.shape[0]):
+    for i in xrange(len(sc_fpers)):
+        txt = str(i)
+        # pos = (res[i, 1], res[i, 0])
+        pos = (sc_fpers[i], sc_fners[i])
+        ax.annotate(txt, pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
+    ## Plot the performances of the best aggregations of templates.
+    # ax.scatter(error[1], error[0])
+    ax.scatter(sc_fper, sc_fner)
+    # pos = (error[1], error[0])
+    pos = (sc_fper, sc_fner)
+    ax.annotate("best", pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
+    ## Enhance figure.
+    ax.set_xlim(-5, 105)
+    ax.set_ylim(-5, 105)
+    ax.grid(True)
+    ax.set_aspect('equal')
+    ax.grid(True)
+    ax.set_xlabel("false positive error rate")
+    ax.set_ylabel("false negative error rate")
+    ax.set_title("best = {}".format(selection))
+    
+    # Save ROC plot.
+    if save is None:
+        pylab.show()
+    else:
+        pylab.savefig(save)
+        pylab.close(fig)
+    
+    # return error
+    return numpy.array([sc_fner, sc_fper])
+
+##### end temporary zone
