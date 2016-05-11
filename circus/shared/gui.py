@@ -297,9 +297,9 @@ class MergeWindow(QtGui.QMainWindow):
 
         for count, temp_id1 in enumerate(real_indices):
         
-            best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1][:10]
+            best_matches = numpy.argsort(self.overlap[temp_id1, real_indices])[::-1][:10]
 
-            for temp_id2 in best_matches:
+            for temp_id2 in real_indices[best_matches]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
                     spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)]
