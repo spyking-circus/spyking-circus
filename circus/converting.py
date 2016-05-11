@@ -131,7 +131,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
             times_i  = numpy.take(spikes, idx)
-            sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes)
+            sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
             pc_features[count:count+len(idx), :, :len(indices)] = pcs                    
