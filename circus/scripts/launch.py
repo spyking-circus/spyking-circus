@@ -96,17 +96,16 @@ def main(argv=None):
     header += Fore.GREEN + "##################################################################"
     header += Fore.RESET
 
-    method_help = '''by default, all 4 steps of the algorithm are
-performed, but a subset x,y can be done,
-using the syntax -m x,y. Steps are:
+    method_help = '''by default, first 4 steps are performed, 
+but a subset x,y can be done. Steps are:
  - filtering
  - whitening
  - clustering
  - fitting
- - (extra) merging [meta merging]
- - (extra) converting [to export to phy format]
- - (extra) gathering [to force collection of results]
- - (extra) extracting [templates from spike times]
+ - (extra) merging [GUI for meta merging]
+ - (extra) converting [export results to phy format]
+ - (extra) gathering [force collection of results]
+ - (extra) extracting [get templates from spike times]
  - (extra) benchmarking [with -o and -t]'''
 
     parser = argparse.ArgumentParser(description=header,
