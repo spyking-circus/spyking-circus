@@ -104,14 +104,14 @@ using the syntax -m x,y. Steps are:
  - clustering
  - fitting
  - (extra) merging [meta merging]
- - (extra) gathering [to collect results]
- - (extra) extracting [templates from spike times]
  - (extra) converting [to export to phy format]
+ - (extra) gathering [to force collection of results]
+ - (extra) extracting [templates from spike times]
  - (extra) benchmarking [with -o and -t]'''
 
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('datafile', help='The data file (or a list of commands if using batch mode)')
+    parser.add_argument('datafile', help='data file (or a list of commands if batch mode)')
     parser.add_argument('-m', '--method',
                         default='filtering,whitening,clustering,fitting',
                         help=method_help)
@@ -125,7 +125,7 @@ using the syntax -m x,y. Steps are:
                         action='store_true')
     parser.add_argument('-r', '--result', help='GUI to display the results on top of raw data',
                         action='store_true')
-    parser.add_argument('-e', '--extension', help='For merging and converting, what extension should be added',
+    parser.add_argument('-e', '--extension', help='extension to consider for merging and converting',
                         default='')
     parser.add_argument('-o', '--output', help='output file [for generation of synthetic benchmarks]')
     parser.add_argument('-t', '--type', help='benchmark type',
