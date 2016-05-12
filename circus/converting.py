@@ -46,13 +46,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
     def write_results(path, params, extension):
         result     = get_results(params, extension)
-        spikes     = numpy.zeros(0, dtype=numpy.int64)
+        spikes     = numpy.zeros(0, dtype=numpy.int32)
         clusters   = numpy.zeros(0, dtype=numpy.int32)
         amplitudes = numpy.zeros(0, dtype=numpy.float32)
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
             data       = result['spiketimes'].pop(key)
-            spikes     = numpy.concatenate((spikes, data.astype(numpy.int64)))
+            spikes     = numpy.concatenate((spikes, data))
             data       = result['amplitudes'].pop(key)
             amplitudes = numpy.concatenate((amplitudes, data[:, 0]))
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.int32)))
@@ -148,6 +148,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         pc_features = gather_array(pc_features.reshape(nb_pcs, nb_features*max_loc_channel), comm, 0, 1)
         nb_total_pc = len(pc_features)
+
         pc_features = pc_features.reshape(nb_total_pc, nb_features, max_loc_channel)
 
         all_idx     = gather_array(all_idx, comm, 0, dtype='int32')
