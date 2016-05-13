@@ -31,7 +31,7 @@ def gather_mpi_arguments(hostfile, params):
     elif vendor[0] == 'Microsoft MPI':
         mpi_args = ['mpiexec']
         if os.path.exists(hostfile):
-            mpi_args += ['-gmachinefile', hostfile]
+            mpi_args += ['-machinefile', hostfile]
     elif vendor[0] == 'MPICH2':
         mpi_args = ['mpiexec']
         if os.path.exists(hostfile):
