@@ -1655,13 +1655,17 @@ def view_roc_curve_(params, save=None):
     
     fprs = load_data(params, 'false-positive-rates')
     tprs = load_data(params, 'true-positive-rates')
-    print("fprs: {}".format(fprs))
-    print("tprs: {}".format(tprs))
+    ##### TODO: remove temporary zone
+    # print("fprs: {}".format(fprs))
+    # print("tprs: {}".format(tprs))
+    ##### end temporary zone
     
     fpers = load_data(params, 'false-positive-error-rates')
     fners = load_data(params, 'false-negative-error-rates')
-    print("fpers: {}".format(fpers))
-    print("fners: {}".format(fners))
+    ##### TODO: remove temporary zone
+    # print("fpers: {}".format(fpers))
+    # print("fners: {}".format(fners))
+    ##### end temporary zone
     fpers = 100.0 * fpers
     fners = 100.0 * fners
     
@@ -1673,11 +1677,13 @@ def view_roc_curve_(params, save=None):
     sc_fper = load_data(params, 'sc-best-false-positive-error-rate')
     sc_fner = load_data(params, 'sc-best-false-negative-error-rate')
     selection = load_data(params, 'selection')
-    print("sc_fpers: {}".format(sc_fpers))
-    print("sc_fners: {}".format(sc_fners))
-    print("sc_fper: {}".format(sc_fper))
-    print("sc_fner: {}".format(sc_fner))
-    print("selection: {}".format(selection))
+    ##### TODO: remove temporary zone
+    # print("sc_fpers: {}".format(sc_fpers))
+    # print("sc_fners: {}".format(sc_fners))
+    # print("sc_fper: {}".format(sc_fper))
+    # print("sc_fner: {}".format(sc_fner))
+    # print("selection: {}".format(selection))
+    ##### end temporary zone
     sc_fpers = 100.0 * sc_fpers
     sc_fners = 100.0 * sc_fners
     sc_fper = 100.0 * sc_fper

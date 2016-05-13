@@ -38,7 +38,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     test_size = params.getfloat('validating', 'test_size')
     matching_jitter = params.getfloat('validating', 'matching_jitter')
     
-    verbose   = False
+    verbose   = True
     skip_demo = False
     make_plots_snippets = False
     # test_method = 'full' # full test set
@@ -365,7 +365,6 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         else:
             pass
     
-    
     ##### TODO: clean working zone
     
     threshold_false_negatives = matched_spike_times_juxta.size - numpy.count_nonzero(matched_spike_times_juxta)
@@ -384,7 +383,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     ##### TODO: clean temporary zone
     # Ground truth spike times defined from the juxtacellular traces.
-    mask_gt = matched_spike_times_juxta
+    mask_gt = matched_spike_times_juxta # keep all the 'ground truth' spike times
     spike_times_gt = spike_times_juxta[mask_gt]
     # # or
     # # Ground truth spike times defined from the extracellular traces.
@@ -458,6 +457,17 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     mask_ngt = numpy.logical_or(matched_spike_times_extra, mismatched_spike_times_extra)
     mask_ngt = numpy.logical_not(mask_ngt)
     spike_times_ngt = spike_times_extra[mask_ngt]
+    ##### TODO: clean temporary zone
+    # Select a subset of the spike times if they are too many.
+    max_spike_times_ngt = 10000
+    if max_spike_times_ngt <= spike_times_ngt.size:
+        if comm.Get_rank() == 0 and verbose:
+            msg = [
+                "Number of 'non ground truth' spike times too high (i.e. {}), limitation to {}.".format(spike_times_ngt.size, max_spike_times_ngt),
+            ]
+            io.print_and_log(msg, level='default', logger=params)
+        spike_times_ngt = numpy.random.choice(spike_times_ngt, size=max_spike_times_ngt, replace=False)
+    ##### end temporary zone
     spike_times_ngt = numpy.sort(spike_times_ngt)
     
     if comm.rank == 0:
