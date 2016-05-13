@@ -985,8 +985,8 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=No
     ax.set_title('ISI')
     
     ##### TODO: clean temporary zone
-    # selected_juxta_indices = numpy.random.permutation(juxta_spikes.shape[1])[:500]
-    selected_juxta_indices = numpy.arange(0, juxta_spikes.shape[1])
+    selected_juxta_indices = numpy.random.permutation(juxta_spikes.shape[1])[:1000]
+    # selected_juxta_indices = numpy.arange(0, juxta_spikes.shape[1])
     ##### end temporary zone
     
     if juxta_spikes_ is not None:

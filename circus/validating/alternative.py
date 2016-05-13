@@ -38,7 +38,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     test_size = params.getfloat('validating', 'test_size')
     matching_jitter = params.getfloat('validating', 'matching_jitter')
     
-    verbose   = True
+    verbose   = False
     skip_demo = False
     make_plots_snippets = False
     # test_method = 'full' # full test set
