@@ -864,22 +864,53 @@ class Projection(object):
         self.tol = tol
         self.fitted = False
     
+    ##### TODO: clean temporary zone
     def fit(self, X, y):
-        if type(X) is list:
-            X = numpy.vstack(tuple(X))
-        if type(y) is list:
-            y = numpy.vstack(tuple(y))
-            y = y.ravel()
-        self.lda = LDA(n_components=1, tol=self.tol)
-        self.lda = self.lda.fit(X, y)
-        self.v1 = self.lda.scalings_[:, 0]
-        self.v1 = self.v1 / numpy.linalg.norm(self.v1)
-        self.mean = self.lda.xbar_
-        self.v2 = numpy.ones(self.v1.size)
-        self.v2 = self.v2 - numpy.dot(self.v1, self.v2) * self.v1 / numpy.linalg.norm(self.v1)
-        self.v2 = self.v2 / numpy.linalg.norm(self.v2)
-        self.fitted = True
-        return self
+        USE_OLD_VERSION = False
+        if USE_OLD_VERSION:
+            if type(X) is list:
+                X = numpy.vstack(tuple(X))
+            if type(y) is list:
+                y = numpy.vstack(tuple(y))
+                y = y.ravel()
+            self.lda = LDA(n_components=1, tol=self.tol)
+            self.lda = self.lda.fit(X, y)
+            self.v1 = self.lda.scalings_[:, 0]
+            self.v1 = self.v1 / numpy.linalg.norm(self.v1)
+            self.mean = self.lda.xbar_
+            self.v2 = numpy.ones(self.v1.size)
+            self.v2 = self.v2 - numpy.dot(self.v1, self.v2) * self.v1 / numpy.linalg.norm(self.v1)
+            self.v2 = self.v2 / numpy.linalg.norm(self.v2)
+            self.fitted = True
+            return self
+        else:
+            if type(X) is list:
+                X = numpy.vstack(tuple(X))
+            if type(y) is list:
+                y = numpy.vstack(tuple(y))
+                y = y.ravel()
+            self.mean = numpy.mean(X, axis=0)
+            uys = numpy.unique(y)
+            uys = numpy.sort(uys)
+            umus = uys.size * [None]
+            for i, uy in enumerate(uys):
+                uX = X[y == uy, :] - self.mean
+                uy = y[y == uy]
+                umus[i] = numpy.mean(uX, axis=0)
+            uMu = numpy.stack(umus)
+            if uMu.shape[0] == 2:
+                self.v1 = uMu[1, :] - uMu[0, :]
+                self.v1 = self.v1 / numpy.linalg.norm(self.v1)
+                self.v2 = numpy.random.rand(self.v1.size)
+                self.v2 = self.v2 / numpy.linalg.norm(self.v2)
+                self.v2 = self.v2 - numpy.dot(self.v1, self.v2) * self.v1
+                self.v2 = self.v2 / numpy.linalg.norm(self.v2)
+                self.fitted = True
+            else:
+                raise NotImplementedError
+            # TODO: complete.
+            return self
+    ##### end temporary zone
     
     def transform(self, X):
         if not self.fitted:

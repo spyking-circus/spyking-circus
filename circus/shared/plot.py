@@ -971,9 +971,10 @@ def view_trigger_snippets(trigger_snippets, chans, save=None):
 
 
 def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=None, save=None):
+    
     fig = pylab.figure()
     pylab.subplots_adjust(wspace=0.3)
-
+    
     ax = pylab.subplot2grid((2, 2), (0, 0), rowspan=2)
     sampling_rate = params.getint('data', 'sampling_rate')
     isis = numpy.diff(spike_times_juxta)*1000/sampling_rate
@@ -982,31 +983,59 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=No
     ax.set_xlabel('Time [ms]')
     ax.set_ylabel('Probability')
     ax.set_title('ISI')
-
-    selected_juxta_indices = numpy.random.permutation(juxta_spikes.shape[1])[:500]
-
+    
+    ##### TODO: clean temporary zone
+    # selected_juxta_indices = numpy.random.permutation(juxta_spikes.shape[1])[:500]
+    selected_juxta_indices = numpy.arange(0, juxta_spikes.shape[1])
+    ##### end temporary zone
+    
     if juxta_spikes_ is not None:
+        pad = 0.1
+        xmin = 0
+        xmax = juxta_spikes_.shape[0] - 1
+        ymin = numpy.amin(juxta_spikes_[:, selected_juxta_indices])
+        ymax = numpy.amax(juxta_spikes_[:, selected_juxta_indices])
+        ydif = ymax - ymin
+        ymin -= pad * ydif
+        ymax += pad * ydif
         ax = pylab.subplot2grid((2, 2), (0, 1))
         for i in selected_juxta_indices:
             ax.plot(juxta_spikes_[:, i], '0.5')
         ax.plot(numpy.mean(juxta_spikes_, axis=1), '0.25')
+        ax.plot(2 * [juxta_spikes_.shape[0] / 2], [ymin, ymax], '0.25')
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
         ax.set_xlabel('Time [ms]')
         ax.set_ylabel('Amplitude [au]')
         ax.set_title('Juxta STA')
-
+    
+    pad = 0.1
+    xmin = 0
+    xmax = juxta_spikes.shape[0] - 1
+    ymin = numpy.amin(juxta_spikes[:, selected_juxta_indices])
+    ymax = numpy.amax(juxta_spikes[:, selected_juxta_indices])
+    ydif = ymax - ymin
+    ymin -= pad * ydif
+    ymax += pad * ydif
     if juxta_spikes_ is None:
         ax = pylab.subplot2grid((2, 2), (0, 1), rowspan=2)
     else:
         ax = pylab.subplot2grid((2, 2), (1, 1))
     for i in selected_juxta_indices:
         ax.plot(juxta_spikes[:, i], '0.5')
+        ##### TODO: remove temporary zone
+        # print(juxta_spikes[:, i])
+        ##### end temporary zone
     ax.plot(numpy.mean(juxta_spikes, axis=1), '0.25')
+    ax.plot(2 * [juxta_spikes.shape[0] / 2], [ymin, ymax], '0.25')
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
     ax.set_xlabel('Time [ms]')
     ax.set_ylabel('Amplitude [au]')
     ax.set_title('Extra STA')
-
+    
     fig.tight_layout()
-
+    
     if save is None:
         pylab.show()
     else:

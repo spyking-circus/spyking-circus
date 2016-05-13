@@ -234,7 +234,7 @@ def load_parameters(file_name):
         ['clustering', 'remove_mixture', 'bool', 'True'],
         ['extracting', 'cc_merge', 'float', '0.975'],
         ['extracting', 'noise_thr', 'float', '0.8'],
-        ['validating', 'nearest_elec', 'string', 'auto'],
+        ['validating', 'nearest_elec', 'int', '-1'],
         ['validating', 'max_iter', 'int', '200'],
         ['validating', 'learning_rate', 'float', '1.0e-3'],
         ['validating', 'roc_sampling', 'int', '10'],
@@ -335,11 +335,6 @@ def load_parameters(file_name):
         print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
 
-
-    test = parser.get('validating', 'nearest_elec')
-    if test == 'auto':
-        parser.set('validating', 'nearest_elec', '-1')
-    
     # if nb_channels is not None:
     #     if N_e != nb_channels:
     #         print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', parser)

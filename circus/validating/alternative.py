@@ -119,6 +119,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Select only the neighboring channels of the best channel.
     chan = params.getint('validating', 'nearest_elec')
     if chan == -1:
+        ###### TODO: clean temporary zone
         # Set best channel as the channel with the highest change in amplitude.
         nodes, chans = get_neighbors(params, chan=None)
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
@@ -126,15 +127,39 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
-        mean_juxta_spikes = numpy.mean(juxta_spikes, axis=2)
-        max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0)
-        min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0)
+        
+        USE_OLD_VERSION = False
+        if USE_OLD_VERSION:
+            tmp_juxta_spikes = juxta_spikes
+            tmp_juxta_spikes_ = juxta_spikes_
+        else:
+            # Remove juxta spikes times for which we see some artifacts in the corresponding extra snipets.
+            juxta_spike_times_selection = numpy.ones(juxta_spikes.shape[2], dtype=numpy.bool)
+            for elec in xrange(0, juxta_spikes.shape[1]):
+                median = numpy.median(juxta_spikes[:, elec, :])
+                tmp_juxta_spikes = numpy.abs(juxta_spikes - median)
+                mad_juxta_spikes = numpy.median(tmp_juxta_spikes)
+                for spike_time in xrange(0, juxta_spikes.shape[2]):
+                    max_juxta_spikes = numpy.max(juxta_spikes[:, elec, spike_time])
+                    if 150.0 * 6.0 * mad_juxta_spikes <= max_juxta_spikes:
+                        # There is an artifact.
+                        juxta_spike_times_selection[spike_time] = False
+                        ##### TODO: remove debug zone
+                        # print("##### Remove artifact")
+                        ##### end debug zone
+            tmp_juxta_spikes = juxta_spikes[:, :, juxta_spike_times_selection]
+            tmp_juxta_spikes_ = juxta_spikes_[:, juxta_spike_times_selection]
+        mean_juxta_spikes = numpy.mean(tmp_juxta_spikes, axis=2) # average over spike times
+        max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0) # argmax over timestamps
+        min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0) # argmin over timestamps
         dif_juxta_spikes = max_juxta_spikes - min_juxta_spikes
         chan = numpy.argmax(dif_juxta_spikes)
+        
         nodes, chans = get_neighbors(params, chan=chan)
         if comm.rank == 0:
             msg = ["Ground truth neuron is close to channel {} (set automatically)".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
+        ##### TODO: clean temporary zone
     else:
         nodes, chans = get_neighbors(params, chan=chan)
         ##### TODO: clean temporary zone
@@ -145,6 +170,8 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
         juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
+        tmp_juxta_spikes = juxta_spikes
+        tmp_juxta_spikes_ = juxta_spikes_
         if comm.rank == 0:
             msg = ["Ground truth neuron is close to channel {} (set manually)".format(chan)]
             io.print_and_log(msg, level='default', logger=params)
@@ -152,7 +179,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
     if comm.rank == 0:
         
         if make_plots not in ['None', '']:
-            plot_filename = "beer-trigger-times.%s" %make_plots
+            plot_filename = "beer-trigger-times.{}".format(make_plots)
             path = os.path.join(plot_path, plot_filename)
             ##### TODO: remove debug zone
             # print("nodes: {}".format(nodes))
@@ -163,7 +190,7 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
             # print("elec: {}".format(elec))
             # print("justa_spike.shape: {}".format(juxta_spikes.shape))
             ##### end debug zone
-            plot.view_trigger_times(params, spike_times_juxta, juxta_spikes[:, chan, :], juxta_spikes_, save=path)
+            plot.view_trigger_times(params, spike_times_juxta, tmp_juxta_spikes[:, chan, :], tmp_juxta_spikes_, save=path)
     
     
     
