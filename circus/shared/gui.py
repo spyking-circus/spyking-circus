@@ -166,7 +166,7 @@ class MergeWindow(QtGui.QMainWindow):
                 if item in self.probe['channel_groups'][key]['channels']:
                     self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
                     self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
-
+        
         self.generate_data()
         self.selected_points = set()
         self.selected_templates = set()
@@ -217,6 +217,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.ui.btn_merge_and_finalize.clicked.connect(self.merge_and_finalize)
         self.ui.btn_set_lag.clicked.connect(lambda event: setattr(self.lag_selector,
                                                                   'active', True))
+        self.ui.show_peaks.clicked.connect(self.update_waveforms)
+
         # TODO: Tooltips
         # self.electrode_ax.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
         # self.score_ax2.format_coord = lambda x, y: 'normalized cross-correlation metric: %.2f  cross-correlation metric %.2f' % (x, y)
@@ -610,7 +612,11 @@ class MergeWindow(QtGui.QMainWindow):
             elec  = numpy.argmin(numpy.min(tmp, 1))
             thr   = self.thresholds[elec]
 
-            indices = self.inv_nodes[self.edges[self.nodes[elec]]]
+            if self.show_peaks.isChecked():
+                indices = [self.inv_nodes[self.nodes[elec]]]
+            else:
+                indices = self.inv_nodes[self.edges[self.nodes[elec]]]
+
             for sidx in indices:
                 xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
                 self.waveforms_ax.plot(xaxis, self.y_position[sidx] + tmp[sidx], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
