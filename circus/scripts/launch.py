@@ -81,7 +81,7 @@ def main(argv=None):
     else:
         config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
-    header = Fore.GREEN + '''
+    gheader = Fore.GREEN + '''
 ##################################################################
 #####            Welcome to the SpyKING CIRCUS (0.4)         #####
 #####                                                        #####
@@ -89,7 +89,8 @@ def main(argv=None):
 ##################################################################
 
 '''
-    header += 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
+    header  = gheader
+    header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
     header += Fore.GREEN + 'Parallel HDF5 : ' + Fore.CYAN + str(parallel_hdf5) + '\n'
     header += Fore.GREEN + 'Shared memory : ' + Fore.CYAN + str(SHARED_MEMORY) + '\n'
     header += '\n'
@@ -196,6 +197,7 @@ but a subset x,y can be done. Steps are:
         write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
         write_to_logger(params, ['Data file  : %s' %filename], 'debug')
 
+        print gheader
         print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
         print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
         print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu)
@@ -207,6 +209,7 @@ but a subset x,y can be done. Steps are:
         print ""
         print Fore.GREEN + "##################################################################"
         print ""        
+        print Fore.RESET
 
         if not preview:
             length = io.data_stats(params)
