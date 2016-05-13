@@ -25,6 +25,8 @@ def main():
         circus.launch(task, filename, nb_cpu, nb_gpu, use_gpu, output, benchmark)
     elif task in ['converting', 'merging']:
         extension = sys.argv[6]
+        if extension == 'None':
+            extension = ''
         circus.launch(task, filename, nb_cpu, nb_gpu, use_gpu, extension=extension)
     else:
         circus.launch(task, filename, nb_cpu, nb_gpu, use_gpu)
