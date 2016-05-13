@@ -139,13 +139,14 @@ def main_alternative(filename, params, nb_cpu, nb_gpu, us_gpu):
                 median = numpy.median(juxta_spikes[:, elec, :])
                 tmp_juxta_spikes = numpy.abs(juxta_spikes - median)
                 mad_juxta_spikes = numpy.median(tmp_juxta_spikes)
-                for spike_time in xrange(0, juxta_spikes.shape[2]):
-                    max_juxta_spikes = numpy.max(juxta_spikes[:, elec, spike_time])
-                    if 150.0 * 6.0 * mad_juxta_spikes <= max_juxta_spikes:
+                for spike_time_index in xrange(0, juxta_spikes.shape[2]):
+                    # Since extra_valley is always true.
+                    min_juxta_spikes = numpy.amin(juxta_spikes[:, elec, spike_time_index])
+                    if min_juxta_spikes <= - 20.0 * 6.0 * mad_juxta_spikes:
                         # There is an artifact.
-                        juxta_spike_times_selection[spike_time] = False
+                        juxta_spike_times_selection[spike_time_index] = False
                         ##### TODO: remove debug zone
-                        # print("##### Remove artifact")
+                        # print("##### Remove artifact (spike time index: {})".format(spike_time_index))
                         ##### end debug zone
             tmp_juxta_spikes = juxta_spikes[:, :, juxta_spike_times_selection]
             tmp_juxta_spikes_ = juxta_spikes_[:, juxta_spike_times_selection]
