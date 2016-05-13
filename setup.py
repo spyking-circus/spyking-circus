@@ -5,13 +5,17 @@ import sys, subprocess
 
 requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
 
-try:
-  subprocess.check_call(['nvcc', '--version'])
-  requires += ['cudamat==0.3circus']
-  HAVE_CUDA = True
-except (OSError, subprocess.CalledProcessError):
-  print("CUDA not found")
+if '--nocuda' in sys.argv:
+  sys.argv.remove('--nocuda')
   HAVE_CUDA = False
+else:
+  try:
+    subprocess.check_call(['nvcc', '--version'])
+    requires += ['cudamat==0.3circus']
+    HAVE_CUDA = True
+  except (OSError, subprocess.CalledProcessError):
+    print("CUDA not found")
+    HAVE_CUDA = False
 
 from setuptools import setup
 from setuptools.command.install import install
