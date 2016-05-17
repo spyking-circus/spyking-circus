@@ -44,10 +44,13 @@ setup(name='spyking-circus',
           'console_scripts': [
               'spyking-circus=circus.scripts.launch:main',
               'spyking-circus-subtask=circus.scripts.subtask:main',
-              'circus-gui-matlab=circus.scripts.matlab_gui:main',
-              'circus-gui-python=circus.scripts.python_gui:main',
               'circus-multi=circus.scripts.circus_multi:main'
           ],
+          'gui_scripts': [
+              'spyking-circus-launcher=circus.scripts.launch_gui:main',
+              'circus-gui-matlab=circus.scripts.matlab_gui:main',
+              'circus-gui-python=circus.scripts.python_gui:main'
+          ]
       },
       package_data={'circus': ['config.params',
                                # Only include the actual GUI, not other test scripts

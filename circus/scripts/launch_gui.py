@@ -208,7 +208,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.repaint()
 
         # Start process
-        app.setOverrideCursor(Qt.WaitCursor)
+        self.app.setOverrideCursor(Qt.WaitCursor)
 
         try:
             self.ui.edit_stdout.setPlainText('')
@@ -239,7 +239,7 @@ class LaunchGUI(QtGui.QDialog):
             # Done
             for obj, state in previous_state.iteritems():
                 obj.setEnabled(state)
-            app.restoreOverrideCursor()
+            self.app.restoreOverrideCursor()
             self.process = None
 
     def stop(self):
@@ -250,7 +250,12 @@ class LaunchGUI(QtGui.QDialog):
             new_text += '<pre style="color: red">Interrupted by the user</pre>'
             self.ui.edit_stdout.setHtml(new_text)
 
-if __name__ == '__main__':
+
+def main():
     app = QtGui.QApplication([])
     gui = LaunchGUI(app)
     sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()
