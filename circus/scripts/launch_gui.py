@@ -178,6 +178,9 @@ class LaunchGUI(QtGui.QDialog):
                 args.append('--result')
             args.extend(['--cpu', str(self.ui.spin_cpus.value())])
             args.extend(['--gpu', str(self.ui.spin_gpus.value())])
+            hostfile = str(self.ui.edit_hostfile.text()).strip()
+            if hostfile:
+                args.extend(['--hostfile', hostfile])
             if 'merging' in tasks or 'converting' in tasks:
                 extension = str(self.ui.edit_extension.text()).strip()
                 if extension:
@@ -185,7 +188,6 @@ class LaunchGUI(QtGui.QDialog):
             if 'benchmarking' in tasks:
                 args.extend(['--output', str(self.ui.edit_output.text())])
                 args.extend(['--type', str(self.ui.cmb_type.currentText())])
-
         return args
 
     def update_command(self, text=None):
