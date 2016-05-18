@@ -45,6 +45,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
+        self.ui.btn_about.clicked.connect(self.show_about)
         self.ui.btn_output.clicked.connect(self.update_output_file)
         self.ui.btn_hostfile.clicked.connect(self.update_host_file)
         self.ui.cb_batch.toggled.connect(self.update_batch_mode)
@@ -301,6 +302,19 @@ class LaunchGUI(QtGui.QDialog):
                     pkg_resources.resource_filename('circus', 'config.params'))
             shutil.copyfile(config_file, fname)
             QDesktopServices.openUrl(QUrl(fname))
+
+    def show_about(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Question)
+        msg.setText("SpyKING CIRCUS v0.4 "
+                    "written by P. Yger and O. Marre")
+        msg.setWindowTitle("About")
+        msg.setInformativeText("SpyKING CIRCUS documentation can be found at"
+                                " http://spyking-circus.rtfd.org"
+                                ""
+            )
+        msg.exec_()
+
 
 def main():
     app = QtGui.QApplication([])

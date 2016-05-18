@@ -42,8 +42,7 @@
          </property>
          <property name="icon">
           <iconset theme="system-file-manager">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -58,7 +57,16 @@
         <enum>QFrame::Raised</enum>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
-        <property name="margin">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
          <number>0</number>
         </property>
         <item>
@@ -73,6 +81,15 @@
               <layout class="QVBoxLayout" name="verticalLayout_3">
                <item>
                 <widget class="QCheckBox" name="cb_filtering">
+                 <property name="font">
+                  <font>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="autoFillBackground">
+                  <bool>false</bool>
+                 </property>
                  <property name="text">
                   <string>Filtering</string>
                  </property>
@@ -83,6 +100,12 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_whitening">
+                 <property name="font">
+                  <font>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
                  <property name="text">
                   <string>Whitening</string>
                  </property>
@@ -93,6 +116,12 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_clustering">
+                 <property name="font">
+                  <font>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
                  <property name="text">
                   <string>Clustering</string>
                  </property>
@@ -103,6 +132,12 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_fitting">
+                 <property name="font">
+                  <font>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
                  <property name="text">
                   <string>Fitting</string>
                  </property>
@@ -271,8 +306,7 @@
                  </property>
                  <property name="icon">
                   <iconset theme="system-file-manager">
-                   <normaloff/>
-                  </iconset>
+                   <normaloff>.</normaloff>.</iconset>
                  </property>
                 </widget>
                </item>
@@ -342,8 +376,7 @@
                     </property>
                     <property name="icon">
                      <iconset theme="system-file-manager">
-                      <normaloff/>
-                     </iconset>
+                      <normaloff>.</normaloff>.</iconset>
                     </property>
                    </widget>
                   </item>
@@ -442,8 +475,7 @@
           </property>
           <property name="icon">
            <iconset theme="system-run">
-            <normaloff/>
-           </iconset>
+            <normaloff>.</normaloff>.</iconset>
           </property>
          </widget>
         </item>
@@ -460,8 +492,7 @@
           </property>
           <property name="icon">
            <iconset theme="process-stop">
-            <normaloff/>
-           </iconset>
+            <normaloff>.</normaloff>.</iconset>
           </property>
          </widget>
         </item>
@@ -479,6 +510,16 @@
          </spacer>
         </item>
         <item>
+         <widget class="QPushButton" name="btn_about">
+          <property name="text">
+           <string>About</string>
+          </property>
+          <property name="icon">
+           <iconset theme="help"/>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="btn_close">
           <property name="toolTip">
            <string>Close the window</string>
@@ -488,8 +529,7 @@
           </property>
           <property name="icon">
            <iconset theme="window-close">
-            <normaloff/>
-           </iconset>
+            <normaloff>.</normaloff>.</iconset>
           </property>
          </widget>
         </item>
