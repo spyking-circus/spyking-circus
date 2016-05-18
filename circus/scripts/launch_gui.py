@@ -61,6 +61,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_file.textChanged.connect(self.update_command)
         self.ui.edit_output.textChanged.connect(self.update_command)
         self.ui.edit_hostfile.textChanged.connect(self.update_command)
+        self.ui.edit_extension.textChanged.connect(self.update_command)
         self.ui.spin_cpus.valueChanged.connect(self.update_command)
         self.ui.spin_gpus.valueChanged.connect(self.update_command)
         self.store_tasks()
