@@ -29,7 +29,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="edit_file"/>
+        <widget class="QLineEdit" name="edit_file">
+         <property name="toolTip">
+          <string>The data file (or file with list of commands in batch mode)</string>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QPushButton" name="btn_file">
@@ -37,7 +41,9 @@
           <string>Browse...</string>
          </property>
          <property name="icon">
-          <iconset theme="system-file-manager"/>
+          <iconset theme="system-file-manager">
+           <normaloff/>
+          </iconset>
          </property>
         </widget>
        </item>
@@ -169,6 +175,9 @@
               <layout class="QHBoxLayout" name="horizontalLayout_10">
                <item>
                 <widget class="QCheckBox" name="cb_batch">
+                 <property name="toolTip">
+                  <string>Run a set of commands from a file</string>
+                 </property>
                  <property name="text">
                   <string>Batch mode</string>
                  </property>
@@ -179,6 +188,9 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_preview">
+                 <property name="toolTip">
+                  <string>Open a GUI showing the first second filtered with thresholds</string>
+                 </property>
                  <property name="text">
                   <string>Preview mode</string>
                  </property>
@@ -210,6 +222,9 @@
                </item>
                <item>
                 <widget class="QSpinBox" name="spin_cpus">
+                 <property name="toolTip">
+                  <string>Number of CPUs to use</string>
+                 </property>
                  <property name="minimum">
                   <number>1</number>
                  </property>
@@ -226,7 +241,11 @@
                 </widget>
                </item>
                <item>
-                <widget class="QSpinBox" name="spin_gpus"/>
+                <widget class="QSpinBox" name="spin_gpus">
+                 <property name="toolTip">
+                  <string>Number of GPUs to use</string>
+                 </property>
+                </widget>
                </item>
               </layout>
              </item>
@@ -243,7 +262,11 @@
                 </widget>
                </item>
                <item>
-                <widget class="QLineEdit" name="edit_hostfile"/>
+                <widget class="QLineEdit" name="edit_hostfile">
+                 <property name="toolTip">
+                  <string>The hostfile for MPI</string>
+                 </property>
+                </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="btn_hostfile">
@@ -310,7 +333,11 @@
                    </widget>
                   </item>
                   <item>
-                   <widget class="QLineEdit" name="edit_output"/>
+                   <widget class="QLineEdit" name="edit_output">
+                    <property name="toolTip">
+                     <string>Output file for generation of synthetic benchmarks</string>
+                    </property>
+                   </widget>
                   </item>
                   <item>
                    <widget class="QPushButton" name="btn_output">
@@ -318,7 +345,9 @@
                      <string>Browse...</string>
                     </property>
                     <property name="icon">
-                     <iconset theme="system-file-manager"/>
+                     <iconset theme="system-file-manager">
+                      <normaloff/>
+                     </iconset>
                     </property>
                    </widget>
                   </item>
@@ -338,6 +367,9 @@
                   </item>
                   <item>
                    <widget class="QComboBox" name="cmb_type">
+                    <property name="toolTip">
+                     <string>type of benchmark</string>
+                    </property>
                     <item>
                      <property name="text">
                       <string>fitting</string>
@@ -406,11 +438,16 @@
         </property>
         <item>
          <widget class="QPushButton" name="btn_run">
+          <property name="toolTip">
+           <string>Run spyking circus with the given options</string>
+          </property>
           <property name="text">
            <string>Run</string>
           </property>
           <property name="icon">
-           <iconset theme="system-run"/>
+           <iconset theme="system-run">
+            <normaloff/>
+           </iconset>
           </property>
          </widget>
         </item>
@@ -419,11 +456,16 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="toolTip">
+           <string>Interrupt a running spyking-circus process</string>
+          </property>
           <property name="text">
            <string>Stop</string>
           </property>
           <property name="icon">
-           <iconset theme="process-stop"/>
+           <iconset theme="process-stop">
+            <normaloff/>
+           </iconset>
           </property>
          </widget>
         </item>
@@ -442,11 +484,16 @@
         </item>
         <item>
          <widget class="QPushButton" name="btn_close">
+          <property name="toolTip">
+           <string>Close the window</string>
+          </property>
           <property name="text">
            <string>Close</string>
           </property>
           <property name="icon">
-           <iconset theme="window-close"/>
+           <iconset theme="window-close">
+            <normaloff/>
+           </iconset>
           </property>
          </widget>
         </item>
