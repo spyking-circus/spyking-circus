@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import subprocess
 from threading  import Thread
@@ -8,12 +9,16 @@ import pkg_resources
 
 try:
     from PySide import QtGui, QtCore, uic
-    from PySide.QtCore import Qt
-    from PySide.QtGui import QApplication, QCursor, QFileDialog, QCheckBox, QWidget, QTextCursor
+    from PySide.QtCore import Qt, QUrl
+    from PySide.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
+                              QWidget, QTextCursor, QMessageBox,
+                              QDesktopServices)
 except ImportError:
     from PyQt4 import QtGui, QtCore, uic
-    from PyQt4.QtCore import Qt
-    from PyQt4.QtGui import QApplication, QCursor, QFileDialog, QCheckBox, QWidget, QTextCursor
+    from PyQt4.QtCore import Qt, QUrl
+    from PyQt4.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
+                             QWidget, QTextCursor, QMessageBox,
+                             QDesktopServices)
 
 ON_POSIX = 'posix' in sys.builtin_module_names
 
@@ -207,6 +212,13 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_command.setPlainText(args)
 
     def run(self):
+        if not self.ui.cb_batch.isChecked():
+            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
+            f_params = f_next + '.params'
+            if not os.path.exists(f_params):
+                self.create_params_file(f_params)
+                return
+
         args = self.command_line_args()
         # Disable everything except for the stop button and the output area
         all_children = self.ui.findChildren(QWidget)
@@ -263,6 +275,28 @@ class LaunchGUI(QtGui.QDialog):
             new_text += '<pre style="color: red">Interrupted by the user</pre>'
             self.ui.edit_stdout.setHtml(new_text)
 
+    def create_params_file(self, fname):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Question)
+        msg.setText("Parameter file %r not found, do you want SpyKING CIRCUS to "
+                    "create it for you?" % fname)
+        msg.setWindowTitle("Generate parameter file?")
+        msg.setInformativeText("This will create a parameter file from a "
+                               "template file and open it in your system's "
+                               "standard text editor. Fill properly before "
+                               "launching the code. See the documentation "
+                               "for details")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        answer = msg.exec_()
+        if answer == QMessageBox.Yes:
+            user_path = os.path.join(os.path.expanduser('~'), 'spyking-circus')
+            if os.path.exists(user_path + 'config.params'):
+                config_file = os.path.abspath(user_path + 'config.params')
+            else:
+                config_file = os.path.abspath(
+                    pkg_resources.resource_filename('circus', 'config.params'))
+            shutil.copyfile(config_file, fname)
+            QDesktopServices.openUrl(QUrl(fname))
 
 def main():
     app = QtGui.QApplication([])
