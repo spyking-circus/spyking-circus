@@ -3,7 +3,8 @@ import os
 from os.path import join as pjoin
 import sys, subprocess
 
-requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
+            'psutil']
 
 if '--nocuda' in sys.argv:
   sys.argv.remove('--nocuda')

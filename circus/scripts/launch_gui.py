@@ -1,4 +1,5 @@
 import os
+import psutil
 import shutil
 import sys
 import subprocess
@@ -236,7 +237,7 @@ class LaunchGUI(QtGui.QDialog):
         self.app.setOverrideCursor(Qt.WaitCursor)
 
         try:
-            self.ui.edit_stdout.setPlainText('')
+            self.ui.edit_stdout.setHtml('<pre style="font-weight: bold;">' + ' '.join(args) + '</pre>')
             self.process = subprocess.Popen(args, stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
                                             bufsize=1, close_fds=ON_POSIX)
@@ -250,12 +251,10 @@ class LaunchGUI(QtGui.QDialog):
 
             while t_stdout.isAlive() or t_stderr.isAlive():
                 try:
-                    line = q_stdout.get(timeout=0.05)
+                    line = q_stdout.get_nowait()
+                    self.ui.edit_stdout.append(line.rstrip())
                 except Empty:
                     pass
-                else:
-                    self.ui.edit_stdout.append(line.rstrip())
-
                 self.app.processEvents()
         except Exception:
             import traceback
@@ -270,7 +269,11 @@ class LaunchGUI(QtGui.QDialog):
     def stop(self):
         print 'stopping'
         if self.process is not None:
-            self.process.kill()
+            # Terminate child processes as well
+            process = psutil.Process(self.process.pid)
+            for proc in process.children(recursive=True):
+                proc.terminate()
+            self.process.terminate()
             new_text = self.ui.edit_stdout.toHtml()
             new_text += '<pre style="color: red">Interrupted by the user</pre>'
             self.ui.edit_stdout.setHtml(new_text)
