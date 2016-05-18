@@ -146,20 +146,6 @@
                  </property>
                 </widget>
                </item>
-               <item>
-                <widget class="Line" name="line">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QCheckBox" name="cb_results">
-                 <property name="text">
-                  <string>Results</string>
-                 </property>
-                </widget>
-               </item>
               </layout>
              </item>
             </layout>
@@ -196,6 +182,16 @@
                  </property>
                  <property name="autoExclusive">
                   <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="cb_results">
+                 <property name="toolTip">
+                  <string>Open a GUI to show the results on top of the raw data</string>
+                 </property>
+                 <property name="text">
+                  <string>Results mode</string>
                  </property>
                 </widget>
                </item>

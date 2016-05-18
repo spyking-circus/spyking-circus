@@ -43,7 +43,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.btn_hostfile.clicked.connect(self.update_host_file)
         self.ui.cb_batch.toggled.connect(self.update_batch_mode)
         self.ui.cb_preview.toggled.connect(self.update_preview_mode)
-        self.last_mode = None
+        self.ui.cb_results.toggled.connect(self.update_results_mode)
         self.ui.cb_benchmarking.toggled.connect(self.update_benchmarking)
         self.ui.cb_merging.toggled.connect(self.update_extension)
         self.ui.cb_converting.toggled.connect(self.update_extension)
@@ -51,6 +51,7 @@ class LaunchGUI(QtGui.QDialog):
         self.update_extension()
         for cb in self.task_comboboxes:
             cb.toggled.connect(self.store_tasks)
+            cb.toggled.connect(self.update_command)
         self.ui.edit_file.textChanged.connect(self.update_command)
         self.ui.edit_output.textChanged.connect(self.update_command)
         self.ui.edit_hostfile.textChanged.connect(self.update_command)
@@ -95,6 +96,16 @@ class LaunchGUI(QtGui.QDialog):
             self.ui.cb_batch.setChecked(False)
         self.update_command()
 
+    def update_results_mode(self):
+        results_mode = self.ui.cb_results.isChecked()
+        self.ui.spin_cpus.setEnabled(not results_mode)
+        self.ui.spin_gpus.setEnabled(not results_mode)
+        self.ui.edit_hostfile.setEnabled(not results_mode)
+        self.ui.btn_hostfile.setEnabled(not results_mode)
+        self.update_tasks()
+        self.update_extension()
+        self.update_benchmarking()
+        self.update_command()
 
     def update_extension(self):
         batch_mode = self.ui.cb_batch.isChecked()
@@ -115,7 +126,8 @@ class LaunchGUI(QtGui.QDialog):
     def update_tasks(self):
         batch_mode = self.ui.cb_batch.isChecked()
         preview_mode = self.ui.cb_preview.isChecked()
-        if batch_mode:
+        results_mode = self.ui.cb_results.isChecked()
+        if batch_mode or results_mode:
             self.restore_tasks()
             for cb in self.task_comboboxes:
                 cb.setEnabled(False)
@@ -156,26 +168,26 @@ class LaunchGUI(QtGui.QDialog):
     def command_line_args(self):
         batch_mode = self.ui.cb_batch.isChecked()
         preview_mode = self.ui.cb_preview.isChecked()
+        results_mode = self.ui.cb_results.isChecked()
 
-        args = ['spyking-circus', str(self.ui.edit_file.text())]
+        args = ['spyking-circus']
+        fname = str(self.ui.edit_file.text()).strip()
+        if fname:
+            args.append(fname)
 
         if batch_mode:
             args.append('--batch')
         elif preview_mode:
             args.append('--preview')
+        elif results_mode:
+            args.append('--result')
         else:
             tasks = []
-            results = False
             for cb in self.task_comboboxes:
                 if cb.isChecked():
                     label = str(cb.text()).lower()
-                    if label == 'results':
-                        results = True
-                    else:
-                        tasks.append(label)
+                    tasks.append(label)
             args.extend(['--method', ','.join(tasks)])
-            if results:
-                args.append('--result')
             args.extend(['--cpu', str(self.ui.spin_cpus.value())])
             args.extend(['--gpu', str(self.ui.spin_gpus.value())])
             hostfile = str(self.ui.edit_hostfile.text()).strip()
@@ -197,7 +209,6 @@ class LaunchGUI(QtGui.QDialog):
     def run(self):
         args = self.command_line_args()
         # Disable everything except for the stop button and the output area
-        previous_state = {}
         all_children = self.ui.findChildren(QWidget)
         previous_state = {obj: obj.isEnabled() for obj in all_children}
         for obj in all_children:
@@ -215,23 +226,23 @@ class LaunchGUI(QtGui.QDialog):
         try:
             self.ui.edit_stdout.setPlainText('')
             self.process = subprocess.Popen(args, stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE,
                                             bufsize=1, close_fds=ON_POSIX)
-            q = Queue()
-            t = Thread(target=enqueue_output, args=(self.process.stdout, q))
-            t.start()
+            q_stdout = Queue()
+            t_stdout = Thread(target=enqueue_output,
+                              args=(self.process.stdout, q_stdout))
+            t_stderr = Thread(target=enqueue_output,
+                              args=(self.process.stderr, q_stdout))
+            t_stdout.start()
+            t_stderr.start()
 
-            while t.isAlive():
+            while t_stdout.isAlive() or t_stderr.isAlive():
                 try:
-                    line = q.get(timeout=0.1)
+                    line = q_stdout.get(timeout=0.05)
                 except Empty:
                     pass
                 else:
                     self.ui.edit_stdout.append(line.rstrip())
-                    # new_text = self.ui.edit_stdout.toPlainText() + line
-                    # self.ui.edit_stdout.setPlainText(new_text)
-                    # text_cursor = self.ui.edit_stdout.textCursor()
-                    # text_cursor.movePosition(QTextCursor.End)
-                    # self.ui.edit_stdout.setTextCursor(text_cursor)
 
                 self.app.processEvents()
         except Exception:
