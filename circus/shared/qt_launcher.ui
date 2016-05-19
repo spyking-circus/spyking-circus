@@ -87,6 +87,9 @@
                    <bold>false</bold>
                   </font>
                  </property>
+                 <property name="toolTip">
+                  <string>Performs the filtering on site of the data</string>
+                 </property>
                  <property name="autoFillBackground">
                   <bool>false</bool>
                  </property>
@@ -106,6 +109,9 @@
                    <bold>false</bold>
                   </font>
                  </property>
+                 <property name="toolTip">
+                  <string>Performs the spatia whitening of the data, and extract PCA basis</string>
+                 </property>
                  <property name="text">
                   <string>Whitening</string>
                  </property>
@@ -121,6 +127,9 @@
                    <weight>50</weight>
                    <bold>false</bold>
                   </font>
+                 </property>
+                 <property name="toolTip">
+                  <string>Performs the clustering to identify templates</string>
                  </property>
                  <property name="text">
                   <string>Clustering</string>
@@ -138,6 +147,9 @@
                    <bold>false</bold>
                   </font>
                  </property>
+                 <property name="toolTip">
+                  <string>Performs the template-matching phase</string>
+                 </property>
                  <property name="text">
                   <string>Fitting</string>
                  </property>
@@ -148,6 +160,9 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_merging">
+                 <property name="toolTip">
+                  <string>Launch the Meta-Merging GUI</string>
+                 </property>
                  <property name="text">
                   <string>Merging</string>
                  </property>
@@ -155,6 +170,9 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_converting">
+                 <property name="toolTip">
+                  <string>Convert results for the phy GUI</string>
+                 </property>
                  <property name="text">
                   <string>Converting</string>
                  </property>
@@ -162,6 +180,9 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_gathering">
+                 <property name="toolTip">
+                  <string>Gather data while fitting is still in progress</string>
+                 </property>
                  <property name="text">
                   <string>Gathering</string>
                  </property>
@@ -169,6 +190,9 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_extracting">
+                 <property name="toolTip">
+                  <string>Extract templates from user-defined spike times</string>
+                 </property>
                  <property name="text">
                   <string>Extracting</string>
                  </property>
@@ -176,6 +200,9 @@
                </item>
                <item>
                 <widget class="QCheckBox" name="cb_benchmarking">
+                 <property name="toolTip">
+                  <string>Generation of synthetic datasets to test the algorithm</string>
+                 </property>
                  <property name="text">
                   <string>Benchmarking</string>
                  </property>
@@ -515,7 +542,8 @@
            <string>About</string>
           </property>
           <property name="icon">
-           <iconset theme="help"/>
+           <iconset theme="help">
+            <normaloff>.</normaloff>.</iconset>
           </property>
          </widget>
         </item>
