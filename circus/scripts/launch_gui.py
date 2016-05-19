@@ -2,31 +2,23 @@ import os
 import psutil
 import shutil
 import sys
-import subprocess
-from threading  import Thread
-from Queue import Queue, Empty
 
 import pkg_resources
 
 try:
     from PySide import QtGui, QtCore, uic
-    from PySide.QtCore import Qt, QUrl
+    from PySide.QtCore import Qt, QUrl, QProcess, SIGNAL
     from PySide.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
+                              QPushButton, QLineEdit,
                               QWidget, QTextCursor, QMessageBox,
                               QDesktopServices)
 except ImportError:
     from PyQt4 import QtGui, QtCore, uic
-    from PyQt4.QtCore import Qt, QUrl
+    from PyQt4.QtCore import Qt, QUrl, QProcess, SIGNAL
     from PyQt4.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
+                             QPushButton, QLineEdit,
                              QWidget, QTextCursor, QMessageBox,
                              QDesktopServices)
-
-ON_POSIX = 'posix' in sys.builtin_module_names
-
-def enqueue_output(out, queue):
-    for line in iter(out.readline, b''):
-        queue.put(line)
-    out.close()
 
 
 class LaunchGUI(QtGui.QDialog):
@@ -223,62 +215,84 @@ class LaunchGUI(QtGui.QDialog):
                 return
 
         args = self.command_line_args()
+
+        # # Start process
+
+        self.ui.edit_stdout.setHtml('<pre style="font-weight: bold;">' + ' '.join(args) + '</pre>')
+        self.process = QProcess(self)
+        self.connect(self.process, SIGNAL('readyReadStandardOutput()'), self.append_output)
+        self.connect(self.process, SIGNAL('readyReadStandardError()'),
+                     self.append_error)
+        self.connect(self.process, SIGNAL('started()'),
+                     self.process_started)
+        self.connect(self.process, SIGNAL('finished(int)'),
+                     self.process_finished)
+        self.connect(self.process, SIGNAL('error()'),
+                     self.process_errored)
+        self._interrupted = False
+        self.process.start(args[0], args[1:])
+
+    def restore_gui(self):
+        for widget, previous_state in self._previous_state:
+            widget.setEnabled(previous_state)
+        self.app.restoreOverrideCursor()
+
+    def process_started(self):
         # Disable everything except for the stop button and the output area
-        all_children = self.ui.findChildren(QWidget)
-        previous_state = {obj: obj.isEnabled() for obj in all_children}
+        all_children = [obj for obj in self.ui.findChildren(QWidget)
+                        if isinstance(obj, (QCheckBox, QPushButton, QLineEdit))]
+        self._previous_state = [(obj, obj.isEnabled()) for obj in all_children]
         for obj in all_children:
             obj.setEnabled(False)
-            obj.repaint()
-        for widget in [self.ui.btn_stop, self.ui.edit_stdout]:
-            widget.setEnabled(True)
-            widget.parent().setEnabled(True)
-            widget.parent().repaint()
-        self.ui.repaint()
-
-        # Start process
+        self.ui.btn_stop.setEnabled(True)
         self.app.setOverrideCursor(Qt.WaitCursor)
 
-        try:
-            self.ui.edit_stdout.setHtml('<pre style="font-weight: bold;">' + ' '.join(args) + '</pre>')
-            self.process = subprocess.Popen(args, stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE,
-                                            bufsize=1, close_fds=ON_POSIX)
-            q_stdout = Queue()
-            t_stdout = Thread(target=enqueue_output,
-                              args=(self.process.stdout, q_stdout))
-            t_stderr = Thread(target=enqueue_output,
-                              args=(self.process.stderr, q_stdout))
-            t_stdout.start()
-            t_stderr.start()
+    def process_finished(self, exit_code):
+        if exit_code == 0:
+            if self._interrupted:
+                msg = ('<pre style="color: red;font-weight: bold;">'
+                       'Process interrupted by user</pre>')
+            else:
+                msg = ('<pre style="color: green;font-weight: bold;">'
+                       'Process exited normally</pre>')
+        else:
+            msg = ('<pre style="color: red;font-weight: bold;">'
+                   'Process exited with exit code %d</pre>' % exit_code)
+        self.ui.edit_stdout.append(msg)
+        self.restore_gui()
+        self.process = None
 
-            while t_stdout.isAlive() or t_stderr.isAlive():
-                try:
-                    line = q_stdout.get_nowait()
-                    self.ui.edit_stdout.append(line.rstrip())
-                except Empty:
-                    pass
-                self.app.processEvents()
-        except Exception:
-            import traceback
-            self.ui.edit_stdout.append('<pre style="color: red">'+traceback.format_exc()+'</pre>')
-        finally:
-            # Done
-            for obj, state in previous_state.iteritems():
-                obj.setEnabled(state)
-            self.app.restoreOverrideCursor()
-            self.process = None
+    def process_errored(self):
+        print 'errored'
+        exit_code = self.process.exitCode()
+        self.ui.edit_stdout.append('<pre style="color: red;font-weight: bold;">'
+                                   'Process exited with exit code %d</pre>' % exit_code)
+        self.restore_gui()
+        self.process = None
+
+    def append_output(self):
+        if self.process is None:  # Can happen when manually interrupting
+            return
+        lines = str(self.process.readAllStandardOutput())
+        self.ui.edit_stdout.append('<pre>\n' + lines + '\n</pre>')
+
+    def append_error(self):
+        if self.process is None:  # Can happen when manually interrupting
+            return
+        lines = str(self.process.readAllStandardError())
+        self.ui.edit_stdout.append('<pre style="color: red;">\n' + lines + '\n</pre>')
 
     def stop(self):
-        print 'stopping'
         if self.process is not None:
+            self._interrupted = True
             # Terminate child processes as well
-            process = psutil.Process(self.process.pid)
-            for proc in process.children(recursive=True):
-                proc.terminate()
+            pid = self.process.pid()
+            if isinstance(pid, int) and pid != 0:
+                process = psutil.Process(pid)
+                for proc in process.children(recursive=True):
+                    proc.terminate()
             self.process.terminate()
-            new_text = self.ui.edit_stdout.toHtml()
-            new_text += '<pre style="color: red">Interrupted by the user</pre>'
-            self.ui.edit_stdout.setHtml(new_text)
+            self.process = None
 
     def create_params_file(self, fname):
         msg = QMessageBox()
