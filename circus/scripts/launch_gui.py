@@ -100,7 +100,16 @@ class LaunchGUI(QtGui.QDialog):
         self.update_extension()
         self.update_benchmarking()
         if batch_mode:
+            self.ui.spin_cpus.setEnabled(not batch_mode)
+            self.ui.spin_gpus.setEnabled(not batch_mode)
+            self.ui.edit_hostfile.setEnabled(not batch_mode)
+            self.ui.btn_hostfile.setEnabled(not batch_mode)
+            self.update_tasks()
+            self.update_extension()
+            self.update_benchmarking()
+            self.update_command()
             self.ui.cb_preview.setChecked(False)
+            self.ui.cb_results.setChecked(False)
             self.ui.lbl_file.setText('Command file')
         else:
             self.last_mode = None
@@ -114,6 +123,8 @@ class LaunchGUI(QtGui.QDialog):
 
         if preview_mode:
             self.ui.cb_batch.setChecked(False)
+            self.ui.cb_results.setChecked(False)
+
         self.update_command()
 
     def update_results_mode(self):
@@ -126,6 +137,9 @@ class LaunchGUI(QtGui.QDialog):
         self.update_extension()
         self.update_benchmarking()
         self.update_command()
+        if results_mode:
+            self.ui.cb_batch.setChecked(False)
+            self.ui.cb_preview.setChecked(False)
 
     def update_extension(self):
         batch_mode = self.ui.cb_batch.isChecked()
