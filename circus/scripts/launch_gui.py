@@ -1,7 +1,9 @@
+import datetime
 import os
 import psutil
 import shutil
 import sys
+import textwrap
 
 import pkg_resources
 
@@ -11,14 +13,14 @@ try:
     from PySide.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
                               QPushButton, QLineEdit,
                               QWidget, QTextCursor, QMessageBox,
-                              QDesktopServices)
+                              QDesktopServices, QFont)
 except ImportError:
     from PyQt4 import QtGui, QtCore, uic
     from PyQt4.QtCore import Qt, QUrl, QProcess, SIGNAL
     from PyQt4.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
                              QPushButton, QLineEdit,
                              QWidget, QTextCursor, QMessageBox,
-                             QDesktopServices)
+                             QDesktopServices, QFont)
 
 
 def overwrite_text(cursor, text):
@@ -234,7 +236,21 @@ class LaunchGUI(QtGui.QDialog):
 
         # # Start process
         self.ui.edit_stdout.clear()
-        self.ui.edit_stdout.appendPlainText(' '.join(args) + '\n')
+        format = self.ui.edit_stdout.currentCharFormat()
+        format.setFontWeight(QFont.Normal)
+        format.setForeground(QtCore.Qt.blue)
+        self.ui.edit_stdout.setCurrentCharFormat(format)
+        time_str = datetime.datetime.now().ctime()
+        start_msg = '''\
+                       Starting spyking circus at {time_str}.
+
+                       Command line call:
+                       {call}
+                    '''.format(time_str=time_str, call=' '.join(args))
+        self.ui.edit_stdout.appendPlainText(textwrap.dedent(start_msg))
+        format.setForeground(QtCore.Qt.black)
+        self.ui.edit_stdout.setCurrentCharFormat(format)
+        self.ui.edit_stdout.appendPlainText('\n')
 
         self.process = QProcess(self)
         self.connect(self.process, SIGNAL('readyReadStandardOutput()'), self.append_output)
@@ -265,19 +281,30 @@ class LaunchGUI(QtGui.QDialog):
         self.app.setOverrideCursor(Qt.WaitCursor)
 
     def process_finished(self, exit_code):
+        format = self.ui.edit_stdout.currentCharFormat()
+        format.setFontWeight(QFont.Bold)
         if exit_code == 0:
             if self._interrupted:
+                color = QtCore.Qt.red
                 msg = ('Process interrupted by user')
             else:
+                color = QtCore.Qt.green
                 msg = ('Process exited normally')
         else:
+            color = QtCore.Qt.red
             msg = ('Process exited with exit code %d' % exit_code)
+        format.setForeground(color)
+        self.ui.edit_stdout.setCurrentCharFormat(format)
         self.ui.edit_stdout.appendPlainText(msg)
         self.restore_gui()
         self.process = None
 
     def process_errored(self):
         exit_code = self.process.exitCode()
+        format = self.ui.edit_stdout.currentCharFormat()
+        format.setFontWeight(QFont.Bold)
+        format.setForeground(QtCore.Qt.red)
+        self.ui.edit_stdout.setCurrentCharFormat(format)
         self.ui.edit_stdout.appendPlainText('Process exited with exit code' % exit_code)
         self.restore_gui()
         self.process = None
