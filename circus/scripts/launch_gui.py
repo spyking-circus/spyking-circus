@@ -59,6 +59,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.spin_gpus.valueChanged.connect(self.update_command)
         self.store_tasks()
         self.process = None
+        self.ui.closeEvent = self.closeEvent
         self.ui.show()
 
     def store_tasks(self):
@@ -282,8 +283,28 @@ class LaunchGUI(QtGui.QDialog):
         lines = str(self.process.readAllStandardError())
         self.ui.edit_stdout.append('<pre style="color: red;">\n' + lines + '\n</pre>')
 
-    def stop(self):
+    def stop(self, force=False):
         if self.process is not None:
+
+            if not force:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Warning)
+                msg.setWindowTitle('Confirm process termination')
+                msg.setText(
+                    'This will terminate the running process. Are you sure '
+                    'you want to do this?')
+                msg.setInformativeText(
+                    'Interrupting the process may leave partly '
+                    'created files that cannot be used for '
+                    'further analysis.')
+                msg.addButton('Stop process', QMessageBox.YesRole)
+                cancel_button = msg.addButton('Cancel', QMessageBox.NoRole)
+                msg.setDefaultButton(cancel_button)
+                msg.exec_()
+                if msg.clickedButton() == cancel_button:
+                    # Continue to run
+                    return
+
             self._interrupted = True
             # Terminate child processes as well
             pid = self.process.pid()
@@ -329,9 +350,30 @@ class LaunchGUI(QtGui.QDialog):
                                 "Open a browser to see the online help?"
             )
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.No)
         answer = msg.exec_()
         if answer == QMessageBox.Yes:
             QDesktopServices.openUrl(QUrl("http://spyking-circus.rtfd.org"))
+
+    def closeEvent(self, event):
+        if self.process is not None:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setWindowTitle('Confirm process interruption')
+            msg.setText('Closing the window will terminate the running process. '
+                        'Do you really want to exit?')
+            msg.setInformativeText('Interrupting the process may leave partly '
+                                   'created files that cannot be used for '
+                                   'further analysis.')
+            close_button = msg.addButton("Stop and close", QMessageBox.YesRole)
+            cancel_button = msg.addButton("Cancel", QMessageBox.NoRole)
+            msg.setDefaultButton(cancel_button)
+            msg.exec_()
+            if msg.clickedButton() == close_button:
+                self.stop(force=True)
+                super(LaunchGUI, self).closeEvent(event)
+            else:
+                event.ignore()
 
 
 def main():

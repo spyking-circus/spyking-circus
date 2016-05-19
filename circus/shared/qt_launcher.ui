@@ -42,7 +42,8 @@
          </property>
          <property name="icon">
           <iconset theme="system-file-manager">
-           <normaloff>.</normaloff>.</iconset>
+           <normaloff/>
+          </iconset>
          </property>
         </widget>
        </item>
@@ -57,16 +58,7 @@
         <enum>QFrame::Raised</enum>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>0</number>
         </property>
         <item>
@@ -333,7 +325,8 @@
                  </property>
                  <property name="icon">
                   <iconset theme="system-file-manager">
-                   <normaloff>.</normaloff>.</iconset>
+                   <normaloff/>
+                  </iconset>
                  </property>
                 </widget>
                </item>
@@ -403,7 +396,8 @@
                     </property>
                     <property name="icon">
                      <iconset theme="system-file-manager">
-                      <normaloff>.</normaloff>.</iconset>
+                      <normaloff/>
+                     </iconset>
                     </property>
                    </widget>
                   </item>
@@ -502,7 +496,8 @@
           </property>
           <property name="icon">
            <iconset theme="system-run">
-            <normaloff>.</normaloff>.</iconset>
+            <normaloff/>
+           </iconset>
           </property>
          </widget>
         </item>
@@ -519,7 +514,8 @@
           </property>
           <property name="icon">
            <iconset theme="process-stop">
-            <normaloff>.</normaloff>.</iconset>
+            <normaloff/>
+           </iconset>
           </property>
          </widget>
         </item>
@@ -543,7 +539,8 @@
           </property>
           <property name="icon">
            <iconset theme="help">
-            <normaloff>.</normaloff>.</iconset>
+            <normaloff/>
+           </iconset>
           </property>
          </widget>
         </item>
@@ -557,7 +554,8 @@
           </property>
           <property name="icon">
            <iconset theme="window-close">
-            <normaloff>.</normaloff>.</iconset>
+            <normaloff/>
+           </iconset>
           </property>
          </widget>
         </item>
@@ -589,12 +587,12 @@
    <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>489</x>
-     <y>396</y>
+     <x>747</x>
+     <y>437</y>
     </hint>
     <hint type="destinationlabel">
-     <x>316</x>
-     <y>354</y>
+     <x>399</x>
+     <y>299</y>
     </hint>
    </hints>
   </connection>
