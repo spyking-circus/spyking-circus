@@ -57,6 +57,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.btn_about.clicked.connect(self.show_about)
         self.ui.btn_output.clicked.connect(self.update_output_file)
         self.ui.btn_hostfile.clicked.connect(self.update_host_file)
+        self.ui.btn_log.clicked.connect(self.open_log_file)
         self.ui.cb_batch.toggled.connect(self.update_batch_mode)
         self.ui.cb_preview.toggled.connect(self.update_preview_mode)
         self.ui.cb_results.toggled.connect(self.update_results_mode)
@@ -77,6 +78,7 @@ class LaunchGUI(QtGui.QDialog):
         self.store_tasks()
         self.process = None
         self.ui.closeEvent = self.closeEvent
+        self.last_log_file = None
         self.ui.show()
 
     def store_tasks(self):
@@ -183,6 +185,10 @@ class LaunchGUI(QtGui.QDialog):
         if fname:
             self.ui.edit_output.setText(fname)
 
+    def open_log_file(self):
+        assert self.last_log_file is not None
+        QDesktopServices.openUrl(QUrl(self.last_log_file))
+
     def command_line_args(self):
         batch_mode = self.ui.cb_batch.isChecked()
         preview_mode = self.ui.cb_preview.isChecked()
@@ -225,13 +231,15 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_command.setPlainText(args)
 
     def run(self):
-        if not self.ui.cb_batch.isChecked():
+        if self.ui.cb_batch.isChecked():
+            self.last_log_file = None
+        else:
             f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
             f_params = f_next + '.params'
             if not os.path.exists(f_params):
                 self.create_params_file(f_params)
                 return
-
+            self.last_log_file = f_next + '.log'
         args = self.command_line_args()
 
         # # Start process
@@ -303,6 +311,8 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_stdout.setTextInteractionFlags(Qt.TextSelectableByMouse |
                                                     Qt.TextSelectableByKeyboard)
         self.process = None
+        self.ui.btn_log.setEnabled(self.last_log_file is not None and
+                                   os.path.isfile(self.last_log_file))
 
     def process_errored(self):
         exit_code = self.process.exitCode()
