@@ -21,6 +21,21 @@ except ImportError:
                              QDesktopServices)
 
 
+def overwrite_text(cursor, text):
+    text_length = len(text)
+    cursor.clearSelection()
+    # Select the text after the current position (if any)
+    current_position = cursor.position()
+    cursor.movePosition(QTextCursor.Right,
+                        mode=QTextCursor.MoveAnchor,
+                        n=text_length)
+    cursor.movePosition(QTextCursor.Left,
+                        mode=QTextCursor.KeepAnchor,
+                        n=cursor.position()-current_position)
+    # Insert the text (will overwrite the selected text)
+    cursor.insertText(text)
+
+
 class LaunchGUI(QtGui.QDialog):
     def __init__(self, app):
         super(LaunchGUI, self).__init__()
@@ -218,8 +233,9 @@ class LaunchGUI(QtGui.QDialog):
         args = self.command_line_args()
 
         # # Start process
+        self.ui.edit_stdout.clear()
+        self.ui.edit_stdout.appendPlainText(' '.join(args) + '\n')
 
-        self.ui.edit_stdout.setHtml('<pre style="font-weight: bold;">' + ' '.join(args) + '</pre>')
         self.process = QProcess(self)
         self.connect(self.process, SIGNAL('readyReadStandardOutput()'), self.append_output)
         self.connect(self.process, SIGNAL('readyReadStandardError()'),
@@ -251,37 +267,58 @@ class LaunchGUI(QtGui.QDialog):
     def process_finished(self, exit_code):
         if exit_code == 0:
             if self._interrupted:
-                msg = ('<pre style="color: red;font-weight: bold;">'
-                       'Process interrupted by user</pre>')
+                msg = ('Process interrupted by user')
             else:
-                msg = ('<pre style="color: green;font-weight: bold;">'
-                       'Process exited normally</pre>')
+                msg = ('Process exited normally')
         else:
-            msg = ('<pre style="color: red;font-weight: bold;">'
-                   'Process exited with exit code %d</pre>' % exit_code)
-        self.ui.edit_stdout.append(msg)
+            msg = ('Process exited with exit code %d' % exit_code)
+        self.ui.edit_stdout.appendPlainText(msg)
         self.restore_gui()
         self.process = None
 
     def process_errored(self):
-        print 'errored'
         exit_code = self.process.exitCode()
-        self.ui.edit_stdout.append('<pre style="color: red;font-weight: bold;">'
-                                   'Process exited with exit code %d</pre>' % exit_code)
+        self.ui.edit_stdout.appendPlainText('Process exited with exit code' % exit_code)
         self.restore_gui()
         self.process = None
+
+    def add_output_lines(self, lines):
+        '''
+        Add the output line by line to the text area, jumping back to the
+        beginning of the line when we encounter a carriage return (to
+        correctly display progress bars)
+        '''
+        cursor = self.ui.edit_stdout.textCursor()
+        cursor.clearSelection()
+        splitted_lines = lines.split('\n')
+        for idx, line in enumerate(splitted_lines):
+            if '\r' in line:
+                chunks = line.split('\r')
+                overwrite_text(cursor, chunks[0])  # No going back for the first chunk
+                for chunk in chunks[1:]:  # Go back to start of line for each \r
+                    cursor.movePosition(QTextCursor.StartOfLine)
+                    overwrite_text(cursor, chunk)
+            else:
+                overwrite_text(cursor, line)
+
+            # Take care to not introduce new newlines
+            if '\n' in lines and (idx == 0 or
+                                          idx != len(splitted_lines) - 1):
+                cursor.movePosition(QTextCursor.EndOfLine)
+                cursor.insertText('\n')
+        self.ui.edit_stdout.setTextCursor(cursor)
 
     def append_output(self):
         if self.process is None:  # Can happen when manually interrupting
             return
         lines = str(self.process.readAllStandardOutput())
-        self.ui.edit_stdout.append('<pre>\n' + lines + '\n</pre>')
+        self.add_output_lines(lines)
 
     def append_error(self):
         if self.process is None:  # Can happen when manually interrupting
             return
         lines = str(self.process.readAllStandardError())
-        self.ui.edit_stdout.append('<pre style="color: red;">\n' + lines + '\n</pre>')
+        self.add_output_lines(lines)
 
     def stop(self, force=False):
         if self.process is not None:

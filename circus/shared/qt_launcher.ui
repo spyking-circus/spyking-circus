@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>600</height>
+    <height>800</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -461,7 +461,7 @@
        <property name="maximumSize">
         <size>
          <width>16777215</width>
-         <height>40</height>
+         <height>60</height>
         </size>
        </property>
        <property name="font">
@@ -563,13 +563,19 @@
       </widget>
      </item>
      <item>
-      <widget class="QTextEdit" name="edit_stdout">
+      <widget class="QPlainTextEdit" name="edit_stdout">
        <property name="font">
         <font>
          <family>Monospace</family>
         </font>
        </property>
+       <property name="undoRedoEnabled">
+        <bool>false</bool>
+       </property>
        <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="overwriteMode">
         <bool>true</bool>
        </property>
       </widget>
