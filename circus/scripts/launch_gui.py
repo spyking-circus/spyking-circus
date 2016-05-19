@@ -309,11 +309,15 @@ class LaunchGUI(QtGui.QDialog):
         msg.setText("SpyKING CIRCUS v0.4 "
                     "written by P. Yger and O. Marre")
         msg.setWindowTitle("About")
-        msg.setInformativeText("SpyKING CIRCUS documentation can be found at"
-                                " http://spyking-circus.rtfd.org"
-                                ""
+        msg.setInformativeText("Documentation can be found at\n"
+                                "http://spyking-circus.rtfd.org\n"
+                                "\n"
+                                "Open a browser to see the online help?"
             )
-        msg.exec_()
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        answer = msg.exec_()
+        if answer == QMessageBox.Yes:
+            QDesktopServices.openUrl(QUrl("http://spyking-circus.rtfd.org"))
 
 
 def main():
