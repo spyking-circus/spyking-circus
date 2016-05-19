@@ -278,6 +278,9 @@ class LaunchGUI(QtGui.QDialog):
         for obj in all_children:
             obj.setEnabled(False)
         self.ui.btn_stop.setEnabled(True)
+        # If we let the user interact, this messes with the cursor we use to
+        # support the progress bar display
+        self.ui.edit_stdout.setTextInteractionFlags(Qt.NoTextInteraction)
         self.app.setOverrideCursor(Qt.WaitCursor)
 
     def process_finished(self, exit_code):
@@ -297,6 +300,8 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_stdout.setCurrentCharFormat(format)
         self.ui.edit_stdout.appendPlainText(msg)
         self.restore_gui()
+        self.ui.edit_stdout.setTextInteractionFlags(Qt.TextSelectableByMouse |
+                                                    Qt.TextSelectableByKeyboard)
         self.process = None
 
     def process_errored(self):
@@ -307,6 +312,8 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_stdout.setCurrentCharFormat(format)
         self.ui.edit_stdout.appendPlainText('Process exited with exit code' % exit_code)
         self.restore_gui()
+        self.ui.edit_stdout.setTextInteractionFlags(Qt.TextSelectableByMouse |
+                                                    Qt.TextSelectableByKeyboard)
         self.process = None
 
     def add_output_lines(self, lines):
