@@ -40,8 +40,7 @@
        </property>
        <property name="icon">
         <iconset theme="system-file-manager">
-         <normaloff/>
-        </iconset>
+         <normaloff>.</normaloff>.</iconset>
        </property>
       </widget>
      </item>
@@ -56,7 +55,16 @@
       <enum>QFrame::Raised</enum>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
-      <property name="margin">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
        <number>0</number>
       </property>
       <item>
@@ -323,8 +331,7 @@
                </property>
                <property name="icon">
                 <iconset theme="system-file-manager">
-                 <normaloff/>
-                </iconset>
+                 <normaloff>.</normaloff>.</iconset>
                </property>
               </widget>
              </item>
@@ -394,8 +401,7 @@
                   </property>
                   <property name="icon">
                    <iconset theme="system-file-manager">
-                    <normaloff/>
-                   </iconset>
+                    <normaloff>.</normaloff>.</iconset>
                   </property>
                  </widget>
                 </item>
@@ -486,6 +492,9 @@
       </property>
       <item>
        <widget class="QPushButton" name="btn_run">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="toolTip">
          <string>Run spyking circus with the given options</string>
         </property>
@@ -494,8 +503,7 @@
         </property>
         <property name="icon">
          <iconset theme="system-run">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -512,8 +520,7 @@
         </property>
         <property name="icon">
          <iconset theme="process-stop">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -537,8 +544,7 @@
         </property>
         <property name="icon">
          <iconset theme="help">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -552,8 +558,7 @@
         </property>
         <property name="icon">
          <iconset theme="window-close">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -605,7 +610,8 @@
         <string>Open log</string>
        </property>
        <property name="icon">
-        <iconset theme="accessories-text-editor"/>
+        <iconset theme="accessories-text-editor">
+         <normaloff>.</normaloff>.</iconset>
        </property>
       </widget>
      </item>

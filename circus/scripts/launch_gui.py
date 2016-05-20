@@ -185,7 +185,12 @@ class LaunchGUI(QtGui.QDialog):
         fname = QFileDialog.getOpenFileName(self, title,
                                             self.ui.edit_file.text())
         if fname:
-                self.ui.edit_file.setText(fname)
+            self.ui.edit_file.setText(fname)
+        
+        if str(self.ui.edit_file.text()) != '':
+            self.ui.btn_run.setEnabled(True)
+        else:
+            self.ui.btn_run.setEnabled(False)
 
     def update_host_file(self):
         fname = QFileDialog.getOpenFileName(self, 'Select MPI host file',
@@ -248,13 +253,15 @@ class LaunchGUI(QtGui.QDialog):
         if self.ui.cb_batch.isChecked():
             self.last_log_file = None
         else:
-            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
+            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))        
             f_params = f_next + '.params'
             if not os.path.exists(f_params):
                 self.create_params_file(f_params)
                 return
             self.last_log_file = f_next + '.log'
         args = self.command_line_args()
+
+        
 
         # # Start process
         self.ui.edit_stdout.clear()
