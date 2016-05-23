@@ -11,15 +11,15 @@ try:
     from PySide import QtGui, QtCore, uic
     from PySide.QtCore import Qt, QUrl, QProcess, SIGNAL
     from PySide.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
-                              QPushButton, QLineEdit,
-                              QWidget, QTextCursor, QMessageBox,
+                              QPushButton, QLineEdit, QPixmap,
+                              QWidget, QTextCursor, QMessageBox, QPalette, QBrush,
                               QDesktopServices, QFont)
 except ImportError:
     from PyQt4 import QtGui, QtCore, uic
     from PyQt4.QtCore import Qt, QUrl, QProcess, SIGNAL
     from PyQt4.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
-                             QPushButton, QLineEdit,
-                             QWidget, QTextCursor, QMessageBox,
+                             QPushButton, QLineEdit, QPalette, QBrush,
+                             QWidget, QTextCursor, QMessageBox, QPixmap,
                              QDesktopServices, QFont)
 
 
@@ -51,6 +51,9 @@ class LaunchGUI(QtGui.QDialog):
         self.ui = uic.loadUi(gui_fname)
         self.task_comboboxes = [cb for cb in self.ui.grp_tasks.children()
                                 if isinstance(cb, QCheckBox)]
+
+        #palette = QPalette()
+        #palette.setBrush(QPalette.Background, QBrush(QPixmap("/home/pierre/github/spyking-circus/circus/icons/logo.jpg")))
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
