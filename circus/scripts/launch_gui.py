@@ -4,6 +4,7 @@ import psutil
 import shutil
 import sys
 import textwrap
+import numpy
 
 import pkg_resources
 
@@ -85,6 +86,10 @@ class LaunchGUI(QtGui.QDialog):
 
     def store_tasks(self):
         self.stored_tasks = [cb.isChecked() for cb in self.task_comboboxes]
+        if not numpy.any(self.stored_tasks):
+            self.ui.btn_run.setEnabled(False)
+        elif str(self.ui.edit_file.text()) != '':
+            self.ui.btn_run.setEnabled(True)
 
     def restore_tasks(self):
         for cb, prev_state in zip(self.task_comboboxes,
