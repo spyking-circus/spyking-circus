@@ -53,6 +53,7 @@ class LaunchGUI(QtGui.QDialog):
                                 if isinstance(cb, QCheckBox)]
 
         self.ui.btn_run.clicked.connect(self.run)
+        self.ui.btn_param.clicked.connect(self.view_param)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
         self.ui.btn_about.clicked.connect(self.show_about)
@@ -190,6 +191,10 @@ class LaunchGUI(QtGui.QDialog):
         
         if str(self.ui.edit_file.text()) != '':
             self.ui.btn_run.setEnabled(True)
+            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))        
+            f_params = f_next + '.params'
+            if os.path.exists(f_params):
+                self.ui.btn_param.setEnabled(True)
         else:
             self.ui.btn_run.setEnabled(False)
 
@@ -258,6 +263,7 @@ class LaunchGUI(QtGui.QDialog):
             f_params = f_next + '.params'
             if not os.path.exists(f_params):
                 self.create_params_file(f_params)
+                self.ui.btn_param.setEnabled(True)
                 return
             self.last_log_file = f_next + '.log'
         args = self.command_line_args()
@@ -440,6 +446,11 @@ class LaunchGUI(QtGui.QDialog):
                     pkg_resources.resource_filename('circus', 'config.params'))
             shutil.copyfile(config_file, fname)
             QDesktopServices.openUrl(QUrl(fname))
+
+    def view_param(self):
+        f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))        
+        f_params = f_next + '.params'
+        QDesktopServices.openUrl(QUrl(f_params))
 
     def show_about(self):
         msg = QMessageBox()

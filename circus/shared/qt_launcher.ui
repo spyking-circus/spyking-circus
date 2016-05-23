@@ -539,6 +539,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QPushButton" name="btn_param">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Edit Params</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QPushButton" name="btn_stop">
         <property name="enabled">
          <bool>false</bool>
