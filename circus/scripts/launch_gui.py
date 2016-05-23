@@ -52,8 +52,10 @@ class LaunchGUI(QtGui.QDialog):
         self.task_comboboxes = [cb for cb in self.ui.grp_tasks.children()
                                 if isinstance(cb, QCheckBox)]
 
-        #palette = QPalette()
-        #palette.setBrush(QPalette.Background, QBrush(QPixmap("/home/pierre/github/spyking-circus/circus/icons/logo.jpg")))
+        palette = QPalette()
+        self.setWindowIcon(QtGui.QIcon("../icons/logo.jpg"))
+        palette.setBrush(QPalette.Background, QBrush(QPixmap("../icons/logo.jpg")))
+        self.ui.logo.setPalette(palette)
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
