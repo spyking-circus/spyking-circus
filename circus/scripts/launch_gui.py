@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 import psutil
 import shutil
 import sys
@@ -21,6 +22,10 @@ except ImportError:
                              QPushButton, QLineEdit, QPalette, QBrush,
                              QWidget, QTextCursor, QMessageBox, QPixmap,
                              QDesktopServices, QFont)
+
+
+def strip_ansi_codes(s):
+    return re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?', '', s)
 
 
 def overwrite_text(cursor, text):
@@ -383,7 +388,7 @@ class LaunchGUI(QtGui.QDialog):
     def append_output(self):
         if self.process is None:  # Can happen when manually interrupting
             return
-        lines = str(self.process.readAllStandardOutput())
+        lines = strip_ansi_codes(str(self.process.readAllStandardOutput()))
         self.add_output_lines(lines)
         # We manually deal with keyboard input in the output
         if 'Export already made! Do you want to erase everything? (y)es / (n)o' in lines:
@@ -424,7 +429,7 @@ class LaunchGUI(QtGui.QDialog):
     def append_error(self):
         if self.process is None:  # Can happen when manually interrupting
             return
-        lines = str(self.process.readAllStandardError())
+        lines = strip_ansi_codes(str(self.process.readAllStandardError()))
         self.add_output_lines(lines)
 
     def stop(self, force=False):
