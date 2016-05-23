@@ -52,10 +52,13 @@ class LaunchGUI(QtGui.QDialog):
         self.task_comboboxes = [cb for cb in self.ui.grp_tasks.children()
                                 if isinstance(cb, QCheckBox)]
 
-        palette = QPalette()
-        self.setWindowIcon(QtGui.QIcon("../icons/logo.jpg"))
-        palette.setBrush(QPalette.Background, QBrush(QPixmap("../icons/logo.jpg")))
-        self.ui.logo.setPalette(palette)
+        self.ui.setWindowIcon(QtGui.QIcon("../icons/logo.jpg"))
+
+        #palette = QPalette()
+        #palette.setBrush(QPalette.Background, QBrush(QPixmap("../icons/logo.jpg")))
+        #self.ui.logo.setPalette(palette)
+        self.ui.logo.setStyleSheet('background-image: url("../icons/logo.jpg")')
+
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
@@ -448,8 +451,7 @@ class LaunchGUI(QtGui.QDialog):
     def show_about(self):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)
-        msg.setText("SpyKING CIRCUS v0.4 "
-                    "written by P. Yger and O. Marre")
+        msg.setText("SpyKING CIRCUS v0.4")
         msg.setWindowTitle("About")
         msg.setInformativeText("Documentation can be found at\n"
                                 "http://spyking-circus.rtfd.org\n"

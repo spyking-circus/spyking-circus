@@ -25,7 +25,10 @@
         </size>
        </property>
        <property name="autoFillBackground">
-        <bool>true</bool>
+        <bool>false</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
        </property>
        <property name="frameShape">
         <enum>QFrame::StyledPanel</enum>
@@ -517,6 +520,12 @@
         <property name="toolTip">
          <string>Run spyking circus with the given options</string>
         </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color :rgb(139, 185, 146)</string>
+        </property>
         <property name="text">
          <string>Run</string>
         </property>
@@ -533,6 +542,12 @@
         </property>
         <property name="toolTip">
          <string>Interrupt a running spyking-circus process</string>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-color :rgb(255, 194, 195)</string>
         </property>
         <property name="text">
          <string>Stop</string>
