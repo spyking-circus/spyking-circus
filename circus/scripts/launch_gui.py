@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 import psutil
 import shutil
 import sys
@@ -22,6 +23,10 @@ except ImportError:
                              QPushButton, QLineEdit, QPalette, QBrush,
                              QWidget, QTextCursor, QMessageBox, QPixmap,
                              QDesktopServices, QFont)
+
+
+def strip_ansi_codes(s):
+    return re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?', '', s)
 
 
 def overwrite_text(cursor, text):
@@ -388,13 +393,48 @@ class LaunchGUI(QtGui.QDialog):
     def append_output(self):
         if self.process is None:  # Can happen when manually interrupting
             return
-        lines = str(self.process.readAllStandardOutput())
+        lines = strip_ansi_codes(str(self.process.readAllStandardOutput()))
         self.add_output_lines(lines)
+        # We manually deal with keyboard input in the output
+        if 'Export already made! Do you want to erase everything? (y)es / (n)o' in lines:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Question)
+            msg.setWindowTitle('Erase everything?')
+            msg.setText('Export already made! Do you want to erase everything?')
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            answer = msg.exec_()
+            if answer == QMessageBox.Yes:
+                answer_string = 'y'
+            else:
+                answer_string = 'n'
+        elif 'Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o' in lines:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Question)
+            msg.setWindowTitle('Export PCs?')
+            msg.setText('Do you want SpyKING CIRCUS to export PCs?')
+            no_button = msg.addButton('No', QMessageBox.NoRole)
+            some_button = msg.addButton('Some', QMessageBox.YesRole)
+            all_button = msg.addButton('All', QMessageBox.YesRole)
+            msg.exec_()
+            if msg.clickedButton() == no_button:
+                answer_string = 'n'
+            elif msg.clickedButton() == some_button:
+                answer_string = 's'
+            elif msg.clickedButton() == all_button:
+                answer_string = 'a'
+            else:
+                answer_string = 'n'
+        else:
+            answer_string = ''
+
+        if answer_string:
+            self.process.write(answer_string + '\n')
+            self.add_output_lines(answer_string + '\n')
 
     def append_error(self):
         if self.process is None:  # Can happen when manually interrupting
             return
-        lines = str(self.process.readAllStandardError())
+        lines = strip_ansi_codes(str(self.process.readAllStandardError()))
         self.add_output_lines(lines)
 
     def stop(self, force=False):
