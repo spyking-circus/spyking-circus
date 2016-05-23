@@ -17,24 +17,27 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QFrame" name="logo">
+      <widget class="QLabel" name="logo">
        <property name="minimumSize">
         <size>
          <width>200</width>
-         <height>100</height>
+         <height>115</height>
         </size>
        </property>
-       <property name="autoFillBackground">
-        <bool>false</bool>
+       <property name="maximumSize">
+        <size>
+         <width>200</width>
+         <height>115</height>
+        </size>
        </property>
-       <property name="styleSheet">
-        <string notr="true"/>
+       <property name="text">
+        <string/>
        </property>
-       <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
+       <property name="pixmap">
+        <pixmap>../icons/logo.jpg</pixmap>
        </property>
-       <property name="frameShadow">
-        <enum>QFrame::Raised</enum>
+       <property name="scaledContents">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
