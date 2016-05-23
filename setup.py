@@ -3,7 +3,8 @@ import os
 from os.path import join as pjoin
 import sys, subprocess
 
-requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
+            'psutil']
 
 if '--nocuda' in sys.argv:
   sys.argv.remove('--nocuda')
@@ -44,10 +45,13 @@ setup(name='spyking-circus',
           'console_scripts': [
               'spyking-circus=circus.scripts.launch:main',
               'spyking-circus-subtask=circus.scripts.subtask:main',
-              'circus-gui-matlab=circus.scripts.matlab_gui:main',
-              'circus-gui-python=circus.scripts.python_gui:main',
               'circus-multi=circus.scripts.circus_multi:main'
           ],
+          'gui_scripts': [
+              'spyking-circus-launcher=circus.scripts.launch_gui:main',
+              'circus-gui-matlab=circus.scripts.matlab_gui:main',
+              'circus-gui-python=circus.scripts.python_gui:main'
+          ]
       },
       package_data={'circus': ['config.params',
                                # Only include the actual GUI, not other test scripts
@@ -58,6 +62,7 @@ setup(name='spyking-circus',
                                pjoin('matlab_GUI', 'DATA_SortingGUI.m'),
                                pjoin('icons', 'gimp-tool-color-picker.png'),
                                pjoin('icons', 'gimp-tool-free-select.png'),
+                               pjoin('icons', 'logo.jpg'),
                                pjoin('icons', 'gimp-tool-rect-select.png')],
                     'circus.shared': ['qt_merge.ui', 'qt_preview.ui']},
       data_files=[(data_path, [pjoin('circus', 'config.params')]),
