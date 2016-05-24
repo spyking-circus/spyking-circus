@@ -14,6 +14,8 @@ import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.nd
 from mpi import *
 import files as io
 
+
+
 def get_progressbar(size):
 
     return progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=size).start()
@@ -531,6 +533,9 @@ class PCA(object):
             # percentage is superior to the desired threshold
             ratio_cumsum = explained_variance_ratio_.cumsum()
             n_components = np.sum(ratio_cumsum < n_components) + 1
+
+        # Fix DepreciationWarning (i.e. do not index using non-integer numbers)
+        n_components = int(n_components)
 
         # Compute noise covariance using Probabilistic PCA model
         # The sigma2 maximum likelihood (cf. eq. 12.46)

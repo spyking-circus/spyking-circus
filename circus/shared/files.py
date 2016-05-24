@@ -88,6 +88,7 @@ def get_multi_files(params):
 
 
 def change_flag(file_name, flag, value, avoid_flag=None):
+    """Set a new value to a flag of a given parameter file."""
     f_next, extension = os.path.splitext(os.path.abspath(file_name))
     file_params       = os.path.abspath(file_name.replace(extension, '.params'))
     f     = open(file_params, 'r')
@@ -138,7 +139,8 @@ def load_parameters(file_name):
         sys.exit(0)
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers', 'detection']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers', 'detection', 'validating']
+
     for section in sections:
         if parser.has_section(section):
             for (key, value) in parser.items(section):
@@ -235,8 +237,18 @@ def load_parameters(file_name):
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '1.'],
                   ['merging', 'cc_overlap', 'float', '0.5'],
-                  ['merging', 'cc_bin', 'float', '2']]
-
+                  ['merging', 'cc_bin', 'float', '2'],
+                  ['validating', 'nearest_elec', 'string', 'auto'],
+                  ['validating', 'max_iter', 'int', '200'],
+                  ['validating', 'learning_rate', 'float', '1.0e-3'],
+                  ['validating', 'roc_sampling', 'int', '10'],
+                  ['validating', 'make_plots', 'string', 'png'],
+                  ['validating', 'test_size', 'float', '0.3'],
+                  ['validating', 'radius_factor', 'float', '0.5'],
+                  ['validating', 'juxta_dtype', 'string', 'uint16'],
+                  ['validating', 'juxta_thresh', 'float', '6.0'],
+                  ['validating', 'juxta_valley', 'bool', 'False'],
+                  ['validating', 'matching_jitter', 'float', '2.0']]
 
     for item in new_values:
         section, name, val_type, value = item
@@ -302,14 +314,14 @@ def load_parameters(file_name):
             print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', parser)
             sys.exit(0)
 
-    test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') <= 1)
+    test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') < 1)
     if not test:
-        print_and_log(["nclus_min in clustering should be in [0,1]"], 'error', parser)
+        print_and_log(["nclus_min in clustering should be in [0,1["], 'error', parser)
         sys.exit(0)
  
-    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') <= 1)
+    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') < 1)
     if not test:
-        print_and_log(["smart_search in clustering should be in [0,1]"], 'error', parser)
+        print_and_log(["smart_search in clustering should be in [0,1["], 'error', parser)
         sys.exit(0)
 
     test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)
@@ -317,12 +329,21 @@ def load_parameters(file_name):
         print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', parser)
         sys.exit(0)
 
+    test = (parser.getfloat('validating', 'test_size') > 0) and (parser.getfloat('validating', 'test_size') < 1)
+    if not test:
+        print_and_log(["test_size in validating should be in ]0,1["], 'error', parser)
+        sys.exit(0)
+
     fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
     test = parser.get('clustering', 'make_plots') in fileformats
     if not test:
         print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
-
+    test = parser.get('validating', 'make_plots') in fileformats
+    if not test:
+        print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
+        sys.exit(0)
+    
     return parser
 
 
@@ -403,6 +424,7 @@ def print_and_log(to_print, level='info', logger=None, display=True):
         write_to_logger(logger, to_print, level)
 
 def print_info(lines):
+    """Prints informations messages, enhanced graphical aspects."""
     colorama.init(autoreset=True)
     print Fore.YELLOW + "-------------------------  Informations  -------------------------"
     for line in lines:
@@ -410,6 +432,7 @@ def print_info(lines):
     print Fore.YELLOW + "------------------------------------------------------------------"
 
 def print_error(lines):
+    """Prints errors messages, enhanced graphical aspects."""
     colorama.init(autoreset=True)
     print Fore.RED + "----------------------------  Error  -----------------------------"
     for line in lines:
@@ -417,7 +440,9 @@ def print_error(lines):
     print Fore.RED + "------------------------------------------------------------------"
 
 
+
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
+
     
     N_t          = params.getint('data', 'N_t')
     if not all_labels:
@@ -506,6 +531,147 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     return stas
 
 
+def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
+                       mean_mode=False, all_labels=False, auto_align=True):
+    
+    # First we need to identify machines in the MPI ring.
+    from uuid import getnode as get_mac
+    myip = int(get_mac()) % 100000
+    ##### TODO: remove quarantine zone
+    # intsize = MPI.INT.Get_size()
+    ##### end quarantine zone
+    float_size = MPI.FLOAT.Get_size() 
+    sub_comm = comm.Split(myip, 0)
+    
+    # Load parameters.
+    N_t = params.getint('data', 'N_t')
+    data_file = params.get('data', 'data_file')
+    data_offset = params.getint('data', 'data_offset')
+    dtype_offset = params.getint('data', 'dtype_offset')
+    data_dtype = params.get('data', 'data_dtype')
+    N_total = params.getint('data', 'N_total')
+    alignment = params.getboolean('detection', 'alignment') and auto_align
+    datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    do_temporal_whitening = params.getboolean('whitening', 'temporal')
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    template_shift = params.getint('data', 'template_shift')
+    
+    # Calculate the sizes of the data structures to share.
+    nb_triggers = 0
+    nb_neighs = 0
+    nb_ts = 0
+    if sub_comm.Get_rank() == 0:
+        if not all_labels:
+            if not mean_mode:
+                ##### TODO: clean quarantine zone
+                # nb_times = len(times_i)
+                ##### end quarantine zone
+                nb_triggers = len(times_i)
+            else:
+                nb_triggers = 1
+        else:
+            ##### TODO: remove quarantine zone
+            # nb_labels = len(numpy.unique(labels_i))
+            ##### end quarantine zone
+            nb_triggers = len(numpy.unique(labels_i))
+        nb_neighs = len(neighs)
+        nb_ts = N_t
+    
+    sub_comm.Barrier()
+    
+    # Broadcast the sizes of the data structures to share.
+    triggers_size = int(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.float32), root=0)[0])
+    neighs_size = int(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.float32), root=0)[0])
+    ts_size = int(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.float32), root=0)[0])
+    
+    # Declare the data structures to share.
+    if sub_comm.Get_rank() == 0:
+        stas_bytes = triggers_size * neighs_size * ts_size * float_size
+    else:
+        stas_bytes = 0
+    if triggers_size == 1:
+        stas_shape = (neighs_size, ts_size)
+    else:
+        stas_shape = (triggers_size, neighs_size, ts_size)
+    
+    win_stas = MPI.Win.Allocate_shared(stas_bytes, float_size, comm=sub_comm)
+    buf_stas, _ = win_stas.Shared_query(0)
+    buf_stas = numpy.array(buf_stas, dtype='B', copy=False)
+    stas = numpy.ndarray(buffer=buf_stas, dtype=numpy.float32, shape=stas_shape)
+    
+    sub_comm.Barrier()
+    
+    # Let master node initialize the data structures to share.
+    if sub_comm.Get_rank() == 0:
+        if do_spatial_whitening:
+            spatial_whitening = load_data(params, 'spatial_whitening')
+        if do_temporal_whitening:
+            temporal_whitening = load_data(params, 'temporal_whitening')
+        if alignment:
+            cdata = numpy.linspace(- template_shift, template_shift, 5 * N_t)
+            xdata = numpy.arange(- 2 * template_shift, 2 * template_shift + 1)
+        count = 0
+        for lb, time in zip(labels_i, times_i):
+            padding = N_total * time
+            if alignment:
+                local_chunk = datablock[padding - 2 * template_shift * N_total:padding + (2 * template_shift + 1) * N_total]
+                local_chunk = local_chunk.reshape(2 * N_t - 1, N_total)
+            else:
+                local_chunk = datablock[padding - template_shift * N_total:padding + (template_shift + 1) * N_total]
+                local_chunk = local_chunk.reshape(N_t, N_total)
+            local_chunk = local_chunk.astype(numpy.float32)
+            local_chunk -= dtype_offset
+            if nodes is not None:
+                if not numpy.all(nodes == numpy.arange(N_total)):
+                    local_chunk = numpy.take(local_chunk, nodes, axis=1)
+            if do_spatial_whitening:
+                local_chunk = numpy.dot(local_chunk, spatial_whitening)
+            if do_temporal_whitening:
+                local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+            local_chunk = numpy.take(local_chunk, neighs, axis=1)
+            if alignment:
+                idx = numpy.where(neighs == src)[0]
+                ydata = numpy.arange(len(neighs))
+                if len(ydata) == 1:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+                    rmin = (numpy.argmin(f(cdata)) - len(cdata) / 2.0) / 5.0
+                    ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                    local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+                else:
+                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata) - 1, 3))
+                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata) / 2.0) / 5.0
+                    ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                    local_chunk = f(ddata, ydata).astype(numpy.float32)
+            if not all_labels:
+                if not mean_mode:
+                    # #####
+                    # print(stas.shape)
+                    # print(count)
+                    # #####
+                    stas[count, :, :] = local_chunk.T
+                    count += 1
+                else:
+                    stas += local_chunk.T
+            else:
+                lc = numpy.where(nb_triggers == lb)[0]
+                stas[lc] += local_chunk.T
+    
+    sub_comm.Barrier()
+    
+    # # Let each node wrap the data structures to share.
+    # if not all_labels and mean_mode:
+    #     stas_shape = (nb_neighs, nb_ts)
+    # else:
+    #     stas_shape = (nb_triggers, nb_neighs, nb_ts)
+    # stas = numpy.reshape(stas, stas_shape)
+    
+    sub_comm.Free()
+    
+    return stas
+
+##### end working zone
+
+
 def get_artefact(params, times_i, tau, nodes, normalize=True):
     
 
@@ -540,7 +706,6 @@ def get_artefact(params, times_i, tau, nodes, normalize=True):
 
 def get_amplitudes(params, times_i, src, neighs, template, nodes=None, pos='neg'):
     from .utils import smooth  # avoid import issues
-
     N_t          = params.getint('data', 'N_t')
     amplitudes   = numpy.zeros(len(times_i), dtype=numpy.float32)
     data_file    = params.get('data', 'data_file')
@@ -688,12 +853,32 @@ def analyze_data(params, chunk_size=None):
     
     return borders, nb_chunks, chunk_len, last_chunk_len
 
-def get_nodes_and_edges(parameters):
+def get_nodes_and_edges(parameters, validating=False):
+    """
+    Retrieve the topology of the probe.
+    
+    Other parameters
+    ----------------
+    radius : integer
+    
+    Returns
+    -------
+    nodes : ndarray of integers
+        Array of channel ids retrieved from the description of the probe.
+    edges : dictionary
+        Dictionary which link each channel id to the ids of the channels whose
+        distance is less or equal than radius.
+    
+    """
     
     edges  = {}
     nodes  = []
     probe  = read_probe(parameters)
     radius = parameters.getint('data', 'radius')
+
+    if validating:
+        radius_factor = parameters.getfloat('validating', 'radius_factor')
+        radius = int(radius_factor * float(radius))
 
     def get_edges(i, channel_groups):
         edges = []
@@ -883,77 +1068,87 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     
 
 def load_data(params, data, extension=''):
+    """
+    Load data from a dataset.
+    
+    Parameters
+    ----------
+    data : {'thresholds', 'spatial_whitening', 'temporal_whitening', 'basis',
+            'templates', 'norm-templates', 'spike-cluster', 'spikedetekt',
+            'clusters', 'electrodes', 'results', 'overlaps', 'limits',
+            'injected_spikes', 'triggers'}
+    
+    """
 
-    file_out        = params.get('data', 'file_out')
     file_out_suff   = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
 
     if data == 'thresholds':
         spike_thresh = params.getfloat('detection', 'spike_thresh')
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
     elif data == 'matched-thresholds':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds')[:]
             myfile.close()
             return matched_thresh * thresholds 
     elif data == 'matched-thresholds-pos':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds_pos')[:]
             myfile.close()
             return matched_thresh * thresholds 
     elif data == 'spatial_whitening':
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile  = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile  = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
             myfile.close()
             return spatial
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'temporal_whitening':
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile   = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile   = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             temporal = myfile.get('temporal')[:]
             myfile.close() 
             return temporal
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'basis':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'basis-pos':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'waveform':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveform')[:]
         myfile.close()
         return waveforms
     elif data == 'waveforms':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveforms')[:]
         myfile.close()
         return waveforms
     elif data == 'waveform-pos':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveform_pos')[:]
         myfile.close()
         return waveforms
     elif data == 'waveforms-pos':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveforms_pos')[:]
         myfile.close()
         return waveforms
@@ -1034,6 +1229,250 @@ def load_data(params, data, extension=''):
             return result
         except Exception:
             return None
+    elif data == 'triggers':
+        filename = file_out_suff + '.triggers%s.npy' %extension
+        if os.path.exists(filename):
+            triggers = numpy.load(filename)
+            N_tr = triggers.shape[0]
+
+            data_file = params.get('data', 'data_file')
+            data_offset = params.getint('data', 'data_offset')
+            data_dtype = params.get('data', 'data_dtype')
+            chunk_size = params.getint('data', 'chunk_size')
+            N_total = params.getint('data', 'N_total')
+            N_t = params.getint('data', 'N_t')
+            dtype_offset = params.getint('data', 'dtype_offset')
+            
+            datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+            template_shift = int((N_t - 1) / 2)
+
+            spikes = numpy.zeros((N_t, N_total, N_tr))
+            for (count, idx) in enumerate(triggers):
+                chunk_len = chunk_size * N_total
+                chunk_start = (idx - template_shift) * N_total
+                chunk_end = (idx + template_shift + 1)  * N_total
+                local_chunk = datablock[chunk_start:chunk_end]
+
+                local_chunk = local_chunk.reshape(N_t, N_total)
+                local_chunk = local_chunk.astype(numpy.float32)
+                local_chunk -= dtype_offset
+
+                spikes[:, :, count] = local_chunk
+            return triggers, spikes
+        else:
+            raise Exception('No triggers found! Check suffix or check if file `%s` exists?' %filename)
+    elif data == 'juxta-mad':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                juxta_mad = beer_file.get('juxta_mad').value
+            finally:
+                beer_file.close()
+            return juxta_mad
+        else:
+            raise Exception('No median absolute deviation found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'juxta-triggers':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                juxta_spike_times = beer_file.get('juxta_spiketimes/elec_0')[:]
+            finally:
+                beer_file.close()
+            return juxta_spike_times
+        else:
+            raise Exception('No triggers found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'juxta-values':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                juxta_spike_values = beer_file.get('juxta_spike_values/elec_0')[:]
+            finally:
+                beer_file.close()
+            return juxta_spike_values
+        else:
+            raise Exception('No values found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'extra-mads':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                extra_mads = beer_file.get('extra_mads')[:]
+            finally:
+                beer_file.close()
+            return extra_mads
+        else:
+            raise Exception('No median absolute deviation found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'extra-triggers':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            N_e = params.getint('data', 'N_e')
+            extra_spike_times = N_e * [None]
+            try:
+                for e in xrange(0, N_e):
+                    key = "extra_spiketimes/elec_{}".format(e)
+                    extra_spike_times[e] = beer_file.get(key)[:]
+            finally:
+                beer_file.close()
+            return extra_spike_times
+        else:
+            raise Exception('No triggers found! Check if file `{}` exists?'.format(filename))
+    elif data == 'extra-values':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            N_e = params.getint('data', 'N_e')
+            extra_spike_values = N_e * [None]
+            try:
+                for e in xrange(0, N_e):
+                    key = "extra_spike_values/elec_{}".format(e)
+                    extra_spike_values[e] = beer_file.get(key)[:]
+            finally:
+                beer_file.close()
+            return extra_spike_values
+        else:
+            raise Exception('No values found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'class-weights':
+        filename = file_out_suff + '.beer.hdf5'
+        if os.path.exists(filename):
+            bfile = h5py.File(filename, 'r', libver='latest')
+            class_weights = bfile.get('class-weights')[:]
+            bfile.close()
+            return class_weights
+        else:
+            raise Exception('No class weights found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'confusion-matrices':
+        filename = file_out_suff + '.beer.hdf5'
+        if os.path.exists(filename):
+            bfile = h5py.File(filename, 'r', libver='latest')
+            confusion_matrices = bfile.get('confusion_matrices')[:]
+            bfile.close()
+            return confusion_matrices
+        else:
+            raise Exception('No confusion matrices found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'proportion':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                proportion = beer_file.get('proportion').value
+            finally:
+                beer_file.close()
+            return proportion
+        else:
+            raise Exception('No proportion found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data == 'threshold-false-negatives':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                threshold_false_negatives = beer_file.get('thresh_fn').value
+            finally:
+                beer_file.close()
+            return threshold_false_negatives
+        else:
+            raise Exception('No threshold false negatives found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data in ['false-positive-rates', 'true-positive-rates',
+                  'false-positive-error-rates', 'false-negative-error-rates']:
+        # Retrieve saved data.
+        confusion_matrices = load_data(params, 'confusion-matrices')
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        # Correct counts of false negatives.
+        for confusion_matrix in confusion_matrices:
+            confusion_matrix[0, 1] += threshold_false_negatives
+        # Compute the wanted statistics.
+        if data == 'false-positive-rates':
+            # Compute false positive rates (i.e. FP / (FP + TN)).
+            results = [M[1, 0] / (M[1, 0] + M[1, 1]) for M in confusion_matrices]
+            # Add false positive rate endpoints.
+            results = [1.0] + results + [0.0]
+        if data == 'true-positive-rates':
+            # Compute true positive rates (i.e. TP / (TP + FN)).
+            results = [M[0, 0] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+            # Add true positive rate endpoints.
+            results = [1.0] + results + [0.0]
+        if data == 'false-positive-error-rates':
+            # Compute false positive error rates (i.e. FP / (TP + FP)).
+            results = [M[1, 0] / (M[0, 0] + M[1, 0]) for M in confusion_matrices]
+            # Add false positive error rate endpoints.
+            results = [1.0] + results + [0.0]
+        if data == 'false-negative-error-rates':
+            # Compute false negative error rates (i.e. FN / (TP + FN)).
+            results = [M[0, 1] / (M[0, 0] + M[0, 1]) for M in confusion_matrices]
+            # Add false negative error rate endpoints.
+            results = [0.0] + results + [1.0]
+        results = numpy.array(results, dtype=numpy.float)
+        return results
+    elif data == 'sc-contingency-matrices':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                sc_contingency_matrices = beer_file.get('sc_contingency_matrices')[:]
+            finally:
+                beer_file.close()
+            return sc_contingency_matrices
+        else:
+            raise Exception('No contingency matrices found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data in ['sc-false-positive-error-rates', 'sc-false-negative-error-rates']:
+        # Retrieve saved data.
+        sc_contingency_matrices = load_data(params, 'sc-contingency-matrices')
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        # Correct counts of false negatives.
+        for sc_contingency_matrix in sc_contingency_matrices:
+            sc_contingency_matrix[0, 1] += threshold_false_negatives
+        # Compute the wanted statistics.
+        if data == 'sc-false-positive-error-rates':
+            # Compute false positive error rates.
+            results = [float(M[1, 1]) / float(M[1, 0] + M[1, 1]) if 0 < M[1, 0] + M[1, 1] else 0.0
+                       for M in sc_contingency_matrices]
+        if data == 'sc-false-negative-error-rates':
+            # Compute false negative error rates.
+            results = [float(M[0, 1]) / float(M[0, 0] + M[0, 1]) if 0 < M[0, 0] + M[0, 1] else 0.0
+                       for M in sc_contingency_matrices]
+        results = numpy.array(results, dtype=numpy.float)
+        return results
+    elif data == 'sc-contingency-matrix':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                sc_contingency_matrix = beer_file.get('sc_contingency_matrix')[:]
+            finally:
+                beer_file.close()
+            return sc_contingency_matrix
+        else:
+            raise Exception('No contingency matrix found! Check suffix or check if file `{}` exists?'.format(filename))
+    elif data in ['sc-best-false-positive-error-rate', 'sc-best-false-negative-error-rate']:
+        sc_contingency_matrix = load_data(params, 'sc-contingency-matrix')
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        # Correct count of false negatives.
+        sc_contingency_matrix[0, 1] += threshold_false_negatives
+        # Compute the wanted statistics.
+        if data == 'sc-best-false-positive-error-rate':
+            # Compute best false positive error rate.
+            M = sc_contingency_matrix
+            result = float(M[1, 1]) / float(M[1, 0] + M[1, 1]) if 0 < M[1, 0] + M[1, 1] else 0.0
+        if data == 'sc-best-false-negative-error-rate':
+            # Compute best false negative error rate.
+            M = sc_contingency_matrix
+            result = float(M[0, 1]) / float(M[0, 0] + M[0, 1]) if 0 < M[0, 0] + M[0, 1] else 0.0
+        return result
+    elif data == 'selection':
+        filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
+        if os.path.exists(filename):
+            beer_file = h5py.File(filename, 'r', libver='latest')
+            try:
+                selection = beer_file.get('selection')[:]
+            finally:
+                beer_file.close()
+            return selection
+        else:
+            raise Exception('No selection found! Check suffix or check if file `{}` exists?'.format(filename))
+
 
 def write_datasets(h5file, to_write, result, electrode=None):
     for key in to_write:
@@ -1046,6 +1485,7 @@ def write_datasets(h5file, to_write, result, electrode=None):
 
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
+    # Retrieve the key parameters.
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
@@ -1057,6 +1497,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
+    # Initialize data collection.
     result = {'spiketimes' : {}, 'amplitudes' : {}}
     if with_real_amps:
         result['real_amps'] = {}
@@ -1072,6 +1513,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_threads).start()
 
+    # For each thread/process collect data.
     for count, node in enumerate(xrange(nb_threads)):
         spiketimes_file = file_out_suff + '.spiketimes-%d.data' %node
         amplitudes_file = file_out_suff + '.amplitudes-%d.data' %node
@@ -1114,6 +1556,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     pbar.finish()
 
+    # TODO: find a programmer comment.
     for key in result['spiketimes']:
         result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.int32)
         idx                       = numpy.argsort(result['spiketimes'][key])
@@ -1140,6 +1583,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if with_voltages:
         keys += ['voltages']
 
+    # Save results into `<dataset>/<dataset>.result.hdf5`.
     mydata = h5py.File(file_out_suff + '.result.hdf5', 'w', libver='latest')
     for key in keys:
         mydata.create_group(key)
@@ -1147,7 +1591,8 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             tmp_path = '%s/%s' %(key, temp)
             mydata.create_dataset(tmp_path, data=result[key][temp])
     mydata.close()        
-    
+
+    # Count and print the number of spikes.
     count = 0
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
@@ -1159,6 +1604,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     print_and_log(["Number of spikes %s : %d" %(to_print, count)], 'info', params)
 
+    # TODO: find a programmer comment
     if erase:
         purge(file_out_suff, '.data')
 

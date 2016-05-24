@@ -53,6 +53,7 @@ setup(name='spyking-circus',
               'circus-gui-python=circus.scripts.python_gui:main'
           ]
       },
+      extras_require={'beer': ['scikit-learn']},
       package_data={'circus': ['config.params',
                                # Only include the actual GUI, not other test scripts
                                pjoin('matlab_GUI', 'SortingGUI.m'),
@@ -63,6 +64,7 @@ setup(name='spyking-circus',
                                pjoin('icons', 'gimp-tool-color-picker.png'),
                                pjoin('icons', 'gimp-tool-free-select.png'),
                                pjoin('icons', 'logo.jpg'),
+                               pjoin('icons', 'icon.png'),
                                pjoin('icons', 'gimp-tool-rect-select.png')],
                     'circus.shared': ['qt_merge.ui', 'qt_preview.ui']},
       data_files=[(data_path, [pjoin('circus', 'config.params')]),

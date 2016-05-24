@@ -14,6 +14,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
+    file_out_suff  = params.get('data', 'file_out_suff')
     file_out       = params.get('data', 'file_out')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     matched_filter = params.getboolean('detection', 'matched-filter')
@@ -74,7 +75,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             gdata      = gdata.reshape((comm.size, N_e))
             thresholds = numpy.mean(gdata, 0)
-            bfile      = h5py.File(file_out + '.basis.hdf5', 'w', libver='latest')
+            bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'w', libver='latest')
             io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
             bfile.close()
         comm.Barrier()
@@ -209,11 +210,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 gdata      = gdata.reshape((comm.size, N_e))
                 thresholds = numpy.mean(gdata, 0)
-                bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+                bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
                 bfile.pop('thresholds')
                 io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
                 bfile.close()
             comm.Barrier()
+
+    if comm.rank == 0:
+        if not os.path.exists(plot_path):
+            os.makedirs(plot_path)
+        n_elec = min(int(numpy.sqrt(N_e)), 5)
+        plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True,
+                      n_elec=n_elec, save=[plot_path, 'electrodes'])
 
     # Part 2: Basis
     numpy.random.seed(422)

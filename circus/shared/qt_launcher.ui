@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>800</height>
+    <height>863</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -506,6 +506,16 @@
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="QCheckBox" name="cb_validating">
+                 <property name="toolTip">
+                  <string>To compare performance to real GT neurons</string>
+                 </property>
+                 <property name="text">
+                  <string>Validating</string>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </item>
             </layout>
@@ -523,7 +533,7 @@
              <rect>
               <x>10</x>
               <y>10</y>
-              <width>171</width>
+              <width>741</width>
               <height>101</height>
              </rect>
             </property>
@@ -539,6 +549,9 @@
                <height>22</height>
               </rect>
              </property>
+             <property name="toolTip">
+              <string>Need a valid MATLAB install</string>
+             </property>
              <property name="text">
               <string>Matlab GUI</string>
              </property>
@@ -551,6 +564,9 @@
                <width>117</width>
                <height>22</height>
               </rect>
+             </property>
+             <property name="toolTip">
+              <string>Need a valid phy and phy-contrib install</string>
              </property>
              <property name="text">
               <string>Phy GUI</string>
@@ -568,7 +584,7 @@
              <rect>
               <x>10</x>
               <y>110</y>
-              <width>592</width>
+              <width>751</width>
               <height>65</height>
              </rect>
             </property>
@@ -672,6 +688,24 @@
         </property>
         <property name="text">
          <string>Edit Params</string>
+        </property>
+        <property name="icon">
+         <iconset theme="document-new">
+          <normaloff>.</normaloff>.</iconset>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btn_plots">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Plot folder</string>
+        </property>
+        <property name="icon">
+         <iconset theme="folder">
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>

@@ -74,7 +74,8 @@ def main(argv=None):
     except Exception:
         HAVE_CUDA = False
 
-    all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging']
+
+    all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging', 'validating']
 
     if os.path.exists(user_path + 'config.params'):
         config_file = os.path.abspath(user_path + 'config.params')
@@ -107,7 +108,8 @@ but a subset x,y can be done. Steps are:
  - (extra) converting [export results to phy format]
  - (extra) gathering [force collection of results]
  - (extra) extracting [get templates from spike times]
- - (extra) benchmarking [with -o and -t]'''
+ - (extra) benchmarking [with -o and -t]
+ - (extra) validating [to compare performance with GT neurons]'''
 
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
@@ -223,7 +225,8 @@ but a subset x,y can be done. Steps are:
                     ('gathering', 'python'),
                     ('converting', 'mpirun'),
                     ('benchmarking', 'mpirun'),
-                    ('merging', 'mpirun')]
+                    ('merging', 'mpirun'),
+                    ('validating', 'mpirun')]
 
         if HAVE_CUDA and nb_gpu > 0:
             use_gpu = 'True'

@@ -2,7 +2,16 @@ from .shared.utils import *
 import h5py
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
-    numpy.random.seed(45135)
+    """
+    Useful tool to create synthetic datasets for benchmarking.
+    
+    Arguments
+    ---------
+    benchmark : {'fitting', 'clustering', 'synchrony', 'pca-validation', 'smart-search', 'drifts'}
+        
+    """
+    
+    numpy.random.seed(451235)
 
     data_path      = os.path.dirname(os.path.abspath(file_name))
     data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
@@ -13,7 +22,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
         sys.exit(0)
 
+    # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
+    # see: http://stackoverflow.com/questions/4530111/python-saving-objects-and-using-pickle-extension-of-filename
+    # see: https://wiki.python.org/moin/UsingPickle
     def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe, trends=None):
+        """Save benchmark parameters in a file to remember them."""
         import cPickle
         to_write = {'benchmark' : benchmark}
         to_write['cells']      = cells
@@ -25,27 +38,44 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             to_write['drifts'] = trends
         cPickle.dump(to_write, open(filename + '.pic', 'w'))
 
+    # Retrieve some key parameters.
     templates = io.load_data(params, 'templates')
+    N_tm = templates.shape[1] / 2
     sim_same_elec   = 0.8
     trends          = None
 
+    # Normalize some variables.
     if benchmark == 'fitting':
         nb_insert       = 25
-        n_cells         = numpy.random.random_integers(0, templates.shape[1]//2-1, nb_insert)
-        rate            = nb_insert*[10]
+        n_cells         = numpy.random.random_integers(0, N_tm - 1, nb_insert)
+        rate            = nb_insert * [10]
         amplitude       = numpy.linspace(0.5, 5, nb_insert)
     if benchmark == 'clustering':
-        n_point         = 10
-        n_cells         = numpy.random.random_integers(0, templates.shape[1]//2-1, n_point**2)
-        x, y            = numpy.mgrid[0:n_point,0:n_point]
-        rate            = numpy.arange(0.5, 20, 2)[x.flatten()]
-        amplitude       = numpy.arange(0.5, 5.5, 0.5)[y.flatten()]
+        n_point         = 5
+        n_cells         = numpy.random.random_integers(0, N_tm - 1, n_point ** 2)
+        x, y            = numpy.mgrid[0:n_point, 0:n_point]
+        rate            = numpy.linspace(0.5, 20, n_point)[x.flatten()]
+        amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
     if benchmark == 'synchrony':
         nb_insert       = 5
         corrcoef        = 0.2
-        n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]//2-1, 1)[0]]
-        rate            = 10./corrcoef
+        n_cells         = nb_insert * [numpy.random.random_integers(0, N_tm - 1, 1)[0]]
+        rate            = 10. / corrcoef
         amplitude       = 2
+    if benchmark == 'pca-validation':
+##### TODO: remove plot zone
+        if comm.rank == 0:
+            from .shared.plot import view_triggers
+            view_triggers(filename, mode='maximal')
+##### end plot zone
+        nb_insert       = 10
+        n_cells         = numpy.random.random_integers(0, N_tm - 1, nb_insert)
+        rate_min        = 0.5
+        rate_max        = 20.0
+        rate            = rate_min + (rate_max - rate_min) * numpy.random.random_sample(nb_insert)
+        amplitude_min   = 0.5
+        amplitude_max   = 5.0
+        amplitude       = amplitude_min + (amplitude_max - amplitude_min) * numpy.random.random_sample(nb_insert)
     if benchmark == 'smart-search':
         nb_insert       = 10
         n_cells         = nb_insert*[numpy.random.random_integers(0, templates.shape[1]//2-1, 1)[0]]
@@ -59,10 +89,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude       = numpy.linspace(0.5, 5, n_point)[y.flatten()]
         trends          = numpy.random.randn(n_point**2)
 
+    # Delete the output directory tree if this output directory exists.
     if comm.rank == 0:
         if os.path.exists(file_out):
             shutil.rmtree(file_out)
 
+    # Check and normalize some variables.
     if n_cells is None:
         n_cells    = 1
         cells      = [numpy.random.permutation(numpy.arange(n_cells))[0]]
@@ -76,17 +108,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if numpy.iterable(rate):
         assert len(rate) == len(cells), "Should have the same number of rates and cells"
     else:
-        rate = [rate]*len(cells)
+        rate = [rate] * len(cells)
 
     if numpy.iterable(amplitude):
         assert len(amplitude) == len(cells), "Should have the same number of amplitudes and cells"
     else:
-        amplitude = [amplitude]*len(cells)
+        amplitude = [amplitude] * len(cells)
 
+    # Retrieve some additional key parameters.
     N_e             = params.getint('data', 'N_e')
     sampling_rate   = params.getint('data', 'sampling_rate')
-    do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     nodes, edges     = io.get_nodes_and_edges(params)
     N_t              = params.getint('data', 'N_t')
     N_total          = params.getint('data', 'N_total')
@@ -100,14 +131,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     best_elecs            = io.load_data(params, 'electrodes')
     norms                 = io.load_data(params, 'norm-templates')
 
+    # Create output directory if it does not exist.
     if comm.rank == 0:
         if not os.path.exists(file_out):
             os.makedirs(file_out)
 
+    # Save benchmark parameters in a file to remember them.
     if comm.rank == 0:
-        write_benchmark(file_out, benchmark, cells, rate, amplitude, sampling_rate, params.get('data', 'mapping'), trends)
+        write_benchmark(file_out, benchmark, cells, rate, amplitude,
+                        sampling_rate, params.get('data', 'mapping'), trends)
 
-
+    # Synchronize all the threads/processes.
     comm.Barrier()
 
     if do_spatial_whitening:
@@ -115,8 +149,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
-    N_total        = params.getint('data', 'N_total')
-    N_e            = params.getint('data', 'N_e')
+    # Retrieve some additional key parameters.
     chunk_size     = params.getint('data', 'chunk_size')
     data_offset    = params.getint('data', 'data_offset')
     dtype_offset   = params.getint('data', 'dtype_offset')
@@ -127,10 +160,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     if comm.rank == 0:
         io.copy_header(data_offset, params.get('data', 'data_file'), file_name)
 
+    # Synchronize all the threads/processes.
     comm.Barrier()
-    g              = myfile.Open(comm, file_name, MPI.MODE_RDWR)
-    g.Set_view(data_offset, data_mpi, data_mpi)
 
+    # For each wanted synthesized cell insert a generated template in the set of
+    # existing template.
     for gcount, cell_id in enumerate(cells):
         best_elec   = best_elecs[cell_id]
         indices     = inv_nodes[edges[nodes[best_elec]]]
@@ -138,6 +172,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         new_indices = []
         all_elecs   = numpy.random.permutation(numpy.arange(N_e))
         reference   = templates[:, cell_id].toarray().reshape(N_e, N_t)
+        # Initialize the similarity (i.e. default value).
+        similarity = 1.0
+        # Find the first eligible template for the wanted synthesized cell.
         while len(new_indices) != len(indices) or (similarity >= sim_same_elec):   
             similarity  = 0
             if count == len(all_elecs):
@@ -145,30 +182,44 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                     io.print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
                 sys.exit(0)
             else:
+                # Get the next shuffled electrode.
                 n_elec = all_elecs[count]
+
                 if benchmark not in ['synchrony', 'smart-search']:
+                    # Process if the shuffled electrode and the nearest electrode
+                    # to the synthesized cell are not identical.
                     local_test = n_elec != best_elec
                 else:
+                    # Process if the shuffled electrode and the nearest electrode
+                    # to the synthesized cell are identical.
                     local_test = n_elec == best_elec
 
                 if local_test:
+                    # Shuffle the neighboring electrodes whithout modifying
+                    # the nearest electrode to the synthesized cell.
                     new_indices = inv_nodes[edges[nodes[n_elec]]]
                     idx = numpy.where(new_indices != best_elec)[0]
                     new_indices[idx] = numpy.random.permutation(new_indices[idx])
 
                     if len(new_indices) == len(indices):
-                        new_temp                 = numpy.zeros(reference.shape, dtype=numpy.float32)
+                        # Shuffle the templates on the neighboring electrodes.
+                        new_temp = numpy.zeros(reference.shape,
+                                               dtype=numpy.float32)
                         new_temp[new_indices, :] = reference[indices, :]
+                        # Compute the scaling factor which normalize the
+                        # shuffled template.
                         gmin = new_temp.min()
                         data = numpy.where(new_temp == gmin)
                         scaling = -thresholds[data[0][0]]/gmin
                         for i in xrange(templates.shape[1]//2):
                             match = templates[:, i].toarray().reshape(N_e, N_t)
-                            d = numpy.corrcoef(match.flatten(), scaling*new_temp.flatten())[0, 1]
+                            d = numpy.corrcoef(match.flatten(),
+                                               scaling * new_temp.flatten())[0, 1]
                             if d > similarity:
                                 similarity = d
                 else:
                     new_indices = []
+            # Go to the next shuffled electrode.
             count += 1
 
         #if comm.rank == 0:
@@ -180,43 +231,100 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         to_insert2     = numpy.zeros(reference.shape, dtype=numpy.float32)
         to_insert2[new_indices] = scaling*amplitude[gcount]*templates[:, cell_id + N_tm].toarray().reshape(N_e, N_t)[indices]
 
-        mynorm     = numpy.sqrt(numpy.sum(to_insert.flatten()**2)/(N_e*N_t))
-        mynorm2    = numpy.sqrt(numpy.sum(to_insert2.flatten()**2)/(N_e*N_t))
-        to_insert  = to_insert.flatten()
+        ## Insert the selected template.
+        
+        # Retrieve the number of existing templates in the dataset.
+        N_tm           = templates.shape[1] / 2
+
+        # Generate the template of the synthesized cell from the selected
+        # template, the target amplitude and the rescaling (i.e. threshold of
+        # the target electrode).
+        to_insert = numpy.zeros(reference.shape, dtype=numpy.float32)
+        to_insert[new_indices] = scaling * amplitude[gcount] * templates[:, cell_id].toarray().reshape(N_e, N_t)[indices]
+        to_insert = to_insert.flatten()
+        to_insert2 = numpy.zeros(reference.shape, dtype=numpy.float32)
+        to_insert2[new_indices] = scaling * amplitude[gcount] * templates[:, cell_id + N_tm].toarray().reshape(N_e, N_t)[indices]
         to_insert2 = to_insert2.flatten()
 
+        # Compute the norm of the generated template.
+        mynorm     = numpy.sqrt(numpy.sum(to_insert ** 2) / (N_e * N_t))
+        mynorm2    = numpy.sqrt(numpy.sum(to_insert2 ** 2) / (N_e * N_t))
+
+        # Insert the limits of the generated template.
         limits     = numpy.vstack((limits, limits[cell_id]))
+        # Insert the best electrode of the generated template.
         best_elecs = numpy.concatenate((best_elecs, [n_elec]))
 
+        # Insert the norm of the generated template (i.e. central component and
+        # orthogonal component).
         norms      = numpy.insert(norms, N_tm, mynorm)
-        norms      = numpy.insert(norms, 2*N_tm+1, mynorm2)
+        norms      = numpy.insert(norms, 2 * N_tm + 1, mynorm2)
+        # Insert the scaling of the generated template.
         scalings  += [scaling]
-        
+
+        # Retrieve the data about the existing templates.
         templates = templates.tocoo()
         xdata     = templates.row
         ydata     = templates.col
         zdata     = templates.data
+
+        # Shift by one the orthogonal components of the existing templates.
         idx       = numpy.where(ydata >= N_tm)[0]
         ydata[idx] += 1
 
+        # Insert the central component of the selected template.
         dx    = to_insert.nonzero()[0].astype(numpy.int32)
         xdata = numpy.concatenate((xdata, dx))
-        ydata = numpy.concatenate((ydata, N_tm*numpy.ones(len(dx), dtype=numpy.int32)))
+        ydata = numpy.concatenate((ydata, N_tm * numpy.ones(len(dx), dtype=numpy.int32)))
         zdata = numpy.concatenate((zdata, to_insert[dx]))
 
+        # Insert the orthogonal component of the selected template.
         dx    = to_insert2.nonzero()[0].astype(numpy.int32)
         xdata = numpy.concatenate((xdata, dx))
-        ydata = numpy.concatenate((ydata, (2*N_tm + 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+        ydata = numpy.concatenate((ydata, (2 * N_tm + 1) * numpy.ones(len(dx), dtype=numpy.int32)))
         zdata = numpy.concatenate((zdata, to_insert2[dx]))
-        templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e*N_t, 2*(N_tm+1)))
 
+        # Recontruct the matrix of templates.
+        templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * (N_tm + 1)))
+
+    # Remove all the expired data.
+    if benchmark == 'pca-validation':
+        # Remove all the expired data.
+        N_tm_init = 0
+        N_tm = templates.shape[1] / 2
+
+        limits = limits[N_tm - nb_insert:, :]
+        best_elecs = best_elecs[N_tm - nb_insert:]
+        norms = numpy.concatenate((norms[N_tm-nb_insert:N_tm], norms[2*N_tm-nb_insert:2*N_tm]))
+        scalings = scalings
+        
+        templates = templates.tocoo()
+        xdata = templates.row
+        ydata = templates.col
+        zdata = templates.data
+        
+        idx_cen = numpy.logical_and(N_tm - nb_insert <= ydata, ydata < N_tm)
+        idx_cen = numpy.where(idx_cen)[0]
+        idx_ort = numpy.logical_and(2 * N_tm - nb_insert <= ydata, ydata < 2 * N_tm)
+        idx_ort = numpy.where(idx_ort)[0]
+        ydata[idx_cen] = ydata[idx_cen] - (N_tm - nb_insert)
+        ydata[idx_ort] = ydata[idx_ort] - 2 * (N_tm - nb_insert)
+        idx = numpy.concatenate((idx_cen, idx_ort))
+        xdata = xdata[idx]
+        ydata = ydata[idx]
+        zdata = zdata[idx]
+        templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * nb_insert))
+        
+    # Retrieve the information about the organisation of the chunks of data.
     borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
     if last_chunk_len > 0:
         nb_chunks += 1
 
+    # Display informations about the generated benchmark.
     if comm.rank == 0:
         io.print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
         io.purge(file_out, '.data')
+
 
     template_shift = int((N_t-1)//2)
     all_chunks     = numpy.arange(nb_chunks)
@@ -224,55 +332,90 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     loc_nb_chunks  = len(to_process)
     numpy.random.seed(comm.rank)
 
+    # Initialize the progress bar about the generation of the benchmark.
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
 
-    spiketimes_file     = open(os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank), 'wb')
-    amplitudes_file     = open(os.path.join(file_out, data_suff + '.amplitudes-%d.data' %comm.rank), 'wb')
-    templates_file      = open(os.path.join(file_out, data_suff + '.templates-%d.data' %comm.rank), 'wb')
-    real_amps_file      = open(os.path.join(file_out, data_suff + '.real_amps-%d.data' %comm.rank), 'wb')
-    voltages_file       = open(os.path.join(file_out, data_suff + '.voltages-%d.data' %comm.rank), 'wb')
+    # Open the file for collective I/O.
+    g = myfile.Open(comm, file_name, MPI.MODE_RDWR)
+    g.Set_view(data_offset, data_mpi, data_mpi)
 
+    # Open the thread/process' files to collect the results.
+    spiketimes_filename = os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank)
+    spiketimes_file = open(spiketimes_filename, 'wb')
+    amplitude_filename = os.path.join(file_out, data_suff + '.amplitudes-%d.data' %comm.rank)
+    amplitudes_file = open(amplitude_filename, 'wb')
+    templates_filename = os.path.join(file_out, data_suff + '.templates-%d.data' %comm.rank)
+    templates_file = open(templates_filename, 'wb')
+    real_amps_filename = os.path.join(file_out, data_suff + '.real_amps-%d.data' %comm.rank)
+    real_amps_file = open(real_amps_filename, 'wb')
+    voltages_filename = os.path.join(file_out, data_suff + '.voltages-%d.data' %comm.rank)
+    voltages_file = open(voltages_filename, 'wb')
+
+    # For each chunk of data associate to the current thread/process generate
+    # the new chunk of data (i.e. with considering the added synthesized cells).
     for count, gidx in enumerate(to_process):
 
         if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
             chunk_len  = last_chunk_len
-            chunk_size = last_chunk_len//N_total
+            chunk_size = last_chunk_len // N_total
 
-        result         = {'spiketimes' : [], 'amplitudes' : [], 'templates' : [], 'real_amps' : [], 'voltages' : []}
-        offset         = gidx*chunk_size
+        result         = {'spiketimes' : [], 'amplitudes' : [], 
+                          'templates' : [], 'real_amps' : [],
+                          'voltages' : []}
+        offset         = gidx * chunk_size
         local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
 
+        if benchmark == 'pca-validation':
+            # Clear the current data chunk.
+            local_chunk = numpy.zeros(local_chunk.shape, dtype=local_chunk.dtype)
+
+        # Handle whitening if necessary.
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
-            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk,
+                                                           temporal_whitening,
+                                                           axis=0,
+                                                           mode='constant')
 
         if benchmark is 'synchrony':
-            mips = numpy.random.rand(chunk_size) < rate[0]/float(sampling_rate)
+            # Generate some spike indices (i.e. times) at the given rate for
+            # 'synchrony' mode. Each synthesized cell will use a subset of this
+            # spike times.
+            mips = numpy.random.rand(chunk_size) < rate[0] / float(sampling_rate)
 
+        # For each synthesized cell generate its spike indices (i.e.times) and
+        # add them to the dataset.
         for idx in xrange(len(cells)):
-            if benchmark == 'synchrony':
+            if benchmark is 'synchrony':
+                # Choose a subset of the spike indices generated before. The
+                # size of this subset is parameterized by the target correlation
+                # coefficients.
                 sidx       = numpy.where(mips == True)[0]
                 spikes     = numpy.zeros(chunk_size, dtype=numpy.bool)
                 spikes[sidx[numpy.random.rand(len(sidx)) < corrcoef]] = True
             else:
-                spikes     = numpy.random.rand(chunk_size) < rate[idx]/float(sampling_rate)
-
+                # Generate some spike indices at the given rate.
+                spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(sampling_rate)
             if benchmark == 'drifts':
                 amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(sampling_rate)))
             else:
                 amplitudes = numpy.ones(len(spikes))
-
+            # Padding with `False` to avoid the insertion of partial spikes at
+            # the edges of the signal.
             spikes[:N_t]   = False
             spikes[-N_t:]  = False
+            # Find the indices of the spike samples.
             spikes         = numpy.where(spikes == True)[0]
             n_template     = N_tm_init + idx
             loc_template   = templates[:, n_template].toarray().reshape(N_e, N_t)
             first_flat     = loc_template.T.flatten()
-            norm_flat      = numpy.sum(first_flat**2)
-            refractory     = int(5*1e-3*sampling_rate)         
-            t_last         = -refractory
+            norm_flat      = numpy.sum(first_flat ** 2)
+            # For each index (i.e. spike sample location) add the spike to the
+            # chunk of data.
+            refractory     = int(5 * 1e-3 * sampling_rate)         
+            t_last         = - refractory
             for scount, spike in enumerate(spikes):
                 if (spike - t_last) > refractory:
                     local_chunk[spike-template_shift:spike+template_shift+1, :] += amplitudes[scount]*loc_template.T
@@ -285,6 +428,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                     result['voltages']   += [local_chunk[spike, best_elecs[idx]]]
                     t_last                = spike
 
+        # Write the results into the thread/process' files.
         spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
         amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
         templates_to_write  = numpy.array(result['templates'], dtype=numpy.int32)
@@ -301,66 +445,94 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         new_chunk    = numpy.zeros((chunk_size, N_total), dtype=numpy.float32)
         new_chunk[:, nodes] = local_chunk
 
+        # Overwrite the new chunk of data using explicit offset. 
         new_chunk   = new_chunk.flatten()
-        g.Write_at(gidx*chunk_len, new_chunk)
+        g.Write_at(gidx * chunk_len, new_chunk)
 
+        # Update the progress bar about the generation of the benchmark.
         if comm.rank == 0:
             pbar.update(count)
 
+    # Close the thread/process' files.
     spiketimes_file.close()
     amplitudes_file.close()
     templates_file.close()
     real_amps_file.close()
     voltages_file.close()
 
+    # Finish the progress bar about the generation of the benchmark.
     if comm.rank == 0:
         pbar.finish()
 
-
+    # Close the file for collective I/O.
     g.Close()
+
+    
+    # Synchronize all the threads/processes.
     comm.Barrier()
+
+    
+    ## Eventually, perform all the administrative tasks.
+    ## (i.e. files and folders management).
 
     file_params = file_out + '.params'
 
     if comm.rank == 0:
-
+        # Create `injected` directory if it does not exist
         result_path = os.path.join(file_out, 'injected') 
         if not os.path.exists(result_path):
             os.makedirs(result_path)
 
+        # Copy initial configuration file from `<dataset1>.params` to `<dataset2>.params`.
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
-        shutil.copy2(params.get('data', 'file_out') + '.basis.hdf5', os.path.join(result_path, data_suff + '.basis.hdf5'))
+        # Copy initial basis file from `<dataset1>/<dataset1>.basis.hdf5` to
+        # `<dataset2>/injected/<dataset2>.basis.hdf5.
+        print(params.get('data', 'file_out') + '.basis.hdf5')
+        shutil.copy2(params.get('data', 'file_out') + '.basis.hdf5',
+                     os.path.join(result_path, data_suff + '.basis.hdf5'))
 
+        # Save templates into `<dataset>/<dataset>.templates.hdf5`.
         mydata = h5py.File(os.path.join(file_out, data_suff + '.templates.hdf5'), 'w')
-
         templates = templates.tocoo()
         mydata.create_dataset('temp_x', data=templates.row)
         mydata.create_dataset('temp_y', data=templates.col)
         mydata.create_dataset('temp_data', data=templates.data)
-        mydata.create_dataset('temp_shape', data=numpy.array([N_e, N_t, templates.shape[1]], dtype=numpy.int32))
+        mydata.create_dataset('temp_shape', data=numpy.array([N_e, N_t, templates.shape[1]],
+                                                             dtype=numpy.int32))
         mydata.create_dataset('limits', data=limits)
         mydata.create_dataset('norms', data=norms)
         mydata.close()
 
+        # Save electrodes into `<dataset>/<dataset>.clusters.hdf5`.
         mydata = h5py.File(os.path.join(file_out, data_suff + '.clusters.hdf5'), 'w')
         mydata.create_dataset('electrodes', data=best_elecs)
         mydata.close()
 
-
     comm.Barrier()
     if comm.rank == 0:
+        # Gather data from all threads/processes.
         io.collect_data(comm.size, io.load_parameters(file_name), erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
-        io.change_flag(file_name, 'temporal', 'False')
-        io.change_flag(file_name, 'spatial', 'False')
-        io.change_flag(file_name, 'data_dtype', 'float32')
-        io.change_flag(file_name, 'dtype_offset', 'auto')
+        # Change some flags in the configuration file.
+        io.change_flag(file_name, 'temporal', 'False') # Disable temporal filtering
+        io.change_flag(file_name, 'spatial', 'False') # Disable spatial filtering
+        io.change_flag(file_name, 'data_dtype', 'float32') # Set type of the data to float32
+        io.change_flag(file_name, 'dtype_offset', 'auto') # Set padding for data to auto
+        # Move results from `<dataset>/<dataset>.result.hdf5` to
+        # `<dataset>/injected/<dataset>.result.hdf5`.
         shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'), os.path.join(result_path, data_suff + '.result.hdf5'))
                 
+        # Save scalings into `<dataset>/injected/<dataset>.scalings.npy`.
         numpy.save(os.path.join(result_path, data_suff + '.scalings'), scalings)
 
         file_name_noext, ext = os.path.splitext(file_name)
 
-        shutil.copy2(os.path.join(result_path, data_suff + '.basis.hdf5'), os.path.join(file_out, data_suff + '.basis.hdf5'))
+        # Copy basis from `<dataset>/injected/<dataset>.basis.hdf5` to
+        # `<dataset>/<dataset>.basis.hdf5`.
+        shutil.copy2(os.path.join(result_path, data_suff + '.basis.hdf5'),
+                     os.path.join(file_out, data_suff + '.basis.hdf5'))
 
         if benchmark not in ['fitting', 'synchrony']:
-            shutil.move(os.path.join(file_out, data_suff + '.templates.hdf5'), os.path.join(result_path, data_suff + '.templates.hdf5'))
+            # Copy templates from `<dataset>/<dataset>.templates.hdf5` to
+            # `<dataset>/injected/<dataset>.templates.hdf5`
+            shutil.move(os.path.join(file_out, data_suff + '.templates.hdf5'),
+                        os.path.join(result_path, data_suff + '.templates.hdf5'))

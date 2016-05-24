@@ -58,7 +58,11 @@ class LaunchGUI(QtGui.QDialog):
         self.task_comboboxes = [cb for cb in self.ui.grp_tasks.children()
                                 if isinstance(cb, QCheckBox)]
 
+        logo = pkg_resources.resource_filename('circus', os.path.join('icons','icon.png'))
+        self.ui.setWindowIcon(QtGui.QIcon(logo)) 
+
         self.ui.btn_run.clicked.connect(self.run)
+        self.ui.btn_plots.clicked.connect(self.open_plot_folder)
         self.ui.btn_param.clicked.connect(self.view_param)
         self.ui.tabWidget.currentChanged.connect(self.changing_tab)
         self.ui.btn_stop.clicked.connect(self.stop)
@@ -91,6 +95,10 @@ class LaunchGUI(QtGui.QDialog):
         self.process = None
         self.ui.closeEvent = self.closeEvent
         self.last_log_file = None
+        try: 
+            import sklearn
+        except ImportError:
+            self.ui.cb_validating.setEnabled(False)
         self.ui.show()
 
     def store_tasks(self):
@@ -99,6 +107,7 @@ class LaunchGUI(QtGui.QDialog):
             self.ui.btn_run.setEnabled(False)
         elif str(self.ui.edit_file.text()) != '':
             self.ui.btn_run.setEnabled(True)
+            self.ui.btn_plots.setEnabled(True)
 
     def restore_tasks(self):
         for cb, prev_state in zip(self.task_comboboxes,
@@ -228,6 +237,7 @@ class LaunchGUI(QtGui.QDialog):
             f_params = f_next + '.params'
             if os.path.exists(f_params):
                 self.ui.btn_param.setEnabled(True)
+                self.ui.btn_plots.setEnabled(True)
         else:
             self.ui.btn_run.setEnabled(False)
 
@@ -577,6 +587,11 @@ class LaunchGUI(QtGui.QDialog):
         answer = msg.exec_()
         if answer == QMessageBox.Yes:
             QDesktopServices.openUrl(QUrl("http://spyking-circus.rtfd.org"))
+
+    def open_plot_folder(self):
+        f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
+        plot_folder = os.path.join(f_next, 'plots')
+        QDesktopServices.openUrl(QUrl(plot_folder))
 
     def closeEvent(self, event):
         if self.process is not None:
