@@ -58,6 +58,9 @@ class LaunchGUI(QtGui.QDialog):
         self.task_comboboxes = [cb for cb in self.ui.grp_tasks.children()
                                 if isinstance(cb, QCheckBox)]
 
+        logo = pkg_resources.resource_filename('circus', os.path.join('icons','icon.png'))
+        self.ui.setWindowIcon(QtGui.QIcon(logo)) 
+
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_plots.clicked.connect(self.open_plot_folder)
         self.ui.btn_param.clicked.connect(self.view_param)
