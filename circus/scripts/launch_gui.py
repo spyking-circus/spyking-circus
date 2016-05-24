@@ -59,6 +59,7 @@ class LaunchGUI(QtGui.QDialog):
                                 if isinstance(cb, QCheckBox)]
 
         self.ui.btn_run.clicked.connect(self.run)
+        self.ui.btn_plots.clicked.connect(self.open_plot_folder)
         self.ui.btn_param.clicked.connect(self.view_param)
         self.ui.tabWidget.currentChanged.connect(self.changing_tab)
         self.ui.btn_stop.clicked.connect(self.stop)
@@ -99,6 +100,7 @@ class LaunchGUI(QtGui.QDialog):
             self.ui.btn_run.setEnabled(False)
         elif str(self.ui.edit_file.text()) != '':
             self.ui.btn_run.setEnabled(True)
+            self.ui.btn_plots.setEnabled(True)
 
     def restore_tasks(self):
         for cb, prev_state in zip(self.task_comboboxes,
@@ -228,6 +230,7 @@ class LaunchGUI(QtGui.QDialog):
             f_params = f_next + '.params'
             if os.path.exists(f_params):
                 self.ui.btn_param.setEnabled(True)
+                self.ui.btn_plots.setEnabled(True)
         else:
             self.ui.btn_run.setEnabled(False)
 
@@ -577,6 +580,11 @@ class LaunchGUI(QtGui.QDialog):
         answer = msg.exec_()
         if answer == QMessageBox.Yes:
             QDesktopServices.openUrl(QUrl("http://spyking-circus.rtfd.org"))
+
+    def open_plot_folder(self):
+        f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
+        plot_folder = os.path.join(f_next, 'plots')
+        QDesktopServices.openUrl(QUrl(plot_folder))
 
     def closeEvent(self, event):
         if self.process is not None:

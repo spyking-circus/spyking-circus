@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>800</height>
+    <height>863</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -506,6 +506,13 @@
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="QCheckBox" name="checkBox">
+                 <property name="text">
+                  <string>Validating</string>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </item>
             </layout>
@@ -523,7 +530,7 @@
              <rect>
               <x>10</x>
               <y>10</y>
-              <width>171</width>
+              <width>741</width>
               <height>101</height>
              </rect>
             </property>
@@ -568,7 +575,7 @@
              <rect>
               <x>10</x>
               <y>110</y>
-              <width>592</width>
+              <width>751</width>
               <height>65</height>
              </rect>
             </property>
@@ -672,6 +679,16 @@
         </property>
         <property name="text">
          <string>Edit Params</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btn_plots">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Plot folder</string>
         </property>
        </widget>
       </item>
