@@ -60,9 +60,12 @@ class LaunchGUI(QtGui.QDialog):
 
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_param.clicked.connect(self.view_param)
+        self.ui.tabWidget.currentChanged.connect(self.changing_tab)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
         self.ui.btn_about.clicked.connect(self.show_about)
+        self.ui.rb_gui_matlab.clicked.connect(self.update_gui_command)
+        self.ui.rb_gui_python.clicked.connect(self.update_gui_command)
         self.ui.btn_output.clicked.connect(self.update_output_file)
         self.ui.btn_hostfile.clicked.connect(self.update_host_file)
         self.ui.btn_log.clicked.connect(self.open_log_file)
@@ -81,6 +84,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_output.textChanged.connect(self.update_command)
         self.ui.edit_hostfile.textChanged.connect(self.update_command)
         self.ui.edit_extension.textChanged.connect(self.update_command)
+        self.ui.gui_extension.textChanged.connect(self.update_gui_command)
         self.ui.spin_cpus.valueChanged.connect(self.update_command)
         self.ui.spin_gpus.valueChanged.connect(self.update_command)
         self.store_tasks()
@@ -128,6 +132,13 @@ class LaunchGUI(QtGui.QDialog):
             self.ui.lbl_file.setText('Data file')
         self.update_command()
 
+
+    def changing_tab(self):
+        if self.ui.tabWidget.currentIndex() == 0:
+            self.update_command()
+        elif self.ui.tabWidget.currentIndex() == 1:
+            self.update_gui_command()
+
     def update_preview_mode(self):
         preview_mode = self.ui.cb_preview.isChecked()
 
@@ -152,6 +163,18 @@ class LaunchGUI(QtGui.QDialog):
         if results_mode:
             self.ui.cb_batch.setChecked(False)
             self.ui.cb_preview.setChecked(False)
+
+    def update_result_tab(self):
+        if str(self.ui.edit_file.text()) != '':
+            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
+            ft, _     = os.path.splitext(f_next)        
+            f_results = os.path.join(f_next, f_next + '.result.hdf5')
+            if True:#if os.path.exists(f_results):
+                self.ui.selection_gui.setEnabled(True)
+                self.ui.extension_gui.setEnabled(True)
+        else:
+            self.ui.selection_gui.setEnabled(False)
+            self.ui.extension_gui.setEnabled(False)
 
     def update_extension(self):
         batch_mode = self.ui.cb_batch.isChecked()
@@ -208,6 +231,13 @@ class LaunchGUI(QtGui.QDialog):
         else:
             self.ui.btn_run.setEnabled(False)
 
+        if self.ui.tabWidget.currentIndex() == 0:
+            self.update_command()
+        elif self.ui.tabWidget.currentIndex() == 1:
+            self.update_gui_command()
+
+        self.update_result_tab()
+
     def update_host_file(self):
         fname = QFileDialog.getOpenFileName(self, 'Select MPI host file',
                                             self.ui.edit_hostfile.text())
@@ -223,6 +253,26 @@ class LaunchGUI(QtGui.QDialog):
     def open_log_file(self):
         assert self.last_log_file is not None
         QDesktopServices.openUrl(QUrl(self.last_log_file))
+
+
+    def gui_command_line_args(self):
+
+        if self.ui.rb_gui_matlab.isChecked():
+            args = ['circus-gui-matlab']
+        elif self.ui.rb_gui_python.isChecked():
+            args = ['circus-gui-python']
+
+        fname = str(self.ui.edit_file.text()).strip()
+        if fname:
+            args.append(fname)
+
+        extension = str(self.ui.gui_extension.text()).strip()
+
+        if extension:
+            args.extend(['--extension', extension])
+
+        return args
+
 
     def command_line_args(self):
         batch_mode = self.ui.cb_batch.isChecked()
@@ -261,6 +311,10 @@ class LaunchGUI(QtGui.QDialog):
                 args.extend(['--type', str(self.ui.cmb_type.currentText())])
         return args
 
+    def update_gui_command(self):
+        args = ' '.join(self.gui_command_line_args())
+        self.ui.edit_command.setPlainText(args)
+
     def update_command(self, text=None):
         args = ' '.join(self.command_line_args())
         self.ui.edit_command.setPlainText(args)
@@ -276,9 +330,13 @@ class LaunchGUI(QtGui.QDialog):
                 self.ui.btn_param.setEnabled(True)
                 return
             self.last_log_file = f_next + '.log'
-        args = self.command_line_args()
-
         
+        if self.ui.tabWidget.currentIndex() == 0:
+            args = self.command_line_args()
+        elif self.ui.tabWidget.currentIndex() == 1:
+            args = self.gui_command_line_args()
+        
+        self.update_result_tab()
 
         # # Start process
         self.ui.edit_stdout.clear()
