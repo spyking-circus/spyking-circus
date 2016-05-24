@@ -162,7 +162,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 for spike_time_index in xrange(0, juxta_spikes.shape[2]):
                     # Since extra_valley is always true.
                     min_juxta_spikes = numpy.amin(juxta_spikes[:, elec, spike_time_index])
-                    if min_juxta_spikes <= - 20.0 * 6.0 * mad_juxta_spikes:
+                    if min_juxta_spikes <= - 20.0 * juxta_thresh * mad_juxta_spikes:
                         # There is an artifact.
                         juxta_spike_times_selection[spike_time_index] = False
                         ##### TODO: remove debug zone
