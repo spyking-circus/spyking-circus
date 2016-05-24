@@ -343,11 +343,6 @@ def load_parameters(file_name):
     if not test:
         print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
-
-    # if nb_channels is not None:
-    #     if N_e != nb_channels:
-    #         print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', parser)
-    #         sys.exit(0)
     
     return parser
 
