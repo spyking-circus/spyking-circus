@@ -1085,22 +1085,22 @@ def load_data(params, data, extension=''):
 
     if data == 'thresholds':
         spike_thresh = params.getfloat('detection', 'spike_thresh')
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds 
     elif data == 'matched-thresholds':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds')[:]
             myfile.close()
             return matched_thresh * thresholds 
     elif data == 'matched-thresholds-pos':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
-        if os.path.exists(file_out + '.basis.hdf5'):
-            myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds_pos')[:]
             myfile.close()
             return matched_thresh * thresholds 
@@ -1127,13 +1127,13 @@ def load_data(params, data, extension=''):
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'basis-pos':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'waveform':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveform')[:]
         myfile.close()
         return waveforms
@@ -1143,12 +1143,12 @@ def load_data(params, data, extension=''):
         myfile.close()
         return waveforms
     elif data == 'waveform-pos':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveform_pos')[:]
         myfile.close()
         return waveforms
     elif data == 'waveforms-pos':
-        myfile     = h5py.File(file_out + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
         waveforms  = myfile.get('waveforms_pos')[:]
         myfile.close()
         return waveforms
