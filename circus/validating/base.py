@@ -3,9 +3,8 @@ import matplotlib.gridspec as gridspec
 import sys, h5py
 
 from ..shared.utils import *
-from ..shared.files import get_stas
+from ..shared.files import get_stas, get_stas_memshared
 from ..shared import plot
-from datetime import datetime
 
 try:
     import sklearn
@@ -19,6 +18,11 @@ from sklearn.decomposition import PCA
 # from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
+
+
+from matplotlib.cm import inferno
+from matplotlib.patches import Rectangle
+
 from .utils import *
 
 
@@ -101,6 +105,9 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                              hatch='/', facecolor='white', zorder=3)
     
     if comm.rank == 0:
+
+        if not os.path.exists(plot_path):
+            os.makedirs(plot_path)
         
         if make_plots not in ['None', '']:
             plot_filename = "beer-juxta-distribution.{}".format(make_plots)
@@ -130,8 +137,8 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     N_p = basis_proj.shape[1]
     
     # Select only the neighboring channels of the best channel.
-    chan = params.getint('validating', 'nearest_elec')
-    if chan == -1:
+    chan = params.get('validating', 'nearest_elec')
+    if chan == 'auto':
         ###### TODO: clean temporary zone
         # Set best channel as the channel with the highest change in amplitude.
         nodes, chans = get_neighbors(params, chan=None)
@@ -175,6 +182,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
             io.print_and_log(msg, level='default', logger=params)
         ##### TODO: clean temporary zone
     else:
+        chanl = int(chan)
         nodes, chans = get_neighbors(params, chan=chan)
         ##### TODO: clean temporary zone
         elec = numpy.where(chans == chan)[0][0]
