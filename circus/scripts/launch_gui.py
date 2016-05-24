@@ -167,9 +167,9 @@ class LaunchGUI(QtGui.QDialog):
     def update_result_tab(self):
         if str(self.ui.edit_file.text()) != '':
             f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
-            ft, _     = os.path.splitext(f_next)        
-            f_results = os.path.join(f_next, f_next + '.result.hdf5')
-            if True:#if os.path.exists(f_results):
+            ft        = os.path.basename(os.path.normpath(f_next))        
+            f_results = os.path.join(f_next, ft + '.result.hdf5')
+            if os.path.exists(f_results):
                 self.ui.selection_gui.setEnabled(True)
                 self.ui.extension_gui.setEnabled(True)
         else:
@@ -296,9 +296,12 @@ class LaunchGUI(QtGui.QDialog):
                 if cb.isChecked():
                     label = str(cb.text()).lower()
                     tasks.append(label)
-            args.extend(['--method', ','.join(tasks)])
-            args.extend(['--cpu', str(self.ui.spin_cpus.value())])
-            args.extend(['--gpu', str(self.ui.spin_gpus.value())])
+            if len(tasks) > 0:
+                args.extend(['--method', ','.join(tasks)])
+            if self.ui.spin_cpus.value() > 1:
+                args.extend(['--cpu', str(self.ui.spin_cpus.value())])
+            if self.ui.spin_gpus.value() > 0:
+                args.extend(['--gpu', str(self.ui.spin_gpus.value())])
             hostfile = str(self.ui.edit_hostfile.text()).strip()
             if hostfile:
                 args.extend(['--hostfile', hostfile])
