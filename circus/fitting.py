@@ -19,13 +19,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
-    skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
-    spike_thresh   = params.getfloat('data', 'spike_thresh')
-    stationary     = params.getboolean('data', 'stationary')
-    spikedetekt    = params.getboolean('data', 'spikedetekt')
+    sign_peaks     = params.get('detection', 'peaks')
+    matched_filter = params.getboolean('detection', 'matched-filter')
+    spike_thresh   = params.getfloat('detection', 'spike_thresh')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size     = int(params.getfloat('fitting', 'chunk')*sampling_rate)
@@ -35,10 +34,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits     = map(float, tmp_limits)
     amp_auto       = params.getboolean('fitting', 'amp_auto')
     space_explo    = params.getfloat('fitting', 'space_explo')
-    refractory     = float(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
-    spike_range    = int(params.getfloat('fitting', 'spike_range')*sampling_rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -91,6 +88,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     info_string   = ''
 
+    if matched_filter:
+        if sign_peaks in ['negative', 'both']:
+            waveform_neg  = io.load_data(params, 'waveform')
+            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
+            matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
+        if sign_peaks in ['positive', 'both']:
+            waveform_pos  = io.load_data(params, 'waveform-pos')
+            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
+            matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
+
     if comm.rank == 0:
         if use_gpu:
             info_string = "using %d GPUs" %(comm.size)
@@ -138,9 +145,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
-
-    if spikedetekt:
-        spiketimes = io.load_data(params, 'spikedetekt')
 
     if full_gpu:
         try:
@@ -196,35 +200,30 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        if not stationary:
-            for i in xrange(N_e):
-                u             = numpy.median(local_chunk[:, i], 0)
-                thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
-            thresholds *= spike_thresh
-
         #print "Extracting the peaks..."
-        if not spikedetekt:
-            local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-            for i in xrange(N_e):
-                peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
-                if skip_artefact:
-                    real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                    indices   = numpy.take(inv_nodes, edges[nodes[i]])
-                    for idx in xrange(len(peaktimes)):
-                        values      = numpy.take(local_chunk[idx], indices)
-                        is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
-                        if not is_artefact:
-                            real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                    peaktimes = numpy.take(peaktimes, real_peaktimes)
-                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
-        else:
-            idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)
-            local_peaktimes = numpy.compress(idx, spiketimes) - gidx*chunk_size
+        local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
 
-        if spike_range > 0:
-            spikes = numpy.unique(local_peaktimes)
-            for spike in spikes:
-                local_peaktimes = numpy.concatenate((local_peaktimes, numpy.arange(spike-spike_range, spike+spike_range)))
+        if matched_filter:
+            if sign_peaks in ['positive', 'both']:
+                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
+                for i in xrange(N_e):
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
+                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+            if sign_peaks in ['negative', 'both']:
+                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
+                for i in xrange(N_e):
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
+                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+        else:
+            for i in xrange(N_e):
+                if sign_peaks == 'negative':
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                elif sign_peaks == 'positive':
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
+                elif sign_peaks == 'both':
+                    peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
+                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
+
 
         local_peaktimes = numpy.unique(local_peaktimes)
         
@@ -260,13 +259,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_offset = gidx*chunk_size+padding[0]//N_total
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
-
-            # We penalize the neurons that are in refractory periods
-            if refractory > 0:
-                tmp     = numpy.dot(numpy.ones((n_tm, 1), dtype=numpy.int32), all_spikes.reshape((1, n_t)))
-                penalty = 1 - numpy.exp((last_spikes - tmp)/refractory)
-            else:
-                penalty = numpy.ones((n_tm, n_t), dtype=numpy.float32)
+            penalty      = numpy.ones((n_tm, n_t), dtype=numpy.float32)
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
@@ -284,32 +277,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 mask     = penalty
                 sub_b    = b[:n_tm, :]
-
-
-            if spike_range > 0:
-                term_1 = numpy.dot(numpy.ones((n_tm, 1)), local_peaktimes[:-1].reshape(1, n_t-1))
-                term_2 = numpy.dot(numpy.ones((n_tm, 1)), local_peaktimes[1:].reshape(1, n_t-1))-1
-                term_3 = numpy.hstack((numpy.zeros((term_1.shape[0], 1)), term_1))[:, :-1]
-                term_4 = numpy.hstack((numpy.zeros((term_2.shape[0], 1)), term_2))[:, :-1]
-
-                if full_gpu:
-                    c   = b.asarray()
-                    idx = numpy.where(numpy.logical_or(c[:n_tm,:-1] > c[:n_tm,1:] * (term_3 == term_4), (term_1 != term_2)))
-                    sub_mask  = numpy.ones((penalty.shape), dtype=numpy.float32)
-                    sub_mask[idx[0], idx[1]+1] = 0
-                else:
-                    idx = numpy.where(numpy.logical_or(b[:n_tm,:-1] > b[:n_tm,1:] * (term_3 == term_4), (term_1 != term_2)))
-                    mask[idx[0], idx[1]+1] = 0
-
-                if full_gpu:
-                    idx       = numpy.where(numpy.logical_or(c[:n_tm,:-1] < c[:n_tm,1:] * (term_1 == term_2), (term_1 != term_2)))
-                    sub_mask[idx] = 0
-                    sub_mask  = cmt.CUDAMatrix(sub_mask)
-                    mask.mult(sub_mask)
-                    del sub_mask
-                else:
-                    idx = numpy.where(numpy.logical_or(b[:n_tm,:-1] < b[:n_tm,1:] * (term_1 == term_2), (term_1 != term_2)))
-                    mask[idx] = 0
 
             min_time     = local_peaktimes.min()
             max_time     = local_peaktimes.max()
@@ -355,11 +322,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         del tmp_mat
                     else:
                         inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
-
-                    if refractory > 0:
-                        sort_idx  = numpy.argsort(inds_t)
-                        inds_t    = inds_t[sort_idx]
-                        inds_temp = inds_temp[sort_idx]
 
                     if full_gpu:
                         best_amp  = sub_b.asarray()[inds_temp, inds_t]/n_scalar
@@ -423,20 +385,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             result['spiketimes'] += [t_spike]
                             result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
                             result['templates']  += [inds_temp[keep]]
-                            if refractory > 0:
-                                last_spike                   = last_spikes[inds_temp[keep]]
-                                sidx                         = numpy.where(all_spikes >= t_spike)[0]
-                                last_spikes[inds_temp[keep]] = t_spike
-                                values                       = numpy.ones(n_t)
-                                values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
-                                if full_gpu:
-                                    values   = cmt.CUDAMatrix(values.reshape(1, n_t))
-                                    sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
-                                    sub_mask.mult(values)
-                                    mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
-                                    del values, sub_mask
-                                else:
-                                    mask[inds_temp[keep]] *= values
 
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1

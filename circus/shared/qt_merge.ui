@@ -194,8 +194,7 @@
          </property>
          <property name="icon">
           <iconset theme="help-about">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -206,8 +205,7 @@
          </property>
          <property name="icon">
           <iconset theme="edit-add">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -218,8 +216,7 @@
          </property>
          <property name="icon">
           <iconset theme="list-remove">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -230,8 +227,7 @@
          </property>
          <property name="icon">
           <iconset theme="dialog-yes">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -249,14 +245,23 @@
         </spacer>
        </item>
        <item>
+        <widget class="QCheckBox" name="show_peaks">
+         <property name="text">
+          <string>Show only peaks</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="btn_suggest_templates">
          <property name="text">
           <string>Suggest Templates</string>
          </property>
          <property name="icon">
           <iconset theme="help-about">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -267,8 +272,7 @@
          </property>
          <property name="icon">
           <iconset theme="list-remove">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -282,8 +286,7 @@
          </property>
          <property name="icon">
           <iconset theme="user-trash">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -312,8 +315,7 @@
            </property>
            <property name="icon">
             <iconset theme="edit-undo">
-             <normaloff/>
-            </iconset>
+             <normaloff>.</normaloff>.</iconset>
            </property>
           </widget>
          </item>
@@ -327,8 +329,7 @@
            </property>
            <property name="icon">
             <iconset theme="edit-redo">
-             <normaloff/>
-            </iconset>
+             <normaloff>.</normaloff>.</iconset>
            </property>
           </widget>
          </item>
@@ -340,7 +341,8 @@
           <string>Merge and Finalize</string>
          </property>
          <property name="icon">
-          <iconset theme="system-run"/>
+          <iconset theme="system-run">
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -351,8 +353,7 @@
          </property>
          <property name="icon">
           <iconset theme="system-run">
-           <normaloff/>
-          </iconset>
+           <normaloff>.</normaloff>.</iconset>
          </property>
         </widget>
        </item>
@@ -450,6 +451,16 @@
         </widget>
        </item>
       </layout>
+     </widget>
+    </item>
+    <item row="2" column="2">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string/>
+      </property>
+      <property name="pixmap">
+       <pixmap>../icons/logo.jpg</pixmap>
+      </property>
      </widget>
     </item>
    </layout>
