@@ -680,6 +680,9 @@
         <property name="text">
          <string>Edit Params</string>
         </property>
+        <property name="icon">
+         <iconset theme="document-new"/>
+        </property>
        </widget>
       </item>
       <item>
@@ -689,6 +692,9 @@
         </property>
         <property name="text">
          <string>Plot folder</string>
+        </property>
+        <property name="icon">
+         <iconset theme="folder"/>
         </property>
        </widget>
       </item>
