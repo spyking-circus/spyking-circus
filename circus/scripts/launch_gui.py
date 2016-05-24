@@ -288,6 +288,10 @@ class LaunchGUI(QtGui.QDialog):
             args.append('--batch')
         elif preview_mode:
             args.append('--preview')
+            if self.ui.spin_cpus.value() > 1:
+                args.extend(['--cpu', str(self.ui.spin_cpus.value())])
+            if self.ui.spin_gpus.value() > 0:
+                args.extend(['--gpu', str(self.ui.spin_gpus.value())])
         elif results_mode:
             args.append('--result')
         else:
