@@ -95,6 +95,10 @@ class LaunchGUI(QtGui.QDialog):
         self.process = None
         self.ui.closeEvent = self.closeEvent
         self.last_log_file = None
+        try: 
+            import sklearn
+        except ImportError:
+            self.ui.cb_validating.setEnabled(False)
         self.ui.show()
 
     def store_tasks(self):
