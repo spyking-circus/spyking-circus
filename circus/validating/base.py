@@ -19,7 +19,6 @@ from sklearn.decomposition import PCA
 # from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
-from sklearn.preprocessing import StandardScaler
 from .utils import *
 
 
@@ -1286,10 +1285,10 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
         
         ##### TODO: clean temporary zone
         
-        MODE = 'perso'
+        MODE = 'custom'
         # MODE = 'harris'
         
-        if MODE == 'perso':
+        if MODE == 'custom':
             
             # Define the "matching threshold".
             thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3)
