@@ -64,6 +64,8 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_plots.clicked.connect(self.open_plot_folder)
         self.ui.btn_param.clicked.connect(self.view_param)
+        self.ui.btn_phy.clicked.connect(self.help_phy)
+        self.ui.btn_matlab.clicked.connect(self.help_matlab)
         self.ui.tabWidget.currentChanged.connect(self.changing_tab)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
@@ -592,6 +594,12 @@ class LaunchGUI(QtGui.QDialog):
         f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
         plot_folder = os.path.join(f_next, 'plots')
         QDesktopServices.openUrl(QUrl(plot_folder))
+
+    def help_phy(self):
+        QDesktopServices.openUrl(QUrl("https://github.com/kwikteam/phy-contrib"))
+
+    def help_matlab(self):
+        QDesktopServices.openUrl(QUrl("http://ch.mathworks.com/products/matlab/"))
 
     def closeEvent(self, event):
         if self.process is not None:

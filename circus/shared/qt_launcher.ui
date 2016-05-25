@@ -575,6 +575,40 @@
               <bool>true</bool>
              </property>
             </widget>
+            <widget class="QPushButton" name="btn_phy">
+             <property name="geometry">
+              <rect>
+               <x>548</x>
+               <y>20</y>
+               <width>171</width>
+               <height>27</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string>How to get phy</string>
+             </property>
+             <property name="icon">
+              <iconset theme="help">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
+            <widget class="QPushButton" name="btn_matlab">
+             <property name="geometry">
+              <rect>
+               <x>548</x>
+               <y>50</y>
+               <width>171</width>
+               <height>27</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string>How to get MATLAB</string>
+             </property>
+             <property name="icon">
+              <iconset theme="help">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
            </widget>
            <widget class="QGroupBox" name="extension_gui">
             <property name="enabled">
