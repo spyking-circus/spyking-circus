@@ -52,7 +52,7 @@ class LaunchGUI(QtGui.QDialog):
 
     def init_gui_layout(self):
         gui_fname = pkg_resources.resource_filename('circus',
-                                                    os.path.join('shared',
+                                                    os.path.join('qt_GUI',
                                                                  'qt_launcher.ui'))
         self.ui = uic.loadUi(gui_fname)
         self.task_comboboxes = [cb for cb in self.ui.grp_tasks.children()

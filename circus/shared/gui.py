@@ -244,7 +244,10 @@ class MergeWindow(QtGui.QMainWindow):
         super(MergeWindow, self).closeEvent(event)
 
     def init_gui_layout(self):
-        self.ui = uic.loadUi(os.path.join(os.path.dirname(__file__), './qt_merge.ui'), self)
+        gui_fname = pkg_resources.resource_filename('circus',
+                                                    os.path.join('qt_GUI',
+                                                                 'qt_merge.ui'))
+        self.ui = uic.loadUi(gui_fname, self)
         # print dir(self.ui)
         self.score_ax1 = self.ui.score_1.axes
         self.score_ax2 = self.ui.score_2.axes
@@ -1111,7 +1114,10 @@ class PreviewGUI(QtGui.QMainWindow):
                 io.print_and_log(["No results found!"], 'info', self.params)
 
     def init_gui_layout(self):
-        self.ui = uic.loadUi(os.path.join(os.path.dirname(__file__), './qt_preview.ui'), self)
+        gui_fname = pkg_resources.resource_filename('circus',
+                                                    os.path.join('qt_GUI',
+                                                                 'qt_preview.ui'))
+        self.ui = uic.loadUi(gui_fname, self)
         self.electrode_ax = self.ui.electrodes.axes
         self.data_x = self.ui.raw_data.axes
         if self.show_fit:
