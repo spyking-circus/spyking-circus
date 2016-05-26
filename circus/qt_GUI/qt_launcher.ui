@@ -520,6 +520,19 @@
              </item>
             </layout>
            </widget>
+           <widget class="Line" name="line">
+            <property name="geometry">
+             <rect>
+              <x>140</x>
+              <y>40</y>
+              <width>20</width>
+              <height>261</height>
+             </rect>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
           </widget>
           <widget class="QWidget" name="tab_2">
            <attribute name="title">
@@ -573,6 +586,40 @@
              </property>
              <property name="checked">
               <bool>true</bool>
+             </property>
+            </widget>
+            <widget class="QPushButton" name="btn_phy">
+             <property name="geometry">
+              <rect>
+               <x>548</x>
+               <y>20</y>
+               <width>171</width>
+               <height>27</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string>How to get phy</string>
+             </property>
+             <property name="icon">
+              <iconset theme="help">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
+            <widget class="QPushButton" name="btn_matlab">
+             <property name="geometry">
+              <rect>
+               <x>548</x>
+               <y>50</y>
+               <width>171</width>
+               <height>27</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string>How to get MATLAB</string>
+             </property>
+             <property name="icon">
+              <iconset theme="help">
+               <normaloff>.</normaloff>.</iconset>
              </property>
             </widget>
            </widget>
