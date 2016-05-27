@@ -61,11 +61,20 @@ class LaunchGUI(QtGui.QDialog):
         logo = pkg_resources.resource_filename('circus', os.path.join('icons','icon.png'))
         self.ui.setWindowIcon(QtGui.QIcon(logo)) 
 
+        try:
+            import cudamat as cmt
+            cmt.init()
+            self.HAVE_CUDA = True
+        except Exception:
+            self.HAVE_CUDA = False
+
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_plots.clicked.connect(self.open_plot_folder)
         self.ui.btn_param.clicked.connect(self.view_param)
         self.ui.btn_phy.clicked.connect(self.help_phy)
         self.ui.btn_matlab.clicked.connect(self.help_matlab)
+        self.ui.btn_help_cpus.clicked.connect(self.help_cpus)
+        self.ui.btn_help_gpus.clicked.connect(self.help_gpus)
         self.ui.tabWidget.currentChanged.connect(self.changing_tab)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
@@ -92,6 +101,8 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_extension.textChanged.connect(self.update_command)
         self.ui.gui_extension.textChanged.connect(self.update_gui_command)
         self.ui.spin_cpus.valueChanged.connect(self.update_command)
+        if not self.HAVE_CUDA:
+            self.ui.spin_gpus.setEnabled(False)
         self.ui.spin_gpus.valueChanged.connect(self.update_command)
         self.store_tasks()
         self.process = None
@@ -589,6 +600,51 @@ class LaunchGUI(QtGui.QDialog):
         answer = msg.exec_()
         if answer == QMessageBox.Yes:
             QDesktopServices.openUrl(QUrl("http://spyking-circus.rtfd.org"))
+
+    def help_cpus(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Question)
+        msg.setText("Setting the number of CPUs")
+        msg.setWindowTitle("Number of CPUs")
+        msg.setInformativeText("SpyKING CIRCUS can use several CPUs "
+                               "either locally or on multiple machines "
+                               "using MPI (see documentation) "
+                               "\n"
+                               "\n"
+                               "You have %d local CPUs available" %psutil.cpu_count()
+            )
+        msg.setStandardButtons(QMessageBox.Close)
+        msg.setDefaultButton(QMessageBox.Close)
+        answer = msg.exec_()
+
+    def help_gpus(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Question)
+        msg.setText("Setting the number of GPUs")
+        msg.setWindowTitle("Number of GPUs")
+        if not self.HAVE_CUDA:
+            info = "No GPUs are detected on your system"
+        else:
+            gpu_id = 0
+            is_available = True
+            while is_available:
+                try:
+                    cmt.cuda_set_device(gpu_id)
+                    is_available = True
+                except Exception:
+                    is_available = False
+            info = "%d GPU is detected on your system" %(gpu_id + 1)
+
+        msg.setInformativeText("SpyKING CIRCUS can use several GPUs\n"
+                               "either locally or on multiple machine\n"
+                               "using MPI (see documentation)"
+                               "\n"
+                               "\n"
+                               "%s" %info
+            )
+        msg.setStandardButtons(QMessageBox.Close)
+        msg.setDefaultButton(QMessageBox.Close)
+        answer = msg.exec_()
 
     def open_plot_folder(self):
         f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))

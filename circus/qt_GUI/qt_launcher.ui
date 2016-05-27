@@ -195,6 +195,23 @@
                 </widget>
                </item>
                <item>
+                <widget class="QPushButton" name="btn_help_cpus">
+                 <property name="maximumSize">
+                  <size>
+                   <width>75</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="text">
+                  <string>Help</string>
+                 </property>
+                 <property name="icon">
+                  <iconset theme="help">
+                   <normaloff>.</normaloff>.</iconset>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QLabel" name="lbl_gpus">
                  <property name="text">
                   <string>No. GPUs</string>
@@ -208,6 +225,23 @@
                 <widget class="QSpinBox" name="spin_gpus">
                  <property name="toolTip">
                   <string>Number of GPUs to use</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btn_help_gpus">
+                 <property name="maximumSize">
+                  <size>
+                   <width>75</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="text">
+                  <string>Help</string>
+                 </property>
+                 <property name="icon">
+                  <iconset theme="help">
+                   <normaloff>.</normaloff>.</iconset>
                  </property>
                 </widget>
                </item>
