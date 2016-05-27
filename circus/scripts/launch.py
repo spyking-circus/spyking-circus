@@ -4,6 +4,7 @@ import sys
 import argparse
 import shutil
 import subprocess
+import multiprocessing
 import pkg_resources
 from os.path import join as pjoin
 import colorama
@@ -91,6 +92,7 @@ def main(argv=None):
 
 '''
     header  = gheader
+    header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(multiprocessing.cpu_count()) + '\n'
     header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
     header += Fore.GREEN + 'Parallel HDF5 : ' + Fore.CYAN + str(parallel_hdf5) + '\n'
     header += Fore.GREEN + 'Shared memory : ' + Fore.CYAN + str(SHARED_MEMORY) + '\n'
@@ -202,7 +204,7 @@ but a subset x,y can be done. Steps are:
         print gheader
         print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
         print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
-        print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu)
+        print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu) + "/" + str(multiprocessing.cpu_count())
         if HAVE_CUDA:
             print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
         print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
@@ -213,8 +215,9 @@ but a subset x,y can be done. Steps are:
         print ""        
         print Fore.RESET
 
-        if not preview:
-            length = io.data_stats(params)
+        if nb_cpu < multiprocessing.cpu_count():
+            io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, multiprocessing.cpu_count())], 'info', params)
+
 
         # Launch the subtasks
         subtasks = [('filtering', 'mpirun'),
