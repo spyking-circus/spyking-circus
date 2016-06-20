@@ -234,9 +234,9 @@ but a subset x,y can be done. Steps are:
 
         circus.shared.io.data_stats(params)
 
-        if not use_gpu and nb_cpu < psutil.cpu_count():
-            io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
-
+        if nb_cpu < psutil.cpu_count():
+            if use_gpu != 'True':
+                io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
 
         if not result:
             for subtask, command in subtasks:
