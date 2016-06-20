@@ -215,10 +215,6 @@ but a subset x,y can be done. Steps are:
         print ""        
         print Fore.RESET
 
-        if nb_cpu < psutil.cpu_count():
-            io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
-
-
         # Launch the subtasks
         subtasks = [('filtering', 'mpirun'),
                     ('whitening', 'mpirun'),
@@ -235,6 +231,12 @@ but a subset x,y can be done. Steps are:
             use_gpu = 'True'
         else:
             use_gpu = 'False'
+
+        circus.shared.io.data_stats(params)
+
+        if not use_gpu and nb_cpu < psutil.cpu_count():
+            io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
+
 
         if not result:
             for subtask, command in subtasks:
