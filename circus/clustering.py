@@ -354,7 +354,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
                                             else:
-                                                rmin = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
+                                                rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
                                             ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                             sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
