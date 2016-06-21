@@ -1058,8 +1058,10 @@ class PreviewGUI(QtGui.QMainWindow):
         self.btn_picker.clicked.connect(self.update_rect_selector)
         self.get_time.valueChanged.connect(self.update_time)
         self.get_threshold.valueChanged.connect(self.update_threshold)
+        self.show_residuals.clicked.connect(self.update_data_plot)
         if self.show_fit:
             self.time_box.setEnabled(True)
+            self.show_residuals.setEnabled(True)
         else:
             self.threshold_box.setEnabled(True)
         self.get_time.setValue(self.t_start)
@@ -1304,10 +1306,14 @@ class PreviewGUI(QtGui.QMainWindow):
 
         else:
             for count, idx in enumerate(indices):
+                if self.show_residuals.isChecked():
+                    data_line, = self.data_x.plot(self.time,
+                                        count * yspacing + (self.data[:,idx] - self.curve[idx, :]), lw=1, color='0.5', alpha=0.5)
                 data_line, = self.data_x.plot(self.time,
-                                              count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
+                                        count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
                 data_line, = self.data_x.plot(self.time,
-                                              count * yspacing + self.curve[idx, :], lw=1, color='k')
+                                        count * yspacing + self.curve[idx, :], lw=1, color='k')
+
                 thr = self.thresholds[idx]
                 if self.peaks_sign in ['negative', 'both']:
                     self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], '--',

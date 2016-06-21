@@ -261,6 +261,19 @@
          </widget>
         </item>
         <item>
+          <widget class="QCheckBox" name="show_residuals">
+            <property name="enabled">
+              <bool>false</bool>
+            </property>
+            <property name="text">
+              <string>Show Residuals</string>
+            </property>
+            <property name="checked">
+              <bool>false</bool>
+            </property>
+          </widget>
+        </item>
+        <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2"/>
         </item>
        </layout>
