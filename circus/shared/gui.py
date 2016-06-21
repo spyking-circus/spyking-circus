@@ -258,7 +258,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.current_order = self.ui.cmb_sorting.currentIndex()
         self.mpl_toolbar = NavigationToolbar(self.ui.waveforms, None)
         self.mpl_toolbar.pan()
-        self.ui.show()
+        if self.comm.rank == 0:
+            self.ui.show()
 
     def generate_data(self):
 
@@ -1295,10 +1296,10 @@ class PreviewGUI(QtGui.QMainWindow):
                                               count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
                 thr = self.thresholds[idx]*(self.user_threshold/self.spike_thresh)
                 if self.peaks_sign in ['negative', 'both']:
-                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], ':',
+                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], '--',
                                      color=self.inspect_colors[count], lw=2)
                 if self.peaks_sign in ['positive', 'both']:
-                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing , thr + count * yspacing], ':',
+                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing , thr + count * yspacing], '--',
                                      color=self.inspect_colors[count], lw=2)
 
         else:
@@ -1309,10 +1310,10 @@ class PreviewGUI(QtGui.QMainWindow):
                                               count * yspacing + self.curve[idx, :], lw=1, color='k')
                 thr = self.thresholds[idx]
                 if self.peaks_sign in ['negative', 'both']:
-                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], ':',
+                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], '--',
                                  color=self.inspect_colors[count], lw=2)
                 if self.peaks_sign in ['positive', 'both']:
-                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], ':',
+                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
                                  color=self.inspect_colors[count], lw=2)
 
         self.data_x.set_yticklabels([])
