@@ -177,6 +177,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
 
 
+    last_chunk_size = 0
+
     for gcount, gidx in enumerate(xrange(comm.rank, nb_chunks, comm.size)):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
         ## We need to deal with the borders by taking chunks of size [0, chunck_size+template_shift]
@@ -239,12 +241,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             local_chunk = local_chunk.T.ravel()
             sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
-            indices     = numpy.zeros(0, dtype=numpy.int32)
-            for idx in xrange(N_e):
-                indices = numpy.concatenate((indices, len_chunk*idx + temp_window))
+
+            if len_chunk != last_chunk_size:
+                slice_indices = numpy.zeros(0, dtype=numpy.int32)
+                for idx in xrange(N_e):
+                    slice_indices = numpy.concatenate((slice_indices, len_chunk*idx + temp_window))
+                last_chunk_size = len_chunk
 
             for count, idx in enumerate(local_peaktimes):
-                sub_mat[:, count] = numpy.take(local_chunk, indices + idx)
+                sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
 
             del local_chunk
 
