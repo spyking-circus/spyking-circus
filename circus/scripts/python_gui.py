@@ -60,8 +60,6 @@ def main(argv=None):
         extension = '-' + extension
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
 
-    do_export      = True
-
     if not os.path.exists(output_path):
         print_and_log(['Data should be first exported with the converting method!'], 'error', params)
     else:
