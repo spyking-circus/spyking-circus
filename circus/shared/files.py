@@ -1744,7 +1744,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
                 
                 if use_gpu:
                     tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr())
-                    tmp_2 = cmt.CUDAMatrix(tmp_2.toarray())
+                    tmp_2 = cmt.CUDAMatrix(tmp_2.toarray(), copy_on_host=False)
                     data  = cmt.sparse_dot(tmp_1, tmp_2).asarray()
                 else:
                     data  = tmp_1.T.dot(tmp_2)
