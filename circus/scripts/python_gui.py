@@ -3,43 +3,53 @@ import os, shutil
 import sys
 import subprocess
 import pkg_resources
+import argparse
 import circus
 import tempfile
 import numpy, h5py
-from circus.shared.files import print_error, print_info, print_and_log, write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, load_data, get_stas
-from circus.shared.utils import get_progressbar
+from circus.shared.files import print_error, print_info, print_and_log
+import colorama
+colorama.init(autoreset=True)
+from colorama import Fore, Back, Style
 
-import numpy as np
 
 import logging
-
 from phy import add_default_handler
 from phy.utils._misc import _read_python
 from phy.gui import create_app, run_app
 from phycontrib.template import TemplateController
 
-def main():
+import numpy as np
 
-    argv = sys.argv
+def main(argv=None):
 
-    if len(sys.argv) < 2:
-        print_error(['No data file!'])
-        message = '''   
-Syntax is circus-gui-python datafile [extension]
-        '''
-        print(message)
+    if argv is None:
+        argv = sys.argv[1:]
 
-        sys.exit(0)
+    gheader = Fore.GREEN + '''
+##################################################################
+#####            Welcome to the SpyKING CIRCUS (0.4)         #####
+#####                                                        #####
+#####              Written by P.Yger and O.Marre             #####
+##################################################################
 
-    filename       = os.path.abspath(sys.argv[1])
+'''
+    header  = gheader + Fore.RESET
 
-    if len(sys.argv) == 2:
-        filename   = os.path.abspath(sys.argv[1])
-        extension  = ''
-    elif len(sys.argv) == 3:
-        filename   = os.path.abspath(sys.argv[1])
-        extension  = sys.argv[2]
+    parser = argparse.ArgumentParser(description=header,
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('datafile', help='data file')
+    parser.add_argument('-e', '--extension', help='extension to consider for visualization',
+                        default='')
 
+    if len(argv) == 0:
+        parser.print_help()
+        sys.exit()
+
+    args = parser.parse_args(argv)
+
+    filename       = os.path.abspath(args.datafile)
+    extension      = args.extension
     params         = circus.shared.utils.io.load_parameters(filename)
     sampling_rate  = float(params.getint('data', 'sampling_rate'))
     data_dtype     = params.get('data', 'data_dtype')
