@@ -235,7 +235,7 @@ but a subset x,y can be done. Steps are:
         circus.shared.io.data_stats(params)
 
         if nb_cpu < psutil.cpu_count():
-            if use_gpu != 'True':
+            if use_gpu != 'True' and not result:
                 io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
 
         if not result:

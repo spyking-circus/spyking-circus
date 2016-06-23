@@ -174,7 +174,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if use_gpu and do_spatial_whitening:
-        spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
 
     last_chunk_size = 0
@@ -195,7 +195,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if do_spatial_whitening:
             if use_gpu:
-                local_chunk = cmt.CUDAMatrix(local_chunk)
+                local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                 local_chunk = local_chunk.dot(spatial_whitening).asarray()
             else:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -235,6 +235,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.compress(idx, local_peaktimes)
         n_t             = len(local_peaktimes)
         len_chunk       = local_chunk.shape[0]
+        all_indices     = numpy.arange(n_t)
+
+        #if full_gpu:
+        #    all_indices = cmt.CUDAMatrix(all_indices)
 
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."     
@@ -254,7 +258,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             del local_chunk
 
             if use_gpu: 
-                sub_mat = cmt.CUDAMatrix(sub_mat)
+                sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
                 b       = cmt.sparse_dot(templates, sub_mat)
             else:
                 b       = templates.dot(sub_mat)                
@@ -275,9 +279,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 
             if full_gpu:
-                mask     = cmt.CUDAMatrix(penalty)
+                mask     = cmt.CUDAMatrix(penalty, copy_on_host=False)
                 data     = cmt.empty(mask.shape)
-                cm_zeros = cmt.CUDAMatrix(numpy.zeros(mask.shape))
+                cm_zeros = cmt.CUDAMatrix(numpy.zeros(mask.shape), copy_on_host=False)
                 patch_gpu= b.shape[1] == 1
             else:
                 mask     = penalty
@@ -333,7 +337,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         best_amp2 = b.asarray()[inds_temp + n_tm, inds_t]/n_scalar
                         sub_mask  = numpy.ones((sub_b.shape), dtype=numpy.float32)
                         sub_mask[inds_temp, inds_t] = 0
-                        sub_mask  = cmt.CUDAMatrix(sub_mask)
+                        sub_mask  = cmt.CUDAMatrix(sub_mask, copy_on_host=False)
                         mask.mult(sub_mask)
                         del sub_mask
                     else:
@@ -354,42 +358,53 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     #to_keep      = to_keep[good]
                     #ts           = ts[good]
                     
-                    tmp          = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
-                    tmp         -= ts.reshape((len(ts), 1))
-                    x, y         = numpy.where(numpy.abs(tmp) <= temp_2_shift)
-                    itmp         = tmp[x, y].astype(numpy.int32) + temp_2_shift
-
-                    for count, keep in enumerate(to_keep):
-
-                        myslice  = x == count
-                        idx_b    = numpy.compress(myslice, y)
-                        ytmp     = numpy.compress(myslice, itmp)
-                        indices  = numpy.zeros((S_over, len(ytmp)), dtype=numpy.float32)
-                        indices[ytmp, numpy.arange(len(ytmp))] = 1
-
-                        if full_gpu: 
-                            indices  = cmt.CUDAMatrix(indices)
-                            if patch_gpu:
-                                b_lines  = b.get_col_slice(0, b.shape[0])
-                            else:
-                                b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
-
-                            tmp1 = cmt.sparse_dot(c_overs[inds_temp[keep]], indices, mult=-best_amp[keep])
-                            tmp2 = cmt.sparse_dot(c_overs[inds_temp[keep] + n_tm], indices, mult=-best_amp2[keep])
-                            b_lines.add(tmp1)
-                            b_lines.add(tmp2)
-                            del tmp1, tmp2
+                    if len(ts) > 0:
+                        if full_gpu:
+                            tmp  = cmt.CUDAMatrix(numpy.ones((len(ts), 1)), copy_on_host=False)
+                            tmp2 = cmt.CUDAMatrix(local_peaktimes.reshape((1, n_t)), copy_on_host=False)
+                            tmp3 = cmt.CUDAMatrix(-ts.reshape((len(ts), 1)), copy_on_host=False)
+                            tmp  = tmp.dot(tmp2)
+                            tmp.add_col_vec(tmp3)
+                            condition = cmt.empty(tmp.shape)
+                            cmt.abs(tmp, condition).less_than(temp_2_shift + 1)
+                            condition = condition.asarray().astype(numpy.bool)
+                            tmp       = tmp.asarray().astype(numpy.int32)
                         else:
-                            tmp1   = c_overs[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
-                            tmp2   = c_overs[inds_temp[keep] + n_tm].multiply(-best_amp2[keep]).dot(indices)
-                            b[:, idx_b] += tmp1 + tmp2
+                            tmp      = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
+                            tmp     -= ts.reshape((len(ts), 1))
+                            condition = numpy.abs(tmp) <= temp_2_shift
 
-                        if good[count]:
+                        for count, keep in enumerate(to_keep):
+                            
+                            idx_b    = numpy.compress(condition[count, :], all_indices)
+                            ytmp     = tmp[count, condition[count, :]] + temp_2_shift
+                            
+                            indices  = numpy.zeros((S_over, len(ytmp)), dtype=numpy.float32)
+                            indices[ytmp, numpy.arange(len(ytmp))] = 1
 
-                            t_spike               = ts[count] + local_offset
-                            result['spiketimes'] += [t_spike]
-                            result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
-                            result['templates']  += [inds_temp[keep]]
+                            if full_gpu: 
+                                indices  = cmt.CUDAMatrix(indices, copy_on_host=False)
+                                if patch_gpu:
+                                    b_lines  = b.get_col_slice(0, b.shape[0])
+                                else:
+                                    b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
+
+                                tmp1 = cmt.sparse_dot(c_overs[inds_temp[keep]], indices, mult=-best_amp[keep])
+                                tmp2 = cmt.sparse_dot(c_overs[inds_temp[keep] + n_tm], indices, mult=-best_amp2[keep])
+                                b_lines.add(tmp1)
+                                b_lines.add(tmp2)
+                                del tmp1, tmp2
+                            else:
+                                tmp1   = c_overs[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
+                                tmp2   = c_overs[inds_temp[keep] + n_tm].multiply(-best_amp2[keep]).dot(indices)
+                                b[:, idx_b] += tmp1 + tmp2
+
+                            if good[count]:
+
+                                t_spike               = ts[count] + local_offset
+                                result['spiketimes'] += [t_spike]
+                                result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
+                                result['templates']  += [inds_temp[keep]]
 
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
@@ -397,7 +412,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if full_gpu:
                         N = numpy.sum(sub_idx)
                         if N > 0:
-                            cu_slice = cmt.CUDAMatrix(numpy.compress(sub_idx, myslice).reshape(1, N))
+                            cu_slice = cmt.CUDAMatrix(numpy.compress(sub_idx, myslice).reshape(1, N), copy_on_host=False)
                             mask.set_selected_columns(cu_slice, cm_zeros)
                             del cu_slice
                     else:
