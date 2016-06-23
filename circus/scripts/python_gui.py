@@ -7,7 +7,7 @@ import argparse
 import circus
 import tempfile
 import numpy, h5py
-from circus.shared.files import print_error, print_info, print_and_log
+from circus.shared.files import print_error, print_info, print_and_log, read_probe
 import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
@@ -56,8 +56,10 @@ def main(argv=None):
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
+    if extension != '':
+        extension = '-' + extension
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
-    
+
     do_export      = True
 
     if not os.path.exists(output_path):
