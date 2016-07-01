@@ -64,6 +64,10 @@ max_chunk      = inf       # Fit only up to max_chunk
 cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2         # Bin size for computing CC [in ms]
 
+[converting]
+erase_all      = True      # If False, a prompt will ask you to export if export has already been done
+export_pcs     = prompt    # Can be prompt [default] or in none, all, some
+
 [validating]
 nearest_elec   = auto      # Validation channel (e.g. electrode closest to the ground truth cell)
 max_iter       = 200       # Maximum number of iterations of the stochastic gradient descent (SGD)

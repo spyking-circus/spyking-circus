@@ -23,6 +23,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
+    erase_all      = params.getboolean('converting', 'erase_all')
+    export_pcs     = params.get('converting', 'export_pcs')
+
 
     def generate_mapping(probe):
         p         = {}
@@ -164,16 +167,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     do_export = True
     if comm.rank == 0:
         if os.path.exists(output_path):
-            key = ''
-            while key not in ['y', 'n']:
-                print("Export already made! Do you want to erase everything? (y)es / (n)o ")
-                key = raw_input('')
-                if key =='y':
-                    do_export = True
-                    comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
-                else:
-                    do_export = False
-                    comm.bcast(numpy.array([0], dtype=numpy.int32), root=0)
+            if not erase_all:
+                key = ''
+                while key not in ['y', 'n']:
+                    print("Export already made! Do you want to erase everything? (y)es / (n)o ")
+                    key = raw_input('')
+                    if key =='y':
+                        do_export = True
+                        comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
+                    else:
+                        do_export = False
+                        comm.bcast(numpy.array([0], dtype=numpy.int32), root=0)
             if do_export:
                 if os.path.exists(os.path.abspath('.phy')):
                     shutil.rmtree(os.path.abspath('.phy'))
@@ -207,11 +211,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         make_pcs = 2
         if comm.rank == 0:
 
-            key = ''
-            while key not in ['a', 's', 'n']:
-                print("Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o")
-                key = raw_input('')
-                
+            if export_pcs == 'prompt':
+                key = ''
+                while key not in ['a', 's', 'n']:
+                    print("Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o")
+                    key = raw_input('')
+            else:
+                key = export_pcs
+
             if key == 'a':
                 make_pcs = 0
                 comm.bcast(numpy.array([0], dtype=numpy.int32), root=0)

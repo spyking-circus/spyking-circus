@@ -236,9 +236,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         n_t             = len(local_peaktimes)
         len_chunk       = local_chunk.shape[0]
         all_indices     = numpy.arange(n_t)
+                            
 
-        #if full_gpu:
-        #    all_indices = cmt.CUDAMatrix(all_indices)
+        if full_gpu:
+        #   all_indices = cmt.CUDAMatrix(all_indices)
+            tmp_gpu = cmt.CUDAMatrix(local_peaktimes.reshape((1, n_t)), copy_on_host=False)
+
 
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."     
@@ -361,9 +364,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if len(ts) > 0:
                         if full_gpu:
                             tmp  = cmt.CUDAMatrix(numpy.ones((len(ts), 1)), copy_on_host=False)
-                            tmp2 = cmt.CUDAMatrix(local_peaktimes.reshape((1, n_t)), copy_on_host=False)
                             tmp3 = cmt.CUDAMatrix(-ts.reshape((len(ts), 1)), copy_on_host=False)
-                            tmp  = tmp.dot(tmp2)
+                            tmp  = tmp.dot(tmp_gpu)
                             tmp.add_col_vec(tmp3)
                             condition = cmt.empty(tmp.shape)
                             cmt.abs(tmp, condition).less_than(temp_2_shift + 1)

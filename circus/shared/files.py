@@ -139,7 +139,7 @@ def load_parameters(file_name):
         sys.exit(0)
     parser.read(file_params)
 
-    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers', 'detection', 'validating']
+    sections = ['data', 'whitening', 'extracting', 'clustering', 'fitting', 'filtering', 'merging', 'noedits', 'triggers', 'detection', 'validating', 'converting']
 
     for section in sections:
         if parser.has_section(section):
@@ -239,6 +239,8 @@ def load_parameters(file_name):
                   ['extracting', 'noise_thr', 'float', '1.'],
                   ['merging', 'cc_overlap', 'float', '0.5'],
                   ['merging', 'cc_bin', 'float', '2'],
+                  ['converting', 'export_pcs', 'string', 'prompt'],
+                  ['converting', 'erase_all', 'bool', 'True'],
                   ['validating', 'nearest_elec', 'string', 'auto'],
                   ['validating', 'max_iter', 'int', '200'],
                   ['validating', 'learning_rate', 'float', '1.0e-3'],
@@ -345,6 +347,21 @@ def load_parameters(file_name):
         print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
     
+    pcs_export = ['prompt', 'none', 'all', 'some']
+    test = parser.get('converting', 'export_pcs') in pcs_export
+    if not test:
+        print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', parser)
+        sys.exit(0)
+    else:
+        print 'toto'
+        if parser.get('converting', 'export_pcs') == 'none':
+            parser.set('converting', 'export_pcs', 'n')
+        elif parser.get('converting', 'export_pcs') == 'some':
+            parser.set('converting', 's')
+        elif parser.get('converting', 'export_pcs') == 'all':
+            parser.set('converting', 'export_pcs', 'a')
+    
+
     return parser
 
 
