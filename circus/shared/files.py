@@ -353,7 +353,6 @@ def load_parameters(file_name):
         print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', parser)
         sys.exit(0)
     else:
-        print 'toto'
         if parser.get('converting', 'export_pcs') == 'none':
             parser.set('converting', 'export_pcs', 'n')
         elif parser.get('converting', 'export_pcs') == 'some':
