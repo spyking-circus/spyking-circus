@@ -174,14 +174,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
                     key = raw_input('')
                     if key =='y':
                         do_export = True
-                        comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
                     else:
                         do_export = False
-                        comm.bcast(numpy.array([0], dtype=numpy.int32), root=0)
             if do_export:
                 if os.path.exists(os.path.abspath('.phy')):
                     shutil.rmtree(os.path.abspath('.phy'))
                 shutil.rmtree(output_path)
+        if do_export == True:
+            comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
+        elif do_export == False:
+            comm.bcast(numpy.array([0], dtype=numpy.int32), root=0)
     else:
         if os.path.exists(output_path):
             do_export = bool(comm.bcast(numpy.array([0], dtype=numpy.int32), root=0))
@@ -192,9 +194,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             os.makedirs(output_path)
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
         
-        comm.Barrier()
-        
-        if comm.rank == 0:
             numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening'))
             numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe))
             nodes, edges   = get_nodes_and_edges(params)
