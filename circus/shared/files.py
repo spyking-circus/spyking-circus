@@ -356,7 +356,7 @@ def load_parameters(file_name):
         if parser.get('converting', 'export_pcs') == 'none':
             parser.set('converting', 'export_pcs', 'n')
         elif parser.get('converting', 'export_pcs') == 'some':
-            parser.set('converting', 's')
+            parser.set('converting', 'export_pcs', 's')
         elif parser.get('converting', 'export_pcs') == 'all':
             parser.set('converting', 'export_pcs', 'a')
     
