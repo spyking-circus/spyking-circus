@@ -154,12 +154,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         pc_features = pc_features.reshape(nb_total_pc, nb_features, max_loc_channel)
 
-        all_idx     = gather_array(all_idx, comm, 0, dtype='int32')
+        all_idx     = gather_array(all_idx.astype(numpy.int32), comm, 0, dtype='int32')
         sort_idx    = numpy.argsort(all_idx)
-        
+
         if comm.rank == 0:
             if mode == 1:
                 numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx])
+
             numpy.save(os.path.join(output_path, 'pc_features'), pc_features[sort_idx]) # nspikes, nfeat, n_loc_chan
             numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
         
