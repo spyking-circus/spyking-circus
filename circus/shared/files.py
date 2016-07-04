@@ -1724,7 +1724,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
 
     if comm.rank == 0:
         if verbose:
-            print_and_log(["Computing the overlaps %s" %cuda_string], 'default', params)
+            print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', params)
         N_0  = len(range(comm.rank, N_e, comm.size))
         pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_0).start()
 
