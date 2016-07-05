@@ -31,6 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     safety_time    = int(params.getfloat('clustering', 'safety_time')*sampling_rate*1e-3)
     safety_space   = params.getboolean('clustering', 'safety_space')
+    comp_templates = params.getboolean('clustering', 'compress')
     dispersion     = params.getfloat('clustering', 'dispersion')
     nodes, edges   = io.get_nodes_and_edges(params)
     chunk_size     = params.getint('data', 'chunk_size')
@@ -724,6 +725,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         templates[indices, :] = tmp_templates
 
+                    if comp_templates:
+                        all_norms  = numpy.mean(templates**2, 1)
+                        full_norms = numpy.median(all_norms) 
+                        for i in xrange(N_e):
+                            if all_norms[i] < full_norms:
+                                templates[i, :] = 0
+
                     templates  = templates.ravel()
                     dx         = templates.nonzero()[0].astype(numpy.int32)
 
@@ -769,6 +777,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         sub_templates[indices, :shift] = tmp_templates[:, -shift:]
                     else:
                         sub_templates[indices, :] = tmp_templates
+
+                    if comp_templates:
+                        all_norms  = numpy.mean(sub_templates**2, 1)
+                        full_norms = numpy.median(all_norms) 
+                        for i in xrange(N_e):
+                            if all_norms[i] < full_norms:
+                                sub_templates[i, :] = 0
 
                     sub_templates = sub_templates.ravel()
                     dx            = sub_templates.nonzero()[0].astype(numpy.int32)
