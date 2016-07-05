@@ -231,7 +231,7 @@ def load_parameters(file_name):
                   ['clustering', 'sim_same_elec', 'float', '2'],
                   ['clustering', 'smart_search', 'float', '0'],
                   ['clustering', 'safety_space', 'bool', 'True'],
-                  ['clustering', 'compress', 'bool', 'False'],
+                  ['clustering', 'compress', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.975'],
                   ['clustering', 'extraction', 'string', 'median-raw'],
@@ -416,7 +416,8 @@ def data_stats(params, show=True, export_times=False):
              "Threshold crossing          : %s" %params.get('detection', 'peaks'),
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
-             "Template Extraction         : %s" %params.get('clustering', 'extraction')]
+             "Template Extraction         : %s" %params.get('clustering', 'extraction'),
+             "Template Compression        : %s" %params.get('clustering', 'compress')]
     
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    

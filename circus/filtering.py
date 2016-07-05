@@ -239,16 +239,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             all_files = io.get_multi_files(params)
             all_times = io.data_stats(params, show=False, export_times=True)
+            combined_file = params.get('data', 'data_file')
 
             if comm.rank == 0:
-                io.copy_header(data_offset, params.get('data', 'data_multi_file'), params.get('data', 'data_file'))
+                io.copy_header(data_offset, params.get('data', 'data_multi_file'), combined_file)
                 
             comm.Barrier()
             
-            combined_file = params.get('data', 'data_file')
             mpi_out       = myfile.Open(comm, combined_file, MPI.MODE_RDWR)
             mpi_out.Set_view(data_offset, data_mpi, data_mpi)
-            io.write_to_logger(params, ['Output file: %s' %params.get('data', 'data_file') ], 'debug')
+            io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
 
             offset   = 0
 
