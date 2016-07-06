@@ -186,9 +186,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         elif do_export == False:
             comm.bcast(numpy.array([0], dtype=numpy.int32), root=0)
     else:
-        if os.path.exists(output_path):
-            do_export = bool(comm.bcast(numpy.array([0], dtype=numpy.int32), root=0))
-
+        do_export = bool(comm.bcast(numpy.array([0], dtype=numpy.int32), root=0))
+        
     if do_export:
 
         if comm.rank == 0:
