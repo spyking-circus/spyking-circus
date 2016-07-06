@@ -140,13 +140,24 @@ class MergeWindow(QtGui.QMainWindow):
         self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
         self.to_delete  = numpy.zeros(0, dtype=numpy.int32)
 
+        sign_peaks      = params.get('detection', 'peaks')
         for idx in self.indices:
             tmp = self.templates[:, idx]
             tmp = tmp.toarray().reshape(self.N_e, self.N_t)
             self.rates[idx] = len(self.result['spiketimes']['temp_' + str(idx)])
-            elec = numpy.argmin(numpy.min(tmp, 1))
-            thr = self.thresholds[elec]
-            self.norms[idx] = -tmp.min()/thr
+            if sign_peaks == 'negative':
+                elec = numpy.argmin(numpy.min(tmp, 1))
+                thr = self.thresholds[elec]
+                self.norms[idx] = -tmp.min()/thr
+            elif sign_peaks == 'positive':
+                elec = numpy.argmax(numpy.max(tmp, 1))
+                thr = self.thresholds[elec]
+                self.norms[idx] = tmp.max()/thr
+            elif sign_peaks == 'both':
+                elec = numpy.argmax(numpy.max(numpy.abs(tmp), 1))
+                thr = self.thresholds[elec]
+                self.norms[idx] = numpy.abs(tmp).max()/thr
+ 
 
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
