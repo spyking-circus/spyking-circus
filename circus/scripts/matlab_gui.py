@@ -48,6 +48,8 @@ def main(argv=None):
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
+    if extension != '':
+        extension = '-' + extension
 
     def generate_matlab_mapping(probe):
         p         = {}
