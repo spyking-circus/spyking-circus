@@ -33,7 +33,7 @@ else:
 setup(name='spyking-circus',
       version='0.4',
       description='Fast spike sorting by template matching',
-      url='http://www.yger.net/software/spyking-circus',
+      url='http://spyking-circus.rtfd.org',
       author='Pierre Yger and Olivier Marre',
       author_email='pierre.yger@inserm.fr',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
