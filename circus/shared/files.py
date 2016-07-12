@@ -915,6 +915,13 @@ def get_nodes_and_edges(parameters, validating=False):
 
     return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
 
+def get_averaged_n_edges(parameters):
+    nodes, edges = get_nodes_and_edges(parameters)
+    n = 0
+    for key, value in edges.items():
+        n += len(value)
+    return n/float(len(edges.values()))
+
 
 def load_data_memshared(params, comm, data, extension='', normalize=False, transpose=False, nb_cpu=1, nb_gpu=0, use_gpu=False):
 

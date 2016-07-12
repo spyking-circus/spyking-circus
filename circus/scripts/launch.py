@@ -238,6 +238,10 @@ but a subset x,y can be done. Steps are:
             if use_gpu != 'True' and not result:
                 io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
 
+        n_edges = circus.shared.io.get_averaged_n_edges(params)
+        if n_edges > 100:
+            io.print_and_log(['Template compression is highly recommended based on parameters'], 'info', params)    
+
         if not result:
             for subtask, command in subtasks:
                 if subtask in steps:
