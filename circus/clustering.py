@@ -726,11 +726,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         templates[indices, :] = tmp_templates
 
                     if comp_templates:
+                        to_delete  = []
                         all_norms  = numpy.mean(templates**2, 1)
                         full_norms = numpy.median(all_norms) 
                         for i in xrange(N_e):
                             if all_norms[i] < full_norms:
                                 templates[i, :] = 0
+                                to_delete += [i]
 
                     templates  = templates.ravel()
                     dx         = templates.nonzero()[0].astype(numpy.int32)
@@ -779,11 +781,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         sub_templates[indices, :] = tmp_templates
 
                     if comp_templates:
-                        all_norms  = numpy.mean(sub_templates**2, 1)
-                        full_norms = numpy.median(all_norms) 
-                        for i in xrange(N_e):
-                            if all_norms[i] < full_norms:
-                                sub_templates[i, :] = 0
+                        for i in to_delete:
+                            sub_templates[i, :] = 0
 
                     sub_templates = sub_templates.ravel()
                     dx            = sub_templates.nonzero()[0].astype(numpy.int32)
