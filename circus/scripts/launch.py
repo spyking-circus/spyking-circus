@@ -239,7 +239,7 @@ but a subset x,y can be done. Steps are:
                 io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
 
         n_edges = circus.shared.io.get_averaged_n_edges(params)
-        if n_edges > 100:
+        if n_edges > 100 and not params.getboolean('clustering', 'compress'):
             io.print_and_log(['Template compression is highly recommended based on parameters'], 'info', params)    
 
         if not result:
