@@ -730,6 +730,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         for i in xrange(N_e):
                             if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
                                 templates[i, :] = 0
+                                to_delete += [i]
 
                     templates  = templates.ravel()
                     dx         = templates.nonzero()[0].astype(numpy.int32)
