@@ -296,11 +296,6 @@ def load_parameters(file_name):
     else:
         parser.set('data', 'data_file', file_name)
 
-    if nb_channels is not None:
-        if N_e != nb_channels:
-            print_and_log(["MCS file: mistmatch between number of electrodes and data header"], 'error', parser)
-            #sys.exit(0)
-
     try:
         os.makedirs(f_next)
     except Exception:
@@ -380,6 +375,11 @@ def data_stats(params, show=True, export_times=False):
         N              = len(datablock)
         nb_chunks      = N // chunk_len
         last_chunk_len = (N - nb_chunks * chunk_len)//(N_total*sampling_rate)
+        if params.getboolean('data', 'MCS'):
+            data_offset, nb_channels = detect_header(data_file, 'MCS')
+            if nb_channels is not None:
+                if N_e != nb_channels:
+                    print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', show)
     else:
         all_files      = get_multi_files(params)
         N              = 0
@@ -390,6 +390,10 @@ def data_stats(params, show=True, export_times=False):
         for f in all_files:
             if params.getboolean('data', 'MCS'):
                 data_offset, nb_channels = detect_header(f, 'MCS')
+                if nb_channels is not None:
+                    if N_e != nb_channels:
+                        print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', show)
+            #sys.exit(0)
             datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
             loc_N           = len(datablock)
             loc_nb_chunks   = loc_N // chunk_len
