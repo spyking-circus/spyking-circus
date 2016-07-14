@@ -727,10 +727,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     if comp_templates:
                         to_delete  = []
-                        all_norms  = numpy.mean(templates**2, 1)
-                        full_norms = numpy.median(all_norms) 
                         for i in xrange(N_e):
-                            if all_norms[i] < full_norms:
+                            if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
                                 templates[i, :] = 0
                                 to_delete += [i]
 
