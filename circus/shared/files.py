@@ -379,7 +379,7 @@ def data_stats(params, show=True, export_times=False):
             data_offset, nb_channels = detect_header(data_file, 'MCS')
             if nb_channels is not None:
                 if N_e != nb_channels:
-                    print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params)
+                    print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
     else:
         all_files      = get_multi_files(params)
         N              = 0
@@ -392,7 +392,7 @@ def data_stats(params, show=True, export_times=False):
                 data_offset, nb_channels = detect_header(f, 'MCS')
                 if nb_channels is not None:
                     if N_e != nb_channels:
-                        print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params)
+                        print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
             #sys.exit(0)
             datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
             loc_N           = len(datablock)
