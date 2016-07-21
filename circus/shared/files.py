@@ -997,9 +997,9 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             sub_comm.Barrier()
 
             if sub_comm.rank == 0:
-                data[:]    = sparse_mat.data
-                indices[:] = sparse_mat.indices
-                indptr[:]  = sparse_mat.indptr
+                data[:nb_data]    = sparse_mat.data
+                indices[:nb_data] = sparse_mat.indices
+                indptr[:nb_data]  = sparse_mat.indptr
                 del sparse_mat
 
             sub_comm.Barrier()
