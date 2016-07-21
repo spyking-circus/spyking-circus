@@ -166,10 +166,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["Extracting the templates..."], 'default', params)
     
-    total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.float32), root=0)[0])
+    total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
     offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
     for i in xrange(comm.size-1):
-        offsets[i+1] = comm.bcast(numpy.array([local_nb_clusters], dtype=numpy.float32), root=i)
+        offsets[i+1] = comm.bcast(numpy.array([local_nb_clusters], dtype=numpy.int32), root=i)
 
     if parallel_hdf5:
         node_pad   = numpy.sum(offsets[:comm.rank+1])        

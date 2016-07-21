@@ -603,9 +603,9 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
     sub_comm.Barrier()
     
     # Broadcast the sizes of the data structures to share.
-    triggers_size = int(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.float32), root=0)[0])
-    neighs_size = int(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.float32), root=0)[0])
-    ts_size = int(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.float32), root=0)[0])
+    triggers_size = int(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.int32), root=0)[0])
+    neighs_size = int(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.int32), root=0)[0])
+    ts_size = int(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.int32), root=0)[0])
     
     # Declare the data structures to share.
     if sub_comm.Get_rank() == 0:
@@ -965,9 +965,9 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 nb_data = len(sparse_mat.data)
                 nb_ptr  = len(sparse_mat.indptr)
 
-            sub_comm.Barrier()                
-            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
-            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
+            sub_comm.Barrier()   
+            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
 
             if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
@@ -1046,8 +1046,8 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 nb_data    = len(sparse_mat.data)
                 nb_ptr     = len(sparse_mat.indptr)
 
-            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.float32), root=0)[0])
-            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.float32), root=0)[0])
+            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
 
             if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
