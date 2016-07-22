@@ -125,6 +125,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.clusters   = io.load_data(params, 'clusters', self.ext_in)
         self.result     = io.load_data(params, 'results', self.ext_in)
         self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxoverlap')[:]
+        self.lag        = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxlag')[:]
         self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
         self.templates  = io.load_data(params, 'templates', self.ext_in)
@@ -983,8 +984,10 @@ class MergeWindow(QtGui.QMainWindow):
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
             to_keep = numpy.array(list(to_keep))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
+            maxlag      = mydata.create_dataset('maxlag', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
             for c, i in enumerate(to_keep):
                 maxoverlaps[c, :] = self.overlap[i, to_keep]*self.shape[0] * self.shape[1]
+                maxlag[c, :]      = self.lag[i, to_keep]
             mydata.close()
 
         self.app.restoreOverrideCursor()
