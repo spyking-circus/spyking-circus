@@ -125,7 +125,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.clusters   = io.load_data(params, 'clusters', self.ext_in)
         self.result     = io.load_data(params, 'results', self.ext_in)
         self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxoverlap')[:]
-        self.lag        = (2*self.N_t-1) - h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxlag')[:]
+        self.lag        = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxlag')[:] - (2*self.N_t-1)
         self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
         self.templates  = io.load_data(params, 'templates', self.ext_in)
@@ -309,6 +309,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
+        self.correct_lag = True
+
         if comm.rank == 0:
             io.print_and_log(['Updating the data...'], 'default', self.params)
             pbar = get_progressbar(len(real_indices))
@@ -320,7 +322,9 @@ class MergeWindow(QtGui.QMainWindow):
             for temp_id2 in real_indices[best_matches]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
-                    spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)] + self.lag[temp_id1, temp_id2]
+                    spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)]
+                    if self.correct_lag:
+                        spikes2 += self.lag[temp_id1, temp_id2]
                     a, b    = reversed_corr(spikes1, spikes2, self.max_delay)
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.vstack((self.raw_control, b))
@@ -628,7 +632,7 @@ class MergeWindow(QtGui.QMainWindow):
             elec  = numpy.argmin(numpy.min(tmp, 1))
             thr   = self.thresholds[elec]
 
-            if self.show_peaks.isChecked():
+            if self.ui.show_peaks.isChecked():
                 indices = [self.inv_nodes[self.nodes[elec]]]
             else:
                 indices = self.inv_nodes[self.edges[self.nodes[elec]]]
@@ -912,7 +916,9 @@ class MergeWindow(QtGui.QMainWindow):
             if to_keep != to_remove:
                 key        = 'temp_' + str(to_keep)
                 key2       = 'temp_' + str(to_remove)
-                spikes     = self.result['spiketimes'][key2] - self.lag[to_keep, to_remove]
+                spikes     = self.result['spiketimes'][key2]
+                if self.correct_lag:
+                    spikes -= self.lag[to_keep, to_remove]
                 amplitudes = self.result['amplitudes'][key2]
                 n1, n2     = len(self.result['amplitudes'][key2]), len(self.result['amplitudes'][key])
                 self.result['amplitudes'][key] = numpy.vstack((self.result['amplitudes'][key].reshape(n2, 2), amplitudes.reshape(n1, 2)))
@@ -984,7 +990,7 @@ class MergeWindow(QtGui.QMainWindow):
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
             to_keep = numpy.array(list(to_keep))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
-            maxlag      = mydata.create_dataset('maxlag', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
+            maxlag      = mydata.create_dataset('maxlag', shape=(len(to_keep), len(to_keep)), dtype=numpy.int32)
             for c, i in enumerate(to_keep):
                 maxoverlaps[c, :] = self.overlap[i, to_keep]*self.shape[0] * self.shape[1]
                 maxlag[c, :]      = self.lag[i, to_keep]
@@ -1320,7 +1326,7 @@ class PreviewGUI(QtGui.QMainWindow):
 
         else:
             for count, idx in enumerate(indices):
-                if self.show_residuals.isChecked():
+                if self.ui.show_residuals.isChecked():
                     data_line, = self.data_x.plot(self.time,
                                         count * yspacing + (self.data[:,idx] - self.curve[idx, :]), lw=1, color='0.5', alpha=0.5)
                 data_line, = self.data_x.plot(self.time,

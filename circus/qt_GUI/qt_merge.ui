@@ -255,13 +255,6 @@
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="checkBox">
-         <property name="text">
-          <string>Lag correction</string>
-         </property>
-        </widget>
-       </item>
-       <item>
         <widget class="QPushButton" name="btn_suggest_templates">
          <property name="text">
           <string>Suggest Templates</string>

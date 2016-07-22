@@ -1828,7 +1828,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
             if 'maxlag' in myfile2.keys():
                 maxlag = myfile2.get('maxlag')
             else:
-                maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.float32)
+                maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
 
             for i in xrange(N_tm-1):
                 data                = overlap[i*N_tm+i+1:(i+1)*N_tm].toarray()
