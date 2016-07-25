@@ -109,11 +109,12 @@ def change_flag(file_name, flag, value, avoid_flag=None):
 
 def read_probe(parser):
     probe = {}
-    if not os.path.exists(parser.get('data', 'mapping')):
+    filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
+    if not filename:
         print_error(["The probe file can not be found"])
         sys.exit(0)
     try:
-        with open(parser.get('data', 'mapping'), 'r') as f:
+        with open(filename, 'r') as f:
             probetext = f.read()
             exec(probetext, probe)
     except Exception as ex:
@@ -269,8 +270,8 @@ def load_parameters(file_name):
             parser.set(section, name, value)
   
 
-    parser.set('triggers', 'trig_file', os.path.abspath(parser.get('triggers', 'trig_file')))
-    parser.set('triggers', 'trig_windows', os.path.abspath(parser.get('triggers', 'trig_windows')))
+    parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(parser.get('triggers', 'trig_file'))))
+    parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(parser.get('triggers', 'trig_windows'))))
 
     chunk_size = parser.getint('data', 'chunk_size')
     parser.set('data', 'chunk_size', str(chunk_size*sampling_rate))
