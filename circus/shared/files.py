@@ -109,12 +109,12 @@ def change_flag(file_name, flag, value, avoid_flag=None):
 
 def read_probe(parser):
     probe = {}
-    filename = os.path.exists(os.path.expanduser(parser.get('data', 'mapping')))
-    if not filename:
+    filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
+    if not os.path.exists(filename):
         print_error(["The probe file can not be found"])
         sys.exit(0)
     try:
-        with open(filename as f:
+        with open(filename) as f:
             probetext = f.read()
             exec(probetext, probe)
     except Exception as ex:
