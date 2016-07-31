@@ -15,6 +15,7 @@ requirements:
     - setuptools
     - colorama
     - psutil
+    - scikit-learn
   run:
     - python
     - progressbar2
@@ -27,7 +28,8 @@ requirements:
     - setuptools
     - colorama
     - qt
-    - pyqt
+    - pyqt >=4,<=5
+    - scikit-learn
 source:
   path: ..
 
