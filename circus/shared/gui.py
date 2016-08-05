@@ -968,10 +968,9 @@ class MergeWindow(QtGui.QMainWindow):
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
             to_keep = numpy.array(list(to_keep))
             
-            for count, temp_id in enumerate(numpy.unique(self.indices)):
+            for count, temp_id in enumerate(to_keep):
                 key_before = 'temp_' + str(temp_id)
                 key_after  = 'temp_' + str(count)
-                #if temp_id in to_keep:
                 new_result['spiketimes'][key_after] = self.result['spiketimes'].pop(key_before)
                 new_result['amplitudes'][key_after] = self.result['amplitudes'].pop(key_before)
             
