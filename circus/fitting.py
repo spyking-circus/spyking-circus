@@ -19,13 +19,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     N_total        = params.getint('data', 'N_total')
-    skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
-    spike_thresh   = params.getfloat('data', 'spike_thresh')
-    stationary     = params.getboolean('data', 'stationary')
-    spikedetekt    = params.getboolean('data', 'spikedetekt')
+    sign_peaks     = params.get('detection', 'peaks')
+    matched_filter = params.getboolean('detection', 'matched-filter')
+    spike_thresh   = params.getfloat('detection', 'spike_thresh')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size     = int(params.getfloat('fitting', 'chunk')*sampling_rate)
@@ -35,10 +34,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits     = map(float, tmp_limits)
     amp_auto       = params.getboolean('fitting', 'amp_auto')
     space_explo    = params.getfloat('fitting', 'space_explo')
-    refractory     = float(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
-    spike_range    = int(params.getfloat('fitting', 'spike_range')*sampling_rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -91,6 +88,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     info_string   = ''
 
+    if matched_filter:
+        if sign_peaks in ['negative', 'both']:
+            waveform_neg  = io.load_data(params, 'waveform')
+            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
+            matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
+        if sign_peaks in ['positive', 'both']:
+            waveform_pos  = io.load_data(params, 'waveform-pos')
+            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
+            matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
+
     if comm.rank == 0:
         if use_gpu:
             info_string = "using %d GPUs" %(comm.size)
@@ -139,9 +146,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
-    if spikedetekt:
-        spiketimes = io.load_data(params, 'spikedetekt')
-
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
@@ -170,8 +174,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if use_gpu and do_spatial_whitening:
-        spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
+
+    last_chunk_size = 0
 
     for gcount, gidx in enumerate(xrange(comm.rank, nb_chunks, comm.size)):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -189,42 +195,37 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if do_spatial_whitening:
             if use_gpu:
-                local_chunk = cmt.CUDAMatrix(local_chunk)
+                local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                 local_chunk = local_chunk.dot(spatial_whitening).asarray()
             else:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        if not stationary:
-            for i in xrange(N_e):
-                u             = numpy.median(local_chunk[:, i], 0)
-                thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
-            thresholds *= spike_thresh
-
         #print "Extracting the peaks..."
-        if not spikedetekt:
-            local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-            for i in xrange(N_e):
-                peaktimes       = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
-                if skip_artefact:
-                    real_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                    indices   = numpy.take(inv_nodes, edges[nodes[i]])
-                    for idx in xrange(len(peaktimes)):
-                        values      = numpy.take(local_chunk[idx], indices)
-                        is_artefact = numpy.any(values < -20*numpy.take(thresholds, indices))
-                        if not is_artefact:
-                            real_peaktimes = numpy.concatenate((real_peaktimes, [idx]))
-                    peaktimes = numpy.take(peaktimes, real_peaktimes)
-                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
-        else:
-            idx             = (spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size)
-            local_peaktimes = numpy.compress(idx, spiketimes) - gidx*chunk_size
+        local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
 
-        if spike_range > 0:
-            spikes = numpy.unique(local_peaktimes)
-            for spike in spikes:
-                local_peaktimes = numpy.concatenate((local_peaktimes, numpy.arange(spike-spike_range, spike+spike_range)))
+        if matched_filter:
+            if sign_peaks in ['positive', 'both']:
+                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
+                for i in xrange(N_e):
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
+                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+            if sign_peaks in ['negative', 'both']:
+                filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
+                for i in xrange(N_e):
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
+                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+        else:
+            for i in xrange(N_e):
+                if sign_peaks == 'negative':
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                elif sign_peaks == 'positive':
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
+                elif sign_peaks == 'both':
+                    peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
+                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
+
 
         local_peaktimes = numpy.unique(local_peaktimes)
         
@@ -234,23 +235,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.compress(idx, local_peaktimes)
         n_t             = len(local_peaktimes)
         len_chunk       = local_chunk.shape[0]
+        all_indices     = numpy.arange(n_t)
+                            
+
+        if full_gpu:
+        #   all_indices = cmt.CUDAMatrix(all_indices)
+            tmp_gpu = cmt.CUDAMatrix(local_peaktimes.reshape((1, n_t)), copy_on_host=False)
+
 
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."     
 
             local_chunk = local_chunk.T.ravel()
             sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
-            indices     = numpy.zeros(0, dtype=numpy.int32)
-            for idx in xrange(N_e):
-                indices = numpy.concatenate((indices, len_chunk*idx + temp_window))
+
+            if len_chunk != last_chunk_size:
+                slice_indices = numpy.zeros(0, dtype=numpy.int32)
+                for idx in xrange(N_e):
+                    slice_indices = numpy.concatenate((slice_indices, len_chunk*idx + temp_window))
+                last_chunk_size = len_chunk
 
             for count, idx in enumerate(local_peaktimes):
-                sub_mat[:, count] = numpy.take(local_chunk, indices + idx)
+                sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
 
             del local_chunk
 
             if use_gpu: 
-                sub_mat = cmt.CUDAMatrix(sub_mat)
+                sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
                 b       = cmt.sparse_dot(templates, sub_mat)
             else:
                 b       = templates.dot(sub_mat)                
@@ -260,13 +271,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_offset = gidx*chunk_size+padding[0]//N_total
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
-
-            # We penalize the neurons that are in refractory periods
-            if refractory > 0:
-                tmp     = numpy.dot(numpy.ones((n_tm, 1), dtype=numpy.int32), all_spikes.reshape((1, n_t)))
-                penalty = 1 - numpy.exp((last_spikes - tmp)/refractory)
-            else:
-                penalty = numpy.ones((n_tm, n_t), dtype=numpy.float32)
+            penalty      = numpy.ones((n_tm, n_t), dtype=numpy.float32)
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
@@ -277,39 +282,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 
             if full_gpu:
-                mask     = cmt.CUDAMatrix(penalty)
+                mask     = cmt.CUDAMatrix(penalty, copy_on_host=False)
                 data     = cmt.empty(mask.shape)
-                cm_zeros = cmt.CUDAMatrix(numpy.zeros(mask.shape))
+                cm_zeros = cmt.CUDAMatrix(numpy.zeros(mask.shape), copy_on_host=False)
                 patch_gpu= b.shape[1] == 1
             else:
                 mask     = penalty
                 sub_b    = b[:n_tm, :]
-
-
-            if spike_range > 0:
-                term_1 = numpy.dot(numpy.ones((n_tm, 1)), local_peaktimes[:-1].reshape(1, n_t-1))
-                term_2 = numpy.dot(numpy.ones((n_tm, 1)), local_peaktimes[1:].reshape(1, n_t-1))-1
-                term_3 = numpy.hstack((numpy.zeros((term_1.shape[0], 1)), term_1))[:, :-1]
-                term_4 = numpy.hstack((numpy.zeros((term_2.shape[0], 1)), term_2))[:, :-1]
-
-                if full_gpu:
-                    c   = b.asarray()
-                    idx = numpy.where(numpy.logical_or(c[:n_tm,:-1] > c[:n_tm,1:] * (term_3 == term_4), (term_1 != term_2)))
-                    sub_mask  = numpy.ones((penalty.shape), dtype=numpy.float32)
-                    sub_mask[idx[0], idx[1]+1] = 0
-                else:
-                    idx = numpy.where(numpy.logical_or(b[:n_tm,:-1] > b[:n_tm,1:] * (term_3 == term_4), (term_1 != term_2)))
-                    mask[idx[0], idx[1]+1] = 0
-
-                if full_gpu:
-                    idx       = numpy.where(numpy.logical_or(c[:n_tm,:-1] < c[:n_tm,1:] * (term_1 == term_2), (term_1 != term_2)))
-                    sub_mask[idx] = 0
-                    sub_mask  = cmt.CUDAMatrix(sub_mask)
-                    mask.mult(sub_mask)
-                    del sub_mask
-                else:
-                    idx = numpy.where(numpy.logical_or(b[:n_tm,:-1] < b[:n_tm,1:] * (term_1 == term_2), (term_1 != term_2)))
-                    mask[idx] = 0
 
             min_time     = local_peaktimes.min()
             max_time     = local_peaktimes.max()
@@ -356,17 +335,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
 
-                    if refractory > 0:
-                        sort_idx  = numpy.argsort(inds_t)
-                        inds_t    = inds_t[sort_idx]
-                        inds_temp = inds_temp[sort_idx]
-
                     if full_gpu:
                         best_amp  = sub_b.asarray()[inds_temp, inds_t]/n_scalar
                         best_amp2 = b.asarray()[inds_temp + n_tm, inds_t]/n_scalar
                         sub_mask  = numpy.ones((sub_b.shape), dtype=numpy.float32)
                         sub_mask[inds_temp, inds_t] = 0
-                        sub_mask  = cmt.CUDAMatrix(sub_mask)
+                        sub_mask  = cmt.CUDAMatrix(sub_mask, copy_on_host=False)
                         mask.mult(sub_mask)
                         del sub_mask
                     else:
@@ -387,56 +361,52 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     #to_keep      = to_keep[good]
                     #ts           = ts[good]
                     
-                    tmp          = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
-                    tmp         -= ts.reshape((len(ts), 1))
-                    x, y         = numpy.where(numpy.abs(tmp) <= temp_2_shift)
-                    itmp         = tmp[x, y].astype(numpy.int32) + temp_2_shift
-
-                    for count, keep in enumerate(to_keep):
-
-                        myslice  = x == count
-                        idx_b    = numpy.compress(myslice, y)
-                        ytmp     = numpy.compress(myslice, itmp)
-                        indices  = numpy.zeros((S_over, len(ytmp)), dtype=numpy.float32)
-                        indices[ytmp, numpy.arange(len(ytmp))] = 1
-
-                        if full_gpu: 
-                            indices  = cmt.CUDAMatrix(indices)
-                            if patch_gpu:
-                                b_lines  = b.get_col_slice(0, b.shape[0])
-                            else:
-                                b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
-
-                            tmp1 = cmt.sparse_dot(c_overs[inds_temp[keep]], indices, mult=-best_amp[keep])
-                            tmp2 = cmt.sparse_dot(c_overs[inds_temp[keep] + n_tm], indices, mult=-best_amp2[keep])
-                            b_lines.add(tmp1)
-                            b_lines.add(tmp2)
-                            del tmp1, tmp2
+                    if len(ts) > 0:
+                        if full_gpu:
+                            tmp  = cmt.CUDAMatrix(numpy.ones((len(ts), 1)), copy_on_host=False)
+                            tmp3 = cmt.CUDAMatrix(-ts.reshape((len(ts), 1)), copy_on_host=False)
+                            tmp  = tmp.dot(tmp_gpu)
+                            tmp.add_col_vec(tmp3)
+                            condition = cmt.empty(tmp.shape)
+                            cmt.abs(tmp, condition).less_than(temp_2_shift + 1)
+                            condition = condition.asarray().astype(numpy.bool)
+                            tmp       = tmp.asarray().astype(numpy.int32)
                         else:
-                            tmp1   = c_overs[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
-                            tmp2   = c_overs[inds_temp[keep] + n_tm].multiply(-best_amp2[keep]).dot(indices)
-                            b[:, idx_b] += tmp1 + tmp2
+                            tmp      = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
+                            tmp     -= ts.reshape((len(ts), 1))
+                            condition = numpy.abs(tmp) <= temp_2_shift
 
-                        if good[count]:
+                        for count, keep in enumerate(to_keep):
+                            
+                            idx_b    = numpy.compress(condition[count, :], all_indices)
+                            ytmp     = tmp[count, condition[count, :]] + temp_2_shift
+                            
+                            indices  = numpy.zeros((S_over, len(ytmp)), dtype=numpy.float32)
+                            indices[ytmp, numpy.arange(len(ytmp))] = 1
 
-                            t_spike               = ts[count] + local_offset
-                            result['spiketimes'] += [t_spike]
-                            result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
-                            result['templates']  += [inds_temp[keep]]
-                            if refractory > 0:
-                                last_spike                   = last_spikes[inds_temp[keep]]
-                                sidx                         = numpy.where(all_spikes >= t_spike)[0]
-                                last_spikes[inds_temp[keep]] = t_spike
-                                values                       = numpy.ones(n_t)
-                                values[sidx]                -= numpy.exp((t_spike - all_spikes[sidx])/refractory)
-                                if full_gpu:
-                                    values   = cmt.CUDAMatrix(values.reshape(1, n_t))
-                                    sub_mask = mask.get_row_slice(inds_temp[keep], inds_temp[keep]+1)
-                                    sub_mask.mult(values)
-                                    mask.set_row_slice(inds_temp[keep], inds_temp[keep]+1, sub_mask)
-                                    del values, sub_mask
+                            if full_gpu: 
+                                indices  = cmt.CUDAMatrix(indices, copy_on_host=False)
+                                if patch_gpu:
+                                    b_lines  = b.get_col_slice(0, b.shape[0])
                                 else:
-                                    mask[inds_temp[keep]] *= values
+                                    b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
+
+                                tmp1 = cmt.sparse_dot(c_overs[inds_temp[keep]], indices, mult=-best_amp[keep])
+                                tmp2 = cmt.sparse_dot(c_overs[inds_temp[keep] + n_tm], indices, mult=-best_amp2[keep])
+                                b_lines.add(tmp1)
+                                b_lines.add(tmp2)
+                                del tmp1, tmp2
+                            else:
+                                tmp1   = c_overs[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
+                                tmp2   = c_overs[inds_temp[keep] + n_tm].multiply(-best_amp2[keep]).dot(indices)
+                                b[:, idx_b] += tmp1 + tmp2
+
+                            if good[count]:
+
+                                t_spike               = ts[count] + local_offset
+                                result['spiketimes'] += [t_spike]
+                                result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
+                                result['templates']  += [inds_temp[keep]]
 
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
@@ -444,7 +414,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if full_gpu:
                         N = numpy.sum(sub_idx)
                         if N > 0:
-                            cu_slice = cmt.CUDAMatrix(numpy.compress(sub_idx, myslice).reshape(1, N))
+                            cu_slice = cmt.CUDAMatrix(numpy.compress(sub_idx, myslice).reshape(1, N), copy_on_host=False)
                             mask.set_selected_columns(cu_slice, cm_zeros)
                             del cu_slice
                     else:

@@ -262,13 +262,14 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
         for elec in xrange(N_e):
             result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], all_elements[elec], axis=0)
             result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec]) 
-            result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], all_elements[elec], axis=1)   
             result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], all_elements[elec])
+            result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], all_elements[elec])
+                
         
         result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_remove))
 
         cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='latest')
-        to_write = ['data_', 'clusters_', 'debug_', 'times_'] 
+        to_write = ['data_', 'clusters_', 'times_', 'peaks_'] 
         for ielec in xrange(N_e):
             write_datasets(cfile, to_write, result, ielec)
        
@@ -335,8 +336,8 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
 
                 result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
-                result['debug_' + str(elec)]    = numpy.delete(result['debug_' + str(elec)], elements, axis=1)   
                 result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
+                result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], elements)
                 result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
                 distances                       = numpy.delete(distances, to_remove, axis=0)
                 distances                       = numpy.delete(distances, to_remove, axis=1)
@@ -457,7 +458,10 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
                     M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
                     M[0, 1]  = M[1, 0]
                     V[1, 0]  = overlap_k[j, distances[k, j]]
-                    [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                    try:
+                        [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
+                    except Exception:
+                        [a1, a2] = [0, 0]
                     a1_lim   = limits[i]
                     a2_lim   = limits[j]
                     is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])

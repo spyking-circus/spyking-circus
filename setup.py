@@ -3,15 +3,20 @@ import os
 from os.path import join as pjoin
 import sys, subprocess
 
-requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama']
+requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
+            'psutil']
 
-try:
-  subprocess.check_call(['nvcc', '--version'])
-  requires += ['cudamat==0.3circus']
-  HAVE_CUDA = True
-except (OSError, subprocess.CalledProcessError):
-  print("CUDA not found")
+if '--nocuda' in sys.argv:
+  sys.argv.remove('--nocuda')
   HAVE_CUDA = False
+else:
+  try:
+    subprocess.check_call(['nvcc', '--version'])
+    requires += ['cudamat==0.3circus']
+    HAVE_CUDA = True
+  except (OSError, subprocess.CalledProcessError):
+    print("CUDA not found")
+    HAVE_CUDA = False
 
 from setuptools import setup
 from setuptools.command.install import install
@@ -26,9 +31,9 @@ else:
     data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
 
 setup(name='spyking-circus',
-      version='0.3',
+      version='0.4',
       description='Fast spike sorting by template matching',
-      url='http://www.yger.net/software/spyking-circus',
+      url='http://spyking-circus.rtfd.org',
       author='Pierre Yger and Olivier Marre',
       author_email='pierre.yger@inserm.fr',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
@@ -40,11 +45,15 @@ setup(name='spyking-circus',
           'console_scripts': [
               'spyking-circus=circus.scripts.launch:main',
               'spyking-circus-subtask=circus.scripts.subtask:main',
-              'circus-gui-matlab=circus.scripts.matlab_gui:main',
-              'circus-gui-python=circus.scripts.python_gui:main',
               'circus-multi=circus.scripts.circus_multi:main'
           ],
+          'gui_scripts': [
+              'spyking-circus-launcher=circus.scripts.launch_gui:main',
+              'circus-gui-matlab=circus.scripts.matlab_gui:main',
+              'circus-gui-python=circus.scripts.python_gui:main'
+          ]
       },
+      extras_require={'beer': ['scikit-learn']},
       package_data={'circus': ['config.params',
                                # Only include the actual GUI, not other test scripts
                                pjoin('matlab_GUI', 'SortingGUI.m'),
@@ -54,8 +63,12 @@ setup(name='spyking-circus',
                                pjoin('matlab_GUI', 'DATA_SortingGUI.m'),
                                pjoin('icons', 'gimp-tool-color-picker.png'),
                                pjoin('icons', 'gimp-tool-free-select.png'),
-                               pjoin('icons', 'gimp-tool-rect-select.png')],
-                    'circus.shared': ['qt_merge.ui', 'qt_preview.ui']},
+                               pjoin('icons', 'logo.jpg'),
+                               pjoin('icons', 'icon.png'),
+                               pjoin('icons', 'gimp-tool-rect-select.png'),
+                               pjoin('qt_GUI', 'qt_merge.ui'),
+                               pjoin('qt_GUI', 'qt_preview.ui'),
+                               pjoin('qt_GUI', 'qt_launch.ui')]},                               
       data_files=[(data_path, [pjoin('circus', 'config.params')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'mea_64.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'mea_252.prb')]),

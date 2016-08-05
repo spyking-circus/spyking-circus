@@ -1,6 +1,10 @@
 # Include Matlab files (but not all of them)
 recursive-include circus/matlab_GUI SortingGUI.*
 recursive-include circus/matlab_GUI str*.m
+
+#Include GUI files
+recursive-include circus/qt_GUI *.ui
+
 # Include some probe files
 include probes/mea_64.prb
 include probes/mea_252.prb

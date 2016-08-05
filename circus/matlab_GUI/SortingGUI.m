@@ -63,9 +63,15 @@ handles.output = hObject;
 handles.filename = varargin{2};
 handles.suffix   = varargin{3};
 
+if iscell(handles.suffix)
+    handles.suffix  = handles.suffix{1};
+end
+
 if ~strcmp(handles.suffix, '.mat')
     result = strsplit(handles.suffix, '.mat');
-    set(handles.VersionNb, 'String', result(1));
+    result = result{1};
+    result = result(2:end);
+    set(handles.VersionNb, 'String', result);
 end
 
 handles.SamplingRate = varargin{1};
@@ -1509,7 +1515,7 @@ guidata(hObject, handles);
 
 %% Template file: could also contain AmpLim and AmpTrend
 
-suffix  = get(handles.VersionNb, 'String');
+suffix  = ['-' get(handles.VersionNb, 'String')];
 if iscell(suffix)
     suffix  = suffix{1};
 end

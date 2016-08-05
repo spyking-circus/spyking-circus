@@ -3,31 +3,47 @@ import os
 import sys
 import subprocess
 import pkg_resources
+import argparse
 import circus
 import tempfile
 import h5py
 import numpy
 from circus.shared.files import print_error, print_and_log
 from circus.shared.algorithms import slice_result
+import colorama
+colorama.init(autoreset=True)
+from colorama import Fore, Back, Style
 
-def main():
+
+def main(argv=None):
     
-    argv = sys.argv
-    if len(sys.argv) < 2:
-        print_error(['No data file!'])
-        message = '''   
-Syntax is circus-multi datafile [extension]
-        '''
-        print(message)
-        sys.exit(0)
+    if argv is None:
+        argv = sys.argv[1:]
 
-    if len(sys.argv) == 2:
-        filename   = os.path.abspath(sys.argv[1])
-        extension  = ''
-    elif len(sys.argv) == 3:
-        filename   = os.path.abspath(sys.argv[1])
-        extension  = sys.argv[2]
+    gheader = Fore.GREEN + '''
+##################################################################
+#####            Welcome to the SpyKING CIRCUS (0.4)         #####
+#####                                                        #####
+#####              Written by P.Yger and O.Marre             #####
+##################################################################
 
+'''
+    header  = gheader + Fore.RESET
+
+    parser = argparse.ArgumentParser(description=header,
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('datafile', help='data file')
+    parser.add_argument('-e', '--extension', help='extension to consider for slicing results',
+                        default='')
+
+    if len(argv) == 0:
+        parser.print_help()
+        sys.exit()
+
+    args = parser.parse_args(argv)
+
+    filename       = os.path.abspath(args.datafile)
+    extension      = args.extension
     params         = circus.shared.utils.io.load_parameters(filename)
     file_out_suff  = params.get('data', 'file_out_suff')
 

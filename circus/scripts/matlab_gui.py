@@ -2,31 +2,45 @@
 import os
 import sys
 import subprocess
+import argparse
 import pkg_resources
 import circus
 import tempfile
 import numpy, h5py
 from circus.shared.files import print_error, write_datasets, read_probe, print_and_log
+import colorama
+colorama.init(autoreset=True)
+from colorama import Fore, Back, Style
 
-def main():
+def main(argv=None):
 
-    argv = sys.argv
+    if argv is None:
+        argv = sys.argv[1:]
 
-    if len(sys.argv) < 2:
-        print_error(['No data file!'])
-        message = '''   
-Syntax is circus-gui-matlab datafile [extension]
-        '''
-        print(message)
-        sys.exit(0)
+    gheader = Fore.GREEN + '''
+##################################################################
+#####            Welcome to the SpyKING CIRCUS (0.4)         #####
+#####                                                        #####
+#####              Written by P.Yger and O.Marre             #####
+##################################################################
 
-    if len(sys.argv) == 2:
-        filename   = os.path.abspath(sys.argv[1])
-        extension  = ''
-    elif len(sys.argv) == 3:
-        filename   = os.path.abspath(sys.argv[1])
-        extension  = sys.argv[2]
+'''
+    header  = gheader + Fore.RESET
 
+    parser = argparse.ArgumentParser(description=header,
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('datafile', help='data file')
+    parser.add_argument('-e', '--extension', help='extension to consider for visualization',
+                        default='')
+
+    if len(argv) == 0:
+        parser.print_help()
+        sys.exit()
+
+    args = parser.parse_args(argv)
+
+    filename       = os.path.abspath(args.datafile)
+    extension      = args.extension
     params         = circus.shared.utils.io.load_parameters(filename)
     sampling_rate  = params.getint('data', 'sampling_rate')
     data_dtype     = params.get('data', 'data_dtype')
@@ -34,6 +48,8 @@ Syntax is circus-gui-matlab datafile [extension]
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
+    if extension != '':
+        extension = '-' + extension
 
     def generate_matlab_mapping(probe):
         p         = {}
