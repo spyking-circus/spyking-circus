@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>974</width>
+    <width>978</width>
     <height>625</height>
    </rect>
   </property>
@@ -279,7 +279,7 @@
        <item>
         <widget class="QPushButton" name="btn_delete">
          <property name="enabled">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
          <property name="text">
           <string>Delete Templates</string>
