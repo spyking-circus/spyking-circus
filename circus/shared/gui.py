@@ -114,6 +114,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.N_e        = params.getint('data', 'N_e')
         self.N_t        = params.getint('data', 'N_t')
         self.N_total    = params.getint('data', 'N_total')
+        self.correct_lag   = params.getboolean('merging', 'correct_lag')
         self.sampling_rate = params.getint('data', 'sampling_rate')
         self.file_out_suff = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
@@ -311,8 +312,6 @@ class MergeWindow(QtGui.QMainWindow):
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
-
-        self.correct_lag = True
 
         if comm.rank == 0:
             io.print_and_log(['Updating the data...'], 'default', self.params)

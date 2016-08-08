@@ -64,6 +64,7 @@ max_chunk      = inf       # Fit only up to max_chunk
 [merging]
 cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2         # Bin size for computing CC [in ms]
+correct_lag    = False     # If spikes are aligned when merging. May be better for phy usage
 
 [converting]
 erase_all      = True      # If False, a prompt will ask you to export if export has already been done

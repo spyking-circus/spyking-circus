@@ -241,6 +241,7 @@ def load_parameters(file_name):
                   ['extracting', 'noise_thr', 'float', '1.'],
                   ['merging', 'cc_overlap', 'float', '0.5'],
                   ['merging', 'cc_bin', 'float', '2'],
+                  ['merging', 'correct_lag', 'bool', 'False'],
                   ['converting', 'export_pcs', 'string', 'prompt'],
                   ['converting', 'erase_all', 'bool', 'True'],
                   ['validating', 'nearest_elec', 'string', 'auto'],
