@@ -16,4 +16,6 @@ to be in the beta status, please report issues at the github issue tracker
 
 Documentation for SpyKING CIRCUS can be found at http://spyking-circus.rtfd.org
 
+A publication about the software can be found at http://biorxiv.org/content/early/2016/08/04/067843
+
 **The SpyKING CIRCUS is released under the terms of the CeCILL 2.1 license.**

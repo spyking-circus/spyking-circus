@@ -971,7 +971,11 @@ class MergeWindow(QtGui.QMainWindow):
 
         if self.comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
-            for count, temp_id in enumerate(numpy.unique(self.indices)):
+            
+            to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
+            to_keep = numpy.array(list(to_keep))
+            
+            for count, temp_id in enumerate(to_keep):
                 key_before = 'temp_' + str(temp_id)
                 key_after  = 'temp_' + str(count)
                 new_result['spiketimes'][key_after] = self.result['spiketimes'].pop(key_before)
@@ -987,8 +991,6 @@ class MergeWindow(QtGui.QMainWindow):
             mydata.close()
             
             mydata  = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_out, 'r+', libver='latest')
-            to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
-            to_keep = numpy.array(list(to_keep))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
             maxlag      = mydata.create_dataset('maxlag', shape=(len(to_keep), len(to_keep)), dtype=numpy.int32)
             for c, i in enumerate(to_keep):
