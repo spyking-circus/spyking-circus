@@ -241,6 +241,7 @@ def load_parameters(file_name):
                   ['extracting', 'noise_thr', 'float', '1.'],
                   ['merging', 'cc_overlap', 'float', '0.5'],
                   ['merging', 'cc_bin', 'float', '2'],
+                  ['merging', 'correct_lag', 'bool', 'False'],
                   ['converting', 'export_pcs', 'string', 'prompt'],
                   ['converting', 'erase_all', 'bool', 'True'],
                   ['validating', 'nearest_elec', 'string', 'auto'],
@@ -1826,8 +1827,16 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
                 maxoverlap = myfile2.get('maxoverlap')
             else:
                 maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
+            if 'maxlag' in myfile2.keys():
+                maxlag = myfile2.get('maxlag')
+            else:
+                maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
+
             for i in xrange(N_tm-1):
-                maxoverlap[i, i+1:] = numpy.max(overlap[i*N_tm+i+1:(i+1)*N_tm].toarray(), 1)
+                data                = overlap[i*N_tm+i+1:(i+1)*N_tm].toarray()
+                maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
+                maxlag[i+1:, i]     = maxlag[i, i+1:]
+                maxoverlap[i, i+1:] = numpy.max(data, 1)
                 maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
             myfile.close()  
             myfile2.close()
