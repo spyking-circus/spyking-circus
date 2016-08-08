@@ -125,7 +125,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.clusters   = io.load_data(params, 'clusters', self.ext_in)
         self.result     = io.load_data(params, 'results', self.ext_in)
         self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxoverlap')[:]
-        self.lag        = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxlag')[:] - (2*self.N_t-1)
+        self.lag        = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxlag')[:] - self.N_t
         self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
         self.templates  = io.load_data(params, 'templates', self.ext_in)
@@ -917,8 +917,8 @@ class MergeWindow(QtGui.QMainWindow):
                 key        = 'temp_' + str(to_keep)
                 key2       = 'temp_' + str(to_remove)
                 spikes     = self.result['spiketimes'][key2]
-                if self.correct_lag:
-                    spikes -= self.lag[to_keep, to_remove]
+                #if self.correct_lag:
+                #    spikes -= self.lag[to_keep, to_remove]
                 amplitudes = self.result['amplitudes'][key2]
                 n1, n2     = len(self.result['amplitudes'][key2]), len(self.result['amplitudes'][key])
                 self.result['amplitudes'][key] = numpy.vstack((self.result['amplitudes'][key].reshape(n2, 2), amplitudes.reshape(n1, 2)))
