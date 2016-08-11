@@ -320,8 +320,8 @@ class MergeWindow(QtGui.QMainWindow):
 
         to_consider      = set(self.indices) - set(self.to_delete)
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
-        real_indices     = self.to_consider[::self.comm.size]
-
+        real_indices     = self.to_consider[self.comm.rank::self.comm.size]
+        
         n_size           = 2*self.max_delay + 1
 
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
