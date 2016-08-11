@@ -104,6 +104,12 @@ class MergeWindow(QtGui.QMainWindow):
     def __init__(self, comm, params, app, extension_in='', extension_out='-merged'):
         super(MergeWindow, self).__init__()
 
+        try:
+            SHARED_MEMORY = True
+            MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+        except NotImplementedError:
+            SHARED_MEMORY = False
+
         if comm.rank == 0:
             io.print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)
         self.app        = app
@@ -132,7 +138,13 @@ class MergeWindow(QtGui.QMainWindow):
             self.lag    = numpy.zeros(self.overlap.shape, dtype=numpy.int32)
         self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
-        self.templates  = io.load_data(params, 'templates', self.ext_in)
+        
+        if SHARED_MEMORY:
+            self.templates  = io.load_data_memshared(params, self.comm, 'templates', extension=self.ext_in)
+        else:
+            self.templates  = io.load_data(params, 'templates', self.ext_in)
+        
+        #self.templates  = io.load_data(params, 'templates', self.ext_in)
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
         nodes, edges    = io.get_nodes_and_edges(params)
