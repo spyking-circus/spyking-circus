@@ -1031,7 +1031,8 @@ class PreviewGUI(QtGui.QMainWindow):
 
         name = os.path.basename(self.filename)
         r, f = os.path.splitext(name)
-        self.filename = self.filename.replace('/tmp/%s' %r, '')
+        local_path    = os.path.join(r, 'tmp')
+        self.filename = self.filename.replace(local_path, '')
         
         nodes, edges          = io.get_nodes_and_edges(params)
         self.nodes            = nodes
