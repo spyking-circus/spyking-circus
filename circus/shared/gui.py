@@ -129,7 +129,6 @@ class MergeWindow(QtGui.QMainWindow):
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
 
-        self.clusters   = io.load_data(params, 'clusters', self.ext_in)
         self.result     = io.load_data(params, 'results', self.ext_in)
         self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxoverlap')[:]
         try:
@@ -141,8 +140,10 @@ class MergeWindow(QtGui.QMainWindow):
         
         if SHARED_MEMORY:
             self.templates  = io.load_data_memshared(params, self.comm, 'templates', extension=self.ext_in)
+            self.clusters   = io.load_data_memshared(params, self.comm, 'clusters-light', extension=self.ext_in)
         else:
             self.templates  = io.load_data(params, 'templates', self.ext_in)
+            self.clusters   = io.load_data(params, 'clusters-light', self.ext_in)
         
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)

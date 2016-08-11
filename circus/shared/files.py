@@ -1098,63 +1098,54 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
 
         return c_overs
 
-    elif data == 'clusters':
+    elif data == 'clusters-light':
 
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
             myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
             result = {}
 
+            nb_data = 0
 
             for key in myfile.keys():
             
-                if sub_comm.rank == 0:
-                    sparse_mat = overlaps[i*N_over:(i+1)*N_over]
-                    nb_data    = len(sparse_mat.data)
-                    nb_ptr     = len(sparse_mat.indptr)
+                if 'clusters_' in key:
+                    if sub_comm.rank == 0:
+                        locdata = myfile.get(key)[:]
+                        nb_data = len(locdata)
 
-                long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-                short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+                    data_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
 
-                if sub_comm.rank == 0:
-                    indptr_bytes  = short_size * intsize
-                    indices_bytes = long_size * intsize
-                    data_bytes    = long_size * floatsize
-                else:
-                    indptr_bytes  = 0
-                    indices_bytes = 0
-                    data_bytes    = 0
+                    if sub_comm.rank == 0:
+                        if locdata.dtype == 'int32':
+                            type_size = 0
+                        elif locdata.dtype == 'float32':
+                            type_size = 1
+                        data_bytes = data_size * 4
+                    else:
+                        type_size  = 0
+                        data_bytes = 0
 
-                win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
-                win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
-                win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
+                    type_size  = int(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
 
-                buf_data, _    = win_data.Shared_query(0)
-                buf_indices, _ = win_indices.Shared_query(0)
-                buf_indptr, _  = win_indptr.Shared_query(0)
-                    
-                buf_data    = numpy.array(buf_data, dtype='B', copy=False)
-                buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
-                buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
-                                    
-                data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-                indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
-                indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+                    win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
+                    buf_data, _ = win_data.Shared_query(0)
+                        
+                    buf_data    = numpy.array(buf_data, dtype='B', copy=False)
 
-                sub_comm.Barrier()
+                    if type_size == 0:
+                        data = numpy.ndarray(buffer=buf_data, dtype=numpy.int32, shape=(data_size,))
+                    elif type_size == 1:
+                        data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(data_size,))
 
-                if sub_comm.rank == 0:
-                    data[:]    = sparse_mat.data
-                    indices[:] = sparse_mat.indices
-                    indptr[:]  = sparse_mat.indptr
-                    del sparse_mat
+                    if sub_comm.rank == 0:
+                        data[:]    = locdata
 
-                c_overs[i]         = scipy.sparse.csr_matrix((N_over, over_shape[1]), dtype=numpy.float32)
-                c_overs[i].data    = data
-                c_overs[i].indices = indices
-                c_overs[i].indptr  = indptr
+                    sub_comm.Barrier()
 
-            for key in myfile.keys():
-                result[str(key)] = myfile.get(key)[:]
+                    result[str(key)] = data
+
+            sub_comm.Free()
+
             myfile.close()
             return result
 
@@ -1277,6 +1268,17 @@ def load_data(params, data, extension=''):
             result = {}
             for key in myfile.keys():
                 result[str(key)] = myfile.get(key)[:]
+            myfile.close()
+            return result
+        else:
+            raise Exception('No clusters found! Check suffix or run clustering?')
+    elif data == 'clusters-light':
+        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
+            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
+            result = {}
+            for key in myfile.keys():
+                if 'clusters_' in key:
+                    result[str(key)] = myfile.get(key)[:]
             myfile.close()
             return result
         else:
