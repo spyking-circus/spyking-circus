@@ -28,11 +28,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
     comm.Barrier()
 
-    app = QtGui.QApplication([])
-    try:
-        pylab.style.use('ggplot')
-    except Exception:
-        pass
+    if comm.rank == 0:
+        app = QtGui.QApplication([])
+        try:
+            pylab.style.use('ggplot')
+        except Exception:
+            pass
+    else:
+        app = None
 
     mygui = gui.MergeWindow(comm, params, app, extension_in, extension_out)
     sys.exit(app.exec_())
