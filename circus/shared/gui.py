@@ -270,7 +270,7 @@ class MergeWindow(QtGui.QMainWindow):
     def closeEvent(self, event):
         if self.comm.rank == 0:
             self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
-        super(MergeWindow, self).closeEvent(event)
+            super(MergeWindow, self).closeEvent(event)
 
     def init_gui_layout(self):
         gui_fname = pkg_resources.resource_filename('circus',
@@ -320,8 +320,8 @@ class MergeWindow(QtGui.QMainWindow):
 
         to_consider      = set(self.indices) - set(self.to_delete)
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
-        real_indices     = self.to_consider
-        
+        real_indices     = self.to_consider[::self.comm.size]
+
         n_size           = 2*self.max_delay + 1
 
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
@@ -334,9 +334,9 @@ class MergeWindow(QtGui.QMainWindow):
 
         for count, temp_id1 in enumerate(real_indices):
         
-            best_matches = numpy.argsort(self.overlap[temp_id1, real_indices])[::-1][:10]
+            best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1][:10]
 
-            for temp_id2 in real_indices[best_matches]:
+            for temp_id2 in self.to_consider[best_matches]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
                     spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy()
@@ -356,7 +356,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.raw_control = gather_array(self.raw_control, self.comm, 0, 1)
         self.raw_data    = gather_array(self.raw_data, self.comm, 0, 1)
         self.sort_idcs   = numpy.arange(len(self.pairs))
-        
+        self.comm.Barrier()
+
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
         control = self.raw_control[:, abs(self.raw_lags) <= lag]
@@ -405,7 +406,7 @@ class MergeWindow(QtGui.QMainWindow):
             xmin, xmax = min(score_x), max(score_x)
             xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
             ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
-        
+
         for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3, self.ui.waveforms]:
             fig.draw_idle()
 
