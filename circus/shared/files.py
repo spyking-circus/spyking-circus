@@ -1097,6 +1097,58 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
         sub_comm.Free()
 
         return c_overs
+
+    elif data == 'clusters-light':
+
+        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
+            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
+            result = {}
+
+            nb_data = 0
+
+            for key in myfile.keys():
+            
+                if ('clusters_' in key) or (key == 'electrodes'):
+                    if sub_comm.rank == 0:
+                        locdata = myfile.get(key)[:]
+                        nb_data = len(locdata)
+
+                    data_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+
+                    if sub_comm.rank == 0:
+                        if locdata.dtype == 'int32':
+                            type_size = 0
+                        elif locdata.dtype == 'float32':
+                            type_size = 1
+                        data_bytes = data_size * 4
+                    else:
+                        type_size  = 0
+                        data_bytes = 0
+
+                    type_size  = int(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
+
+                    win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
+                    buf_data, _ = win_data.Shared_query(0)
+                        
+                    buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+
+                    if type_size == 0:
+                        data = numpy.ndarray(buffer=buf_data, dtype=numpy.int32, shape=(data_size,))
+                    elif type_size == 1:
+                        data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(data_size,))
+
+                    if sub_comm.rank == 0:
+                        data[:]    = locdata
+
+                    sub_comm.Barrier()
+
+                    result[str(key)] = data
+
+            sub_comm.Free()
+
+            myfile.close()
+            return result
+
     
 
 def load_data(params, data, extension=''):
@@ -1216,6 +1268,17 @@ def load_data(params, data, extension=''):
             result = {}
             for key in myfile.keys():
                 result[str(key)] = myfile.get(key)[:]
+            myfile.close()
+            return result
+        else:
+            raise Exception('No clusters found! Check suffix or run clustering?')
+    elif data == 'clusters-light':
+        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
+            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
+            result = {}
+            for key in myfile.keys():
+                if ('clusters_' in key) or (key == 'electrodes'):
+                    result[str(key)] = myfile.get(key)[:]
             myfile.close()
             return result
         else:

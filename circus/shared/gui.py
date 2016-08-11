@@ -102,7 +102,15 @@ class SymmetricVCursor(widgets.AxesWidget):
 class MergeWindow(QtGui.QMainWindow):
 
     def __init__(self, comm, params, app, extension_in='', extension_out='-merged'):
-        super(MergeWindow, self).__init__()
+
+        if comm.rank == 0:
+            super(MergeWindow, self).__init__()
+
+        try:
+            SHARED_MEMORY = True
+            MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+        except NotImplementedError:
+            SHARED_MEMORY = False
 
         if comm.rank == 0:
             io.print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)
@@ -123,7 +131,6 @@ class MergeWindow(QtGui.QMainWindow):
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
 
-        self.clusters   = io.load_data(params, 'clusters', self.ext_in)
         self.result     = io.load_data(params, 'results', self.ext_in)
         self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxoverlap')[:]
         try:
@@ -132,7 +139,14 @@ class MergeWindow(QtGui.QMainWindow):
             self.lag    = numpy.zeros(self.overlap.shape, dtype=numpy.int32)
         self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
-        self.templates  = io.load_data(params, 'templates', self.ext_in)
+        
+        if SHARED_MEMORY:
+            self.templates  = io.load_data_memshared(params, self.comm, 'templates', extension=self.ext_in)
+            self.clusters   = io.load_data_memshared(params, self.comm, 'clusters-light', extension=self.ext_in)
+        else:
+            self.templates  = io.load_data(params, 'templates', self.ext_in)
+            self.clusters   = io.load_data(params, 'clusters-light', self.ext_in)
+        
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
         nodes, edges    = io.get_nodes_and_edges(params)
@@ -163,7 +177,6 @@ class MergeWindow(QtGui.QMainWindow):
                 thr = self.thresholds[elec]
                 self.norms[idx] = numpy.abs(tmp).max()/thr
  
-
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
         self.mpi_wait   = numpy.array([0], dtype=numpy.int32)
@@ -257,25 +270,27 @@ class MergeWindow(QtGui.QMainWindow):
     def closeEvent(self, event):
         if self.comm.rank == 0:
             self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
-        super(MergeWindow, self).closeEvent(event)
+            super(MergeWindow, self).closeEvent(event)
 
     def init_gui_layout(self):
         gui_fname = pkg_resources.resource_filename('circus',
                                                     os.path.join('qt_GUI',
                                                                  'qt_merge.ui'))
-        self.ui = uic.loadUi(gui_fname, self)
-        # print dir(self.ui)
-        self.score_ax1 = self.ui.score_1.axes
-        self.score_ax2 = self.ui.score_2.axes
-        self.score_ax3 = self.ui.score_3.axes
-        self.waveforms_ax  = self.ui.waveforms.axes
-        self.detail_ax     = self.ui.detail.axes
-        self.data_ax       = self.ui.data_overview.axes
-        self.current_order = self.ui.cmb_sorting.currentIndex()
-        self.mpl_toolbar = NavigationToolbar(self.ui.waveforms, None)
-        self.mpl_toolbar.pan()
         if self.comm.rank == 0:
+            self.ui = uic.loadUi(gui_fname, self)
+            # print dir(self.ui)
+            self.score_ax1 = self.ui.score_1.axes
+            self.score_ax2 = self.ui.score_2.axes
+            self.score_ax3 = self.ui.score_3.axes
+            self.waveforms_ax  = self.ui.waveforms.axes
+            self.detail_ax     = self.ui.detail.axes
+            self.data_ax       = self.ui.data_overview.axes
+            self.current_order = self.ui.cmb_sorting.currentIndex()
+            self.mpl_toolbar = NavigationToolbar(self.ui.waveforms, None)
+            self.mpl_toolbar.pan()
             self.ui.show()
+        else:
+            self.ui = None
 
     def generate_data(self):
 
@@ -305,7 +320,7 @@ class MergeWindow(QtGui.QMainWindow):
 
         to_consider      = set(self.indices) - set(self.to_delete)
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
-        real_indices     = self.to_consider
+        real_indices     = self.to_consider[self.comm.rank::self.comm.size]
         
         n_size           = 2*self.max_delay + 1
 
@@ -319,9 +334,9 @@ class MergeWindow(QtGui.QMainWindow):
 
         for count, temp_id1 in enumerate(real_indices):
         
-            best_matches = numpy.argsort(self.overlap[temp_id1, real_indices])[::-1][:10]
+            best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1][:10]
 
-            for temp_id2 in real_indices[best_matches]:
+            for temp_id2 in self.to_consider[best_matches]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
                     spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy()
@@ -341,7 +356,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.raw_control = gather_array(self.raw_control, self.comm, 0, 1)
         self.raw_data    = gather_array(self.raw_data, self.comm, 0, 1)
         self.sort_idcs   = numpy.arange(len(self.pairs))
-        
+        self.comm.Barrier()
+
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
         control = self.raw_control[:, abs(self.raw_lags) <= lag]
@@ -390,7 +406,7 @@ class MergeWindow(QtGui.QMainWindow):
             xmin, xmax = min(score_x), max(score_x)
             xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
             ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
-        
+
         for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3, self.ui.waveforms]:
             fig.draw_idle()
 
@@ -893,10 +909,10 @@ class MergeWindow(QtGui.QMainWindow):
 
             one_merge = [self.indices[pair[0]], self.indices[pair[1]]]
 
-            elec_ic1  = self.clusters['electrodes'][one_merge[0]]
-            elec_ic2  = self.clusters['electrodes'][one_merge[1]]
-            nic1      = one_merge[0] - numpy.where(self.clusters['electrodes'] == elec_ic1)[0][0]
-            nic2      = one_merge[1] - numpy.where(self.clusters['electrodes'] == elec_ic2)[0][0]
+            elec_ic1  = self.electrodes[one_merge[0]]
+            elec_ic2  = self.electrodes[one_merge[1]]
+            nic1      = one_merge[0] - numpy.where(self.electrodes == elec_ic1)[0][0]
+            nic2      = one_merge[1] - numpy.where(self.electrodes == elec_ic2)[0][0]
             mask1     = self.clusters['clusters_' + str(elec_ic1)] > -1
             mask2     = self.clusters['clusters_' + str(elec_ic2)] > -1
             tmp1      = numpy.unique(self.clusters['clusters_' + str(elec_ic1)][mask1])
@@ -959,9 +975,9 @@ class MergeWindow(QtGui.QMainWindow):
 
     def finalize(self, event):
 
-        self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
-
+        
         if comm.rank == 0:
+            self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
             self.mpi_wait = self.comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
 
         comm.Barrier()
@@ -969,7 +985,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.to_delete  = self.comm.bcast(self.to_delete, root=0)
         
         slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out)
-        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out)
+        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out, light=True)
 
         if self.comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
@@ -1000,7 +1016,7 @@ class MergeWindow(QtGui.QMainWindow):
                 maxlag[c, :]      = self.lag[i, to_keep]
             mydata.close()
 
-        self.app.restoreOverrideCursor()
+            self.app.restoreOverrideCursor()
         
         sys.exit(0)
 
