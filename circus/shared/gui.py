@@ -102,7 +102,9 @@ class SymmetricVCursor(widgets.AxesWidget):
 class MergeWindow(QtGui.QMainWindow):
 
     def __init__(self, comm, params, app, extension_in='', extension_out='-merged'):
-        super(MergeWindow, self).__init__()
+
+        if comm.rank == 0:
+            super(MergeWindow, self).__init__()
 
         try:
             SHARED_MEMORY = True
@@ -175,7 +177,6 @@ class MergeWindow(QtGui.QMainWindow):
                 thr = self.thresholds[elec]
                 self.norms[idx] = numpy.abs(tmp).max()/thr
  
-
         self.overlap   /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
         self.mpi_wait   = numpy.array([0], dtype=numpy.int32)
@@ -973,9 +974,9 @@ class MergeWindow(QtGui.QMainWindow):
 
     def finalize(self, event):
 
-        self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
-
+        
         if comm.rank == 0:
+            self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
             self.mpi_wait = self.comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
 
         comm.Barrier()
@@ -1014,7 +1015,7 @@ class MergeWindow(QtGui.QMainWindow):
                 maxlag[c, :]      = self.lag[i, to_keep]
             mydata.close()
 
-        self.app.restoreOverrideCursor()
+            self.app.restoreOverrideCursor()
         
         sys.exit(0)
 
