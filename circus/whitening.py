@@ -172,7 +172,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_write['spatial'] = spatial_whitening
             io.print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)], 'default', params)
         
-        bfile = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+        bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, to_write.keys(), to_write)
         bfile.close()
 
@@ -446,7 +446,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             idx                  = numpy.random.permutation(numpy.arange(gdata_pos.shape[0]))[:1000]
             res['waveforms_pos'] = gdata_pos[idx, :]
 
-        bfile    = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+        bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
         if sign_peaks == 'positive':
             io.print_and_log(["A basis with %s dimensions has been built" %res['proj_pos'].shape[1]], 'info', params)
