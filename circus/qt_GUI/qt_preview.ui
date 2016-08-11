@@ -39,7 +39,7 @@
           </property>
           <property name="sizeHint" stdset="0">
            <size>
-            <width>40</width>
+            <width>20</width>
             <height>20</height>
            </size>
           </property>
@@ -49,8 +49,8 @@
          <widget class="QGroupBox" name="groupBox">
           <property name="minimumSize">
            <size>
-            <width>0</width>
-            <height>100</height>
+            <width>100</width>
+            <height>50</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -160,6 +160,12 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>50</height>
+           </size>
+          </property>
           <property name="maximumSize">
            <size>
             <width>16777215</width>
@@ -236,6 +242,12 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="minimumSize">
+           <size>
+            <width>110</width>
+            <height>50</height>
+           </size>
+          </property>
           <property name="maximumSize">
            <size>
             <width>16777215</width>
@@ -261,17 +273,17 @@
          </widget>
         </item>
         <item>
-          <widget class="QCheckBox" name="show_residuals">
-            <property name="enabled">
-              <bool>false</bool>
-            </property>
-            <property name="text">
-              <string>Show Residuals</string>
-            </property>
-            <property name="checked">
-              <bool>false</bool>
-            </property>
-          </widget>
+         <widget class="QCheckBox" name="show_residuals">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Show Residuals</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
         </item>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2"/>
@@ -281,7 +293,9 @@
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
-         <widget class="MplCanvas" name="electrodes" native="true"/>
+         <widget class="MplCanvas" name="electrodes" native="true">
+          <zorder></zorder>
+         </widget>
         </item>
         <item>
          <widget class="MplCanvas" name="raw_data" native="true"/>
