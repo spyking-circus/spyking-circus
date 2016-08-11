@@ -275,19 +275,21 @@ class MergeWindow(QtGui.QMainWindow):
         gui_fname = pkg_resources.resource_filename('circus',
                                                     os.path.join('qt_GUI',
                                                                  'qt_merge.ui'))
-        self.ui = uic.loadUi(gui_fname, self)
-        # print dir(self.ui)
-        self.score_ax1 = self.ui.score_1.axes
-        self.score_ax2 = self.ui.score_2.axes
-        self.score_ax3 = self.ui.score_3.axes
-        self.waveforms_ax  = self.ui.waveforms.axes
-        self.detail_ax     = self.ui.detail.axes
-        self.data_ax       = self.ui.data_overview.axes
-        self.current_order = self.ui.cmb_sorting.currentIndex()
-        self.mpl_toolbar = NavigationToolbar(self.ui.waveforms, None)
-        self.mpl_toolbar.pan()
         if self.comm.rank == 0:
+            self.ui = uic.loadUi(gui_fname, self)
+            # print dir(self.ui)
+            self.score_ax1 = self.ui.score_1.axes
+            self.score_ax2 = self.ui.score_2.axes
+            self.score_ax3 = self.ui.score_3.axes
+            self.waveforms_ax  = self.ui.waveforms.axes
+            self.detail_ax     = self.ui.detail.axes
+            self.data_ax       = self.ui.data_overview.axes
+            self.current_order = self.ui.cmb_sorting.currentIndex()
+            self.mpl_toolbar = NavigationToolbar(self.ui.waveforms, None)
+            self.mpl_toolbar.pan()
             self.ui.show()
+        else:
+            self.ui = None
 
     def generate_data(self):
 
@@ -981,7 +983,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.to_delete  = self.comm.bcast(self.to_delete, root=0)
         
         slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out)
-        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out)
+        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out, light=True)
 
         if self.comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
