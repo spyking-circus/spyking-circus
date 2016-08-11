@@ -144,7 +144,6 @@ class MergeWindow(QtGui.QMainWindow):
         else:
             self.templates  = io.load_data(params, 'templates', self.ext_in)
         
-        #self.templates  = io.load_data(params, 'templates', self.ext_in)
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
         nodes, edges    = io.get_nodes_and_edges(params)
@@ -905,10 +904,10 @@ class MergeWindow(QtGui.QMainWindow):
 
             one_merge = [self.indices[pair[0]], self.indices[pair[1]]]
 
-            elec_ic1  = self.clusters['electrodes'][one_merge[0]]
-            elec_ic2  = self.clusters['electrodes'][one_merge[1]]
-            nic1      = one_merge[0] - numpy.where(self.clusters['electrodes'] == elec_ic1)[0][0]
-            nic2      = one_merge[1] - numpy.where(self.clusters['electrodes'] == elec_ic2)[0][0]
+            elec_ic1  = self.electrodes[one_merge[0]]
+            elec_ic2  = self.electrodes[one_merge[1]]
+            nic1      = one_merge[0] - numpy.where(self.electrodes == elec_ic1)[0][0]
+            nic2      = one_merge[1] - numpy.where(self.electrodes == elec_ic2)[0][0]
             mask1     = self.clusters['clusters_' + str(elec_ic1)] > -1
             mask2     = self.clusters['clusters_' + str(elec_ic2)] > -1
             tmp1      = numpy.unique(self.clusters['clusters_' + str(elec_ic1)][mask1])
