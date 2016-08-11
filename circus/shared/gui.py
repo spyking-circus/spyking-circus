@@ -1027,6 +1027,12 @@ class PreviewGUI(QtGui.QMainWindow):
         self.N_total          = params.getint('data', 'N_total')
         self.sampling_rate    = params.getint('data', 'sampling_rate')
         self.template_shift   = params.getint('data', 'template_shift')
+        self.filename         = params.get('data', 'data_file')
+
+        name = os.path.basename(self.filename)
+        r, f = os.path.splitext(name)
+        self.filename = self.filename.replace('/tmp/%s' %r, '')
+        
         nodes, edges          = io.get_nodes_and_edges(params)
         self.nodes            = nodes
         self.edges            = edges
@@ -1083,10 +1089,12 @@ class PreviewGUI(QtGui.QMainWindow):
         self.get_time.valueChanged.connect(self.update_time)
         self.get_threshold.valueChanged.connect(self.update_threshold)
         self.show_residuals.clicked.connect(self.update_data_plot)
+        self.btn_write_threshold.clicked.connect(self.write_threshold)
         if self.show_fit:
             self.time_box.setEnabled(True)
             self.show_residuals.setEnabled(True)
         else:
+            self.btn_write_threshold.setEnabled(True)
             self.threshold_box.setEnabled(True)
         self.get_time.setValue(self.t_start)
         self.get_threshold.setValue(self.spike_thresh)
@@ -1107,6 +1115,10 @@ class PreviewGUI(QtGui.QMainWindow):
             self.t_stop   = self.t_start + 1
             self.get_data()
             self.update_data_plot()
+
+
+    def write_threshold(self):
+        io.change_flag(self.filename, 'spike_thresh', '%g' %self.get_threshold.value())
 
     def get_data(self):
         self.chunk_size       = self.sampling_rate
