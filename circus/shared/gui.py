@@ -1066,6 +1066,13 @@ class PreviewGUI(QtGui.QMainWindow):
         self.t_start          = 0
         self.t_stop           = 1
 
+        if self.show_fit:
+            try:
+                self.templates = io.load_data(self.params, 'templates')
+                self.result    = io.load_data(self.params, 'results')
+            except Exception:
+                pass
+
         self.get_data()
         self.x_position = []
         self.y_position = []
@@ -1151,9 +1158,6 @@ class PreviewGUI(QtGui.QMainWindow):
         self.time    = numpy.linspace(self.t_start, self.t_stop, self.data.shape[0])
         if self.show_fit:
             try:
-                self.templates = io.load_data(self.params, 'templates')
-                self.result    = io.load_data(self.params, 'results')
-
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
                 limit          = self.sampling_rate-self.template_shift+1
                 for key in self.result['spiketimes'].keys():
