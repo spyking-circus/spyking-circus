@@ -130,7 +130,7 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-r', '--result', help='GUI to display the results on top of raw data',
                         action='store_true')
     parser.add_argument('-e', '--extension', help='extension to consider for merging and converting',
-                        default='')
+                        default='None')
     parser.add_argument('-o', '--output', help='output file [for generation of synthetic benchmarks]')
     parser.add_argument('-t', '--type', help='benchmark type',
                         choices=['fitting', 'clustering', 'synchrony'])
