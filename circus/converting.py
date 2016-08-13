@@ -49,16 +49,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
     def write_results(path, params, extension):
         result     = get_results(params, extension)
-        spikes     = numpy.zeros(0, dtype=numpy.int32)
-        clusters   = numpy.zeros(0, dtype=numpy.int32)
-        amplitudes = numpy.zeros(0, dtype=numpy.float32)
+        spikes     = numpy.zeros(0, dtype=numpy.uint64)
+        clusters   = numpy.zeros(0, dtype=numpy.uint32)
+        amplitudes = numpy.zeros(0, dtype=numpy.double)
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
-            data       = result['spiketimes'].pop(key)
+            data       = result['spiketimes'].pop(key).astype(numpy.uint64)
             spikes     = numpy.concatenate((spikes, data))
-            data       = result['amplitudes'].pop(key)
+            data       = result['amplitudes'].pop(key).astype(numpy.double)
             amplitudes = numpy.concatenate((amplitudes, data[:, 0]))
-            clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.int32)))
+            clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.uint32)))
         
         idx = numpy.argsort(spikes)
 
@@ -82,8 +82,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_loc                           = len(numpy.unique(y))
             mapping[t, numpy.arange(nb_loc)] = numpy.unique(y)
 
-        numpy.save(os.path.join(output_path, 'templates'), to_write)
-        numpy.save(os.path.join(output_path, 'templates_ind'), mapping)
+        numpy.save(os.path.join(output_path, 'templates'), to_write.astype(numpy.single))
+        numpy.save(os.path.join(output_path, 'templates_ind'), mapping.astype(numpy.double))
         return N_tm
 
     def write_pcs(path, params, comm, extension, mode=0):
@@ -161,8 +161,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             if mode == 1:
                 numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx])
 
-            numpy.save(os.path.join(output_path, 'pc_features'), pc_features[sort_idx]) # nspikes, nfeat, n_loc_chan
-            numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind) #n_templates, n_loc_chan
+            numpy.save(os.path.join(output_path, 'pc_features'), pc_features[sort_idx].astype(numpy.single)) # nspikes, nfeat, n_loc_chan
+            numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind.astype(numpy.uint32)) #n_templates, n_loc_chan
         
 
     do_export = True
@@ -196,16 +196,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             os.makedirs(output_path)
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
         
-            numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening'))
-            numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe))
+            numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening').astype(numpy.double))
+            numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe).astype(numpy.double))
             nodes, edges   = get_nodes_and_edges(params)
-            numpy.save(os.path.join(output_path, 'channel_map'), nodes)
+            numpy.save(os.path.join(output_path, 'channel_map'), nodes.astype(numpy.int32))
 
             write_results(output_path, params, extension)    
             N_tm = write_templates(output_path, params, extension)
             similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
             norm = params.getint('data', 'N_e')*params.getint('data', 'N_t')
-            numpy.save(os.path.join(output_path, 'similar_templates'), similarities[:N_tm, :N_tm]/norm)
+            numpy.save(os.path.join(output_path, 'similar_templates'), (similarities[:N_tm, :N_tm]/norm).astype(numpy.single))
         
         comm.Barrier()
 
