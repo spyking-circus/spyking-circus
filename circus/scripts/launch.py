@@ -182,7 +182,8 @@ but a subset x,y can be done. Steps are:
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
         filename     = os.path.join(tmp_path_loc, os.path.basename(filename))
-        shutil.copyfile(file_params, filename.replace('.dat', '.params'))
+        f_next, extens = os.path.splitext(filename)
+        shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']
         io.prepare_preview(params, filename)
         io.change_flag(filename, 'chunk_size', '2')
