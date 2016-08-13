@@ -159,7 +159,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         if comm.rank == 0:
             if mode == 1:
-                numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx])
+                numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx].astype(numpy.int32))
 
             numpy.save(os.path.join(output_path, 'pc_features'), pc_features[sort_idx].astype(numpy.single)) # nspikes, nfeat, n_loc_chan
             numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind.astype(numpy.uint32)) #n_templates, n_loc_chan
