@@ -270,7 +270,20 @@ def load_parameters(file_name):
         except Exception:
             parser.set(section, name, value)
   
+    if parser.getboolean('data', 'multi-files'):
+        parser.set('data', 'data_multi_file', file_name)
+        pattern     = os.path.basename(file_name).replace('0', 'all')
+        multi_file  = os.path.join(file_path, pattern)
+        parser.set('data', 'data_file', multi_file)
+        f_next, extension = os.path.splitext(multi_file)
+    else:
+        parser.set('data', 'data_file', file_name)
 
+    if parser.getboolean('triggers', 'clean_artefact'):
+        if (parser.get('triggers', 'trig_file') == '') or (parser.get('triggers', 'trig_windows') == ''):
+            print_and_log(["trig_file and trig_windows must be specified"], 'error', parser)
+            sys.exit(0)
+    
     parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(parser.get('triggers', 'trig_file'))))
     parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(parser.get('triggers', 'trig_windows'))))
 
@@ -288,15 +301,6 @@ def load_parameters(file_name):
     if not test:
         print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', parser)
         sys.exit(0)
-
-    if parser.getboolean('data', 'multi-files'):
-        parser.set('data', 'data_multi_file', file_name)
-        pattern     = os.path.basename(file_name).replace('0', 'all')
-        multi_file  = os.path.join(file_path, pattern)
-        parser.set('data', 'data_file', multi_file)
-        f_next, extension = os.path.splitext(multi_file)
-    else:
-        parser.set('data', 'data_file', file_name)
 
     try:
         os.makedirs(f_next)
