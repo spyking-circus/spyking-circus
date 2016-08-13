@@ -31,7 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
             sys.exit(0)
 
-    if do_filter:
+    if do_filter and not filter_done:
 
         def filter_file(params, comm, mpi_input, mpi_output, offset=0):
 
