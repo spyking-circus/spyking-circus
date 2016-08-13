@@ -78,3 +78,5 @@ def get_mpi_type(data_type):
         return MPI.UNSIGNED_SHORT
     elif data_type == 'float32':
         return MPI.FLOAT
+    elif data_type == 'int32':
+        return MPI.INT

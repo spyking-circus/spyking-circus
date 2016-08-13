@@ -26,7 +26,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 to_write += ["Median over all channels was substracted to each channels"]
             io.print_and_log(to_write, 'info', params)
 
-    if clean_artefact:
+    elif clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
             io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
             sys.exit(0)
@@ -259,14 +259,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             offset   = 0
 
             for data_file in all_files:
-                mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDWR)
+                mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDONLY)
                 if params.getboolean('data', 'MCS'):
                     data_offset, nb_channels = io.detect_header(data_file, 'MCS')
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
                 filter_file(params, comm, mpi_in, mpi_out, offset)
-                offset += (mpi_in.size//data_mpi.size)               
+                to_add  = N_total*(mpi_in.size//N_total)
+                offset += (to_add//data_mpi.size)               
                 mpi_in.Close()
 
             params.set('data', 'data_file', combined_file)
