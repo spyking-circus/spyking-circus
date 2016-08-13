@@ -26,13 +26,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 to_write += ["Median over all channels was substracted to each channels"]
             io.print_and_log(to_write, 'info', params)
 
-    elif clean_artefact:
+    if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
             io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
             sys.exit(0)
 
-
-    elif do_filter:
+    if do_filter:
 
         def filter_file(params, comm, mpi_input, mpi_output, offset=0):
 
