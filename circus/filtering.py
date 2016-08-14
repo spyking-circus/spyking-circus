@@ -250,10 +250,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mpi_in.Close()
         else:
             all_files = io.get_multi_files(params)
-            all_times = io.data_stats(params, show=False, export_times=True)
             combined_file = params.get('data', 'data_file')
-            N_total       = params.getint('data', 'N_total')
-
+            
             if comm.rank == 0:
                 io.copy_header(data_offset, params.get('data', 'data_multi_file'), combined_file)
                 
@@ -269,6 +267,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDONLY)
                 if params.getboolean('data', 'MCS'):
                     data_offset, nb_channels = io.detect_header(data_file, 'MCS')
+                print data_offset
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
