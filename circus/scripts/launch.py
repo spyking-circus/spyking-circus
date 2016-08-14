@@ -203,7 +203,12 @@ but a subset x,y can be done. Steps are:
         write_to_logger(params, ['Data file  : %s' %filename], 'debug')
 
         print gheader
-        print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
+        if preview:
+            print Fore.GREEN + "Steps         :", Fore.CYAN + "preview mode"
+        elif result:
+            print Fore.GREEN + "Steps         :", Fore.CYAN + "results mode"
+        else:
+            print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
         print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
         print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu) + "/" + str(psutil.cpu_count())
         if HAVE_CUDA:
