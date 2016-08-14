@@ -198,32 +198,38 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
             
             count    = 0
-            
+    
+            mask       = numpy.in1d(all_labels, local_labels)
+            all_times  = numpy.compress(mask, all_times)
+            all_labels = numpy.compress(mask, all_labels)
+
+            mask       = (all_times >= 0) & (all_times < max_offset)
+            all_times  = numpy.compress(mask, all_times)
+            all_labels = numpy.compress(mask, all_labels)
+
             for label, time in zip(all_labels, all_times):
 
-                if (time >= 0) and (time < max_offset) and (label in local_labels):
+                tmp      = numpy.where(windows[:, 0] == label)[0]
+                tau      = windows[tmp, 1]
+                mshape   = tau
+                data_len = tau * N_total
+                if (max_offset - time) < tau:
+                    data_len = (max_offset - time)*N_total
+                    mshape   = max_offset - time
 
-                    tmp      = numpy.where(windows[:, 0] == label)[0]
-                    tau      = windows[tmp, 1]
-                    mshape   = tau
-                    data_len = tau * N_total
-                    if (max_offset - time) < tau:
-                        data_len = (max_offset - time)*N_total
-                        mshape   = max_offset - time
+                local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
+                mpi_file.Read_at(N_total * time, local_chunk)
+                local_chunk   = local_chunk.reshape(mshape, N_total)
+                local_chunk   = local_chunk.astype(numpy.float32)
+                local_chunk  -= dtype_offset
+                for idx, i in enumerate(nodes):
+                    local_chunk[:, i] -= art_dict[label][idx, :mshape]
+                       
+                local_chunk  += dtype_offset
+                local_chunk   = local_chunk.astype(data_dtype)
+                local_chunk   = local_chunk.ravel()
 
-                    local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                    mpi_file.Read_at(N_total * time, local_chunk)
-                    local_chunk   = local_chunk.reshape(mshape, N_total)
-                    local_chunk   = local_chunk.astype(numpy.float32)
-                    local_chunk  -= dtype_offset
-                    for idx, i in enumerate(nodes):
-                        local_chunk[:, i] -= art_dict[label][idx, :mshape]
-                        
-                    local_chunk  += dtype_offset
-                    local_chunk   = local_chunk.astype(data_dtype)
-                    local_chunk   = local_chunk.ravel()
-
-                    mpi_file.Write_at(N_total*time, local_chunk)
+                mpi_file.Write_at(N_total*time, local_chunk)
 
                 count        += 1
 
