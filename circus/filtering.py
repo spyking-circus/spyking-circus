@@ -31,9 +31,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
             sys.exit(0)
 
-    if do_filter and not filter_done:
+    if (do_filter and not filter_done) or multi_files:
 
-        def filter_file(params, comm, mpi_input, mpi_output, offset=0):
+        def filter_file(params, comm, mpi_input, mpi_output, offset=0, perform_filtering=True):
 
             N_total        = params.getint('data', 'N_total')
             cut_off        = params.getint('filtering', 'cut_off')
@@ -49,7 +49,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loc_nb_chunks = len(to_process)
 
             if comm.rank == 0:
-                to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off, int(0.95*(sampling_rate/2)))]
+                if perform_filtering:
+                    to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off, int(0.95*(sampling_rate/2)))]
+                elif multi_files:
+                    to_write = ["Concatenating multi files without filtering"]
                 if remove_median:
                     to_write += ["Median over all channels is substracted to each channels"]
                 io.print_and_log(to_write, 'info', params)
@@ -70,10 +73,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk   = local_chunk.astype(numpy.float32)
                 local_chunk  -= dtype_offset
                 for i in nodes:
-                    try:
-                        local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
-                    except Exception:
-                        pass
+                    if perform_filtering:
+                        try:
+                            local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                        except Exception:
+                            pass
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
                 if remove_median:
                     if not numpy.all(nodes == numpy.arange(N_total)):
@@ -245,6 +249,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_files = io.get_multi_files(params)
             all_times = io.data_stats(params, show=False, export_times=True)
             combined_file = params.get('data', 'data_file')
+            N_total       = params.getint('data', 'N_total')
 
             if comm.rank == 0:
                 io.copy_header(data_offset, params.get('data', 'data_multi_file'), combined_file)
@@ -264,7 +269,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
-                filter_file(params, comm, mpi_in, mpi_out, offset)
+                filter_file(params, comm, mpi_in, mpi_out, offset, perform_filtering=do_filter)
                 to_add  = N_total*(mpi_in.size//N_total)
                 offset += (to_add//data_mpi.size)               
                 mpi_in.Close()

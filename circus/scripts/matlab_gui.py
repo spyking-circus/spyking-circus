@@ -93,3 +93,6 @@ def main(argv=None):
                               '-r', matlab_command]))
     except Exception:
         print_error(["Something wrong with MATLAB. Try circus-gui-python instead?"])
+
+if __name__ == '__main__':
+    main()
