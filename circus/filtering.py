@@ -48,6 +48,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
+            goffset       = chunk_len*(nb_chunks - 1) + N_total*(last_chunk_len//N_total)
+
             if comm.rank == 0:
                 if perform_filtering:
                     to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off, int(0.95*(sampling_rate/2)))]
@@ -100,6 +102,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 pbar.finish()
 
             comm.Barrier()
+
+            return goffset + offset
 
         def compute_artefacts(params, comm):
 
@@ -237,12 +241,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if not multi_files:            
             mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
             mpi_in.Set_view(data_offset, data_mpi, data_mpi)
-            offset = (mpi_in.size//data_mpi.size)
-            filter_file(params, comm, mpi_in, mpi_in)
+            goffset = filter_file(params, comm, mpi_in, mpi_in)
 
             if clean_artefact:
                 art_dict   = compute_artefacts(params, comm)
-                remove_artefacts(params, comm, art_dict, mpi_in, offset)
+                remove_artefacts(params, comm, art_dict, mpi_in, goffset)
 
             mpi_in.Close()
         else:
@@ -260,8 +263,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mpi_out.Set_view(data_offset, data_mpi, data_mpi)
             io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
 
-            offset   = 0
-
+            goffset = 0
+            
             for data_file in all_files:
                 mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDONLY)
                 if params.getboolean('data', 'MCS'):
@@ -269,16 +272,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
-                filter_file(params, comm, mpi_in, mpi_out, offset, perform_filtering=do_filter)
-                to_add  = N_total*(mpi_in.size//N_total)
-                offset += (to_add//data_mpi.size)               
+                goffset = filter_file(params, comm, mpi_in, mpi_out, goffset, perform_filtering=do_filter)
                 mpi_in.Close()
 
             params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
                 art_dict   = compute_artefacts(params, comm)
-                remove_artefacts(params, comm, art_dict, mpi_out, offset)
+                remove_artefacts(params, comm, art_dict, mpi_out, goffset)
 
             mpi_out.Close()
 
