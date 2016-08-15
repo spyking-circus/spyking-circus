@@ -129,7 +129,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_labels   = artefacts[:, 0]
             all_times    = artefacts[:, 1]
 
-            mask         = (all_times >= 0) & (all_times < max_offset)
+            mask         = (all_times >= 0) & (all_times + numpy.max(windows[:,1]) < max_offset)
             all_times    = numpy.compress(mask, all_times)
             all_labels   = numpy.compress(mask, all_labels)
 
@@ -248,6 +248,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         myfile   = MPI.File()
         data_mpi = get_mpi_type(data_dtype)
+        N_total  = params.getint('data', 'N_total')
 
         if not multi_files:            
             mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
@@ -255,14 +256,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             goffset = filter_file(params, comm, mpi_in, mpi_in)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm, goffset)
-                remove_artefacts(params, comm, art_dict, mpi_in, goffset)
+                art_dict   = compute_artefacts(params, comm, goffset//N_total)
+                remove_artefacts(params, comm, art_dict, mpi_in, goffset//N_total)
 
             mpi_in.Close()
         else:
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
             
+
             if comm.rank == 0:
                 io.copy_header(data_offset, params.get('data', 'data_multi_file'), combined_file)
                 
@@ -287,8 +289,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm, goffset)
-                remove_artefacts(params, comm, art_dict, mpi_out, goffset)
+                art_dict   = compute_artefacts(params, comm, goffset//N_total)
+                remove_artefacts(params, comm, art_dict, mpi_out, goffset//N_total)
 
             mpi_out.Close()
 
