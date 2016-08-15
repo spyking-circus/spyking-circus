@@ -48,6 +48,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
+            goffset       = chunk_len*(nb_chunks - 1) + N_total*(last_chunk_len//N_total)
+
             if comm.rank == 0:
                 if perform_filtering:
                     to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off, int(0.95*(sampling_rate/2)))]
@@ -101,7 +103,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             comm.Barrier()
 
-        def compute_artefacts(params, comm):
+            return goffset + offset
+
+        def compute_artefacts(params, comm, max_offset):
 
             cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
@@ -124,6 +128,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             all_labels   = artefacts[:, 0]
             all_times    = artefacts[:, 1]
+
+            mask         = (all_times >= 0) & (all_times + numpy.max(windows[:,1]) < max_offset)
+            all_times    = numpy.compress(mask, all_times)
+            all_labels   = numpy.compress(mask, all_labels)
+
             local_labels = numpy.unique(all_labels)[comm.rank::comm.size]
 
             if comm.rank == 0:
@@ -194,32 +203,38 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
             
             count    = 0
-            
+    
+            mask       = numpy.in1d(all_labels, local_labels)
+            all_times  = numpy.compress(mask, all_times)
+            all_labels = numpy.compress(mask, all_labels)
+
+            mask       = (all_times >= 0) & (all_times < max_offset)
+            all_times  = numpy.compress(mask, all_times)
+            all_labels = numpy.compress(mask, all_labels)
+
             for label, time in zip(all_labels, all_times):
 
-                if (time >= 0) and (time < max_offset) and (label in local_labels):
+                tmp      = numpy.where(windows[:, 0] == label)[0]
+                tau      = windows[tmp, 1]
+                mshape   = tau
+                data_len = tau * N_total
+                if (max_offset - time) < tau:
+                    data_len = (max_offset - time)*N_total
+                    mshape   = max_offset - time
 
-                    tmp      = numpy.where(windows[:, 0] == label)[0]
-                    tau      = windows[tmp, 1]
-                    mshape   = tau
-                    data_len = tau * N_total
-                    if (max_offset - time) < tau:
-                        data_len = (max_offset - time)*N_total
-                        mshape   = max_offset - time
+                local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
+                mpi_file.Read_at(N_total * time, local_chunk)
+                local_chunk   = local_chunk.reshape(mshape, N_total)
+                local_chunk   = local_chunk.astype(numpy.float32)
+                local_chunk  -= dtype_offset
+                for idx, i in enumerate(nodes):
+                    local_chunk[:, i] -= art_dict[label][idx, :mshape]
+                       
+                local_chunk  += dtype_offset
+                local_chunk   = local_chunk.astype(data_dtype)
+                local_chunk   = local_chunk.ravel()
 
-                    local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                    mpi_file.Read_at(N_total * time, local_chunk)
-                    local_chunk   = local_chunk.reshape(mshape, N_total)
-                    local_chunk   = local_chunk.astype(numpy.float32)
-                    local_chunk  -= dtype_offset
-                    for idx, i in enumerate(nodes):
-                        local_chunk[:, i] -= art_dict[label][idx, :mshape]
-                        
-                    local_chunk  += dtype_offset
-                    local_chunk   = local_chunk.astype(data_dtype)
-                    local_chunk   = local_chunk.ravel()
-
-                    mpi_file.Write_at(N_total*time, local_chunk)
+                mpi_file.Write_at(N_total*time, local_chunk)
 
                 count        += 1
 
@@ -233,23 +248,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         myfile   = MPI.File()
         data_mpi = get_mpi_type(data_dtype)
+        N_total  = params.getint('data', 'N_total')
 
         if not multi_files:            
             mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
             mpi_in.Set_view(data_offset, data_mpi, data_mpi)
-            offset = (mpi_in.size//data_mpi.size)
-            filter_file(params, comm, mpi_in, mpi_in)
+            goffset = filter_file(params, comm, mpi_in, mpi_in)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm)
-                remove_artefacts(params, comm, art_dict, mpi_in, offset)
+                art_dict   = compute_artefacts(params, comm, goffset//N_total)
+                remove_artefacts(params, comm, art_dict, mpi_in, goffset//N_total)
 
             mpi_in.Close()
         else:
             all_files = io.get_multi_files(params)
-            all_times = io.data_stats(params, show=False, export_times=True)
             combined_file = params.get('data', 'data_file')
-            N_total       = params.getint('data', 'N_total')
+            
 
             if comm.rank == 0:
                 io.copy_header(data_offset, params.get('data', 'data_multi_file'), combined_file)
@@ -260,8 +274,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             mpi_out.Set_view(data_offset, data_mpi, data_mpi)
             io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
 
-            offset   = 0
-
+            goffset = 0
+            
             for data_file in all_files:
                 mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDONLY)
                 if params.getboolean('data', 'MCS'):
@@ -269,16 +283,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
                 params.set('data', 'data_file', data_file)
                 io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
-                filter_file(params, comm, mpi_in, mpi_out, offset, perform_filtering=do_filter)
-                to_add  = N_total*(mpi_in.size//N_total)
-                offset += (to_add//data_mpi.size)               
+                goffset = filter_file(params, comm, mpi_in, mpi_out, goffset, perform_filtering=do_filter)
                 mpi_in.Close()
 
             params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm)
-                remove_artefacts(params, comm, art_dict, mpi_out, offset)
+                art_dict   = compute_artefacts(params, comm, goffset//N_total)
+                remove_artefacts(params, comm, art_dict, mpi_out, goffset//N_total)
 
             mpi_out.Close()
 
