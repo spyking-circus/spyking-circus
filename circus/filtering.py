@@ -105,7 +105,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             return goffset + offset
 
-        def compute_artefacts(params, comm):
+        def compute_artefacts(params, comm, max_offset):
 
             cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
@@ -128,6 +128,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             all_labels   = artefacts[:, 0]
             all_times    = artefacts[:, 1]
+
+            mask         = (all_times >= 0) & (all_times < max_offset)
+            all_times    = numpy.compress(mask, all_times)
+            all_labels   = numpy.compress(mask, all_labels)
+
             local_labels = numpy.unique(all_labels)[comm.rank::comm.size]
 
             if comm.rank == 0:
@@ -250,7 +255,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             goffset = filter_file(params, comm, mpi_in, mpi_in)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm)
+                art_dict   = compute_artefacts(params, comm, goffset)
                 remove_artefacts(params, comm, art_dict, mpi_in, goffset)
 
             mpi_in.Close()
@@ -282,7 +287,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm)
+                art_dict   = compute_artefacts(params, comm, goffset)
                 remove_artefacts(params, comm, art_dict, mpi_out, goffset)
 
             mpi_out.Close()
