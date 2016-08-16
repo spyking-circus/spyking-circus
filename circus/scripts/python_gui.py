@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, shutil
+import os, shutil, phycontrib
 import sys
 import subprocess
 import pkg_resources
@@ -7,6 +7,7 @@ import argparse
 import circus
 import tempfile
 import numpy, h5py
+from distutils.version import LooseVersion, StrictVersion
 from circus.shared.files import print_error, print_info, print_and_log, read_probe
 import colorama
 colorama.init(autoreset=True)
@@ -51,6 +52,12 @@ def main(argv=None):
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
     params         = circus.shared.utils.io.load_parameters(filename)
+    
+    mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
+    if not mytest:
+        print_and_log(['You need to update phy-contrib to the latest git version'], 'error', params)
+        sys.exit(0)
+
     sampling_rate  = float(params.getint('data', 'sampling_rate'))
     data_dtype     = params.get('data', 'data_dtype')
     file_out_suff  = params.get('data', 'file_out_suff')
