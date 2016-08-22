@@ -667,8 +667,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         count_templates = node_pad
 
         
-        if comm.rank == 0:
-            pbar = get_progressbar(local_nb_clusters)
+        if (comm.rank == 0):
+            if local_nb_clusters > 0:
+                pbar = get_progressbar(local_nb_clusters)
+            else:
+                pbar = get_progressbar(1)
 
         for ielec in range(comm.rank, N_e, comm.size):
         
