@@ -56,7 +56,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     if use_gpu and do_spatial_whitening:
-        spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
     result         = {}
     for i in xrange(N_clusters):
@@ -82,7 +82,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if do_spatial_whitening:
                 if use_gpu:
-                    local_chunk = cmt.CUDAMatrix(local_chunk)
+                    local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                     local_chunk = local_chunk.dot(spatial_whitening).asarray()
                 else:
                     local_chunk = numpy.dot(local_chunk, spatial_whitening)

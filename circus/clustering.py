@@ -118,7 +118,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if use_gpu and do_spatial_whitening:
-        spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
     for i in xrange(N_e):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
@@ -220,7 +220,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
                 if do_spatial_whitening:
                     if use_gpu:
-                        local_chunk = cmt.CUDAMatrix(local_chunk)
+                        local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                         local_chunk = local_chunk.dot(spatial_whitening).asarray()
                     else:
                         local_chunk = numpy.dot(local_chunk, spatial_whitening)

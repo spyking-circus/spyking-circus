@@ -84,7 +84,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         templates = templates.T
 
     if use_gpu:
-        templates = cmt.SparseCUDAMatrix(templates)
+        templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
 
     info_string   = ''
 

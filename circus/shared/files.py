@@ -1841,7 +1841,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
                 tmp_2 = loc_templates2[srows]
                 
                 if use_gpu:
-                    tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr())
+                    tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr(), copy_on_host=False)
                     tmp_2 = cmt.CUDAMatrix(tmp_2.toarray(), copy_on_host=False)
                     data  = cmt.sparse_dot(tmp_1, tmp_2).asarray()
                 else:
