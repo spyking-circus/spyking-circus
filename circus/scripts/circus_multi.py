@@ -22,7 +22,7 @@ def main(argv=None):
 
     gheader = Fore.GREEN + '''
 ##################################################################
-#####            Welcome to the SpyKING CIRCUS (0.4)         #####
+#####            Welcome to the SpyKING CIRCUS (0.5)         #####
 #####                                                        #####
 #####              Written by P.Yger and O.Marre             #####
 ##################################################################
