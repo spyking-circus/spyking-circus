@@ -31,7 +31,7 @@ else:
     data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
 
 setup(name='spyking-circus',
-      version='0.4',
+      version='0.5',
       description='Fast spike sorting by template matching',
       url='http://spyking-circus.rtfd.org',
       author='Pierre Yger and Olivier Marre',
