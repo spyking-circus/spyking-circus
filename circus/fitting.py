@@ -271,23 +271,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_offset = gidx*chunk_size+padding[0]//N_total
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
-            penalty      = numpy.ones((n_tm, n_t), dtype=numpy.float32)
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
             if use_gpu and not full_gpu:
                 b = b.asarray()
 
-            
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 
             if full_gpu:
-                mask     = cmt.CUDAMatrix(penalty, copy_on_host=False)
+                mask     = numpy.zeros((2*n_tm, n_t), dtype=numpy.float32)
+                mask[:n_tm, :] = 1
                 data     = cmt.empty(mask.shape)
-                cm_zeros = cmt.CUDAMatrix(numpy.zeros(mask.shape), copy_on_host=False)
                 patch_gpu= b.shape[1] == 1
             else:
-                mask     = penalty
+                mask     = numpy.ones((n_tm, n_t), dtype=numpy.float32)
                 sub_b    = b[:n_tm, :]
 
             min_time     = local_peaktimes.min()
@@ -300,11 +298,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             while (numpy.mean(failure) < nb_chances):
 
                 if full_gpu:
-                    sub_b       = b.get_row_slice(0, n_tm)
-                    sub_b.mult(mask, data)
+                    gpu_mask    = cmt.CUDAMatrix(mask, copy_on_host=False)
+                    b.mult(gpu_mask, data)
                     tmp_mat     = data.max(0)
                     argmax_bi   = numpy.argsort(tmp_mat.asarray()[0, :])[::-1]
-                    del tmp_mat, sub_b
+                    del tmp_mat
                 else:
                     data        = sub_b * mask
                     argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
@@ -328,25 +326,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     argmax_bi = numpy.delete(argmax_bi, indices)
 
                     if full_gpu:
-                        sub_b             = b.get_row_slice(0, n_tm)
-                        tmp_mat           = sub_b.argmax(0)
-                        inds_t, inds_temp = subset, tmp_mat.asarray()[0, :][subset].astype(numpy.int32)
-                        del tmp_mat
-                    else:
-                        inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
+                        b_array = b.asarray()
+                        sub_b   = b_array[:n_tm, :]
+
+                    inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
 
                     if full_gpu:
-                        best_amp  = sub_b.asarray()[inds_temp, inds_t]/n_scalar
-                        best_amp2 = b.asarray()[inds_temp + n_tm, inds_t]/n_scalar
-                        sub_mask  = numpy.ones((sub_b.shape), dtype=numpy.float32)
-                        sub_mask[inds_temp, inds_t] = 0
-                        sub_mask  = cmt.CUDAMatrix(sub_mask, copy_on_host=False)
-                        mask.mult(sub_mask)
-                        del sub_mask
+                        best_amp  = sub_b[inds_temp, inds_t]/n_scalar
+                        best_amp2 = b_array[inds_temp + n_tm, inds_t]/n_scalar
                     else:
-                        mask[inds_temp, inds_t] = 0
+                        
                         best_amp  = sub_b[inds_temp, inds_t]/n_scalar
                         best_amp2 = b[inds_temp + n_tm, inds_t]/n_scalar
+
+                    mask[inds_temp, inds_t] = 0
 
                     best_amp_n   = best_amp/numpy.take(norm_templates, inds_temp)
                     best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + n_tm)
@@ -393,8 +386,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                                 tmp1 = cmt.sparse_dot(c_overs[inds_temp[keep]], indices, mult=-best_amp[keep])
                                 tmp2 = cmt.sparse_dot(c_overs[inds_temp[keep] + n_tm], indices, mult=-best_amp2[keep])
-                                b_lines.add(tmp1)
-                                b_lines.add(tmp2)
+                                b_lines.add(tmp1.add(tmp2))
                                 del tmp1, tmp2
                             else:
                                 tmp1   = c_overs[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
@@ -411,17 +403,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
                     sub_idx           = (numpy.take(failure, myslice) >= nb_chances)
-                    if full_gpu:
-                        N = numpy.sum(sub_idx)
-                        if N > 0:
-                            cu_slice = cmt.CUDAMatrix(numpy.compress(sub_idx, myslice).reshape(1, N), copy_on_host=False)
-                            mask.set_selected_columns(cu_slice, cm_zeros)
-                            del cu_slice
-                    else:
-                        mask[:, numpy.compress(sub_idx, myslice)] = 0
+                    
+                    mask[:, numpy.compress(sub_idx, myslice)] = 0
 
-                    if full_gpu:
-                        del sub_b
 
             spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
@@ -432,7 +416,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             templates_file.write(templates_to_write.tostring())
 
             if full_gpu:
-                del mask, b, cm_zeros, data
+                del gpu_mask, b, data
 
         if comm.rank == 0:
             pbar.update(gcount)
