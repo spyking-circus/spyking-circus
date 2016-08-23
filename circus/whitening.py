@@ -164,6 +164,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
             temporal_whitening /= temporal_whitening.sum()
             to_write['temporal'] = temporal_whitening
+            have_nans = numpy.sum(numpy.isnan(temporal_whitening))
+
+            if have_nans > 0:
+                temporal_whitening = numpy.zeros(N_t, dtype=numpy.float32)
+                temporal_whitening[N_t//2] = 1
+                to_write['temporal']       = temporal_whitening
+                io.print_and_log(["Disabling temporal whitening because of NaNs found"], 'info', params)
 
         if do_spatial_whitening:
             if len(all_silences)/sampling_rate == 0:
@@ -172,6 +179,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_write['spatial'] = spatial_whitening
             io.print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)], 'default', params)
         
+            have_nans = numpy.sum(numpy.isnan(spatial_whitening))
+
+            if have_nans > 0:
+                spatial_whitening = numpy.eye(spatial_whitening.shape[0], dtype=numpy.float32)
+                to_write['spatial'] = spatial_whitening
+                io.print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', params)
+
         bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, to_write.keys(), to_write)
         bfile.close()
