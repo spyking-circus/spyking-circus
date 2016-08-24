@@ -565,7 +565,7 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
     
     # First we need to identify machines in the MPI ring.
     from uuid import getnode as get_mac
-    myip = int(get_mac()) % 100000
+    myip = numpy.int64(get_mac()) % 100000
     ##### TODO: remove quarantine zone
     # intsize = MPI.INT.Get_size()
     ##### end quarantine zone
@@ -609,9 +609,9 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
     sub_comm.Barrier()
     
     # Broadcast the sizes of the data structures to share.
-    triggers_size = int(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.int32), root=0)[0])
-    neighs_size = int(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.int32), root=0)[0])
-    ts_size = int(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.int32), root=0)[0])
+    triggers_size = numpy.int64(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.int32), root=0)[0])
+    neighs_size = numpy.int64(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.int32), root=0)[0])
+    ts_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.int32), root=0)[0])
     
     # Declare the data structures to share.
     if sub_comm.Get_rank() == 0:
@@ -709,7 +709,7 @@ def get_artefact(params, times_i, tau, nodes, normalize=True):
     data_offset  = params.getint('data', 'data_offset')
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
+    N_total      = numpy.int64(params.getint('data', 'N_total'))
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
     for time in times_i:
@@ -826,7 +826,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    local_chunk  = datablock[idx*chunk_len+padding[0]:(idx+1)*chunk_len+padding[1]]
+    local_chunk  = datablock[idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]]
     del datablock
     local_shape  = chunk_size + (padding[1]-padding[0])//N_total
     local_chunk  = local_chunk.reshape(local_shape, N_total)
@@ -846,7 +846,7 @@ def prepare_preview(params, preview_filename):
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    chunk_len    = N_total * chunk_size
+    chunk_len    = numpy.int64(N_total) * chunk_size
     local_chunk  = datablock[0:chunk_len]
 
     output = open(preview_filename, 'wb')
@@ -872,13 +872,13 @@ def analyze_data(params, chunk_size=None):
     data_dtype     = params.get('data', 'data_dtype')
     N_total        = params.getint('data', 'N_total')
     template_shift = params.getint('data', 'template_shift')
-    chunk_len      = N_total * chunk_size
-    borders        = N_total * template_shift
+    chunk_len      = numpy.int64(N_total) * chunk_size
+    borders        = numpy.int64(N_total) * template_shift
     datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     N              = len(datablock)
-    nb_chunks      = N // chunk_len
+    nb_chunks      = numpy.int64(N) // chunk_len
     last_chunk_len = N - nb_chunks * chunk_len
-    last_chunk_len = N_total * int(last_chunk_len//N_total)
+    last_chunk_len = N_total * numpy.int64(last_chunk_len)//N_total
     
     return borders, nb_chunks, chunk_len, last_chunk_len
 
@@ -941,7 +941,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
 
     ## First we need to identify machines in the MPI ring
     from uuid import getnode as get_mac
-    myip = int(get_mac()) % 100000
+    myip = numpy.int64(get_mac()) % 100000
 
     intsize   = MPI.INT.Get_size()
     floatsize = MPI.FLOAT.Get_size() 
@@ -972,8 +972,8 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 nb_ptr  = len(sparse_mat.indptr)
 
             sub_comm.Barrier()   
-            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
 
             if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
@@ -1026,7 +1026,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
         
         c_overlap  = get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
-        N_over     = int(numpy.sqrt(over_shape[0]))
+        N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
         c_overs    = {}
             
@@ -1052,8 +1052,8 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 nb_data    = len(sparse_mat.data)
                 nb_ptr     = len(sparse_mat.indptr)
 
-            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
 
             if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
@@ -1117,7 +1117,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
 
-                    data_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
 
                     if sub_comm.rank == 0:
                         if locdata.dtype == 'int32':
@@ -1129,7 +1129,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                         type_size  = 0
                         data_bytes = 0
 
-                    type_size  = int(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
+                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
 
                     win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
                     buf_data, _ = win_data.Shared_query(0)
@@ -1343,11 +1343,11 @@ def load_data(params, data, extension=''):
             dtype_offset = params.getint('data', 'dtype_offset')
             
             datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-            template_shift = int((N_t - 1) / 2)
+            template_shift = numpy.int64((N_t - 1) / 2)
 
             spikes = numpy.zeros((N_t, N_total, N_tr))
             for (count, idx) in enumerate(triggers):
-                chunk_len = chunk_size * N_total
+                chunk_len = numpy.int64(chunk_size) * N_total
                 chunk_start = (idx - template_shift) * N_total
                 chunk_end = (idx + template_shift + 1)  * N_total
                 local_chunk = datablock[chunk_start:chunk_end]
@@ -1591,7 +1591,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     duration       = data_stats(params, show=False)
     templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
-    refractory     = int(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
+    refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
     N_tm           = len(templates)
 
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)

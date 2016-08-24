@@ -137,7 +137,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if nb_chunks < comm.size:
 
         res        = io.data_stats(params, show=False)
-        chunk_size = res*sampling_rate//comm.size
+        chunk_size = numpy.int64(res*sampling_rate//comm.size)
         if comm.rank == 0:
             io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
@@ -189,7 +189,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         # I guess this is more relevant, to take signals from all over the recordings
         numpy.random.seed(gpass)
-        all_chunks = numpy.random.permutation(numpy.arange(nb_chunks))
+        all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int64))
         rejected   = 0
         elt_count  = 0
 
@@ -199,7 +199,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             chunks_to_load     = all_chunks
             nb_elecs           = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_e), comm.size))
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
-            loop_nb_elts       = int(params.getfloat('clustering', 'nb_elts') * nb_elecs * loop_max_elts_elec)
+            loop_nb_elts       = numpy.int64(params.getfloat('clustering', 'nb_elts') * nb_elecs * loop_max_elts_elec)
         else:
             chunks_to_load     = all_chunks[comm.rank::comm.size]
             loop_max_elts_elec = max_elts_elec
@@ -418,9 +418,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         io.print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', params)
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
-        nb_elements = int(numpy.sum(gdata))
-        nb_rejected = int(numpy.sum(gdata2))
-        nb_total    = int(nb_elts*comm.size)
+        nb_elements = numpy.int64(numpy.sum(gdata))
+        nb_rejected = numpy.int64(numpy.sum(gdata2))
+        nb_total    = numpy.int64(nb_elts*comm.size)
 
         if nb_elements == 0:
             gpass = nb_repeats
