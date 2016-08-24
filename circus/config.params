@@ -60,6 +60,7 @@ gpu_only       = False     # Use GPU for computation of b's AND fitting [not opt
 amp_limits     = (0.3, 5)  # Amplitudes for the templates during spike detection
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
 max_chunk      = inf       # Fit only up to max_chunk   
+collect_all    = False     # If True, one garbage template per electrode is created, to store unfitted spikes
 
 [merging]
 cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged

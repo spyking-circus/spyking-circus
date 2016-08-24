@@ -36,6 +36,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     space_explo    = params.getfloat('fitting', 'space_explo')
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
+    collect_all    = params.getboolean('fitting', 'collect_all')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
