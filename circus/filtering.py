@@ -44,7 +44,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 nb_chunks += 1
 
             b, a          = signal.butter(3, (cut_off/(sampling_rate/2.), 0.95), 'pass')
-            all_chunks    = numpy.arange(nb_chunks)
+            all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
@@ -69,7 +69,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     data_len   = chunk_len
 
                 local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                mpi_input.Read_at(gidx*chunk_len, local_chunk)
+                mpi_input.Read_at(numpy.int64(gidx*chunk_len), local_chunk)
                 local_shape   = chunk_size
                 local_chunk   = local_chunk.reshape(local_shape, N_total)
                 local_chunk   = local_chunk.astype(numpy.float32)
@@ -93,7 +93,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk   = local_chunk.astype(data_dtype)
                 local_chunk   = local_chunk.ravel()
 
-                mpi_output.Write_at(gidx*chunk_len+offset, local_chunk)
+                mpi_output.Write_at(numpy.int64(gidx*chunk_len+offset), local_chunk)
 
                 if comm.rank == 0:
                     pbar.update(count)
@@ -174,8 +174,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             N_total        = params.getint('data', 'N_total')
             cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
-            artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
-            windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
+            artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
+            windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
             make_plots     = params.get('triggers', 'make_plots')
             plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
 
@@ -223,7 +223,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     mshape   = max_offset - time
 
                 local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                mpi_file.Read_at(N_total * time, local_chunk)
+                mpi_file.Read_at(numpy.int64(N_total * time), local_chunk)
                 local_chunk   = local_chunk.reshape(mshape, N_total)
                 local_chunk   = local_chunk.astype(numpy.float32)
                 local_chunk  -= dtype_offset
@@ -234,7 +234,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk   = local_chunk.astype(data_dtype)
                 local_chunk   = local_chunk.ravel()
 
-                mpi_file.Write_at(N_total*time, local_chunk)
+                mpi_file.Write_at(numpy.int64(N_total*time), local_chunk)
 
                 count        += 1
 
