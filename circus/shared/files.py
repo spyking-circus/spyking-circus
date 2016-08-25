@@ -210,7 +210,7 @@ def load_parameters(file_name):
         parser.set('data', 'radius', str(int(probe['radius'])))
 
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
-                  ['fitting', 'refractory', 'float', '0'],
+                  ['fitting', 'refractory', 'float', '0.5'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'multi-files', 'bool', 'False'],
