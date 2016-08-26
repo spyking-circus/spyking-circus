@@ -1594,7 +1594,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     sampling_rate  = params.getint('data', 'sampling_rate')
     refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
     N_tm           = len(templates)
-
+    collect_all    = params.getboolean('fitting', 'collect_all')
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
     # Initialize data collection.
@@ -1603,6 +1603,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         result['real_amps'] = {}
     if with_voltages:
         result['voltages'] = {}    
+    if collect_all:
+        result['gspikes'] = {}
+        result['gtemps']  = {}
+
     for i in xrange(N_tm//2):
         result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0)
         result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2))
@@ -1610,6 +1614,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             result['real_amps']['temp_' + str(i)] = numpy.empty(shape=0)
         if with_voltages:
             result['voltages']['temp_' + str(i)] = numpy.empty(shape=0)
+    
+    if collect_all:
+        for i in xrange(N_e):
+            result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0)
 
     pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_threads).start()
 
@@ -1624,6 +1632,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if with_voltages:
             voltages_file  = file_out_suff + '.voltages-%d.data' %node
             voltages       = numpy.fromfile(voltages_file, dtype=numpy.float32)
+        if collect_all:
+            gspikes_file = file_out_suff + '.gspiketimes-%d.data' %node
+            gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.int32)
+            gtemps_file  = file_out_suff + '.gtemplates-%d.data' %node
+            gtemps       = numpy.fromfile(gtemps_file, dtype=numpy.int32)
 
         if os.path.exists(amplitudes_file):
 
@@ -1652,6 +1665,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                 if with_voltages:
                     result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx])) 
 
+            if collect_all:
+                for j in xrange(N_e):
+                    idx = numpy.where(gtemps == j)[0]
+                    result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx])) 
+
         pbar.update(count)
 
     pbar.finish()
@@ -1677,11 +1695,21 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             if with_voltages:
                 result['voltages'][key] = numpy.delete(result['voltages'][key], violations)
 
+    if collect_all:
+        for key in result['gspikes']:
+            result['gspikes'][key] = numpy.array(result['gspikes'][key], dtype=numpy.int32)
+            idx                    = numpy.argsort(result['gspikes'][key])
+            result['gspikes'][key] = result['gspikes'][key][idx]
+            print key, result['gspikes'][key]
+
+
     keys = ['spiketimes', 'amplitudes']
     if with_real_amps:
         keys += ['real_amps']
     if with_voltages:
         keys += ['voltages']
+    if collect_all:
+        keys += ['gspikes']
 
     # Save results into `<dataset>/<dataset>.result.hdf5`.
     mydata = h5py.File(file_out_suff + '.result.hdf5', 'w', libver='latest')
@@ -1697,12 +1725,22 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
+    if collect_all:
+        gcount = 0
+        for item in result['gspikes'].keys():
+            gcount += len(result['gspikes'][item])
+
     if benchmark:
         to_print = "injected"
     else:
         to_print = "fitted"
 
-    print_and_log(["Number of spikes %s : %d" %(to_print, count)], 'info', params)
+    to_write = ["Number of spikes %s : %d" %(to_print, count)]
+
+    if collect_all:
+        to_write += ["Number of spikes not fitted : %d" %(gcount)]
+
+    print_and_log(to_write, 'info', params)
 
     # TODO: find a programmer comment
     if erase:
