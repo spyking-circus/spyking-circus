@@ -1302,6 +1302,11 @@ def load_data(params, data, extension=''):
             return get_results(params, extension)
         except Exception:
             raise Exception('No results found! Check suffix or run the fitting?')
+    elif data == 'garbage':
+        try:
+            return get_garbage(params, extension)
+        except Exception:
+            raise Exception('No results found! Check suffix or run the fitting?')
     elif data == 'overlaps':
         try:
             return get_overlaps(params, extension)
@@ -1749,7 +1754,18 @@ def get_results(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
     result               = {}
     myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='latest')
-    for key in myfile.keys():
+    for key in ['spiketimes', 'amplitudes']:
+        result[str(key)] = {}
+        for temp in myfile.get(key).keys():
+            result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
+    myfile.close()
+    return result
+
+def get_garbage(params, extension=''):
+    file_out_suff        = params.get('data', 'file_out_suff')
+    result               = {}
+    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='latest')
+    for key in ['gspikes']:
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
             result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
