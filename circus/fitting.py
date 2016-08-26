@@ -174,6 +174,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' %comm.rank, 'wb')
     templates_file  = open(file_out_suff + '.templates-%d.data' %comm.rank, 'wb')
 
+    if collect_all:
+        garbage_times_file = open(file_out_suff + '.gspiketimes-%d.data' %comm.rank, 'wb')
+        garbage_temp_file  = open(file_out_suff + '.gtemplates-%d.data' %comm.rank, 'wb')
+
 
     comm.Barrier()
 
@@ -270,6 +274,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if n_t > 0:
             #print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."     
+
+            if collect_all:
+                c_local_chunk = local_chunk.copy()
 
             local_chunk = local_chunk.T.ravel()
             sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
@@ -467,6 +474,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             spiketimes_file.write(spikes_to_write.tostring())
             amplitudes_file.write(amplitudes_to_write.tostring())
             templates_file.write(templates_to_write.tostring())
+
+            if collect_all:
+
+                gspikes = numpy.where(numpy.sum(c_all_times, 0) > 0)[0]
+                if sign_peaks == 'negative':
+                    bestlecs = numpy.argmin(c_local_chunk[gspikes, :], 1)
+                elif sign_peaks == 'positive':
+                    bestlecs = numpy.argmax(c_local_chunk[gspikes, :], 1)
+                elif sign_peaks == 'both':
+                    bestlecs = numpy.argmax(numpy.abs(c_local_chunk)[gspikes, :], 1)
+                    
+                gspikes_to_write     = numpy.array(gspikes + local_offset, dtype=numpy.int32)
+                gtemplates_to_write  = numpy.array(bestlecs, dtype=numpy.int32)
+
+                garbage_times_file.write(gspikes_to_write.tostring())
+                garbage_temp_file.write(gtemplates_to_write.tostring())
+            
 
             if full_gpu:
                 del mask, b, cm_zeros, data
