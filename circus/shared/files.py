@@ -54,13 +54,13 @@ def detect_header(filename, value='MCS'):
                         stop = True
             fid.close()
             if stop is False:
-                print_info(['File is not exported with MCRack: header is set to 0'])
-                header  = 0 
+                print_error(['Wrong MCS header: file is not exported with MCRack'])
+                sys.exit(0) 
             else:
                 header += 2
             return header, len(regexp.findall(header_text))
         except Exception:
-            print_error(["Unable to read the MCS header"])
+            print_error(["Wrong MCS header: file is not exported with MCRack"])
             sys.exit(0)
     else:
         return value, None
