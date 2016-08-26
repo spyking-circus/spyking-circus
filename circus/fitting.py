@@ -37,6 +37,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     collect_all    = params.getboolean('fitting', 'collect_all')
+    if collect_all:
+        electrodes   = io.load_data(params, 'electrodes')
+        collect_zone = int(0.5e-3*sampling_rate)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -204,6 +207,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
         #print "Extracting the peaks..."
+
+        if collect_all:
+            all_found_spikes = {}
+            for i in xrange(N_e):
+                all_found_spikes[i] = []
+
         local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
 
         if matched_filter:
@@ -212,11 +221,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 for i in xrange(N_e):
                     peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+                    if collect_all:
+                        all_found_spikes[i] += peaktimes.tolist()
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 for i in xrange(N_e):
                     peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+                    if collect_all:
+                        all_found_spikes[i] += peaktimes.tolist()
         else:
             for i in xrange(N_e):
                 if sign_peaks == 'negative':
@@ -226,14 +239,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 elif sign_peaks == 'both':
                     peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
+                if collect_all:
+                    all_found_spikes[i] += peaktimes.tolist()
 
 
+        #if collect_all:
+            
         local_peaktimes = numpy.unique(local_peaktimes)
         
         #print "Removing the useless borders..."
         local_borders   = (template_shift, local_shape - template_shift)
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes)
+
+        if collect_all:
+            for i in xrange(N_e):
+                all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.int32)
+                idx                 = (all_found_spikes[i] >= local_borders[0]) & (all_found_spikes[i] < local_borders[1])
+                all_found_spikes[i] = numpy.compress(idx, all_found_spikes[i])
+
         n_t             = len(local_peaktimes)
         len_chunk       = local_chunk.shape[0]
         all_indices     = numpy.arange(n_t)
@@ -297,6 +321,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             min_times    = numpy.maximum(local_peaktimes - min_time - temp_2_shift, 0)
             max_times    = numpy.minimum(local_peaktimes - min_time + temp_2_shift + 1, max_time - min_time)
             max_n_t      = int(space_explo*(max_time-min_time+1)//(2*temp_2_shift + 1))
+
+            if collect_all:
+                c_all_times = numpy.zeros((N_e, local_len), dtype=numpy.bool)
+                c_min_times = numpy.maximum(numpy.arange(min_time, max_time+1) - min_time - collect_zone, 0)
+                c_max_times = numpy.minimum(numpy.arange(min_time, max_time+1) - min_time + collect_zone + 1, max_time - min_time)
+                for i in xrange(N_e):
+                    c_all_times[i, all_found_spikes[i] - min_time] = True
 
             while (numpy.mean(failure) < nb_chances):
 
@@ -408,6 +439,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 result['spiketimes'] += [t_spike]
                                 result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
                                 result['templates']  += [inds_temp[keep]]
+
+                                if collect_all:
+                                    bestlec = electrodes[inds_temp[keep]]
+                                    indices = numpy.take(inv_nodes, edges[nodes[bestlec]])
+                                    c_all_times[indices, c_min_times[ts[count]-min_time]:c_max_times[ts[count]-min_time]] = False
 
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1

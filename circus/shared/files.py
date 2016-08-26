@@ -211,7 +211,7 @@ def load_parameters(file_name):
 
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
                   ['fitting', 'refractory', 'float', '0.5'],
-                  ['fitting', 'collect_all', 'bool', 'False'],
+                  ['fitting', 'collect_all', 'bool', 'True'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'multi-files', 'bool', 'False'],
