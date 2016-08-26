@@ -428,7 +428,8 @@ def data_stats(params, show=True, export_times=False):
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
-             "Template Compression        : %s" %params.get('clustering', 'compress')]
+             "Template Compression        : %s" %params.get('clustering', 'compress'), 
+             "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all')]
     
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
@@ -1700,8 +1701,6 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             result['gspikes'][key] = numpy.array(result['gspikes'][key], dtype=numpy.int32)
             idx                    = numpy.argsort(result['gspikes'][key])
             result['gspikes'][key] = result['gspikes'][key][idx]
-            print key, result['gspikes'][key]
-
 
     keys = ['spiketimes', 'amplitudes']
     if with_real_amps:
