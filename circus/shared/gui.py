@@ -1347,7 +1347,7 @@ class PreviewGUI(QtGui.QMainWindow):
         if len(indices) > 0:
             yspacing  = numpy.max(np.abs(self.data[:, indices]))*1.01
         else:
-            yspaceing = 0 
+            yspacing = 0 
 
         if not self.show_fit:
             for count, idx in enumerate(indices):
