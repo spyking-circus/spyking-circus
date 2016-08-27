@@ -39,7 +39,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
         electrodes   = io.load_data(params, 'electrodes')
-        collect_zone = int(0.5e-3*sampling_rate)
+        collect_zone = int(0.2e-3*sampling_rate)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################

@@ -1073,8 +1073,12 @@ class PreviewGUI(QtGui.QMainWindow):
             except Exception:
                 pass
 
-            if self.params.getboolean('fitting', 'collect_all'):
-                self.garbage   = io.load_data(self.params, 'garbage')
+            try:
+                self.has_garbage = True
+                if self.params.getboolean('fitting', 'collect_all'):
+                    self.garbage   = io.load_data(self.params, 'garbage')
+            except Exception:
+                self.has_garbage = False
 
         self.get_data()
         self.x_position = []
@@ -1116,10 +1120,12 @@ class PreviewGUI(QtGui.QMainWindow):
         self.get_time.valueChanged.connect(self.update_time)
         self.get_threshold.valueChanged.connect(self.update_threshold)
         self.show_residuals.clicked.connect(self.update_data_plot)
+        self.show_unfitted.clicked.connect(self.update_data_plot)
         self.btn_write_threshold.clicked.connect(self.write_threshold)
         if self.show_fit:
             self.time_box.setEnabled(True)
             self.show_residuals.setEnabled(True)
+            self.show_unfitted.setEnabled(True)
         else:
             self.btn_write_threshold.setEnabled(True)
             self.threshold_box.setEnabled(True)
@@ -1176,7 +1182,7 @@ class PreviewGUI(QtGui.QMainWindow):
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
                 io.print_and_log(["No results found!"], 'info', self.params)
 
-            if self.garbage:
+            if self.has_garbage:
                 self.uncollected = {}
                 for key in self.garbage['gspikes'].keys():
                     elec  = int(key.split('_')[1])
@@ -1393,7 +1399,8 @@ class PreviewGUI(QtGui.QMainWindow):
                     self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
                                  color=self.inspect_colors[count], lw=2)
 
-                self.data_x.scatter(self.uncollected[idx], count*yspacing*numpy.ones(len(self.uncollected[idx])), s=100, marker='o', c='k')
+                if self.ui.show_unfitted.isChecked() and self.has_garbage:
+                    self.data_x.scatter(self.uncollected[idx], count*yspacing*numpy.ones(len(self.uncollected[idx])), s=100, marker='o', c='k')
 
         self.data_x.set_yticklabels([])
         self.data_x.set_xlabel('Time [s]')
