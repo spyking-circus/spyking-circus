@@ -110,9 +110,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         N_total         = params.getint('data', 'N_total')
         templates       = load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
-        pc_features_ind = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
+        if export_all:
+            pc_features_ind = numpy.zeros((N_tm + N_e, max_loc_channel), dtype=numpy.int32)            
+        else:
+            pc_features_ind = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
         clusters        = load_data(params, 'clusters', extension)
         best_elec       = clusters['electrodes']
+        if export_all:
+            best_elec = numpy.concatenate((best_elec, numpy.arange(N_e)))
         inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
         inv_nodes[nodes] = numpy.argsort(nodes)
 
