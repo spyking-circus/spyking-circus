@@ -25,7 +25,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     N_t            = params.getint('data', 'N_t')
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
-
+    export_all     = params.get('converting', 'export_all')
+    print export_all
 
     def generate_mapping(probe):
         p         = {}
@@ -52,6 +53,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         spikes     = numpy.zeros(0, dtype=numpy.uint64)
         clusters   = numpy.zeros(0, dtype=numpy.uint32)
         amplitudes = numpy.zeros(0, dtype=numpy.double)
+        N_tm       = len(result['spiketimes'])
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
             data       = result['spiketimes'].pop(key).astype(numpy.uint64)
@@ -60,8 +62,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             amplitudes = numpy.concatenate((amplitudes, data[:, 0]))
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.uint32)))
         
-        idx = numpy.argsort(spikes)
+        if export_all:
+            garbage = circus.shared.utils.io.load_data(params, 'garbage', extension)
+            for key in garbage['gspikes'].keys():
+                elec_id    = int(key.split('_')[-1])
+                data       = garbage['gspikes'].pop(key).astype(numpy.uint64)
+                spikes     = numpy.concatenate((spikes, data))
+                amplitudes = numpy.concatenate((amplitudes, numpy.zeros(len(data))))
+                clusters   = numpy.concatenate((clusters, (elec_id + N_tm)*numpy.ones(len(data), dtype=numpy.uint32)))                
 
+        idx = numpy.argsort(spikes)
         numpy.save(os.path.join(output_path, 'spike_templates'), clusters[idx])
         numpy.save(os.path.join(output_path, 'spike_times'), spikes[idx])
         numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
@@ -72,8 +82,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         max_loc_channel = get_max_loc_channel(params)
         templates       = load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
-        to_write        = numpy.zeros((N_tm, N_t, N_e), dtype=numpy.float32)
-        mapping         = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
+        if export_all:
+            to_write    = numpy.zeros((N_tm + N_e, N_t, N_e), dtype=numpy.float32)
+            mapping     = numpy.zeros((N_tm + N_e, max_loc_channel), dtype=numpy.int32)            
+        else:
+            to_write    = numpy.zeros((N_tm, N_t, N_e), dtype=numpy.float32)
+            mapping     = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
 
         for t in xrange(N_tm):
             tmp  = templates[:, t].toarray().reshape(N_e, N_t).T
@@ -205,7 +219,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             N_tm = write_templates(output_path, params, extension)
             similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
             norm = params.getint('data', 'N_e')*params.getint('data', 'N_t')
-            numpy.save(os.path.join(output_path, 'similar_templates'), (similarities[:N_tm, :N_tm]/norm).astype(numpy.single))
+
+            if export_all:
+                to_write = numpy.zeros((N_tm + N_e, N_tm + N_e), dtype=numpy.single)
+                to_write[:N_tm, :N_tm] = (similarities[:N_tm, :N_tm]/norm).astype(numpy.single)
+            else:
+                to_write = (similarities[:N_tm, :N_tm]/norm).astype(numpy.single)
+            numpy.save(os.path.join(output_path, 'similar_templates'), to_write)
         
         comm.Barrier()
 

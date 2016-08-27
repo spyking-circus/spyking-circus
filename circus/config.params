@@ -70,6 +70,7 @@ correct_lag    = False     # If spikes are aligned when merging. May be better f
 [converting]
 erase_all      = True      # If False, a prompt will ask you to export if export has already been done
 export_pcs     = prompt    # Can be prompt [default] or in none, all, some
+export_all     = False     # If True, unfitted spikes will be exported as the last Ne templates
 
 [validating]
 nearest_elec   = auto      # Validation channel (e.g. electrode closest to the ground truth cell)
