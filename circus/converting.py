@@ -120,18 +120,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         all_paddings = numpy.concatenate(([0] , numpy.cumsum(all_offsets)))
         total_pcs   = numpy.sum(all_offsets)
 
-        pc_file     = os.path.join(output_path, 'pc_features.raw')
-        pc_file_ids = os.path.join(output_path, 'pc_feature_spike_ids.raw')
+        pc_file     = os.path.join(output_path, 'pc_features.npy')
+        pc_file_ids = os.path.join(output_path, 'pc_feature_spike_ids.npy')
+
+        from numpy.lib.format import open_memmap
 
         if comm.rank == 0:
-            pc_features = numpy.memmap(pc_file, shape=(total_pcs, nb_features, max_loc_channel), dtype=numpy.float32, mode='w+')
+            pc_features = open_memmap(pc_file, shape=(total_pcs, nb_features, max_loc_channel), dtype=numpy.float32, mode='w+')
             if mode == 1:
-                pc_ids = numpy.memmap(pc_file_ids, shape=(total_pcs), dtype=numpy.int32, mode='w+')
+                pc_ids = open_memmap(pc_file_ids, shape=(total_pcs, ), dtype=numpy.int32, mode='w+')
 
         comm.Barrier()
-        pc_features = numpy.memmap(pc_file, shape=(total_pcs, nb_features, max_loc_channel), dtype=numpy.float32, mode='r+')
+        pc_features = open_memmap(pc_file, mode='r+')
         if mode == 1:
-            pc_ids = numpy.memmap(pc_file_ids, shape=(total_pcs), dtype=numpy.int32, mode='r+')
+            pc_ids = open_memmap(pc_file_ids, mode='r+')
 
         if comm.rank == 0:
           pbar    = get_progressbar(len(to_process))
@@ -169,21 +171,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         if comm.rank == 0:
             numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind.astype(numpy.uint32)) #n_templates, n_loc_chan
-            from numpy.lib.format import open_memmap
-
-            pc_file_npy     = os.path.join(output_path, 'pc_features.npy')
-            pc_file_ids_npy = os.path.join(output_path, 'pc_feature_spike_ids.npy')
+            
+            #pc_file_npy     = os.path.join(output_path, 'pc_features.npy')
+            #pc_file_ids_npy = os.path.join(output_path, 'pc_feature_spike_ids.npy')
 
             # create a memory-mapped .npy file with the same dimensions and dtype
-            pc_ids_npy      = open_memmap(pc_file_ids_npy, mode='w+', dtype=pc_ids.dtype, shape=pc_ids.shape)
-            pc_features_npy = open_memmap(pc_file_npy, mode='w+', dtype=pc_features.dtype, shape=pc_features.shape)
+            #pc_ids_npy      = open_memmap(pc_file_ids_npy, mode='w+', dtype=pc_ids.dtype, shape=pc_ids.shape)
+            #pc_features_npy = open_memmap(pc_file_npy, mode='w+', dtype=pc_features.dtype, shape=pc_features.shape)
 
             # copy the array contents
-            pc_features_npy[:] = pc_features[:]
-            pc_ids_npy[:]      = pc_ids[:]
+            #pc_features_npy[:] = pc_features[:]
+            #pc_ids_npy[:]      = pc_ids[:]
 
-            os.remove(pc_file_ids)
-            os.remove(pc_file)
+            #os.remove(pc_file_ids)
+            #os.remove(pc_file)
 
 
 
