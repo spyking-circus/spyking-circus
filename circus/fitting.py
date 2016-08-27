@@ -247,7 +247,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     all_found_spikes[i] += peaktimes.tolist()
 
 
-        #if collect_all:
             
         local_peaktimes = numpy.unique(local_peaktimes)
         
@@ -331,8 +330,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if collect_all:
                 c_all_times = numpy.zeros((N_e, local_len), dtype=numpy.bool)
-                c_min_times = numpy.maximum(numpy.arange(min_time, max_time+1) - min_time - collect_zone, 0)
-                c_max_times = numpy.minimum(numpy.arange(min_time, max_time+1) - min_time + collect_zone + 1, max_time - min_time)
+                c_min_times = numpy.maximum(numpy.arange(0, local_len) - collect_zone, 0)
+                c_max_times = numpy.minimum(numpy.arange(0, local_len) + collect_zone + 1, max_time - min_time)
                 for i in xrange(N_e):
                     c_all_times[i, all_found_spikes[i] - min_time] = True
 
@@ -480,11 +479,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 gspikes = numpy.where(numpy.sum(c_all_times, 0) > 0)[0]
                 if sign_peaks == 'negative':
                     bestlecs = numpy.argmin(c_local_chunk[gspikes, :], 1)
+                    idx      = numpy.where(c_local_chunk[gspikes, bestlecs] < thresholds[bestlecs])[0]
+                    gspikes  = numpy.take(gspikes, idx)
+                    bestlecs = numpy.take(bestlecs, idx)
                 elif sign_peaks == 'positive':
                     bestlecs = numpy.argmax(c_local_chunk[gspikes, :], 1)
+                    idx      = numpy.where(c_local_chunk[gspikes, bestlecs] > thresholds[bestlecs])[0]
+                    gspikes  = numpy.take(gspikes, idx)
+                    bestlecs = numpy.take(bestlecs, idx)
                 elif sign_peaks == 'both':
                     bestlecs = numpy.argmax(numpy.abs(c_local_chunk)[gspikes, :], 1)
-                    
+                    idx      = numpy.where(numpy.abs(c_local_chunk[gspikes, bestlecs]) > thresholds[bestlecs])[0]
+                    gspikes  = numpy.take(gspikes, idx)
+                    bestlecs = numpy.take(bestlecs, idx)
+
                 gspikes_to_write     = numpy.array(gspikes + local_offset, dtype=numpy.int32)
                 gtemplates_to_write  = numpy.array(bestlecs, dtype=numpy.int32)
 

@@ -1183,7 +1183,7 @@ class PreviewGUI(QtGui.QMainWindow):
                     lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
                     idx   = numpy.where((self.garbage['gspikes'][key] > lims[0]) & (self.garbage['gspikes'][key] < lims[1]))
                     all_spikes = self.garbage['gspikes'][key][idx] - self.t_start*self.sampling_rate
-                    self.uncollected[elec] = all_spikes
+                    self.uncollected[elec] = all_spikes/float(self.sampling_rate)
 
     def init_gui_layout(self):
         gui_fname = pkg_resources.resource_filename('circus',
@@ -1376,6 +1376,7 @@ class PreviewGUI(QtGui.QMainWindow):
         else:
 
             for count, idx in enumerate(indices):
+
                 if self.ui.show_residuals.isChecked():
                     data_line, = self.data_x.plot(self.time,
                                         count * yspacing + (self.data[:,idx] - self.curve[idx, :]), lw=1, color='0.5', alpha=0.5)
@@ -1392,7 +1393,7 @@ class PreviewGUI(QtGui.QMainWindow):
                     self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
                                  color=self.inspect_colors[count], lw=2)
 
-                self.data_x.scatter(self.uncollected[idx], count*yspacing*numpy.ones(len(self.uncollected[idx])), s=1000, marker='o', c='k')
+                self.data_x.scatter(self.uncollected[idx], count*yspacing*numpy.ones(len(self.uncollected[idx])), s=100, marker='o', c='k')
 
         self.data_x.set_yticklabels([])
         self.data_x.set_xlabel('Time [s]')
