@@ -26,8 +26,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
     export_all     = params.get('converting', 'export_all')
-    print export_all
-
+    
     def generate_mapping(probe):
         p         = {}
         positions = []
@@ -96,6 +95,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_loc                           = len(numpy.unique(y))
             mapping[t, numpy.arange(nb_loc)] = numpy.unique(y)
 
+        if export_all:
+            for t in xrange(N_tm, N_tm + N_e):
+                mapping[t, 0] = N_e
+
         numpy.save(os.path.join(output_path, 'templates'), to_write.astype(numpy.single))
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping.astype(numpy.double))
         return N_tm
@@ -111,9 +114,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         templates       = load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
         if export_all:
-            pc_features_ind = numpy.zeros((N_tm + N_e, max_loc_channel), dtype=numpy.int32)            
+            nb_templates = N_tm + N_e
         else:
-            pc_features_ind = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
+            nb_templates = N_tm
+
+        pc_features_ind = numpy.zeros((nb_templates, max_loc_channel), dtype=numpy.int32)            
         clusters        = load_data(params, 'clusters', extension)
         best_elec       = clusters['electrodes']
         if export_all:
@@ -127,10 +132,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         basis_proj, basis_rec = load_data(params, 'basis')
 
-        to_process = numpy.arange(comm.rank, N_tm, comm.size)
+        to_process = numpy.arange(comm.rank, nb_templates, comm.size)
 
-        all_offsets = numpy.zeros(N_tm, dtype=numpy.int32)
-        for target in xrange(N_tm):
+        all_offsets = numpy.zeros(nb_templates, dtype=numpy.int32)
+        for target in xrange(nb_templates):
             if mode == 0:
                 all_offsets[target] = len(numpy.where(labels == target)[0])
             elif mode == 1:
