@@ -171,22 +171,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         if comm.rank == 0:
             numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind.astype(numpy.uint32)) #n_templates, n_loc_chan
-            
-            #pc_file_npy     = os.path.join(output_path, 'pc_features.npy')
-            #pc_file_ids_npy = os.path.join(output_path, 'pc_feature_spike_ids.npy')
-
-            # create a memory-mapped .npy file with the same dimensions and dtype
-            #pc_ids_npy      = open_memmap(pc_file_ids_npy, mode='w+', dtype=pc_ids.dtype, shape=pc_ids.shape)
-            #pc_features_npy = open_memmap(pc_file_npy, mode='w+', dtype=pc_features.dtype, shape=pc_features.shape)
-
-            # copy the array contents
-            #pc_features_npy[:] = pc_features[:]
-            #pc_ids_npy[:]      = pc_ids[:]
-
-            #os.remove(pc_file_ids)
-            #os.remove(pc_file)
-
-
 
     do_export = True
     if comm.rank == 0:
