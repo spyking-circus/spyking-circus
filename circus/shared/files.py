@@ -38,26 +38,30 @@ def write_to_logger(params, to_write, level='info'):
 def detect_header(filename, value='MCS'):
 
     if value == 'MCS':
-        header      = 0
-        stop        = False
-        fid         = open(filename, 'rb')
-        header_text = ''
-        regexp      = re.compile('El_\d*')
+        try:
+            header      = 0
+            stop        = False
+            fid         = open(filename, 'rb')
+            header_text = ''
+            regexp      = re.compile('El_\d*')
 
-        while ((stop is False) and (header <= 2000)):
-            header      += 1
-            char         = fid.read(1)
-            header_text += char.decode('Windows-1252')
-            if (header > 2):
-                if (header_text[header-3:header] == 'EOH'):
-                    stop = True
-        fid.close()
-        if stop is False:
-            print_info(['File is not exported with MCRack: header is set to 0'])
-            header  = 0 
-        else:
-            header += 2
-        return header, len(regexp.findall(header_text))
+            while ((stop is False) and (header <= 5000)):
+                header      += 1
+                char         = fid.read(1)
+                header_text += char.decode('Windows-1252')
+                if (header > 2):
+                    if (header_text[header-3:header] == 'EOH'):
+                        stop = True
+            fid.close()
+            if stop is False:
+                print_error(['Wrong MCS header: file is not exported with MCRack'])
+                sys.exit(0) 
+            else:
+                header += 2
+            return header, len(regexp.findall(header_text))
+        except Exception:
+            print_error(["Wrong MCS header: file is not exported with MCRack"])
+            sys.exit(0)
     else:
         return value, None
 
