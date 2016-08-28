@@ -21,6 +21,9 @@ else:
 from setuptools import setup
 from setuptools.command.install import install
 
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
 
@@ -33,10 +36,12 @@ else:
 setup(name='spyking-circus',
       version='0.4',
       description='Fast spike sorting by template matching',
+      long_description=read('README.rst'),
       url='http://spyking-circus.rtfd.org',
       author='Pierre Yger and Olivier Marre',
       author_email='pierre.yger@inserm.fr',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
+      keywords="spike sorting template matching tetrodes extracellular",
       packages=['circus', 'circus.shared', 'circus.scripts'],
       setup_requires=['cython', 'numpy', 'setuptools>0.18'],
       dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
@@ -82,6 +87,7 @@ setup(name='spyking-circus',
       use_2to3=True,
       classifiers=[
           'Development Status :: 4 - Beta',
+          'Environment :: Console',
           'Intended Audience :: Science/Research',
           'License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
           'Natural Language :: English',

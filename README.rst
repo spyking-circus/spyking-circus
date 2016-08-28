@@ -1,6 +1,10 @@
 SpyKING CIRCUS
 ==============
 
+.. image:: circus/icons/logo.jpg
+   :alt: SpyKING CIRCUS logo
+
+
 *A fast and scalable solution for spike sorting of large-scale extracellular recordings*
 
 SpyKING CIRCUS is a python code to allow fast spike sorting on multi channel recordings. 
@@ -17,4 +21,5 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 * Documentation can be found at http://spyking-circus.rtfd.org
 * A Google group can be found at http://groups.google.com/forum/#!forum/spyking-circus-users
 
-**The SpyKING CIRCUS is released under the terms of the CeCILL 2.1 license.**
+:copyright: Copyright 2006-2016 by the SpyKING CIRCUS team, see AUTHORS.
+:license: CeCILL, see LICENSE for details.
