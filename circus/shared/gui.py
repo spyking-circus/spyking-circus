@@ -1040,7 +1040,7 @@ class PreviewGUI(QtGui.QMainWindow):
         self.N_t              = params.getint('data', 'N_t')
         self.spike_thresh     = params.getint('detection', 'spike_thresh')
         self.peaks_sign       = params.get('detection', 'peaks')  
-        self.N_total          = params.getint('data', 'N_total')
+        self.N_total          = numpy.int64(params.getint('data', 'N_total'))
         self.sampling_rate    = params.getint('data', 'sampling_rate')
         self.template_shift   = params.getint('data', 'template_shift')
         self.filename         = params.get('data', 'data_file')
@@ -1072,6 +1072,13 @@ class PreviewGUI(QtGui.QMainWindow):
                 self.result    = io.load_data(self.params, 'results')
             except Exception:
                 pass
+
+            try:
+                self.has_garbage = True
+                if self.params.getboolean('fitting', 'collect_all'):
+                    self.garbage   = io.load_data(self.params, 'garbage')
+            except Exception:
+                self.has_garbage = False
 
         self.get_data()
         self.x_position = []
@@ -1113,10 +1120,12 @@ class PreviewGUI(QtGui.QMainWindow):
         self.get_time.valueChanged.connect(self.update_time)
         self.get_threshold.valueChanged.connect(self.update_threshold)
         self.show_residuals.clicked.connect(self.update_data_plot)
+        self.show_unfitted.clicked.connect(self.update_data_plot)
         self.btn_write_threshold.clicked.connect(self.write_threshold)
         if self.show_fit:
             self.time_box.setEnabled(True)
             self.show_residuals.setEnabled(True)
+            self.show_unfitted.setEnabled(True)
         else:
             self.btn_write_threshold.setEnabled(True)
             self.threshold_box.setEnabled(True)
@@ -1172,6 +1181,15 @@ class PreviewGUI(QtGui.QMainWindow):
             except Exception:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
                 io.print_and_log(["No results found!"], 'info', self.params)
+
+            if self.has_garbage:
+                self.uncollected = {}
+                for key in self.garbage['gspikes'].keys():
+                    elec  = int(key.split('_')[1])
+                    lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
+                    idx   = numpy.where((self.garbage['gspikes'][key] > lims[0]) & (self.garbage['gspikes'][key] < lims[1]))
+                    all_spikes = self.garbage['gspikes'][key][idx] - self.t_start*self.sampling_rate
+                    self.uncollected[elec] = all_spikes/float(self.sampling_rate)
 
     def init_gui_layout(self):
         gui_fname = pkg_resources.resource_filename('circus',
@@ -1347,7 +1365,7 @@ class PreviewGUI(QtGui.QMainWindow):
         if len(indices) > 0:
             yspacing  = numpy.max(np.abs(self.data[:, indices]))*1.01
         else:
-            yspaceing = 0 
+            yspacing = 0 
 
         if not self.show_fit:
             for count, idx in enumerate(indices):
@@ -1362,7 +1380,9 @@ class PreviewGUI(QtGui.QMainWindow):
                                      color=self.inspect_colors[count], lw=2)
 
         else:
+
             for count, idx in enumerate(indices):
+
                 if self.ui.show_residuals.isChecked():
                     data_line, = self.data_x.plot(self.time,
                                         count * yspacing + (self.data[:,idx] - self.curve[idx, :]), lw=1, color='0.5', alpha=0.5)
@@ -1378,6 +1398,9 @@ class PreviewGUI(QtGui.QMainWindow):
                 if self.peaks_sign in ['positive', 'both']:
                     self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
                                  color=self.inspect_colors[count], lw=2)
+
+                if self.ui.show_unfitted.isChecked() and self.has_garbage:
+                    self.data_x.scatter(self.uncollected[idx], count*yspacing*numpy.ones(len(self.uncollected[idx])), s=100, marker='o', c='k')
 
         self.data_x.set_yticklabels([])
         self.data_x.set_xlabel('Time [s]')

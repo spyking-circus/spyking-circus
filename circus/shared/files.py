@@ -38,26 +38,30 @@ def write_to_logger(params, to_write, level='info'):
 def detect_header(filename, value='MCS'):
 
     if value == 'MCS':
-        header      = 0
-        stop        = False
-        fid         = open(filename, 'rb')
-        header_text = ''
-        regexp      = re.compile('El_\d*')
+        try:
+            header      = 0
+            stop        = False
+            fid         = open(filename, 'rb')
+            header_text = ''
+            regexp      = re.compile('El_\d*')
 
-        while ((stop is False) and (header <= 2000)):
-            header      += 1
-            char         = fid.read(1)
-            header_text += char.decode('Windows-1252')
-            if (header > 2):
-                if (header_text[header-3:header] == 'EOH'):
-                    stop = True
-        fid.close()
-        if stop is False:
-            print_info(['File is not exported with MCRack: header is set to 0'])
-            header  = 0 
-        else:
-            header += 2
-        return header, len(regexp.findall(header_text))
+            while ((stop is False) and (header <= 5000)):
+                header      += 1
+                char         = fid.read(1)
+                header_text += char.decode('Windows-1252')
+                if (header > 2):
+                    if (header_text[header-3:header] == 'EOH'):
+                        stop = True
+            fid.close()
+            if stop is False:
+                print_error(['Wrong MCS header: file is not exported with MCRack'])
+                sys.exit(0) 
+            else:
+                header += 2
+            return header, len(regexp.findall(header_text))
+        except Exception:
+            print_error(["Wrong MCS header: file is not exported with MCRack"])
+            sys.exit(0)
     else:
         return value, None
 
@@ -210,7 +214,8 @@ def load_parameters(file_name):
         parser.set('data', 'radius', str(int(probe['radius'])))
 
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
-                  ['fitting', 'refractory', 'float', '0'],
+                  ['fitting', 'refractory', 'float', '0.5'],
+                  ['fitting', 'collect_all', 'bool', 'True'],
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'multi-files', 'bool', 'False'],
@@ -244,6 +249,7 @@ def load_parameters(file_name):
                   ['merging', 'correct_lag', 'bool', 'False'],
                   ['converting', 'export_pcs', 'string', 'prompt'],
                   ['converting', 'erase_all', 'bool', 'True'],
+                  ['converting', 'export_all', 'bool', 'True'],
                   ['validating', 'nearest_elec', 'string', 'auto'],
                   ['validating', 'max_iter', 'int', '200'],
                   ['validating', 'learning_rate', 'float', '1.0e-3'],
@@ -427,7 +433,8 @@ def data_stats(params, show=True, export_times=False):
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
-             "Template Compression        : %s" %params.get('clustering', 'compress')]
+             "Template Compression        : %s" %params.get('clustering', 'compress'), 
+             "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all')]
     
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
@@ -565,7 +572,7 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
     
     # First we need to identify machines in the MPI ring.
     from uuid import getnode as get_mac
-    myip = int(get_mac()) % 100000
+    myip = numpy.int64(get_mac()) % 100000
     ##### TODO: remove quarantine zone
     # intsize = MPI.INT.Get_size()
     ##### end quarantine zone
@@ -609,9 +616,9 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
     sub_comm.Barrier()
     
     # Broadcast the sizes of the data structures to share.
-    triggers_size = int(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.int32), root=0)[0])
-    neighs_size = int(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.int32), root=0)[0])
-    ts_size = int(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.int32), root=0)[0])
+    triggers_size = numpy.int64(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.int32), root=0)[0])
+    neighs_size = numpy.int64(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.int32), root=0)[0])
+    ts_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.int32), root=0)[0])
     
     # Declare the data structures to share.
     if sub_comm.Get_rank() == 0:
@@ -709,7 +716,7 @@ def get_artefact(params, times_i, tau, nodes, normalize=True):
     data_offset  = params.getint('data', 'data_offset')
     dtype_offset = params.getint('data', 'dtype_offset')
     data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
+    N_total      = numpy.int64(params.getint('data', 'N_total'))
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
 
     for time in times_i:
@@ -826,7 +833,7 @@ def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=No
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    local_chunk  = datablock[idx*chunk_len+padding[0]:(idx+1)*chunk_len+padding[1]]
+    local_chunk  = datablock[idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]]
     del datablock
     local_shape  = chunk_size + (padding[1]-padding[0])//N_total
     local_chunk  = local_chunk.reshape(local_shape, N_total)
@@ -846,7 +853,7 @@ def prepare_preview(params, preview_filename):
     data_dtype   = params.get('data', 'data_dtype')
     N_total      = params.getint('data', 'N_total')
     datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    chunk_len    = N_total * chunk_size
+    chunk_len    = numpy.int64(N_total) * chunk_size
     local_chunk  = datablock[0:chunk_len]
 
     output = open(preview_filename, 'wb')
@@ -872,13 +879,13 @@ def analyze_data(params, chunk_size=None):
     data_dtype     = params.get('data', 'data_dtype')
     N_total        = params.getint('data', 'N_total')
     template_shift = params.getint('data', 'template_shift')
-    chunk_len      = N_total * chunk_size
-    borders        = N_total * template_shift
+    chunk_len      = numpy.int64(N_total) * chunk_size
+    borders        = numpy.int64(N_total) * template_shift
     datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     N              = len(datablock)
-    nb_chunks      = N // chunk_len
+    nb_chunks      = numpy.int64(N) // chunk_len
     last_chunk_len = N - nb_chunks * chunk_len
-    last_chunk_len = N_total * int(last_chunk_len//N_total)
+    last_chunk_len = N_total * numpy.int64(last_chunk_len)//N_total
     
     return borders, nb_chunks, chunk_len, last_chunk_len
 
@@ -941,7 +948,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
 
     ## First we need to identify machines in the MPI ring
     from uuid import getnode as get_mac
-    myip = int(get_mac()) % 100000
+    myip = numpy.int64(get_mac()) % 100000
 
     intsize   = MPI.INT.Get_size()
     floatsize = MPI.FLOAT.Get_size() 
@@ -972,8 +979,8 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 nb_ptr  = len(sparse_mat.indptr)
 
             sub_comm.Barrier()   
-            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
 
             if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
@@ -1026,7 +1033,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
         
         c_overlap  = get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
-        N_over     = int(numpy.sqrt(over_shape[0]))
+        N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
         c_overs    = {}
             
@@ -1052,8 +1059,8 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                 nb_data    = len(sparse_mat.data)
                 nb_ptr     = len(sparse_mat.indptr)
 
-            long_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-            short_size = int(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
 
             if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
@@ -1117,7 +1124,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
 
-                    data_size  = int(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
 
                     if sub_comm.rank == 0:
                         if locdata.dtype == 'int32':
@@ -1129,7 +1136,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
                         type_size  = 0
                         data_bytes = 0
 
-                    type_size  = int(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
+                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
 
                     win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
                     buf_data, _ = win_data.Shared_query(0)
@@ -1300,6 +1307,11 @@ def load_data(params, data, extension=''):
             return get_results(params, extension)
         except Exception:
             raise Exception('No results found! Check suffix or run the fitting?')
+    elif data == 'garbage':
+        try:
+            return get_garbage(params, extension)
+        except Exception:
+            raise Exception('No results found! Check suffix or run the fitting?')
     elif data == 'overlaps':
         try:
             return get_overlaps(params, extension)
@@ -1343,11 +1355,11 @@ def load_data(params, data, extension=''):
             dtype_offset = params.getint('data', 'dtype_offset')
             
             datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-            template_shift = int((N_t - 1) / 2)
+            template_shift = numpy.int64((N_t - 1) / 2)
 
             spikes = numpy.zeros((N_t, N_total, N_tr))
             for (count, idx) in enumerate(triggers):
-                chunk_len = chunk_size * N_total
+                chunk_len = numpy.int64(chunk_size) * N_total
                 chunk_start = (idx - template_shift) * N_total
                 chunk_end = (idx + template_shift + 1)  * N_total
                 local_chunk = datablock[chunk_start:chunk_end]
@@ -1591,9 +1603,9 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     duration       = data_stats(params, show=False)
     templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
-    refractory     = int(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
+    refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
     N_tm           = len(templates)
-
+    collect_all    = params.getboolean('fitting', 'collect_all')
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
     # Initialize data collection.
@@ -1602,6 +1614,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         result['real_amps'] = {}
     if with_voltages:
         result['voltages'] = {}    
+    if collect_all:
+        result['gspikes'] = {}
+        result['gtemps']  = {}
+
     for i in xrange(N_tm//2):
         result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0)
         result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2))
@@ -1609,6 +1625,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             result['real_amps']['temp_' + str(i)] = numpy.empty(shape=0)
         if with_voltages:
             result['voltages']['temp_' + str(i)] = numpy.empty(shape=0)
+    
+    if collect_all:
+        for i in xrange(N_e):
+            result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0)
 
     pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_threads).start()
 
@@ -1623,6 +1643,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if with_voltages:
             voltages_file  = file_out_suff + '.voltages-%d.data' %node
             voltages       = numpy.fromfile(voltages_file, dtype=numpy.float32)
+        if collect_all:
+            gspikes_file = file_out_suff + '.gspiketimes-%d.data' %node
+            gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.int32)
+            gtemps_file  = file_out_suff + '.gtemplates-%d.data' %node
+            gtemps       = numpy.fromfile(gtemps_file, dtype=numpy.int32)
 
         if os.path.exists(amplitudes_file):
 
@@ -1651,6 +1676,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                 if with_voltages:
                     result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx])) 
 
+            if collect_all:
+                for j in xrange(N_e):
+                    idx = numpy.where(gtemps == j)[0]
+                    result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx])) 
+
         pbar.update(count)
 
     pbar.finish()
@@ -1676,11 +1706,19 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             if with_voltages:
                 result['voltages'][key] = numpy.delete(result['voltages'][key], violations)
 
+    if collect_all:
+        for key in result['gspikes']:
+            result['gspikes'][key] = numpy.array(result['gspikes'][key], dtype=numpy.int32)
+            idx                    = numpy.argsort(result['gspikes'][key])
+            result['gspikes'][key] = result['gspikes'][key][idx]
+
     keys = ['spiketimes', 'amplitudes']
     if with_real_amps:
         keys += ['real_amps']
     if with_voltages:
         keys += ['voltages']
+    if collect_all:
+        keys += ['gspikes']
 
     # Save results into `<dataset>/<dataset>.result.hdf5`.
     mydata = h5py.File(file_out_suff + '.result.hdf5', 'w', libver='latest')
@@ -1696,12 +1734,22 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
+    if collect_all:
+        gcount = 0
+        for item in result['gspikes'].keys():
+            gcount += len(result['gspikes'][item])
+
     if benchmark:
         to_print = "injected"
     else:
         to_print = "fitted"
 
-    print_and_log(["Number of spikes %s : %d" %(to_print, count)], 'info', params)
+    to_write = ["Number of spikes %s : %d" %(to_print, count)]
+
+    if collect_all:
+        to_write += ["Number of spikes not fitted : %d" %(gcount)]
+
+    print_and_log(to_write, 'info', params)
 
     # TODO: find a programmer comment
     if erase:
@@ -1711,7 +1759,18 @@ def get_results(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
     result               = {}
     myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='latest')
-    for key in myfile.keys():
+    for key in ['spiketimes', 'amplitudes']:
+        result[str(key)] = {}
+        for temp in myfile.get(key).keys():
+            result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
+    myfile.close()
+    return result
+
+def get_garbage(params, extension=''):
+    file_out_suff        = params.get('data', 'file_out_suff')
+    result               = {}
+    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='latest')
+    for key in ['gspikes']:
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
             result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]

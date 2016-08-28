@@ -25,8 +25,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     N_t            = params.getint('data', 'N_t')
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
-
-
+    export_all     = params.get('converting', 'export_all')
+    
     def generate_mapping(probe):
         p         = {}
         positions = []
@@ -52,6 +52,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         spikes     = numpy.zeros(0, dtype=numpy.uint64)
         clusters   = numpy.zeros(0, dtype=numpy.uint32)
         amplitudes = numpy.zeros(0, dtype=numpy.double)
+        N_tm       = len(result['spiketimes'])
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
             data       = result['spiketimes'].pop(key).astype(numpy.uint64)
@@ -60,8 +61,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             amplitudes = numpy.concatenate((amplitudes, data[:, 0]))
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.uint32)))
         
-        idx = numpy.argsort(spikes)
+        if export_all:
+            garbage = circus.shared.utils.io.load_data(params, 'garbage', extension)
+            for key in garbage['gspikes'].keys():
+                elec_id    = int(key.split('_')[-1])
+                data       = garbage['gspikes'].pop(key).astype(numpy.uint64)
+                spikes     = numpy.concatenate((spikes, data))
+                amplitudes = numpy.concatenate((amplitudes, numpy.zeros(len(data))))
+                clusters   = numpy.concatenate((clusters, (elec_id + N_tm)*numpy.ones(len(data), dtype=numpy.uint32)))                
 
+        idx = numpy.argsort(spikes)
         numpy.save(os.path.join(output_path, 'spike_templates'), clusters[idx])
         numpy.save(os.path.join(output_path, 'spike_times'), spikes[idx])
         numpy.save(os.path.join(output_path, 'amplitudes'), amplitudes[idx])
@@ -72,8 +81,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         max_loc_channel = get_max_loc_channel(params)
         templates       = load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
-        to_write        = numpy.zeros((N_tm, N_t, N_e), dtype=numpy.float32)
-        mapping         = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
+        if export_all:
+            to_write    = numpy.zeros((N_tm + N_e, N_t, N_e), dtype=numpy.float32)
+            mapping     = numpy.zeros((N_tm + N_e, max_loc_channel), dtype=numpy.int32)            
+        else:
+            to_write    = numpy.zeros((N_tm, N_t, N_e), dtype=numpy.float32)
+            mapping     = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
 
         for t in xrange(N_tm):
             tmp  = templates[:, t].toarray().reshape(N_e, N_t).T
@@ -81,6 +94,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             to_write[t, x, y]                = tmp[x, y] 
             nb_loc                           = len(numpy.unique(y))
             mapping[t, numpy.arange(nb_loc)] = numpy.unique(y)
+
+        if export_all:
+            for t in xrange(N_tm, N_tm + N_e):
+                mapping[t, 0] = N_e
 
         numpy.save(os.path.join(output_path, 'templates'), to_write.astype(numpy.single))
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping.astype(numpy.double))
@@ -96,9 +113,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         N_total         = params.getint('data', 'N_total')
         templates       = load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
-        pc_features_ind = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
+        if export_all:
+            nb_templates = N_tm + N_e
+        else:
+            nb_templates = N_tm
+
+        pc_features_ind = numpy.zeros((nb_templates, max_loc_channel), dtype=numpy.int32)            
         clusters        = load_data(params, 'clusters', extension)
         best_elec       = clusters['electrodes']
+        if export_all:
+            best_elec = numpy.concatenate((best_elec, numpy.arange(N_e)))
         inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
         inv_nodes[nodes] = numpy.argsort(nodes)
 
@@ -108,30 +132,47 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         basis_proj, basis_rec = load_data(params, 'basis')
 
-        to_process = numpy.arange(comm.rank, N_tm, comm.size)
+        to_process = numpy.arange(comm.rank, nb_templates, comm.size)
 
-        nb_pcs = 0
-
-        for target in to_process:
+        all_offsets = numpy.zeros(nb_templates, dtype=numpy.int32)
+        for target in xrange(nb_templates):
             if mode == 0:
-                nb_pcs += len(numpy.where(labels == target)[0])
+                all_offsets[target] = len(numpy.where(labels == target)[0])
             elif mode == 1:
-                nb_pcs += min(500, len(numpy.where(labels == target)[0]))
+                all_offsets[target] = min(500, len(numpy.where(labels == target)[0]))
 
-        pc_features = numpy.zeros((nb_pcs, nb_features, max_loc_channel), dtype=numpy.float32)
-        count       = 0
+        all_paddings = numpy.concatenate(([0] , numpy.cumsum(all_offsets)))
+        total_pcs   = numpy.sum(all_offsets)
+
+        pc_file     = os.path.join(output_path, 'pc_features.npy')
+        pc_file_ids = os.path.join(output_path, 'pc_feature_spike_ids.npy')
+
+        from numpy.lib.format import open_memmap
+
+        if comm.rank == 0:
+            pc_features = open_memmap(pc_file, shape=(total_pcs, nb_features, max_loc_channel), dtype=numpy.float32, mode='w+')
+            if mode == 1:
+                pc_ids = open_memmap(pc_file_ids, shape=(total_pcs, ), dtype=numpy.int32, mode='w+')
+
+        comm.Barrier()
+        pc_features = open_memmap(pc_file, mode='r+')
+        if mode == 1:
+            pc_ids = open_memmap(pc_file_ids, mode='r+')
 
         if comm.rank == 0:
           pbar    = get_progressbar(len(to_process))
 
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_process):
+
+            count    = all_paddings[target]
+            
             if mode == 1:
                 idx  = numpy.random.permutation(numpy.where(labels == target)[0])[:500]
+                pc_ids[count:count+len(idx)] = idx
             elif mode == 0:
                 idx  = numpy.where(labels == target)[0]
 
-            all_idx  = numpy.concatenate((all_idx, idx))
             elec     = best_elec[target]
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
@@ -139,31 +180,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
-            pc_features[count:count+len(idx), :, :len(indices)] = pcs                    
-            count   += len(idx)
-            
+            if mode == 0:
+                pc_features[idx, :, :len(indices)] = pcs                    
+            elif mode == 1:
+                pc_features[count:count+len(idx), :, :len(indices)] = pcs
+
             if comm.rank == 0:
               pbar.update(gcount)
+
         if comm.rank == 0:
           pbar.finish()
 
         comm.Barrier()
 
-        pc_features = gather_array(pc_features.reshape(nb_pcs, nb_features*max_loc_channel), comm, 0, 1)
-        nb_total_pc = len(pc_features)
-
-        pc_features = pc_features.reshape(nb_total_pc, nb_features, max_loc_channel)
-
-        all_idx     = gather_array(all_idx.astype(numpy.int32), comm, 0, dtype='int32')
-        sort_idx    = numpy.argsort(all_idx)
-
         if comm.rank == 0:
-            if mode == 1:
-                numpy.save(os.path.join(output_path, 'pc_feature_spike_ids'), all_idx[sort_idx].astype(numpy.int32))
-
-            numpy.save(os.path.join(output_path, 'pc_features'), pc_features[sort_idx].astype(numpy.single)) # nspikes, nfeat, n_loc_chan
             numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind.astype(numpy.uint32)) #n_templates, n_loc_chan
-        
 
     do_export = True
     if comm.rank == 0:
@@ -205,7 +236,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             N_tm = write_templates(output_path, params, extension)
             similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
             norm = params.getint('data', 'N_e')*params.getint('data', 'N_t')
-            numpy.save(os.path.join(output_path, 'similar_templates'), (similarities[:N_tm, :N_tm]/norm).astype(numpy.single))
+
+            if export_all:
+                to_write = numpy.zeros((N_tm + N_e, N_tm + N_e), dtype=numpy.single)
+                to_write[:N_tm, :N_tm] = (similarities[:N_tm, :N_tm]/norm).astype(numpy.single)
+            else:
+                to_write = (similarities[:N_tm, :N_tm]/norm).astype(numpy.single)
+            numpy.save(os.path.join(output_path, 'similar_templates'), to_write)
         
         comm.Barrier()
 
