@@ -2,7 +2,7 @@
 import warnings
 warnings.filterwarnings("ignore")
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg', warn=False)
 import os, sys, time
 import numpy as np
 import scipy.sparse as sp

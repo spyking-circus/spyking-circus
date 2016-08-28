@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg', warn=False)
 import os
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats, progressbar
 from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges, print_and_log
