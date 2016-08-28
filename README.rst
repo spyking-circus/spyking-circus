@@ -1,7 +1,7 @@
 SpyKING CIRCUS
 ==============
 
-.. image:: circus/icons/logo.jpg
+.. image:: http://spyking-circus.readthedocs.io/en/latest/_images/circus.png
    :alt: SpyKING CIRCUS logo
 
 
