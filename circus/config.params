@@ -18,7 +18,7 @@ matched_thresh = 5                      # Threshold for detection if matched fil
 alignment      = True                   # Realign the waveforms by oversampling
 
 [filtering]
-cut_off        = 500        # Cut off frequency for the butterworth filter [Hz]
+cut_off        = 500, auto  # Min and Max cut off frequencies for the band pass butterworth filter [Hz]
 filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
 
