@@ -754,8 +754,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     variation        = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
                     
                     physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                    amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - dispersion[0]*variations))
-                    amp_max          = max(1.2, numpy.median(amplitudes) + dispersion[1]*variations)
+                    amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - dispersion[0]*variation))
+                    amp_max          = max(1.2, numpy.median(amplitudes) + dispersion[1]*variation)
                     amps_lims[g_count] = [amp_min, amp_max]
                     myamps            += [[amp_min, amp_max]]
 
