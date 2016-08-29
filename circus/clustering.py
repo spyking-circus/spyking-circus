@@ -32,7 +32,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     safety_time    = int(params.getfloat('clustering', 'safety_time')*sampling_rate*1e-3)
     safety_space   = params.getboolean('clustering', 'safety_space')
     comp_templates = params.getboolean('clustering', 'compress')
-    dispersion     = params.getfloat('clustering', 'dispersion')
+    dispersion     = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
+    dispersion     = map(float, dispersion)
     nodes, edges   = io.get_nodes_and_edges(params)
     chunk_size     = params.getint('data', 'chunk_size')
     max_elts_elec  = params.getint('clustering', 'max_elts')
@@ -750,10 +751,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     amplitudes       = numpy.dot(sub_data_flat, first_flat)
                     amplitudes      /= numpy.sum(first_flat**2)
 
-                    variations       = dispersion*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                    variation        = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                    
                     physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                    amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - variations))
-                    amp_max          = max(1.2, min(amp_limits[1], numpy.median(amplitudes) + variations))
+                    amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - dispersion[0]*variations))
+                    amp_max          = max(1.2, numpy.median(amplitudes) + dispersion[1]*variations)
                     amps_lims[g_count] = [amp_min, amp_max]
                     myamps            += [[amp_min, amp_max]]
 

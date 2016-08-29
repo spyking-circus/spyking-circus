@@ -15,23 +15,27 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     sampling_rate  = params.getint('data', 'sampling_rate')
 
-    cut_off        = params.get('filtering', 'cut_off')
-    cut_off        = cut_off.split(',')
     try:
-        cut_off[0] = float(cut_off[0])
+        cut_off    = params.getfloat('filtering', 'cut_off')
+        cut_off    = [cut_off, 0.95*(sampling_rate/2.)]
     except Exception:
-        io.print_and_log(['First value of cut off must be a valid number'], 'error', params)
-        sys.exit(0)
-    
-    cut_off[1] = cut_off[1].replace(' ', '')
-    if cut_off[1] == 'auto':
-        cut_off[1] = 0.95*(sampling_rate/2.)
-    else:
+        cut_off        = params.get('filtering', 'cut_off')
+        cut_off        = cut_off.split(',')
         try:
-            cut_off[1] = float(cut_off[1])
+            cut_off[0] = float(cut_off[0])
         except Exception:
-            io.print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
+            io.print_and_log(['First value of cut off must be a valid number'], 'error', params)
             sys.exit(0)
+        
+        cut_off[1] = cut_off[1].replace(' ', '')
+        if cut_off[1] == 'auto':
+            cut_off[1] = 0.95*(sampling_rate/2.)
+        else:
+            try:
+                cut_off[1] = float(cut_off[1])
+            except Exception:
+                io.print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
+                sys.exit(0)
 
     remove_median  = params.getboolean('filtering', 'remove_median')
     nodes, edges   = io.get_nodes_and_edges(params)

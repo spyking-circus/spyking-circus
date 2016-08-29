@@ -185,8 +185,6 @@ def load_parameters(file_name):
     parser.set('data', 'N_e', str(N_e))   
     parser.set('fitting', 'space_explo', '0.5')
     parser.set('fitting', 'nb_chances', '3')
-
-    parser.set('clustering', 'dispersion', '5')
     parser.set('clustering', 'm_ratio', '0.01')
     parser.set('clustering', 'sub_dim', '5')
 
@@ -241,6 +239,7 @@ def load_parameters(file_name):
                   ['clustering', 'cc_merge', 'float', '0.975'],
                   ['clustering', 'extraction', 'string', 'median-raw'],
                   ['clustering', 'remove_mixture', 'bool', 'True'],
+                  ['clustering', 'dispersion', 'string', '(5, 5)'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '1.'],
                   ['merging', 'cc_overlap', 'float', '0.5'],
@@ -353,6 +352,14 @@ def load_parameters(file_name):
         print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
     
+    dispersion     = parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
+    dispersion     = map(float, dispersion)
+    test =  (0 < dispersion[0]) and (0 < dispersion[1])
+    if not test:
+        print_and_log(["min and max dispersions should be positive"], 'error', parser)
+        sys.exit(0)
+        
+
     pcs_export = ['prompt', 'none', 'all', 'some']
     test = parser.get('converting', 'export_pcs') in pcs_export
     if not test:
