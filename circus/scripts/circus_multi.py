@@ -8,7 +8,7 @@ import circus
 import tempfile
 import h5py
 import numpy
-from circus.shared.files import print_error, print_and_log
+from circus.shared.files import print_error, print_and_log, get_header
 from circus.shared.algorithms import slice_result
 import colorama
 colorama.init(autoreset=True)
@@ -20,14 +20,7 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    gheader = Fore.GREEN + '''
-##################################################################
-#####            Welcome to the SpyKING CIRCUS (0.4)         #####
-#####                                                        #####
-#####              Written by P.Yger and O.Marre             #####
-##################################################################
-
-'''
+    gheader = Fore.GREEN + get_header()
     header  = gheader + Fore.RESET
 
     parser = argparse.ArgumentParser(description=header,

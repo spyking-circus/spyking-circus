@@ -11,6 +11,28 @@ from mpi4py import MPI
 from .mpi import gather_array
 import logging
 
+
+def get_header():
+
+    import circus
+    version = circus.__version__
+
+    if len(version) == 3:
+        title = '#####            Welcome to the SpyKING CIRCUS (%s)         #####' %version
+    elif len(version) == 5:
+        title = '#####           Welcome to the SpyKING CIRCUS (%s)        #####' %version
+
+    header = '''
+##################################################################
+%s
+#####                                                        #####
+#####              Written by P.Yger and O.Marre             #####
+##################################################################
+
+''' %title
+
+    return header
+
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))
     for f in os.listdir(dir):

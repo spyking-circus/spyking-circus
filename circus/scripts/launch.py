@@ -12,7 +12,7 @@ colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 import circus.shared.files as io
 import circus
-from circus.shared.files import print_error, print_info, write_to_logger
+from circus.shared.files import print_error, print_info, write_to_logger, get_header
 
 
 def gather_mpi_arguments(hostfile, params):
@@ -83,14 +83,7 @@ def main(argv=None):
     else:
         config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
-    gheader = Fore.GREEN + '''
-##################################################################
-#####            Welcome to the SpyKING CIRCUS (0.4)         #####
-#####                                                        #####
-#####              Written by P.Yger and O.Marre             #####
-##################################################################
-
-'''
+    gheader = Fore.GREEN + get_header()
     header  = gheader
     header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(psutil.cpu_count()) + '\n'
     header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'

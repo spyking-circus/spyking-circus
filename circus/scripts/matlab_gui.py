@@ -7,7 +7,7 @@ import pkg_resources
 import circus
 import tempfile
 import numpy, h5py
-from circus.shared.files import print_error, write_datasets, read_probe, print_and_log
+from circus.shared.files import print_error, write_datasets, read_probe, print_and_log, get_header
 import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
@@ -17,14 +17,7 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    gheader = Fore.GREEN + '''
-##################################################################
-#####            Welcome to the SpyKING CIRCUS (0.4)         #####
-#####                                                        #####
-#####              Written by P.Yger and O.Marre             #####
-##################################################################
-
-'''
+    gheader = Fore.GREEN + get_header()
     header  = gheader + Fore.RESET
 
     parser = argparse.ArgumentParser(description=header,
