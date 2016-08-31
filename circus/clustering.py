@@ -392,7 +392,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             
                                         else:
                                             to_accept = True
-                                            
+
                                         if to_accept:
                                             result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
                                                 
@@ -493,9 +493,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 if gpass == 0:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
-                        ampmin, ampmax = numpy.min(result['tmp_%s_' %loc_peak + str(elec)]), numpy.max(result['tmp_%s_' %loc_peak + str(elec)])
+                        ampmin, ampmax = numpy.min(result['tmp_%s_' %loc_peak + str(ielec)]), numpy.max(result['tmp_%s_' %loc_peak + str(ielec)])
                         bins = [-1e6] + numpy.linspace(ampmin, ampmax, 100).tolist() + [1e6]
-                        a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(elec)], bins)
+                        a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins)
                         result['hist_%s_'%p + str(ielec) ]  = numpy.cumsum(a)/float(a.sum())
                         result['bounds_%s_' %p + str(ielec)] = b[1:]
                     else:
