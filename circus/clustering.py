@@ -364,10 +364,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                                     if gpass == 0:
                                         to_accept  = True
-                                        if loc_peak == 'neg':
-                                            ext_amp = numpy.min(local_chunk[peak, elec])
-                                        elif loc_peak == 'pos':
-                                            ext_amp = numpy.max(local_chunk[peak, elec])
+                                        ext_amp    = local_chunk[peak, elec]
                                         result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], [ext_amp]))
                                     elif gpass == 1:
 
@@ -377,13 +374,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                                         if smart_searches[loc_peak][elec] > 0:
                                             
-                                            if loc_peak == 'neg':
-                                                ext_amp = numpy.min(local_chunk[peak, elec])
-                                            elif loc_peak == 'pos':
-                                                ext_amp = numpy.max(local_chunk[peak, elec])   
-                                            
-                                            idx    = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp)
-                                            reject = numpy.random.rand() > result['hist_%s_' %loc_peak + str(elec)][idx] 
+                                            ext_amp = local_chunk[peak, elec]
+                                            idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp)
+                                            reject  = numpy.random.rand() < result['hist_%s_' %loc_peak + str(elec)][idx - 1] 
 
                                             if not reject:
                                                 to_accept = True
@@ -495,13 +488,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         ampmin, ampmax = numpy.min(result['tmp_%s_' %loc_peak + str(ielec)]), numpy.max(result['tmp_%s_' %loc_peak + str(ielec)])
                         bins = [-1e6] + numpy.linspace(ampmin, ampmax, 100).tolist() + [1e6]
-                        a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins)
-                        result['hist_%s_'%p + str(ielec) ]  = numpy.cumsum(a)/float(a.sum())
-                        result['bounds_%s_' %p + str(ielec)] = b[1:]
+                        a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins, density=True)
+                        result['hist_%s_'%p + str(ielec) ]   = a
+                        result['bounds_%s_' %p + str(ielec)] = b
                     else:
                         smart_searches[p][ielec] = 0
 
                     if smart_searches[p][ielec] > 0:
+                        #result['hist_%s_'%p + str(ielec) ]  *= smart_searches[p][ielec]
                         io.print_and_log(['Smart search is actived on channel %d' % ielec], 'debug', params)
 
                 elif gpass == 1:
