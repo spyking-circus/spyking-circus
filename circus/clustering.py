@@ -383,7 +383,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                                 ext_amp = numpy.max(local_chunk[peak, elec])   
                                             
                                             idx    = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp)
-                                            reject = numpy.random.rand() < result['hist_%s_' %loc_peak + str(elec)][idx] 
+                                            reject = numpy.random.rand() > result['hist_%s_' %loc_peak + str(elec)][idx] 
 
                                             if not reject:
                                                 to_accept = True
@@ -392,6 +392,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             
                                         else:
                                             to_accept = True
+                                            
                                         if to_accept:
                                             result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
                                                 
