@@ -158,7 +158,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass == 0:
-                io.print_and_log(["Searching random spikes to estimate distances..."], 'default', params)
+                io.print_and_log(["Searching random spikes to sample amplitudes..."], 'default', params)
             elif gpass == 1:
                 if not numpy.all(sdata > 0):
                     lines = ["Smart Search disabled on %d electrodes" %(numpy.sum(sdata == 0))]
@@ -487,7 +487,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if gpass == 0:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         ampmin, ampmax = numpy.min(result['tmp_%s_' %loc_peak + str(ielec)]), numpy.max(result['tmp_%s_' %loc_peak + str(ielec)])
-                        bins = [-1e6] + numpy.linspace(ampmin, ampmax, 100).tolist() + [1e6]
+                        bins = [-1e6] + numpy.linspace(ampmin, ampmax, 20).tolist() + [1e6]
                         a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins, density=True)
                         result['hist_%s_'%p + str(ielec) ]   = a
                         result['bounds_%s_' %p + str(ielec)] = b
@@ -523,7 +523,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         dist                         = numpy.zeros(0, dtype=numpy.float64)
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 else:
-                    if len(result['tmp_%s_' %p + str(ielec)]) > 1:
+                    if len(result['sub_%s_' %p + str(ielec)]) > 1:
                         data  = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                         rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=data, mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)] += rho
