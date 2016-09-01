@@ -256,7 +256,7 @@ def load_parameters(file_name):
                   ['clustering', 'make_plots', 'string', 'png'],
                   ['clustering', 'test_clusters', 'bool', 'False'],
                   ['clustering', 'sim_same_elec', 'float', '2'],
-                  ['clustering', 'smart_search', 'float', '0'],
+                  ['clustering', 'smart_search', 'bool', 'False'],
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'compress', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
@@ -348,11 +348,6 @@ def load_parameters(file_name):
     test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') < 1)
     if not test:
         print_and_log(["nclus_min in clustering should be in [0,1["], 'error', parser)
-        sys.exit(0)
- 
-    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') < 1)
-    if not test:
-        print_and_log(["smart_search in clustering should be in [0,1["], 'error', parser)
         sys.exit(0)
 
     test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)

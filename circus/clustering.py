@@ -46,7 +46,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
-    smart_search   = params.getfloat('clustering', 'smart_search')
+    smart_search   = params.getboolean('clustering', 'smart_search')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
@@ -66,7 +66,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     smart_searches = {}
     for p in search_peaks:
-        smart_searches[p] = numpy.ones(N_e, dtype=numpy.float32)*smart_search
+        smart_searches[p] = numpy.ones(N_e, dtype=numpy.float32)*int(smart_search)
 
     basis = {}
 
@@ -143,7 +143,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
 
-    if smart_search == 0:
+    if smart_search is False:
         gpass = 1
     else:
         gpass = 0
@@ -173,7 +173,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         for i in xrange(N_e):
             if gpass == 0:
                 for p in search_peaks:
-                    result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32) 
+                    result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
+                    result['nb_chunks_' + str(i)] = 0
             else:
                 n_neighb = len(edges[nodes[i]])
                 for p in search_peaks:
@@ -413,6 +414,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     pbar.update(elt_count)
 
+                if gpass == 0:
+                    for i in xrange(comm.rank, N_e, comm.size):
+                        result['nb_chunks_' + str(i)] += 1
+
             if comm.rank == 0:
                 if (elt_count < (gcount+1)*loop_nb_elts//len(chunks_to_load)):
                     pbar.update((gcount+1)*loop_nb_elts//len(chunks_to_load))
@@ -486,9 +491,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 if gpass == 0:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
+
+                        # Need to estimate the number of spikes
+                        n_estimate = len(result['tmp_%s_' %p + str(ielec)])*nb_chunks / float(result['nb_chunks_' + str(ielec)])
                         ampmin, ampmax = numpy.min(result['tmp_%s_' %loc_peak + str(ielec)]), numpy.max(result['tmp_%s_' %loc_peak + str(ielec)])
                         bins = [-1e6] + numpy.linspace(ampmin, ampmax, 20).tolist() + [1e6]
                         a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins, density=True)
+                        
+                        ratio = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
+                        max_ratio = max(1, min(ratio, 0.9/a.max()))
+                        a        *= max_ratio
                         result['hist_%s_'%p + str(ielec) ]   = a
                         result['bounds_%s_' %p + str(ielec)] = b
                     else:
