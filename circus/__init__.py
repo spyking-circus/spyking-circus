@@ -1,7 +1,7 @@
 import importlib
 import circus.shared.files as io
 
-__version__ = '0.4.1'
+__version__ = '0.4.2'
 
 def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None, extension=''):
     params = io.load_parameters(filename)
