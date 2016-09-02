@@ -495,19 +495,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         # Need to estimate the number of spikes
                         n_estimate = len(result['tmp_%s_' %p + str(ielec)])*nb_chunks / float(result['nb_chunks_' + str(ielec)])
                         ampmin, ampmax = numpy.min(result['tmp_%s_' %loc_peak + str(ielec)]), numpy.max(result['tmp_%s_' %loc_peak + str(ielec)])
-                        bins = [-1e6] + numpy.linspace(ampmin, ampmax, 20).tolist() + [1e6]
-                        a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins, density=True)
-                        
+                        if loc_peak == 'pos':
+                            if matched_filter:
+                                bound = matched_tresholds_pos[ielec]
+                            else:
+                                bound = thresholds[ielec]
+                            bins = numpy.linspace(bound, ampmax, 20).tolist() + [1e6]
+                        elif loc_peak == 'neg':
+                            if matched_filter:
+                                bound = matched_tresholds_neg[ielec]
+                            else:
+                                bound = -thresholds[ielec]
+                            bins = [-1e6] + numpy.linspace(ampmin, bound, 20).tolist()
+
+                        a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins)
+                        a    = a/float(numpy.sum(a))
+
                         ratio = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
-                        max_ratio = max(1, min(ratio, 0.9/a.max()))
-                        a        *= max_ratio
+                        if ratio > 1:
+                            a = a**(1./ratio)
+
+                        numpy.save('hist_%s_' %loc_peak + str(ielec), a)
                         result['hist_%s_'%p + str(ielec) ]   = a
                         result['bounds_%s_' %p + str(ielec)] = b
                     else:
                         smart_searches[p][ielec] = 0
 
                     if smart_searches[p][ielec] > 0:
-                        #result['hist_%s_'%p + str(ielec) ]  *= smart_searches[p][ielec]
                         io.print_and_log(['Smart search is actived on channel %d' % ielec], 'debug', params)
 
                 elif gpass == 1:
