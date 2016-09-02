@@ -504,18 +504,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         elif loc_peak == 'neg':
                             if matched_filter:
                                 bound = matched_tresholds_neg[ielec]
+                                bins  = numpy.linspace(bound, ampmax, 20).tolist() + [1e6]
                             else:
-                                bound = -thresholds[ielec]
-                            bins = [-1e6] + numpy.linspace(ampmin, bound, 20).tolist()
+                                bound = thresholds[ielec]
+                                bins  = [-1e6] + numpy.linspace(ampmin, bound, 20).tolist()
 
                         a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins)
                         a    = a/float(numpy.sum(a))
 
                         ratio = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
+
+
                         if ratio > 1:
                             a = a**(1./ratio)
-
-                        numpy.save('hist_%s_' %loc_peak + str(ielec), a)
+                        
                         result['hist_%s_'%p + str(ielec) ]   = a
                         result['bounds_%s_' %p + str(ielec)] = b
                     else:
