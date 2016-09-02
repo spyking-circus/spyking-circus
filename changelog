@@ -1,0 +1,15 @@
+=============
+Release 0.4.1
+=============
+
+* fix a bug for converting millions of PCs to phy, getting rid of MPI limitation to int32
+* fix bugs with install on Windows 10, forcing int64 while default is int32 even on 64bits platforms
+* improved errors messages if wrong MCS headers are used
+* Various cosmetic changes
+
+
+===========
+Release 0.4
+===========
+
+First realease of the software

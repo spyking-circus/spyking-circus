@@ -1,8 +1,3 @@
-try:
-    import cudamat as cmt
-except ImportError:
-    cmt = None
-
 import circus.shared.algorithms as algo
 from .shared.utils import *
 
