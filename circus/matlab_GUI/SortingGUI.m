@@ -2308,4 +2308,4 @@ function SortingGUI_CloseRequestFcn(hObject, eventdata, handles)
 % Hint: delete(hObject) closes the figure
 delete(hObject);
 
-quit; % close matlab 
+exit; % close matlab 

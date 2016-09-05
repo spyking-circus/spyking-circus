@@ -23,3 +23,7 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 
 :copyright: Copyright 2006-2016 by the SpyKING CIRCUS team, see AUTHORS.
 :license: CeCILL, see LICENSE for details.
+
+.. image::  https://anaconda.org/spyking-circus/spyking-circus/badges/version.svg
+.. image::  https://badge.fury.io/py/spyking-circus.svg
+
