@@ -378,9 +378,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             
                                             ext_amp = local_chunk[peak, elec]
                                             idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp)
-                                            reject  = numpy.random.rand() < result['hist_%s_' %loc_peak + str(elec)][idx - 1] 
+                                            to_keep = result['hist_%s_' %loc_peak + str(elec)][idx - 1] < numpy.random.rand() 
 
-                                            if not reject:
+                                            if to_keep:
                                                 to_accept = True
                                             else:
                                                 rejected += 1
@@ -510,16 +510,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 bound = thresholds[ielec]
                                 bins  = [-1e6] + numpy.linspace(ampmin, bound, 20).tolist()
 
-                        a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins)
-                        a    = a/float(numpy.sum(a))
-
-                        ratio = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
-
-
-                        if ratio > 1:
-                            a = a**(1./ratio)
+                        a, b  = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins)
+                        a     = a/float(numpy.sum(a))
                         
-                        result['hist_%s_'%p + str(ielec) ]   = a
+                        ratio  = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
+                        
+                        z      = a[a > 0]
+                        c      = 1./numpy.min(z)
+                        d      = (1./(c*a))
+                        d      = numpy.minimum(1, d)
+                        target = 1./ratio
+                        twist  = numpy.sum(a*d)/target
+                        factor = twist*c
+                        #print factor, c, twist, target
+
+                        result['hist_%s_'%p + str(ielec) ]   = factor*a
                         result['bounds_%s_' %p + str(ielec)] = b
                     else:
                         smart_searches[p][ielec] = 0
