@@ -1616,7 +1616,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
-    duration       = data_stats(params, show=False)
+    max_chunk      = params.getfloat('fitting', 'max_chunk')
+    chunks         = params.getfloat('fitting', 'chunk')
+    data_length    = data_stats(params, show=False)
+    duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
     refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
@@ -1625,7 +1628,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
     # Initialize data collection.
-    result = {'spiketimes' : {}, 'amplitudes' : {}}
+    result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
     if with_real_amps:
         result['real_amps'] = {}
     if with_voltages:
@@ -1704,7 +1707,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             if with_voltages:
                 result['voltages'][key] = numpy.delete(result['voltages'][key], violations)
 
-    keys = ['spiketimes', 'amplitudes']
+    keys = ['spiketimes', 'amplitudes', 'info']
     if with_real_amps:
         keys += ['real_amps']
     if with_voltages:

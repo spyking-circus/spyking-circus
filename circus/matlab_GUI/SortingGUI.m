@@ -470,6 +470,23 @@ end
 handles.TemplateDisplayRatio = 0.9;
 
 
+%% duration
+
+
+tmpfile = [handles.filename '.result' handles.suffix];
+tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+
+if exist(tmpfile, 'file')
+    info    = h5info(tmpfile);
+    for id=1:size(info.Groups, 1)
+        if strcmp(info.Groups(id).Name, '/info')
+            handles.duration = h5read(tmpfile, [info.Groups(id).Name, '/duration']);
+        end
+    end
+else
+    handles.duration = 0;
+end
+
 %% Plot
 
 PlotData(handles)
@@ -1313,7 +1330,13 @@ if nargin == 1
     XL = get(handles.ISIwin, 'XLim');
     set(handles.ISIwin, 'XLim', [0 XL(2)]);
     % x = (0:2:26);
-    set(handles.RPV,'String',['RPV: ' num2str(RatioRPV*100) '%, ' int2str(NbRPV) '/' int2str(lenISI) ]);
+
+    mystring = ['RPV: ' num2str(RatioRPV*100) '%, ' int2str(NbRPV) '/' int2str(lenISI) ];
+    if handles.duration > 0
+        mystring = [mystring ' Rate: ' num2str(lenISI/handles.duration) ' Hz'];
+    end
+
+    set(handles.RPV,'String', mystring);
     
     %% PLOT RASTER
     
