@@ -6,10 +6,11 @@ Release 0.4.2
 * finer control of the amplitudes
 * finer control of the but off frequencies during the filtering
 * the smart search mode is now back, with a simple True/False flag. Use it for long or noisy recordings
-* Display the rate of units in the MATLAB GUI
-* Show the mean amplitude over time in the MATLAB GUI
+* display the rate of units in the MATLAB GUI
+* show the mean amplitude over time in the MATLAB GUI
 * MATLAB is automatically closed when closing the MATLAB GUI
-* Mean rate is now displayed in the MATLAB GUI
+* mean rate is now displayed in the MATLAB GUI, for new datasets only
+* 
 
 
 
