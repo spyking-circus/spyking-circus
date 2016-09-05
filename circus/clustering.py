@@ -519,10 +519,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         c      = 1./numpy.min(z)
                         d      = (1./(c*a))
                         d      = numpy.minimum(1, d)
-                        target = 1./ratio
+                        target = numpy.sum(d)/ratio
                         twist  = numpy.sum(a*d)/target
                         factor = twist*c
-                        #print factor, c, twist, target
 
                         result['hist_%s_'%p + str(ielec) ]   = factor*a
                         result['bounds_%s_' %p + str(ielec)] = b
