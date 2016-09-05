@@ -25,5 +25,8 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 :license: CeCILL, see LICENSE for details.
 
 .. image::  https://anaconda.org/spyking-circus/spyking-circus/badges/version.svg
+	:target: https://anaconda.org/spyking-circus/spyking-circus
+
 .. image::  https://badge.fury.io/py/spyking-circus.svg
+	:target: https://badge.fury.io/py/spyking-circus
 
