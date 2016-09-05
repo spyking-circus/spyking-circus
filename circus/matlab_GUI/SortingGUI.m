@@ -476,15 +476,15 @@ handles.TemplateDisplayRatio = 0.9;
 tmpfile = [handles.filename '.result' handles.suffix];
 tmpfile = strrep(tmpfile, '.mat', '.hdf5');
 
+handles.duration = 0;
+
 if exist(tmpfile, 'file')
     info    = h5info(tmpfile);
     for id=1:size(info.Groups, 1)
         if strcmp(info.Groups(id).Name, '/info')
             handles.duration = h5read(tmpfile, [info.Groups(id).Name, '/duration']);
         end
-    end
-else
-    handles.duration = 0;
+    end   
 end
 
 %% Plot
@@ -1333,7 +1333,7 @@ if nargin == 1
 
     mystring = ['RPV: ' num2str(RatioRPV*100) '%, ' int2str(NbRPV) '/' int2str(lenISI) ];
     if handles.duration > 0
-        mystring = [mystring ' Rate: ' num2str(lenISI/handles.duration) ' Hz'];
+        mystring = [mystring ' Rate: ' num2str(lenISI/double(handles.duration)) ' Hz'];
     end
 
     set(handles.RPV,'String', mystring);
