@@ -1658,7 +1658,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if os.path.exists(amplitudes_file):
 
             amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
-            spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.int32)
+            spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.uint32)
             templates  = numpy.fromfile(templates_file, dtype=numpy.int32)
             N          = len(amplitudes)
             amplitudes = amplitudes.reshape(N//2, 2)
@@ -1688,7 +1688,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
-        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.int32)
+        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
         idx                       = numpy.argsort(result['spiketimes'][key])
         result['amplitudes'][key] = numpy.array(result['amplitudes'][key], dtype=numpy.float32)
         result['spiketimes'][key] = result['spiketimes'][key][idx]
