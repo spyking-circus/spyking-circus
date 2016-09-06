@@ -37,6 +37,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges   = io.get_nodes_and_edges(params)
     chunk_size     = params.getint('data', 'chunk_size')
     max_elts_elec  = params.getint('clustering', 'max_elts')
+    if sign_peaks == 'both':
+       max_elts_elec *= 2
     nb_elts        = int(params.getfloat('clustering', 'nb_elts')*N_e*max_elts_elec)
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
@@ -202,6 +204,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             chunks_to_load     = all_chunks
             nb_elecs           = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_e), comm.size))
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
+            if sign_peaks == 'both':
+                loop_max_elts_elec *= 2
             loop_nb_elts       = numpy.int64(params.getfloat('clustering', 'nb_elts') * nb_elecs * loop_max_elts_elec)
         else:
             chunks_to_load     = all_chunks[comm.rank::comm.size]
