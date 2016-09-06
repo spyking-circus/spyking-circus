@@ -495,22 +495,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                         # Need to estimate the number of spikes
                         n_estimate = len(result['tmp_%s_' %p + str(ielec)])*nb_chunks / float(result['nb_chunks_' + str(ielec)])
-                        ampmin, ampmax = numpy.min(result['tmp_%s_' %loc_peak + str(ielec)]), numpy.max(result['tmp_%s_' %loc_peak + str(ielec)])
-                        if loc_peak == 'pos':
+                        ampmin, ampmax = numpy.min(result['tmp_%s_' %p + str(ielec)]), numpy.max(result['tmp_%s_' %p + str(ielec)])
+                        if p == 'pos':
                             if matched_filter:
                                 bound = matched_tresholds_pos[ielec]
                             else:
                                 bound = thresholds[ielec]
-                            bins = numpy.linspace(bound, ampmax, 20).tolist() + [1e6]
-                        elif loc_peak == 'neg':
+                            bins = numpy.linspace(bound, ampmax, 20).tolist() + [numpy.inf]
+                        elif p == 'neg':
                             if matched_filter:
                                 bound = matched_tresholds_neg[ielec]
                                 bins  = numpy.linspace(bound, ampmax, 20).tolist() + [1e6]
                             else:
                                 bound = thresholds[ielec]
-                                bins  = [-1e6] + numpy.linspace(ampmin, bound, 20).tolist()
+                                bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 20).tolist()
 
-                        a, b  = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins)
+                        a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
                         a     = a/float(numpy.sum(a))
                         
                         ratio  = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
