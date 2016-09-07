@@ -459,7 +459,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if sign_peaks == 'negative':
                     bestlecs = numpy.argmin(c_local_chunk[gspikes, :], 1)
                     if matched_filter:
-                        threshs = matched_tresholds_neg[bestlecs]
+                        threshs = -matched_tresholds_neg[bestlecs]
                     else:
                         threshs = -thresholds[bestlecs]
                     idx      = numpy.where(c_local_chunk[gspikes, bestlecs] < threshs)[0]
@@ -471,16 +471,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         threshs = thresholds[bestlecs]
                     idx      = numpy.where(c_local_chunk[gspikes, bestlecs] > threshs)[0]
                 elif sign_peaks == 'both':
+                    bestlecs = numpy.argmax(numpy.abs(c_local_chunk[gspikes, :]), 1)
                     if matched_filter:
-                        threshs = numpy.maximum(-matched_tresholds_neg[bestlecs], matched_tresholds_pos[bestlecs])
+                        threshs = numpy.maximum(matched_tresholds_neg[bestlecs], matched_tresholds_pos[bestlecs])
                     else:
                         threshs = thresholds[bestlecs]
-                    bestlecs = numpy.argmax(numpy.abs(c_local_chunk)[gspikes, :], 1)
                     idx      = numpy.where(numpy.abs(c_local_chunk[gspikes, bestlecs]) > threshs)[0]
                 
                 gspikes  = numpy.take(gspikes, idx)
                 bestlecs = numpy.take(bestlecs, idx)
-                gspikes_to_write     = numpy.array(gspikes + local_offset, dtype=numpy.int32)
+                gspikes_to_write     = numpy.array(gspikes + local_offset, dtype=numpy.uint32)
                 gtemplates_to_write  = numpy.array(bestlecs, dtype=numpy.int32)
 
                 garbage_times_file.write(gspikes_to_write.tostring())
