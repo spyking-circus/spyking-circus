@@ -1,8 +1,3 @@
-try:
-    import cudamat as cmt
-except ImportError:
-    cmt = None
-
 import circus.shared.algorithms as algo
 from .shared.utils import *
 
@@ -450,7 +445,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     mask[:, numpy.compress(sub_idx, myslice)] = 0
 
 
-            spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
+            spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
             templates_to_write  = numpy.array(result['templates'], dtype=numpy.int32)
 

@@ -1,9 +1,11 @@
 import os, sys, nose, h5py
 import circus
 import subprocess
-from termcolor import colored
 import urllib2
 import unittest
+import colorama
+colorama.init(autoreset=True)
+from colorama import Fore, Back, Style
 import shutil
 import pkg_resources
 from circus.shared.utils import *
@@ -54,7 +56,7 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
                  subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
     else:
         if (output is None) or (benchmark is None):
-            print colored("To generate synthetic datasets, you must provide output and type", 'red')
+            print "To generate synthetic datasets, you must provide output and type"
             sys.exit()
         args += ['-np', nb_tasks,
                  'spyking-circus-subtask',

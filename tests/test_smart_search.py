@@ -103,18 +103,12 @@ class TestSmartSearch(unittest.TestCase):
     #    data_path = '.'.join(self.file_name.split('.')[:-1])
     #    shutil.rmtree(data_path)
 
-    def test_smart_search_tiny(self):
-        io.change_flag(self.file_name, 'smart_search', '0.02')
+    def test_smart_search_on(self):
+        io.change_flag(self.file_name, 'smart_search', 'True')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'smart_search', '0')
-        res = get_performance(self.file_name, 'smart_search_0.01')
-    
-    def test_smart_search_large(self):
-        io.change_flag(self.file_name, 'smart_search', '0.5')
-        mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'smart_search', '0')
-        res = get_performance(self.file_name, 'smart_search_0.5')
+        io.change_flag(self.file_name, 'smart_search', 'False')
+        res = get_performance(self.file_name, 'smart_search_on')
 
-    def test_no_smart_search(self):
+    def test_smart_search_off(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        res = get_performance(self.file_name, 'smart_search_0')
+        res = get_performance(self.file_name, 'smart_search_off')

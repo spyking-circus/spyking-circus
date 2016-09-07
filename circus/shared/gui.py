@@ -1038,7 +1038,7 @@ class PreviewGUI(QtGui.QMainWindow):
         self.probe            = io.read_probe(params)
         self.N_e              = params.getint('data', 'N_e')
         self.N_t              = params.getint('data', 'N_t')
-        self.spike_thresh     = params.getint('detection', 'spike_thresh')
+        self.spike_thresh     = params.getfloat('detection', 'spike_thresh')
         self.peaks_sign       = params.get('detection', 'peaks')  
         self.N_total          = numpy.int64(params.getint('data', 'N_total'))
         self.sampling_rate    = params.getint('data', 'sampling_rate')

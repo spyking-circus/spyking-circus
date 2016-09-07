@@ -12,7 +12,7 @@ requirements:
     - scipy
     - matplotlib
     - h5py
-    - setuptools
+    - setuptools >=26
     - colorama
     - psutil
     - scikit-learn
@@ -25,16 +25,27 @@ requirements:
     - scipy
     - matplotlib
     - h5py
-    - setuptools
+    - setuptools >=26
     - colorama
     - qt
+    - psutil
     - pyqt >=4,<=5
     - scikit-learn
 source:
   path: ..
 
 build:
-  script: python setup.py install --single-version-externally-managed --record=record.txt
+  noarch_python: False
+  number: 9
+  script: python setup.py install --nocuda --single-version-externally-managed --record=record.txt
+
+#app:
+#  entry: spyking-circus .        [win]
+#  entry: spyking-circus .        [linux]
+#  entry: open ${PREFIX}/bin/spyking-circus_mac.command [osx]
+#  icon: app.png
+#  summary: Fast Semi Automated Spike Sorting
+#  type: neuroscience
 
 test:
   # Python imports

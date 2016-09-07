@@ -6,6 +6,7 @@ import shutil
 import sys
 import textwrap
 import numpy
+import circus
 
 import pkg_resources
 
@@ -588,7 +589,7 @@ class LaunchGUI(QtGui.QDialog):
     def show_about(self):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)
-        msg.setText("SpyKING CIRCUS v0.4")
+        msg.setText("SpyKING CIRCUS v%s" %circus.__version__)
         msg.setWindowTitle("About")
         msg.setInformativeText("Documentation can be found at\n"
                                 "http://spyking-circus.rtfd.org\n"
