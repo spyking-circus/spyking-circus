@@ -216,6 +216,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             loop_max_elts_elec = max_elts_elec
             loop_nb_elts       = nb_elts
 
+        loop_max_elts_elec /= len(search_peaks)
+
         if comm.rank == 0:
             pbar = get_progressbar(loop_nb_elts)
 
@@ -656,6 +658,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     gdata2     = gather_array(numpy.array([local_mergings], dtype=numpy.float32), comm, 0)
     gdata3     = gather_array(numpy.array([local_nb_clusters], dtype=numpy.float32), comm, 0)
 
+    mean_channels = 0
 
     if comm.rank == 0:
         total_hits        = int(numpy.sum(gdata))
@@ -767,12 +770,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         templates[indices, :] = tmp_templates
 
+                    mean_channels += len(indices)
                     if comp_templates:
                         to_delete  = []
                         for i in indices:
                             if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
                                 templates[i, :] = 0
                                 to_delete += [i]
+                        mean_channels -= len(to_delete)
 
                     templates  = templates.ravel()
                     dx         = templates.nonzero()[0].astype(numpy.int32)
@@ -884,6 +889,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         del result, amps_lims
         
         comm.Barrier()
+
+        gdata4 = gather_array(numpy.array([mean_channels/local_nb_clusters], dtype=numpy.float32), comm, 0)
+
+        if comm.rank == 0:
+            mean_channels = numpy.mean(gdata4)
+            if mean_channels < 3 and params.getfloat('clustering', 'cc_merge') != 1:
+                io.print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', params)
 
         #We need to gather the sparse arrays
         temp_x    = gather_array(temp_x, comm, dtype='int32')        
