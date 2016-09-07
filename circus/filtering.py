@@ -13,15 +13,37 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
-    cut_off        = params.getint('filtering', 'cut_off')
     sampling_rate  = params.getint('data', 'sampling_rate')
+
+    try:
+        cut_off    = params.getfloat('filtering', 'cut_off')
+        cut_off    = [cut_off, 0.95*(sampling_rate/2.)]
+    except Exception:
+        cut_off        = params.get('filtering', 'cut_off')
+        cut_off        = cut_off.split(',')
+        try:
+            cut_off[0] = float(cut_off[0])
+        except Exception:
+            io.print_and_log(['First value of cut off must be a valid number'], 'error', params)
+            sys.exit(0)
+        
+        cut_off[1] = cut_off[1].replace(' ', '')
+        if cut_off[1] == 'auto':
+            cut_off[1] = 0.95*(sampling_rate/2.)
+        else:
+            try:
+                cut_off[1] = float(cut_off[1])
+            except Exception:
+                io.print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
+                sys.exit(0)
+
     remove_median  = params.getboolean('filtering', 'remove_median')
     nodes, edges   = io.get_nodes_and_edges(params)
     #################################################################
 
     if filter_done:
         if comm.rank == 0:
-            to_write = ["Filtering has already been done with cut off at %dHz" %cut_off]
+            to_write = ["Filtering has already been done with in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
             if remove_median:
                 to_write += ["Median over all channels was substracted to each channels"]
             io.print_and_log(to_write, 'info', params)
@@ -36,14 +58,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         def filter_file(params, comm, mpi_input, mpi_output, offset=0, perform_filtering=True):
 
             N_total        = params.getint('data', 'N_total')
-            cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
 
             borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
             if last_chunk_len > 0:
                 nb_chunks += 1
 
-            b, a          = signal.butter(3, (cut_off/(sampling_rate/2.), 0.95), 'pass')
+            b, a          = signal.butter(3, np.array(cut_off)/(sampling_rate/2.), 'pass')
             all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
@@ -52,7 +73,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 if perform_filtering:
-                    to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off, int(0.95*(sampling_rate/2)))]
+                    to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
                 elif multi_files:
                     to_write = ["Concatenating multi files without filtering"]
                 if remove_median:
@@ -107,7 +128,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         def compute_artefacts(params, comm, max_offset):
 
-            cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
@@ -172,7 +192,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         def remove_artefacts(params, comm, art_dict, mpi_file, max_offset):
 
             N_total        = params.getint('data', 'N_total')
-            cut_off        = params.getint('filtering', 'cut_off')
             chunk_size     = params.getint('whitening', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
