@@ -68,7 +68,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         search_peaks = ['neg', 'pos']
 
     smart_searches = {}
+    rhos           = {}
     for p in search_peaks:
+        rhos[p]           = {}
         smart_searches[p] = numpy.ones(N_e, dtype=numpy.float32)*int(smart_search)
 
     basis = {}
@@ -132,6 +134,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
+            rhos[p][i] = {}
         indices = numpy.take(inv_nodes, edges[nodes[i]])
         elec_positions[i] = numpy.where(indices == i)[0]
 
@@ -463,10 +466,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_hits        = 0
         local_mergings    = 0
         cluster_results   = {}
-        rhos              = {}
         for p in search_peaks:
             cluster_results[p] = {}
-            rhos[p]            = {}
 
         if gpass > 1:
             for ielec in xrange(N_e):
@@ -500,8 +501,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             for p in search_peaks:
                 cluster_results[p][ielec] = {}
-                rhos[p][ielec]            = {}
-
+                
                 if gpass == 0:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
 
@@ -554,9 +554,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
                         rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
-                        result['norm_%s_' %p + str(ielec)] = int(m_ratio*(len(result['data_%s_' %p + str(ielec)]) - 1))
+                        #result['norm_%s_' %p + str(ielec)] = int(m_ratio*(len(result['data_%s_' %p + str(ielec)]) - 1))
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
                         rhos[p][ielec] = rho
+
                         tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True)
                         del dist
                     else:
@@ -565,7 +566,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             dimension                   = basis['proj_%s' %p].shape[1] * n_neighb
                             result['pca_%s_' %p + str(ielec)] = numpy.identity(dimension, dtype=numpy.float32)
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
-                        result['norm_%s_' %p + str(ielec)] = 1
+                        #result['norm_%s_' %p + str(ielec)] = 1
                         dist                         = numpy.zeros(0, dtype=numpy.float64)
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 else:
@@ -583,10 +584,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     N           = len(rhos[p][ielec])
                     to_consider = int(m_ratio*N)
                     for i in xrange(N):
-                        idx     = numpy.argsort(rhorhos[p][ielec][i])[:max(1, to_consider)]
+                        idx     = numpy.argsort(rhos[p][ielec][i])[:max(1, to_consider)]
                         result['rho_%s_' %p  + str(ielec)][i] = numpy.mean(numpy.take(rhos[p][ielec][i], idx)) 
-                        del rhos[p][ielec] 
-                        
+                    
+                    del rhos[p][ielec]    
                     result.pop('tmp_%s_' %p + str(ielec))                    
                     n_data  = len(result['data_%s_' %p + str(ielec)])
                     n_min   = numpy.maximum(20, int(nclus_min*n_data))
@@ -634,7 +635,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                                    cluster_results[p][ielec]['groups'], injected=injected,
                                                    save=save)
 
-                        keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec), 'norm_%s_' %p + str(ielec)]
+                        keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec)]
                         for key in keys:
                             if result.has_key(key):
                                 result.pop(key)
