@@ -25,7 +25,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     N_t            = params.getint('data', 'N_t')
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
-    export_all     = params.get('converting', 'export_all')
+    export_all     = params.getboolean('converting', 'export_all')
     
     def generate_mapping(probe):
         p         = {}
