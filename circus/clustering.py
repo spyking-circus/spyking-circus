@@ -514,8 +514,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             bins = numpy.linspace(bound, ampmax, 20).tolist() + [numpy.inf]
                         elif p == 'neg':
                             if matched_filter:
-                                bound = matched_tresholds_neg[ielec]
-                                bins  = numpy.linspace(bound, ampmax, 20).tolist() + [1e6]
+                                bound = -matched_tresholds_neg[ielec]
+                                bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 20).tolist()
                             else:
                                 bound = thresholds[ielec]
                                 bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 20).tolist()
