@@ -123,6 +123,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
 
+    elec_positions = {}
+
     for i in xrange(N_e):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
@@ -130,7 +132,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
-        
+        indices = numpy.take(inv_nodes, edges[nodes[i]])
+        elec_positions[i] = numpy.where(indices == i)[0]
 
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
@@ -345,8 +348,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     to_update = result['tmp_%s_' %loc_peak + str(elec)]
                                 
                                 if len(to_update) < loop_max_elts_elec:
+                                    
                                     if alignment:
-                                        idx   = numpy.where(indices == elec)[0]
+                                        idx   = elec_positions[elec]
                                         zdata = numpy.take(local_chunk[peak-2*template_shift:peak+2*template_shift+1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
@@ -370,17 +374,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                                     if gpass == 0:
                                         to_accept  = True
-                                        ext_amp    = local_chunk[peak, elec]
-                                        result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], [ext_amp]))
+                                        idx        = elec_positions[elec]
+                                        ext_amp    = sub_mat[template_shift, idx]
+                                        result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
                                     elif gpass == 1:
-
-                                        sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
-                                        nx, ny     = sub_mat.shape
-                                        sub_mat    = sub_mat.reshape((1, nx * ny))
 
                                         if smart_searches[loc_peak][elec] > 0:
                                             
-                                            ext_amp = local_chunk[peak, elec]
+                                            idx     = elec_positions[elec]
+                                            ext_amp = sub_mat[template_shift, idx]
                                             idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp)
                                             to_keep = result['hist_%s_' %loc_peak + str(elec)][idx - 1] < numpy.random.rand() 
 
@@ -393,6 +395,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             to_accept = True
 
                                         if to_accept:
+                                            sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
+                                            nx, ny     = sub_mat.shape
+                                            sub_mat    = sub_mat.reshape((1, nx * ny))
                                             result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
                                                 
                                     else:
@@ -458,8 +463,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_hits        = 0
         local_mergings    = 0
         cluster_results   = {}
+        rhos              = {}
         for p in search_peaks:
             cluster_results[p] = {}
+            rhos[p]            = {}
 
         if gpass > 1:
             for ielec in xrange(N_e):
@@ -493,6 +500,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             for p in search_peaks:
                 cluster_results[p][ielec] = {}
+                rhos[p][ielec]            = {}
 
                 if gpass == 0:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
@@ -547,7 +555,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                         rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
                         result['norm_%s_' %p + str(ielec)] = int(m_ratio*(len(result['data_%s_' %p + str(ielec)]) - 1))
-                        result['rho_%s_' %p  + str(ielec)] = rho
+                        result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
+                        rhos[p][ielec] = rho
                         tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True)
                         del dist
                     else:
@@ -555,19 +564,29 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             n_neighb                    = len(edges[nodes[ielec]])
                             dimension                   = basis['proj_%s' %p].shape[1] * n_neighb
                             result['pca_%s_' %p + str(ielec)] = numpy.identity(dimension, dtype=numpy.float32)
-                        result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float64)
+                        result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
                         result['norm_%s_' %p + str(ielec)] = 1
                         dist                         = numpy.zeros(0, dtype=numpy.float64)
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 else:
                     if len(result['sub_%s_' %p + str(ielec)]) > 1:
                         data  = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                        rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=data, mratio=m_ratio)
-                        result['rho_%s_' %p  + str(ielec)] += rho
-                        result['norm_%s_' %p + str(ielec)] += int(m_ratio*len(result['tmp_%s_' %p + str(ielec)]))
+                        rho_update, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=data, mratio=m_ratio)
+                        N = len(rhos[p][ielec])
+                        for i in xrange(N):
+                            rhos[p][ielec][i] += rho_update.pop(i)
+                        #result['rho_%s_' %p  + str(ielec)] += rho
+                        #result['norm_%s_' %p + str(ielec)] += int(m_ratio*len(result['tmp_%s_' %p + str(ielec)]))
 
                 if gpass == nb_repeats:
-                    
+
+                    N           = len(rhos[p][ielec])
+                    to_consider = int(m_ratio*N)
+                    for i in xrange(N):
+                        idx     = numpy.argsort(rhorhos[p][ielec][i])[:max(1, to_consider)]
+                        result['rho_%s_' %p  + str(ielec)][i] = numpy.mean(numpy.take(rhos[p][ielec][i], idx)) 
+                        del rhos[p][ielec] 
+                        
                     result.pop('tmp_%s_' %p + str(ielec))                    
                     n_data  = len(result['data_%s_' %p + str(ielec)])
                     n_min   = numpy.maximum(20, int(nclus_min*n_data))
@@ -581,7 +600,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max() 
-                        result['rho_%s_' %p + str(ielec)] /= max(1, result['norm_%s_' %p + str(ielec)])
+                        #result['rho_%s_' %p + str(ielec)] /= max(1, result['norm_%s_' %p + str(ielec)])
 
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       m_ratio,

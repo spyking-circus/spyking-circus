@@ -56,7 +56,7 @@ def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
 
     N    = len(data)
-    rho  = numpy.zeros(N, dtype=numpy.float64)
+    rho  = {} #numpy.zeros(N, dtype=numpy.float64)
         
     if update is None:
         dist = distancematrix(data)
@@ -66,7 +66,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
             for i in xrange(N):
                 indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
                 tmp     = numpy.argsort(numpy.take(dist, indices))[:max(1, int(mratio*N))]
-                rho[i]  = numpy.sum(numpy.take(dist, numpy.take(indices, tmp)))  
+                rho[i]  = numpy.take(dist, numpy.take(indices, tmp)).tolist()  
 
     else:
         M = len(update)
@@ -74,7 +74,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update).ravel()
             tmp      = numpy.argsort(dist)[:max(1, int(mratio*M))]
-            rho[i]   = numpy.sum(numpy.take(dist, tmp))
+            rho[i]   = numpy.take(dist, tmp).tolist()
     return rho, dist
 
 
