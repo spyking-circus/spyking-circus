@@ -62,6 +62,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.uint32)))
         
         if export_all:
+            print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', params)
             garbage = circus.shared.utils.io.load_data(params, 'garbage', extension)
             for key in garbage['gspikes'].keys():
                 elec_id    = int(key.split('_')[-1])
