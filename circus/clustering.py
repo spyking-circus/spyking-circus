@@ -181,7 +181,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if gpass == 0:
                 for p in search_peaks:
                     result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
-                    result['nb_chunks_' + str(i)] = 0
+                    result['nb_chunks_%s_' %p + str(i)] = 0
             else:
                 n_neighb = len(edges[nodes[i]])
                 for p in search_peaks:
@@ -215,8 +215,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             chunks_to_load     = all_chunks[comm.rank::comm.size]
             loop_max_elts_elec = max_elts_elec
             loop_nb_elts       = nb_elts
-
-        loop_max_elts_elec /= len(search_peaks)
 
         if comm.rank == 0:
             pbar = get_progressbar(loop_nb_elts)
@@ -427,7 +425,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 if gpass == 0:
                     for i in xrange(comm.rank, N_e, comm.size):
-                        result['nb_chunks_' + str(i)] += 1
+                        for p in search_peaks:
+                            if len(result['tmp_%s_' %p + str(i)]) < loop_max_elts_elec:
+                                result['nb_chunks_%s_' %p + str(i)] += 1
 
             if comm.rank == 0:
                 if (elt_count < (gcount+1)*loop_nb_elts//len(chunks_to_load)):
@@ -504,7 +504,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
 
                         # Need to estimate the number of spikes
-                        n_estimate = len(result['tmp_%s_' %p + str(ielec)])*nb_chunks / float(result['nb_chunks_' + str(ielec)])
+                        ratio = nb_chunks / float(result['nb_chunks_%s_' %p + str(ielec)])
                         ampmin, ampmax = numpy.min(result['tmp_%s_' %p + str(ielec)]), numpy.max(result['tmp_%s_' %p + str(ielec)])
                         if p == 'pos':
                             if matched_filter:
@@ -521,8 +521,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
                         a     = a/float(numpy.sum(a))
-                        
-                        ratio  = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
                         
                         z      = a[a > 0]
                         c      = 1./numpy.min(z)
@@ -658,6 +656,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     gdata2     = gather_array(numpy.array([local_mergings], dtype=numpy.float32), comm, 0)
     gdata3     = gather_array(numpy.array([local_nb_clusters], dtype=numpy.float32), comm, 0)
 
+
     if comm.rank == 0:
         total_hits        = int(numpy.sum(gdata))
         total_mergings    = int(numpy.sum(gdata2))
@@ -770,7 +769,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                     if comp_templates:
                         to_delete  = []
-                        for i in xrange(N_e):
+                        for i in indices:
                             if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
                                 templates[i, :] = 0
                                 to_delete += [i]
