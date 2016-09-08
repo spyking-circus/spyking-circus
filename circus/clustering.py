@@ -890,10 +890,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         comm.Barrier()
 
-        gdata4 = gather_array(numpy.array([mean_channels/local_nb_clusters], dtype=numpy.float32), comm, 0)
+        if local_nb_clusters > 0:
+            mean_channels /= local_nb_clusters
+
+        gdata4 = gather_array(numpy.array([mean_channels], dtype=numpy.float32), comm, 0)
 
         if comm.rank == 0:
-            mean_channels = numpy.mean(gdata4)
+            idx           = numpy.where(gdata4 != 0)[0]
+            mean_channels = numpy.mean(gdata4[idx])
             if mean_channels < 3 and params.getfloat('clustering', 'cc_merge') != 1:
                 io.print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', params)
 
