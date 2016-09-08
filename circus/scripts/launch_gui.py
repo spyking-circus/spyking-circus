@@ -30,6 +30,17 @@ def strip_ansi_codes(s):
     return re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?', '', s)
 
 
+def to_str(b):
+    """
+    Helper function to convert a byte string (or a QByteArray) to a string --
+    for Python 3, this specifies an encoding to not end up with "b'...'".
+    """
+    if sys.version_info[0] == 3:
+        return str(b, encoding='ascii')
+    else:
+        return str(b)
+
+
 def overwrite_text(cursor, text):
     text_length = len(text)
     cursor.clearSelection()
@@ -482,7 +493,7 @@ class LaunchGUI(QtGui.QDialog):
     def append_output(self):
         if self.process is None:  # Can happen when manually interrupting
             return
-        lines = strip_ansi_codes(str(self.process.readAllStandardOutput()))
+        lines = strip_ansi_codes(to_str(self.process.readAllStandardOutput()))
         self.add_output_lines(lines)
         # We manually deal with keyboard input in the output
         if 'Export already made! Do you want to erase everything? (y)es / (n)o' in lines:
@@ -523,7 +534,7 @@ class LaunchGUI(QtGui.QDialog):
     def append_error(self):
         if self.process is None:  # Can happen when manually interrupting
             return
-        lines = strip_ansi_codes(str(self.process.readAllStandardError()))
+        lines = strip_ansi_codes(to_str(self.process.readAllStandardError()))
         self.add_output_lines(lines)
 
     def stop(self, force=False):
