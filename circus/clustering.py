@@ -37,6 +37,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges   = io.get_nodes_and_edges(params)
     chunk_size     = params.getint('data', 'chunk_size')
     max_elts_elec  = params.getint('clustering', 'max_elts')
+    if sign_peaks == 'both':
+       max_elts_elec *= 2
     nb_elts        = int(params.getfloat('clustering', 'nb_elts')*N_e*max_elts_elec)
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
@@ -121,6 +123,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
 
+    elec_positions = {}
+
     for i in xrange(N_e):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
@@ -128,7 +132,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
-        
+            result['norm_%s_' %p + str(i)] = 0
+        indices = numpy.take(inv_nodes, edges[nodes[i]])
+        elec_positions[i] = numpy.where(indices == i)[0]
 
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
@@ -175,7 +181,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if gpass == 0:
                 for p in search_peaks:
                     result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
-                    result['nb_chunks_' + str(i)] = 0
+                    result['nb_chunks_%s_' %p + str(i)] = 0
             else:
                 n_neighb = len(edges[nodes[i]])
                 for p in search_peaks:
@@ -202,6 +208,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             chunks_to_load     = all_chunks
             nb_elecs           = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_e), comm.size))
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
+            if sign_peaks == 'both':
+                loop_max_elts_elec *= 2
             loop_nb_elts       = numpy.int64(params.getfloat('clustering', 'nb_elts') * nb_elecs * loop_max_elts_elec)
         else:
             chunks_to_load     = all_chunks[comm.rank::comm.size]
@@ -341,8 +349,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                     to_update = result['tmp_%s_' %loc_peak + str(elec)]
                                 
                                 if len(to_update) < loop_max_elts_elec:
+                                    
                                     if alignment:
-                                        idx   = numpy.where(indices == elec)[0]
+                                        idx   = elec_positions[elec]
                                         zdata = numpy.take(local_chunk[peak-2*template_shift:peak+2*template_shift+1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
@@ -366,21 +375,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                                     if gpass == 0:
                                         to_accept  = True
-                                        ext_amp    = local_chunk[peak, elec]
-                                        result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], [ext_amp]))
+                                        idx        = elec_positions[elec]
+                                        ext_amp    = sub_mat[template_shift, idx]
+                                        result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
                                     elif gpass == 1:
-
-                                        sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
-                                        nx, ny     = sub_mat.shape
-                                        sub_mat    = sub_mat.reshape((1, nx * ny))
 
                                         if smart_searches[loc_peak][elec] > 0:
                                             
-                                            ext_amp = local_chunk[peak, elec]
+                                            idx     = elec_positions[elec]
+                                            ext_amp = sub_mat[template_shift, idx]
                                             idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp)
-                                            reject  = numpy.random.rand() < result['hist_%s_' %loc_peak + str(elec)][idx - 1] 
+                                            to_keep = result['hist_%s_' %loc_peak + str(elec)][idx - 1] < numpy.random.rand() 
 
-                                            if not reject:
+                                            if to_keep:
                                                 to_accept = True
                                             else:
                                                 rejected += 1
@@ -389,6 +396,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                             to_accept = True
 
                                         if to_accept:
+                                            sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
+                                            nx, ny     = sub_mat.shape
+                                            sub_mat    = sub_mat.reshape((1, nx * ny))
                                             result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
                                                 
                                     else:
@@ -417,7 +427,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 if gpass == 0:
                     for i in xrange(comm.rank, N_e, comm.size):
-                        result['nb_chunks_' + str(i)] += 1
+                        for p in search_peaks:
+                            if len(result['tmp_%s_' %p + str(i)]) < loop_max_elts_elec:
+                                result['nb_chunks_%s_' %p + str(i)] += 1
 
             if comm.rank == 0:
                 if (elt_count < (gcount+1)*loop_nb_elts//len(chunks_to_load)):
@@ -489,37 +501,38 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             
             for p in search_peaks:
                 cluster_results[p][ielec] = {}
-
+                
                 if gpass == 0:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
 
                         # Need to estimate the number of spikes
-                        n_estimate = len(result['tmp_%s_' %p + str(ielec)])*nb_chunks / float(result['nb_chunks_' + str(ielec)])
-                        ampmin, ampmax = numpy.min(result['tmp_%s_' %loc_peak + str(ielec)]), numpy.max(result['tmp_%s_' %loc_peak + str(ielec)])
-                        if loc_peak == 'pos':
+                        ratio = nb_chunks / float(result['nb_chunks_%s_' %p + str(ielec)])
+                        ampmin, ampmax = numpy.min(result['tmp_%s_' %p + str(ielec)]), numpy.max(result['tmp_%s_' %p + str(ielec)])
+                        if p == 'pos':
                             if matched_filter:
                                 bound = matched_tresholds_pos[ielec]
                             else:
                                 bound = thresholds[ielec]
-                            bins = numpy.linspace(bound, ampmax, 20).tolist() + [1e6]
-                        elif loc_peak == 'neg':
+                            bins = numpy.linspace(bound, ampmax, 50).tolist() + [numpy.inf]
+                        elif p == 'neg':
                             if matched_filter:
-                                bound = matched_tresholds_neg[ielec]
-                                bins  = numpy.linspace(bound, ampmax, 20).tolist() + [1e6]
+                                bound = -matched_tresholds_neg[ielec]
                             else:
                                 bound = thresholds[ielec]
-                                bins  = [-1e6] + numpy.linspace(ampmin, bound, 20).tolist()
+                            bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 50).tolist()
 
-                        a, b = numpy.histogram(result['tmp_%s_' %loc_peak + str(ielec)], bins)
-                        a    = a/float(numpy.sum(a))
-
-                        ratio = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
-
-
-                        if ratio > 1:
-                            a = a**(1./ratio)
+                        a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
+                        a     = a/float(numpy.sum(a))
                         
-                        result['hist_%s_'%p + str(ielec) ]   = a
+                        z      = a[a > 0]
+                        c      = 1./numpy.min(z)
+                        d      = (1./(c*a))
+                        d      = numpy.minimum(1, d)
+                        target = numpy.sum(d)/ratio
+                        twist  = numpy.sum(a*d)/target
+                        factor = twist*c
+
+                        result['hist_%s_'%p + str(ielec) ]   = factor*a
                         result['bounds_%s_' %p + str(ielec)] = b
                     else:
                         smart_searches[p][ielec] = 0
@@ -538,18 +551,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
                         rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
-                        result['norm_%s_' %p + str(ielec)] = int(m_ratio*(len(result['data_%s_' %p + str(ielec)]) - 1))
                         result['rho_%s_' %p  + str(ielec)] = rho
+                        result['norm_%s_' %p + str(ielec)] = int(m_ratio*(len(result['data_%s_' %p + str(ielec)]) - 1))
                         tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True)
-                        del dist
+                        del dist, rho
                     else:
                         if result['pca_%s_' %p + str(ielec)] is None:
                             n_neighb                    = len(edges[nodes[ielec]])
                             dimension                   = basis['proj_%s' %p].shape[1] * n_neighb
                             result['pca_%s_' %p + str(ielec)] = numpy.identity(dimension, dtype=numpy.float32)
-                        result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float64)
+                        result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
                         result['norm_%s_' %p + str(ielec)] = 1
-                        dist                         = numpy.zeros(0, dtype=numpy.float64)
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 else:
                     if len(result['sub_%s_' %p + str(ielec)]) > 1:
@@ -557,9 +569,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=data, mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)] += rho
                         result['norm_%s_' %p + str(ielec)] += int(m_ratio*len(result['tmp_%s_' %p + str(ielec)]))
+                        del dist, rho
 
                 if gpass == nb_repeats:
-                    
+
                     result.pop('tmp_%s_' %p + str(ielec))                    
                     n_data  = len(result['data_%s_' %p + str(ielec)])
                     n_min   = numpy.maximum(20, int(nclus_min*n_data))
@@ -570,11 +583,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         flag = 'negative'
 
                     if (n_data > 1):
-                        #tmp_file = os.path.join(tmp_path_loc, os.path.basename(result['dist_' + str(ielec)].name))
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max() 
                         result['rho_%s_' %p + str(ielec)] /= max(1, result['norm_%s_' %p + str(ielec)])
-
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       m_ratio,
                                                                                       n_min=n_min,
@@ -646,6 +657,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     gdata      = gather_array(numpy.array([local_hits], dtype=numpy.float32), comm, 0)
     gdata2     = gather_array(numpy.array([local_mergings], dtype=numpy.float32), comm, 0)
     gdata3     = gather_array(numpy.array([local_nb_clusters], dtype=numpy.float32), comm, 0)
+
+    mean_channels = 0
 
     if comm.rank == 0:
         total_hits        = int(numpy.sum(gdata))
@@ -757,12 +770,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         templates[indices, :] = tmp_templates
 
+                    mean_channels += len(indices)
                     if comp_templates:
                         to_delete  = []
-                        for i in xrange(N_e):
+                        for i in indices:
                             if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
                                 templates[i, :] = 0
                                 to_delete += [i]
+                        mean_channels -= len(to_delete)
 
                     templates  = templates.ravel()
                     dx         = templates.nonzero()[0].astype(numpy.int32)
@@ -874,6 +889,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         del result, amps_lims
         
         comm.Barrier()
+
+        gdata4 = gather_array(numpy.array([mean_channels/local_nb_clusters], dtype=numpy.float32), comm, 0)
+
+        if comm.rank == 0:
+            mean_channels = numpy.mean(gdata4)
+            if mean_channels < 3 and params.getfloat('clustering', 'cc_merge') != 1:
+                io.print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', params)
 
         #We need to gather the sparse arrays
         temp_x    = gather_array(temp_x, comm, dtype='int32')        

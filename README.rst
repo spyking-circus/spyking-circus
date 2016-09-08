@@ -31,3 +31,5 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 .. image::  https://badge.fury.io/py/spyking-circus.svg
 	:target: https://badge.fury.io/py/spyking-circus
 
+.. image:: https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat
+	:target: http://spyking-circus.readthedocs.io/en/latest/?badge=latest
