@@ -231,7 +231,7 @@ but a subset x,y can be done. Steps are:
         else:
             use_gpu = 'False'
 
-        circus.shared.io.data_stats(params)
+        time = circus.shared.io.data_stats(params)/60.
 
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
@@ -239,6 +239,9 @@ but a subset x,y can be done. Steps are:
 
         if params.getboolean('detection', 'matched-filter') and not params.getboolean('clustering', 'smart_search'):
             io.print_and_log(['Smart Search should be activated for matched filtering' ], 'info', params)
+
+        if time > 30 and not params.getboolean('clustering', 'smart_search'):
+            io.print_and_log(['Smart Search could be activated for long recordings' ], 'info', params)
 
         n_edges = circus.shared.io.get_averaged_n_edges(params)
         if n_edges > 100 and not params.getboolean('clustering', 'compress'):

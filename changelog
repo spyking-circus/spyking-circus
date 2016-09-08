@@ -4,6 +4,8 @@ Release 0.4.2
 
 * fix a bug in the test suite
 * fix a bug in python GUI for non integer thresholds
+* fix a bug with output strings in python3
+* fix graphical issues in the launcher and python3
 * finer control of the amplitudes with the dispersion parameter
 * finer control of the cut off frequencies during the filtering
 * the smart search mode is now back, with a simple True/False flag. Use it for long or noisy recordings
@@ -15,6 +17,7 @@ Release 0.4.2
 * various fixed in the docs
 * improvements when peak detection is set on "both"
 * message about cc_merge for low density probes
+* message about smart search for long recordings
 
 
 =============
