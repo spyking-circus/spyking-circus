@@ -5,9 +5,8 @@ import warnings
 from circus.shared.utils import get_progressbar
 
 warnings.simplefilter(action = "ignore", category = FutureWarning)
-import numpy, h5py, os, progressbar, platform, re, sys, scipy
+import numpy, h5py, os, platform, re, sys, scipy
 import ConfigParser as configparser
-import colorama
 import sys
 from colorama import Fore
 from mpi import all_gather_array
@@ -475,7 +474,7 @@ def print_and_log(to_print, level='info', logger=None, display=True):
     if display:
         if level == 'default':
             for line in to_print:
-                print line
+                print Fore.WHITE + line + '\r'
         if level == 'info':
             print_info(to_print)
         elif level == 'error':
@@ -489,19 +488,17 @@ def print_and_log(to_print, level='info', logger=None, display=True):
 
 def print_info(lines):
     """Prints informations messages, enhanced graphical aspects."""
-    colorama.init(autoreset=True)
-    print Fore.YELLOW + "-------------------------  Informations  -------------------------"
+    print Fore.YELLOW + "-------------------------  Informations  -------------------------\r"
     for line in lines:
-        print Fore.YELLOW + "| " + line
-    print Fore.YELLOW + "------------------------------------------------------------------"
+        print Fore.YELLOW + "| " + line + '\r'
+    print Fore.YELLOW + "------------------------------------------------------------------\r"
 
 def print_error(lines):
     """Prints errors messages, enhanced graphical aspects."""
-    colorama.init(autoreset=True)
-    print Fore.RED + "----------------------------  Error  -----------------------------"
+    print Fore.RED + "----------------------------  Error  -----------------------------\r"
     for line in lines:
-        print Fore.RED + "| " + line
-    print Fore.RED + "------------------------------------------------------------------"
+        print Fore.RED + "| " + line + '\r'
+    print Fore.RED + "------------------------------------------------------------------\r"
 
 
 
