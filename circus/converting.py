@@ -5,7 +5,7 @@ import shutil
 import circus
 
 import logging
-
+from colorama import Fore
 import numpy as np
 from circus.shared.mpi import gather_array
 import h5py
@@ -203,7 +203,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             if not erase_all:
                 key = ''
                 while key not in ['y', 'n']:
-                    print("Export already made! Do you want to erase everything? (y)es / (n)o ")
+                    print(Fore.WHITE + "Export already made! Do you want to erase everything? (y)es / (n)o ")
                     key = raw_input('')
                     if key =='y':
                         do_export = True
@@ -253,7 +253,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             if export_pcs == 'prompt':
                 key = ''
                 while key not in ['a', 's', 'n']:
-                    print("Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o")
+                    print(Fore.WHITE + "Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o")
                     key = raw_input('')
             else:
                 key = export_pcs

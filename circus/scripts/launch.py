@@ -154,13 +154,13 @@ but a subset x,y can be done. Steps are:
 
     file_params = f_next + '.params'
     if not os.path.exists(file_params) and not batch:
-        print 'The parameter file %s is not present!' %file_params
+        print Fore.RED + 'The parameter file %s is not present!' %file_params
         key = ''
         while key not in ['y', 'n']:
-            key = raw_input("Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
+            key = raw_input(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
         if key == 'y':
-            print "Generating template file", file_params
-            print "Fill it properly before launching the code! (see documentation)"
+            print Fore.WHITE + "Generating template file", file_params
+            print Fore.WHITE + "Fill it properly before launching the code! (see documentation)"
             shutil.copyfile(config_file, file_params)
         sys.exit()
     elif batch:
@@ -231,11 +231,17 @@ but a subset x,y can be done. Steps are:
         else:
             use_gpu = 'False'
 
-        circus.shared.io.data_stats(params)
+        time = circus.shared.io.data_stats(params)/60.
 
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
                 io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
+
+        if params.getboolean('detection', 'matched-filter') and not params.getboolean('clustering', 'smart_search'):
+            io.print_and_log(['Smart Search should be activated for matched filtering' ], 'info', params)
+
+        if time > 30 and not params.getboolean('clustering', 'smart_search'):
+            io.print_and_log(['Smart Search could be activated for long recordings' ], 'info', params)
 
         n_edges = circus.shared.io.get_averaged_n_edges(params)
         if n_edges > 100 and not params.getboolean('clustering', 'compress'):

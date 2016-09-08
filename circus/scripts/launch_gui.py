@@ -24,10 +24,35 @@ except ImportError:
                              QPushButton, QLineEdit, QPalette, QBrush,
                              QWidget, QTextCursor, QMessageBox, QPixmap,
                              QDesktopServices, QFont)
+import sip
 
+if sys.platform == 'win32':
+    import ctypes
+
+    # This is the data type of the pointer that QProcess.pid() returns on Windows
+    # FIXME: With QT > 5.3, use QProcess.processId() instead
+    class WinProcInfo(ctypes.Structure):
+        _fields_ = [
+            ('hProcess', ctypes.wintypes.HANDLE),
+            ('hThread', ctypes.wintypes.HANDLE),
+            ('dwProcessID', ctypes.wintypes.DWORD),
+            ('dwThreadID', ctypes.wintypes.DWORD),
+            ]
+    LPWinProcInfo = ctypes.POINTER(WinProcInfo)
 
 def strip_ansi_codes(s):
     return re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?', '', s)
+
+
+def to_str(b):
+    """
+    Helper function to convert a byte string (or a QByteArray) to a string --
+    for Python 3, this specifies an encoding to not end up with "b'...'".
+    """
+    if sys.version_info[0] == 3:
+        return str(b, encoding='ascii')
+    else:
+        return str(b)
 
 
 def overwrite_text(cursor, text):
@@ -482,7 +507,7 @@ class LaunchGUI(QtGui.QDialog):
     def append_output(self):
         if self.process is None:  # Can happen when manually interrupting
             return
-        lines = strip_ansi_codes(str(self.process.readAllStandardOutput()))
+        lines = strip_ansi_codes(to_str(self.process.readAllStandardOutput()))
         self.add_output_lines(lines)
         # We manually deal with keyboard input in the output
         if 'Export already made! Do you want to erase everything? (y)es / (n)o' in lines:
@@ -523,7 +548,7 @@ class LaunchGUI(QtGui.QDialog):
     def append_error(self):
         if self.process is None:  # Can happen when manually interrupting
             return
-        lines = strip_ansi_codes(str(self.process.readAllStandardError()))
+        lines = strip_ansi_codes(to_str(self.process.readAllStandardError()))
         self.add_output_lines(lines)
 
     def stop(self, force=False):
@@ -550,13 +575,24 @@ class LaunchGUI(QtGui.QDialog):
 
             self._interrupted = True
             # Terminate child processes as well
-            pid = self.process.pid()
-            if isinstance(pid, int) and pid != 0:
+            pid = int(self.process.pid())
+            if sys.platform == 'win32' and pid != 0:
+                # The returned value is not a PID but a pointer
+                lp = ctypes.cast(pid, LPWinProcInfo)
+                pid = lp.contents.dwProcessID
+            
+            if pid != 0:
                 process = psutil.Process(pid)
-                for proc in process.children(recursive=True):
+                children = process.children(recursive=True)
+                for proc in children:
                     proc.terminate()
-            self.process.terminate()
-            self.process = None
+                gone, alive = psutil.wait_procs(children, timeout=3)
+                for proc in alive:
+                    proc.kill()
+
+                self.process.terminate()
+                self.process = None
+                        
 
     def create_params_file(self, fname):
         msg = QMessageBox()

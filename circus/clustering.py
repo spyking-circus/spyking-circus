@@ -181,7 +181,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if gpass == 0:
                 for p in search_peaks:
                     result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
-                    result['nb_chunks_' + str(i)] = 0
+                    result['nb_chunks_%s_' %p + str(i)] = 0
             else:
                 n_neighb = len(edges[nodes[i]])
                 for p in search_peaks:
@@ -427,7 +427,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 if gpass == 0:
                     for i in xrange(comm.rank, N_e, comm.size):
-                        result['nb_chunks_' + str(i)] += 1
+                        for p in search_peaks:
+                            if len(result['tmp_%s_' %p + str(i)]) < loop_max_elts_elec:
+                                result['nb_chunks_%s_' %p + str(i)] += 1
 
             if comm.rank == 0:
                 if (elt_count < (gcount+1)*loop_nb_elts//len(chunks_to_load)):
@@ -477,7 +479,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass == 0:
-                io.print_and_log(["Estimating the distances..."], 'default', params)
+                io.print_and_log(["Estimating amplitudes distributions..."], 'default', params)
             elif gpass == 1:
                 io.print_and_log(["Computing density estimations..."], 'default', params)
             else:
@@ -504,26 +506,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
 
                         # Need to estimate the number of spikes
-                        n_estimate = len(result['tmp_%s_' %p + str(ielec)])*nb_chunks / float(result['nb_chunks_' + str(ielec)])
+                        ratio = nb_chunks / float(result['nb_chunks_%s_' %p + str(ielec)])
                         ampmin, ampmax = numpy.min(result['tmp_%s_' %p + str(ielec)]), numpy.max(result['tmp_%s_' %p + str(ielec)])
                         if p == 'pos':
                             if matched_filter:
                                 bound = matched_tresholds_pos[ielec]
                             else:
                                 bound = thresholds[ielec]
-                            bins = numpy.linspace(bound, ampmax, 20).tolist() + [numpy.inf]
+                            bins = numpy.linspace(bound, ampmax, 50).tolist() + [numpy.inf]
                         elif p == 'neg':
                             if matched_filter:
-                                bound = matched_tresholds_neg[ielec]
-                                bins  = numpy.linspace(bound, ampmax, 20).tolist() + [1e6]
+                                bound = -matched_tresholds_neg[ielec]
                             else:
                                 bound = thresholds[ielec]
-                                bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 20).tolist()
+                            bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 50).tolist()
 
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
                         a     = a/float(numpy.sum(a))
-                        
-                        ratio  = (n_estimate/len(result['tmp_%s_' %p + str(ielec)]))
                         
                         z      = a[a > 0]
                         c      = 1./numpy.min(z)
@@ -659,6 +658,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     gdata2     = gather_array(numpy.array([local_mergings], dtype=numpy.float32), comm, 0)
     gdata3     = gather_array(numpy.array([local_nb_clusters], dtype=numpy.float32), comm, 0)
 
+    mean_channels = 0
+
     if comm.rank == 0:
         total_hits        = int(numpy.sum(gdata))
         total_mergings    = int(numpy.sum(gdata2))
@@ -769,12 +770,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         templates[indices, :] = tmp_templates
 
+                    mean_channels += len(indices)
                     if comp_templates:
                         to_delete  = []
-                        for i in xrange(N_e):
+                        for i in indices:
                             if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
                                 templates[i, :] = 0
                                 to_delete += [i]
+                        mean_channels -= len(to_delete)
 
                     templates  = templates.ravel()
                     dx         = templates.nonzero()[0].astype(numpy.int32)
@@ -886,6 +889,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         del result, amps_lims
         
         comm.Barrier()
+
+        if local_nb_clusters > 0:
+            mean_channels /= local_nb_clusters
+
+        gdata4 = gather_array(numpy.array([mean_channels], dtype=numpy.float32), comm, 0)
+
+        if comm.rank == 0:
+            idx           = numpy.where(gdata4 != 0)[0]
+            mean_channels = numpy.mean(gdata4[idx])
+            if mean_channels < 3 and params.getfloat('clustering', 'cc_merge') != 1:
+                io.print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', params)
 
         #We need to gather the sparse arrays
         temp_x    = gather_array(temp_x, comm, dtype='int32')        
