@@ -154,13 +154,13 @@ but a subset x,y can be done. Steps are:
 
     file_params = f_next + '.params'
     if not os.path.exists(file_params) and not batch:
-        print 'The parameter file %s is not present!' %file_params
+        print Fore.RED + 'The parameter file %s is not present!' %file_params
         key = ''
         while key not in ['y', 'n']:
-            key = raw_input("Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
+            key = raw_input(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
         if key == 'y':
-            print "Generating template file", file_params
-            print "Fill it properly before launching the code! (see documentation)"
+            print Fore.WHITE + "Generating template file", file_params
+            print Fore.WHITE + "Fill it properly before launching the code! (see documentation)"
             shutil.copyfile(config_file, file_params)
         sys.exit()
     elif batch:
