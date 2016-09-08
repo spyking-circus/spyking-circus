@@ -65,7 +65,8 @@
        </property>
        <property name="icon">
         <iconset theme="system-file-manager">
-         <normaloff>.</normaloff>.</iconset>
+         <normaloff/>
+        </iconset>
        </property>
       </widget>
      </item>
@@ -80,16 +81,7 @@
       <enum>QFrame::Raised</enum>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
+      <property name="margin">
        <number>0</number>
       </property>
       <item>
@@ -207,7 +199,8 @@
                  </property>
                  <property name="icon">
                   <iconset theme="help">
-                   <normaloff>.</normaloff>.</iconset>
+                   <normaloff/>
+                  </iconset>
                  </property>
                 </widget>
                </item>
@@ -241,7 +234,8 @@
                  </property>
                  <property name="icon">
                   <iconset theme="help">
-                   <normaloff>.</normaloff>.</iconset>
+                   <normaloff/>
+                  </iconset>
                  </property>
                 </widget>
                </item>
@@ -273,7 +267,8 @@
                  </property>
                  <property name="icon">
                   <iconset theme="system-file-manager">
-                   <normaloff>.</normaloff>.</iconset>
+                   <normaloff/>
+                  </iconset>
                  </property>
                 </widget>
                </item>
@@ -343,7 +338,8 @@
                     </property>
                     <property name="icon">
                      <iconset theme="system-file-manager">
-                      <normaloff>.</normaloff>.</iconset>
+                      <normaloff/>
+                     </iconset>
                     </property>
                    </widget>
                   </item>
@@ -636,7 +632,8 @@
              </property>
              <property name="icon">
               <iconset theme="help">
-               <normaloff>.</normaloff>.</iconset>
+               <normaloff/>
+              </iconset>
              </property>
             </widget>
             <widget class="QPushButton" name="btn_matlab">
@@ -653,7 +650,8 @@
              </property>
              <property name="icon">
               <iconset theme="help">
-               <normaloff>.</normaloff>.</iconset>
+               <normaloff/>
+              </iconset>
              </property>
             </widget>
            </widget>
@@ -758,7 +756,8 @@
         </property>
         <property name="icon">
          <iconset theme="system-run">
-          <normaloff>.</normaloff>.</iconset>
+          <normaloff/>
+         </iconset>
         </property>
        </widget>
       </item>
@@ -772,7 +771,8 @@
         </property>
         <property name="icon">
          <iconset theme="document-new">
-          <normaloff>.</normaloff>.</iconset>
+          <normaloff/>
+         </iconset>
         </property>
        </widget>
       </item>
@@ -786,7 +786,8 @@
         </property>
         <property name="icon">
          <iconset theme="folder">
-          <normaloff>.</normaloff>.</iconset>
+          <normaloff/>
+         </iconset>
         </property>
        </widget>
       </item>
@@ -809,7 +810,8 @@
         </property>
         <property name="icon">
          <iconset theme="process-stop">
-          <normaloff>.</normaloff>.</iconset>
+          <normaloff/>
+         </iconset>
         </property>
        </widget>
       </item>
@@ -833,7 +835,8 @@
         </property>
         <property name="icon">
          <iconset theme="help">
-          <normaloff>.</normaloff>.</iconset>
+          <normaloff/>
+         </iconset>
         </property>
        </widget>
       </item>
@@ -847,7 +850,8 @@
         </property>
         <property name="icon">
          <iconset theme="window-close">
-          <normaloff>.</normaloff>.</iconset>
+          <normaloff/>
+         </iconset>
         </property>
        </widget>
       </item>
@@ -863,6 +867,9 @@
      </property>
      <property name="undoRedoEnabled">
       <bool>false</bool>
+     </property>
+     <property name="lineWrapMode">
+      <enum>QPlainTextEdit::NoWrap</enum>
      </property>
      <property name="readOnly">
       <bool>true</bool>
@@ -900,7 +907,8 @@
        </property>
        <property name="icon">
         <iconset theme="accessories-text-editor">
-         <normaloff>.</normaloff>.</iconset>
+         <normaloff/>
+        </iconset>
        </property>
       </widget>
      </item>
