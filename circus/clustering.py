@@ -479,7 +479,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass == 0:
-                io.print_and_log(["Estimating the distances..."], 'default', params)
+                io.print_and_log(["Estimating amplitudes distributions..."], 'default', params)
             elif gpass == 1:
                 io.print_and_log(["Computing density estimations..."], 'default', params)
             else:
