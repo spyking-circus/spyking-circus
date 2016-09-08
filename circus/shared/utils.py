@@ -15,8 +15,8 @@ from mpi import *
 import files as io
 
 
-def update_and_flush(pbar, value=None):
-    progressbar.ProgressBar.update(pbar, value)
+def update_and_flush(pbar, *args, **kwds):
+    progressbar.ProgressBar.update(pbar, *args, **kwds)
     sys.stderr.flush()
 
 def get_progressbar(size):
