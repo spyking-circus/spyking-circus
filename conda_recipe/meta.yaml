@@ -1,6 +1,6 @@
 package:
   name: spyking-circus
-  version: "0.4.1"
+  version: "0.4.2"
 
 requirements:
   build:
@@ -36,16 +36,16 @@ source:
 
 build:
   noarch_python: False
-  number: 9
+  number: 0
   script: python setup.py install --nocuda --single-version-externally-managed --record=record.txt
 
-#app:
-#  entry: spyking-circus .        [win]
-#  entry: spyking-circus .        [linux]
-#  entry: open ${PREFIX}/bin/spyking-circus_mac.command [osx]
-#  icon: app.png
-#  summary: Fast Semi Automated Spike Sorting
-#  type: neuroscience
+app:
+  entry: spyking-circus .        [win]
+  entry: spyking-circus .        [linux]
+  entry: open ${PREFIX}/bin/spyking-circus_mac.command [osx]
+  icon: app.png
+  summary: Fast Semi Automated Spike Sorting
+  type: neuroscience
 
 test:
   # Python imports

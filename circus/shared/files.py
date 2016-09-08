@@ -1,10 +1,13 @@
 from __future__ import division
 
 import warnings
+
+from circus.shared.utils import get_progressbar
+
 warnings.simplefilter(action = "ignore", category = FutureWarning)
-import numpy, h5py, os, progressbar, platform, re, sys, scipy
+import numpy, h5py, os, platform, re, sys, scipy
 import ConfigParser as configparser
-import colorama
+import sys
 from colorama import Fore
 from mpi import all_gather_array
 from mpi4py import MPI
@@ -207,8 +210,6 @@ def load_parameters(file_name):
     parser.set('data', 'N_e', str(N_e))   
     parser.set('fitting', 'space_explo', '0.5')
     parser.set('fitting', 'nb_chances', '3')
-
-    parser.set('clustering', 'dispersion', '5')
     parser.set('clustering', 'm_ratio', '0.01')
     parser.set('clustering', 'sub_dim', '5')
 
@@ -256,13 +257,14 @@ def load_parameters(file_name):
                   ['clustering', 'make_plots', 'string', 'png'],
                   ['clustering', 'test_clusters', 'bool', 'False'],
                   ['clustering', 'sim_same_elec', 'float', '2'],
-                  ['clustering', 'smart_search', 'float', '0'],
+                  ['clustering', 'smart_search', 'bool', 'False'],
                   ['clustering', 'safety_space', 'bool', 'True'],
                   ['clustering', 'compress', 'bool', 'True'],
                   ['clustering', 'noise_thr', 'float', '0.8'],
                   ['clustering', 'cc_merge', 'float', '0.975'],
                   ['clustering', 'extraction', 'string', 'median-raw'],
                   ['clustering', 'remove_mixture', 'bool', 'True'],
+                  ['clustering', 'dispersion', 'string', '(5, 5)'],
                   ['extracting', 'cc_merge', 'float', '0.95'],
                   ['extracting', 'noise_thr', 'float', '1.'],
                   ['merging', 'cc_overlap', 'float', '0.5'],
@@ -349,11 +351,6 @@ def load_parameters(file_name):
     if not test:
         print_and_log(["nclus_min in clustering should be in [0,1["], 'error', parser)
         sys.exit(0)
- 
-    test = (parser.getfloat('clustering', 'smart_search') >= 0) and (parser.getfloat('clustering', 'smart_search') < 1)
-    if not test:
-        print_and_log(["smart_search in clustering should be in [0,1["], 'error', parser)
-        sys.exit(0)
 
     test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)
     if not test:
@@ -375,6 +372,14 @@ def load_parameters(file_name):
         print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
         sys.exit(0)
     
+    dispersion     = parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
+    dispersion     = map(float, dispersion)
+    test =  (0 < dispersion[0]) and (0 < dispersion[1])
+    if not test:
+        print_and_log(["min and max dispersions should be positive"], 'error', parser)
+        sys.exit(0)
+        
+
     pcs_export = ['prompt', 'none', 'all', 'some']
     test = parser.get('converting', 'export_pcs') in pcs_export
     if not test:
@@ -453,7 +458,7 @@ def data_stats(params, show=True, export_times=False):
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
-             "Template Compression        : %s" %params.get('clustering', 'compress')]
+             "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
     
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
@@ -469,7 +474,7 @@ def print_and_log(to_print, level='info', logger=None, display=True):
     if display:
         if level == 'default':
             for line in to_print:
-                print line
+                print Fore.WHITE + line + '\r'
         if level == 'info':
             print_info(to_print)
         elif level == 'error':
@@ -478,21 +483,22 @@ def print_and_log(to_print, level='info', logger=None, display=True):
     if logger is not None:
         write_to_logger(logger, to_print, level)
 
+    sys.stdout.flush()
+
+
 def print_info(lines):
     """Prints informations messages, enhanced graphical aspects."""
-    colorama.init(autoreset=True)
-    print Fore.YELLOW + "-------------------------  Informations  -------------------------"
+    print Fore.YELLOW + "-------------------------  Informations  -------------------------\r"
     for line in lines:
-        print Fore.YELLOW + "| " + line
-    print Fore.YELLOW + "------------------------------------------------------------------"
+        print Fore.YELLOW + "| " + line + '\r'
+    print Fore.YELLOW + "------------------------------------------------------------------\r"
 
 def print_error(lines):
     """Prints errors messages, enhanced graphical aspects."""
-    colorama.init(autoreset=True)
-    print Fore.RED + "----------------------------  Error  -----------------------------"
+    print Fore.RED + "----------------------------  Error  -----------------------------\r"
     for line in lines:
-        print Fore.RED + "| " + line
-    print Fore.RED + "------------------------------------------------------------------"
+        print Fore.RED + "| " + line + '\r'
+    print Fore.RED + "------------------------------------------------------------------\r"
 
 
 
@@ -1614,7 +1620,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
-    duration       = data_stats(params, show=False)
+    max_chunk      = params.getfloat('fitting', 'max_chunk')
+    chunks         = params.getfloat('fitting', 'chunk')
+    data_length    = data_stats(params, show=False)
+    duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')
     refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
@@ -1623,7 +1632,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
 
     # Initialize data collection.
-    result = {'spiketimes' : {}, 'amplitudes' : {}}
+    result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
     if with_real_amps:
         result['real_amps'] = {}
     if with_voltages:
@@ -1636,7 +1645,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if with_voltages:
             result['voltages']['temp_' + str(i)] = numpy.empty(shape=0)
 
-    pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_threads).start()
+    pbar = get_progressbar(size=nb_threads)
 
     # For each thread/process collect data.
     for count, node in enumerate(xrange(nb_threads)):
@@ -1653,7 +1662,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if os.path.exists(amplitudes_file):
 
             amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
-            spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.int32)
+            spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.uint32)
             templates  = numpy.fromfile(templates_file, dtype=numpy.int32)
             N          = len(amplitudes)
             amplitudes = amplitudes.reshape(N//2, 2)
@@ -1683,7 +1692,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
-        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.int32)
+        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
         idx                       = numpy.argsort(result['spiketimes'][key])
         result['amplitudes'][key] = numpy.array(result['amplitudes'][key], dtype=numpy.float32)
         result['spiketimes'][key] = result['spiketimes'][key][idx]
@@ -1702,7 +1711,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             if with_voltages:
                 result['voltages'][key] = numpy.delete(result['voltages'][key], violations)
 
-    keys = ['spiketimes', 'amplitudes']
+    keys = ['spiketimes', 'amplitudes', 'info']
     if with_real_amps:
         keys += ['real_amps']
     if with_voltages:
@@ -1834,7 +1843,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
         if verbose:
             print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', params)
         N_0  = len(range(comm.rank, N_e, comm.size))
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_0).start()
+        pbar = get_progressbar(size=N_0)
 
     over_x    = numpy.zeros(0, dtype=numpy.int32)
     over_y    = numpy.zeros(0, dtype=numpy.int32)

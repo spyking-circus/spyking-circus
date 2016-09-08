@@ -5,10 +5,9 @@ classdef DATA_SortingGUI < handle
     properties
         lines
         
+        % electrode spatial coordinates
         elecMx
         elecMy
-    
-        %selected
         
         zoom_coef
         
@@ -20,13 +19,7 @@ classdef DATA_SortingGUI < handle
         fullY
         marginY
         
-%         propose_ij
-%         
-%         propose_c
-%         propose_i2_r = 0
-%         propose_i3_r = 0
-%         
-        last_neu_i_click = 1
+        last_neu_i_click = 1        
     end
     
     methods

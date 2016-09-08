@@ -3,7 +3,7 @@ import warnings
 warnings.filterwarnings("ignore")
 import matplotlib
 matplotlib.use('Agg', warn=False)
-import os, sys, time
+import os, sys, time, types
 import numpy as np
 import scipy.sparse as sp
 from math import log, sqrt
@@ -15,10 +15,26 @@ from mpi import *
 import files as io
 
 
+def update_and_flush(pbar, *args, **kwds):
+    return_value = progressbar.ProgressBar.update(pbar, *args, **kwds)
+    sys.stderr.flush()
+    return return_value
+
+def finish_and_flush(pbar, *args, **kwds):
+    return_value = progressbar.ProgressBar.finish(pbar, *args, **kwds)
+    sys.stderr.flush()
+    return return_value
 
 def get_progressbar(size):
 
-    return progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=size).start()
+    pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()],
+                                   maxval=size, term_width=66).start()
+    if sys.version_info[0] == 3:
+        # Quick monkey patch to make progressbars appear correctly with buffered
+        # stderr in Python 3
+        pbar.update = types.MethodType(update_and_flush, pbar)
+        pbar.finish = types.MethodType(finish_and_flush, pbar)
+    return pbar
 
 
 def smooth(x,window_len=11,window='hanning'):

@@ -1,4 +1,30 @@
 =============
+Release 0.4.2
+=============
+
+* fix a bug in the test suite
+* fix a bug in python GUI for non integer thresholds
+* fix a bug with output strings in python3
+* fix a bug to kill processes in windows from the launcher
+* fix graphical issues in the launcher and python3
+* colors are now present also in python3
+* finer control of the amplitudes with the dispersion parameter
+* finer control of the cut off frequencies during the filtering
+* the smart search mode is now back, with a simple True/False flag. Use it for long or noisy recordings
+* optimizations in the smart search mode, now implementing a rejection method based on amplitudes
+* show the mean amplitude over time in the MATLAB GUI
+* MATLAB is automatically closed when closing the MATLAB GUI
+* mean rate is now displayed in the MATLAB GUI, for new datasets only
+* spike times are now saved as uint32, for new datasets only
+* various fixes in the docs
+* improvements when peak detection is set on "both"
+* message about cc_merge for low density probes
+* message about smart search for long recordings
+* various cosmetic changes
+* add a conda app for anaconda navigator
+
+
+=============
 Release 0.4.1
 =============
 

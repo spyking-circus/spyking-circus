@@ -1,8 +1,9 @@
 import matplotlib
 matplotlib.use('Agg', warn=False)
 import os
-import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats, progressbar
+import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges, print_and_log
+from circus.shared.utils import get_progressbar
 from circus.shared.mpi import all_gather_array
 import scipy.linalg, scipy.sparse
 
@@ -13,7 +14,7 @@ def distancematrix(data, ydata=None):
     else:
         distances = scipy.spatial.distance.cdist(data, ydata, 'euclidean')
 
-    return distances
+    return distances.astype(numpy.float32)
 
 def fit_rho_delta(xdata, ydata, display=False, threshold=0, max_clusters=10, save=False):
 
@@ -56,7 +57,7 @@ def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
 
     N    = len(data)
-    rho  = numpy.zeros(N, dtype=numpy.float64)
+    rho  = numpy.zeros(N, dtype=numpy.float32)
         
     if update is None:
         dist = distancematrix(data)
@@ -214,7 +215,7 @@ def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
                 subset     = numpy.where(to_merge[:, 0] == keep)[0]
                 if len(subset) > 0:
                     idx        = numpy.unique(to_merge[subset].flatten())
-                    ratios     = norm_templates[keep]/norm_templates[idx]
+                    ratios     = norm_templates[idx]/norm_templates[keep]
                     new_limits = [numpy.min(ratios*old_limits[idx][:, 0]), numpy.max(ratios*old_limits[idx][:, 1])]
                 else:
                     new_limits = old_limits[keep]
@@ -445,7 +446,7 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
     overlap_0 = overlap[:, N_t].toarray().reshape(nb_temp, nb_temp)
     if comm.rank == 0:
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(all_temp)).start()
+        pbar = get_progressbar(size=len(all_temp)).start()
 
     sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
     M              = numpy.zeros((2, 2), dtype=numpy.float32)

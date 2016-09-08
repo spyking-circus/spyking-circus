@@ -20,6 +20,16 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 
 * Documentation can be found at http://spyking-circus.rtfd.org
 * A Google group can be found at http://groups.google.com/forum/#!forum/spyking-circus-users
+* A bug tracker can be found at https://bitbucket.org/yger/spyking-circus/issues?status=new&status=open
 
 :copyright: Copyright 2006-2016 by the SpyKING CIRCUS team, see AUTHORS.
 :license: CeCILL, see LICENSE for details.
+
+.. image::  https://anaconda.org/spyking-circus/spyking-circus/badges/version.svg
+	:target: https://anaconda.org/spyking-circus/spyking-circus
+
+.. image::  https://badge.fury.io/py/spyking-circus.svg
+	:target: https://badge.fury.io/py/spyking-circus
+
+.. image:: https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat
+	:target: http://spyking-circus.readthedocs.io/en/latest/?badge=latest
