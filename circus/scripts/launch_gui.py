@@ -24,7 +24,21 @@ except ImportError:
                              QPushButton, QLineEdit, QPalette, QBrush,
                              QWidget, QTextCursor, QMessageBox, QPixmap,
                              QDesktopServices, QFont)
+import sip
 
+if sys.platform == 'win32':
+    import ctypes
+
+    # This is the data type of the pointer that QProcess.pid() returns on Windows
+    # FIXME: With QT > 5.3, use QProcess.processId() instead
+    class WinProcInfo(ctypes.Structure):
+        _fields_ = [
+            ('hProcess', ctypes.wintypes.HANDLE),
+            ('hThread', ctypes.wintypes.HANDLE),
+            ('dwProcessID', ctypes.wintypes.DWORD),
+            ('dwThreadID', ctypes.wintypes.DWORD),
+            ]
+    LPWinProcInfo = ctypes.POINTER(WinProcInfo)
 
 def strip_ansi_codes(s):
     return re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?', '', s)
@@ -118,6 +132,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.spin_gpus.valueChanged.connect(self.update_command)
         self.store_tasks()
         self.process = None
+        self.process_id = 0
         self.ui.closeEvent = self.closeEvent
         self.last_log_file = None
         try: 
@@ -561,13 +576,36 @@ class LaunchGUI(QtGui.QDialog):
 
             self._interrupted = True
             # Terminate child processes as well
-            pid = self.process.pid()
-            if isinstance(pid, int) and pid != 0:
+            pid = int(self.process.pid())
+            if sys.platform == 'win32' and pid != 0:
+                # The returned value is not a PID but a pointer
+                lp = ctypes.cast(pid, LPWinProcInfo)
+                pid = lp.contents.dwProcessID
+            
+            if pid != 0:
                 process = psutil.Process(pid)
-                for proc in process.children(recursive=True):
+                children = process.children(recursive=True)
+                for proc in children:
                     proc.terminate()
-            self.process.terminate()
-            self.process = None
+                gone, alive = psutil.wait_procs(children, timeout=3)
+                for proc in alive:
+                    proc.kill()
+
+                if process.is_running():
+                    process.terminate()
+                    try:
+                        self.process.wait(timeout=3)
+                        self.process = None
+                    except psutil.TimeoutExpired:
+                        msg = QMessageBox()
+                        msg.setIcon(QMessageBox.Warning)
+                        msg.setWindowTitle("Couldn't interrupt process")
+                        msg.setText('Interrupting the process failed.')
+                        msg.exec_()
+                        self._interrupted = False
+                else:
+                    self.process = None
+                        
 
     def create_params_file(self, fname):
         msg = QMessageBox()
