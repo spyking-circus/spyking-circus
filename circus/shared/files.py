@@ -5,6 +5,7 @@ warnings.simplefilter(action = "ignore", category = FutureWarning)
 import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
 import colorama
+import sys
 from colorama import Fore
 from mpi import all_gather_array
 from mpi4py import MPI
@@ -479,6 +480,9 @@ def print_and_log(to_print, level='info', logger=None, display=True):
 
     if logger is not None:
         write_to_logger(logger, to_print, level)
+
+    sys.stdout.flush()
+
 
 def print_info(lines):
     """Prints informations messages, enhanced graphical aspects."""
