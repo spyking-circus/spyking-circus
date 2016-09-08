@@ -445,7 +445,8 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
     overlap_0 = overlap[:, N_t].toarray().reshape(nb_temp, nb_temp)
     if comm.rank == 0:
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=len(all_temp)).start()
+        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()],
+                                       maxval=len(all_temp), term_width=66).start()
 
     sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
     M              = numpy.zeros((2, 2), dtype=numpy.float32)
