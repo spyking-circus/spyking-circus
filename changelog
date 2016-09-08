@@ -13,7 +13,8 @@ Release 0.4.2
 * mean rate is now displayed in the MATLAB GUI, for new datasets only
 * spike times are now saved as uint32, for new datasets only
 * various fixed in the docs
-* improvements for when peak detection is set on "both"
+* improvements when peak detection is set on "both"
+* message about cc_merge for low density probes
 
 
 =============
