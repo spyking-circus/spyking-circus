@@ -1,10 +1,13 @@
 from __future__ import division
 
 import warnings
+
+from circus.shared.utils import get_progressbar
+
 warnings.simplefilter(action = "ignore", category = FutureWarning)
-import numpy, h5py, os, progressbar, platform, re, sys, scipy
+import numpy, h5py, os, platform, re, sys, scipy
 import ConfigParser as configparser
-import colorama
+import sys
 from colorama import Fore
 from mpi import all_gather_array
 from mpi4py import MPI
@@ -455,7 +458,7 @@ def data_stats(params, show=True, export_times=False):
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
-             "Template Compression        : %s" %params.get('clustering', 'compress')]
+             "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
     
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
@@ -471,7 +474,7 @@ def print_and_log(to_print, level='info', logger=None, display=True):
     if display:
         if level == 'default':
             for line in to_print:
-                print line
+                print Fore.WHITE + line + '\r'
         if level == 'info':
             print_info(to_print)
         elif level == 'error':
@@ -480,21 +483,22 @@ def print_and_log(to_print, level='info', logger=None, display=True):
     if logger is not None:
         write_to_logger(logger, to_print, level)
 
+    sys.stdout.flush()
+
+
 def print_info(lines):
     """Prints informations messages, enhanced graphical aspects."""
-    colorama.init(autoreset=True)
-    print Fore.YELLOW + "-------------------------  Informations  -------------------------"
+    print Fore.YELLOW + "-------------------------  Informations  -------------------------\r"
     for line in lines:
-        print Fore.YELLOW + "| " + line
-    print Fore.YELLOW + "------------------------------------------------------------------"
+        print Fore.YELLOW + "| " + line + '\r'
+    print Fore.YELLOW + "------------------------------------------------------------------\r"
 
 def print_error(lines):
     """Prints errors messages, enhanced graphical aspects."""
-    colorama.init(autoreset=True)
-    print Fore.RED + "----------------------------  Error  -----------------------------"
+    print Fore.RED + "----------------------------  Error  -----------------------------\r"
     for line in lines:
-        print Fore.RED + "| " + line
-    print Fore.RED + "------------------------------------------------------------------"
+        print Fore.RED + "| " + line + '\r'
+    print Fore.RED + "------------------------------------------------------------------\r"
 
 
 
@@ -1641,7 +1645,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if with_voltages:
             result['voltages']['temp_' + str(i)] = numpy.empty(shape=0)
 
-    pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=nb_threads).start()
+    pbar = get_progressbar(size=nb_threads)
 
     # For each thread/process collect data.
     for count, node in enumerate(xrange(nb_threads)):
@@ -1839,7 +1843,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
         if verbose:
             print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', params)
         N_0  = len(range(comm.rank, N_e, comm.size))
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()], maxval=N_0).start()
+        pbar = get_progressbar(size=N_0)
 
     over_x    = numpy.zeros(0, dtype=numpy.int32)
     over_y    = numpy.zeros(0, dtype=numpy.int32)

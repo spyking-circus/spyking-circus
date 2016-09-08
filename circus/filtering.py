@@ -43,7 +43,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if filter_done:
         if comm.rank == 0:
-            to_write = ["Filtering has already been done with in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
+            to_write = ["Filtering has already been done in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
             if remove_median:
                 to_write += ["Median over all channels was substracted to each channels"]
             io.print_and_log(to_write, 'info', params)
