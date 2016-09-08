@@ -1,6 +1,9 @@
 from __future__ import division
 
 import warnings
+
+from circus.shared.utils import get_progressbar
+
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 import numpy, h5py, os, progressbar, platform, re, sys, scipy
 import ConfigParser as configparser
@@ -1645,8 +1648,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if with_voltages:
             result['voltages']['temp_' + str(i)] = numpy.empty(shape=0)
 
-    pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()],
-                                   maxval=nb_threads, term_width=66).start()
+    pbar = get_progressbar(size=nb_threads).start()
 
     # For each thread/process collect data.
     for count, node in enumerate(xrange(nb_threads)):
@@ -1844,8 +1846,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
         if verbose:
             print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', params)
         N_0  = len(range(comm.rank, N_e, comm.size))
-        pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()],
-                                       maxval=N_0, term_width=66).start()
+        pbar = get_progressbar(size=N_0).start()
 
     over_x    = numpy.zeros(0, dtype=numpy.int32)
     over_y    = numpy.zeros(0, dtype=numpy.int32)
