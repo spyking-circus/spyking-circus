@@ -3,7 +3,7 @@ import warnings
 warnings.filterwarnings("ignore")
 import matplotlib
 matplotlib.use('Agg', warn=False)
-import os, sys, time
+import os, sys, time, types
 import numpy as np
 import scipy.sparse as sp
 from math import log, sqrt
@@ -15,12 +15,16 @@ from mpi import *
 import files as io
 
 
+def update_and_flush(pbar, value=None):
+    progressbar.ProgressBar.update(pbar, value)
+    sys.stderr.flush()
 
 def get_progressbar(size):
 
     pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()],
-                                   maxval=size, term_width=66, fd=sys.stdout).start()
-    pbar.update(0)
+                                   maxval=size, term_width=66).start()
+    # Quick monkey patch to make progressbars appear with buffered stderr in Python 3
+    pbar.update = types.MethodType(update_and_flush, pbar)
     return pbar
 
 
