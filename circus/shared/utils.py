@@ -19,7 +19,7 @@ import files as io
 def get_progressbar(size):
 
     return progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()],
-                                   maxval=size, term_width=66).start()
+                                   maxval=size, term_width=66, fd=sys.stdout).start()
 
 
 def smooth(x,window_len=11,window='hanning'):
