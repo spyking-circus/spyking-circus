@@ -132,7 +132,6 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.spin_gpus.valueChanged.connect(self.update_command)
         self.store_tasks()
         self.process = None
-        self.process_id = 0
         self.ui.closeEvent = self.closeEvent
         self.last_log_file = None
         try: 
@@ -591,20 +590,8 @@ class LaunchGUI(QtGui.QDialog):
                 for proc in alive:
                     proc.kill()
 
-                if process.is_running():
-                    process.terminate()
-                    try:
-                        self.process.wait(timeout=3)
-                        self.process = None
-                    except psutil.TimeoutExpired:
-                        msg = QMessageBox()
-                        msg.setIcon(QMessageBox.Warning)
-                        msg.setWindowTitle("Couldn't interrupt process")
-                        msg.setText('Interrupting the process failed.')
-                        msg.exec_()
-                        self._interrupted = False
-                else:
-                    self.process = None
+                self.process.terminate()
+                self.process = None
                         
 
     def create_params_file(self, fname):
