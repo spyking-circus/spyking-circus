@@ -460,7 +460,7 @@ def data_stats(params, show=True, export_times=False):
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
-             "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all')]
+             "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
              "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
     
     if multi_files:

@@ -34,7 +34,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
         electrodes   = io.load_data(params, 'electrodes')
-        collect_zone = int(0.2e-3*sampling_rate)
+        collect_zone = int(template_shift*1e-3*sampling_rate)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -82,11 +82,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             templates.data[myslice] /= norm_templates[idx]
         templates = templates.T
 
-    if use_gpu:
-        templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
-
-    info_string   = ''
-
     if matched_filter:
         if sign_peaks in ['negative', 'both']:
             waveform_neg  = io.load_data(params, 'waveform')
@@ -97,6 +92,39 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
+    thresholds = io.load_data(params, 'thresholds')
+
+
+    if collect_all:
+        neigbors = {}
+        for i in xrange(n_tm):
+            tmp  = templates[i, :].toarray().reshape(N_e, N_t)
+            if sign_peaks == 'negative':
+                if matched_filter:
+                    threshs = -matched_tresholds_neg
+                else:
+                    threshs = -thresholds
+                idx      = numpy.where(numpy.min(tmp) < threshs)[0]
+            elif sign_peaks == 'positive':
+                if matched_filter:
+                    threshs = matched_tresholds_pos
+                else:
+                    threshs = thresholds
+                idx      = numpy.where(numpy.max(tmp) > threshs)[0]
+            elif sign_peaks == 'both':
+                if matched_filter:
+                    threshs = numpy.minimum(matched_tresholds_neg, matched_tresholds_pos)
+                else:
+                    threshs = thresholds
+                idx      = numpy.where(numpy.max(numpy.abs(tmp)) > threshs)[0]
+            neigbors[i] = idx
+
+    if use_gpu:
+        templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
+
+    info_string   = ''
+
+    
     if comm.rank == 0:
         if use_gpu:
             info_string = "using %d GPUs" %(comm.size)
@@ -105,8 +133,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    thresholds = io.load_data(params, 'thresholds')
-
+    
     if SHARED_MEMORY:
         c_overs    = io.load_data_memshared(params, comm, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)        
         c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
@@ -435,7 +462,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                                 if collect_all:
                                     bestlec = electrodes[inds_temp[keep]]
-                                    indices = numpy.take(inv_nodes, edges[nodes[bestlec]])
+                                    indices = neigbors[inds_temp[keep]]
                                     c_all_times[indices, c_min_times[ts[count]-min_time]:c_max_times[ts[count]-min_time]] = False
 
                     myslice           = numpy.take(inds_t, to_reject)
@@ -473,7 +500,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 elif sign_peaks == 'both':
                     bestlecs = numpy.argmax(numpy.abs(c_local_chunk[gspikes, :]), 1)
                     if matched_filter:
-                        threshs = numpy.maximum(matched_tresholds_neg[bestlecs], matched_tresholds_pos[bestlecs])
+                        threshs = numpy.minimum(matched_tresholds_neg[bestlecs], matched_tresholds_pos[bestlecs])
                     else:
                         threshs = thresholds[bestlecs]
                     idx      = numpy.where(numpy.abs(c_local_chunk[gspikes, bestlecs]) > threshs)[0]

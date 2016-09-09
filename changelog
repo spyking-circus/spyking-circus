@@ -1,3 +1,10 @@
+===========
+Release 0.5
+===========
+
+* garbage collector mode, to collect also all unfitted spikes
+
+
 =============
 Release 0.4.2
 =============
