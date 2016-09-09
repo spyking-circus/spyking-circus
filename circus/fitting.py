@@ -33,8 +33,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
-        electrodes   = io.load_data(params, 'electrodes')
-        collect_zone = int(template_shift*1e-3*sampling_rate)
+        collect_zone = int(1*sampling_rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -104,19 +103,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     threshs = -matched_tresholds_neg
                 else:
                     threshs = -thresholds
-                idx      = numpy.where(numpy.min(tmp, 1) < threshs)[0]
+                idx      = numpy.where(numpy.min(tmp, 1) < 0.5*threshs)[0]
             elif sign_peaks == 'positive':
                 if matched_filter:
                     threshs = matched_tresholds_pos
                 else:
                     threshs = thresholds
-                idx      = numpy.where(numpy.max(tmp, 1) > threshs)[0]
+                idx      = numpy.where(numpy.max(tmp, 1) > 0.5*threshs)[0]
             elif sign_peaks == 'both':
                 if matched_filter:
                     threshs = numpy.minimum(matched_tresholds_neg, matched_tresholds_pos)
                 else:
                     threshs = thresholds
-                idx      = numpy.where(numpy.max(numpy.abs(tmp), 1) > threshs)[0]
+                idx      = numpy.where(numpy.max(numpy.abs(tmp), 1) > 0.5*threshs)[0]
             neigbors[i] = idx
 
     if use_gpu:
@@ -460,10 +459,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
                                 result['templates']  += [inds_temp[keep]]
 
-                                if collect_all:
-                                    indices = neigbors[inds_temp[keep]]
-                                    c_all_times[indices, c_min_times[ts[count]-min_time]:c_max_times[ts[count]-min_time]] = False
-
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
                     sub_idx           = (numpy.take(failure, myslice) >= nb_chances)
@@ -480,6 +475,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             templates_file.write(templates_to_write.tostring())
 
             if collect_all:
+
+                for temp, spike in zip(templates_to_write, spikes_to_write - local_offset):
+                    c_all_times[neigbors[temp], c_min_times[spike-min_time]:c_max_times[spike-min_time]] = False
 
                 gspikes = numpy.where(numpy.sum(c_all_times, 0) > 0)[0]
                 if sign_peaks == 'negative':

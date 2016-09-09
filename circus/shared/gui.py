@@ -1188,7 +1188,7 @@ class PreviewGUI(QtGui.QMainWindow):
                     elec  = int(key.split('_')[1])
                     lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
                     idx   = numpy.where((self.garbage['gspikes'][key] > lims[0]) & (self.garbage['gspikes'][key] < lims[1]))
-                    all_spikes = self.garbage['gspikes'][key][idx] - self.t_start*self.sampling_rate
+                    all_spikes = self.garbage['gspikes'][key][idx]
                     self.uncollected[elec] = all_spikes/float(self.sampling_rate)
 
     def init_gui_layout(self):
@@ -1400,7 +1400,8 @@ class PreviewGUI(QtGui.QMainWindow):
                                  color=self.inspect_colors[count], lw=2)
 
                 if self.ui.show_unfitted.isChecked() and self.has_garbage:
-                    self.data_x.scatter(self.uncollected[idx], count*yspacing*numpy.ones(len(self.uncollected[idx])), s=100, marker='o', c='k')
+                    for i in self.uncollected[idx]:
+                        self.data_x.add_patch(plt.Rectangle((i-0.001, -self.thresholds[idx] + count * yspacing), 0.002, 2*self.thresholds[idx], alpha=0.5, color='k'))
 
         self.data_x.set_yticklabels([])
         self.data_x.set_xlabel('Time [s]')

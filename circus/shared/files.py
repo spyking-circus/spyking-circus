@@ -273,7 +273,7 @@ def load_parameters(file_name):
                   ['merging', 'correct_lag', 'bool', 'False'],
                   ['converting', 'export_pcs', 'string', 'prompt'],
                   ['converting', 'erase_all', 'bool', 'True'],
-                  ['converting', 'export_all', 'bool', 'False'],
+                  ['converting', 'export_all', 'bool', 'True'],
                   ['validating', 'nearest_elec', 'string', 'auto'],
                   ['validating', 'max_iter', 'int', '200'],
                   ['validating', 'learning_rate', 'float', '1.0e-3'],
@@ -1778,7 +1778,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     to_write = ["Number of spikes %s : %d" %(to_print, count)]
 
     if collect_all:
-        to_write += ["Number of spikes not fitted : %d" %(gcount)]
+        to_write += ["Number of spikes not fitted : %d [%g percent]" %(gcount, 100*gcount/float(count))]
 
     print_and_log(to_write, 'info', params)
 
