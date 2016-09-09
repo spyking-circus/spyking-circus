@@ -98,25 +98,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if collect_all:
         neigbors = {}
         for i in xrange(n_tm):
-            tmp  = templates[i, :].toarray().reshape(N_e, N_t)
+            tmp  = templates[i, :].toarray().reshape(N_e, N_t) * norm_templates[i]
             if sign_peaks == 'negative':
                 if matched_filter:
                     threshs = -matched_tresholds_neg
                 else:
                     threshs = -thresholds
-                idx      = numpy.where(numpy.min(tmp) < threshs)[0]
+                idx      = numpy.where(numpy.min(tmp, 1) < threshs)[0]
             elif sign_peaks == 'positive':
                 if matched_filter:
                     threshs = matched_tresholds_pos
                 else:
                     threshs = thresholds
-                idx      = numpy.where(numpy.max(tmp) > threshs)[0]
+                idx      = numpy.where(numpy.max(tmp, 1) > threshs)[0]
             elif sign_peaks == 'both':
                 if matched_filter:
                     threshs = numpy.minimum(matched_tresholds_neg, matched_tresholds_pos)
                 else:
                     threshs = thresholds
-                idx      = numpy.where(numpy.max(numpy.abs(tmp)) > threshs)[0]
+                idx      = numpy.where(numpy.max(numpy.abs(tmp), 1) > threshs)[0]
             neigbors[i] = idx
 
     if use_gpu:
@@ -461,7 +461,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                                 result['templates']  += [inds_temp[keep]]
 
                                 if collect_all:
-                                    bestlec = electrodes[inds_temp[keep]]
                                     indices = neigbors[inds_temp[keep]]
                                     c_all_times[indices, c_min_times[ts[count]-min_time]:c_max_times[ts[count]-min_time]] = False
 
