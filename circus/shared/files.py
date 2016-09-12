@@ -1495,15 +1495,16 @@ def write_datasets(h5file, to_write, result, electrode=None):
         h5file.create_dataset(mykey, shape=result[mykey].shape, dtype=result[mykey].dtype, chunks=True)
         h5file.get(mykey)[:] = result[mykey]
 
-def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
+def collect_data(nb_threads, data_file, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     # Retrieve the key parameters.
+    params         = data_file.params
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     chunks         = params.getfloat('fitting', 'chunk')
-    data_length    = data_stats(params, show=False)
+    data_length    = data_stats(data_file, show=False)
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')

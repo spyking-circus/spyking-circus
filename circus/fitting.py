@@ -444,4 +444,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pbar.finish()
 
     if comm.rank == 0:
-        io.collect_data(comm.size, params, erase=True)
+        io.collect_data(comm.size, data_file, erase=True)
+
+    data_file.close()
