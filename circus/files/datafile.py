@@ -17,7 +17,7 @@ class DataFile(object):
         pass
 
     def get_snippet(self, time, length, nodes=None):
-    	pass
+        pass
 
     def set_data(self, time, data):
         pass
@@ -80,9 +80,9 @@ class RawBinaryFile(DataFile):
 		return numpy.ascontiguousarray(local_chunk), local_shape
 
 
-	def get_snippet(self, time, length, nodes=None):
-		self.data    = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='r')
-		local_chunk  = self.data[time*self.N_tot:time*self.N_tot + length*self.N_tot]
+    def get_snippet(self, time, length, nodes=None):
+        self.data    = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='r')
+        local_chunk  = self.data[time*self.N_tot:time*self.N_tot + length*self.N_tot]
         local_chunk  = local_chunk.reshape(length, self.N_tot)
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
@@ -221,7 +221,7 @@ class H5File(DataFile):
 
     def get_snippet(self, time, length, nodes=None):
 
-		if self.time_axis == 0:
+        if self.time_axis == 0:
             local_chunk = self.data[time:time+length, :]
         elif self.time_axis == 1:
             local_chunk = self.data[:, time:time+length].T
