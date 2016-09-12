@@ -527,3 +527,5 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     io.write_datasets(bfile, ['matched_thresholds_pos'], {'matched_thresholds_pos' : thresholds})
                     bfile.close()
                 comm.Barrier()
+
+    data_file.close()

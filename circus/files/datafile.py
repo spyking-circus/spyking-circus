@@ -16,7 +16,10 @@ class DataFile(object):
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
         pass
 
-    def set_data(self, block):
+    def get_snippet(self, time, length, nodes=None):
+    	pass
+
+    def set_data(self, time, data):
         pass
 
     def analyze(self):
@@ -76,12 +79,24 @@ class RawBinaryFile(DataFile):
 		        local_chunk = numpy.take(local_chunk, nodes, axis=1)
 		return numpy.ascontiguousarray(local_chunk), local_shape
 
-    def set_data(self, offset, data):
+
+	def get_snippet(self, time, length, nodes=None):
+		self.data    = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='r')
+		local_chunk  = self.data[time*self.N_tot:time*self.N_tot + length*self.N_tot]
+        local_chunk  = local_chunk.reshape(length, self.N_tot)
+        local_chunk  = local_chunk.astype(numpy.float32)
+        local_chunk -= self.dtype_offset
+        if nodes is not None:
+            if not numpy.all(nodes == numpy.arange(N_total)):
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
+        return local_chunk
+
+    def set_data(self, time, data):
         self.data      = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='r+')
         data  += self.dtype_offset
         data   = data.astype(data_dtype)
         data   = data.ravel()
-        self.data[offset:offset+len(data)] = data
+        self.data[self.N_tot*time:self.N_tot*time+len(data)] = data
         del self.data
 
     def analyze(self, chunk_size=None):
@@ -204,7 +219,23 @@ class H5File(DataFile):
 
         return numpy.ascontiguousarray(local_chunk), local_shape
 
-    def set_data(self, offset, data):
+    def get_snippet(self, time, length, nodes=None):
+
+		if self.time_axis == 0:
+            local_chunk = self.data[time:time+length, :]
+        elif self.time_axis == 1:
+            local_chunk = self.data[:, time:time+length].T
+
+        local_chunk  = local_chunk.astype(numpy.float32)
+        local_chunk -= self.dtype_offset
+
+        if nodes is not None:
+            if not numpy.all(nodes == numpy.arange(self.N_tot)):
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
+        return local_chunk
+
+
+    def set_data(self, time, data):
         
     	data += self.dtype_offset
     	data  = data.astype(self.data_dtype)

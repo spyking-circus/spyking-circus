@@ -116,7 +116,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             return goffset + offset
 
-        def compute_artefacts(params, comm, max_offset):
+        def compute_artefacts(params, data_file, max_offset):
 
             chunk_size     = params.getint('whitening', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
@@ -165,7 +165,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if comm.rank == 0:
                         io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
                     sys.exit(0)
-                art_dict[artefact] = io.get_artefact(params, times, tau, nodes)
+                art_dict[artefact] = io.get_artefact(data_file, times, tau, nodes)
                 if make_plots not in ['None', '']:
                     save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                     plot.view_artefact(art_dict[artefact], save=save)
@@ -179,9 +179,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             return art_dict
 
 
-        def remove_artefacts(params, comm, art_dict, mpi_file, max_offset):
+        def remove_artefacts(params, comm, art_dict, data_file, max_offset):
 
-            N_total        = params.getint('data', 'N_total')
             chunk_size     = params.getint('whitening', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
@@ -225,25 +224,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 tmp      = numpy.where(windows[:, 0] == label)[0]
                 tau      = windows[tmp, 1]
-                mshape   = tau
-                data_len = tau * N_total
                 if (max_offset - time) < tau:
-                    data_len = (max_offset - time)*N_total
-                    mshape   = max_offset - time
+                    tau   = max_offset - time
 
-                local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                mpi_file.Read_at(numpy.int64(N_total * time), local_chunk)
-                local_chunk   = local_chunk.reshape(mshape, N_total)
-                local_chunk   = local_chunk.astype(numpy.float32)
-                local_chunk  -= dtype_offset
+                local_chunk   = data_file.get_time_snippet(time, tau)
+
                 for idx, i in enumerate(nodes):
-                    local_chunk[:, i] -= art_dict[label][idx, :mshape]
+                    local_chunk[:, i] -= art_dict[label][idx, :tau]
                        
-                local_chunk  += dtype_offset
-                local_chunk   = local_chunk.astype(data_dtype)
-                local_chunk   = local_chunk.ravel()
-
-                mpi_file.Write_at(numpy.int64(N_total*time), local_chunk)
+                data_file.set_data(time, local_chunk)
 
                 count        += 1
 
@@ -255,18 +244,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             comm.Barrier()
 
-        myfile   = MPI.File()
-        data_mpi = get_mpi_type(data_file.data_dtype)
         N_total  = data_file.N_tot
 
         if not multi_files:            
-            #mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
-            #mpi_in.Set_view(data_mpi.data_offset, data_mpi, data_mpi)
             goffset = filter_file(params, comm, data_file, data_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm, goffset//N_total)
-                remove_artefacts(params, comm, art_dict, mpi_in, goffset//N_total)
+                art_dict   = compute_artefacts(params, comm, data_file.max_offset)
+                remove_artefacts(params, comm, art_dict, mpi_in, data_file.max_offset)
 
             data_file.close()
         else:

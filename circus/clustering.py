@@ -10,6 +10,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     parallel_hdf5 = h5py.get_config().mpi
 
     #################################################################
+    data_file      = io.get_data_file(params)
     sampling_rate  = params.getint('data', 'sampling_rate')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
@@ -139,16 +140,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
     few_elts        = False
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
 
-        res        = io.data_stats(params, show=False)
+        res        = io.data_stats(data_file, show=False)
         chunk_size = numpy.int64(res*sampling_rate//comm.size)
         if comm.rank == 0:
             io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
-        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+        borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
 
     if smart_search is False:
         gpass = 1
@@ -228,7 +229,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-                local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+                local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
                 if do_spatial_whitening:
                     if use_gpu:
                         local_chunk = cmt.CUDAMatrix(local_chunk)

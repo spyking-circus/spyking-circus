@@ -360,12 +360,6 @@ def load_parameters(file_name):
 
 
 def data_stats(data_file, show=True, export_times=False):
-    #data_file      = params.get('data', 'data_file')
-    #data_offset    = params.getint('data', 'data_offset')
-    #data_dtype     = params.get('data', 'data_dtype')
-    #N_total        = params.getint('data', 'N_total')
-    #N_e            = params.getint('data', 'N_e')
-    #sampling_rate  = params.getint('data', 'sampling_rate')
     multi_files    = data_file.params.getboolean('data', 'multi-files')
     chunk_size     = 60 * data_file.rate    
 
@@ -461,10 +455,9 @@ def print_error(lines):
 
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
+def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
-    
-    N_t          = params.getint('data', 'N_t')
+    N_t          = data_file.params.getint('data', 'N_t')
     if not all_labels:
         if not mean_mode:
             stas = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
@@ -692,29 +685,12 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
 ##### end working zone
 
 
-def get_artefact(params, times_i, tau, nodes, normalize=True):
+def get_artefact(data_file, times_i, tau, nodes, normalize=True):
     
 
     artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = numpy.int64(params.getint('data', 'N_total'))
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-
     for time in times_i:
-        padding      = N_total * time
-        local_chunk  = datablock[padding:padding + tau*N_total]
-        local_chunk  = local_chunk.reshape(tau, N_total)
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= dtype_offset
-        
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
-
-        artefact += local_chunk.T
+        artefact += data_file.get_time_snippet(time, tau, nodes).T
 
     if normalize:
         artefact /= len(times_i)
