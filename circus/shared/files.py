@@ -14,6 +14,23 @@ from mpi4py import MPI
 from .mpi import gather_array
 import logging
 
+from circus.files.datafile import *
+
+
+def get_data_file(params):
+    
+    data_type = params.get('data', 'data_type')
+    data_file = params.get('data', 'data_file')
+
+    if data_type == 'raw_binary':
+        return RawBinaryFile(data_file, params)
+    elif data_type == 'mcs_raw_binary':
+        return RawMCSFile(data_file, params) 
+    elif data_type == 'hdf5':
+        return H5File(data_file, params)
+    else:
+        print_error(['The type %s is not recognized as a valid file format' %data_type])
+
 
 def get_header():
 
@@ -60,44 +77,6 @@ def write_to_logger(params, to_write, level='info'):
         elif level == 'warning':
             logging.warning(line)
 
-def detect_header(filename, value='MCS'):
-
-    if value == 'MCS':
-        try:
-            header      = 0
-            stop        = False
-            fid         = open(filename, 'rb')
-            header_text = ''
-            regexp      = re.compile('El_\d*')
-
-            while ((stop is False) and (header <= 5000)):
-                header      += 1
-                char         = fid.read(1)
-                header_text += char.decode('Windows-1252')
-                if (header > 2):
-                    if (header_text[header-3:header] == 'EOH'):
-                        stop = True
-            fid.close()
-            if stop is False:
-                print_error(['Wrong MCS header: file is not exported with MCRack'])
-                sys.exit(0) 
-            else:
-                header += 2
-            return header, len(regexp.findall(header_text))
-        except Exception:
-            print_error(["Wrong MCS header: file is not exported with MCRack"])
-            sys.exit(0)
-    else:
-        return value, None
-
-def copy_header(header, file_in, file_out):
-    fin  = open(file_in, 'rb')
-    fout = open(file_out, 'wb')
-    data = fin.read(header)
-    fout.write(data)
-    fin.close()
-    fout.close()
-
 
 def get_multi_files(params):
     file_name   = params.get('data', 'data_multi_file')
@@ -114,7 +93,6 @@ def get_multi_files(params):
 
     print_and_log(['Multi-files:'] + to_process, 'debug', params)
     return to_process
-
 
 def change_flag(file_name, flag, value, avoid_flag=None):
     """Set a new value to a flag of a given parameter file."""
@@ -197,13 +175,7 @@ def load_parameters(file_name):
         parser.set('data', 'MCS', 'True')
     else:
         parser.set('data', 'MCS', 'False')
-
-    if parser.get('data', 'hdf5_key_data') != '':
-        print "HDF5 file"
-    else:
-        data_offset, nb_channels = detect_header(file_name, data_offset)
-        parser.set('data', 'data_offset', str(data_offset))
-    
+   
     probe = read_probe(parser)
 
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
@@ -216,20 +188,6 @@ def load_parameters(file_name):
     parser.set('fitting', 'nb_chances', '3')
     parser.set('clustering', 'm_ratio', '0.01')
     parser.set('clustering', 'sub_dim', '5')
-
-
-    dtype_offset = parser.get('data', 'dtype_offset')
-    if dtype_offset == 'auto':
-        if parser.get('data', 'data_dtype') == 'uint16':
-            parser.set('data', 'dtype_offset', '32767')
-        elif parser.get('data', 'data_dtype') == 'int16':
-            parser.set('data', 'dtype_offset', '0')
-        elif parser.get('data', 'data_dtype') == 'float32':
-            parser.set('data', 'dtype_offset', '0')
-        elif parser.get('data', 'data_dtype') == 'int8':
-            parser.set('data', 'dtype_offset', '0')        
-        elif parser.get('data', 'data_dtype') == 'uint8':
-            parser.set('data', 'dtype_offset', '127')
 
     try: 
         parser.get('data', 'radius')
@@ -850,73 +808,20 @@ def get_amplitudes(params, times_i, src, neighs, template, nodes=None, pos='neg'
     return amplitudes, evecs.reshape(len(neighs), N_t)
 
 
-def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
+def load_chunk(data_file, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
     
-    if chunk_size is None:
-        chunk_size = params.getint('data', 'chunk_size')
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    if params.getboolean('data', 'MCS'):
-        data_offset, nb_channels = detect_header(data_file, 'MCS')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    local_chunk  = datablock[idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]]
-    del datablock
-    local_shape  = chunk_size + (padding[1]-padding[0])//N_total
-    local_chunk  = local_chunk.reshape(local_shape, N_total)
-    local_chunk  = local_chunk.astype(numpy.float32)
-    local_chunk -= dtype_offset
-    if nodes is not None:
-        if not numpy.all(nodes == numpy.arange(N_total)):
-            local_chunk = numpy.take(local_chunk, nodes, axis=1)
-    return numpy.ascontiguousarray(local_chunk), local_shape
+    return data_file.get_data(idx, chunk_len, chunk_size, padding, nodes)
 
 
-def prepare_preview(params, preview_filename):
-    chunk_size   = 2*params.getint('data', 'sampling_rate')
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    chunk_len    = numpy.int64(N_total) * chunk_size
-    local_chunk  = datablock[0:chunk_len]
-
-    output = open(preview_filename, 'wb')
-    fid    = open(data_file, 'rb')
-    # We copy the header 
-    for i in xrange(data_offset):
-        output.write(fid.read(1))
+def prepare_preview(data_file, preview_filename):
     
-    fid.close()
+    data_file.prepare_preview(preview_filename)
 
-    #Then the datafile
-    local_chunk.tofile(output)
-    output.close()
 
-def analyze_data(params, chunk_size=None):
+def analyze_data(data_file, chunk_size=None):
 
-    if chunk_size is None:
-        chunk_size = params.getint('data', 'chunk_size')
-    data_file      = params.get('data', 'data_file')
-    data_offset    = params.getint('data', 'data_offset')
-    if params.getboolean('data', 'MCS'):
-        data_offset, nb_channels = detect_header(data_file, 'MCS')
-    data_dtype     = params.get('data', 'data_dtype')
-    N_total        = params.getint('data', 'N_total')
-    template_shift = params.getint('data', 'template_shift')
-    chunk_len      = numpy.int64(N_total) * chunk_size
-    borders        = numpy.int64(N_total) * template_shift
-    datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    N              = len(datablock)
-    nb_chunks      = numpy.int64(N) // chunk_len
-    last_chunk_len = N - nb_chunks * chunk_len
-    last_chunk_len = N_total * numpy.int64(last_chunk_len)//N_total
-    
-    return borders, nb_chunks, chunk_len, last_chunk_len
+    return data_file.analyze(chunk_size)
+
 
 def get_nodes_and_edges(parameters, validating=False):
     """

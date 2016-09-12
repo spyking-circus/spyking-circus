@@ -7,13 +7,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     multi_files    = params.getboolean('data', 'multi-files')
-    data_offset    = params.getint('data', 'data_offset')
-    dtype_offset   = params.getint('data', 'dtype_offset')
-    data_dtype     = params.get('data', 'data_dtype')
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     sampling_rate  = params.getint('data', 'sampling_rate')
+
+    data_file      = io.get_data_file(params)
 
     try:
         cut_off    = params.getfloat('filtering', 'cut_off')
@@ -55,12 +54,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if (do_filter and not filter_done) or multi_files:
 
-        def filter_file(params, comm, mpi_input, mpi_output, offset=0, perform_filtering=True):
+        def filter_file(params, comm, data_file_in, data_file_out, offset=0, perform_filtering=True):
 
-            N_total        = params.getint('data', 'N_total')
             chunk_size     = params.getint('whitening', 'chunk_size')
 
-            borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+            borders, nb_chunks, chunk_len, last_chunk_len = data_file_in.analyze(chunk_size)
             if last_chunk_len > 0:
                 nb_chunks += 1
 
@@ -69,7 +67,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
-            goffset       = chunk_len*(nb_chunks - 1) + N_total*(last_chunk_len//N_total)
+            goffset       = chunk_len*(nb_chunks - 1) + data_file_in.N_tot*(last_chunk_len//data_file_in.N_tot)
 
             if comm.rank == 0:
                 if perform_filtering:
@@ -85,16 +83,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
                     data_len   = last_chunk_len
-                    chunk_size = last_chunk_len//N_total
+                    chunk_size = last_chunk_len//data_file_in.N_tot
                 else:
                     data_len   = chunk_len
 
-                local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                mpi_input.Read_at(numpy.int64(gidx*chunk_len), local_chunk)
-                local_shape   = chunk_size
-                local_chunk   = local_chunk.reshape(local_shape, N_total)
-                local_chunk   = local_chunk.astype(numpy.float32)
-                local_chunk  -= dtype_offset
+                local_chunk, _  =  data_file_in.get_data(gidx, chunk_len)
+                
                 for i in nodes:
                     if perform_filtering:
                         try:
@@ -110,11 +104,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     for i in nodes:
                         local_chunk[:, i] -= global_median
 
-                local_chunk  += dtype_offset
-                local_chunk   = local_chunk.astype(data_dtype)
-                local_chunk   = local_chunk.ravel()
-
-                mpi_output.Write_at(numpy.int64(gidx*chunk_len+offset), local_chunk)
+                data_file_out.set_data(gidx*chunk_len, local_chunk)
 
                 if comm.rank == 0:
                     pbar.update(count)
@@ -266,19 +256,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
 
         myfile   = MPI.File()
-        data_mpi = get_mpi_type(data_dtype)
-        N_total  = params.getint('data', 'N_total')
+        data_mpi = get_mpi_type(data_file.data_dtype)
+        N_total  = data_file.N_tot
 
         if not multi_files:            
-            mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
-            mpi_in.Set_view(data_offset, data_mpi, data_mpi)
-            goffset = filter_file(params, comm, mpi_in, mpi_in)
+            #mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
+            #mpi_in.Set_view(data_mpi.data_offset, data_mpi, data_mpi)
+            goffset = filter_file(params, comm, data_file, data_file)
 
             if clean_artefact:
                 art_dict   = compute_artefacts(params, comm, goffset//N_total)
                 remove_artefacts(params, comm, art_dict, mpi_in, goffset//N_total)
 
-            mpi_in.Close()
+            data_file.close()
         else:
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
