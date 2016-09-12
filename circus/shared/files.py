@@ -359,22 +359,19 @@ def load_parameters(file_name):
     return parser
 
 
-def data_stats(params, show=True, export_times=False):
-    data_file      = params.get('data', 'data_file')
-    data_offset    = params.getint('data', 'data_offset')
-    data_dtype     = params.get('data', 'data_dtype')
-    N_total        = params.getint('data', 'N_total')
-    N_e            = params.getint('data', 'N_e')
-    sampling_rate  = params.getint('data', 'sampling_rate')
-    multi_files    = params.getboolean('data', 'multi-files')
-    chunk_len      = N_total * (60 * sampling_rate)
-        
+def data_stats(data_file, show=True, export_times=False):
+    #data_file      = params.get('data', 'data_file')
+    #data_offset    = params.getint('data', 'data_offset')
+    #data_dtype     = params.get('data', 'data_dtype')
+    #N_total        = params.getint('data', 'N_total')
+    #N_e            = params.getint('data', 'N_e')
+    #sampling_rate  = params.getint('data', 'sampling_rate')
+    multi_files    = data_file.params.getboolean('data', 'multi-files')
+    chunk_size     = 60 * data_file.rate    
+
     if not multi_files:
-        datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-        N              = len(datablock)
-        nb_chunks      = N // chunk_len
-        last_chunk_len = (N - nb_chunks * chunk_len)//(N_total*sampling_rate)
-        if params.getboolean('data', 'MCS'):
+        _, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+        if data_file.params.getboolean('data', 'MCS'):
             data_offset, nb_channels = detect_header(data_file, 'MCS')
             if nb_channels is not None:
                 if N_e != nb_channels:
@@ -397,35 +394,35 @@ def data_stats(params, show=True, export_times=False):
             loc_N           = len(datablock)
             loc_nb_chunks   = loc_N // chunk_len
             nb_chunks      += loc_nb_chunks
-            last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)//(N_total*sampling_rate)
+            last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)//(N_total*data_file.rate)
             times   += [[t_start, t_start + len(datablock)//N_total]]
             t_start  = t_start + len(datablock)//N_total
 
-    N_t = params.getint('data', 'N_t')
-    N_t = numpy.round(1000.*N_t/sampling_rate, 1)
+    N_t = data_file.params.getint('data', 'N_t')
+    N_t = numpy.round(1000.*N_t/data_file.rate, 1)
 
     nb_extra        = last_chunk_len//60
     nb_chunks      += nb_extra
     last_chunk_len -= nb_extra*60
 
-    lines = ["Number of recorded channels : %d" %N_total,
-             "Number of analyzed channels : %d" %N_e,
-             "Data type                   : %s" %str(data_dtype),
-             "Sampling rate               : %d kHz" %(sampling_rate//1000.),
-             "Header offset for the data  : %d" %data_offset,
+    lines = ["Number of recorded channels : %d" %data_file.N_tot,
+             "Number of analyzed channels : %d" %data_file.N_e,
+             "Data type                   : %s" %str(data_file.data_dtype),
+             "Sampling rate               : %d kHz" %(data_file.rate//1000.),
+             "Header offset for the data  : %d" %data_file.data_offset,
              "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
-             "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
-             "Threshold crossing          : %s" %params.get('detection', 'peaks'),
-             "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
-             "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
-             "Template Extraction         : %s" %params.get('clustering', 'extraction'),
-             "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
+             "Spatial radius considered   : %d um" %data_file.params.getint('data', 'radius'),
+             "Threshold crossing          : %s" %data_file.params.get('detection', 'peaks'),
+             "Waveform alignment          : %s" %data_file.params.getboolean('detection', 'alignment'),
+             "Matched filters             : %s" %data_file.params.getboolean('detection', 'matched-filter'),
+             "Template Extraction         : %s" %data_file.params.get('clustering', 'extraction'),
+             "Smart Search                : %s" %data_file.params.getboolean('clustering', 'smart_search')]
     
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
 
-    print_and_log(lines, 'info', params, show)
+    print_and_log(lines, 'info', data_file.params, show)
 
     if not export_times:
         return nb_chunks*60 + last_chunk_len

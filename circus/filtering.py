@@ -87,7 +87,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     data_len   = chunk_len
 
-                local_chunk, _  =  data_file_in.get_data(gidx, chunk_len)
+                local_chunk, _ =  data_file_in.get_data(gidx, chunk_len)
                 
                 for i in nodes:
                     if perform_filtering:

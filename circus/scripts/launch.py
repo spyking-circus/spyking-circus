@@ -171,6 +171,8 @@ but a subset x,y can be done. Steps are:
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
+
+        data_file    = io.get_data_file(params)
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
@@ -178,9 +180,13 @@ but a subset x,y can be done. Steps are:
         f_next, extens = os.path.splitext(filename)
         shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']
-        io.prepare_preview(params, filename)
+        data_file.prepare_preview(filename)
+        data_file.close()
+        params.set('data', 'data_file', filename)
+        data_file    = io.get_data_file(params)
         io.change_flag(filename, 'chunk_size', '2')
         io.change_flag(filename, 'safety_time', '0')
+
 
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
@@ -231,7 +237,8 @@ but a subset x,y can be done. Steps are:
         else:
             use_gpu = 'False'
 
-        time = circus.shared.io.data_stats(params)/60.
+        #time = circus.shared.io.data_stats(data_file)/60.
+        time = 0
 
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
@@ -310,10 +317,13 @@ but a subset x,y can be done. Steps are:
         except Exception:
             pass
 
+        params    = io.load_parameters(filename)
+        data_file = io.get_data_file(params) 
+
         if preview:
-            mygui = gui.PreviewGUI(io.load_parameters(filename))
+            mygui = gui.PreviewGUI(data_file)
             shutil.rmtree(tmp_path_loc)
         elif result:
-            mygui = gui.PreviewGUI(io.load_parameters(filename), show_fit=True)
+            mygui = gui.PreviewGUI(data_file, show_fit=True)
         sys.exit(app.exec_())
 

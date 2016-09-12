@@ -11,6 +11,7 @@ class DataFile(object):
         self.N_tot  = params.getint('data', 'N_total')
         self.rate   = params.getint('data', 'sampling_rate')
         self.template_shift = params.getint('data', 'template_shift')
+        self.max_offset = 0
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
         pass
@@ -28,8 +29,8 @@ class DataFile(object):
         pass
 
     def set_offset(self, data_dtype):
-   		self.dtype_offset = self.params.get('data', 'dtype_offset')
-    	if self.dtype_offset == 'auto':
+        self.dtype_offset = self.params.get('data', 'dtype_offset')
+        if self.dtype_offset == 'auto':
 	        if self.data_dtype == 'uint16':
 	            self.dtype_offset = 32767
 	        elif self.data_dtype == 'int16':
@@ -45,6 +46,7 @@ class DataFile(object):
 				self.dtype_offset = self.params.getint('data', 'dtype_offset')
 			except Exception:
 				print "Offset not valid"
+	
 
 
 class RawBinaryFile(DataFile):
@@ -54,6 +56,8 @@ class RawBinaryFile(DataFile):
         self.data_offset = 0
         self.data_dtype  = self.params.get('data', 'data_dtype')
         self.set_offset(self.data_dtype)
+        self.data        = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='r')
+        self.max_offset  = len(self.data)//self.N_tot
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
     	
@@ -122,9 +126,7 @@ class RawBinaryFile(DataFile):
 	    local_chunk.tofile(output)
 	    output.close()
 
-	def close():
-		self.data.flush()
-
+		
 
 class RawMCSFile(RawBinaryFile):
 
@@ -180,6 +182,8 @@ class H5File(DataFile):
         	self.time_axis = 1
         else:
         	self.time_axis = 0
+       	self.max_offset = self.data.shape[self.time_axis]
+       	self.data_offset = 0
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
         if chunk_size is None:
@@ -224,22 +228,16 @@ class H5File(DataFile):
 	    return borders, nb_chunks, chunk_len, last_chunk_len
 
     def prepare_preview(self, preview_filename):
-	    chunk_size   = 2*self.rate
-	    chunk_len    = numpy.int64(self.N_tot) * chunk_size
-	    self.data    = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='r')
-	    local_chunk  = self.data[0:chunk_len]
-	    del self.data
+        chunk_size   = 2*self.rate
+        if self.time_axis == 0:
+            local_chunk = self.data[:2*self.rate, :]
+        elif self.time_axis == 1:
+            local_chunk = self.data[:, :2*self.rate]
 
-	    output = open(preview_filename, 'wb')
-	    fid    = open(self.file_name, 'rb')
-	    # We copy the header 
-	    for i in xrange(self.data_offset):
-	        output.write(fid.read(1))
-	    fid.close()
+        output = h5py.File(preview_filename, mode='w')
+        output.create_dataset(self.h5_key, data=local_chunk)
+        output.close()
 
-	    #Then the datafile
-	    local_chunk.tofile(output)
-	    output.close()
 
     def close(self):
         self.my_file.close()
