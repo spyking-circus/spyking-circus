@@ -33,7 +33,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
-        collect_zone = int(1*sampling_rate*1e-3)
+        collect_zone = int(0.5*sampling_rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -103,19 +103,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     threshs = -matched_tresholds_neg
                 else:
                     threshs = -thresholds
-                idx      = numpy.where(numpy.min(tmp, 1) < 0.5*threshs)[0]
+                idx      = numpy.where(numpy.min(tmp, 1) <= amp_limits[i, 0]*threshs)[0]
             elif sign_peaks == 'positive':
                 if matched_filter:
                     threshs = matched_tresholds_pos
                 else:
                     threshs = thresholds
-                idx      = numpy.where(numpy.max(tmp, 1) > 0.5*threshs)[0]
+                idx      = numpy.where(numpy.max(tmp, 1) >= amp_limits[i, 0]*threshs)[0]
             elif sign_peaks == 'both':
                 if matched_filter:
                     threshs = numpy.minimum(matched_tresholds_neg, matched_tresholds_pos)
                 else:
                     threshs = thresholds
-                idx      = numpy.where(numpy.max(numpy.abs(tmp), 1) > 0.5*threshs)[0]
+                idx      = numpy.where(numpy.max(numpy.abs(tmp), 1) >= amp_limits[i, 0]*threshs)[0]
             neigbors[i] = idx
 
     if use_gpu:
@@ -353,7 +353,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = numpy.minimum(numpy.arange(0, local_len) + collect_zone + 1, max_time - min_time)
                 for i in xrange(N_e):
                     c_all_times[i, all_found_spikes[i] - min_time] = True
-
+                    
             while (numpy.mean(failure) < nb_chances):
 
                 if full_gpu:

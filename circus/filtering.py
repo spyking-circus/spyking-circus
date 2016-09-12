@@ -137,8 +137,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= int(sampling_rate*1e-3)
-            windows[:, 1]   *= int(sampling_rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(sampling_rate*1e-3)
+            windows[:, 1]   *= numpy.int64(sampling_rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
@@ -201,8 +201,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= int(sampling_rate*1e-3)
-            windows[:, 1]   *= int(sampling_rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(sampling_rate*1e-3)
+            windows[:, 1]   *= numpy.int64(sampling_rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 

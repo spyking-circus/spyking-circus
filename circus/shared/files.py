@@ -1650,16 +1650,16 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         result['gtemps']  = {}
 
     for i in xrange(N_tm//2):
-        result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0)
-        result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2))
+        result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
+        result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2), dtype=numpy.float32)
         if with_real_amps:
-            result['real_amps']['temp_' + str(i)] = numpy.empty(shape=0)
+            result['real_amps']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
         if with_voltages:
-            result['voltages']['temp_' + str(i)] = numpy.empty(shape=0)
+            result['voltages']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
     
     if collect_all:
         for i in xrange(N_e):
-            result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0)
+            result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0, dtype=numpy.uint32)
 
     pbar = get_progressbar(size=nb_threads)
 
@@ -1676,7 +1676,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             voltages       = numpy.fromfile(voltages_file, dtype=numpy.float32)
         if collect_all:
             gspikes_file = file_out_suff + '.gspiketimes-%d.data' %node
-            gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.int32)
+            gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.uint32)
             gtemps_file  = file_out_suff + '.gtemplates-%d.data' %node
             gtemps       = numpy.fromfile(gtemps_file, dtype=numpy.int32)
 
@@ -1739,7 +1739,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     if collect_all:
         for key in result['gspikes']:
-            result['gspikes'][key] = numpy.array(result['gspikes'][key], dtype=numpy.int32)
+            result['gspikes'][key] = numpy.array(result['gspikes'][key], dtype=numpy.uint32)
             idx                    = numpy.argsort(result['gspikes'][key])
             result['gspikes'][key] = result['gspikes'][key][idx]
 
