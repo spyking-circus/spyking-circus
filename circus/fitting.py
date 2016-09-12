@@ -479,28 +479,33 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 for temp, spike in zip(templates_to_write, spikes_to_write - local_offset):
                     c_all_times[neigbors[temp], c_min_times[spike-min_time]:c_max_times[spike-min_time]] = False
 
-                gspikes = numpy.where(numpy.sum(c_all_times, 0) > 0)[0]
+                gspikes       = numpy.where(numpy.sum(c_all_times, 0) > 0)[0]
+                c_local_chunk = numpy.take(c_local_chunk, gspikes, axis=0)
+
                 if sign_peaks == 'negative':
-                    bestlecs = numpy.argmin(c_local_chunk[gspikes, :], 1)
+                    bestlecs = numpy.argmin(c_local_chunk, 1)
                     if matched_filter:
                         threshs = -matched_tresholds_neg[bestlecs]
                     else:
                         threshs = -thresholds[bestlecs]
-                    idx      = numpy.where(c_local_chunk[gspikes, bestlecs] < threshs)[0]
+                    c_local_chunk = numpy.take(c_local_chunk, bestlecs)
+                    idx      = numpy.where(c_local_chunk < threshs)[0]
                 elif sign_peaks == 'positive':
-                    bestlecs = numpy.argmax(c_local_chunk[gspikes, :], 1)
+                    bestlecs = numpy.argmax(c_local_chunk, 1)
                     if matched_filter:
                         threshs = matched_tresholds_pos[bestlecs]
                     else:
                         threshs = thresholds[bestlecs]
-                    idx      = numpy.where(c_local_chunk[gspikes, bestlecs] > threshs)[0]
+                    c_local_chunk = numpy.take(c_local_chunk, bestlecs)
+                    idx      = numpy.where(c_local_chunk > threshs)[0]
                 elif sign_peaks == 'both':
-                    bestlecs = numpy.argmax(numpy.abs(c_local_chunk[gspikes, :]), 1)
+                    bestlecs = numpy.argmax(numpy.abs(c_local_chunk), 1)
                     if matched_filter:
                         threshs = numpy.minimum(matched_tresholds_neg[bestlecs], matched_tresholds_pos[bestlecs])
                     else:
                         threshs = thresholds[bestlecs]
-                    idx      = numpy.where(numpy.abs(c_local_chunk[gspikes, bestlecs]) > threshs)[0]
+                    c_local_chunk = numpy.take(c_local_chunk, bestlecs)
+                    idx      = numpy.where(numpy.abs(c_local_chunk) > threshs)[0]
                 
                 gspikes  = numpy.take(gspikes, idx)
                 bestlecs = numpy.take(bestlecs, idx)
