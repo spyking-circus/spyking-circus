@@ -78,7 +78,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     to_write = ["Concatenating multi files without filtering"]
                 if remove_median:
                     to_write += ["Median over all channels is substracted to each channels"]
-                io.print_and_log(to_write, 'info', params)
+                io.print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(loc_nb_chunks)
 
             for count, gidx in enumerate(to_process):

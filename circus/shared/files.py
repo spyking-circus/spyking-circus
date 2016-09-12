@@ -192,13 +192,17 @@ def load_parameters(file_name):
     parser.set('data', 'N_t', str(N_t))
     parser.set('data', 'template_shift', str(int((N_t-1)//2)))
 
-    data_offset              = parser.get('data', 'data_offset')
+    data_offset = parser.get('data', 'data_offset')
     if data_offset == 'MCS':
         parser.set('data', 'MCS', 'True')
     else:
         parser.set('data', 'MCS', 'False')
-    data_offset, nb_channels = detect_header(file_name, data_offset)
-    parser.set('data', 'data_offset', str(data_offset))
+
+    if parser.get('data', 'hdf5_key_data') != '':
+        print "HDF5 file"
+    else:
+        data_offset, nb_channels = detect_header(file_name, data_offset)
+        parser.set('data', 'data_offset', str(data_offset))
     
     probe = read_probe(parser)
 
