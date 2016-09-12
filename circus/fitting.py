@@ -488,24 +488,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         threshs = -matched_tresholds_neg[bestlecs]
                     else:
                         threshs = -thresholds[bestlecs]
-                    c_local_chunk = numpy.take(c_local_chunk, bestlecs)
-                    idx      = numpy.where(c_local_chunk < threshs)[0]
+                    idx      = numpy.where(numpy.min(c_local_chunk, 1) < threshs)[0]
                 elif sign_peaks == 'positive':
                     bestlecs = numpy.argmax(c_local_chunk, 1)
                     if matched_filter:
                         threshs = matched_tresholds_pos[bestlecs]
                     else:
                         threshs = thresholds[bestlecs]
-                    c_local_chunk = numpy.take(c_local_chunk, bestlecs)
-                    idx      = numpy.where(c_local_chunk > threshs)[0]
+                    idx      = numpy.where(numpy.max(c_local_chunk, 1) > threshs)[0]
                 elif sign_peaks == 'both':
-                    bestlecs = numpy.argmax(numpy.abs(c_local_chunk), 1)
+                    c_local_chunk = numpy.abs(c_local_chunk)
+                    bestlecs = numpy.argmax(c_local_chunk, 1)
                     if matched_filter:
                         threshs = numpy.minimum(matched_tresholds_neg[bestlecs], matched_tresholds_pos[bestlecs])
                     else:
                         threshs = thresholds[bestlecs]
-                    c_local_chunk = numpy.take(c_local_chunk, bestlecs)
-                    idx      = numpy.where(numpy.abs(c_local_chunk) > threshs)[0]
+                    idx      = numpy.where(numpy.max(c_local_chunk, 1) > threshs)[0]
                 
                 gspikes  = numpy.take(gspikes, idx)
                 bestlecs = numpy.take(bestlecs, idx)
