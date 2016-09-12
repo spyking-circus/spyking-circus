@@ -167,12 +167,12 @@ but a subset x,y can be done. Steps are:
         tasks_list = filename
 
     if not batch:
-        params = io.load_parameters(filename)
+        params    = io.load_parameters(filename)
+        data_file = io.get_data_file(params)
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
 
-        data_file    = io.get_data_file(params)
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
@@ -237,9 +237,9 @@ but a subset x,y can be done. Steps are:
         else:
             use_gpu = 'False'
 
-        #time = circus.shared.io.data_stats(data_file)/60.
-        time = 0
 
+        time = circus.shared.io.data_stats(data_file)/60.
+        
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
                 io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)

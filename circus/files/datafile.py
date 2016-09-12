@@ -34,22 +34,21 @@ class DataFile(object):
     def set_offset(self, data_dtype):
         self.dtype_offset = self.params.get('data', 'dtype_offset')
         if self.dtype_offset == 'auto':
-	        if self.data_dtype == 'uint16':
-	            self.dtype_offset = 32767
-	        elif self.data_dtype == 'int16':
-	            self.dtype_offset = 0
-	        elif self.data_dtype == 'float32':
-	            self.dtype_offset = 0
-	        elif self.data_dtype == 'int8':
-	            self.dtype_offset = 0        
-	        elif self.data_dtype == 'uint8':
-	            self.dtype_offset = 127
-		else:
-			try:
-				self.dtype_offset = self.params.getint('data', 'dtype_offset')
-			except Exception:
-				print "Offset not valid"
-	
+            if self.data_dtype == 'uint16':
+                self.dtype_offset = 32767
+            elif self.data_dtype == 'int16':
+                self.dtype_offset = 0
+            elif self.data_dtype == 'float32':
+                self.dtype_offset = 0
+            elif self.data_dtype == 'int8':
+                self.dtype_offset = 0        
+            elif self.data_dtype == 'uint8':
+                self.dtype_offset = 127
+        else:
+            try:
+                self.dtype_offset = self.params.getint('data', 'dtype_offset')
+            except Exception:
+                print "Offset not valid"
 
 
 class RawBinaryFile(DataFile):
@@ -87,7 +86,7 @@ class RawBinaryFile(DataFile):
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
         if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(N_total)):
+            if not numpy.all(nodes == numpy.arange(self.N_tot)):
                 local_chunk = numpy.take(local_chunk, nodes, axis=1)
         return local_chunk
 
@@ -110,9 +109,8 @@ class RawBinaryFile(DataFile):
 	    N              = len(self.data)
 	    del self.data
 	    nb_chunks      = numpy.int64(N) // chunk_len
-	    last_chunk_len = N - nb_chunks * chunk_len
-	    last_chunk_len = self.N_tot * numpy.int64(last_chunk_len)//self.N_tot
-	    
+	    last_chunk_len = N - (nb_chunks * chunk_len)
+	    last_chunk_len = last_chunk_len//self.N_tot
 	    return borders, nb_chunks, chunk_len, last_chunk_len
 
     def copy_header(self, file_in, file_out):

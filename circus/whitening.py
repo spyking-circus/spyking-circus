@@ -255,7 +255,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(data_file.N_tot, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    take_all         = False
+    if sign_peaks == 'both':
+       max_elts_elec *= 2
     #################################################################
 
 

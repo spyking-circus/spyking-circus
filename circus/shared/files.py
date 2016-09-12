@@ -203,6 +203,7 @@ def load_parameters(file_name):
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'multi-files', 'bool', 'False'],
+                  ['data', 'data_type', 'string', 'raw_binary'],
                   ['detection', 'alignment', 'bool', 'True'],
                   ['detection', 'matched-filter', 'bool', 'False'],
                   ['detection', 'matched_thresh', 'float', '5'],
@@ -395,9 +396,11 @@ def data_stats(data_file, show=True, export_times=False):
     N_t = data_file.params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/data_file.rate, 1)
 
-    nb_extra        = last_chunk_len//60
+    nb_extra        = last_chunk_len//data_file.rate
     nb_chunks      += nb_extra
-    last_chunk_len -= nb_extra*60
+    last_chunk_len -= (nb_extra*data_file.rate)
+    last_chunk_len  = int(last_chunk_len/data_file.rate)
+
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
              "Number of analyzed channels : %d" %data_file.N_e,
@@ -467,22 +470,16 @@ def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=Fa
         nb_labels = numpy.unique(labels_i)
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('detection', 'alignment') and auto_align
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    alignment     = data_file.params.getboolean('detection', 'alignment') and auto_align
 
-    do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    template_shift        = params.getint('data', 'template_shift')
+    do_temporal_whitening = data_file.params.getboolean('whitening', 'temporal')
+    do_spatial_whitening  = data_file.params.getboolean('whitening', 'spatial')
+    template_shift        = data_file.params.getint('data', 'template_shift')
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening  = load_data(data_file.params, 'spatial_whitening')
     if do_temporal_whitening:     
-        temporal_whitening = load_data(params, 'temporal_whitening')
+        temporal_whitening = load_data(data_file.params, 'temporal_whitening')
 
     if alignment:
         cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
@@ -490,20 +487,22 @@ def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=Fa
 
     count = 0
     for lb, time in zip(labels_i, times_i):
-        padding      = N_total * time
         if alignment:
-            local_chunk = datablock[padding - 2*template_shift*N_total:padding + (2*template_shift+1)*N_total]
-            local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
+            local_chunk = data_file.get_snippet(time - 2*template_shift, 2*N_t - 1, nodes=nodes)
+            #local_chunk = datablock[padding - 2*template_shift*N_total:padding + (2*template_shift+1)*N_total]
+            #local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
         else:
-            local_chunk = datablock[padding - template_shift*N_total:padding + (template_shift+1)*N_total]
-            local_chunk = local_chunk.reshape(N_t, N_total)
+            local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
+            #local_chunk = datablock[padding - template_shift*N_total:padding + (template_shift+1)*N_total]
+            #local_chunk = local_chunk.reshape(N_t, N_total)
 
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= dtype_offset
+        #local_chunk  = local_chunk.astype(numpy.float32)
+        #local_chunk -= dtype_offset
         
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
+        #if nodes is not None:
+        #    if not numpy.all(nodes == numpy.arange(N_total)):
+        #        local_chunk = numpy.take(local_chunk, nodes, axis=1)
+        
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
@@ -690,7 +689,7 @@ def get_artefact(data_file, times_i, tau, nodes, normalize=True):
 
     artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
     for time in times_i:
-        artefact += data_file.get_time_snippet(time, tau, nodes).T
+        artefact += data_file.get_snippet(time, tau, nodes).T
 
     if normalize:
         artefact /= len(times_i)

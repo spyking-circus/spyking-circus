@@ -10,6 +10,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         SHARED_MEMORY = False
 
     #################################################################
+    data_file      = io.get_data_file(params)
     sampling_rate  = params.getint('data', 'sampling_rate')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
@@ -154,7 +155,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     del c_overs[i]
             full_gpu = False
 
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
     nb_chunks                                     = int(min(nb_chunks, max_chunk))
 
     if comm.rank == 0:
@@ -186,7 +187,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, padding, nodes=nodes)           
+        local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, padding, nodes=nodes)           
 
         if do_spatial_whitening:
             if use_gpu:

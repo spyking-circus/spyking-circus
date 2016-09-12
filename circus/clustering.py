@@ -747,13 +747,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     elif extraction == 'median-raw':                
                         labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                         times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data         = io.get_stas(data_file, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component  = numpy.median(sub_data, 0)
                         tmp_templates    = first_component
                     elif extraction == 'mean-raw':                
                         labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                         times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data         = io.get_stas(data_file, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component  = numpy.mean(sub_data, 0)
                         tmp_templates    = first_component
 
