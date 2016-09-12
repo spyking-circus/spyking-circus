@@ -227,7 +227,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if (max_offset - time) < tau:
                     tau   = max_offset - time
 
-                local_chunk   = data_file.get_time_snippet(time, tau)
+                local_chunk   = data_file.get_snippet(time, tau)
 
                 for idx, i in enumerate(nodes):
                     local_chunk[:, i] -= art_dict[label][idx, :tau]
@@ -258,9 +258,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
             
-
             if comm.rank == 0:
-                io.copy_header(data_offset, params.get('data', 'data_multi_file'), combined_file)
+                data_file.copy_header(data_file.data_offset, params.get('data', 'data_multi_file'), combined_file)
                 
             comm.Barrier()
             

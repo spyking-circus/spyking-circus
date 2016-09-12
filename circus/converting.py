@@ -15,6 +15,7 @@ from circus.shared.utils import get_progressbar
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
     params         = circus.shared.utils.io.load_parameters(filename)
+    data_file      = 
     sampling_rate  = float(params.getint('data', 'sampling_rate'))
     data_dtype     = params.get('data', 'data_dtype')
     file_out_suff  = params.get('data', 'file_out_suff')

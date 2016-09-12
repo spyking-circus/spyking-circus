@@ -326,4 +326,3 @@ but a subset x,y can be done. Steps are:
         elif result:
             mygui = gui.PreviewGUI(data_file, show_fit=True)
         sys.exit(app.exec_())
-

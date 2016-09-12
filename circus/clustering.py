@@ -959,6 +959,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             hfile.close()
     
     comm.Barrier()
+    data_file.close()
 
     if comm.rank == 0:
         io.print_and_log(["Merging similar templates..."], 'default', params)

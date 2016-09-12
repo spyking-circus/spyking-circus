@@ -489,19 +489,8 @@ def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=Fa
     for lb, time in zip(labels_i, times_i):
         if alignment:
             local_chunk = data_file.get_snippet(time - 2*template_shift, 2*N_t - 1, nodes=nodes)
-            #local_chunk = datablock[padding - 2*template_shift*N_total:padding + (2*template_shift+1)*N_total]
-            #local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
         else:
             local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
-            #local_chunk = datablock[padding - template_shift*N_total:padding + (template_shift+1)*N_total]
-            #local_chunk = local_chunk.reshape(N_t, N_total)
-
-        #local_chunk  = local_chunk.astype(numpy.float32)
-        #local_chunk -= dtype_offset
-        
-        #if nodes is not None:
-        #    if not numpy.all(nodes == numpy.arange(N_total)):
-        #        local_chunk = numpy.take(local_chunk, nodes, axis=1)
         
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -543,7 +532,7 @@ def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=Fa
     return stas
 
 
-def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
+def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=None,
                        mean_mode=False, all_labels=False, auto_align=True):
     
     # First we need to identify machines in the MPI ring.
@@ -554,7 +543,8 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
     ##### end quarantine zone
     float_size = MPI.FLOAT.Get_size() 
     sub_comm = comm.Split(myip, 0)
-    
+    params = data_file.params
+
     # Load parameters.
     N_t = params.getint('data', 'N_t')
     data_file = params.get('data', 'data_file')
@@ -624,23 +614,19 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
             xdata = numpy.arange(- 2 * template_shift, 2 * template_shift + 1)
         count = 0
         for lb, time in zip(labels_i, times_i):
-            padding = N_total * time
+            
             if alignment:
-                local_chunk = datablock[padding - 2 * template_shift * N_total:padding + (2 * template_shift + 1) * N_total]
-                local_chunk = local_chunk.reshape(2 * N_t - 1, N_total)
+                local_chunk = data_file.get_snippet(time - 2*template_shift, 2*N_t - 1, nodes=nodes)
             else:
-                local_chunk = datablock[padding - template_shift * N_total:padding + (template_shift + 1) * N_total]
-                local_chunk = local_chunk.reshape(N_t, N_total)
-            local_chunk = local_chunk.astype(numpy.float32)
-            local_chunk -= dtype_offset
-            if nodes is not None:
-                if not numpy.all(nodes == numpy.arange(N_total)):
-                    local_chunk = numpy.take(local_chunk, nodes, axis=1)
+                local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
+            
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+            
             local_chunk = numpy.take(local_chunk, neighs, axis=1)
+            
             if alignment:
                 idx = numpy.where(neighs == src)[0]
                 ydata = numpy.arange(len(neighs))
@@ -696,88 +682,6 @@ def get_artefact(data_file, times_i, tau, nodes, normalize=True):
 
     return artefact
 
-
-
-
-def get_amplitudes(params, times_i, src, neighs, template, nodes=None, pos='neg'):
-    from .utils import smooth  # avoid import issues
-    N_t          = params.getint('data', 'N_t')
-    amplitudes   = numpy.zeros(len(times_i), dtype=numpy.float32)
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('detection', 'alignment')
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    template     = template.ravel()
-    covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
-    norm_temp    = numpy.sum(template**2)
-
-    do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    template_shift        = params.getint('data', 'template_shift')
-
-    if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
-    if do_temporal_whitening:
-        temporal_whitening = load_data(params, 'temporal_whitening')
-
-    if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
-        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
-
-    for count, time in enumerate(times_i):
-        padding      = N_total * time
-        if alignment:
-            local_chunk = datablock[padding - 2*template_shift*N_total:padding + (2*template_shift+1)*N_total]
-            local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
-        else:
-            local_chunk = datablock[padding - template_shift*N_total:padding + (template_shift+1)*N_total]
-            local_chunk = local_chunk.reshape(N_t, N_total)
-
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= dtype_offset
-
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
-        if do_spatial_whitening:
-            local_chunk = numpy.dot(local_chunk, spatial_whitening)
-        if do_temporal_whitening:
-            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
-        
-        local_chunk = numpy.take(local_chunk, neighs, axis=1)
-
-        if alignment:
-            idx   = numpy.where(neighs == src)[0]
-            ydata = numpy.arange(len(neighs))
-            if len(ydata) == 1:
-                f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-                elif pos =='pos':
-                    rmin    = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
-                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
-            else:
-                f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
-                if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
-                elif pos == 'pos':
-                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
-                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata, ydata).astype(numpy.float32)
-
-        local_chunk       = local_chunk.T.ravel()
-        amplitudes[count] = numpy.dot(local_chunk, template)/norm_temp
-        snippet     = (template - amplitudes[count]*local_chunk).reshape(len(template), 1)
-        covariance += numpy.dot(snippet, snippet.T)
-
-    covariance  /= len(times_i)
-    evals, evecs = scipy.sparse.linalg.eigs(covariance, k=1, which='LM')
-    evecs        = numpy.real(evecs).astype(numpy.float32)
-    return amplitudes, evecs.reshape(len(neighs), N_t)
 
 
 def load_chunk(data_file, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
