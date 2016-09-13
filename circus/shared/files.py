@@ -404,6 +404,7 @@ def data_stats(data_file, show=True, export_times=False):
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
              "Number of analyzed channels : %d" %data_file.N_e,
+             "Data format                 : %s" %data_file.params.get('data', 'data_type'),
              "Data type                   : %s" %str(data_file.data_dtype),
              "Sampling rate               : %d kHz" %(data_file.rate//1000.),
              "Header offset for the data  : %d" %data_file.data_offset,

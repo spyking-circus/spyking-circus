@@ -13,6 +13,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sampling_rate  = params.getint('data', 'sampling_rate')
 
     data_file      = io.get_data_file(params)
+    data_file.open('r+')
 
     try:
         cut_off    = params.getfloat('filtering', 'cut_off')
@@ -253,7 +254,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 art_dict   = compute_artefacts(params, comm, data_file.max_offset)
                 remove_artefacts(params, comm, art_dict, mpi_in, data_file.max_offset)
 
-            data_file.close()
         else:
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
@@ -291,3 +291,5 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.change_flag(filename, 'filter_done', 'True')
 
     comm.Barrier()
+    
+    data_file.close()

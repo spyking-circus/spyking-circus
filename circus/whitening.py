@@ -9,6 +9,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     data_file      = io.get_data_file(params)
+    data_file.open()
+    params         = data_file.params
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -227,6 +229,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 bfile.close()
             comm.Barrier()
 
+    data_file.close()
     #if comm.rank == 0:
         #if not os.path.exists(plot_path):
         #    os.makedirs(plot_path)
@@ -239,6 +242,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     data_file      = io.get_data_file(params)
+    data_file.open()
+    params         = data_file.params
     N_t            = params.getint('data', 'N_t')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')

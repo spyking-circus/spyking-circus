@@ -39,6 +39,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
     
     data_file = io.get_data_file(params)
+    data_file.open()
     data_offset = params.getint('data', 'data_offset')
     data_dtype = params.get('data', 'data_dtype')
     N_total = params.getint('data', 'N_total')
@@ -1600,5 +1601,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     if comm.rank == 0:
         io.print_and_log(["Validation done."], level='debug', logger=params)
+
+    data_file.close()
 
     return
