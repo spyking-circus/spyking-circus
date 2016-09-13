@@ -379,7 +379,8 @@ def data_stats(data_file, show=True, export_times=False):
             _, loc_nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
 
             nb_chunks      += loc_nb_chunks
-            last_chunk_len += data.max_offset - (loc_nb_chunks*data_file.rate)
+            last_chunk_len += data.max_offset - (loc_nb_chunks*chunk_size)
+            print last_chunk_len, nb_chunks, data.max_offset, chunk_size, chunk_len
 
             times   += [[t_start, t_start + data.max_offset]]
             t_start += data.max_offset

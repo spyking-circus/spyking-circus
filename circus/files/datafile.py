@@ -65,17 +65,16 @@ class RawBinaryFile(DataFile):
         self.N    = len(self.data)
         self.size = (self.N//self.N_tot, self.N_tot)
         self.max_offset = self.size[0] 
-        self.scaling = self.N_tot
         self.close()
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
     	
         if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
+            chunk_size = self.params.getint('data', 'chunk_size') * self.N_tot
 
         self.open()
-        local_chunk  = self.data[idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]]
-        local_shape  = chunk_size + (padding[1]-padding[0])//self.N_tot
+        local_chunk  = self.data[idx*numpy.int64(chunk_len)+padding[0]*self.N_tot:(idx+1)*numpy.int64(chunk_len)+padding[1]*self.N_tot]
+        local_shape  = chunk_len//self.N_tot + (padding[1]-padding[0])
         local_chunk  = local_chunk.reshape(local_shape, self.N_tot)
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
@@ -116,7 +115,7 @@ class RawBinaryFile(DataFile):
             chunk_size = self.params.getint('data', 'chunk_size')
 	    
         chunk_len      = numpy.int64(self.N_tot) * chunk_size
-        borders        = numpy.int64(self.N_tot) * self.template_shift
+        borders        = self.template_shift
         nb_chunks      = numpy.int64(self.N) // chunk_len
         last_chunk_len = self.N - (nb_chunks * chunk_len)
         last_chunk_len = last_chunk_len//self.N_tot
@@ -206,7 +205,6 @@ class H5File(DataFile):
         self.data_dtype = self.my_file.get(self.h5_key).dtype
         self.set_offset(self.data_dtype)
         self.size      = self.my_file.get(self.h5_key).shape
-        self.scaling   = 1
         
         assert (self.size[0] == self.N_tot) or (self.size[1] == self.N_tot)
         if self.size[0] == self.N_tot:

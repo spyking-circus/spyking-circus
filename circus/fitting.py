@@ -266,7 +266,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             del sub_mat
 
-            local_offset = gidx*chunk_size+padding[0]//data_file.scaling
+            local_offset = gidx*chunk_size+padding[0]
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
             penalty      = numpy.ones((n_tm, n_t), dtype=numpy.float32)
