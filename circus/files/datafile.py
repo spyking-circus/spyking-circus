@@ -1,4 +1,4 @@
-import h5py, numpy
+import h5py, numpy, re
 import ConfigParser as configparser
 
 class DataFile(object):
@@ -157,15 +157,14 @@ class RawBinaryFile(DataFile):
 
 class RawMCSFile(RawBinaryFile):
 
-    def __init(self, datapath, params):
-        DataFile.__init__(self, file_name, params)
+    def __init__(self, file_name, params):
+        RawBinaryFile.__init__(self, file_name, params)
         a, b = self.detect_header()
         self.data_offset = a
         self.nb_channels = b
 
         if self.nb_channels != self.N_tot:
             print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
-
 
     def detect_header(self):
         try:

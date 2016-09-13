@@ -17,10 +17,13 @@ import logging
 from circus.files.datafile import *
 
 
-def get_data_file(params):
+def get_data_file(params, multi_files=False):
     
     data_type = params.get('data', 'data_type')
-    data_file = params.get('data', 'data_file')
+    if multi_files:
+        data_file = params.get('data', 'data_file')
+    else:
+        data_file = params.get('data', 'data_multi_file')
 
     if data_type == 'raw_binary':
         return RawBinaryFile(data_file, params)
@@ -30,6 +33,7 @@ def get_data_file(params):
         return H5File(data_file, params)
     else:
         print_error(['The type %s is not recognized as a valid file format' %data_type])
+        sys.exit(0)
 
 
 def get_header():
@@ -375,15 +379,14 @@ def data_stats(data_file, show=True, export_times=False):
         times          = []
         for f in all_files:
             data_file.params.set('data', 'data_file', f)
-            data   = get_data_file(data_file.params)
-            _, loc_nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+            new_data_file = get_data_file(data_file.params)
+            _, loc_nb_chunks, chunk_len, last_chunk_len = new_data_file.analyze(chunk_size)
 
             nb_chunks      += loc_nb_chunks
-            last_chunk_len += data.max_offset - (loc_nb_chunks*chunk_size)
-            print last_chunk_len, nb_chunks, data.max_offset, chunk_size, chunk_len
+            last_chunk_len += new_data_file.max_offset - (loc_nb_chunks*chunk_size)
 
-            times   += [[t_start, t_start + data.max_offset]]
-            t_start += data.max_offset
+            times   += [[t_start, t_start + new_data_file.max_offset]]
+            t_start += new_data_file.max_offset
 
     N_t = data_file.params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/data_file.rate, 1)

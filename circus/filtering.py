@@ -13,7 +13,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sampling_rate  = params.getint('data', 'sampling_rate')
 
     data_file      = io.get_data_file(params)
-    data_file.open('r+')
 
     try:
         cut_off    = params.getfloat('filtering', 'cut_off')
@@ -55,10 +54,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if (do_filter and not filter_done) or multi_files:
 
-        def filter_file(params, comm, data_file_in, data_file_out, offset=0, perform_filtering=True):
+        def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True):
+
+            if data_file_out is None:
+                data_file_in.open(mode='r+')
+                data_file_out = data_file_in
+            else:
+                data_file_in.open()
+                data_file_out.open(mode='r+')
 
             chunk_size     = params.getint('whitening', 'chunk_size')
-
             borders, nb_chunks, chunk_len, last_chunk_len = data_file_in.analyze(chunk_size)
             if last_chunk_len > 0:
                 nb_chunks += 1
@@ -68,7 +73,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
-            goffset       = chunk_len*(nb_chunks - 1) + data_file_in.N_tot*(last_chunk_len//data_file_in.N_tot)
+            goffset       = data_file_in.max_offset
 
             if comm.rank == 0:
                 if perform_filtering:
@@ -115,10 +120,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             comm.Barrier()
 
+            data_file_in.close()
+            data_file_out.close()
+
             return goffset + offset
 
-        def compute_artefacts(params, data_file, max_offset):
+        def compute_artefacts(data_file, max_offset):
 
+            data_file.open()
             chunk_size     = params.getint('whitening', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
@@ -177,11 +186,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 pbar.finish()
 
+            data_file.close()
+
             return art_dict
 
 
-        def remove_artefacts(params, comm, art_dict, data_file, max_offset):
+        def remove_artefacts(art_dict, data_file, max_offset):
 
+            data_file.open()
             chunk_size     = params.getint('whitening', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
@@ -244,46 +256,42 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 pbar.finish()
 
             comm.Barrier()
-
-        N_total  = data_file.N_tot
+            data_file.close()
 
         if not multi_files:            
-            goffset = filter_file(params, comm, data_file, data_file)
+            goffset = filter_file(data_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm, data_file.max_offset)
-                remove_artefacts(params, comm, art_dict, mpi_in, data_file.max_offset)
+                art_dict   = compute_artefacts(data_file, goffset)
+                remove_artefacts(art_dict, data_file, goffset)
 
         else:
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
             
             if comm.rank == 0:
-                data_file.copy_header(data_file.data_offset, params.get('data', 'data_multi_file'), combined_file)
+                data_file.copy_header(params.get('data', 'data_multi_file'), combined_file)
+
                 
             comm.Barrier()
-            
-            mpi_out       = myfile.Open(comm, combined_file, MPI.MODE_RDWR)
-            mpi_out.Set_view(data_offset, data_mpi, data_mpi)
-            io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
+            data_out = io.get_data_file(params, multi_files=True)
+            print combined_file, params.get('data', 'data_multi_file')
 
+            io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
             goffset = 0
             
             for data_file in all_files:
-                mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDONLY)
-                if params.getboolean('data', 'MCS'):
-                    data_offset, nb_channels = io.detect_header(data_file, 'MCS')
-                mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
-                params.set('data', 'data_file', data_file)
+
+                data_in = io.get_data_file(params.set('data', 'data_file', combined_file))
+
                 io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
-                goffset = filter_file(params, comm, mpi_in, mpi_out, goffset, perform_filtering=do_filter)
-                mpi_in.Close()
+                goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter)
 
             params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm, goffset//N_total)
-                remove_artefacts(params, comm, art_dict, mpi_out, goffset//N_total)
+                art_dict   = compute_artefacts(goffset)
+                remove_artefacts(art_dict, data_out, goffset)
 
             mpi_out.Close()
 
@@ -291,5 +299,3 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.change_flag(filename, 'filter_done', 'True')
 
     comm.Barrier()
-    
-    data_file.close()
