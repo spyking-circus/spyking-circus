@@ -366,32 +366,23 @@ def data_stats(data_file, show=True, export_times=False):
 
     if not multi_files:
         _, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
-        if data_file.params.getboolean('data', 'MCS'):
-            data_offset, nb_channels = detect_header(data_file, 'MCS')
-            if nb_channels is not None:
-                if N_e != nb_channels:
-                    print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
     else:
-        all_files      = get_multi_files(params)
+        all_files      = get_multi_files(data_file.params)
         N              = 0
         nb_chunks      = 0
         last_chunk_len = 0
         t_start        = 0
         times          = []
         for f in all_files:
-            if params.getboolean('data', 'MCS'):
-                data_offset, nb_channels = detect_header(f, 'MCS')
-                if nb_channels is not None:
-                    if N_e != nb_channels:
-                        print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
-            #sys.exit(0)
-            datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
-            loc_N           = len(datablock)
-            loc_nb_chunks   = loc_N // chunk_len
+            data_file.params.set('data', 'data_file', f)
+            data   = get_data_file(data_file.params)
+            _, loc_nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+
             nb_chunks      += loc_nb_chunks
-            last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)//(N_total*data_file.rate)
-            times   += [[t_start, t_start + len(datablock)//N_total]]
-            t_start  = t_start + len(datablock)//N_total
+            last_chunk_len += data.max_offset - (loc_nb_chunks*data_file.rate)
+
+            times   += [[t_start, t_start + data.max_offset]]
+            t_start += data.max_offset
 
     N_t = data_file.params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/data_file.rate, 1)
@@ -400,7 +391,6 @@ def data_stats(data_file, show=True, export_times=False):
     nb_chunks      += nb_extra
     last_chunk_len -= (nb_extra*data_file.rate)
     last_chunk_len  = int(last_chunk_len/data_file.rate)
-
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
              "Number of analyzed channels : %d" %data_file.N_e,
