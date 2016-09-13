@@ -239,9 +239,9 @@ class H5File(DataFile):
     	data  = data.astype(self.data_dtype)
 
         if self.time_axis == 0:
-            local_chunk = self.data[offset:offset+data.shape[0], :] = data
+            local_chunk = self.data[time:time+data.shape[0], :] = data
         elif self.time_axis == 1:
-            local_chunk = self.data[:, offset:offset+data.shape[0]] = data.T
+            local_chunk = self.data[:, time:time+data.shape[0]] = data.T
 
     def analyze(self, chunk_size=None):
 
