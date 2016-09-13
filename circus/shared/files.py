@@ -239,7 +239,7 @@ def load_parameters(file_name):
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
                   ['fitting', 'refractory', 'float', '0.5'],
                   ['data', 'global_tmp', 'bool', 'True'],
-                  ['data', 'chunk_size', 'int', '10'],
+                  ['data', 'chunk_size', 'int', '60'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['detection', 'alignment', 'bool', 'True'],
                   ['detection', 'matched-filter', 'bool', 'False'],
@@ -298,6 +298,14 @@ def load_parameters(file_name):
         except Exception:
             parser.set(section, name, value)
   
+    if parser.getint('data', 'N_e') > 500:
+        if parser.getint('data', 'chunk_size') > 10:
+            parser.set('data', 'chunk_size', '10')
+        if parser.getint('whitening', 'chunk_size') > 10:
+            parser.set('whitening', 'chunk_size', '10')
+
+        print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', parser)
+
     if parser.getboolean('data', 'multi-files'):
         parser.set('data', 'data_multi_file', file_name)
         pattern     = os.path.basename(file_name).replace('0', 'all')
