@@ -1033,6 +1033,7 @@ class PreviewGUI(QtGui.QMainWindow):
 
         self.show_fit         = show_fit
         self.data_file        = data_file
+        self.data_file.open()
         self.params           = data_file.params
         self.maxtime          = io.data_stats(data_file, show=False) - 1
         self.init_gui_layout()
@@ -1041,8 +1042,8 @@ class PreviewGUI(QtGui.QMainWindow):
         self.N_t              = data_file.params.getint('data', 'N_t')
         self.spike_thresh     = data_file.params.getfloat('detection', 'spike_thresh')
         self.peaks_sign       = data_file.params.get('detection', 'peaks')  
-        self.N_total          = numpy.int64(data_file.params.getint('data', 'N_total'))
-        self.sampling_rate    = data_file.params.getint('data', 'sampling_rate')
+        self.N_total          = numpy.int64(data_file.N_tot)
+        self.sampling_rate    = data_file.rate
         self.template_shift   = data_file.params.getint('data', 'template_shift')
         self.filename         = data_file.params.get('data', 'data_file')
 
@@ -1147,9 +1148,10 @@ class PreviewGUI(QtGui.QMainWindow):
 
     def get_data(self):
         self.chunk_size       = self.sampling_rate
-        self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
-        self.data, data_shape = self.data_file.get_data(0, self.chunk_size*self.N_total,
+        self.padding          = (self.t_start*self.sampling_rate*self.data_file.scaling, self.t_start*self.sampling_rate*self.data_file.scaling)
+        self.data, data_shape = self.data_file.get_data(0, self.chunk_size*self.data_file.scaling,
             padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
+
 
         if self.do_spatial_whitening:
             self.data = numpy.dot(self.data, self.spatial_whitening)
@@ -1157,6 +1159,7 @@ class PreviewGUI(QtGui.QMainWindow):
             self.data = scipy.ndimage.filters.convolve1d(self.data, self.temporal_whitening, axis=0, mode='constant')
 
         self.time    = numpy.linspace(self.t_start, self.t_stop, self.data.shape[0])
+
         if self.show_fit:
             try:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)

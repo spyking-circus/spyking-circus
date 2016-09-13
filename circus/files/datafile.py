@@ -65,6 +65,7 @@ class RawBinaryFile(DataFile):
         self.N    = len(self.data)
         self.size = (self.N//self.N_tot, self.N_tot)
         self.max_offset = self.size[0] 
+        self.scaling = self.N_tot
         self.close()
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
@@ -204,6 +205,7 @@ class H5File(DataFile):
         self.data_dtype = self.my_file.get(self.h5_key).dtype
         self.set_offset(self.data_dtype)
         self.size      = self.my_file.get(self.h5_key).shape
+        self.scaling   = 1
         
         assert (self.size[0] == self.N_tot) or (self.size[1] == self.N_tot)
         if self.size[0] == self.N_tot:
