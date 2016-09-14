@@ -116,11 +116,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
-    N_e             = params.getint('data', 'N_e')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+    data_file        = io.get_data_file(params)
+    sampling_rate    = data_file.rate
+    N_e              = data_file.N_e
+    N_total          = data_file.N_tot
     nodes, edges     = io.get_nodes_and_edges(params)
     N_t              = params.getint('data', 'N_t')
-    N_total          = params.getint('data', 'N_total')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
