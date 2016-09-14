@@ -186,10 +186,10 @@ def with_quadratic_feature(X_raw, pairwise=False):
 def extract_extra_thresholds(params):
     """Compute the mean and the standard deviation for each extracellular channel"""
     
-    data_filename = params.get('data', 'data_file')
-    data_dtype = params.get('data', 'data_dtype')
+    data_file      = io.get_data_file(params)
+    data_file.open()
+
     chunk_size = params.getint('data', 'chunk_size')
-    # chunk_size = params.getint('whitening', 'chunk_size')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     N_total = params.getint('data', 'N_total')
@@ -199,9 +199,13 @@ def extract_extra_thresholds(params):
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
     
-    mpi_file = MPI.File()
-    mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
-    _, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+    #mpi_file = MPI.File()
+    #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
+    _, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+
+    if last_chunk_len > 0:
+        nb_chunks += 1
+
     nodes, _ = io.get_nodes_and_edges(params)
     N_elec = nodes.size
     
@@ -214,7 +218,7 @@ def extract_extra_thresholds(params):
     
     def extract_median(chunk_len, chunk_size, gidx):
         """Extract the medians from a chunk of extracellular traces"""
-        loc_chunk, loc_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -225,7 +229,7 @@ def extract_extra_thresholds(params):
     
     def extract_median_absolute_deviation(chunk_len, chunk_size, gidx, median):
         """Extract the median absolute deviations from a chunk of extracellular traces"""
-        loc_chunk, loc_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -320,148 +324,151 @@ def extract_extra_thresholds(params):
     mad = comm.bcast(mad, root=0)
     
     comm.Barrier()
+    data_file.close()
     
     return median, mad
 
 
 
-def plot_extracted_extra_spikes(loc_all_chunks, data_len, mpi_input, data_dtype,
-                                chunk_len, chunk_size, N_total, nodes,
-                                extra_means, extra_stds, k, params, safety_space,
-                                safety_time):
-    """Temporary function to see if the computed thresholds for a given dataset are valid"""
+# def plot_extracted_extra_spikes(loc_all_chunks, data_len, mpi_input, data_dtype,
+#                                 chunk_len, chunk_size, N_total, nodes,
+#                                 extra_means, extra_stds, k, params, safety_space,
+#                                 safety_time):
+#     """Temporary function to see if the computed thresholds for a given dataset are valid"""
     
-    count = 0
-    gidx = loc_all_chunks[0]
+#     count = 0
+#     gidx = loc_all_chunks[0]
     
-    loc_chunk, loc_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+#     loc_chunk, loc_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
     
-    sampling_rate = params.getint('data', 'sampling_rate')
-    dist_peaks     = params.getint('data', 'dist_peaks')
-    skip_artefact  = params.getboolean('data', 'skip_artefact')
-    template_shift = params.getint('data', 'template_shift')
-    alignment      = params.getboolean('detection', 'alignment')
-    nodes, _ = io.get_nodes_and_edges(params)
-    N_elec = nodes.size
-    do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    if do_spatial_whitening:
-        spatial_whitening  = io.load_data(params, 'spatial_whitening')
-    if do_temporal_whitening:
-        temporal_whitening = io.load_data(params, 'temporal_whitening')
-    loc_chunk = numpy.zeros(data_len, dtype=data_dtype)
-    mpi_input.Read_at(gidx * chunk_len, loc_chunk)
-    loc_shape = chunk_size
-    loc_chunk = loc_chunk.reshape(loc_shape, N_total)
-    # Consider only the valid channels.
-    loc_chunk = loc_chunk[:, nodes]
-    # extra_means_ = extra_means[nodes]
-    # extra_stds_ = extra_stds[nodes]
-    extra_means_ = extra_means
-    extra_stds_ = extra_stds
-    # Whiten signal.
-    if do_spatial_whitening:
-        loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
-    if do_temporal_whitening:
-        loc_chunk = scipy.ndimage.filters.convolve1d(loc_chunk, temporal_whitening, axis=0, mode='constant')
-    # Preallocation for results.
-    peak_times = N_elec * [None]
-    peak_channels = N_elec * [None]
-    # For each electrode.
-    for e in xrange(0, N_elec):
-        # Extract the peaks of the current chunk.
-        threshold = k * extra_stds_[e]
-        peak_times[e] = algo.detect_peaks(loc_chunk[:, e], threshold, valley=True, mpd=dist_peaks)
-        peak_channels[e] = e * numpy.ones(peak_times[e].size, dtype='int')
-        if skip_artefact:
-            # Remove strong artifacts.
-            peak_values = loc_chunk[peak_times[e], e]
-            peak_indices = numpy.where(-10.0 * threshold <= peak_values)[0]
-            peak_times[e] = peak_times[e][peak_indices]
-    peak_times = numpy.concatenate(peak_times)
-    peak_channels = numpy.concatenate(peak_channels)
-    # Remove the useless borders.
-    if alignment:
-        loc_borders = (2 * template_shift, loc_shape - 2 * template_shift)
-    else:
-        loc_borders = (template_shift, loc_shape - template_shift)
-    peak_flags = (loc_borders[0] <= peak_times) & (peak_times < loc_borders[1])
-    peak_times = peak_times[peak_flags]
-    peak_channels = peak_channels[peak_flags]
-    # Filter unique peak times.
-    loc_peak_times = numpy.unique(peak_times)
-    n_times = len(loc_peak_times)
-    loc_peak_flags = numpy.zeros(n_times, dtype='bool')
-    loc_peak_elecs = numpy.zeros(n_times, dtype='int')
-    if 0 < len(loc_peak_times):
-        diff_times = loc_peak_times[-1] - loc_peak_times[0]
-        all_times = numpy.zeros((N_elec, diff_times + 1), dtype='bool')
-        min_times = numpy.maximum(loc_peak_times - loc_peak_times[0] - safety_time, 0)
-        max_times = numpy.minimum(loc_peak_times - loc_peak_times[0] + safety_time + 1, diff_times)
+#     sampling_rate = params.getint('data', 'sampling_rate')
+#     dist_peaks     = params.getint('data', 'dist_peaks')
+#     skip_artefact  = params.getboolean('data', 'skip_artefact')
+#     template_shift = params.getint('data', 'template_shift')
+#     alignment      = params.getboolean('detection', 'alignment')
+#     nodes, _ = io.get_nodes_and_edges(params)
+#     N_elec = nodes.size
+#     do_temporal_whitening = params.getboolean('whitening', 'temporal')
+#     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+#     if do_spatial_whitening:
+#         spatial_whitening  = io.load_data(params, 'spatial_whitening')
+#     if do_temporal_whitening:
+#         temporal_whitening = io.load_data(params, 'temporal_whitening')
+#     loc_chunk = numpy.zeros(data_len, dtype=data_dtype)
+#     mpi_input.Read_at(gidx * chunk_len, loc_chunk)
+#     loc_shape = chunk_size
+#     loc_chunk = loc_chunk.reshape(loc_shape, N_total)
+#     # Consider only the valid channels.
+#     loc_chunk = loc_chunk[:, nodes]
+#     # extra_means_ = extra_means[nodes]
+#     # extra_stds_ = extra_stds[nodes]
+#     extra_means_ = extra_means
+#     extra_stds_ = extra_stds
+#     # Whiten signal.
+#     if do_spatial_whitening:
+#         loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
+#     if do_temporal_whitening:
+#         loc_chunk = scipy.ndimage.filters.convolve1d(loc_chunk, temporal_whitening, axis=0, mode='constant')
+#     # Preallocation for results.
+#     peak_times = N_elec * [None]
+#     peak_channels = N_elec * [None]
+#     # For each electrode.
+#     for e in xrange(0, N_elec):
+#         # Extract the peaks of the current chunk.
+#         threshold = k * extra_stds_[e]
+#         peak_times[e] = algo.detect_peaks(loc_chunk[:, e], threshold, valley=True, mpd=dist_peaks)
+#         peak_channels[e] = e * numpy.ones(peak_times[e].size, dtype='int')
+#         if skip_artefact:
+#             # Remove strong artifacts.
+#             peak_values = loc_chunk[peak_times[e], e]
+#             peak_indices = numpy.where(-10.0 * threshold <= peak_values)[0]
+#             peak_times[e] = peak_times[e][peak_indices]
+#     peak_times = numpy.concatenate(peak_times)
+#     peak_channels = numpy.concatenate(peak_channels)
+#     # Remove the useless borders.
+#     if alignment:
+#         loc_borders = (2 * template_shift, loc_shape - 2 * template_shift)
+#     else:
+#         loc_borders = (template_shift, loc_shape - template_shift)
+#     peak_flags = (loc_borders[0] <= peak_times) & (peak_times < loc_borders[1])
+#     peak_times = peak_times[peak_flags]
+#     peak_channels = peak_channels[peak_flags]
+#     # Filter unique peak times.
+#     loc_peak_times = numpy.unique(peak_times)
+#     n_times = len(loc_peak_times)
+#     loc_peak_flags = numpy.zeros(n_times, dtype='bool')
+#     loc_peak_elecs = numpy.zeros(n_times, dtype='int')
+#     if 0 < len(loc_peak_times):
+#         diff_times = loc_peak_times[-1] - loc_peak_times[0]
+#         all_times = numpy.zeros((N_elec, diff_times + 1), dtype='bool')
+#         min_times = numpy.maximum(loc_peak_times - loc_peak_times[0] - safety_time, 0)
+#         max_times = numpy.minimum(loc_peak_times - loc_peak_times[0] + safety_time + 1, diff_times)
         
-        ##### TODO: remove temporary zone
-        numpy.random.seed(42)
-        ##### end temporary zone
+#         ##### TODO: remove temporary zone
+#         numpy.random.seed(42)
+#         ##### end temporary zone
         
-        argmax_peak = numpy.random.permutation(numpy.arange(n_times))
-        all_indices = loc_peak_times[argmax_peak]
-        # Select peaks with spatio-temporal masks.
-        for peak_index, peak_time in zip(argmax_peak, all_indices):
-            # Select electrode showing lowest amplitude.
-            elec = numpy.argmin(loc_chunk[peak_time, :])
-            _, neighs = get_neighbors(params, chan=elec)
-            if safety_space:
-                mslice = all_times[neighs, min_times[peak_index]:max_times[peak_index]]
-            else:
-                mslice = all_times[elec, min_times[peak_index]:max_times[peak_index]]
-            is_local_min = (elec in peak_channels[peak_times == peak_time])
-            if is_local_min and not mslice.any():
-                loc_peak_flags[peak_index] = True
-                loc_peak_elecs[peak_index] = elec
-                if safety_space:
-                    all_times[neighs, min_times[peak_index]:max_times[peak_index]] = True
-                else:
-                    all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
-    loc_peak_times = numpy.compress(loc_peak_flags, loc_peak_times)
-    loc_peak_elecs = numpy.compress(loc_peak_flags, loc_peak_elecs)
+#         argmax_peak = numpy.random.permutation(numpy.arange(n_times))
+#         all_indices = loc_peak_times[argmax_peak]
+#         # Select peaks with spatio-temporal masks.
+#         for peak_index, peak_time in zip(argmax_peak, all_indices):
+#             # Select electrode showing lowest amplitude.
+#             elec = numpy.argmin(loc_chunk[peak_time, :])
+#             _, neighs = get_neighbors(params, chan=elec)
+#             if safety_space:
+#                 mslice = all_times[neighs, min_times[peak_index]:max_times[peak_index]]
+#             else:
+#                 mslice = all_times[elec, min_times[peak_index]:max_times[peak_index]]
+#             is_local_min = (elec in peak_channels[peak_times == peak_time])
+#             if is_local_min and not mslice.any():
+#                 loc_peak_flags[peak_index] = True
+#                 loc_peak_elecs[peak_index] = elec
+#                 if safety_space:
+#                     all_times[neighs, min_times[peak_index]:max_times[peak_index]] = True
+#                 else:
+#                     all_times[elec, min_times[peak_index]:max_times[peak_index]] = True
+#     loc_peak_times = numpy.compress(loc_peak_flags, loc_peak_times)
+#     loc_peak_elecs = numpy.compress(loc_peak_flags, loc_peak_elecs)
     
-    time    = loc_peak_times
-    channel = loc_peak_elecs
+#     time    = loc_peak_times
+#     channel = loc_peak_elecs
     
-    pos = numpy.random.rand(time.size) - 0.5    
+#     pos = numpy.random.rand(time.size) - 0.5    
 
-    fig = plt.figure()
-    ax = fig.gca()
-    # For each first chunk plot one channel per figure.
-    for j in xrange(0, loc_chunk.shape[1]):
-        ax = fig.gca()
-        ax.plot(loc_chunk[:, j])
-        ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j]], 'k--')
-        ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j] + extra_stds_[j]], 'k--')
-        ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j] - extra_stds_[j]], 'k--')
-        ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j] + k * extra_stds_[j]], 'k--')
-        ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j] - k * extra_stds_[j]], 'k--')
-        idx, = numpy.where(channel == j)
-        # y = + 250.0 * numpy.ones(idx.size) + 100.0 * pos[idx]
-        y = - 9.5 * numpy.ones(idx.size) + 1.0 * pos[idx]
-        ax.scatter(time[idx], y, c='r')
-        # new_idx, = numpy.where(new_channel == j)
-        # new_y = - 350.0 * numpy.ones(new_idx.size) + 100.0 * new_pos[new_idx]
-        # ax.scatter(new_time[new_idx], new_y, c='g')
-        ax.set_xlim(0, loc_chunk.shape[0] - 1)
-        # ax.set_ylim(- 400.0, 400.0)
-        ax.set_ylim(-10.0, 10.0)
-        plt.savefig("/tmp/check-{}-{}.png".format(j, comm.rank))
-        fig.clear()
+#     fig = plt.figure()
+#     ax = fig.gca()
+#     # For each first chunk plot one channel per figure.
+#     for j in xrange(0, loc_chunk.shape[1]):
+#         ax = fig.gca()
+#         ax.plot(loc_chunk[:, j])
+#         ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j]], 'k--')
+#         ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j] + extra_stds_[j]], 'k--')
+#         ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j] - extra_stds_[j]], 'k--')
+#         ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j] + k * extra_stds_[j]], 'k--')
+#         ax.plot([0, loc_chunk.shape[0] - 1], 2 * [extra_means_[j] - k * extra_stds_[j]], 'k--')
+#         idx, = numpy.where(channel == j)
+#         # y = + 250.0 * numpy.ones(idx.size) + 100.0 * pos[idx]
+#         y = - 9.5 * numpy.ones(idx.size) + 1.0 * pos[idx]
+#         ax.scatter(time[idx], y, c='r')
+#         # new_idx, = numpy.where(new_channel == j)
+#         # new_y = - 350.0 * numpy.ones(new_idx.size) + 100.0 * new_pos[new_idx]
+#         # ax.scatter(new_time[new_idx], new_y, c='g')
+#         ax.set_xlim(0, loc_chunk.shape[0] - 1)
+#         # ax.set_ylim(- 400.0, 400.0)
+#         ax.set_ylim(-10.0, 10.0)
+#         plt.savefig("/tmp/check-{}-{}.png".format(j, comm.rank))
+#         fig.clear()
     
-    return
+#     return
 
 
 
 def extract_extra_spikes_(params):
     """Detect spikes from the extracellular traces"""
     
-    sampling_rate = params.getint('data', 'sampling_rate')
+    data_file = io.get_data_file(params)
+    data_file.open()
+    sampling_rate  = data_file.rate
     dist_peaks     = params.getint('data', 'dist_peaks')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     skip_artefact  = params.getboolean('data', 'skip_artefact')
@@ -471,11 +478,9 @@ def extract_extra_spikes_(params):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     safety_time = params.getfloat('clustering', 'safety_time')
     safety_space = params.getboolean('clustering', 'safety_space')
-    data_filename = params.get('data', 'data_file')
-    data_dtype = params.get('data', 'data_dtype')
     chunk_size = params.getint('data', 'chunk_size')
     # chunk_size = params.getint('whitening', 'chunk_size')
-    N_total = params.getint('data', 'N_total')
+    N_total        = data_file.N_tot
     file_out_suff  = params.get('data', 'file_out_suff')
     
     if do_spatial_whitening:
@@ -483,9 +488,12 @@ def extract_extra_spikes_(params):
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
     
-    mpi_file = MPI.File()
-    mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
-    _, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+    #mpi_file = MPI.File()
+    #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
+    _, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+    if last_chunk_size > 0:
+        nb_chunks += 1
+
     nodes, _ = io.get_nodes_and_edges(params)
     N_elec = nodes.size
     
@@ -510,10 +518,10 @@ def extract_extra_spikes_(params):
         beer_file.create_dataset(extra_mads_key, data=extra_mads)
         beer_file.close()
     
-    def extract_chunk_spikes(data_len, gidx, extra_thresh, valley=True):
+    def extract_chunk_spikes(gidx, extra_thresh, valley=True):
         """Detect spikes from a chunk of the extracellular traces"""
         
-        loc_chunk, loc_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -531,7 +539,7 @@ def extract_extra_spikes_(params):
         peak_times = N_elec * [None]
         peak_channels = N_elec * [None]
         # For each electrode.
-        for e in xrange(0, N_elec):
+        for e in xrange(N_elec):
             # Extract the peaks of the current chunk.
             threshold = extra_thresh * extra_mads[e]
             peak_times[e] = algo.detect_peaks(loc_chunk[:, e], threshold, valley=valley, mpd=dist_peaks)
@@ -634,8 +642,6 @@ def extract_extra_spikes_(params):
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
     
-    data_len = chunk_len
-    
     extra_valley = True
     
     ##### TODO: remove test zone (i.e. plots of extracellular spike times).
@@ -653,7 +659,7 @@ def extract_extra_spikes_(params):
     
     # For each chunk attributed to the current CPU.
     for (count, gidx) in enumerate(loc_all_chunks):
-        time, channel, value = extract_chunk_spikes(data_len, gidx, spike_thresh, valley=extra_valley)
+        time, channel, value = extract_chunk_spikes(gidx, spike_thresh, valley=extra_valley)
         times[count] = time + gidx * chunk_size
         channels[count] = channel
         values[count] = value
@@ -671,9 +677,9 @@ def extract_extra_spikes_(params):
     comm.Barrier()
     
     # Gather times, channels and values.
-    times = gather_array(times, comm, 0, dtype='int64')
-    channels = gather_array(channels, comm, 0, dtype='int64')
-    values = gather_array(values, comm, 0, dtype='float64')
+    times = gather_array(times.astype(numpy.int64), comm, 0, dtype='int64')
+    channels = gather_array(channels.astype(numpy.int64), comm, 0, dtype='int64')
+    values = gather_array(values.astype(numpy.float64), comm, 0, dtype='float64')
     
     if comm.rank == 0:
         # Sort times, channels and values according to time.
