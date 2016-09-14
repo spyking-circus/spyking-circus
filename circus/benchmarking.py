@@ -63,11 +63,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         rate            = 10. / corrcoef
         amplitude       = 2
     if benchmark == 'pca-validation':
-##### TODO: remove plot zone
-        if comm.rank == 0:
-            from .shared.plot import view_triggers
-            view_triggers(filename, mode='maximal')
-##### end plot zone
         nb_insert       = 10
         n_cells         = numpy.random.random_integers(0, N_tm - 1, nb_insert)
         rate_min        = 0.5
@@ -152,14 +147,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     # Retrieve some additional key parameters.
     chunk_size     = params.getint('data', 'chunk_size')
-    data_offset    = params.getint('data', 'data_offset')
-    dtype_offset   = params.getint('data', 'dtype_offset')
-    data_dtype     = params.get('data', 'data_dtype')
-    myfile         = MPI.File()
+    #data_offset    = params.getint('data', 'data_offset')
+    #dtype_offset   = params.getint('data', 'dtype_offset')
+    #data_dtype     = params.get('data', 'data_dtype')
+    #myfile         = MPI.File()
     scalings       = []
-    data_mpi       = get_mpi_type('float32')
+    #data_mpi       = get_mpi_type('float32')
+    
+    params.set('data', 'data_file', filename)
+    data_file_out = io.get_data_file(params, empty=True)
+
     if comm.rank == 0:
-        io.copy_header(data_offset, params.get('data', 'data_file'), file_name)
+        data_file.copy_header(filename)
+        data_file.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
     # Synchronize all the threads/processes.
     comm.Barrier()
@@ -317,7 +317,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * nb_insert))
         
     # Retrieve the information about the organisation of the chunks of data.
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze_data(chunk_size)
     if last_chunk_len > 0:
         nb_chunks += 1
 
@@ -338,8 +338,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         pbar = get_progressbar(loc_nb_chunks)
 
     # Open the file for collective I/O.
-    g = myfile.Open(comm, file_name, MPI.MODE_RDWR)
-    g.Set_view(data_offset, data_mpi, data_mpi)
+    #g = myfile.Open(comm, file_name, MPI.MODE_RDWR)
+    #g.Set_view(data_offset, data_mpi, data_mpi)
+    data_file_out.open()
 
     # Open the thread/process' files to collect the results.
     spiketimes_filename = os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank)
@@ -357,15 +358,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # the new chunk of data (i.e. with considering the added synthesized cells).
     for count, gidx in enumerate(to_process):
 
-        if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
-            chunk_len  = last_chunk_len
-            chunk_size = last_chunk_len // N_total
+        #if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
+        #    chunk_len  = last_chunk_len
+        #    chunk_size = last_chunk_len // N_total
 
         result         = {'spiketimes' : [], 'amplitudes' : [], 
                           'templates' : [], 'real_amps' : [],
                           'voltages' : []}
         offset         = gidx * chunk_size
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+        local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
 
         if benchmark == 'pca-validation':
             # Clear the current data chunk.
@@ -430,7 +431,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                     t_last                = spike
 
         # Write the results into the thread/process' files.
-        spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
+        spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
         amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
         templates_to_write  = numpy.array(result['templates'], dtype=numpy.int32)
         real_amps_to_write  = numpy.array(result['real_amps'], dtype=numpy.float32)
@@ -443,12 +444,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         voltages_file.write(voltages_to_write.tostring())
 
         #print count, 'spikes inserted...'
-        new_chunk    = numpy.zeros((chunk_size, N_total), dtype=numpy.float32)
-        new_chunk[:, nodes] = local_chunk
+        #new_chunk    = numpy.zeros((chunk_size, N_total), dtype=numpy.float32)
+        #new_chunk[:, nodes] = local_chunk
 
         # Overwrite the new chunk of data using explicit offset. 
-        new_chunk   = new_chunk.flatten()
-        g.Write_at(gidx * chunk_len, new_chunk)
+        #new_chunk   = new_chunk.flatten()
+        #g.Write_at(gidx * chunk_len, new_chunk)
+        data_file_out.set_data(gidx*chunk_len, local_chunk)
 
         # Update the progress bar about the generation of the benchmark.
         if comm.rank == 0:
@@ -466,7 +468,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         pbar.finish()
 
     # Close the file for collective I/O.
-    g.Close()
+    data_file_out.close()
+    data_file.close()
 
     
     # Synchronize all the threads/processes.

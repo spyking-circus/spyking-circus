@@ -24,6 +24,7 @@ class DataFile(object):
         self.max_offset  = 0
         self.empty = empty
         self._parrallel_write = False
+        self._shape = None
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
         pass
@@ -51,6 +52,10 @@ class DataFile(object):
 
     def allocate(self, shape, data_dtype):
         pass
+
+    @property
+    def shape(self):
+        return self._shape   
 
     def set_dtype_offset(self, data_dtype):
         self.dtype_offset = self.params.get('data', 'dtype_offset')
@@ -89,9 +94,9 @@ class RawBinaryFile(DataFile):
     def _get_info_(self):
         self.empty = False
         self.open()
-        self.N    = len(self.data)
-        self.size = (self.N//self.N_tot, self.N_tot)
-        self.max_offset = self.size[0] 
+        self.N      = len(self.data)
+        self._shape = (self.N//self.N_tot, self.N_tot)
+        self.max_offset = self._shape[0] 
         self.close()
 
     def allocate(self, shape, data_dtype=None):
@@ -252,9 +257,12 @@ class H5File(DataFile):
         assert (self.size[0] == self.N_tot) or (self.size[1] == self.N_tot)
         if self.size[0] == self.N_tot:
             self.time_axis = 1
+            self._shape = (self.size[1], self.size[0])
         else:
             self.time_axis = 0
-        self.max_offset = self.size[self.time_axis]
+            self._shape = self.size
+
+        self.max_offset = self._shape[0]
         self.data_offset = 0
         self.close()
 
@@ -319,8 +327,8 @@ class H5File(DataFile):
 	    
 	    chunk_len      = chunk_size
 	    borders        = self.template_shift
-	    nb_chunks      = numpy.int64(self.size[self.time_axis]) // chunk_len
-	    last_chunk_len = self.size[self.time_axis] - nb_chunks * chunk_len
+	    nb_chunks      = numpy.int64(self.shape[0]) // chunk_len
+	    last_chunk_len = self.shape[0] - nb_chunks * chunk_len
 	    
 	    return borders, nb_chunks, chunk_len, last_chunk_len
 

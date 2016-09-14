@@ -271,7 +271,7 @@ but a subset x,y can be done. Steps are:
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
 
-                        if subtask == 'filtering' and not support_parallel_write:
+                        if subtask in ['filtering', 'benchmarking'] and not support_parallel_write and (args.cpu > 1):
                             io.print_and_log(['No parallel writes with %s: only 1 node used for filtering' %file_format], 'info', params)
                             nb_tasks = str(1)
                         else:
