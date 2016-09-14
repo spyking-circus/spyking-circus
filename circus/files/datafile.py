@@ -3,6 +3,16 @@ import ConfigParser as configparser
 
 class DataFile(object):
 
+    '''
+    A generic class that will represent how the program interacts with the data. Such an abstraction
+    layer should allow people to write their own wrappers, for several file format. Note that 
+    depending on the complexity of the datastructure, this can slow down the code.
+
+    The method belows are all methods can be used, at some point, by the different steps of the code. 
+    In order to provide a full compatibility with a given file format, they must all be implemented
+
+    '''
+
     def __init__(self, file_name, params, empty=False):
         self.file_name = file_name
         assert isinstance(params, configparser.ConfigParser)

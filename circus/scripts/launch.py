@@ -170,6 +170,7 @@ but a subset x,y can be done. Steps are:
         params       = io.load_parameters(filename)
         multi_files  = params.getboolean('data', 'multi-files')
         data_file    = io.get_data_file(params, multi_files)
+        support_parallel_write = data_file._parrallel_write
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
@@ -269,13 +270,18 @@ but a subset x,y can be done. Steps are:
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
 
-                        if subtask != 'fitting':
-                            nb_tasks = str(max(args.cpu, args.gpu))
+                        if subtask == 'filtering':
+                            if not support_parallel_write:
+                                io.print_and_log(['No concurrent writes with this file format: only 1 node for filtering' ], 'info', params)
+                                nb_tasks = str(1)
                         else:
-                            if use_gpu == 'True':
-                                nb_tasks = str(args.gpu)
+                            if subtask != 'fitting':
+                                nb_tasks = str(max(args.cpu, args.gpu))
                             else:
-                                nb_tasks = str(args.cpu)
+                                if use_gpu == 'True':
+                                    nb_tasks = str(args.gpu)
+                                else:
+                                    nb_tasks = str(args.cpu)
 
                         if subtask == 'benchmarking':
                             if (output is None) or (benchmark is None):
