@@ -377,6 +377,7 @@ def data_stats(data_file, show=True, export_times=False):
         last_chunk_len = 0
         t_start        = 0
         times          = []
+        init_file      = data_file.params.get('data', 'data_file')
         for f in all_files:
             data_file.params.set('data', 'data_file', f)
             new_data_file = get_data_file(data_file.params)
@@ -387,6 +388,8 @@ def data_stats(data_file, show=True, export_times=False):
 
             times   += [[t_start, t_start + new_data_file.max_offset]]
             t_start += new_data_file.max_offset
+        data_file.params.set('data', 'data_file', init_file)
+
 
     N_t = data_file.params.getint('data', 'N_t')
     N_t = numpy.round(1000.*N_t/data_file.rate, 1)
@@ -398,7 +401,7 @@ def data_stats(data_file, show=True, export_times=False):
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
              "Number of analyzed channels : %d" %data_file.N_e,
-             "Data format                 : %s" %data_file.params.get('data', 'file_format'),
+             "File format                 : %s" %data_file.params.get('data', 'file_format'),
              "Data type                   : %s" %str(data_file.data_dtype),
              "Sampling rate               : %d kHz" %(data_file.rate//1000.),
              "Header offset for the data  : %d" %data_file.data_offset,

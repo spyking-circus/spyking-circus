@@ -167,8 +167,9 @@ but a subset x,y can be done. Steps are:
         tasks_list = filename
 
     if not batch:
-        params    = io.load_parameters(filename)
-        data_file = io.get_data_file(params)
+        params       = io.load_parameters(filename)
+        multi_files  = params.getboolean('data', 'multi-files')
+        data_file    = io.get_data_file(params, multi_files)
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])

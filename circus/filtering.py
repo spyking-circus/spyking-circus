@@ -64,9 +64,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data_file_in.open()
                 data_file_out.open(mode='r+')
 
-            print data_file_in.file_name, data_file_out.file_name
-
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            chunk_size     = params.getint('data', 'chunk_size')
             borders, nb_chunks, chunk_len, last_chunk_len = data_file_in.analyze(chunk_size)
             if last_chunk_len > 0:
                 nb_chunks += 1
@@ -90,12 +88,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             for count, gidx in enumerate(to_process):
 
-                if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
-                    data_len   = last_chunk_len
-                    chunk_size = last_chunk_len//data_file_in.N_tot
-                else:
-                    data_len   = chunk_len
-
                 local_chunk, _ =  data_file_in.get_data(gidx, chunk_len)
                 
                 for i in nodes:
@@ -105,15 +97,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         except Exception:
                             pass
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
+
                 if remove_median:
-                    if not numpy.all(nodes == numpy.arange(N_total)):
+                    if not numpy.all(nodes == numpy.arange(data_in.N_tot)):
                         global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
                     else:
                         global_median = numpy.median(local_chunk, 1)
                     for i in nodes:
                         local_chunk[:, i] -= global_median
 
-                data_file_out.set_data(gidx*chunk_len, local_chunk)
+                data_file_out.set_data(gidx*chunk_size, local_chunk)
 
                 if comm.rank == 0:
                     pbar.update(count)
@@ -132,7 +125,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         def compute_artefacts(data_file, max_offset):
 
             data_file.open()
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
             make_plots     = params.get('triggers', 'make_plots')
@@ -198,7 +191,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         def remove_artefacts(art_dict, data_file, max_offset):
 
             data_file.open()
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
             make_plots     = params.get('triggers', 'make_plots')
@@ -273,10 +266,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 remove_artefacts(art_dict, data_file, goffset)
 
         else:
+
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
 
-            data_file = io.get_data_file(params)
+            data_file = io.get_data_file(params, multi=True)
             
             if comm.rank == 0:
                 data_file.copy_header(combined_file)
@@ -284,13 +278,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
 
             times    = io.data_stats(data_file, show=False, export_times=True)
-
-
-            print "GOGOG", combined_file
-            
             data_out = io.get_data_file(params, empty=True)
-            data_out.allocate(shape=(1, times[-1][1]*data_out.N_tot))
-            print data_out.file_name, combined_file
+            data_out.allocate(shape=(times[-1][1], data_out.N_tot), data_dtype=data_file.data_dtype)
             
             io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
             goffset = 0
@@ -308,8 +297,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if clean_artefact:
                 art_dict   = compute_artefacts(goffset)
                 remove_artefacts(art_dict, data_out, goffset)
-
-            mpi_out.Close()
 
         if comm.rank == 0:
             io.change_flag(filename, 'filter_done', 'True')

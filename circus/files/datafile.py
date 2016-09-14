@@ -33,6 +33,9 @@ class DataFile(object):
     def open(self, mode):
         pass
 
+    def copy_header(self, file_out):
+        pass
+
     def close(self):
         pass
 
@@ -92,7 +95,7 @@ class RawBinaryFile(DataFile):
 
         self.open()
         local_chunk  = self.data[idx*numpy.int64(chunk_len)+padding[0]*self.N_tot:(idx+1)*numpy.int64(chunk_len)+padding[1]*self.N_tot]
-        local_shape  = chunk_len//self.N_tot + (padding[1]-padding[0])
+        local_shape  = len(local_chunk)//self.N_tot
         local_chunk  = local_chunk.reshape(local_shape, self.N_tot)
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
@@ -124,7 +127,6 @@ class RawBinaryFile(DataFile):
         data  += self.dtype_offset
         data   = data.astype(self.data_dtype)
         data   = data.ravel()
-        print self.file_name, self.data.shape, data.shape
         self.data[self.N_tot*time:self.N_tot*time+len(data)] = data
         self.close()
 
@@ -243,8 +245,8 @@ class H5File(DataFile):
         if data_dtype is None:
             data_dtype = self.data_dtype
 
-        self.my_file = h5py.File(self.file_name, mode='w+')
-        self.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
+        self.my_file = h5py.File(self.file_name, mode='w')
+        self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
         self.my_file.close()
         self._get_info_()
 
@@ -259,7 +261,7 @@ class H5File(DataFile):
 
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
-        local_shape  = chunk_size + (padding[1]-padding[0])//self.N_tot
+        local_shape  = len(local_chunk)
 
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(self.N_tot)):
