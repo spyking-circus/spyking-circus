@@ -66,7 +66,10 @@ class RawBinaryFile(DataFile):
 
     def __init__(self, file_name, params, empty=False):
         DataFile.__init__(self, file_name, params, empty)
-        self.data_offset = self.params.getint('data', 'data_offset')
+        try:
+            self.data_offset = self.params.getint('data', 'data_offset')
+        except Exception:
+            self.data_offset = 0
         self.data_dtype  = self.params.get('data', 'data_dtype')
         self.set_dtype_offset(self.data_dtype)
         self._parrallel_write = True
