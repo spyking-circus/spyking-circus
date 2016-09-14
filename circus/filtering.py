@@ -125,6 +125,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         def compute_artefacts(data_file, max_offset):
 
             data_file.open()
+            sampling_rate  = data_file.rate
             chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
@@ -154,7 +155,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 to_write = ["Computing averaged artefacts from %d stimuli" %(nb_stimuli)]
-                io.print_and_log(to_write, 'info', params)
+                io.print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(len(local_labels))
                 if not os.path.exists(plot_path):
                     os.makedirs(plot_path)
@@ -191,6 +192,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         def remove_artefacts(art_dict, data_file, max_offset):
 
             data_file.open()
+            sampling_rate  = data_file.rate
             chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
@@ -215,7 +217,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
-                io.print_and_log(to_write, 'info', params)
+                io.print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(len(all_times))
 
             comm.Barrier()
