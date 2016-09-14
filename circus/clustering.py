@@ -153,6 +153,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
 
+    if last_chunk_len > 0:
+        nb_chunks += 1
+
     if smart_search is False:
         gpass = 1
     else:

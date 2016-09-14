@@ -397,7 +397,7 @@ def data_stats(data_file, show=True, export_times=False):
     nb_extra        = last_chunk_len//data_file.rate
     nb_chunks      += nb_extra
     last_chunk_len -= (nb_extra*data_file.rate)
-    last_chunk_len  = int(last_chunk_len/data_file.rate)
+    last_chunk_len  = last_chunk_len/data_file.rate
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
              "Number of analyzed channels : %d" %data_file.N_e,

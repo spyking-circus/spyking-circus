@@ -57,6 +57,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
 
+    if last_chunk_len > 0:
+        nb_chunks += 1
+
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
     all_electrodes = numpy.random.permutation(data_file.N_e)
