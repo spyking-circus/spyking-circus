@@ -56,9 +56,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 return
 
             if data_file_out is None:
+                same_file = True
                 data_file_in.open(mode='r+')
                 data_file_out = data_file_in
             else:
+                same_file = False
                 data_file_in.open()
                 data_file_out.open(mode='r+')
 
@@ -122,7 +124,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
 
             data_file_in.close()
-            data_file_out.close()
+            if not same_file:           
+                data_file_out.close()
 
             return goffset + offset
 

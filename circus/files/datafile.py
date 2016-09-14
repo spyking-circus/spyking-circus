@@ -13,6 +13,7 @@ class DataFile(object):
         self.template_shift = params.getint('data', 'template_shift')
         self.max_offset  = 0
         self.empty = empty
+        self._parrallel_write = False
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
         pass
@@ -65,6 +66,7 @@ class RawBinaryFile(DataFile):
         self.data_offset = self.params.getint('data', 'data_offset')
         self.data_dtype  = self.params.get('data', 'data_dtype')
         self.set_dtype_offset(self.data_dtype)
+        self._parrallel_write = True
         if not self.empty:
             self._get_info_()    
 
@@ -217,6 +219,7 @@ class H5File(DataFile):
     def __init__(self, file_name, params, empty):
         DataFile.__init__(self, file_name, params, empty)
         self.h5_key = self.params.get('data', 'hdf5_key_data')
+        self._parrallel_write = h5py.get_config().mpi
         if not self.empty:
             self._get_info_()
 
@@ -224,7 +227,7 @@ class H5File(DataFile):
         self.empty = False
         self.open()
         self.data_dtype = self.my_file.get(self.h5_key).dtype
-        self.set_offset(self.data_dtype)
+        self.set_dtype_offset(self.data_dtype)
         self.size      = self.my_file.get(self.h5_key).shape
         
         assert (self.size[0] == self.N_tot) or (self.size[1] == self.N_tot)
@@ -241,7 +244,7 @@ class H5File(DataFile):
             data_dtype = self.data_dtype
 
         self.my_file = h5py.File(self.file_name, mode='w+')
-        self.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
+        self.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
         self.my_file.close()
         self._get_info_()
 

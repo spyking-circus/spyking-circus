@@ -22,6 +22,10 @@ from phycontrib.template import TemplateController
 
 import numpy as np
 
+
+supported_by_phy = ['raw_binary', 'mcs_raw_binary']
+
+
 def main(argv=None):
 
     if argv is None:
@@ -55,6 +59,11 @@ def main(argv=None):
     data_dtype     = params.get('data', 'data_dtype')
     file_out_suff  = params.get('data', 'file_out_suff')
     data_offset    = params.getint('data', 'data_offset')
+    file_format    = params.get('data', 'file_format')
+
+    if file_format not in supported_by_phy:
+        print_and_log(["File format %s is not supported by phy. TraceView disabled" %file_format], 'info', params)
+
     probe          = read_probe(params)
     if extension != '':
         extension = '-' + extension
@@ -67,7 +76,10 @@ def main(argv=None):
         print_and_log(["Launching the phy GUI..."], 'info', params)
 
         gui_params                   = {}
-        gui_params['dat_path']       = params.get('data', 'data_file')
+        if file_format in supported_by_phy:
+            gui_params['dat_path']   = params.get('data', 'data_file')
+        else:
+            gui_params['dat_path']   = ''
         gui_params['n_channels_dat'] = params.getint('data', 'N_total')
         gui_params['n_features_per_channel'] = 5
         gui_params['dtype']          = params.get('data', 'data_dtype')

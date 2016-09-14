@@ -19,23 +19,20 @@ from circus.files.datafile import *
 
 def get_data_file(params, multi=False, empty=False):
     
-    print params.get('data', 'data_file'), params.get('data', 'data_multi_file')
-    data_type = params.get('data', 'data_type')
-    if multi:
-        data_file = params.get('data', 'data_file')
+    file_format = params.get('data', 'file_format')
+    if not multi:
+        data_file = params.get('data', 'data_file')    
     else:
         data_file = params.get('data', 'data_multi_file')
 
-    print multi, data_file
-
-    if data_type == 'raw_binary':
+    if file_format == 'raw_binary':
         return RawBinaryFile(data_file, params, empty)
-    elif data_type == 'mcs_raw_binary':
+    elif file_format == 'mcs_raw_binary':
         return RawMCSFile(data_file, params, empty) 
-    elif data_type == 'hdf5':
+    elif file_format == 'hdf5':
         return H5File(data_file, params, empty)
     else:
-        print_error(['The type %s is not recognized as a valid file format' %data_type])
+        print_error(['The type %s is not recognized as a valid file format' %file_format])
         sys.exit(0)
 
 
@@ -210,7 +207,7 @@ def load_parameters(file_name):
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'multi-files', 'bool', 'False'],
-                  ['data', 'data_type', 'string', 'raw_binary'],
+                  ['data', 'file_format', 'string', 'raw_binary'],
                   ['detection', 'alignment', 'bool', 'True'],
                   ['detection', 'matched-filter', 'bool', 'False'],
                   ['detection', 'matched_thresh', 'float', '5'],
@@ -401,7 +398,7 @@ def data_stats(data_file, show=True, export_times=False):
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
              "Number of analyzed channels : %d" %data_file.N_e,
-             "Data format                 : %s" %data_file.params.get('data', 'data_type'),
+             "Data format                 : %s" %data_file.params.get('data', 'file_format'),
              "Data type                   : %s" %str(data_file.data_dtype),
              "Sampling rate               : %d kHz" %(data_file.rate//1000.),
              "Header offset for the data  : %d" %data_file.data_offset,

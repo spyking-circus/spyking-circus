@@ -15,14 +15,12 @@ from circus.shared.utils import get_progressbar
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
     params         = circus.shared.utils.io.load_parameters(filename)
-    data_file      = 
-    sampling_rate  = float(params.getint('data', 'sampling_rate'))
-    data_dtype     = params.get('data', 'data_dtype')
+    data_file      = io.get_data_file(params)
+    sampling_rate  = float(data_file.rate)
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_offset    = params.getint('data', 'data_offset')
     probe          = read_probe(params)
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
-    N_e            = params.getint('data', 'N_e')
+    N_e            = data_file.N_e
     N_t            = params.getint('data', 'N_t')
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
@@ -139,6 +137,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         if comm.rank == 0:
           pbar    = get_progressbar(len(to_process))
 
+        data_file.open()
+
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_process):
 
@@ -153,8 +153,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             elec     = best_elec[target]
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
-            times_i  = numpy.take(spikes, idx)
-            sub_data = get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
+            times_i  = numpy.take(spikes, idx).astype(numpy.int64)
+            sub_data = get_stas(data_file, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
             if mode == 0:
@@ -169,6 +169,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
           pbar.finish()
 
         comm.Barrier()
+        data_file.close()
 
         if comm.rank == 0:
             numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind.astype(numpy.uint32)) #n_templates, n_loc_chan

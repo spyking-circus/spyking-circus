@@ -1,5 +1,5 @@
 [data]
-data_type      = raw_binary             # Can be raw_binary, mcs_raw_binary, hdf5, be in touch to add your fileformat!
+file_format    = raw_binary             # Can be raw_binary, mcs_raw_binary, hdf5, be in touch to add your fileformat!
 data_offset    = 0                      # Length of the header [only for raw_binary files]
 data_dtype     = uint16                 # Type of the data [for raw_binary, MCS_raw_binary]
 dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
