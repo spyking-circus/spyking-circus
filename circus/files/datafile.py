@@ -3,7 +3,7 @@ import ConfigParser as configparser
 
 class DataFile(object):
 
-    def __init__(self, file_name, params):
+    def __init__(self, file_name, params, empty=False):
         self.file_name = file_name
         assert isinstance(params, configparser.ConfigParser)
         self.params = params
@@ -11,7 +11,8 @@ class DataFile(object):
         self.N_tot  = params.getint('data', 'N_total')
         self.rate   = params.getint('data', 'sampling_rate')
         self.template_shift = params.getint('data', 'template_shift')
-        self.max_offset = 0
+        self.max_offset  = 0
+        self.empty = empty
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
         pass
@@ -34,7 +35,10 @@ class DataFile(object):
     def close(self):
         pass
 
-    def set_offset(self, data_dtype):
+    def allocate(self, shape, data_dtype):
+        pass
+
+    def set_dtype_offset(self, data_dtype):
         self.dtype_offset = self.params.get('data', 'dtype_offset')
         if self.dtype_offset == 'auto':
             if self.data_dtype == 'uint16':
@@ -56,16 +60,28 @@ class DataFile(object):
 
 class RawBinaryFile(DataFile):
 
-    def __init__(self, file_name, params):
-        DataFile.__init__(self, file_name, params)
-        self.data_offset = 0
+    def __init__(self, file_name, params, empty=False):
+        DataFile.__init__(self, file_name, params, empty)
+        self.data_offset = self.params.getint('data', 'data_offset')
         self.data_dtype  = self.params.get('data', 'data_dtype')
-        self.set_offset(self.data_dtype)
+        self.set_dtype_offset(self.data_dtype)
+        if not self.empty:
+            self._get_info_()    
+
+    def _get_info_(self):
+        self.empty = False
         self.open()
         self.N    = len(self.data)
         self.size = (self.N//self.N_tot, self.N_tot)
         self.max_offset = self.size[0] 
         self.close()
+
+    def allocate(self, shape, data_dtype=None):
+        if data_dtype is None:
+            data_dtype = self.data_dtype
+        self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='w+', shape=shape)
+        self._get_info_()
+        del self.data
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
     	
@@ -104,8 +120,9 @@ class RawBinaryFile(DataFile):
     def set_data(self, time, data):
         self.open(mode='r+')
         data  += self.dtype_offset
-        data   = data.astype(data_dtype)
+        data   = data.astype(self.data_dtype)
         data   = data.ravel()
+        print self.file_name, self.data.shape, data.shape
         self.data[self.N_tot*time:self.N_tot*time+len(data)] = data
         self.close()
 
@@ -121,13 +138,13 @@ class RawBinaryFile(DataFile):
         last_chunk_len = last_chunk_len//self.N_tot
         return borders, nb_chunks, chunk_len, last_chunk_len
 
-    def copy_header(self, file_in, file_out):
-	    fin  = open(file_in, 'rb')
-	    fout = open(file_out, 'wb')
-	    data = fin.read(self.data_offset)
-	    fout.write(data)
-	    fin.close()
-	    fout.close()
+    def copy_header(self, file_out):
+        fin  = open(self.file_name, 'rb')
+        fout = open(file_out, 'wb')
+        data = fin.read(self.data_offset)
+        fout.write(data)
+        fin.close()
+        fout.close()
 
     def prepare_preview(self, preview_filename):
         chunk_size   = 2*self.rate
@@ -157,8 +174,8 @@ class RawBinaryFile(DataFile):
 
 class RawMCSFile(RawBinaryFile):
 
-    def __init__(self, file_name, params):
-        RawBinaryFile.__init__(self, file_name, params)
+    def __init__(self, file_name, params, empty=False):
+        RawBinaryFile.__init__(self, file_name, params, empty)
         a, b = self.detect_header()
         self.data_offset = a
         self.nb_channels = b
@@ -197,9 +214,14 @@ class RawMCSFile(RawBinaryFile):
 
 class H5File(DataFile):
 
-    def __init__(self, file_name, params):
-        DataFile.__init__(self, file_name, params)
+    def __init__(self, file_name, params, empty):
+        DataFile.__init__(self, file_name, params, empty)
         self.h5_key = self.params.get('data', 'hdf5_key_data')
+        if not self.empty:
+            self._get_info_()
+
+    def _get_info_(self):
+        self.empty = False
         self.open()
         self.data_dtype = self.my_file.get(self.h5_key).dtype
         self.set_offset(self.data_dtype)
@@ -207,12 +229,21 @@ class H5File(DataFile):
         
         assert (self.size[0] == self.N_tot) or (self.size[1] == self.N_tot)
         if self.size[0] == self.N_tot:
-        	self.time_axis = 1
+            self.time_axis = 1
         else:
-        	self.time_axis = 0
-       	self.max_offset = self.size[self.time_axis]
-       	self.data_offset = 0
+            self.time_axis = 0
+        self.max_offset = self.size[self.time_axis]
+        self.data_offset = 0
         self.close()
+
+    def allocate(self, shape, data_dtype=None):
+        if data_dtype is None:
+            data_dtype = self.data_dtype
+
+        self.my_file = h5py.File(self.file_name, mode='w+')
+        self.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
+        self.my_file.close()
+        self._get_info_()
 
     def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
         if chunk_size is None:

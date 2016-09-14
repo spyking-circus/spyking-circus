@@ -10,51 +10,50 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
-    sampling_rate  = params.getint('data', 'sampling_rate')
-
-    data_file      = io.get_data_file(params)
-
-    try:
-        cut_off    = params.getfloat('filtering', 'cut_off')
-        cut_off    = [cut_off, 0.95*(sampling_rate/2.)]
-    except Exception:
-        cut_off        = params.get('filtering', 'cut_off')
-        cut_off        = cut_off.split(',')
-        try:
-            cut_off[0] = float(cut_off[0])
-        except Exception:
-            io.print_and_log(['First value of cut off must be a valid number'], 'error', params)
-            sys.exit(0)
-        
-        cut_off[1] = cut_off[1].replace(' ', '')
-        if cut_off[1] == 'auto':
-            cut_off[1] = 0.95*(sampling_rate/2.)
-        else:
-            try:
-                cut_off[1] = float(cut_off[1])
-            except Exception:
-                io.print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
-                sys.exit(0)
-
     remove_median  = params.getboolean('filtering', 'remove_median')
     nodes, edges   = io.get_nodes_and_edges(params)
     #################################################################
-
-    if filter_done:
-        if comm.rank == 0:
-            to_write = ["Filtering has already been done in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
-            if remove_median:
-                to_write += ["Median over all channels was substracted to each channels"]
-            io.print_and_log(to_write, 'info', params)
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
             io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
             sys.exit(0)
 
-    if (do_filter and not filter_done) or multi_files:
+    if do_filter or multi_files:
 
         def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True):
+
+            sampling_rate  = data_file_in.rate
+
+            try:
+                cut_off    = params.getfloat('filtering', 'cut_off')
+                cut_off    = [cut_off, 0.95*(sampling_rate/2.)]
+            except Exception:
+                cut_off        = params.get('filtering', 'cut_off')
+                cut_off        = cut_off.split(',')
+                try:
+                    cut_off[0] = float(cut_off[0])
+                except Exception:
+                    io.print_and_log(['First value of cut off must be a valid number'], 'error', params)
+                    sys.exit(0)
+                
+                cut_off[1] = cut_off[1].replace(' ', '')
+                if cut_off[1] == 'auto':
+                    cut_off[1] = 0.95*(sampling_rate/2.)
+                else:
+                    try:
+                        cut_off[1] = float(cut_off[1])
+                    except Exception:
+                        io.print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
+                        sys.exit(0)
+
+            if filter_done:
+                if comm.rank == 0:
+                    to_write = ["Filtering has already been done in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
+                    if remove_median:
+                        to_write += ["Median over all channels was substracted to each channels"]
+                    io.print_and_log(to_write, 'info', params)
+                return
 
             if data_file_out is None:
                 data_file_in.open(mode='r+')
@@ -62,6 +61,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             else:
                 data_file_in.open()
                 data_file_out.open(mode='r+')
+
+            print data_file_in.file_name, data_file_out.file_name
 
             chunk_size     = params.getint('whitening', 'chunk_size')
             borders, nb_chunks, chunk_len, last_chunk_len = data_file_in.analyze(chunk_size)
@@ -258,7 +259,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
             data_file.close()
 
-        if not multi_files:            
+        if not multi_files:  
+
+            data_file = io.get_data_file(params)
+
             goffset = filter_file(data_file)
 
             if clean_artefact:
@@ -268,21 +272,30 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         else:
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
+
+            data_file = io.get_data_file(params)
             
             if comm.rank == 0:
-                data_file.copy_header(params.get('data', 'data_multi_file'), combined_file)
-
+                data_file.copy_header(combined_file)
                 
             comm.Barrier()
-            data_out = io.get_data_file(params, multi_files=True)
-            print combined_file, params.get('data', 'data_multi_file')
 
+            times    = io.data_stats(data_file, show=False, export_times=True)
+
+
+            print "GOGOG", combined_file
+            
+            data_out = io.get_data_file(params, empty=True)
+            data_out.allocate(shape=(1, times[-1][1]*data_out.N_tot))
+            print data_out.file_name, combined_file
+            
             io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
             goffset = 0
             
             for data_file in all_files:
 
-                data_in = io.get_data_file(params.set('data', 'data_file', combined_file))
+                params.set('data', 'data_multi_file', data_file)
+                data_in = io.get_data_file(params, multi=True)
 
                 io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
                 goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter)

@@ -17,20 +17,23 @@ import logging
 from circus.files.datafile import *
 
 
-def get_data_file(params, multi_files=False):
+def get_data_file(params, multi=False, empty=False):
     
+    print params.get('data', 'data_file'), params.get('data', 'data_multi_file')
     data_type = params.get('data', 'data_type')
-    if multi_files:
+    if multi:
         data_file = params.get('data', 'data_file')
     else:
         data_file = params.get('data', 'data_multi_file')
 
+    print multi, data_file
+
     if data_type == 'raw_binary':
-        return RawBinaryFile(data_file, params)
+        return RawBinaryFile(data_file, params, empty)
     elif data_type == 'mcs_raw_binary':
-        return RawMCSFile(data_file, params) 
+        return RawMCSFile(data_file, params, empty) 
     elif data_type == 'hdf5':
-        return H5File(data_file, params)
+        return H5File(data_file, params, empty)
     else:
         print_error(['The type %s is not recognized as a valid file format' %data_type])
         sys.exit(0)
