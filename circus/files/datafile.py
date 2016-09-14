@@ -192,13 +192,17 @@ class RawBinaryFile(DataFile):
 class RawMCSFile(RawBinaryFile):
 
     def __init__(self, file_name, params, empty=False):
-        RawBinaryFile.__init__(self, file_name, params, empty)
+        RawBinaryFile.__init__(self, file_name, params, empty=True)
         a, b = self.detect_header()
         self.data_offset = a
         self.nb_channels = b
 
         if self.nb_channels != self.N_tot:
             print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
+        self.empty = empty
+        if not self.empty:
+            self._get_info_()
+
 
     def detect_header(self):
         try:

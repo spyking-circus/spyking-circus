@@ -271,10 +271,9 @@ but a subset x,y can be done. Steps are:
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
 
-                        if subtask == 'filtering':
-                            if not support_parallel_write:
-                                io.print_and_log(['No parallel writes with %s: only 1 node used for filtering' %file_format], 'info', params)
-                                nb_tasks = str(1)
+                        if subtask == 'filtering' and not support_parallel_write:
+                            io.print_and_log(['No parallel writes with %s: only 1 node used for filtering' %file_format], 'info', params)
+                            nb_tasks = str(1)
                         else:
                             if subtask != 'fitting':
                                 nb_tasks = str(max(args.cpu, args.gpu))
@@ -295,7 +294,7 @@ but a subset x,y can be done. Steps are:
                             mpi_args += ['-np', nb_tasks,
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, extension]
-                        else: 
+                        else:
                             mpi_args += ['-np', nb_tasks,
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
