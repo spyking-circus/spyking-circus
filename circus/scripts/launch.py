@@ -170,6 +170,7 @@ but a subset x,y can be done. Steps are:
         params       = io.load_parameters(filename)
         multi_files  = params.getboolean('data', 'multi-files')
         data_file    = io.get_data_file(params, multi_files)
+        file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file._parrallel_write
 
     if preview:
@@ -272,7 +273,7 @@ but a subset x,y can be done. Steps are:
 
                         if subtask == 'filtering':
                             if not support_parallel_write:
-                                io.print_and_log(['No concurrent writes with this file format: only 1 node for filtering' ], 'info', params)
+                                io.print_and_log(['No parallel writes with %s: only 1 node used for filtering' %file_format], 'info', params)
                                 nb_tasks = str(1)
                         else:
                             if subtask != 'fitting':
