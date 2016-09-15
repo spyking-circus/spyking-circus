@@ -1077,7 +1077,7 @@ def view_dataset(X, color='blue', title=None, save=None):
         pylab.close(fig)
     return
 
-def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, save=None):
+def view_datasets(data_file, xs, ys, all_trigger_times, colors=None, labels=None, save=None):
     if colors is None:
         colors = ['b'] * len(xs)
     from circus.validating.utils import Projection, find_rotation
@@ -1118,9 +1118,9 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
     #ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
 
 
-    N_total = params.getint('data', 'N_total')
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params)
-    ttmax = (nb_chunks * chunk_len + last_chunk_len) // N_total
+    N_total = data_file.N_tot
+    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze()
+    ttmax = data_file.max_offset
 
     pylab.subplots_adjust(wspace=0.3)
     ax = fig.add_subplot(1, 2, 2)

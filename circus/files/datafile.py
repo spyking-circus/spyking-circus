@@ -1,4 +1,4 @@
-import h5py, numpy, re
+import h5py, numpy, re, sys
 import ConfigParser as configparser
 
 class DataFile(object):

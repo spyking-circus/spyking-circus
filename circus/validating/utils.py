@@ -471,7 +471,6 @@ def extract_extra_spikes_(params):
     sampling_rate  = data_file.rate
     dist_peaks     = params.getint('data', 'dist_peaks')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    skip_artefact  = params.getboolean('data', 'skip_artefact')
     template_shift = params.getint('data', 'template_shift')
     alignment      = params.getboolean('detection', 'alignment')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -491,7 +490,7 @@ def extract_extra_spikes_(params):
     #mpi_file = MPI.File()
     #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
     _, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
-    if last_chunk_size > 0:
+    if last_chunk_len > 0:
         nb_chunks += 1
 
     nodes, _ = io.get_nodes_and_edges(params)
@@ -544,15 +543,15 @@ def extract_extra_spikes_(params):
             threshold = extra_thresh * extra_mads[e]
             peak_times[e] = algo.detect_peaks(loc_chunk[:, e], threshold, valley=valley, mpd=dist_peaks)
             peak_channels[e] = e * numpy.ones(peak_times[e].size, dtype='int')
-            if skip_artefact:
-                # Remove strong artifacts.
-                peak_values = loc_chunk[peak_times[e], e]
-                if valley:
-                    peak_indices = numpy.where(-10.0 * threshold <= peak_values)[0]
-                else:
-                    peak_indices = numpy.where(peak_values <= +10.0 * threshold)[0]
-                peak_times[e] = peak_times[e][peak_indices]
-                peak_channels[e] = peak_channels[e][peak_indices]
+            
+            peak_values = loc_chunk[peak_times[e], e]
+            if valley:
+                peak_indices = numpy.where(-10.0 * threshold <= peak_values)[0]
+            else:
+                peak_indices = numpy.where(peak_values <= +10.0 * threshold)[0]
+            peak_times[e] = peak_times[e][peak_indices]
+            peak_channels[e] = peak_channels[e][peak_indices]
+        
         peak_times = numpy.concatenate(peak_times)
         peak_channels = numpy.concatenate(peak_channels)
         # Remove the useless borders.
@@ -761,7 +760,6 @@ def extract_juxta_spikes_(params):
     '''Detect spikes from the extracellular traces'''
     
     file_out_suff = params.get('data', 'file_out_suff')
-    dtype_offset = params.getint('data', 'dtype_offset')
     sampling_rate = params.getint('data', 'sampling_rate')
     dist_peaks = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
@@ -808,6 +806,8 @@ def extract_juxta_spikes_(params):
     juxta_spike_times = juxta_spike_times[template_shift <= juxta_spike_times]
     juxta_spike_times = juxta_spike_times[juxta_spike_times < juxta_data.size - template_shift]
     
+    print juxta_spike_times
+
     # Save juxta spike times to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='latest')
     group_name = "juxta_spiketimes"
