@@ -7,10 +7,8 @@ import pkg_resources
 import circus
 import tempfile
 import numpy, h5py
-from circus.shared.files import print_error, write_datasets, read_probe, print_and_log, get_header
-import colorama
-colorama.init(autoreset=True)
-from colorama import Fore, Back, Style
+from circus.shared.messages import print_error, print_and_log, get_header
+from circus.shared.files import write_datasets, read_probe
 
 def main(argv=None):
 

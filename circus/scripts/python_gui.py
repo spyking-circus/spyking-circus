@@ -8,11 +8,8 @@ import circus
 import tempfile
 import numpy, h5py
 from distutils.version import LooseVersion, StrictVersion
-from circus.shared.files import print_error, print_info, print_and_log, read_probe, get_header
-import colorama
-colorama.init(autoreset=True)
-from colorama import Fore, Back, Style
-
+from circus.shared.messages import print_error, print_info, print_and_log, get_header
+from circus.shared.files import read_probe
 
 import logging
 from phy import add_default_handler

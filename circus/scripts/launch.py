@@ -12,7 +12,7 @@ colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 import circus.shared.files as io
 import circus
-from circus.shared.files import print_error, print_info, write_to_logger, get_header
+from circus.shared.messages import print_error, print_info, write_to_logger, get_header
 
 
 def gather_mpi_arguments(hostfile, params):

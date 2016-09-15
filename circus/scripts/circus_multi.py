@@ -8,11 +8,8 @@ import circus
 import tempfile
 import h5py
 import numpy
-from circus.shared.files import print_error, print_and_log, get_header
+from circus.shared.messages import print_error, print_and_log, get_header
 from circus.shared.algorithms import slice_result
-import colorama
-colorama.init(autoreset=True)
-from colorama import Fore, Back, Style
 
 
 def main(argv=None):
