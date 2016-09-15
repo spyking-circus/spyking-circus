@@ -12,10 +12,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     """
     
     numpy.random.seed(4235)
-
-    data_path      = os.path.dirname(os.path.abspath(file_name))
-    data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
-    file_out, ext  = os.path.splitext(os.path.abspath(file_name))
+    file_name      = os.path.abspath(file_name)
+    data_path      = os.path.dirname(file_name)
+    data_suff, ext = os.path.splitext(os.path.basename(file_name))
+    file_out, ext  = os.path.splitext(file_name)
 
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
@@ -154,12 +154,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     scalings       = []
     #data_mpi       = get_mpi_type('float32')
     
-    params.set('data', 'data_file', filename)
+    params.set('data', 'data_file', file_name)
     data_file_out = io.get_data_file(params, empty=True)
 
     if comm.rank == 0:
-        data_file.copy_header(filename)
-        data_file.allocate(shape=data_file.shape, data_dtype=numpy.float32)
+        data_file.copy_header(file_name)
+        data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
     # Synchronize all the threads/processes.
     comm.Barrier()
