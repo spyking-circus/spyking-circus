@@ -269,15 +269,6 @@ def extract_extra_thresholds(params):
         median = weighted_mean(loc_nbs_chunks, medians)
     
     if comm.rank == 0:
-        if last_chunk_len > 0:
-            # For last chunk attributed to the first CPU.
-            gidx = nb_chunks
-            last_chunk_size = last_chunk_len // N_total
-            last_median = extract_median(last_chunk_len, last_chunk_size, gidx)
-            median = (float(nb_chunks * chunk_len) * median + float(last_chunk_len) * last_median) \
-                     / float(nb_chunks * chunk_len + last_chunk_len)
-    
-    if comm.rank == 0:
         pbar.finish()
     
     # Broadcast medians to each CPU.
@@ -307,15 +298,6 @@ def extract_extra_thresholds(params):
     
     if comm.rank == 0:
         mad = weighted_mean(loc_nbs_chunks, mads)
-    
-    if comm.rank == 0:
-        if last_chunk_len > 0:
-            # For last chunk attributed to the first CPU.
-            gidx = nb_chunks
-            last_chunk_size = last_chunk_len // N_total
-            last_mad = extract_median_absolute_deviation(last_chunk_len, last_chunk_size, gidx, median)
-            mad = (float(nb_chunks * chunk_len) * mad + float(last_chunk_len) * last_mad) \
-                  / float(nb_chunks * chunk_len + last_chunk_len)
     
     if comm.rank == 0:
         pbar.finish()
