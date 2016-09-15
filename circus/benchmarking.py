@@ -317,9 +317,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * nb_insert))
         
     # Retrieve the information about the organisation of the chunks of data.
-    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
-    if last_chunk_len > 0:
-        nb_chunks += 1
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     # Display informations about the generated benchmark.
     if comm.rank == 0:

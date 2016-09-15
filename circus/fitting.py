@@ -58,7 +58,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
-    template_shift = int((N_t-1)//2)
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
@@ -157,9 +156,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     del c_overs[i]
             full_gpu = False
 
-    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
-    if last_chunk_len > 0:
-        nb_chunks += 1
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     nb_chunks                                     = int(min(nb_chunks, max_chunk))
 
     if comm.rank == 0:
@@ -183,15 +180,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
         ## We need to deal with the borders by taking chunks of size [0, chunck_size+template_shift]
         if gidx == (nb_chunks - 1):
-            padding = (-2*borders, 0)
+            padding = (-2*template_shift, 0)
         elif gidx == 0:
-            padding = (0, 2*borders)
+            padding = (0, 2*template_shift)
         else:
-            padding = (-2*borders, 2*borders)
+            padding = (-2*template_shift, 2*template_shift)
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
-        local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, padding, nodes=nodes)           
+        local_chunk, local_shape = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
 
         if do_spatial_whitening:
             if use_gpu:

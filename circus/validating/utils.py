@@ -201,11 +201,7 @@ def extract_extra_thresholds(params):
     
     #mpi_file = MPI.File()
     #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
-    _, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
-
-    if last_chunk_len > 0:
-        nb_chunks += 1
-
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     nodes, _ = io.get_nodes_and_edges(params)
     N_elec = nodes.size
     
@@ -216,9 +212,9 @@ def extract_extra_thresholds(params):
         weighted_mean = sum(weighted_values)
         return weighted_mean
     
-    def extract_median(chunk_len, chunk_size, gidx):
+    def extract_median(chunk_size, gidx):
         """Extract the medians from a chunk of extracellular traces"""
-        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -227,9 +223,9 @@ def extract_extra_thresholds(params):
         median = numpy.median(loc_chunk, axis=0)
         return median
     
-    def extract_median_absolute_deviation(chunk_len, chunk_size, gidx, median):
+    def extract_median_absolute_deviation(chunk_size, gidx, median):
         """Extract the median absolute deviations from a chunk of extracellular traces"""
-        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -256,7 +252,7 @@ def extract_extra_thresholds(params):
     
     # For each chunk attributed to the current CPU.
     for count, gidx in enumerate(loc_all_chunks):
-        medians[:, count] = extract_median(chunk_len, chunk_size, gidx)
+        medians[:, count] = extract_median(chunk_size, gidx)
         if comm.rank == 0:
             pbar.update(count)
     median = numpy.mean(medians, axis=1)
@@ -287,7 +283,7 @@ def extract_extra_thresholds(params):
     
     # For each chunk attributed to the current CPU.
     for count, gidx in enumerate(loc_all_chunks):
-        mads[:, count] = extract_median_absolute_deviation(chunk_len, chunk_size, gidx, median)
+        mads[:, count] = extract_median_absolute_deviation(chunk_size, gidx, median)
         if comm.rank == 0:
             pbar.update(count)
     mad = numpy.mean(mads, axis=1)
@@ -471,10 +467,7 @@ def extract_extra_spikes_(params):
     
     #mpi_file = MPI.File()
     #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
-    _, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
-    if last_chunk_len > 0:
-        nb_chunks += 1
-
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     nodes, _ = io.get_nodes_and_edges(params)
     N_elec = nodes.size
     
@@ -502,7 +495,7 @@ def extract_extra_spikes_(params):
     def extract_chunk_spikes(gidx, extra_thresh, valley=True):
         """Detect spikes from a chunk of the extracellular traces"""
         
-        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)

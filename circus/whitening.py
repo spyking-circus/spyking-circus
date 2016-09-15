@@ -46,7 +46,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
 
@@ -55,10 +55,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
-        borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
-    if last_chunk_len > 0:
-        nb_chunks += 1
 
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
@@ -67,7 +65,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for gidx in [all_chunks[comm.rank]]:
 
         #print "Node", comm.rank, "is analyzing chunk", gidx,  "/", nb_chunks, " ..."
-        local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+        local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
         thresholds = numpy.zeros(data_file.N_e, dtype=numpy.float32)
         for i in xrange(data_file.N_e):
@@ -208,7 +206,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
             if do_spatial_whitening:
                 if use_gpu:
                     local_chunk = cmt.CUDAMatrix(local_chunk)
@@ -271,7 +269,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
         
-    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
 
@@ -280,10 +278,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
-        borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
-
-    if last_chunk_len > 0:
-        nb_chunks += 1
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     groups    = {}
     for i in xrange(data_file.N_e):
@@ -317,7 +312,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if ((elt_count_pos + elt_count_neg) < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
             if do_spatial_whitening:
                 if use_gpu:
                     local_chunk = cmt.CUDAMatrix(local_chunk)

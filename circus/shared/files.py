@@ -369,7 +369,7 @@ def data_stats(data_file, show=True, export_times=False):
     chunk_size     = 60 * data_file.rate    
 
     if not multi_files:
-        _, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     else:
         all_files      = get_multi_files(data_file.params)
         N              = 0
@@ -381,7 +381,7 @@ def data_stats(data_file, show=True, export_times=False):
         for f in all_files:
             data_file.params.set('data', 'data_file', f)
             new_data_file = get_data_file(data_file.params)
-            _, loc_nb_chunks, chunk_len, last_chunk_len = new_data_file.analyze(chunk_size)
+            loc_nb_chunks, last_chunk_len = new_data_file.analyze(chunk_size)
 
             nb_chunks      += loc_nb_chunks
             last_chunk_len += new_data_file.max_offset - (loc_nb_chunks*chunk_size)

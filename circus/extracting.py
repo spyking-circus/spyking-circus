@@ -64,10 +64,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['data_tmp_' + str(i)]  = numpy.zeros((0, N_e * basis_proj.shape[1]), dtype=numpy.float32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
 
-    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze(chunk_size)
-    if last_chunk_len > 0:
-        nb_chunks += 1
-
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+    
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks))
 
@@ -81,7 +79,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if (elt_count < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
 
             if do_spatial_whitening:
                 if use_gpu:

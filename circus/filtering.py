@@ -65,10 +65,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data_file_out.open(mode='r+')
 
             chunk_size     = params.getint('data', 'chunk_size')
-            borders, nb_chunks, chunk_len, last_chunk_len = data_file_in.analyze(chunk_size)
-            if last_chunk_len > 0:
-                nb_chunks += 1
-
+            nb_chunks, last_chunk_len = data_file_in.analyze(chunk_size)
+            
             b, a          = signal.butter(3, np.array(cut_off)/(sampling_rate/2.), 'pass')
             all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
@@ -88,7 +86,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             for count, gidx in enumerate(to_process):
 
-                local_chunk, _ =  data_file_in.get_data(gidx, chunk_len)
+                local_chunk, _ =  data_file_in.get_data(gidx, chunk_size)
                 
                 for i in nodes:
                     if perform_filtering:
