@@ -221,10 +221,10 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Compute the cumulative distribution of extra spike times according to the threshold values.
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
-    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    N_e = params.getint('data', 'N_e')
+    N_e = data_file.N_e
     threshs = N_e * [None]
     counts = N_e * [None]
     for e in xrange(0, N_e):
@@ -262,10 +262,10 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Compute the cumulative distribution of extra spike times according to the threshold values.
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
-    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    N_e = params.getint('data', 'N_e')
+    N_e = data_file.N_e
     for e in xrange(0, N_e):
         spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
     spike_values_extra = numpy.concatenate(spike_values_extra)
@@ -314,7 +314,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
-    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
     thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"

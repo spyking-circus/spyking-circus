@@ -806,8 +806,6 @@ def extract_juxta_spikes_(params):
     juxta_spike_times = juxta_spike_times[template_shift <= juxta_spike_times]
     juxta_spike_times = juxta_spike_times[juxta_spike_times < juxta_data.size - template_shift]
     
-    print juxta_spike_times
-
     # Save juxta spike times to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='latest')
     group_name = "juxta_spiketimes"
