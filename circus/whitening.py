@@ -495,7 +495,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
             if do_spatial_whitening:
                 if use_gpu:
                     local_chunk = cmt.CUDAMatrix(local_chunk)
