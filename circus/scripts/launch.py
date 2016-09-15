@@ -183,10 +183,20 @@ but a subset x,y can be done. Steps are:
         f_next, extens = os.path.splitext(filename)
         shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']
-        data_file.prepare_preview(filename)
-        data_file.close()
+
+        chunk_size = 2*data_file.rate
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+        data_file.open()
+        local_chunk, _ = data_file.get_data(0, chunk_size)
         params.set('data', 'data_file', filename)
-        data_file    = io.get_data_file(params)
+        data_file_out = io.get_data_file(params, empty=True)
+        data_file.copy_header(filename)
+        data_file_out.allocate(shape=local_chunk.shape, data_dtype=data_file.data_dtype)
+        
+        data_file_out.open('r+')
+        data_file_out.set_data(0, local_chunk)
+        data_file.close()
+        data_file_out.close()
         io.change_flag(filename, 'chunk_size', '2')
         io.change_flag(filename, 'safety_time', '0')
 

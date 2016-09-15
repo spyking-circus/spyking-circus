@@ -59,9 +59,9 @@ class DataFile(object):
         dataset can be divided in nb_chunks (see analyze) of temporal size (chunk_size), 
 
             - idx is the index of the chunk you want to load
-            - chunk_size is the time of those chunks
+            - chunk_size is the time of those chunks, in time steps
             - if the data loaded are data[idx:idx+1], padding should add some offsets, 
-                such that we load data[idx+padding[0]:idx+padding[1]]
+                in time steps, such that we can load data[idx+padding[0]:idx+padding[1]]
             - nodes is a list of nodes, between 0 and N_total            
         '''
 
@@ -86,15 +86,17 @@ class DataFile(object):
 
     def analyze(self, chunk_size=None):
         '''
-            This function should return 
+            This function should return two values: 
+            - the number of temporal chunks of temporal size chunk_size that can be found 
+            in the data. Note that even if the last chunk is not complete, it has to be 
+            counted. chunk_size is expressed in time steps
+            - the length of the last uncomplete chunk, in time steps
         '''
         if chunk_size is None:
             chunk_size = self.params.getint('data', 'chunk_size')
 
         pass
 
-    def prepare_preview(self):
-    	pass
 
     def open(self, mode):
         ''' 
@@ -104,6 +106,11 @@ class DataFile(object):
         pass
 
     def copy_header(self, file_out):
+        '''
+            If the data has some header that need to be copied when a new file of the same
+            time is created. Note that in the code, this is always followed by a all to the
+            allocate() function for that new file
+        '''
         pass
 
     def close(self):
@@ -115,7 +122,9 @@ class DataFile(object):
     def allocate(self, shape, data_dtype):
         '''
             This function may be used during benchmarking mode, or if multi-files mode is activated
-            Starting from an empty file, it will allocates
+            Starting from an empty file, it will allocates a given size:
+                - shape is a tuple with (time lenght, N_total)
+                - data_dtype is the data type
         '''
         pass
 
@@ -147,6 +156,7 @@ class RawBinaryFile(DataFile):
 
     def __init__(self, file_name, params, empty=False):
         DataFile.__init__(self, file_name, params, empty)
+        self._description = "raw_binary"
         try:
             self.data_offset = self.params.getint('data', 'data_offset')
         except Exception:
@@ -178,9 +188,10 @@ class RawBinaryFile(DataFile):
             chunk_size = self.params.getint('data', 'chunk_size')
 
         chunk_len    = chunk_size * self.N_tot 
+        padding      = numpy.array(padding) * self.N_tot
 
         self.open()
-        local_chunk  = self.data[idx*numpy.int64(chunk_len)+padding[0]*self.N_tot:(idx+1)*numpy.int64(chunk_len)+padding[1]*self.N_tot]
+        local_chunk  = self.data[idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]]
         local_shape  = len(local_chunk)//self.N_tot
         local_chunk  = local_chunk.reshape(local_shape, self.N_tot)
         local_chunk  = local_chunk.astype(numpy.float32)
@@ -241,24 +252,6 @@ class RawBinaryFile(DataFile):
         fin.close()
         fout.close()
 
-    def prepare_preview(self, preview_filename):
-        chunk_size   = 2*self.rate
-        chunk_len    = numpy.int64(self.N_tot) * chunk_size
-	    
-        self.open()
-        local_chunk  = self.data[0:chunk_len]
-        self.close()
-
-        output = open(preview_filename, 'wb')
-        fid    = open(self.file_name, 'rb')
-        for i in xrange(self.data_offset):
-            output.write(fid.read(1))
-        fid.close()
-
-	    #Then the datafile
-        local_chunk.tofile(output)
-        output.close()
-
     def open(self, mode='r'):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)
 
@@ -271,6 +264,7 @@ class RawMCSFile(RawBinaryFile):
 
     def __init__(self, file_name, params, empty=False):
         RawBinaryFile.__init__(self, file_name, params, empty=True)
+        self._description = "mcs_raw_binary"
         a, b = self.detect_header()
         self.data_offset = a
         self.nb_channels = b
@@ -317,6 +311,7 @@ class H5File(DataFile):
         DataFile.__init__(self, file_name, params, empty)
         self.h5_key = self.params.get('data', 'hdf5_key_data')
         self._parrallel_write = h5py.get_config().mpi
+        self._description = "hdf5"
         if not self.empty:
             self._get_info_()
 
@@ -360,13 +355,12 @@ class H5File(DataFile):
 
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
-        local_shape  = len(local_chunk)
 
         if nodes is not None:
             if not numpy.all(nodes == numpy.arange(self.N_tot)):
                 local_chunk = numpy.take(local_chunk, nodes, axis=1)
 
-        return numpy.ascontiguousarray(local_chunk), local_shape
+        return numpy.ascontiguousarray(local_chunk), len(local_chunk)
 
     def get_snippet(self, time, length, nodes=None):
 
@@ -407,17 +401,6 @@ class H5File(DataFile):
             nb_chunks += 1
 
 	    return nb_chunks, last_chunk_len
-
-    def prepare_preview(self, preview_filename):
-        chunk_size   = 2*self.rate
-        if self.time_axis == 0:
-            local_chunk = self.data[:2*self.rate, :]
-        elif self.time_axis == 1:
-            local_chunk = self.data[:, :2*self.rate]
-
-        output = h5py.File(preview_filename, mode='w')
-        output.create_dataset(self.h5_key, data=local_chunk)
-        output.close()
 
     def open(self, mode='r'):
         self.my_file = h5py.File(self.file_name, mode=mode)

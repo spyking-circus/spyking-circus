@@ -1149,9 +1149,9 @@ class PreviewGUI(QtGui.QMainWindow):
     def get_data(self):
         self.chunk_size       = self.sampling_rate
         self.padding          = (self.t_start*self.sampling_rate, self.t_start*self.sampling_rate)
-        _, nb_chunks, chunk_len, last_chunk_len = self.data_file.analyze(self.chunk_size)
-        self.data, data_shape = self.data_file.get_data(0, chunk_len,
-            padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
+        nb_chunks, last_chunk_len = self.data_file.analyze(self.chunk_size)
+        self.data, data_shape = self.data_file.get_data(0, self.chunk_size,
+            padding=self.padding, nodes=self.nodes)
 
 
         if self.do_spatial_whitening:
