@@ -8,10 +8,12 @@ from circus.shared.utils import *
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
     params          = load_parameters(file_name)
-    N_e             = params.getint('data', 'N_e')
+    data_file       = get_data_file(params)
+    data_file.open()
+    N_e             = data_file.N_e
     N_t             = params.getint('data', 'N_t')
-    N_total         = params.getint('data', 'N_total')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+    N_total         = data_file.N_tot
+    sampling_rate   = data_file.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
@@ -19,7 +21,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
     template_shift   = params.getint('data', 'template_shift')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
-    padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
+    padding          = (t_start*sampling_rate, t_start*sampling_rate)
     suff             = params.get('data', 'suffix')
 
     if do_spatial_whitening:
@@ -28,8 +30,9 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
-    data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
+    data, data_shape = data_file.get_data(0, chunk_size, padding=padding, chunk_size=chunk_size, nodes=nodes)
     
+    data_file.close()
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
     if do_temporal_whitening:
@@ -203,20 +206,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
         for k in numpy.random.permutation(subcurves)[:n_curves]:
             pylab.plot(data[k], '0.5')
         
-        pylab.plot(templates[:, count], 'r')
-        
-##### TODO: remove debug zone
-        # print("# Print `amps_lim` size")
-        # print(numpy.size(amps_lim))
-        # print("# Print `count`")
-        # print(count)
-        # print("# Print `amps_lim[count]` size")
-        # try:
-        #     print(numpy.size(amps_lim[count]))
-        # except:
-        #     print("Error (index is out of bounds)")
-##### end debug zone
-        
+        pylab.plot(templates[:, count], 'r')        
         pylab.plot(amps_lim[count][0]*templates[:, count], 'b', alpha=0.5)
         pylab.plot(amps_lim[count][1]*templates[:, count], 'b', alpha=0.5)
         
@@ -254,9 +244,11 @@ def view_artefact(data, save=False):
 def view_waveforms(file_name, temp_id, n_spikes=2000):
     
     params          = load_parameters(file_name)
-    N_e             = params.getint('data', 'N_e')
-    N_total         = params.getint('data', 'N_total')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+    data_file       = get_data_file(params)
+    data_file.open()
+    N_e             = data_file.N_e
+    N_total         = data_file.N_tot
+    sampling_rate   = data_file.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
@@ -285,14 +277,15 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
         templates = numpy.zeros((0, 0, 0))
     
     for count, t_spike in enumerate(numpy.random.permutation(spikes)[:n_spikes]):
-        padding          = ((t_spike - int(N_t-1)//2)*N_total, (t_spike - int(N_t-1)//2)*N_total)
-        data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
+        padding          = ((t_spike - int(N_t-1)//2), (t_spike - int(N_t-1)//2))
+        data, data_shape = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
         if do_temporal_whitening:
             data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
         
         curve[count] = data.T
+    data_file.close()
     pylab.subplot(121)
     pylab.imshow(numpy.mean(curve, 0), aspect='auto')
     pylab.subplot(122)
@@ -303,9 +296,11 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
 def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     
     params          = load_parameters(file_name)
-    N_e             = params.getint('data', 'N_e')
-    N_total         = params.getint('data', 'N_total')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+    data_file       = get_data_file(params)
+    data_file.open()
+    N_e             = data_file.N_e
+    N_total         = data_file.N_tot
+    sampling_rate   = data_file.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
@@ -313,7 +308,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     N_t              = params.getint('data', 'N_t')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
-    padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
+    padding          = (t_start*sampling_rate, t_start*sampling_rate)
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -321,7 +316,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
-    data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
+    data, data_shape = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
        
     peaks      = {}
     n_spikes   = 0
@@ -347,7 +342,8 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
 
     pylab.subplot(111)
     pylab.imshow(curve, aspect='auto')
-    pylab.show()    
+    pylab.show() 
+    data_file.close()   
     return curve
 
 
@@ -355,9 +351,11 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
 def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100, temp_id=None):
     
     params          = load_parameters(file_name)
-    N_e             = params.getint('data', 'N_e')
-    N_total         = params.getint('data', 'N_total')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+    data_file       = get_data_file(params)
+    data_file.open()
+    N_e             = data_file.N_e
+    N_total         = data_file.N_tot
+    sampling_rate   = data_file.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
@@ -381,8 +379,8 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
     count      = 0
     
     for count, t_spike in enumerate(triggers):
-        padding          = ((t_spike - N_t/2)*N_total, (t_spike - N_t/2)*N_total)
-        data, data_shape = load_chunk(params, 0, N_t*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
+        padding          = ((t_spike - N_t/2), (t_spike - N_t/2))
+        data, data_shape = data_file.get_data(0, N_t, padding=padding, nodes=nodes)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
         if do_temporal_whitening:
@@ -399,6 +397,7 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         idx    = n_elec
         n_elec = numpy.sqrt(len(idx))
     pylab.figure()
+    data_file.close()
 
     for count, i in enumerate(idx):
         if square:
@@ -586,9 +585,11 @@ def view_whitening(data):
 def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
 
     params          = load_parameters(file_name)
-    N_e             = params.getint('data', 'N_e')
-    N_total         = params.getint('data', 'N_total')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+    data_file       = get_data_file(params)
+    data_file.open()
+    N_e             = data_file.N_e
+    N_total         = data_file.N_tot
+    sampling_rate   = data_file.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
@@ -596,7 +597,7 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     N_t              = params.getint('data', 'N_t')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
-    padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
+    padding          = (t_start*sampling_rate, t_start*sampling_rate)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     safety_time      = int(params.getfloat('clustering', 'safety_time')*sampling_rate*1e-3)
@@ -607,8 +608,8 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
-    data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
-    
+    data, data_shape = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+    data_file.close()
     peaks            = {}
     indices          = inv_nodes[edges[nodes[n_elec]]]
     
@@ -642,9 +643,11 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
 
 def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None, yzoom=None):
     params          = load_parameters(file_name)
-    N_e             = params.getint('data', 'N_e')
-    N_total         = params.getint('data', 'N_total')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+    data_file       = get_data_file(params)
+    data_file.open()
+    N_e             = data_file.N_e
+    N_total         = data_file.N_tot
+    sampling_rate   = data_file.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
@@ -652,7 +655,7 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     N_t              = params.getint('data', 'N_t')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
-    padding          = (t_start*sampling_rate*N_total, t_start*sampling_rate*N_total)
+    padding          = (t_start*sampling_rate, t_start*sampling_rate)
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -660,8 +663,9 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
-    data, data_shape = load_chunk(params, 0, chunk_size*N_total, padding=padding, chunk_size=chunk_size, nodes=nodes)
-       
+    data, data_shape = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+    data_file.close()
+
     peaks      = {}
     
     if do_spatial_whitening:
@@ -1119,7 +1123,7 @@ def view_datasets(data_file, xs, ys, all_trigger_times, colors=None, labels=None
 
 
     N_total = data_file.N_tot
-    borders, nb_chunks, chunk_len, last_chunk_len = data_file.analyze()
+    nb_chunks, last_chunk_len = data_file.analyze()
     ttmax = data_file.max_offset
 
     pylab.subplots_adjust(wspace=0.3)
