@@ -399,8 +399,7 @@ class H5File(DataFile):
 
         if last_chunk_len > 0:
             nb_chunks += 1
-
-	    return nb_chunks, last_chunk_len
+        return nb_chunks, last_chunk_len
 
     def open(self, mode='r'):
         self.my_file = h5py.File(self.file_name, mode=mode)
