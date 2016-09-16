@@ -19,7 +19,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
             sys.exit(0)
 
-    if do_filter or multi_files:
+    if do_filter or multi_files or clean_artefact:
 
         def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True, display=True):
 
