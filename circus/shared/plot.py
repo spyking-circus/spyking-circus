@@ -30,8 +30,9 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
-    data, data_shape = data_file.get_data(0, chunk_size, padding=padding, chunk_size=chunk_size, nodes=nodes)
-    
+    data = data_file.get_data(0, chunk_size, padding=padding, chunk_size=chunk_size, nodes=nodes)
+    data_shape = len(data)
+
     data_file.close()
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
@@ -277,8 +278,9 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
         templates = numpy.zeros((0, 0, 0))
     
     for count, t_spike in enumerate(numpy.random.permutation(spikes)[:n_spikes]):
-        padding          = ((t_spike - int(N_t-1)//2), (t_spike - int(N_t-1)//2))
-        data, data_shape = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+        padding  = ((t_spike - int(N_t-1)//2), (t_spike - int(N_t-1)//2))
+        data     = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+        data_shape = len(data)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
         if do_temporal_whitening:
@@ -315,9 +317,10 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
-    thresholds       = load_data(params, 'thresholds')
-    data, data_shape = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
-       
+    thresholds = load_data(params, 'thresholds')
+    data       = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+    data_shape = len(data)
+
     peaks      = {}
     n_spikes   = 0
 
@@ -379,8 +382,9 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
     count      = 0
     
     for count, t_spike in enumerate(triggers):
-        padding          = ((t_spike - N_t/2), (t_spike - N_t/2))
-        data, data_shape = data_file.get_data(0, N_t, padding=padding, nodes=nodes)
+        padding  = ((t_spike - N_t/2), (t_spike - N_t/2))
+        data     = data_file.get_data(0, N_t, padding=padding, nodes=nodes)
+        data_shape = len(data)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
         if do_temporal_whitening:
@@ -608,7 +612,8 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
-    data, data_shape = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+    data = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+    data_shape = len(data)
     data_file.close()
     peaks            = {}
     indices          = inv_nodes[edges[nodes[n_elec]]]
@@ -663,7 +668,8 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds       = load_data(params, 'thresholds')
-    data, data_shape = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+    data = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+    data_shape = len(data)
     data_file.close()
 
     peaks      = {}
