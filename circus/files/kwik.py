@@ -96,7 +96,7 @@ class KwikFile(H5File):
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
 
-        return numpy.ascontiguousarray(local_chunk), len(local_chunk)
+        return numpy.ascontiguousarray(local_chunk)
 
 
     def set_data(self, time, data):

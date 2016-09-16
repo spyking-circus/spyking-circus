@@ -57,7 +57,7 @@ class RawBinaryFile(DataFile):
             if not numpy.all(nodes == numpy.arange(self.N_tot)):
                 local_chunk = numpy.take(local_chunk, nodes, axis=1)
 
-        return numpy.ascontiguousarray(local_chunk), local_shape
+        return numpy.ascontiguousarray(local_chunk)
 
     def set_data(self, time, data):
         self.open(mode='r+')

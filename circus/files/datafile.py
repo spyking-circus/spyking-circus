@@ -77,7 +77,7 @@ class DataFile(object):
             - length is in timestep
             - nodes is a list of nodes, between 0 and N_total
         '''
-        return self.get_data(0, chunk_size=length, padding=(time*self.rate, time*self.rate), nodes=nodes)
+        return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
 
     def set_data(self, time, data):
         '''
