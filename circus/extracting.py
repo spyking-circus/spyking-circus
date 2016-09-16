@@ -79,7 +79,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if (elt_count < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
 
             if do_spatial_whitening:
                 if use_gpu:

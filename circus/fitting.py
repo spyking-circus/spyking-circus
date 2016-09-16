@@ -188,7 +188,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
-        local_chunk, local_shape = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
+        local_chunk = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
+        local_shape = len(local_chunk)
 
         if do_spatial_whitening:
             if use_gpu:

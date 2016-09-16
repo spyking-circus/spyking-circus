@@ -65,7 +65,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     for gidx in [all_chunks[comm.rank]]:
 
         #print "Node", comm.rank, "is analyzing chunk", gidx,  "/", nb_chunks, " ..."
-        local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        local_shape = len(local_chunk)
+
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
         thresholds = numpy.zeros(data_file.N_e, dtype=numpy.float32)
         for i in xrange(data_file.N_e):
@@ -206,7 +208,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
+            
             if do_spatial_whitening:
                 if use_gpu:
                     local_chunk = cmt.CUDAMatrix(local_chunk)
@@ -312,7 +316,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if ((elt_count_pos + elt_count_neg) < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
+
             if do_spatial_whitening:
                 if use_gpu:
                     local_chunk = cmt.CUDAMatrix(local_chunk)
@@ -495,7 +501,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
+
             if do_spatial_whitening:
                 if use_gpu:
                     local_chunk = cmt.CUDAMatrix(local_chunk)

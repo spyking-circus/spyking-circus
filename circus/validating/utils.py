@@ -214,7 +214,7 @@ def extract_extra_thresholds(params):
     
     def extract_median(chunk_size, gidx):
         """Extract the medians from a chunk of extracellular traces"""
-        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        loc_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -225,7 +225,7 @@ def extract_extra_thresholds(params):
     
     def extract_median_absolute_deviation(chunk_size, gidx, median):
         """Extract the median absolute deviations from a chunk of extracellular traces"""
-        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        loc_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -495,7 +495,9 @@ def extract_extra_spikes_(params):
     def extract_chunk_spikes(gidx, extra_thresh, valley=True):
         """Detect spikes from a chunk of the extracellular traces"""
         
-        loc_chunk, loc_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        loc_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        loc_shape = len(loc_chunk)
+        
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)

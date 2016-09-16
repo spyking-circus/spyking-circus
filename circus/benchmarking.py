@@ -359,7 +359,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                           'templates' : [], 'real_amps' : [],
                           'voltages' : []}
         offset         = gidx * chunk_size
-        local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
 
         if benchmark == 'pca-validation':
             # Clear the current data chunk.

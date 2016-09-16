@@ -1150,7 +1150,7 @@ class PreviewGUI(QtGui.QMainWindow):
         self.chunk_size       = self.sampling_rate
         self.padding          = (self.t_start*self.sampling_rate, self.t_start*self.sampling_rate)
         nb_chunks, last_chunk_len = self.data_file.analyze(self.chunk_size)
-        self.data, data_shape = self.data_file.get_data(0, self.chunk_size,
+        self.data = self.data_file.get_data(0, self.chunk_size,
             padding=self.padding, nodes=self.nodes)
 
 
