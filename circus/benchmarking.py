@@ -147,12 +147,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     # Retrieve some additional key parameters.
     chunk_size     = params.getint('data', 'chunk_size')
-    #data_offset    = params.getint('data', 'data_offset')
-    #dtype_offset   = params.getint('data', 'dtype_offset')
-    #data_dtype     = params.get('data', 'data_dtype')
-    #myfile         = MPI.File()
     scalings       = []
-    #data_mpi       = get_mpi_type('float32')
     
     params.set('data', 'data_file', file_name)
     data_file_out = io.get_data_file(params, empty=True)
@@ -364,7 +359,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                           'templates' : [], 'real_amps' : [],
                           'voltages' : []}
         offset         = gidx * chunk_size
-        local_chunk, local_shape = data_file.get_data(gidx, chunk_len, chunk_size, nodes=nodes)
+        local_chunk, local_shape = data_file.get_data(gidx, chunk_size, nodes=nodes)
 
         if benchmark == 'pca-validation':
             # Clear the current data chunk.
@@ -448,7 +443,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         # Overwrite the new chunk of data using explicit offset. 
         #new_chunk   = new_chunk.flatten()
         #g.Write_at(gidx * chunk_len, new_chunk)
-        data_file_out.set_data(gidx*chunk_len, local_chunk)
+        data_file_out.set_data(offset, local_chunk)
 
         # Update the progress bar about the generation of the benchmark.
         if comm.rank == 0:
@@ -489,9 +484,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
         # Copy initial basis file from `<dataset1>/<dataset1>.basis.hdf5` to
         # `<dataset2>/injected/<dataset2>.basis.hdf5.
-        print(params.get('data', 'file_out') + '.basis.hdf5')
         shutil.copy2(params.get('data', 'file_out') + '.basis.hdf5',
                      os.path.join(result_path, data_suff + '.basis.hdf5'))
+
 
         # Save templates into `<dataset>/<dataset>.templates.hdf5`.
         mydata = h5py.File(os.path.join(file_out, data_suff + '.templates.hdf5'), 'w')
@@ -513,7 +508,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     comm.Barrier()
     if comm.rank == 0:
         # Gather data from all threads/processes.
-        io.collect_data(comm.size, io.load_parameters(file_name), erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
+        f_next, extension = os.path.splitext(file_name)
+        file_out_bis = os.path.join(f_next, os.path.basename(f_next))
+        data_file_out.params.set('data', 'file_out', file_out_bis) # Output file without suffix
+        data_file_out.params.set('data', 'file_out_suff', file_out_bis  + data_file_out.params.get('data', 'suffix'))
+    
+
+        io.collect_data(comm.size, data_file_out, erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
         # Change some flags in the configuration file.
         io.change_flag(file_name, 'temporal', 'False') # Disable temporal filtering
         io.change_flag(file_name, 'spatial', 'False') # Disable spatial filtering
@@ -521,6 +522,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.change_flag(file_name, 'dtype_offset', 'auto') # Set padding for data to auto
         # Move results from `<dataset>/<dataset>.result.hdf5` to
         # `<dataset>/injected/<dataset>.result.hdf5`.
+        
         shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'), os.path.join(result_path, data_suff + '.result.hdf5'))
                 
         # Save scalings into `<dataset>/injected/<dataset>.scalings.npy`.

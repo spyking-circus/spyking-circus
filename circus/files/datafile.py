@@ -43,7 +43,6 @@ class DataFile(object):
         self.template_shift = params.getint('data', 'template_shift')
         self.max_offset  = 0
         self.empty = empty
-        self._parrallel_write = False
         self._shape = None
         print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
@@ -267,7 +266,8 @@ class RawBinaryFile(DataFile):
 
 class RawMCSFile(RawBinaryFile):
 
-    _description = "mcs_raw_binary" 
+    _description = "mcs_raw_binary"
+    _parrallel_write = True
 
     def __init__(self, file_name, params, empty=False):
         RawBinaryFile.__init__(self, file_name, params, empty=True)
