@@ -333,7 +333,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # Open the file for collective I/O.
     #g = myfile.Open(comm, file_name, MPI.MODE_RDWR)
     #g.Set_view(data_offset, data_mpi, data_mpi)
-    data_file_out.open()
+    data_file_out.open(mode='r+')
 
     # Open the thread/process' files to collect the results.
     spiketimes_filename = os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank)

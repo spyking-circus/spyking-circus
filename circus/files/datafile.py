@@ -332,7 +332,7 @@ class H5File(DataFile):
 
         DataFile.__init__(self, file_name, params, empty, comm)
         self.h5_key      = self.params.get('data', 'hdf5_key_data')
-        self.compression = ''
+        self.compression = 'gzip'
         if not self.empty:
             self._get_info_()
 
@@ -362,15 +362,13 @@ class H5File(DataFile):
         self.close()
 
     def allocate(self, shape, data_dtype=None):
+
         if data_dtype is None:
             data_dtype = self.data_dtype
 
         if self._parrallel_write and (self.comm is not None):
-            self.my_file = h5py.File(self.file_name, 'w', driver='mpio', comm=self.comm)
-            if self.compression != '':
-	            self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
-            else:
-                self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
+            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=self.comm)
+            self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
         else:
             self.my_file = h5py.File(self.file_name, mode='w')
             if self.is_master:
