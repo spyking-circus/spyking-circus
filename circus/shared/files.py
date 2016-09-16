@@ -15,6 +15,7 @@ from .mpi import gather_array
 import logging
 
 from circus.files.datafile import *
+from circus.files import __supported_data_files__
 
 
 def get_data_file(params, multi=False, empty=False, comm=None):
@@ -25,15 +26,12 @@ def get_data_file(params, multi=False, empty=False, comm=None):
     else:
         data_file = params.get('data', 'data_multi_file')
 
-    if file_format == 'raw_binary':
-        return RawBinaryFile(data_file, params, empty, comm)
-    elif file_format == 'mcs_raw_binary':
-        return RawMCSFile(data_file, params, empty, comm)
-    elif file_format == 'hdf5':
-        return H5File(data_file, params, empty, comm)
-    else:
+    if file_format not in __supported_data_files__.keys():
         print_error(['The type %s is not recognized as a valid file format' %file_format])
         sys.exit(0)
+    else:
+        return __supported_data_files__[file_format](data_file, params, empty, comm)
+        
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))
