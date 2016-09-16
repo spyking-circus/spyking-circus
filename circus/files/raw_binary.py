@@ -59,22 +59,6 @@ class RawBinaryFile(DataFile):
 
         return numpy.ascontiguousarray(local_chunk), local_shape
 
-
-    def get_snippet(self, time, length, nodes=None):
-        
-        self.open()
-        local_chunk  = self.data[time*self.N_tot:time*self.N_tot + length*self.N_tot]
-        local_chunk  = local_chunk.reshape(length, self.N_tot)
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= self.dtype_offset
-        self.close()
-        
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(self.N_tot)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
-
-        return numpy.ascontiguousarray(local_chunk)
-
     def set_data(self, time, data):
         self.open(mode='r+')
         data  += self.dtype_offset
@@ -88,10 +72,9 @@ class RawBinaryFile(DataFile):
         if chunk_size is None:
             chunk_size = self.params.getint('data', 'chunk_size')
 	    
-        chunk_len      = numpy.int64(self.N_tot) * chunk_size
-        borders        = self.template_shift
-        nb_chunks      = numpy.int64(self.N) // chunk_len
-        last_chunk_len = self.N - (nb_chunks * chunk_len)
+        chunk_size    *= numpy.int64(self.N_tot)
+        nb_chunks      = numpy.int64(self.N) // chunk_size
+        last_chunk_len = self.N - (nb_chunks * chunk_size)
         last_chunk_len = last_chunk_len//self.N_tot
         
         if last_chunk_len > 0:

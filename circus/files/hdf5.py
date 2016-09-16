@@ -60,15 +60,15 @@ class H5File(DataFile):
         self.my_file.close()
         self._get_info_()
 
-    def get_data(self, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
+    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
 
         if chunk_size is None:
             chunk_size = self.params.getint('data', 'chunk_size')
 
         if self.time_axis == 0:
-            local_chunk = self.data[idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1], :]
+            local_chunk = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], :]
         elif self.time_axis == 1:
-            local_chunk = self.data[:, idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]].T
+            local_chunk = self.data[:, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
 
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
@@ -77,24 +77,7 @@ class H5File(DataFile):
             if not numpy.all(nodes == numpy.arange(self.N_tot)):
                 local_chunk = numpy.take(local_chunk, nodes, axis=1)
 
-        return numpy.ascontiguousarray(local_chunk), len(local_chunk)
-
-    def get_snippet(self, time, length, nodes=None):
-
-        if self.time_axis == 0:
-            local_chunk = self.data[time:time+length, :]
-        elif self.time_axis == 1:
-            local_chunk = self.data[:, time:time+length].T
-
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= self.dtype_offset
-
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(self.N_tot)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
-        
         return numpy.ascontiguousarray(local_chunk)
-
 
     def set_data(self, time, data):
         
@@ -102,21 +85,9 @@ class H5File(DataFile):
     	data  = data.astype(self.data_dtype)
 
         if self.time_axis == 0:
-            local_chunk = self.data[time:time+data.shape[0], :] = data
+            self.data[time:time+data.shape[0], :] = data
         elif self.time_axis == 1:
-            local_chunk = self.data[:, time:time+data.shape[0]] = data.T
-
-    def analyze(self, chunk_size=None):
-
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
-	    
-        nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
-        last_chunk_len = self.shape[0] - nb_chunks * chunk_size
-
-        if last_chunk_len > 0:
-            nb_chunks += 1
-        return nb_chunks, last_chunk_len
+            self.data[:, time:time+data.shape[0]] = data.T
 
     def open(self, mode='r'):
         if self._parallel_write and (self.comm is not None):

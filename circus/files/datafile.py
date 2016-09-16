@@ -77,7 +77,7 @@ class DataFile(object):
             - length is in timestep
             - nodes is a list of nodes, between 0 and N_total
         '''
-        pass
+        return self.get_data(0, chunk_size=length, padding=(time*self.rate, time*self.rate), nodes=nodes)
 
     def set_data(self, time, data):
         '''
@@ -98,7 +98,13 @@ class DataFile(object):
         if chunk_size is None:
             chunk_size = self.params.getint('data', 'chunk_size')
 
-        pass
+        nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
+        last_chunk_len = self.shape[0] - nb_chunks * chunk_size
+
+        if last_chunk_len > 0:
+            nb_chunks += 1
+
+        return nb_chunks, last_chunk_len
 
 
     def open(self, mode):
