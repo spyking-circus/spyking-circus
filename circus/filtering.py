@@ -281,7 +281,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             data_out = io.get_data_file(params, empty=True)
             data_out.allocate(shape=(times[-1][1], data_out.N_tot), data_dtype=data_file.data_dtype)
             
-            io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
+            io.print_and_log(['Output file: %s' %combined_file], 'debug', params)
             goffset = 0
             
             for data_file in all_files:
@@ -289,7 +289,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 params.set('data', 'data_multi_file', data_file)
                 data_in = io.get_data_file(params, multi=True)
 
-                io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
+                io.print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
                 goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter)
 
             params.set('data', 'data_file', combined_file)
