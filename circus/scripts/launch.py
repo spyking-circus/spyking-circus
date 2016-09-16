@@ -170,7 +170,7 @@ but a subset x,y can be done. Steps are:
         multi_files  = params.getboolean('data', 'multi-files')
         data_file    = io.get_data_file(params, multi_files)
         file_format  = params.get('data', 'file_format')
-        support_parallel_write = data_file._parrallel_write
+        support_parallel_write = data_file._parallel_write
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])

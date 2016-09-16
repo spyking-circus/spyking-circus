@@ -6,7 +6,7 @@ from raw_binary import RawBinaryFile
 class RawMCSFile(RawBinaryFile):
 
     _description = "mcs_raw_binary"
-    _parrallel_write = True
+    _parallel_write = True
 
     def __init__(self, file_name, params, empty=False, comm=None):
         RawBinaryFile.__init__(self, file_name, params, empty, comm)

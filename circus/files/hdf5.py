@@ -6,7 +6,7 @@ from datafile import DataFile
 class H5File(DataFile):
 
     _description = "hdf5"    
-    _parrallel_write = h5py.get_config().mpi
+    _parallel_write = h5py.get_config().mpi
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
@@ -24,7 +24,7 @@ class H5File(DataFile):
 
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
-        	self._parrallel_write = False
+        	self._parallel_write = False
         
         self.size        = self.my_file.get(self.h5_key).shape
         self.set_dtype_offset(self.data_dtype)
@@ -46,11 +46,11 @@ class H5File(DataFile):
         if data_dtype is None:
             data_dtype = self.data_dtype
 
-        if self._parrallel_write and (self.comm is not None):
-            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=self.comm)
+        if self._parallel_write and (self.comm is not None):
+            self.my_file = h5py.File(self.file_name, mode='r+', driver='mpio', comm=self.comm)
             self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
         else:
-            self.my_file = h5py.File(self.file_name, mode='w')
+            self.my_file = h5py.File(self.file_name, mode='r+')
             if self.is_master:
                 if self.compression != '':
                     self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
@@ -119,7 +119,7 @@ class H5File(DataFile):
         return nb_chunks, last_chunk_len
 
     def open(self, mode='r'):
-        if self._parrallel_write and (self.comm is not None):
+        if self._parallel_write and (self.comm is not None):
             self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=self.comm)
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)

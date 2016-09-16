@@ -3,6 +3,7 @@ from datafile import *
 from raw_binary import RawBinaryFile
 from mcs_raw_binary import RawMCSFile
 from hdf5 import H5File
+from kwik import KwikFile
 
 try:
 	import nixio
@@ -13,7 +14,8 @@ except ImportError:
 __supported_data_files__ = {
 	'raw_binary' : RawBinaryFile,
 	'mcs_raw_binary' : RawMCSFile,
-	'hdf5' : H5File
+	'hdf5' : H5File,
+	'kwik' : KwikFile
 }
 
 #if HAVE_NIX_SUPPORT:
