@@ -45,6 +45,7 @@ class DataFile(object):
         self.empty = empty
         self._parrallel_write = False
         self._shape = None
+        print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
 
     def _get_info_(self):
@@ -149,23 +150,25 @@ class DataFile(object):
                 self.dtype_offset = 127
         else:
             try:
-                self.dtype_offset = self.params.getint('data', 'dtype_offset')
+                self.dtype_offset = int(self.dtype_offset)
             except Exception:
-                print "Offset not valid"
+                print_error(["Offset %s is not valid" %self.dtype_offset])
+                sys.exit(0)
 
 
 class RawBinaryFile(DataFile):
 
+    _description = "raw_binary"    
+    _parrallel_write = True
+
     def __init__(self, file_name, params, empty=False):
         DataFile.__init__(self, file_name, params, empty)
-        self._description = "raw_binary"
         try:
             self.data_offset = self.params.getint('data', 'data_offset')
         except Exception:
             self.data_offset = 0
         self.data_dtype  = self.params.get('data', 'data_dtype')
         self.set_dtype_offset(self.data_dtype)
-        self._parrallel_write = True
         if not self.empty:
             self._get_info_()    
 
@@ -264,15 +267,16 @@ class RawBinaryFile(DataFile):
 
 class RawMCSFile(RawBinaryFile):
 
+    _description = "mcs_raw_binary" 
+
     def __init__(self, file_name, params, empty=False):
         RawBinaryFile.__init__(self, file_name, params, empty=True)
-        self._description = "mcs_raw_binary"
         a, b = self.detect_header()
         self.data_offset = a
         self.nb_channels = b
 
         if self.nb_channels != self.N_tot:
-            print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
+            print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params)
         self.empty = empty
         if not self.empty:
             self._get_info_()
@@ -295,13 +299,13 @@ class RawMCSFile(RawBinaryFile):
                         stop = True
             fid.close()
             if stop is False:
-	        #    print_error(['Wrong MCS header: file is not exported with MCRack'])
+                print_error(['Wrong MCS header: file is not exported with MCRack'])
                 sys.exit(0) 
             else:
                 header += 2
             return header, len(regexp.findall(header_text))
         except Exception:
-	        #print_error(["Wrong MCS header: file is not exported with MCRack"])
+            print_error(["Wrong MCS header: file is not exported with MCRack"])
             sys.exit(0)
 
 
@@ -309,11 +313,12 @@ class RawMCSFile(RawBinaryFile):
 
 class H5File(DataFile):
 
+    _description = "hdf5"    
+    _parrallel_write = h5py.get_config().mpi
+
     def __init__(self, file_name, params, empty):
         DataFile.__init__(self, file_name, params, empty)
         self.h5_key = self.params.get('data', 'hdf5_key_data')
-        self._parrallel_write = h5py.get_config().mpi
-        self._description = "hdf5"
         if not self.empty:
             self._get_info_()
 

@@ -64,11 +64,14 @@ def print_info(lines):
     print Fore.YELLOW + "-------------------------  Informations  -------------------------\r"
     for line in lines:
         print Fore.YELLOW + "| " + line + '\r'
-    print Fore.YELLOW + "------------------------------------------------------------------\r"
+    print Fore.YELLOW + "------------------------------------------------------------------\r" + Fore.WHITE
 
 def print_error(lines):
     """Prints errors messages, enhanced graphical aspects."""
     print Fore.RED + "----------------------------  Error  -----------------------------\r"
     for line in lines:
         print Fore.RED + "| " + line + '\r'
-    print Fore.RED + "------------------------------------------------------------------\r"
+    print Fore.RED + "------------------------------------------------------------------\r" + Fore.WHITE
+
+def get_colored_header():
+    return Fore.GREEN + get_header() + Fore.RESET

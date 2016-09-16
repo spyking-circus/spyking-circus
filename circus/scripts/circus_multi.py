@@ -8,18 +8,15 @@ import circus
 import tempfile
 import h5py
 import numpy
-from circus.shared.messages import print_error, print_and_log, get_header
+from circus.shared.messages import print_error, print_and_log, get_colored_header
 from circus.shared.algorithms import slice_result
-
 
 def main(argv=None):
     
     if argv is None:
         argv = sys.argv[1:]
 
-    gheader = Fore.GREEN + get_header()
-    header  = gheader + Fore.RESET
-
+    header = get_colored_header()
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')

@@ -7,9 +7,10 @@ import logging
 import numpy as np
 from circus.shared.mpi import gather_array
 import h5py
-from circus.shared.messages import print_error, print_info, print_and_log, 
+from circus.shared.messages import print_error, print_info, print_and_log
 from circus.shared.files import write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, get_stas
 from circus.shared.utils import get_progressbar
+from colorama import Fore
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 

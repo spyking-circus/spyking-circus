@@ -12,7 +12,7 @@ colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 import circus.shared.files as io
 import circus
-from circus.shared.messages import print_error, print_info, write_to_logger, get_header
+from circus.shared.messages import print_error, print_info, write_to_logger, get_colored_header
 
 
 def gather_mpi_arguments(hostfile, params):
@@ -83,8 +83,7 @@ def main(argv=None):
     else:
         config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
-    gheader = Fore.GREEN + get_header()
-    header  = gheader
+    header  = get_colored_header()
     header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(psutil.cpu_count()) + '\n'
     header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
     header += Fore.GREEN + 'Parallel HDF5 : ' + Fore.CYAN + str(parallel_hdf5) + '\n'
@@ -214,7 +213,7 @@ but a subset x,y can be done. Steps are:
         write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
         write_to_logger(params, ['Data file  : %s' %filename], 'debug')
 
-        print gheader
+        print get_colored_header()
         if preview:
             print Fore.GREEN + "Steps         :", Fore.CYAN + "preview mode"
         elif result:

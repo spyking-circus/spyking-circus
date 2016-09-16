@@ -8,7 +8,7 @@ import circus
 import tempfile
 import numpy, h5py
 from distutils.version import LooseVersion, StrictVersion
-from circus.shared.messages import print_error, print_info, print_and_log, get_header
+from circus.shared.messages import print_error, print_info, print_and_log, get_header, get_colored_header
 from circus.shared.files import read_probe
 
 import logging
@@ -16,7 +16,6 @@ from phy import add_default_handler
 from phy.utils._misc import _read_python
 from phy.gui import create_app, run_app
 from phycontrib.template import TemplateController
-
 import numpy as np
 
 
@@ -28,9 +27,7 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    gheader = Fore.GREEN + get_header()
-    header  = gheader + Fore.RESET
-
+    header = get_colored_header()
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')
