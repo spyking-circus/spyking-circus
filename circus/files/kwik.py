@@ -28,15 +28,36 @@ class KwikFile(H5File):
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
-        self.h5_key      = 'recordings/data'
+        self.main_h5_key = 'recordings/data'
+        self.h5_key      = 'recordings/data/0'
         self.compression = ''
-        #self.rate        = 
-        self.N_e         = params.getint('data', 'N_e')
-        self.N_tot       = params.getint('data', 'N_total')
-        self.rate        = params.getint('data', 'sampling_rate')
         if not self.empty:
             self._get_info_()
 
+    def _get_info_(self):
+        self.empty = False
+        self.open()
+        self.data_dtype  = self.my_file.get(self.h5_key).dtype
+        self.compression = self.my_file.get(self.h5_key).compression
+
+        # HDF5 does not support parallel writes with compression
+        if self.compression != '':
+            self._parallel_write = False
+        
+        self.size        = self.my_file.get(self.h5_key).shape
+        self.set_dtype_offset(self.data_dtype)
+        self.N_tot = len(self.my_file.get(self.main_h5_key))
+        self._shape = self.size
+        self.max_offset = self._shape[0]
+        self.data_offset = 0
+        self.close()
+
 
     def copy_header(self, file_name):
+        pass
+
+    def get_data(self):
+        pass
+
+    def open(self):
         pass
