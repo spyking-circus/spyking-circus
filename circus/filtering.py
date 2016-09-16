@@ -21,7 +21,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if do_filter or multi_files:
 
-        def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True):
+        def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True, display=True):
 
             sampling_rate  = data_file_in.rate
 
@@ -52,7 +52,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     to_write = ["Filtering has already been done in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
                     if remove_median:
                         to_write += ["Median over all channels was substracted to each channels"]
-                    io.print_and_log(to_write, 'info', params)
+                    if display:
+                        io.print_and_log(to_write, 'info', params)
                 return
 
             if data_file_out is None:
@@ -81,7 +82,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     to_write = ["Concatenating multi files without filtering"]
                 if remove_median:
                     to_write += ["Median over all channels is substracted to each channels"]
-                io.print_and_log(to_write, 'default', params)
+                if display:
+                    io.print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(loc_nb_chunks)
 
             for count, gidx in enumerate(to_process):
@@ -258,8 +260,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if not multi_files:  
 
             data_file = io.get_data_file(params)
-
-            goffset = filter_file(data_file)
+            goffset   = filter_file(data_file)
 
             if clean_artefact:
                 art_dict   = compute_artefacts(data_file, goffset)
@@ -290,7 +291,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data_in = io.get_data_file(params, multi=True)
 
                 io.print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
-                goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter)
+                goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))
 
             params.set('data', 'data_file', combined_file)
 
