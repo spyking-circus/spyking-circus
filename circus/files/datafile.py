@@ -17,7 +17,7 @@ class DataFile(object):
     the filtering and benchmarking steps.
     '''
 
-    def __init__(self, file_name, params, empty=False):
+    def __init__(self, file_name, params, empty=False, comm=None):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from
         the parameter file, but you could completly fill them based on values that would be obtained
@@ -26,6 +26,7 @@ class DataFile(object):
             - _parallel_write : can the file be safely written in parallel ?
             - max_offset : the time length of the data, in time steps
             - _shape : the size of the data, should be a tuple (max_offset, N_tot)
+            - comm is a MPI communicator ring, if the file is created in a MPI environment
 
         Note that you can overwrite values such as N_e, rate from the header in your data. Those will then be
         used in the code, instead of the ones from the parameter files.
@@ -44,6 +45,7 @@ class DataFile(object):
         self.max_offset  = 0
         self.empty = empty
         self._shape = None
+        self.comm = comm
         print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
 
@@ -160,8 +162,8 @@ class RawBinaryFile(DataFile):
     _description = "raw_binary"    
     _parrallel_write = True
 
-    def __init__(self, file_name, params, empty=False):
-        DataFile.__init__(self, file_name, params, empty)
+    def __init__(self, file_name, params, empty=False, comm=None):
+        DataFile.__init__(self, file_name, params, empty, comm)
         try:
             self.data_offset = self.params.getint('data', 'data_offset')
         except Exception:
@@ -269,8 +271,8 @@ class RawMCSFile(RawBinaryFile):
     _description = "mcs_raw_binary"
     _parrallel_write = True
 
-    def __init__(self, file_name, params, empty=False):
-        RawBinaryFile.__init__(self, file_name, params, empty=True)
+    def __init__(self, file_name, params, empty=False, comm=None):
+        RawBinaryFile.__init__(self, file_name, params, empty, comm)
         a, b = self.detect_header()
         self.data_offset = a
         self.nb_channels = b
@@ -316,18 +318,26 @@ class H5File(DataFile):
     _description = "hdf5"    
     _parrallel_write = h5py.get_config().mpi
 
-    def __init__(self, file_name, params, empty):
-        DataFile.__init__(self, file_name, params, empty)
-        self.h5_key = self.params.get('data', 'hdf5_key_data')
+    def __init__(self, file_name, params, empty=False, comm=None):
+
+        DataFile.__init__(self, file_name, params, empty, comm)
+        self.h5_key      = self.params.get('data', 'hdf5_key_data')
+        self.compression = ''
         if not self.empty:
             self._get_info_()
 
     def _get_info_(self):
         self.empty = False
         self.open()
-        self.data_dtype = self.my_file.get(self.h5_key).dtype
+        self.data_dtype  = self.my_file.get(self.h5_key).dtype
+        self.compression = self.my_file.get(self.h5_key).compression
+
+        # HDF5 does not support parallel writes with compression
+        if self.compression != '':
+        	self._parrallel_write = False
+        
+        self.size        = self.my_file.get(self.h5_key).shape
         self.set_dtype_offset(self.data_dtype)
-        self.size      = self.my_file.get(self.h5_key).shape
         
         assert (self.size[0] == self.N_tot) or (self.size[1] == self.N_tot)
         if self.size[0] == self.N_tot:
@@ -345,8 +355,12 @@ class H5File(DataFile):
         if data_dtype is None:
             data_dtype = self.data_dtype
 
-        self.my_file = h5py.File(self.file_name, mode='w')
-        self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
+        if self._parrallel_write and (self.comm is not None):
+            self.my_file = h5py.File(self.file_name, 'w', driver='mpio', comm=self.comm)
+        else:
+            self.my_file = h5py.File(self.file_name, mode='w')
+    	
+    	self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
         self.my_file.close()
         self._get_info_()
 
@@ -409,10 +423,13 @@ class H5File(DataFile):
         return nb_chunks, last_chunk_len
 
     def open(self, mode='r'):
-        self.my_file = h5py.File(self.file_name, mode=mode)
+        if self._parrallel_write and (self.comm is not None):
+            self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=self.comm)
+        else:
+            self.my_file = h5py.File(self.file_name, mode=mode)
+
         self.data = self.my_file.get(self.h5_key)
         
-
     def close(self):
         self.my_file.close()
 

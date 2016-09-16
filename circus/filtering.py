@@ -259,7 +259,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if not multi_files:  
 
-            data_file = io.get_data_file(params)
+            data_file = io.get_data_file(params, comm=comm)
             goffset   = filter_file(data_file)
 
             if clean_artefact:
@@ -271,7 +271,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
 
-            data_file = io.get_data_file(params, multi=True)
+            data_file = io.get_data_file(params, multi=True, comm=comm)
             
             if comm.rank == 0:
                 data_file.copy_header(combined_file)
@@ -279,7 +279,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
 
             times    = io.data_stats(data_file, show=False, export_times=True)
-            data_out = io.get_data_file(params, empty=True)
+            data_out = io.get_data_file(params, empty=True, comm=comm)
             data_out.allocate(shape=(times[-1][1], data_out.N_tot), data_dtype=data_file.data_dtype)
             
             io.print_and_log(['Output file: %s' %combined_file], 'debug', params)
@@ -288,7 +288,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             for data_file in all_files:
 
                 params.set('data', 'data_multi_file', data_file)
-                data_in = io.get_data_file(params, multi=True)
+                data_in = io.get_data_file(params, multi=True, comm=comm)
 
                 io.print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
                 goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))
