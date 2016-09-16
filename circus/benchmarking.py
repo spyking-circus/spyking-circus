@@ -111,7 +111,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
-    data_file        = io.get_data_file(params)
+    data_file        = io.get_data_file(params, comm=comm)
     sampling_rate    = data_file.rate
     N_e              = data_file.N_e
     N_total          = data_file.N_tot
@@ -150,11 +150,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     scalings       = []
     
     params.set('data', 'data_file', file_name)
-    data_file_out = io.get_data_file(params, empty=True)
+    data_file_out = io.get_data_file(params, empty=True, comm=comm)
 
-    if comm.rank == 0:
-        data_file.copy_header(file_name)
-        data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
+    data_file.copy_header(file_name)
+    
+    data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
     # Synchronize all the threads/processes.
     comm.Barrier()

@@ -48,7 +48,6 @@ class DataFile(object):
         self.comm = comm
         print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
-
     def _get_info_(self):
         '''
             This function is called only if the file is not empty, and should fill the values in the constructor
@@ -136,6 +135,13 @@ class DataFile(object):
     def shape(self):
         return self._shape   
 
+    @property
+    def is_master(self):
+    	if self.comm == None:
+            return True
+    	else:
+            return self.comm.rank == 0
+
     def set_dtype_offset(self, data_dtype):
         self.dtype_offset = self.params.get('data', 'dtype_offset')
         if self.dtype_offset == 'auto':
@@ -164,12 +170,15 @@ class RawBinaryFile(DataFile):
 
     def __init__(self, file_name, params, empty=False, comm=None):
         DataFile.__init__(self, file_name, params, empty, comm)
+        
         try:
             self.data_offset = self.params.getint('data', 'data_offset')
         except Exception:
             self.data_offset = 0
+
         self.data_dtype  = self.params.get('data', 'data_dtype')
         self.set_dtype_offset(self.data_dtype)
+
         if not self.empty:
             self._get_info_()    
 
@@ -251,12 +260,13 @@ class RawBinaryFile(DataFile):
         return nb_chunks, last_chunk_len
 
     def copy_header(self, file_out):
-        fin  = open(self.file_name, 'rb')
-        fout = open(file_out, 'wb')
-        data = fin.read(self.data_offset)
-        fout.write(data)
-        fin.close()
-        fout.close()
+        if self.is_master:
+            fin  = open(self.file_name, 'rb')
+            fout = open(file_out, 'wb')
+            data = fin.read(self.data_offset)
+            fout.write(data)
+            fin.close()
+            fout.close()
 
     def open(self, mode='r'):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)
@@ -279,7 +289,7 @@ class RawMCSFile(RawBinaryFile):
 
         if self.nb_channels != self.N_tot:
             print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params)
-        self.empty = empty
+
         if not self.empty:
             self._get_info_()
 
@@ -357,10 +367,18 @@ class H5File(DataFile):
 
         if self._parrallel_write and (self.comm is not None):
             self.my_file = h5py.File(self.file_name, 'w', driver='mpio', comm=self.comm)
+            if self.compression != '':
+	            self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
+            else:
+                self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
         else:
             self.my_file = h5py.File(self.file_name, mode='w')
-    	
-    	self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
+            if self.is_master:
+                if self.compression != '':
+                    self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
+                else:
+                    self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
+
         self.my_file.close()
         self._get_info_()
 

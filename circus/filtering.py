@@ -272,9 +272,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             combined_file = params.get('data', 'data_file')
 
             data_file = io.get_data_file(params, multi=True, comm=comm)
-            
-            if comm.rank == 0:
-                data_file.copy_header(combined_file)
+            data_file.copy_header(combined_file)
                 
             comm.Barrier()
 
