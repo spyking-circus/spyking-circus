@@ -7,69 +7,73 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     multi_files    = params.getboolean('data', 'multi-files')
-    data_offset    = params.getint('data', 'data_offset')
-    dtype_offset   = params.getint('data', 'dtype_offset')
-    data_dtype     = params.get('data', 'data_dtype')
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
-    sampling_rate  = params.getint('data', 'sampling_rate')
-
-    try:
-        cut_off    = params.getfloat('filtering', 'cut_off')
-        cut_off    = [cut_off, 0.95*(sampling_rate/2.)]
-    except Exception:
-        cut_off        = params.get('filtering', 'cut_off')
-        cut_off        = cut_off.split(',')
-        try:
-            cut_off[0] = float(cut_off[0])
-        except Exception:
-            io.print_and_log(['First value of cut off must be a valid number'], 'error', params)
-            sys.exit(0)
-        
-        cut_off[1] = cut_off[1].replace(' ', '')
-        if cut_off[1] == 'auto':
-            cut_off[1] = 0.95*(sampling_rate/2.)
-        else:
-            try:
-                cut_off[1] = float(cut_off[1])
-            except Exception:
-                io.print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
-                sys.exit(0)
-
     remove_median  = params.getboolean('filtering', 'remove_median')
     nodes, edges   = io.get_nodes_and_edges(params)
     #################################################################
-
-    if filter_done:
-        if comm.rank == 0:
-            to_write = ["Filtering has already been done in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
-            if remove_median:
-                to_write += ["Median over all channels was substracted to each channels"]
-            io.print_and_log(to_write, 'info', params)
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
             io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
             sys.exit(0)
 
-    if (do_filter and not filter_done) or multi_files:
+    if do_filter or multi_files or clean_artefact:
 
-        def filter_file(params, comm, mpi_input, mpi_output, offset=0, perform_filtering=True):
+        def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True, display=True):
 
-            N_total        = params.getint('data', 'N_total')
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            sampling_rate  = data_file_in.rate
 
-            borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
-            if last_chunk_len > 0:
-                nb_chunks += 1
+            try:
+                cut_off    = params.getfloat('filtering', 'cut_off')
+                cut_off    = [cut_off, 0.95*(sampling_rate/2.)]
+            except Exception:
+                cut_off        = params.get('filtering', 'cut_off')
+                cut_off        = cut_off.split(',')
+                try:
+                    cut_off[0] = float(cut_off[0])
+                except Exception:
+                    io.print_and_log(['First value of cut off must be a valid number'], 'error', params)
+                    sys.exit(0)
+                
+                cut_off[1] = cut_off[1].replace(' ', '')
+                if cut_off[1] == 'auto':
+                    cut_off[1] = 0.95*(sampling_rate/2.)
+                else:
+                    try:
+                        cut_off[1] = float(cut_off[1])
+                    except Exception:
+                        io.print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
+                        sys.exit(0)
 
+            if filter_done:
+                if comm.rank == 0:
+                    to_write = ["Filtering has already been done in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
+                    if remove_median:
+                        to_write += ["Median over all channels was substracted to each channels"]
+                    if display:
+                        io.print_and_log(to_write, 'info', params)
+                return
+
+            if data_file_out is None:
+                same_file = True
+                data_file_in.open(mode='r+')
+                data_file_out = data_file_in
+            else:
+                same_file = False
+                data_file_in.open()
+                data_file_out.open(mode='r+')
+
+            chunk_size     = params.getint('data', 'chunk_size')
+            nb_chunks, last_chunk_len = data_file_in.analyze(chunk_size)
+            
             b, a          = signal.butter(3, np.array(cut_off)/(sampling_rate/2.), 'pass')
             all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
-            goffset       = chunk_len*(nb_chunks - 1) + N_total*(last_chunk_len//N_total)
+            goffset       = data_file_in.max_offset
 
             if comm.rank == 0:
                 if perform_filtering:
@@ -78,23 +82,14 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     to_write = ["Concatenating multi files without filtering"]
                 if remove_median:
                     to_write += ["Median over all channels is substracted to each channels"]
-                io.print_and_log(to_write, 'info', params)
+                if display:
+                    io.print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(loc_nb_chunks)
 
             for count, gidx in enumerate(to_process):
 
-                if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
-                    data_len   = last_chunk_len
-                    chunk_size = last_chunk_len//N_total
-                else:
-                    data_len   = chunk_len
-
-                local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                mpi_input.Read_at(numpy.int64(gidx*chunk_len), local_chunk)
-                local_shape   = chunk_size
-                local_chunk   = local_chunk.reshape(local_shape, N_total)
-                local_chunk   = local_chunk.astype(numpy.float32)
-                local_chunk  -= dtype_offset
+                local_chunk =  data_file_in.get_data(gidx, chunk_size)
+                
                 for i in nodes:
                     if perform_filtering:
                         try:
@@ -102,19 +97,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         except Exception:
                             pass
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
+
                 if remove_median:
-                    if not numpy.all(nodes == numpy.arange(N_total)):
+                    if not numpy.all(nodes == numpy.arange(data_in.N_tot)):
                         global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
                     else:
                         global_median = numpy.median(local_chunk, 1)
                     for i in nodes:
                         local_chunk[:, i] -= global_median
 
-                local_chunk  += dtype_offset
-                local_chunk   = local_chunk.astype(data_dtype)
-                local_chunk   = local_chunk.ravel()
-
-                mpi_output.Write_at(numpy.int64(gidx*chunk_len+offset), local_chunk)
+                data_file_out.set_data(gidx*chunk_size, local_chunk)
 
                 if comm.rank == 0:
                     pbar.update(count)
@@ -124,11 +116,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             comm.Barrier()
 
+            data_file_in.close()
+            if not same_file:           
+                data_file_out.close()
+
             return goffset + offset
 
-        def compute_artefacts(params, comm, max_offset):
+        def compute_artefacts(data_file, max_offset):
 
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            data_file.open()
+            sampling_rate  = data_file.rate
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
             make_plots     = params.get('triggers', 'make_plots')
@@ -157,7 +155,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 to_write = ["Computing averaged artefacts from %d stimuli" %(nb_stimuli)]
-                io.print_and_log(to_write, 'info', params)
+                io.print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(len(local_labels))
                 if not os.path.exists(plot_path):
                     os.makedirs(plot_path)
@@ -175,7 +173,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if comm.rank == 0:
                         io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
                     sys.exit(0)
-                art_dict[artefact] = io.get_artefact(params, times, tau, nodes)
+                art_dict[artefact] = io.get_artefact(data_file, times, tau, nodes)
                 if make_plots not in ['None', '']:
                     save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                     plot.view_artefact(art_dict[artefact], save=save)
@@ -186,13 +184,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 pbar.finish()
 
+            data_file.close()
+
             return art_dict
 
 
-        def remove_artefacts(params, comm, art_dict, mpi_file, max_offset):
+        def remove_artefacts(art_dict, data_file, max_offset):
 
-            N_total        = params.getint('data', 'N_total')
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            data_file.open()
+            sampling_rate  = data_file.rate
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
             make_plots     = params.get('triggers', 'make_plots')
@@ -216,7 +217,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
-                io.print_and_log(to_write, 'info', params)
+                io.print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(len(all_times))
 
             comm.Barrier()
@@ -235,25 +236,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
                 tmp      = numpy.where(windows[:, 0] == label)[0]
                 tau      = windows[tmp, 1]
-                mshape   = tau
-                data_len = tau * N_total
                 if (max_offset - time) < tau:
-                    data_len = (max_offset - time)*N_total
-                    mshape   = max_offset - time
+                    tau   = max_offset - time
 
-                local_chunk   = numpy.zeros(data_len, dtype=data_dtype)
-                mpi_file.Read_at(numpy.int64(N_total * time), local_chunk)
-                local_chunk   = local_chunk.reshape(mshape, N_total)
-                local_chunk   = local_chunk.astype(numpy.float32)
-                local_chunk  -= dtype_offset
+                local_chunk   = data_file.get_snippet(time, tau)
+
                 for idx, i in enumerate(nodes):
-                    local_chunk[:, i] -= art_dict[label][idx, :mshape]
+                    local_chunk[:, i] -= art_dict[label][idx, :tau]
                        
-                local_chunk  += dtype_offset
-                local_chunk   = local_chunk.astype(data_dtype)
-                local_chunk   = local_chunk.ravel()
-
-                mpi_file.Write_at(numpy.int64(N_total*time), local_chunk)
+                data_file.set_data(time, local_chunk)
 
                 count        += 1
 
@@ -264,54 +255,47 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 pbar.finish()
 
             comm.Barrier()
+            data_file.close()
 
-        myfile   = MPI.File()
-        data_mpi = get_mpi_type(data_dtype)
-        N_total  = params.getint('data', 'N_total')
+        if not multi_files:  
 
-        if not multi_files:            
-            mpi_in = myfile.Open(comm, params.get('data', 'data_file'), MPI.MODE_RDWR)
-            mpi_in.Set_view(data_offset, data_mpi, data_mpi)
-            goffset = filter_file(params, comm, mpi_in, mpi_in)
+            data_file = io.get_data_file(params, comm=comm)
+            goffset   = filter_file(data_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm, goffset//N_total)
-                remove_artefacts(params, comm, art_dict, mpi_in, goffset//N_total)
+                art_dict   = compute_artefacts(data_file, goffset)
+                remove_artefacts(art_dict, data_file, goffset)
 
-            mpi_in.Close()
         else:
+
             all_files = io.get_multi_files(params)
             combined_file = params.get('data', 'data_file')
-            
 
-            if comm.rank == 0:
-                io.copy_header(data_offset, params.get('data', 'data_multi_file'), combined_file)
+            data_file = io.get_data_file(params, multi=True, comm=comm)
+            data_file.copy_header(combined_file)
                 
             comm.Barrier()
-            
-            mpi_out       = myfile.Open(comm, combined_file, MPI.MODE_RDWR)
-            mpi_out.Set_view(data_offset, data_mpi, data_mpi)
-            io.write_to_logger(params, ['Output file: %s' %combined_file], 'debug')
 
+            times    = io.data_stats(data_file, show=False, export_times=True)
+            data_out = io.get_data_file(params, empty=True, comm=comm)
+            data_out.allocate(shape=(times[-1][1], data_out.N_tot), data_dtype=data_file.data_dtype)
+            
+            io.print_and_log(['Output file: %s' %combined_file], 'debug', params)
             goffset = 0
             
             for data_file in all_files:
-                mpi_in = myfile.Open(comm, data_file, MPI.MODE_RDONLY)
-                if params.getboolean('data', 'MCS'):
-                    data_offset, nb_channels = io.detect_header(data_file, 'MCS')
-                mpi_in.Set_view(data_offset, data_mpi, data_mpi) 
-                params.set('data', 'data_file', data_file)
-                io.write_to_logger(params, ['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug')
-                goffset = filter_file(params, comm, mpi_in, mpi_out, goffset, perform_filtering=do_filter)
-                mpi_in.Close()
+
+                params.set('data', 'data_multi_file', data_file)
+                data_in = io.get_data_file(params, multi=True, comm=comm)
+
+                io.print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
+                goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))
 
             params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, comm, goffset//N_total)
-                remove_artefacts(params, comm, art_dict, mpi_out, goffset//N_total)
-
-            mpi_out.Close()
+                art_dict   = compute_artefacts(goffset)
+                remove_artefacts(art_dict, data_out, goffset)
 
         if comm.rank == 0:
             io.change_flag(filename, 'filter_done', 'True')

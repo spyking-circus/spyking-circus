@@ -1028,41 +1028,43 @@ class MergeWindow(QtGui.QMainWindow):
 
 class PreviewGUI(QtGui.QMainWindow):
 
-    def __init__(self, params, show_fit=False):
+    def __init__(self, data_file, show_fit=False):
         super(PreviewGUI, self).__init__()
 
         self.show_fit         = show_fit
-        self.params           = params
-        self.maxtime          = io.data_stats(params, show=False) - 1
+        self.data_file        = data_file
+        self.data_file.open()
+        self.params           = data_file.params
+        self.maxtime          = io.data_stats(data_file, show=False) - 1
         self.init_gui_layout()
-        self.probe            = io.read_probe(params)
-        self.N_e              = params.getint('data', 'N_e')
-        self.N_t              = params.getint('data', 'N_t')
-        self.spike_thresh     = params.getfloat('detection', 'spike_thresh')
-        self.peaks_sign       = params.get('detection', 'peaks')  
-        self.N_total          = numpy.int64(params.getint('data', 'N_total'))
-        self.sampling_rate    = params.getint('data', 'sampling_rate')
-        self.template_shift   = params.getint('data', 'template_shift')
-        self.filename         = params.get('data', 'data_file')
+        self.probe            = io.read_probe(data_file.params)
+        self.N_e              = data_file.N_e
+        self.N_t              = data_file.params.getint('data', 'N_t')
+        self.spike_thresh     = data_file.params.getfloat('detection', 'spike_thresh')
+        self.peaks_sign       = data_file.params.get('detection', 'peaks')  
+        self.N_total          = numpy.int64(data_file.N_tot)
+        self.sampling_rate    = data_file.rate
+        self.template_shift   = data_file.params.getint('data', 'template_shift')
+        self.filename         = data_file.params.get('data', 'data_file')
 
         name = os.path.basename(self.filename)
         r, f = os.path.splitext(name)
         local_path    = os.path.join(r, 'tmp')
         self.filename = self.filename.replace(local_path, '')
         
-        nodes, edges          = io.get_nodes_and_edges(params)
+        nodes, edges          = io.get_nodes_and_edges(self.params)
         self.nodes            = nodes
         self.edges            = edges
 
-        self.do_temporal_whitening = params.getboolean('whitening', 'temporal')
-        self.do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+        self.do_temporal_whitening = self.params.getboolean('whitening', 'temporal')
+        self.do_spatial_whitening  = self.params.getboolean('whitening', 'spatial')
 
         if self.do_spatial_whitening:
-            self.spatial_whitening  = io.load_data(params, 'spatial_whitening')
+            self.spatial_whitening  = io.load_data(self.params, 'spatial_whitening')
         if self.do_temporal_whitening:
-            self.temporal_whitening = io.load_data(params, 'temporal_whitening')
+            self.temporal_whitening = io.load_data(self.params, 'temporal_whitening')
 
-        self.thresholds       = io.load_data(params, 'thresholds')
+        self.thresholds       = io.load_data(self.params, 'thresholds')
         self.t_start          = 0
         self.t_stop           = 1
 
@@ -1155,9 +1157,11 @@ class PreviewGUI(QtGui.QMainWindow):
 
     def get_data(self):
         self.chunk_size       = self.sampling_rate
-        self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
-        self.data, data_shape = io.load_chunk(self.params, 0, self.chunk_size*self.N_total,
-            padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
+        self.padding          = (self.t_start*self.sampling_rate, self.t_start*self.sampling_rate)
+        nb_chunks, last_chunk_len = self.data_file.analyze(self.chunk_size)
+        self.data = self.data_file.get_data(0, self.chunk_size,
+            padding=self.padding, nodes=self.nodes)
+
 
         if self.do_spatial_whitening:
             self.data = numpy.dot(self.data, self.spatial_whitening)
@@ -1165,6 +1169,7 @@ class PreviewGUI(QtGui.QMainWindow):
             self.data = scipy.ndimage.filters.convolve1d(self.data, self.temporal_whitening, axis=0, mode='constant')
 
         self.time    = numpy.linspace(self.t_start, self.t_stop, self.data.shape[0])
+
         if self.show_fit:
             try:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)

@@ -1,16 +1,18 @@
 [data]
-data_offset    = MCS                    # Length of the header ('MCS' is auto for MCS file)
-mapping        = probes/mea_252.prb     # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
-suffix         =                        # Suffix to add to generated files
-data_dtype     = uint16                 # Type of the data
+file_format    = raw_binary             # Can be raw_binary, mcs_raw_binary, hdf5, be in touch to add your fileformat!
+data_offset    = 0                      # Length of the header [only for raw_binary files]
+data_dtype     = uint16                 # Type of the data [for raw_binary, MCS_raw_binary]
 dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
+mapping        = ~/probes/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+suffix         =                        # Suffix to add to generated files
 sampling_rate  = 20000                  # Sampling rate of the data [Hz]
-N_t            = 5                      # Width of the templates [in ms]
-radius         = auto                   # Radius [in um] (if auto, read from the prb file)
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
-multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation
+multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
+hdf5_key_data  =                        # If data are stored as a hdf5 structure, key to the data [hdf5]
 
 [detection]
+radius         = auto                   # Radius [in um] (if auto, read from the prb file)
+N_t            = 5                      # Width of the templates [in ms]
 spike_thresh   = 6                      # Threshold for spike detection
 peaks          = negative               # Can be negative (default), positive or both
 matched-filter = False                  # If True, we perform spike detection with matched filters

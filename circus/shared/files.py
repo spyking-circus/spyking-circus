@@ -14,90 +14,32 @@ from mpi4py import MPI
 from .mpi import gather_array
 import logging
 
+from circus.files.datafile import *
+from circus.files import __supported_data_files__
 
-def get_header():
 
-    import circus
-    version = circus.__version__
+def get_data_file(params, multi=False, empty=False, comm=None):
+    
+    file_format = params.get('data', 'file_format')
+    if not multi:
+        data_file = params.get('data', 'data_file')    
+    else:
+        data_file = params.get('data', 'data_multi_file')
 
-    if len(version) == 3:
-        title = '#####            Welcome to the SpyKING CIRCUS (%s)         #####' %version
-    elif len(version) == 5:
-        title = '#####           Welcome to the SpyKING CIRCUS (%s)        #####' %version
-
-    header = '''
-##################################################################
-%s
-#####                                                        #####
-#####              Written by P.Yger and O.Marre             #####
-##################################################################
-
-''' %title
-
-    return header
+    if file_format not in __supported_data_files__.keys():
+        print_error(["The type %s is not recognized as a valid file format" %file_format, 
+                     "Valid files formats can be:", 
+                     ", ".join(__supported_data_files__.keys())])
+        sys.exit(0)
+    else:
+        return __supported_data_files__[file_format](data_file, params, empty, comm)
+        
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))
     for f in os.listdir(dir):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
-
-def set_logger(params):
-    f_next, extension = os.path.splitext(params.get('data', 'data_file'))
-    log_file          = f_next + '.log'
-    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', 
-        filename=log_file,
-        level=logging.DEBUG, 
-        datefmt='%m/%d/%Y %I:%M:%S %p')
-
-def write_to_logger(params, to_write, level='info'):
-    set_logger(params)
-    for line in to_write:
-        if level == 'info':
-            logging.info(line)
-        elif level in ['debug', 'default']:
-            logging.debug(line)
-        elif level == 'warning':
-            logging.warning(line)
-
-def detect_header(filename, value='MCS'):
-
-    if value == 'MCS':
-        try:
-            header      = 0
-            stop        = False
-            fid         = open(filename, 'rb')
-            header_text = ''
-            regexp      = re.compile('El_\d*')
-
-            while ((stop is False) and (header <= 5000)):
-                header      += 1
-                char         = fid.read(1)
-                header_text += char.decode('Windows-1252')
-                if (header > 2):
-                    if (header_text[header-3:header] == 'EOH'):
-                        stop = True
-            fid.close()
-            if stop is False:
-                print_error(['Wrong MCS header: file is not exported with MCRack'])
-                sys.exit(0) 
-            else:
-                header += 2
-            return header, len(regexp.findall(header_text))
-        except Exception:
-            print_error(["Wrong MCS header: file is not exported with MCRack"])
-            sys.exit(0)
-    else:
-        return value, None
-
-def copy_header(header, file_in, file_out):
-    fin  = open(file_in, 'rb')
-    fout = open(file_out, 'wb')
-    data = fin.read(header)
-    fout.write(data)
-    fin.close()
-    fout.close()
-
 
 def get_multi_files(params):
     file_name   = params.get('data', 'data_multi_file')
@@ -114,7 +56,6 @@ def get_multi_files(params):
 
     print_and_log(['Multi-files:'] + to_process, 'debug', params)
     return to_process
-
 
 def change_flag(file_name, flag, value, avoid_flag=None):
     """Set a new value to a flag of a given parameter file."""
@@ -192,14 +133,12 @@ def load_parameters(file_name):
     parser.set('data', 'N_t', str(N_t))
     parser.set('data', 'template_shift', str(int((N_t-1)//2)))
 
-    data_offset              = parser.get('data', 'data_offset')
+    data_offset = parser.get('data', 'data_offset')
     if data_offset == 'MCS':
         parser.set('data', 'MCS', 'True')
     else:
         parser.set('data', 'MCS', 'False')
-    data_offset, nb_channels = detect_header(file_name, data_offset)
-    parser.set('data', 'data_offset', str(data_offset))
-    
+   
     probe = read_probe(parser)
 
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
@@ -212,20 +151,6 @@ def load_parameters(file_name):
     parser.set('fitting', 'nb_chances', '3')
     parser.set('clustering', 'm_ratio', '0.01')
     parser.set('clustering', 'sub_dim', '5')
-
-
-    dtype_offset = parser.get('data', 'dtype_offset')
-    if dtype_offset == 'auto':
-        if parser.get('data', 'data_dtype') == 'uint16':
-            parser.set('data', 'dtype_offset', '32767')
-        elif parser.get('data', 'data_dtype') == 'int16':
-            parser.set('data', 'dtype_offset', '0')
-        elif parser.get('data', 'data_dtype') == 'float32':
-            parser.set('data', 'dtype_offset', '0')
-        elif parser.get('data', 'data_dtype') == 'int8':
-            parser.set('data', 'dtype_offset', '0')        
-        elif parser.get('data', 'data_dtype') == 'uint8':
-            parser.set('data', 'dtype_offset', '127')
 
     try: 
         parser.get('data', 'radius')
@@ -300,6 +225,16 @@ def load_parameters(file_name):
         except Exception:
             parser.set(section, name, value)
   
+    try:
+      parser.get('data', 'file_format')
+    except Exception:
+      print_error(["Now you must specify explicitly the file format in the config file", 
+                   "Please have a look to the documentation and add a valid file_format", 
+                   "by adding a file_format parameter in the [data] section.",
+                   "Valid files formats can be:", 
+                   ", ".join(__supported_data_files__.keys())])
+      sys.exit(0)
+
     if parser.getboolean('data', 'multi-files'):
         parser.set('data', 'data_multi_file', file_name)
         pattern     = os.path.basename(file_name).replace('0', 'all')
@@ -399,61 +334,51 @@ def load_parameters(file_name):
     return parser
 
 
-def data_stats(params, show=True, export_times=False):
-    data_file      = params.get('data', 'data_file')
-    data_offset    = params.getint('data', 'data_offset')
-    data_dtype     = params.get('data', 'data_dtype')
-    N_total        = params.getint('data', 'N_total')
-    N_e            = params.getint('data', 'N_e')
-    sampling_rate  = params.getint('data', 'sampling_rate')
-    multi_files    = params.getboolean('data', 'multi-files')
-    chunk_len      = N_total * (60 * sampling_rate)
-        
+def data_stats(data_file, show=True, export_times=False):
+    multi_files    = data_file.params.getboolean('data', 'multi-files')
+    chunk_size     = 60 * data_file.rate    
+
     if not multi_files:
-        datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-        N              = len(datablock)
-        nb_chunks      = N // chunk_len
-        last_chunk_len = (N - nb_chunks * chunk_len)//(N_total*sampling_rate)
-        if params.getboolean('data', 'MCS'):
-            data_offset, nb_channels = detect_header(data_file, 'MCS')
-            if nb_channels is not None:
-                if N_e != nb_channels:
-                    print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+        if last_chunk_len > 0:
+            nb_chunks -= 1
     else:
-        all_files      = get_multi_files(params)
+        all_files      = get_multi_files(data_file.params)
         N              = 0
         nb_chunks      = 0
         last_chunk_len = 0
         t_start        = 0
         times          = []
+        init_file      = data_file.params.get('data', 'data_file')
         for f in all_files:
-            if params.getboolean('data', 'MCS'):
-                data_offset, nb_channels = detect_header(f, 'MCS')
-                if nb_channels is not None:
-                    if N_e != nb_channels:
-                        print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params, show)
-            #sys.exit(0)
-            datablock       = numpy.memmap(f, offset=data_offset, dtype=data_dtype, mode='r')
-            loc_N           = len(datablock)
-            loc_nb_chunks   = loc_N // chunk_len
+            data_file.params.set('data', 'data_file', f)
+            new_data_file = get_data_file(data_file.params)
+            loc_nb_chunks, last_chunk_len = new_data_file.analyze(chunk_size)
+            if last_chunk_len > 0:
+                loc_nb_chunks -= 1
+
             nb_chunks      += loc_nb_chunks
-            last_chunk_len += (loc_N - loc_nb_chunks * chunk_len)//(N_total*sampling_rate)
-            times   += [[t_start, t_start + len(datablock)//N_total]]
-            t_start  = t_start + len(datablock)//N_total
+            last_chunk_len += new_data_file.max_offset - (loc_nb_chunks*chunk_size)
 
-    N_t = params.getint('data', 'N_t')
-    N_t = numpy.round(1000.*N_t/sampling_rate, 1)
+            times   += [[t_start, t_start + new_data_file.max_offset]]
+            t_start += new_data_file.max_offset
+        data_file.params.set('data', 'data_file', init_file)
 
-    nb_extra        = last_chunk_len//60
-    nb_chunks      += nb_extra
-    last_chunk_len -= nb_extra*60
 
-    lines = ["Number of recorded channels : %d" %N_total,
-             "Number of analyzed channels : %d" %N_e,
-             "Data type                   : %s" %str(data_dtype),
-             "Sampling rate               : %d kHz" %(sampling_rate//1000.),
-             "Header offset for the data  : %d" %data_offset,
-             "Duration of the recording   : %d min %s s" %(nb_chunks, last_chunk_len),
+    N_t = data_file.params.getint('data', 'N_t')
+    N_t = numpy.round(1000.*N_t/data_file.rate, 1)
+
+    nb_seconds      = last_chunk_len//data_file.rate
+    last_chunk_len -= (nb_seconds*data_file.rate)
+    last_chunk_len  = int(1000*last_chunk_len/data_file.rate)
+
+    lines = ["Number of recorded channels : %d" %data_file.N_tot,
+             "Number of analyzed channels : %d" %data_file.N_e,
+             "File format                 : %s" %data_file.params.get('data', 'file_format'),
+             "Data type                   : %s" %str(data_file.data_dtype),
+             "Sampling rate               : %d kHz" %(data_file.rate//1000.),
+             "Header offset for the data  : %d" %data_file.data_offset,
+             "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, nb_seconds, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
              "Threshold crossing          : %s" %params.get('detection', 'peaks'),
@@ -466,49 +391,18 @@ def data_stats(params, show=True, export_times=False):
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
 
-    print_and_log(lines, 'info', params, show)
+    print_and_log(lines, 'info', data_file.params, show)
 
     if not export_times:
-        return nb_chunks*60 + last_chunk_len
+        return nb_chunks*60 + nb_seconds + last_chunk_len/1000.
     else:
         return times
 
-def print_and_log(to_print, level='info', logger=None, display=True):
-    if display:
-        if level == 'default':
-            for line in to_print:
-                print Fore.WHITE + line + '\r'
-        if level == 'info':
-            print_info(to_print)
-        elif level == 'error':
-            print_error(to_print)
-
-    if logger is not None:
-        write_to_logger(logger, to_print, level)
-
-    sys.stdout.flush()
 
 
-def print_info(lines):
-    """Prints informations messages, enhanced graphical aspects."""
-    print Fore.YELLOW + "-------------------------  Informations  -------------------------\r"
-    for line in lines:
-        print Fore.YELLOW + "| " + line + '\r'
-    print Fore.YELLOW + "------------------------------------------------------------------\r"
+def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
-def print_error(lines):
-    """Prints errors messages, enhanced graphical aspects."""
-    print Fore.RED + "----------------------------  Error  -----------------------------\r"
-    for line in lines:
-        print Fore.RED + "| " + line + '\r'
-    print Fore.RED + "------------------------------------------------------------------\r"
-
-
-
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
-
-    
-    N_t          = params.getint('data', 'N_t')
+    N_t          = data_file.params.getint('data', 'N_t')
     if not all_labels:
         if not mean_mode:
             stas = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
@@ -518,22 +412,16 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         nb_labels = numpy.unique(labels_i)
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('detection', 'alignment') and auto_align
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    alignment     = data_file.params.getboolean('detection', 'alignment') and auto_align
 
-    do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    template_shift        = params.getint('data', 'template_shift')
+    do_temporal_whitening = data_file.params.getboolean('whitening', 'temporal')
+    do_spatial_whitening  = data_file.params.getboolean('whitening', 'spatial')
+    template_shift        = data_file.params.getint('data', 'template_shift')
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening  = load_data(data_file.params, 'spatial_whitening')
     if do_temporal_whitening:     
-        temporal_whitening = load_data(params, 'temporal_whitening')
+        temporal_whitening = load_data(data_file.params, 'temporal_whitening')
 
     if alignment:
         cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
@@ -541,20 +429,11 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
     count = 0
     for lb, time in zip(labels_i, times_i):
-        padding      = N_total * time
         if alignment:
-            local_chunk = datablock[padding - 2*template_shift*N_total:padding + (2*template_shift+1)*N_total]
-            local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
+            local_chunk = data_file.get_snippet(time - 2*template_shift, 2*N_t - 1, nodes=nodes)
         else:
-            local_chunk = datablock[padding - template_shift*N_total:padding + (template_shift+1)*N_total]
-            local_chunk = local_chunk.reshape(N_t, N_total)
-
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= dtype_offset
+            local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
         
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
@@ -595,7 +474,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     return stas
 
 
-def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
+def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=None,
                        mean_mode=False, all_labels=False, auto_align=True):
     
     # First we need to identify machines in the MPI ring.
@@ -606,7 +485,8 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
     ##### end quarantine zone
     float_size = MPI.FLOAT.Get_size() 
     sub_comm = comm.Split(myip, 0)
-    
+    params = data_file.params
+
     # Load parameters.
     N_t = params.getint('data', 'N_t')
     data_file = params.get('data', 'data_file')
@@ -676,23 +556,19 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
             xdata = numpy.arange(- 2 * template_shift, 2 * template_shift + 1)
         count = 0
         for lb, time in zip(labels_i, times_i):
-            padding = N_total * time
+            
             if alignment:
-                local_chunk = datablock[padding - 2 * template_shift * N_total:padding + (2 * template_shift + 1) * N_total]
-                local_chunk = local_chunk.reshape(2 * N_t - 1, N_total)
+                local_chunk = data_file.get_snippet(time - 2*template_shift, 2*N_t - 1, nodes=nodes)
             else:
-                local_chunk = datablock[padding - template_shift * N_total:padding + (template_shift + 1) * N_total]
-                local_chunk = local_chunk.reshape(N_t, N_total)
-            local_chunk = local_chunk.astype(numpy.float32)
-            local_chunk -= dtype_offset
-            if nodes is not None:
-                if not numpy.all(nodes == numpy.arange(N_total)):
-                    local_chunk = numpy.take(local_chunk, nodes, axis=1)
+                local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
+            
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+            
             local_chunk = numpy.take(local_chunk, neighs, axis=1)
+            
             if alignment:
                 idx = numpy.where(neighs == src)[0]
                 ydata = numpy.arange(len(neighs))
@@ -736,29 +612,12 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
 ##### end working zone
 
 
-def get_artefact(params, times_i, tau, nodes, normalize=True):
+def get_artefact(data_file, times_i, tau, nodes, normalize=True):
     
 
     artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = numpy.int64(params.getint('data', 'N_total'))
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-
     for time in times_i:
-        padding      = N_total * time
-        local_chunk  = datablock[padding:padding + tau*N_total]
-        local_chunk  = local_chunk.reshape(tau, N_total)
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= dtype_offset
-        
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
-
-        artefact += local_chunk.T
+        artefact += data_file.get_snippet(time, tau, nodes).T
 
     if normalize:
         artefact /= len(times_i)
@@ -767,155 +626,20 @@ def get_artefact(params, times_i, tau, nodes, normalize=True):
 
 
 
-
-def get_amplitudes(params, times_i, src, neighs, template, nodes=None, pos='neg'):
-    from .utils import smooth  # avoid import issues
-    N_t          = params.getint('data', 'N_t')
-    amplitudes   = numpy.zeros(len(times_i), dtype=numpy.float32)
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
-    alignment    = params.getboolean('detection', 'alignment')
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    template     = template.ravel()
-    covariance   = numpy.zeros((len(template), len(template)), dtype=numpy.float32)
-    norm_temp    = numpy.sum(template**2)
-
-    do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    template_shift        = params.getint('data', 'template_shift')
-
-    if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
-    if do_temporal_whitening:
-        temporal_whitening = load_data(params, 'temporal_whitening')
-
-    if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
-        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
-
-    for count, time in enumerate(times_i):
-        padding      = N_total * time
-        if alignment:
-            local_chunk = datablock[padding - 2*template_shift*N_total:padding + (2*template_shift+1)*N_total]
-            local_chunk = local_chunk.reshape(2*N_t - 1, N_total)
-        else:
-            local_chunk = datablock[padding - template_shift*N_total:padding + (template_shift+1)*N_total]
-            local_chunk = local_chunk.reshape(N_t, N_total)
-
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= dtype_offset
-
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(N_total)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
-        if do_spatial_whitening:
-            local_chunk = numpy.dot(local_chunk, spatial_whitening)
-        if do_temporal_whitening:
-            local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
-        
-        local_chunk = numpy.take(local_chunk, neighs, axis=1)
-
-        if alignment:
-            idx   = numpy.where(neighs == src)[0]
-            ydata = numpy.arange(len(neighs))
-            if len(ydata) == 1:
-                f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
-                elif pos =='pos':
-                    rmin    = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
-                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
-            else:
-                f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
-                if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
-                elif pos == 'pos':
-                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
-                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata, ydata).astype(numpy.float32)
-
-        local_chunk       = local_chunk.T.ravel()
-        amplitudes[count] = numpy.dot(local_chunk, template)/norm_temp
-        snippet     = (template - amplitudes[count]*local_chunk).reshape(len(template), 1)
-        covariance += numpy.dot(snippet, snippet.T)
-
-    covariance  /= len(times_i)
-    evals, evecs = scipy.sparse.linalg.eigs(covariance, k=1, which='LM')
-    evecs        = numpy.real(evecs).astype(numpy.float32)
-    return amplitudes, evecs.reshape(len(neighs), N_t)
-
-
-def load_chunk(params, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
+def load_chunk(data_file, idx, chunk_len, chunk_size=None, padding=(0, 0), nodes=None):
     
-    if chunk_size is None:
-        chunk_size = params.getint('data', 'chunk_size')
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    if params.getboolean('data', 'MCS'):
-        data_offset, nb_channels = detect_header(data_file, 'MCS')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    local_chunk  = datablock[idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]]
-    del datablock
-    local_shape  = chunk_size + (padding[1]-padding[0])//N_total
-    local_chunk  = local_chunk.reshape(local_shape, N_total)
-    local_chunk  = local_chunk.astype(numpy.float32)
-    local_chunk -= dtype_offset
-    if nodes is not None:
-        if not numpy.all(nodes == numpy.arange(N_total)):
-            local_chunk = numpy.take(local_chunk, nodes, axis=1)
-    return numpy.ascontiguousarray(local_chunk), local_shape
+    return data_file.get_data(idx, chunk_len, chunk_size, padding, nodes)
 
 
-def prepare_preview(params, preview_filename):
-    chunk_size   = 2*params.getint('data', 'sampling_rate')
-    data_file    = params.get('data', 'data_file')
-    data_offset  = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype   = params.get('data', 'data_dtype')
-    N_total      = params.getint('data', 'N_total')
-    datablock    = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    chunk_len    = numpy.int64(N_total) * chunk_size
-    local_chunk  = datablock[0:chunk_len]
-
-    output = open(preview_filename, 'wb')
-    fid    = open(data_file, 'rb')
-    # We copy the header 
-    for i in xrange(data_offset):
-        output.write(fid.read(1))
+def prepare_preview(data_file, preview_filename):
     
-    fid.close()
+    data_file.prepare_preview(preview_filename)
 
-    #Then the datafile
-    local_chunk.tofile(output)
-    output.close()
 
-def analyze_data(params, chunk_size=None):
+def analyze_data(data_file, chunk_size=None):
 
-    if chunk_size is None:
-        chunk_size = params.getint('data', 'chunk_size')
-    data_file      = params.get('data', 'data_file')
-    data_offset    = params.getint('data', 'data_offset')
-    if params.getboolean('data', 'MCS'):
-        data_offset, nb_channels = detect_header(data_file, 'MCS')
-    data_dtype     = params.get('data', 'data_dtype')
-    N_total        = params.getint('data', 'N_total')
-    template_shift = params.getint('data', 'template_shift')
-    chunk_len      = numpy.int64(N_total) * chunk_size
-    borders        = numpy.int64(N_total) * template_shift
-    datablock      = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    N              = len(datablock)
-    nb_chunks      = numpy.int64(N) // chunk_len
-    last_chunk_len = N - nb_chunks * chunk_len
-    last_chunk_len = N_total * numpy.int64(last_chunk_len)//N_total
-    
-    return borders, nb_chunks, chunk_len, last_chunk_len
+    return data_file.analyze(chunk_size)
+
 
 def get_nodes_and_edges(parameters, validating=False):
     """
@@ -1622,15 +1346,16 @@ def write_datasets(h5file, to_write, result, electrode=None):
         h5file.create_dataset(mykey, shape=result[mykey].shape, dtype=result[mykey].dtype, chunks=True)
         h5file.get(mykey)[:] = result[mykey]
 
-def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
+def collect_data(nb_threads, data_file, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     # Retrieve the key parameters.
+    params         = data_file.params
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     chunks         = params.getfloat('fitting', 'chunk')
-    data_length    = data_stats(params, show=False)
+    data_length    = data_stats(data_file, show=False)
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
     sampling_rate  = params.getint('data', 'sampling_rate')

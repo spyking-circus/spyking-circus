@@ -10,10 +10,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     parallel_hdf5 = h5py.get_config().mpi
 
     #################################################################
-    sampling_rate  = params.getint('data', 'sampling_rate')
-    N_e            = params.getint('data', 'N_e')
+    data_file      = io.get_data_file(params)
+    data_file.open()
+    params         = data_file.params
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
+    N_total        = data_file.N_tot
     N_t            = params.getint('data', 'N_t')
-    N_total        = params.getint('data', 'N_total')
     dist_peaks     = params.getint('data', 'dist_peaks')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
@@ -139,16 +142,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
     few_elts        = False
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
 
-        res        = io.data_stats(params, show=False)
+        res        = io.data_stats(data_file, show=False)
         chunk_size = numpy.int64(res*sampling_rate//comm.size)
         if comm.rank == 0:
             io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
-        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+
+    if last_chunk_len > 0:
+        nb_chunks += 1
 
     if smart_search is False:
         gpass = 1
@@ -228,7 +234,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-                local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+                local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+                local_shape = len(local_chunk)
                 if do_spatial_whitening:
                     if use_gpu:
                         local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
@@ -746,13 +753,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     elif extraction == 'median-raw':                
                         labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                         times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data         = io.get_stas(data_file, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component  = numpy.median(sub_data, 0)
                         tmp_templates    = first_component
                     elif extraction == 'mean-raw':                
                         labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                         times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data         = io.get_stas(data_file, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component  = numpy.mean(sub_data, 0)
                         tmp_templates    = first_component
 
@@ -958,6 +965,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             hfile.close()
     
     comm.Barrier()
+    data_file.close()
 
     if comm.rank == 0:
         io.print_and_log(["Merging similar templates..."], 'default', params)

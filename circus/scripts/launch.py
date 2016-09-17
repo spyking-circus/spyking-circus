@@ -12,7 +12,7 @@ colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 import circus.shared.files as io
 import circus
-from circus.shared.files import print_error, print_info, write_to_logger, get_header
+from circus.shared.messages import print_error, print_info, write_to_logger, get_colored_header
 
 
 def gather_mpi_arguments(hostfile, params):
@@ -83,8 +83,7 @@ def main(argv=None):
     else:
         config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
-    gheader = Fore.GREEN + get_header()
-    header  = gheader
+    header  = get_colored_header()
     header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(psutil.cpu_count()) + '\n'
     header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
     header += Fore.GREEN + 'Parallel HDF5 : ' + Fore.CYAN + str(parallel_hdf5) + '\n'
@@ -167,10 +166,15 @@ but a subset x,y can be done. Steps are:
         tasks_list = filename
 
     if not batch:
-        params = io.load_parameters(filename)
+        params       = io.load_parameters(filename)
+        multi_files  = params.getboolean('data', 'multi-files')
+        data_file    = io.get_data_file(params, multi_files)
+        file_format  = params.get('data', 'file_format')
+        support_parallel_write = data_file._parallel_write
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
+
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
@@ -178,9 +182,23 @@ but a subset x,y can be done. Steps are:
         f_next, extens = os.path.splitext(filename)
         shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']
-        io.prepare_preview(params, filename)
+
+        chunk_size = 2*data_file.rate
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+        data_file.open()
+        local_chunk, _ = data_file.get_data(0, chunk_size)
+        params.set('data', 'data_file', filename)
+        data_file_out = io.get_data_file(params, empty=True)
+        data_file.copy_header(filename)
+        data_file_out.allocate(shape=local_chunk.shape, data_dtype=data_file.data_dtype)
+        
+        data_file_out.open('r+')
+        data_file_out.set_data(0, local_chunk)
+        data_file.close()
+        data_file_out.close()
         io.change_flag(filename, 'chunk_size', '2')
         io.change_flag(filename, 'safety_time', '0')
+
 
     if tasks_list is not None:
         with open(tasks_list, 'r') as f:
@@ -195,7 +213,7 @@ but a subset x,y can be done. Steps are:
         write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
         write_to_logger(params, ['Data file  : %s' %filename], 'debug')
 
-        print gheader
+        print get_colored_header()
         if preview:
             print Fore.GREEN + "Steps         :", Fore.CYAN + "preview mode"
         elif result:
@@ -231,8 +249,9 @@ but a subset x,y can be done. Steps are:
         else:
             use_gpu = 'False'
 
-        time = circus.shared.io.data_stats(params)/60.
 
+        time = circus.shared.io.data_stats(data_file)/60.
+        
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
                 io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
@@ -261,13 +280,17 @@ but a subset x,y can be done. Steps are:
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
 
-                        if subtask != 'fitting':
-                            nb_tasks = str(max(args.cpu, args.gpu))
+                        if subtask in ['filtering', 'benchmarking'] and not support_parallel_write and (args.cpu > 1):
+                            io.print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', params)
+                            nb_tasks = str(1)
                         else:
-                            if use_gpu == 'True':
-                                nb_tasks = str(args.gpu)
+                            if subtask != 'fitting':
+                                nb_tasks = str(max(args.cpu, args.gpu))
                             else:
-                                nb_tasks = str(args.cpu)
+                                if use_gpu == 'True':
+                                    nb_tasks = str(args.gpu)
+                                else:
+                                    nb_tasks = str(args.cpu)
 
                         if subtask == 'benchmarking':
                             if (output is None) or (benchmark is None):
@@ -280,7 +303,7 @@ but a subset x,y can be done. Steps are:
                             mpi_args += ['-np', nb_tasks,
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, extension]
-                        else: 
+                        else:
                             mpi_args += ['-np', nb_tasks,
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
@@ -310,10 +333,12 @@ but a subset x,y can be done. Steps are:
         except Exception:
             pass
 
+        params    = io.load_parameters(filename)
+        data_file = io.get_data_file(params) 
+
         if preview:
-            mygui = gui.PreviewGUI(io.load_parameters(filename))
+            mygui = gui.PreviewGUI(data_file)
             shutil.rmtree(tmp_path_loc)
         elif result:
-            mygui = gui.PreviewGUI(io.load_parameters(filename), show_fit=True)
+            mygui = gui.PreviewGUI(data_file, show_fit=True)
         sys.exit(app.exec_())
-

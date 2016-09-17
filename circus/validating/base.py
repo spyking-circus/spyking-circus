@@ -38,7 +38,8 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
     
-    data_file = params.get('data', 'data_file')
+    data_file = io.get_data_file(params)
+    data_file.open()
     data_offset = params.getint('data', 'data_offset')
     data_dtype = params.get('data', 'data_dtype')
     N_total = params.getint('data', 'N_total')
@@ -68,11 +69,9 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     # N_max = 1500
     
     # Compute 'time_min' and 'time_max'.
-    data_block = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
-    N = len(data_block)
-    data_len = N // N_total
+
     time_min = template_shift
-    time_max = (data_len - 1) - template_shift
+    time_max = (data_file.max_offset - 1) - template_shift
     
     # Initialize the random seed.
     _ = numpy.random.seed(0)
@@ -144,7 +143,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
         nodes, chans = get_neighbors(params, chan=None)
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
         #juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
-        juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
+        juxta_spikes = get_stas(data_file, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
         
@@ -189,7 +188,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
         chan = elec
         ##### end temporary zone
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
-        juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
+        juxta_spikes = get_stas(data_file, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
         tmp_juxta_spikes = juxta_spikes
@@ -222,10 +221,10 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Compute the cumulative distribution of extra spike times according to the threshold values.
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
-    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    N_e = params.getint('data', 'N_e')
+    N_e = data_file.N_e
     threshs = N_e * [None]
     counts = N_e * [None]
     for e in xrange(0, N_e):
@@ -263,10 +262,10 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     # Compute the cumulative distribution of extra spike times according to the threshold values.
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
-    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    N_e = params.getint('data', 'N_e')
+    N_e = data_file.N_e
     for e in xrange(0, N_e):
         spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
     spike_values_extra = numpy.concatenate(spike_values_extra)
@@ -315,7 +314,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
-    extra_thresh = params.getfloat('data', 'spike_thresh')
+    extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
     thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"
@@ -449,9 +448,9 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     labels_gt = numpy.zeros(spike_times_gt.size)
     ##### TODO: clean test zone
     if SHARED_MEMORY:
-        spikes_gt = get_stas_memshared(params, comm, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
+        spikes_gt = get_stas_memshared(data_file, comm, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
     else:
-        spikes_gt = get_stas(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
+        spikes_gt = get_stas(data_file, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
     ##### end test zone
     
     # Reshape data.
@@ -523,9 +522,9 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     labels_ngt = numpy.zeros(spike_times_ngt.size)
     ##### TODO: clean temporary zone
     if SHARED_MEMORY:
-        spikes_ngt = get_stas_memshared(params, comm, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
+        spikes_ngt = get_stas_memshared(data_file, comm, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
     else:
-        spikes_ngt = get_stas(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
+        spikes_ngt = get_stas(data_file, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
     ##### TODO: end temporary zone
     
     # Reshape data.
@@ -654,7 +653,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
             ys = [y_gt, y_ngt]
             colors = ['r', 'b']
             labels = ["GT", "Non GT"]
-            plot.view_datasets(params, xs, ys, [spike_times_gt, spike_times_ngt], colors=colors, labels=labels, save=path)
+            plot.view_datasets(data_file, xs, ys, [spike_times_gt, spike_times_ngt], colors=colors, labels=labels, save=path)
     
     
     
@@ -1602,5 +1601,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     if comm.rank == 0:
         io.print_and_log(["Validation done."], level='debug', logger=params)
+
+    data_file.close()
 
     return

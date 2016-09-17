@@ -8,10 +8,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     parallel_hdf5 = h5py.get_config().mpi
 
     #################################################################
-    sampling_rate  = params.getint('data', 'sampling_rate')
-    N_e            = params.getint('data', 'N_e')
+    data_file      = io.get_data_file(params)
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
     N_t            = params.getint('data', 'N_t')
-    N_total        = params.getint('data', 'N_total')
+    N_total        = data_file.N_tot
     template_shift = params.getint('data', 'template_shift')
     chunk_size     = params.getint('data', 'chunk_size')
     file_out       = params.get('data', 'file_out')
@@ -63,8 +64,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result['data_tmp_' + str(i)]  = numpy.zeros((0, N_e * basis_proj.shape[1]), dtype=numpy.float32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
 
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
-
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+    
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks))
 
@@ -78,7 +79,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if (elt_count < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
 
             if do_spatial_whitening:
                 if use_gpu:
@@ -355,3 +357,5 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
+
+    data_file.close()

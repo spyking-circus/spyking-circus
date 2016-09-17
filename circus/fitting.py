@@ -10,10 +10,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         SHARED_MEMORY = False
 
     #################################################################
-    sampling_rate  = params.getint('data', 'sampling_rate')
-    N_e            = params.getint('data', 'N_e')
+    data_file      = io.get_data_file(params)
+    data_file.open()
+    params         = data_file.params
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
+    N_total        = data_file.N_tot
     N_t            = params.getint('data', 'N_t')
-    N_total        = params.getint('data', 'N_total')
     template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -58,7 +61,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('data', 'N_t')
-    template_shift = int((N_t-1)//2)
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
@@ -184,8 +186,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     del c_overs[i]
             full_gpu = False
 
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
-    nb_chunks                                     = int(min(nb_chunks, max_chunk))
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+    nb_chunks                 = int(min(nb_chunks, max_chunk))
 
     if comm.rank == 0:
         pbar = get_progressbar(int(nb_chunks//comm.size))
@@ -212,15 +214,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
         ## We need to deal with the borders by taking chunks of size [0, chunck_size+template_shift]
         if gidx == (nb_chunks - 1):
-            padding = (-2*borders, 0)
+            padding = (-2*template_shift, 0)
         elif gidx == 0:
-            padding = (0, 2*borders)
+            padding = (0, 2*template_shift)
         else:
-            padding = (-2*borders, 2*borders)
+            padding = (-2*template_shift, 2*template_shift)
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, padding, nodes=nodes)           
+        local_chunk = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
+        local_shape = len(local_chunk)
 
         if do_spatial_whitening:
             if use_gpu:
@@ -320,7 +323,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             del sub_mat
 
-            local_offset = gidx*chunk_size+padding[0]//N_total
+            local_offset = gidx*chunk_size+padding[0]
             local_bounds = (temp_2_shift, local_shape - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
 
@@ -531,4 +534,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pbar.finish()
 
     if comm.rank == 0:
-        io.collect_data(comm.size, params, erase=True)
+        io.collect_data(comm.size, data_file, erase=True)
+
+    data_file.close()
