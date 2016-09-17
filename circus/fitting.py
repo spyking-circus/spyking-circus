@@ -157,7 +157,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             full_gpu = False
 
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
-    nb_chunks                                     = int(min(nb_chunks, max_chunk))
+    nb_chunks                 = int(min(nb_chunks, max_chunk))
 
     if comm.rank == 0:
         pbar = get_progressbar(int(nb_chunks//comm.size))

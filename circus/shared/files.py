@@ -27,7 +27,9 @@ def get_data_file(params, multi=False, empty=False, comm=None):
         data_file = params.get('data', 'data_multi_file')
 
     if file_format not in __supported_data_files__.keys():
-        print_error(['The type %s is not recognized as a valid file format' %file_format])
+        print_error(["The type %s is not recognized as a valid file format" %file_format, 
+                     "Valid files formats can be:", 
+                     ", ".join(__supported_data_files__.keys())])
         sys.exit(0)
     else:
         return __supported_data_files__[file_format](data_file, params, empty, comm)
@@ -164,7 +166,6 @@ def load_parameters(file_name):
                   ['data', 'global_tmp', 'bool', 'True'],
                   ['data', 'chunk_size', 'int', '10'],
                   ['data', 'multi-files', 'bool', 'False'],
-                  ['data', 'file_format', 'string', 'raw_binary'],
                   ['detection', 'alignment', 'bool', 'True'],
                   ['detection', 'matched-filter', 'bool', 'False'],
                   ['detection', 'matched_thresh', 'float', '5'],
@@ -222,6 +223,16 @@ def load_parameters(file_name):
         except Exception:
             parser.set(section, name, value)
   
+    try:
+      parser.get('data', 'file_format')
+    except Exception:
+      print_error(["Now you must specify explicitly the file format in the config file", 
+                   "Please have a look to the documentation and add a valid file_format", 
+                   "by adding a file_format parameter in the [data] section.",
+                   "Valid files formats can be:", 
+                   ", ".join(__supported_data_files__.keys())])
+      sys.exit(0)
+
     if parser.getboolean('data', 'multi-files'):
         parser.set('data', 'data_multi_file', file_name)
         pattern     = os.path.basename(file_name).replace('0', 'all')
