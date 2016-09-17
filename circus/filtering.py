@@ -58,7 +58,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         def filter_file(params, comm, mpi_input, mpi_output, offset=0, perform_filtering=True):
 
             N_total        = params.getint('data', 'N_total')
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            chunk_size     = params.getint('data', 'chunk_size')
 
             borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
             if last_chunk_len > 0:
@@ -78,7 +78,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     to_write = ["Concatenating multi files without filtering"]
                 if remove_median:
                     to_write += ["Median over all channels is substracted to each channels"]
-                io.print_and_log(to_write, 'info', params)
+                io.print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(loc_nb_chunks)
 
             for count, gidx in enumerate(to_process):
@@ -128,7 +128,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         def compute_artefacts(params, comm, max_offset):
 
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
             make_plots     = params.get('triggers', 'make_plots')
@@ -192,7 +192,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         def remove_artefacts(params, comm, art_dict, mpi_file, max_offset):
 
             N_total        = params.getint('data', 'N_total')
-            chunk_size     = params.getint('whitening', 'chunk_size')
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
             make_plots     = params.get('triggers', 'make_plots')
