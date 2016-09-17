@@ -380,13 +380,13 @@ def data_stats(data_file, show=True, export_times=False):
              "Header offset for the data  : %d" %data_file.data_offset,
              "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, nb_seconds, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
-             "Spatial radius considered   : %d um" %params.getint('data', 'radius'),
-             "Threshold crossing          : %s" %params.get('detection', 'peaks'),
-             "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
-             "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
-             "Template Extraction         : %s" %params.get('clustering', 'extraction'),
-             "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
-             "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
+             "Spatial radius considered   : %d um" %data_file.params.getint('data', 'radius'),
+             "Threshold crossing          : %s" %data_file.params.get('detection', 'peaks'),
+             "Waveform alignment          : %s" %data_file.params.getboolean('detection', 'alignment'),
+             "Matched filters             : %s" %data_file.params.getboolean('detection', 'matched-filter'),
+             "Template Extraction         : %s" %data_file.params.get('clustering', 'extraction'),
+             "Collect all spikes          : %s" %data_file.params.getboolean('fitting', 'collect_all'),
+             "Smart Search                : %s" %data_file.params.getboolean('clustering', 'smart_search')]
     
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
