@@ -51,10 +51,10 @@ class H5File(DataFile):
             data_dtype = self.data_dtype
 
         if self._parallel_write and (self.comm is not None):
-            self.my_file = h5py.File(self.file_name, mode='r+', driver='mpio', comm=self.comm)
+            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=self.comm)
             self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
         else:
-            self.my_file = h5py.File(self.file_name, mode='r+')
+            self.my_file = h5py.File(self.file_name, mode='w')
             if self.is_master:
                 if self.compression != '':
                     self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
@@ -69,17 +69,19 @@ class H5File(DataFile):
         if chunk_size is None:
             chunk_size = self.params.getint('data', 'chunk_size')
 
-        if self.time_axis == 0:
-            local_chunk = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], :]
-        elif self.time_axis == 1:
-            local_chunk = self.data[:, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
+        if nodes is None:
+            if self.time_axis == 0:
+                local_chunk = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], :]
+            elif self.time_axis == 1:
+                local_chunk = self.data[:, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
+        else:
+            if self.time_axis == 0:
+                local_chunk = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], nodes]
+            elif self.time_axis == 1:
+                local_chunk = self.data[nodes, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
 
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
-
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(self.N_tot)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
 
         return numpy.ascontiguousarray(local_chunk)
 

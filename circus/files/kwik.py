@@ -63,12 +63,12 @@ class KwikFile(H5File):
         shape = (shape[0], )
 
         if self._parallel_write and (self.comm is not None):
-            self.my_file = h5py.File(self.file_name, mode='r+', driver='mpio', comm=self.comm)
+            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=self.comm)
             self.my_file.create_group(self.h5_key)
             for i in xrange(self.N_tot):
                 self.my_file.create_dataset(self.h5_key+str(i), dtype=data_dtype, shape=shape)
         else:
-            self.my_file = h5py.File(self.file_name, mode='r+')
+            self.my_file = h5py.File(self.file_name, mode='w')
             if self.is_master:
                 if self.compression != '':
                     self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)

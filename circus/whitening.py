@@ -50,8 +50,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if nb_chunks < comm.size:
 
-        res        = io.data_stats(params, show=False)
-        chunk_size = res*data_file.rate//comm.size
+        res        = io.data_stats(data_file, show=False)
+        chunk_size = int(res*data_file.rate//comm.size)
         if comm.rank == 0:
             io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
@@ -59,7 +59,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     # I guess this is more relevant, to take signals from all over the recordings
-    all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
+    all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
     all_electrodes = numpy.random.permutation(data_file.N_e)
 
     for gidx in [all_chunks[comm.rank]]:
@@ -278,7 +278,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if nb_chunks < comm.size:
 
         res        = io.data_stats(data_file, show=False)
-        chunk_size = res*data_file.rate//comm.size
+        chunk_size = int(res*data_file.rate//comm.size)
         if comm.rank == 0:
             io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
@@ -289,7 +289,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         groups[i] = 0
 
     # I guess this is more relevant, to take signals from all over the recordings
-    all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
+    all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
     

@@ -147,14 +147,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if nb_chunks < comm.size:
 
         res        = io.data_stats(data_file, show=False)
-        chunk_size = numpy.int64(res*sampling_rate//comm.size)
+        chunk_size = int(res*sampling_rate//comm.size)
         if comm.rank == 0:
             io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
-
-    if last_chunk_len > 0:
-        nb_chunks += 1
 
     if smart_search is False:
         gpass = 1

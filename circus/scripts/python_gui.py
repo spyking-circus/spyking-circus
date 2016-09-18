@@ -52,7 +52,7 @@ def main(argv=None):
     data_file      = circus.shared.utils.io.get_data_file(params)
     sampling_rate  = data_file.rate
     data_dtype     = data_file.data_dtype
-    data_offset    = data_file.offset
+    data_offset    = data_file.data_offset
     file_format    = data_file._description
     file_out_suff  = params.get('data', 'file_out_suff')
 
