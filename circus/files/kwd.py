@@ -36,7 +36,8 @@ class KwdFile(H5File):
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
-        H5File.__init__(self, file_name, params, empty, comm)
+        H5File.__init__(self, file_name, params, True, comm)
         self.h5_key      = 'recordings/0/data'
+        self.empty = empty
         if not self.empty:
             self._get_info_(self.h5_key)

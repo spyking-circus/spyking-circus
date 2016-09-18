@@ -186,7 +186,7 @@ but a subset x,y can be done. Steps are:
         chunk_size = 2*data_file.rate
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
         data_file.open()
-        local_chunk, _ = data_file.get_data(0, chunk_size)
+        local_chunk  = data_file.get_data(0, chunk_size)
         params.set('data', 'data_file', filename)
         data_file_out = io.get_data_file(params, empty=True)
         data_file.copy_header(filename)

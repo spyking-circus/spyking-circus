@@ -3,6 +3,10 @@ Release 0.5
 ===========
 
 * garbage collector mode, to collect also all unfitted spikes
+* complete restructuration of the I/O such that the code can now handle multiple file formats
+* Because of the file format, slight restructuration of the parameter files
+* N_t and radius have been moved to the [detection] section, more consistent
+* Addition of a file_format parameter in the [data] section
 
 
 =============
