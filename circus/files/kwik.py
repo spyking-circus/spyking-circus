@@ -94,7 +94,7 @@ class KwikFile(H5File):
         local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
 
         for i in nodes:
-            local_chunk = self.data[i][idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]]
+            local_chunk[:, i] = self.data[i][idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]]
         
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
@@ -107,7 +107,7 @@ class KwikFile(H5File):
         data += self.dtype_offset
         data  = data.astype(self.data_dtype)
         for i in xrange(self.N_tot):
-            local_chunk = self.data[i][time:time+data.shape[0]] = data[:, i]
+            self.data[i][time:time+data.shape[0]] = data[:, i]
 
 
     def open(self):

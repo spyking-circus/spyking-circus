@@ -30,7 +30,8 @@ class MCDFile(DataFile):
         self.close()
 
     def allocate(self, shape, data_dtype=None):
-        raise('Not Implemented for .mcd file')
+        print_error(['No write support for %s file' %self._description])
+        sys.exit(0)
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
         
@@ -54,7 +55,8 @@ class MCDFile(DataFile):
         return numpy.ascontiguousarray(local_chunk)
 
     def set_data(self, time, data):
-        raise('Not Implemented for .mcd file')
+        print_error(['No write support for %s file' %self._description])
+        sys.exit(0)
 
     def open(self, mode='r'):
         self.data = ns.File(self.file_name)
