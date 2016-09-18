@@ -11,9 +11,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     data_file      = io.get_data_file(params)
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
-    N_t            = params.getint('data', 'N_t')
+    N_t            = params.getint('detection', 'N_t')
     N_total        = data_file.N_tot
-    template_shift = params.getint('data', 'template_shift')
+    template_shift = params.getint('detection', 'template_shift')
     chunk_size     = params.getint('data', 'chunk_size')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')

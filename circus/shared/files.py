@@ -119,7 +119,10 @@ def load_parameters(file_name):
         else:
             parser.add_section(section)
 
-    N_t             = parser.getfloat('data', 'N_t')
+    try:
+      N_t             = parser.getfloat('detection', 'N_t')
+    except Exception:
+      N_t             = parser.getfloat('data', 'N_t')
 
     for key in ['whitening', 'clustering']:
         safety_time = parser.get(key, 'safety_time')
@@ -130,15 +133,10 @@ def load_parameters(file_name):
     N_t             = int(sampling_rate*N_t*1e-3)
     if numpy.mod(N_t, 2) == 0:
         N_t += 1
-    parser.set('data', 'N_t', str(N_t))
-    parser.set('data', 'template_shift', str(int((N_t-1)//2)))
+    parser.set('detection', 'N_t', str(N_t))
+    parser.set('detection', 'template_shift', str(int((N_t-1)//2)))
 
     data_offset = parser.get('data', 'data_offset')
-    if data_offset == 'MCS':
-        parser.set('data', 'MCS', 'True')
-    else:
-        parser.set('data', 'MCS', 'False')
-   
     probe = read_probe(parser)
 
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
@@ -153,13 +151,13 @@ def load_parameters(file_name):
     parser.set('clustering', 'sub_dim', '5')
 
     try: 
-        parser.get('data', 'radius')
+        parser.get('detection', 'radius')
     except Exception:
-        parser.set('data', 'radius', 'auto')
+        parser.set('detection', 'radius', 'auto')
     try:
-        parser.getint('data', 'radius')
+        parser.getint('detection', 'radius')
     except Exception:
-        parser.set('data', 'radius', str(int(probe['radius'])))
+        parser.set('detection', 'radius', str(int(probe['radius'])))
 
     new_values = [['fitting', 'amp_auto', 'bool', 'True'], 
                   ['fitting', 'refractory', 'float', '0.5'],
@@ -276,7 +274,7 @@ def load_parameters(file_name):
     parser.set('data', 'file_out', file_out) # Output file without suffix
     parser.set('data', 'file_out_suff', file_out  + parser.get('data', 'suffix')) # Output file with suffix
     parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
-    parser.set('data', 'dist_peaks', str(N_t)) # Get only isolated spikes for a single electrode (whitening, clustering, basis)    
+    parser.set('detection', 'dist_peaks', str(N_t)) # Get only isolated spikes for a single electrode (whitening, clustering, basis)    
 
     for section in ['whitening', 'clustering']:
         test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
@@ -380,7 +378,7 @@ def data_stats(data_file, show=True, export_times=False):
              "Header offset for the data  : %d" %data_file.data_offset,
              "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, nb_seconds, last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
-             "Spatial radius considered   : %d um" %data_file.params.getint('data', 'radius'),
+             "Spatial radius considered   : %d um" %data_file.params.getint('detection', 'radius'),
              "Threshold crossing          : %s" %data_file.params.get('detection', 'peaks'),
              "Waveform alignment          : %s" %data_file.params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %data_file.params.getboolean('detection', 'matched-filter'),
@@ -662,7 +660,7 @@ def get_nodes_and_edges(parameters, validating=False):
     edges  = {}
     nodes  = []
     probe  = read_probe(parameters)
-    radius = parameters.getint('data', 'radius')
+    radius = parameters.getint('detection', 'radius')
 
     if validating:
         radius_factor = parameters.getfloat('validating', 'radius_factor')

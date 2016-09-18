@@ -6,6 +6,7 @@ from datafile import DataFile
 class H5File(DataFile):
 
     _description = "hdf5"    
+    _extension   = [".h5", ".hdf5"]
     _parallel_write = h5py.get_config().mpi
 
     def __init__(self, file_name, params, empty=False, comm=None):
@@ -16,7 +17,10 @@ class H5File(DataFile):
         if not self.empty:
             self._get_info_()
 
-    def _get_info_(self):
+    def _get_info_(self, key=None):
+        if key is not None:
+            self.h5_key = key
+
         self.empty = False
         self.open()
         self.data_dtype  = self.my_file.get(self.h5_key).dtype

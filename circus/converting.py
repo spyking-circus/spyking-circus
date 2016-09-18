@@ -21,7 +21,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     probe          = read_probe(params)
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
     N_e            = data_file.N_e
-    N_t            = params.getint('data', 'N_t')
+    N_t            = params.getint('detection', 'N_t')
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
     export_all     = params.getboolean('converting', 'export_all')
@@ -238,7 +238,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             write_results(output_path, params, extension)    
             N_tm = write_templates(output_path, params, extension)
             similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
-            norm = params.getint('data', 'N_e')*params.getint('data', 'N_t')
+            norm = params.getint('data', 'N_e')*params.getint('detection', 'N_t')
 
             if export_all:
                 to_write = numpy.zeros((N_tm + N_e, N_tm + N_e), dtype=numpy.single)

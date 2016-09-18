@@ -16,8 +16,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
-    N_t            = params.getint('data', 'N_t')
-    template_shift = params.getint('data', 'template_shift')
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
@@ -59,8 +59,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         templates  = io.load_data(params, 'templates')
         x, N_tm    = templates.shape
 
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
     temp_2_shift   = 2*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2

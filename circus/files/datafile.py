@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys
+import h5py, numpy, re, sys, os
 import ConfigParser as configparser
 
 from circus.shared.messages import print_error, print_and_log
@@ -36,12 +36,21 @@ class DataFile(object):
         '''
 
         self.file_name = file_name
+
+        f_next, extension = os.path.splitext(self.file_name)
+        
+        if self._extension is not None:
+            if not extension in self._extension:
+                print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
+                sys.exit(0)
+
+
         assert isinstance(params, configparser.ConfigParser)
         self.params = params
         self.N_e    = params.getint('data', 'N_e')
         self.N_tot  = params.getint('data', 'N_total')
         self.rate   = params.getint('data', 'sampling_rate')
-        self.template_shift = params.getint('data', 'template_shift')
+        self.template_shift = params.getint('detection', 'template_shift')
         self.max_offset  = 0
         self.empty = empty
         self._shape = None

@@ -5,7 +5,8 @@ from hdf5 import H5File
 
 class KwikFile(H5File):
 
-    _description = "kwik"    
+    _description = "kwik"   
+    _extension   = [".kwik"] 
     _parallel_write = h5py.get_config().mpi
 
     '''
@@ -28,8 +29,10 @@ class KwikFile(H5File):
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
+        H5File.__init__(self, file_name, params, empty, comm)
         self.h5_key      = 'recordings/data/'
         self.compression = ''
+        self.empty       = empty
         if not self.empty:
             self._get_info_()
 

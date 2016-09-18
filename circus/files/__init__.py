@@ -4,6 +4,7 @@ from raw_binary import RawBinaryFile
 from mcs_raw_binary import RawMCSFile
 from hdf5 import H5File
 from kwik import KwikFile
+from kwd import KwdFile
 from openephys import OpenEphysFile
 
 try:
@@ -17,7 +18,8 @@ __supported_data_files__ = {
 	RawMCSFile._description : RawMCSFile,
 	H5File._description : H5File,
 	KwikFile._description : KwikFile,
-	OpenEphysFile._description : OpenEphysFile
+	OpenEphysFile._description : OpenEphysFile,
+	KwdFile._description : KwdFile
 }
 
 #if HAVE_NIX_SUPPORT:

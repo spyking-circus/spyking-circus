@@ -6,6 +6,7 @@ from datafile import DataFile
 class RawBinaryFile(DataFile):
 
     _description = "raw_binary"    
+    _extension   = None
     _parallel_write = True
 
     def __init__(self, file_name, params, empty=False, comm=None):

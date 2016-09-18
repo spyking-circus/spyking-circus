@@ -28,14 +28,15 @@ from hdf5 import H5File
             band_low
 '''
 
-class KWDFile(H5File):
+class KwdFile(H5File):
 
     _description = "kwd"    
+    _extension   = [".kwd"]
     _parallel_write = h5py.get_config().mpi
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
-    	DataFile.__init__(self, file_name, params, empty, comm)
-        self.h5_key      = 'recordings/data'
+        H5File.__init__(self, file_name, params, empty, comm)
+        self.h5_key      = 'recordings/0/data'
         if not self.empty:
-            self._get_info_()
+            self._get_info_(self.h5_key)
