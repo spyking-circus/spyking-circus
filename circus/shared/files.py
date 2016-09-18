@@ -400,7 +400,7 @@ def data_stats(data_file, show=True, export_times=False):
 
 def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
-    N_t          = data_file.params.getint('data', 'N_t')
+    N_t          = data_file.params.getint('detection', 'N_t')
     if not all_labels:
         if not mean_mode:
             stas = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
@@ -414,7 +414,7 @@ def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=Fa
 
     do_temporal_whitening = data_file.params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = data_file.params.getboolean('whitening', 'spatial')
-    template_shift        = data_file.params.getint('data', 'template_shift')
+    template_shift        = data_file.params.getint('detection', 'template_shift')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(data_file.params, 'spatial_whitening')
@@ -486,7 +486,7 @@ def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=No
     params = data_file.params
 
     # Load parameters.
-    N_t = params.getint('data', 'N_t')
+    N_t = params.getint('detection', 'N_t')
     data_file = params.get('data', 'data_file')
     data_offset = params.getint('data', 'data_offset')
     dtype_offset = params.getint('data', 'dtype_offset')
@@ -496,7 +496,7 @@ def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=No
     datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
-    template_shift = params.getint('data', 'template_shift')
+    template_shift = params.getint('detection', 'template_shift')
     
     # Calculate the sizes of the data structures to share.
     nb_triggers = 0
@@ -706,7 +706,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     
     if data == 'templates':
         N_e = params.getint('data', 'N_e')
-        N_t = params.getint('data', 'N_t')
+        N_t = params.getint('detection', 'N_t')
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             nb_data = 0
             nb_ptr  = 0
@@ -999,7 +999,7 @@ def load_data(params, data, extension=''):
         return waveforms
     elif data == 'templates':
         N_e = params.getint('data', 'N_e')
-        N_t = params.getint('data', 'N_t')
+        N_t = params.getint('detection', 'N_t')
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             temp_x = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
             temp_y = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
@@ -1101,7 +1101,7 @@ def load_data(params, data, extension=''):
             data_dtype = params.get('data', 'data_dtype')
             chunk_size = params.getint('data', 'chunk_size')
             N_total = params.getint('data', 'N_total')
-            N_t = params.getint('data', 'N_t')
+            N_t = params.getint('detection', 'N_t')
             dtype_offset = params.getint('data', 'dtype_offset')
             
             datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
@@ -1350,7 +1350,7 @@ def collect_data(nb_threads, data_file, erase=False, with_real_amps=False, with_
     params         = data_file.params
     file_out_suff  = params.get('data', 'file_out_suff')
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
+    N_t            = params.getint('detection', 'N_t')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     chunks         = params.getfloat('fitting', 'chunk')
     data_length    = data_stats(data_file, show=False)
@@ -1570,7 +1570,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     N_total        = params.getint('data', 'N_total')
     nodes, edges   = get_nodes_and_edges(params)
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
+    N_t            = params.getint('detection', 'N_t')
     x,        N_tm = templates.shape
 
     if not SHARED_MEMORY and normalize:

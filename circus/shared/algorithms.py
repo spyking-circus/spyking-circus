@@ -184,7 +184,7 @@ def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
         old_templates  = load_data(params, 'templates')
         old_limits     = load_data(params, 'limits')
         N_e            = params.getint('data', 'N_e')
-        N_t            = params.getint('data', 'N_t')
+        N_t            = params.getint('detection', 'N_t')
         x, N_tm        = old_templates.shape
         norm_templates = load_data(params, 'norm-templates')
 
@@ -360,7 +360,7 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
             
     templates      = load_data(params, 'templates')
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
+    N_t            = params.getint('detection', 'N_t')
     x,        N_tm = templates.shape
     nb_temp        = N_tm//2
     to_merge       = []
@@ -407,7 +407,7 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     templates      = load_data(params, 'templates')
     templates      = load_data(params, 'templates')
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
+    N_t            = params.getint('detection', 'N_t')
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     x,        N_tm = templates.shape
     nb_temp        = N_tm//2
