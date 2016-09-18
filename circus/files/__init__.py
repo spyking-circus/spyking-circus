@@ -13,6 +13,13 @@ try:
 except ImportError:
 	HAVE_NIX_SUPPORT = False
 
+try:
+	import neuroshare
+	HAVE_NEUROSHARE = True
+except ImportError:
+	HAVE_NEUROSHARE = False
+
+
 __supported_data_files__ = {
 	RawBinaryFile._description : RawBinaryFile,
 	RawMCSFile._description : RawMCSFile,
@@ -24,4 +31,8 @@ __supported_data_files__ = {
 
 #if HAVE_NIX_SUPPORT:
 #	from nixfile import NixFile
-#	__supported_data_files__['nix'] = NixFile
+#	__supported_data_files__[NIXFile._description] = NixFile
+
+#if HAVE_NEUROSHARE:
+#	from mcdfile import MCDFile
+#	__supported_data_files__[MCDFile._description]

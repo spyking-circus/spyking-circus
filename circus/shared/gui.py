@@ -1078,9 +1078,11 @@ class PreviewGUI(QtGui.QMainWindow):
                 pass
 
             try:
-                self.has_garbage = True
                 if self.params.getboolean('fitting', 'collect_all'):
+                    self.has_garbage = True
                     self.garbage   = io.load_data(self.params, 'garbage')
+                else:
+                    self.has_garbage = False
             except Exception:
                 self.has_garbage = False
 

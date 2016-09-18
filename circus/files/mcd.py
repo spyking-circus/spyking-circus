@@ -3,10 +3,10 @@ import ConfigParser as configparser
 from circus.shared.messages import print_error, print_and_log
 from datafile import DataFile
 
-class OpenEphysFile(DataFile):
+class H5File(DataFile):
 
-    _description = "openephys"    
-    _extension   = [".continuous"]
+    _description = "mcd"    
+    _extension   = [".mcd"]
     _parallel_write = False
 
     def __init__(self, file_name, params, empty=False, comm=None):
