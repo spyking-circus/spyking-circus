@@ -49,11 +49,12 @@ def main(argv=None):
         print_and_log(['You need to update phy-contrib to the latest git version'], 'error', params)
         sys.exit(0)
 
-    sampling_rate  = float(params.getint('data', 'sampling_rate'))
-    data_dtype     = params.get('data', 'data_dtype')
+    data_file      = circus.shared.utils.io.get_data_file(params)
+    sampling_rate  = data_file.rate
+    data_dtype     = data_file.data_dtype
+    data_offset    = data_file.offset
+    file_format    = data_file._description
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_offset    = params.getint('data', 'data_offset')
-    file_format    = params.get('data', 'file_format')
 
     if file_format not in supported_by_phy:
         print_and_log(["File format %s is not supported by phy. TraceView disabled" %file_format], 'info', params)
@@ -74,11 +75,11 @@ def main(argv=None):
             gui_params['dat_path']   = params.get('data', 'data_file')
         else:
             gui_params['dat_path']   = ''
-        gui_params['n_channels_dat'] = params.getint('data', 'N_total')
+        gui_params['n_channels_dat'] = data_file.N_tot
         gui_params['n_features_per_channel'] = 5
-        gui_params['dtype']          = params.get('data', 'data_dtype')
-        gui_params['offset']         = params.getint('data', 'data_offset')
-        gui_params['sample_rate']    = params.getint('data', 'sampling_rate')
+        gui_params['dtype']          = data_dtype
+        gui_params['offset']         = data_offset
+        gui_params['sample_rate']    = sampling_rate
         gui_params['hp_filtered']    = True
 
         os.chdir(output_path)

@@ -40,12 +40,12 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     data_file = io.get_data_file(params)
     data_file.open()
-    data_offset = params.getint('data', 'data_offset')
-    data_dtype = params.get('data', 'data_dtype')
-    N_total = params.getint('data', 'N_total')
-    sampling_rate = params.getint('data', 'sampling_rate')
-    N_e = params.getint('data', 'N_e')
-    template_shift = params.getint('data', 'template_shift')
+    data_offset = data_file.data_offset
+    data_dtype = data_file.data_dtype
+    N_total = data_file.N_tot
+    sampling_rate = data_file.rate
+    N_e = data_file.N_e
+    template_shift = params.getint('detection', 'template_shift')
     file_out_suff = params.get('data', 'file_out_suff')
     nb_repeats = params.getint('clustering', 'nb_repeats')
     max_iter = params.getint('validating', 'max_iter')
@@ -319,7 +319,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"
     
-    N_e = params.getint('data', 'N_e')
+    N_e = data_file.N_e
     for e in xrange(0, N_e):
         spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
     spike_times_extra = numpy.concatenate(spike_times_extra)
