@@ -363,7 +363,7 @@ def data_stats(data_file, show=True, export_times=False):
         data_file.params.set('data', 'data_file', init_file)
 
 
-    N_t = data_file.params.getint('data', 'N_t')
+    N_t = data_file.params.getint('detection', 'N_t')
     N_t = numpy.round(1000.*N_t/data_file.rate, 1)
 
     nb_seconds      = last_chunk_len//data_file.rate
