@@ -170,6 +170,8 @@ class DataFile(object):
                 self.dtype_offset = 0        
             elif self.data_dtype == 'uint8':
                 self.dtype_offset = 127
+            elif self.data_dtype == 'float64':
+                self.dtype_offset = 0    
         else:
             try:
                 self.dtype_offset = int(self.dtype_offset)

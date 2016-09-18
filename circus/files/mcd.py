@@ -25,12 +25,12 @@ class MCDFile(DataFile):
         self._shape = (self.size, self.N_tot)
         self.max_offset = self._shape[0]
         self.data_offset = 0
-        self.data_dtype  = numpy.uint16
+        self.data_dtype  = 'float64'
+        self.set_dtype_offset(self.data_dtype)
         self.close()
 
     def allocate(self, shape, data_dtype=None):
         raise('Not Implemented for .mcd file')
-
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
         
@@ -38,15 +38,15 @@ class MCDFile(DataFile):
             chunk_size = self.params.getint('data', 'chunk_size')
 
         default_shape = chunk_size + (padding[1]-padding[0])
-        local_shape   = numpy.min(default_shape, self.max_offset - (idx*chunk_size + padding[0]))
+        local_shape   = min(default_shape, self.max_offset - (idx*chunk_size + padding[0]))
 
         if nodes is None:
-            nodes = numpy.arange(self.N_tot)
+            nodes = numpy.arange(self.N_tot, dtype=numpy.int32)
 
         local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
 
-        for i in nodes:
-            local_chunk = self.data.entities[i].get_data(idx*numpy.int64(chunk_len)+padding[0], local_shape)[0]
+        for count, i in enumerate(nodes):
+            local_chunk[:, count] = self.data.get_entity(int(i)).get_data(int(idx*chunk_size+padding[0]), int(local_shape))[0]
         
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
