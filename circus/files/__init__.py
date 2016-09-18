@@ -33,6 +33,6 @@ __supported_data_files__ = {
 #	from nixfile import NixFile
 #	__supported_data_files__[NIXFile._description] = NixFile
 
-#if HAVE_NEUROSHARE:
-#	from mcdfile import MCDFile
-#	__supported_data_files__[MCDFile._description]
+if HAVE_NEUROSHARE:
+	from mcd import MCDFile
+	__supported_data_files__[MCDFile._description] = MCDFile
