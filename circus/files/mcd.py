@@ -38,8 +38,12 @@ class MCDFile(DataFile):
         if chunk_size is None:
             chunk_size = self.params.getint('data', 'chunk_size')
 
-        default_shape = chunk_size + (padding[1]-padding[0])
-        local_shape   = min(default_shape, self.max_offset - (idx*chunk_size + padding[0]))
+        t_start     = int(idx*numpy.int64(chunk_size)+padding[0])
+        t_stop      = int((idx+1)*numpy.int64(chunk_size)+padding[1])
+        local_shape = t_stop - t_start
+
+        if (t_start + local_shape) > self.max_offset:
+            local_shape = self.max_offset - t_start
 
         if nodes is None:
             nodes = numpy.arange(self.N_tot, dtype=numpy.int32)
@@ -47,7 +51,7 @@ class MCDFile(DataFile):
         local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
 
         for count, i in enumerate(nodes):
-            local_chunk[:, count] = self.data.get_entity(int(i)).get_data(int(idx*chunk_size+padding[0]), int(local_shape))[0]
+            local_chunk[:, count] = self.data.get_entity(int(i)).get_data(t_start, int(local_shape))[0]
         
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset

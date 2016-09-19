@@ -86,15 +86,20 @@ class KwikFile(H5File):
         if chunk_size is None:
             chunk_size = self.params.getint('data', 'chunk_size')
 
-        local_shape = numpy.max()
+        t_start     = idx*numpy.int64(chunk_size)+padding[0]
+        t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
+        local_shape = t_stop - t_start
+
+        if (t_start + local_shape) > self.max_offset:
+            local_shape = self.max_offset - t_start
 
         if nodes is None:
             nodes = numpy.arange(self.N_tot)
 
         local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
 
-        for i in nodes:
-            local_chunk[:, i] = self.data[i][idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]]
+        for count, i in enumerate(nodes):
+            local_chunk[:, count] = self.data[i][t_start:t_stop]
         
         local_chunk  = local_chunk.astype(numpy.float32)
         local_chunk -= self.dtype_offset
