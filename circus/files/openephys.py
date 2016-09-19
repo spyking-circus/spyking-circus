@@ -77,7 +77,7 @@ class OpenEphysFile(DataFile):
 
         data_slice  = []
         for count, nb_blocks in enumerate(range(x_beg, x_end + 1)):
-            g_offset = self.OFFSET_PER_BLOCK[0]*(nb_blocks + 1) + self.OFFSET_PER_BLOCK[1]*nb_blocks
+            g_offset = nb_blocks * self.SAMPLES_PER_RECORD + self.OFFSET_PER_BLOCK[0]*(nb_blocks + 1) + self.OFFSET_PER_BLOCK[1]*nb_blocks
             if count == 0:
                 data_slice += range(g_offset + r_beg, g_offset + self.SAMPLES_PER_RECORD)
             elif (count == (x_end - x_beg)):
@@ -113,25 +113,30 @@ class OpenEphysFile(DataFile):
         self.close()
 
         local_chunk  = local_chunk.astype(numpy.float32)
+        local_chunk *= self.bitVolts
 
         return numpy.ascontiguousarray(local_chunk)
 
 
     def set_data(self, time, data):
+
+        t_start     = time
+        t_stop      = time + data.shape[0]
+        local_shape = t_stop - t_start
+
+        if (t_start + local_shape) > self.max_offset:
+            local_shape = self.max_offset - t_start
+            t_stop      = self.max_offset
+
+        data_slice  = self._get_slice_(t_start, t_stop) 
+
+        data /= self.bitVolts
+        data  = data.astype('>i2')
         
-        data += self.dtype_offset
-        data  = data.astype(self.data_dtype)
-
-        #t_start     = idx*numpy.int64(chunk_size)+padding[0]
-        #t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
-        #local_shape = t_stop - t_start
-
-        #if (t_start + local_shape) > self.max_offset:
-        #    local_shape = self.max_offset - t_start
-        #    t_stop      = self.max_offset
-
-        #for i in xrange(self.N_tot):
-        #    self.data[i][time:time+data.shape[0]] = data[:, i]
+        self.open(mode='r+')
+        for i in xrange(self.N_tot):
+            self.data[i][data_slice] = data[:, i]
+        self.close()
 
     def open(self, mode='r'):
         self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype='>i2', mode=mode) for i in xrange(self.N_tot)]
