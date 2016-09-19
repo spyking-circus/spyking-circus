@@ -5,9 +5,10 @@ from raw_binary import RawBinaryFile
 
 class RawMCSFile(RawBinaryFile):
 
-    _description = "mcs_raw_binary"
-    _extension   = [".raw", ".dat"]
+    _description    = "mcs_raw_binary"
+    _extension      = [".raw", ".dat"]
     _parallel_write = True
+    _is_writable    = True
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
@@ -20,6 +21,7 @@ class RawMCSFile(RawBinaryFile):
             kwargs['data_offset'] = b
             kwargs['N_tot']       = c
     
+        print kwargs
         RawBinaryFile.__init__(self, file_name, params, empty, comm, **kwargs)
 
     def detect_header(self):

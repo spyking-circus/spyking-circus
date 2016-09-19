@@ -6,26 +6,34 @@ import neuroshare as ns
 
 class MCDFile(DataFile):
 
-    _description = "mcd"    
-    _extension   = [".mcd"]
+    _description    = "mcd"    
+    _extension      = [".mcd"]
     _parallel_write = False
+    _is_writable    = False
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
-        DataFile.__init__(self, file_name, params, empty, comm)
+        kwargs = {}
+        kwargs['data_offset']  = 0
+        kwargs['data_dtype']   = 'float64'
+        kwargs['dtype_offset'] = 0
+        
+        if not empty:
+            f = ns.File(file_name)
+            kwargs['N_tot'] = f.entity_count
+            kwargs['rate']  = f.entities[0].sample_rate
+            kwargs['gain']  = f.entities[0].resolution
+            f.close()
+
+        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
 
 
     def _get_info_(self):
         self.empty = False
-        self.open()
-        self.N_tot = self.data.entity_count
-        self.rate  = self.data.entities[0].sample_rate
+        self.open()        
         self.size  = self.data.time_span * self.rate
         self._shape = (self.size, self.N_tot)
         self.max_offset = self._shape[0]
-        self.data_offset = 0
-        self.data_dtype  = 'float64'
-        self.set_dtype_offset(self.data_dtype)
         self.close()
 
     def allocate(self, shape, data_dtype=None):
@@ -53,7 +61,6 @@ class MCDFile(DataFile):
             local_chunk[:, count] = self.data.get_entity(numpy.int64(i)).get_data(t_start, numpy.int64(local_shape))[0]
         
         local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= self.dtype_offset
 
         return numpy.ascontiguousarray(local_chunk)
 

@@ -5,9 +5,10 @@ from datafile import DataFile
 
 class OpenEphysFile(DataFile):
 
-    _description = "openephys"    
-    _extension   = [".openephys"]
+    _description    = "openephys"    
+    _extension      = [".openephys"]
     _parallel_write = True
+    _is_writable    = True
 
     # constants
     NUM_HEADER_BYTES   = 1024L
@@ -15,11 +16,11 @@ class OpenEphysFile(DataFile):
     RECORD_SIZE        = 8 + 2*2 + SAMPLES_PER_RECORD*2 + 10 # size of each continuous record in bytes
     OFFSET_PER_BLOCK   = ((8 + 2*2)/2, 10/2)
 
-    def _get_sorted_channels(self, folderpath):
+    def _get_sorted_channels_(self, folderpath):
         return sorted([int(f.split('_CH')[1].split('.')[0]) for f in os.listdir(folderpath) 
                     if '.continuous' in f and '_CH' in f]) 
 
-    def _read_header(self, file):
+    def _read_header_(self, file):
         header = { }
         f = open(file, 'rb')
         h = f.read(self.NUM_HEADER_BYTES).replace('\n','').replace('header.','')
@@ -31,27 +32,29 @@ class OpenEphysFile(DataFile):
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
-        DataFile.__init__(self, file_name, params, empty, comm)
-        folder_path = os.path.dirname(os.path.realpath(self.file_name))
-        self.all_channels = self._get_sorted_channels(folder_path)
-        self.all_files = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
-        self.header = self._read_header(self.all_files[0])
-        self.rate   = float(self.header['sampleRate'])
-        self.data_dtype  = 'float32'
-        self.bitVolts    = float(self.header['bitVolts'])        
-        self.data_offset = self.NUM_HEADER_BYTES
-        self.set_dtype_offset(self.data_dtype)
-        if not self.empty:
-            self._get_info_()
+        kwargs = {}
+
+        if not empty:
+            folder_path     = os.path.dirname(os.path.realpath(file_name))
+            self.all_channels = self._get_sorted_channels_(folder_path)
+            self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
+            self.header     = self._read_header_(self.all_files[0])
+            kwargs['rate']  = float(self.header['sampleRate'])        
+            kwargs['N_tot'] = len(self.all_files)
+            kwargs['gain']  = float(self.header['bitVolts'])        
+
+        kwargs['data_dtype']   = 'float32'
+        kwargs['dtype_offset'] = 0
+        kwargs['data_offset']  = self.NUM_HEADER_BYTES
+        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
+
 
     def _get_info_(self):
-
         self.empty       = False
         self.open()
         g = open(self.all_files[0], 'rb')
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
         g.close()
-        self.N_tot       = len(self.all_files)
         self._shape      = (self.size, self.N_tot)
         self.max_offset  = self._shape[0]
         self.close()
@@ -119,7 +122,7 @@ class OpenEphysFile(DataFile):
         self.close()
 
         local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk *= self.bitVolts
+        local_chunk *= self.gain
 
         return numpy.ascontiguousarray(local_chunk)
 
@@ -136,7 +139,7 @@ class OpenEphysFile(DataFile):
 
         data_slice  = self._get_slice_(t_start, t_stop) 
 
-        data /= self.bitVolts
+        data /= self.gain
         data  = data.astype('>i2')
         
         self.open(mode='r+')

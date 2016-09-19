@@ -17,7 +17,7 @@ class DataFile(object):
     the filtering and benchmarking steps.
     '''
 
-    def __init__(self, file_name, params, empty=False, comm=None):
+    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from
         the parameter file, but you could completly fill them based on values that would be obtained
@@ -36,6 +36,11 @@ class DataFile(object):
         '''
 
         self.file_name = file_name
+        self.empty     = empty
+        self.comm      = comm
+
+        assert isinstance(params, configparser.ConfigParser)
+        self.params = params
 
         f_next, extension = os.path.splitext(self.file_name)
         
@@ -44,17 +49,19 @@ class DataFile(object):
                 print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
                 sys.exit(0)
 
+        requiered_values = {'rate'  : ['data', 'sampling_rate'], 
+                            'N_e'   : ['data', 'N_e'],
+                            'N_tot' : ['data', 'N_total']}
 
-        assert isinstance(params, configparser.ConfigParser)
-        self.params = params
-        self.N_e    = params.getint('data', 'N_e')
-        self.N_tot  = params.getint('data', 'N_total')
-        self.rate   = params.getint('data', 'sampling_rate')
-        self.template_shift = params.getint('detection', 'template_shift')
+        for key, value in kwargs.items():
+            self.__setattr__(key, value)
+
+        for key, value in requiered_values.items():
+            if not hasattr(self, key):
+                self.__setattr__(key, self.params.getint(value[0], value[1]))
+
         self.max_offset  = 0
-        self.empty = empty
-        self._shape = None
-        self.comm = comm
+        self._shape      = None
         print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
         if not self.empty:

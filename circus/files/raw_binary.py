@@ -5,62 +5,55 @@ from datafile import DataFile
 
 class RawBinaryFile(DataFile):
 
-    _description = "raw_binary"    
-    _extension   = None
+    _description    = "raw_binary"    
+    _extension      = None
     _parallel_write = True
+    _is_writable    = True
+
+    _requiered_fields = {'data_offset'  : 'int', 
+                         'data_dtype'   : 'string',
+                         'dtype_offset' : 'string'}
 
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
-        if 'data_offset' not in kwargs.keys():
-            try:
-                kwargs['data_offset'] = params.getint('data', 'data_offset')
-            except Exception:
-                print_error('data_offset must be specified in the [data] section!')
-                sys.exit(0)
+        for key in self._requiered_fields.keys():
+            if key not in kwargs.keys():
+                try:
+                    if self._requiered_fields[key] == 'int':
+                        kwargs[key] = params.getint('data', key)
+                    if self._requiered_fields[key] == 'string':
+                        kwargs[key] = params.get('data', key)
+                except Exception:
+                    print_error(['%s must be specified in the [data] section!' %key])
+                    sys.exit(0)
 
-        if 'data_dtype' not in kwargs.keys():
-            try:
-                kwargs['data_dtype'] = params.get('data', 'data_dtype')
-            except Exception:
-                print_error('data_dtype must be specified in the [data] section!')
-                sys.exit(0)
-
-        if 'dtype_offset' not in kwargs.keys():
-            try:
-                kwargs['dtype_offset'] = params.get('data', 'dtype_offset')
-            except Exception:
-                print_error('dtype_offset must be specified in the [data] section!')
-                sys.exit(0)
-
-        self.set_dtype_offset(kwargs)
-        DataFile.__init__(self, file_name, params, empty, comm, kwargs) 
-    
-    def set_dtype_offset(self, my_params):
-        if my_params['dtype_offset'] == 'auto':
-            if self.data_dtype == 'uint16':
-                self.dtype_offset = 32767
-            elif self.data_dtype == 'int16':
-                self.dtype_offset = 0
-            elif self.data_dtype == 'float32':
-                self.dtype_offset = 0
-            elif self.data_dtype == 'int8':
-                self.dtype_offset = 0        
-            elif self.data_dtype == 'uint8':
-                self.dtype_offset = 127
-            elif self.data_dtype == 'float64':
-                self.dtype_offset = 0    
+        if kwargs['dtype_offset'] == 'auto':
+            if kwargs['data_dtype'] == 'uint16':
+                kwargs['dtype_offset'] = 32767
+            elif kwargs['data_dtype'] == 'int16':
+                kwargs['dtype_offset'] = 0
+            elif kwargs['data_dtype'] == 'float32':
+                kwargs['dtype_offset'] = 0
+            elif kwargs['data_dtype'] == 'int8':
+                kwargs['dtype_offset'] = 0        
+            elif kwargs['data_dtype'] == 'uint8':
+                kwargs['dtype_offset'] = 127
+            elif kwargs['data_dtype'] == 'float64':
+                kwargs['dtype_offset'] = 0    
         else:
             try:
-                self.dtype_offset = int(self.dtype_offset)
+                kwargs['dtype_offset'] = int(kwargs['dtype_offset'])
             except Exception:
-                print_error(["Offset %s is not valid" %self.dtype_offset])
+                print_error(["Offset %s is not valid" %kwargs['dtype_offset']])
                 sys.exit(0)
+
+        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)     
     
     def _get_info_(self):
         self.empty = False
         self.open()
-        self.N      = len(self.data)
-        self._shape = (self.N//self.N_tot, self.N_tot)
+        self.size       = len(self.data)
+        self._shape     = (self.size//self.N_tot, self.N_tot)
         self.max_offset = self._shape[0] 
         self.close()
 
@@ -107,8 +100,8 @@ class RawBinaryFile(DataFile):
             chunk_size = self.params.getint('data', 'chunk_size')
 	    
         chunk_size    *= numpy.int64(self.N_tot)
-        nb_chunks      = numpy.int64(self.N) // chunk_size
-        last_chunk_len = self.N - (nb_chunks * chunk_size)
+        nb_chunks      = numpy.int64(self.size) // chunk_size
+        last_chunk_len = self.size - (nb_chunks * chunk_size)
         last_chunk_len = last_chunk_len//self.N_tot
         
         if last_chunk_len > 0:

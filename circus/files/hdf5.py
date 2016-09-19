@@ -5,17 +5,23 @@ from datafile import DataFile
 
 class H5File(DataFile):
 
-    _description = "hdf5"    
-    _extension   = [".h5", ".hdf5"]
+    _description    = "hdf5"    
+    _extension      = [".h5", ".hdf5"]
     _parallel_write = h5py.get_config().mpi
+    _is_writable    = True
 
     def __init__(self, file_name, params, empty=False, comm=None):
 
-        DataFile.__init__(self, file_name, params, empty, comm)
-        self.h5_key      = self.params.get('data', 'hdf5_key_data')
-        self.compression = 'gzip'
-        if not self.empty:
-            self._get_info_()
+        kwargs = {'compression' : 'gzip'}
+
+        try:
+            kwargs['h5_key'] = self.params.get('data', 'hdf5_key_data')
+        except Exception:
+            print_error('hdf5_key_data must be specified in the [data] section!')
+            sys.exit(0)
+
+        DataFile.__init__(self, file_name, params, empty, comm, kwargs)
+        
 
     def _get_info_(self, key=None):
         if key is not None:
