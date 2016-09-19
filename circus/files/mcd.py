@@ -13,8 +13,7 @@ class MCDFile(DataFile):
     def __init__(self, file_name, params, empty=False, comm=None):
 
         DataFile.__init__(self, file_name, params, empty, comm)
-        if not self.empty:
-            self._get_info_()
+
 
     def _get_info_(self):
         self.empty = False

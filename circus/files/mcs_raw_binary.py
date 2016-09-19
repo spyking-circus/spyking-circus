@@ -10,17 +10,17 @@ class RawMCSFile(RawBinaryFile):
     _parallel_write = True
 
     def __init__(self, file_name, params, empty=False, comm=None):
-        RawBinaryFile.__init__(self, file_name, params, empty, comm)
-        a, b = self.detect_header()
-        self.data_offset = a
-        self.nb_channels = b
 
-        if self.nb_channels != self.N_tot:
-            print_and_log(["MCS file: mismatch between number of electrodes and data header"], 'error', params)
+        kwargs = {}
 
-        if not self.empty:
-            self._get_info_()
-
+        if not empty:
+            self.file_name = file_name
+            a, b, c = self.detect_header()
+            self.header           = a 
+            kwargs['data_offset'] = b
+            kwargs['N_tot']       = c
+    
+        RawBinaryFile.__init__(self, file_name, params, empty, comm, **kwargs)
 
     def detect_header(self):
         try:
@@ -43,7 +43,16 @@ class RawMCSFile(RawBinaryFile):
                 sys.exit(0) 
             else:
                 header += 2
-            return header, len(regexp.findall(header_text))
+
+            full_header = {}
+            f = open(self.file_name, 'rb')
+            h = f.read(header).replace('\r','')
+            for i,item in enumerate(h.split('\n')):
+                if '=' in item:
+                    full_header[item.split(' = ')[0]] = item.split(' = ')[1]
+            f.close()
+
+            return full_header, header, len(regexp.findall(full_header['Streams']))
         except Exception:
             print_error(["Wrong MCS header: file is not exported with MCRack"])
             sys.exit(0)

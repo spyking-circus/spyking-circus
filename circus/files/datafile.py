@@ -57,6 +57,9 @@ class DataFile(object):
         self.comm = comm
         print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
+        if not self.empty:
+            self._get_info_()
+
     def _get_info_(self):
         '''
             This function is called only if the file is not empty, and should fill the values in the constructor
@@ -156,25 +159,3 @@ class DataFile(object):
             return True
     	else:
             return self.comm.rank == 0
-
-    def set_dtype_offset(self, data_dtype):
-        self.dtype_offset = self.params.get('data', 'dtype_offset')
-        if self.dtype_offset == 'auto':
-            if self.data_dtype == 'uint16':
-                self.dtype_offset = 32767
-            elif self.data_dtype == 'int16':
-                self.dtype_offset = 0
-            elif self.data_dtype == 'float32':
-                self.dtype_offset = 0
-            elif self.data_dtype == 'int8':
-                self.dtype_offset = 0        
-            elif self.data_dtype == 'uint8':
-                self.dtype_offset = 127
-            elif self.data_dtype == 'float64':
-                self.dtype_offset = 0    
-        else:
-            try:
-                self.dtype_offset = int(self.dtype_offset)
-            except Exception:
-                print_error(["Offset %s is not valid" %self.dtype_offset])
-                sys.exit(0)

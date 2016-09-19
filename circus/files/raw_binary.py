@@ -9,20 +9,53 @@ class RawBinaryFile(DataFile):
     _extension   = None
     _parallel_write = True
 
-    def __init__(self, file_name, params, empty=False, comm=None):
-        DataFile.__init__(self, file_name, params, empty, comm)
-        
-        try:
-            self.data_offset = self.params.getint('data', 'data_offset')
-        except Exception:
-            self.data_offset = 0
+    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
-        self.data_dtype  = self.params.get('data', 'data_dtype')
-        self.set_dtype_offset(self.data_dtype)
+        if 'data_offset' not in kwargs.keys():
+            try:
+                kwargs['data_offset'] = params.getint('data', 'data_offset')
+            except Exception:
+                print_error('data_offset must be specified in the [data] section!')
+                sys.exit(0)
 
-        if not self.empty:
-            self._get_info_()    
+        if 'data_dtype' not in kwargs.keys():
+            try:
+                kwargs['data_dtype'] = params.get('data', 'data_dtype')
+            except Exception:
+                print_error('data_dtype must be specified in the [data] section!')
+                sys.exit(0)
 
+        if 'dtype_offset' not in kwargs.keys():
+            try:
+                kwargs['dtype_offset'] = params.get('data', 'dtype_offset')
+            except Exception:
+                print_error('dtype_offset must be specified in the [data] section!')
+                sys.exit(0)
+
+        self.set_dtype_offset(kwargs)
+        DataFile.__init__(self, file_name, params, empty, comm, kwargs) 
+    
+    def set_dtype_offset(self, my_params):
+        if my_params['dtype_offset'] == 'auto':
+            if self.data_dtype == 'uint16':
+                self.dtype_offset = 32767
+            elif self.data_dtype == 'int16':
+                self.dtype_offset = 0
+            elif self.data_dtype == 'float32':
+                self.dtype_offset = 0
+            elif self.data_dtype == 'int8':
+                self.dtype_offset = 0        
+            elif self.data_dtype == 'uint8':
+                self.dtype_offset = 127
+            elif self.data_dtype == 'float64':
+                self.dtype_offset = 0    
+        else:
+            try:
+                self.dtype_offset = int(self.dtype_offset)
+            except Exception:
+                print_error(["Offset %s is not valid" %self.dtype_offset])
+                sys.exit(0)
+    
     def _get_info_(self):
         self.empty = False
         self.open()
