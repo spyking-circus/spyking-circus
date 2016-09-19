@@ -228,9 +228,9 @@ def load_parameters(file_name):
       parser.get('data', 'file_format')
     except Exception:
       print_error(["Now you must specify explicitly the file format in the config file", 
-                   "Please have a look to the documentation and add a valid file_format", 
-                   "by adding a file_format parameter in the [data] section.",
-                   "Valid files formats can be:", 
+                   "Please have a look to the documentation and add a file_format", 
+                   "parameter in the [data] section. Valid files formats can be:",
+                   "", 
                    ", ".join(__supported_data_files__.keys())])
       sys.exit(0)
 
