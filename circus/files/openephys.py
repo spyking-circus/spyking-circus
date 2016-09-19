@@ -21,8 +21,8 @@ class OpenEphysFile(DataFile):
 
     def _read_header(self, file):
         header = { }
-        f = open(file, 'r')
-        h = f.read(1024).replace('\n','').replace('header.','')
+        f = open(file, 'rb')
+        h = f.read(self.NUM_HEADER_BYTES).replace('\n','').replace('header.','')
         for i,item in enumerate(h.split(';')):
             if '=' in item:
                 header[item.split(' = ')[0]] = item.split(' = ')[1]
@@ -70,20 +70,20 @@ class OpenEphysFile(DataFile):
 
     def _get_slice_(self, t_start, t_stop):
 
-        x_beg = int(t_start // self.SAMPLES_PER_RECORD)
-        r_beg = int(numpy.mod(t_start, self.SAMPLES_PER_RECORD))
-        x_end = int(t_stop // self.SAMPLES_PER_RECORD)
-        r_end = int(numpy.mod(t_stop, self.SAMPLES_PER_RECORD))
+        x_beg = numpy.int64(t_start // self.SAMPLES_PER_RECORD)
+        r_beg = numpy.mod(t_start, self.SAMPLES_PER_RECORD)
+        x_end = numpy.int64(t_stop // self.SAMPLES_PER_RECORD)
+        r_end = numpy.mod(t_stop, self.SAMPLES_PER_RECORD)
 
         data_slice  = []
-        for count, nb_blocks in enumerate(range(x_beg, x_end + 1)):
+        for count, nb_blocks in enumerate(numpy.arange(x_beg, x_end + 1)):
             g_offset = nb_blocks * self.SAMPLES_PER_RECORD + self.OFFSET_PER_BLOCK[0]*(nb_blocks + 1) + self.OFFSET_PER_BLOCK[1]*nb_blocks
             if count == 0:
-                data_slice += range(g_offset + r_beg, g_offset + self.SAMPLES_PER_RECORD)
+                data_slice += numpy.arange(g_offset + r_beg, g_offset + self.SAMPLES_PER_RECORD).tolist()
             elif (count == (x_end - x_beg)):
-                data_slice += range(g_offset, g_offset + r_end)
+                data_slice += numpy.arange(g_offset, g_offset + r_end).tolist()
             else:
-                data_slice += range(g_offset, g_offset + self.SAMPLES_PER_RECORD)
+                data_slice += numpy.arange(g_offset, g_offset + self.SAMPLES_PER_RECORD).tolist()
 
         return data_slice 
 
