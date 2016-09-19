@@ -40,7 +40,7 @@ class DataFile(object):
         f_next, extension = os.path.splitext(self.file_name)
         
         if self._extension is not None:
-            if not extension in self._extension:
+            if not extension in self._extension + [item.upper() for item in self._extension]:
                 print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
                 sys.exit(0)
 

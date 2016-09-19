@@ -10,7 +10,8 @@ Release 0.5
 * can now work natively with open ephys data files (.openephys)
 * can now work natively with MCD data files (.mcd)
 * can now work natively with Kwik (KWD) data files (.kwd)
-* can now work with any HDF5-like structure data files (.h5)
+* can now work natively with NeuroDataWithoutBorders files (.nwb)
+* can now work natively with any HDF5-like structure data files (.h5)
 * can still work with raw binary files with/without headers
 
 

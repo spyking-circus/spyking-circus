@@ -20,16 +20,17 @@ from circus.files import __supported_data_files__
 
 def get_data_file(params, multi=False, empty=False, comm=None):
     
-    file_format = params.get('data', 'file_format')
+    file_format = params.get('data', 'file_format').lower()
     if not multi:
         data_file = params.get('data', 'data_file')    
     else:
         data_file = params.get('data', 'data_multi_file')
 
-    if file_format not in __supported_data_files__.keys():
+    keys     = __supported_data_files__.keys()
+    if file_format not in keys:
         print_error(["The type %s is not recognized as a valid file format" %file_format, 
                      "Valid files formats can be:", 
-                     ", ".join(__supported_data_files__.keys())])
+                     ", ".join(keys)])
         sys.exit(0)
     else:
         return __supported_data_files__[file_format](data_file, params, empty, comm)
