@@ -169,7 +169,7 @@ but a subset x,y can be done. Steps are:
     if not batch:
         params       = io.load_parameters(filename)
         multi_files  = params.getboolean('data', 'multi-files')
-        data_file    = io.get_data_file(params, multi_files)
+        data_file    = io.get_data_file(params, multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file._parallel_write
 
@@ -182,7 +182,6 @@ but a subset x,y can be done. Steps are:
         filename     = os.path.join(tmp_path_loc, os.path.basename(filename))
         f_next, extens = os.path.splitext(filename)
         shutil.copyfile(file_params, f_next + '.params')
-        io.change_flag(f_next + '.params', 'file_format', 'raw_binary')
         steps        = ['filtering', 'whitening']
 
         chunk_size = 2*data_file.rate
@@ -190,8 +189,9 @@ but a subset x,y can be done. Steps are:
         local_chunk  = data_file.get_data(0, chunk_size)
         data_file.close()
 
-        params.set('data', 'file_format', 'raw_binary')
-        data_file_out = RawBinaryFile(filename, params, True)
+        io.change_flag(f_next + '.params', 'file_format', 'raw_binary')
+        params.set('data', 'data_file', filename)
+        data_file_out = io.get_data_file(params, multi_files, empty=True, force_raw=True)
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=local_chunk.dtype)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)

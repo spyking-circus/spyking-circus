@@ -18,13 +18,24 @@ from circus.files.datafile import *
 from circus.files import __supported_data_files__
 
 
-def get_data_file(params, multi=False, empty=False, comm=None):
+def get_data_file(params, multi=False, empty=False, comm=None, force_raw='auto'):
+
+    old_file_format = None
     
-    file_format = params.get('data', 'file_format').lower()
+    if force_raw == 'auto':        
+        old_file_format = params.get('data', 'file_format')
+        if params.getboolean('data', 'multi-files'):
+            params.set('data', 'file_format', 'raw_binary')
+    elif force_raw == True:
+        old_file_format = params.get('data', 'file_format')
+        params.set('data', 'file_format', 'raw_binary')
+
     if not multi:
         data_file = params.get('data', 'data_file')    
     else:
         data_file = params.get('data', 'data_multi_file')
+
+    file_format = params.get('data', 'file_format').lower()
 
     keys     = __supported_data_files__.keys()
     if file_format not in keys:
@@ -33,8 +44,11 @@ def get_data_file(params, multi=False, empty=False, comm=None):
                      ", ".join(keys)])
         sys.exit(0)
     else:
-        return __supported_data_files__[file_format](data_file, params, empty, comm)
-        
+        data = __supported_data_files__[file_format](data_file, params, empty, comm)
+        if old_file_format is not None:
+            params.set('data', 'file_format', old_file_format)
+        return data
+
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))
@@ -351,7 +365,7 @@ def data_stats(data_file, show=True, export_times=False):
         init_file      = data_file.params.get('data', 'data_file')
         for f in all_files:
             data_file.params.set('data', 'data_file', f)
-            new_data_file = get_data_file(data_file.params)
+            new_data_file = get_data_file(data_file.params, force_raw=False)
             loc_nb_chunks, last_chunk_len = new_data_file.analyze(chunk_size)
             if last_chunk_len > 0:
                 loc_nb_chunks -= 1
