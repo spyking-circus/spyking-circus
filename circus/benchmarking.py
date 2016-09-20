@@ -150,10 +150,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     scalings       = []
     
     params.set('data', 'data_file', file_name)
-    data_file_out = io.get_data_file(params, empty=True, comm=comm)
-
-    data_file.copy_header(file_name)
-    
+    data_file_out = io.get_data_file(params, empty=True, comm=comm, force_raw=True)    
     data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
     # Synchronize all the threads/processes.
