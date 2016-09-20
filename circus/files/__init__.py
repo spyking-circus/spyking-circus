@@ -27,8 +27,7 @@ __supported_data_files__ = {
 	OpenEphysFile._description : OpenEphysFile,
 	KwdFile._description : KwdFile,
 	NWBFile._description : NWBFile,
-	ARFFile._description : ARFFile,
-	NIXFile._description : NixFile
+	ARFFile._description : ARFFile
 }
 
 if HAVE_NIX_SUPPORT:
