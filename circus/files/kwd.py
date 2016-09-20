@@ -2,31 +2,8 @@ import h5py, numpy, re, sys
 import ConfigParser as configparser
 from circus.shared.messages import print_error, print_and_log
 from hdf5 import H5File
+from datafile import _check_requierements_
 
-
-'''
-/kwik_version* [=2]
-/recordings
-    [X]
-        data* [(Nsamples x Nchannels) EArray of Int16]
-        filter
-            name*
-            param1*
-        downsample_factor*
-
-        # The following metadata fields are duplicated from the .kwik files
-        # and are here for convenience only. The KWIK programs will not read
-        # them, they are only there for other programs.
-        name
-        start_time
-        start_sample
-        sample_rate
-        bit_depth
-
-        application_data
-            band_high
-            band_low
-'''
 
 class KwdFile(H5File):
 
@@ -34,15 +11,13 @@ class KwdFile(H5File):
     _extension   = [".kwd"]
     _parallel_write = h5py.get_config().mpi
 
+    _requiered_fields = {'recording_number'  : 'int', 
+                         'sampling_rate'     : 'float'}
+
+
     def __init__(self, file_name, params, empty=False, comm=None):
 
-        H5File.__init__(self, file_name, params, True, comm)
-
-        try:
-            self.recordings = str(self.params.getint('data', 'recordings'))
-        except Exception:
-            self.recordings = '0'
-        self.h5_key      = 'recordings/%s/data' %self.recordings
-        self.empty = empty
-        if not self.empty:
-            self._get_info_(self.h5_key)
+        kwargs = {}
+        kwargs = _check_requierements_(self._requiered_fields, params, **kwargs)
+        kwargs['h5_key'] = 'recordings/%s/data' %kwargs['recording_number']
+        H5File.__init__(self, file_name, params, empty, comm, **kwargs)

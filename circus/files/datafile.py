@@ -3,6 +3,25 @@ import ConfigParser as configparser
 
 from circus.shared.messages import print_error, print_and_log
 
+def _check_requierements_(fields, params, **kwargs):
+
+    for key, value in fields.items():
+        if key not in kwargs.keys():
+            try:
+                if value == 'int':
+                    kwargs[key] = params.getint('data', key)
+                elif value == 'string':
+                    kwargs[key] = params.get('data', key)
+                elif value == 'float':
+                    kwargs[key] = params.getfloat('data', key)
+                elif value == 'bool':
+                    kwargs[key] = params.getboolean('data', key)
+            except Exception:
+                print_error(['%s must be specified as type %s in the [data] section!' %(key, value)])
+                sys.exit(0)
+    return kwargs
+
+
 class DataFile(object):
 
     '''
@@ -17,7 +36,7 @@ class DataFile(object):
     the filtering and benchmarking steps.
     '''
 
-    def __init__(self, file_name, params, empty=False, comm=None):
+    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from
         the parameter file, but you could completly fill them based on values that would be obtained
@@ -36,6 +55,11 @@ class DataFile(object):
         '''
 
         self.file_name = file_name
+        self.empty     = empty
+        self.comm      = comm
+
+        assert isinstance(params, configparser.ConfigParser)
+        self.params = params
 
         f_next, extension = os.path.splitext(self.file_name)
         
@@ -44,18 +68,28 @@ class DataFile(object):
                 print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
                 sys.exit(0)
 
+        requiered_values = {'rate'  : ['data', 'sampling_rate'], 
+                            'N_e'   : ['data', 'N_e'],
+                            'N_tot' : ['data', 'N_total']}
 
-        assert isinstance(params, configparser.ConfigParser)
-        self.params = params
-        self.N_e    = params.getint('data', 'N_e')
-        self.N_tot  = params.getint('data', 'N_total')
-        self.rate   = params.getint('data', 'sampling_rate')
-        self.template_shift = params.getint('detection', 'template_shift')
+        for key, value in kwargs.items():
+            self.__setattr__(key, value)
+
+        for key, value in requiered_values.items():
+            if not hasattr(self, key):
+                to_be_set = numpy.int64(self.params.getint(value[0], value[1]))
+                self.__setattr__(key, to_be_set)
+                print_and_log(['%s is read from the params with a value of %s' %(key, to_be_set)], 'debug', self.params)
+            else:
+                print_and_log(['%s is infered from the data with a value of %s' %(key, value)], 'debug', self.params)
+
+
         self.max_offset  = 0
-        self.empty = empty
-        self._shape = None
-        self.comm = comm
+        self._shape      = None
         print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
+
+        if not self.empty:
+            self._get_info_()
 
     def _get_info_(self):
         '''
@@ -63,6 +97,15 @@ class DataFile(object):
             such as max_offset, _shape, ...
         '''
         pass
+
+    def _get_chunk_size_(self, chunk_size=None):
+        '''
+            This function returns a default size for the data chunks
+        '''
+        if chunk_size is None:
+            chunk_size = self.params.getint('data', 'chunk_size')
+        
+        return chunk_size     
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
         '''
@@ -104,9 +147,7 @@ class DataFile(object):
             counted. chunk_size is expressed in time steps
             - the length of the last uncomplete chunk, in time steps
         '''
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
-
+        chunk_size     = self._get_chunk_size_(chunk_size)
         nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
         last_chunk_len = self.shape[0] - nb_chunks * chunk_size
 
@@ -156,25 +197,3 @@ class DataFile(object):
             return True
     	else:
             return self.comm.rank == 0
-
-    def set_dtype_offset(self, data_dtype):
-        self.dtype_offset = self.params.get('data', 'dtype_offset')
-        if self.dtype_offset == 'auto':
-            if self.data_dtype == 'uint16':
-                self.dtype_offset = 32767
-            elif self.data_dtype == 'int16':
-                self.dtype_offset = 0
-            elif self.data_dtype == 'float32':
-                self.dtype_offset = 0
-            elif self.data_dtype == 'int8':
-                self.dtype_offset = 0        
-            elif self.data_dtype == 'uint8':
-                self.dtype_offset = 127
-            elif self.data_dtype == 'float64':
-                self.dtype_offset = 0    
-        else:
-            try:
-                self.dtype_offset = int(self.dtype_offset)
-            except Exception:
-                print_error(["Offset %s is not valid" %self.dtype_offset])
-                sys.exit(0)
