@@ -383,6 +383,10 @@ def data_stats(data_file, show=True, export_times=False):
 
     nb_seconds      = last_chunk_len//data_file.rate
     last_chunk_len -= (nb_seconds*data_file.rate)
+    if nb_seconds > 60:
+      nb_extra_seconds = nb_seconds // 60
+      nb_chunks  += nb_extra_seconds
+      nb_seconds -= 60*nb_extra_seconds
     last_chunk_len  = int(1000*last_chunk_len/data_file.rate)
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
@@ -391,7 +395,7 @@ def data_stats(data_file, show=True, export_times=False):
              "Data type                   : %s" %str(data_file.data_dtype),
              "Sampling rate               : %d kHz" %(data_file.rate//1000.),
              "Header offset for the data  : %d" %data_file.data_offset,
-             "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, nb_seconds, last_chunk_len),
+             "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, int(nb_seconds), last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %data_file.params.getint('detection', 'radius'),
              "Threshold crossing          : %s" %data_file.params.get('detection', 'peaks'),
