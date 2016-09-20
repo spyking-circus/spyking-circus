@@ -17,7 +17,7 @@ class ARFFile(H5File):
 
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
-        kwargs = _check_requierements_(self._requiered_fields, params, **kwargs)
+        kwargs = _check_requierements_(self._description, self._requiered_fields, params, **kwargs)
 
         if not empty:
             self.__check_valid_key__(file_name, kwargs['h5_key'])

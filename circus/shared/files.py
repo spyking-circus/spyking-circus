@@ -134,24 +134,6 @@ def load_parameters(file_name):
         else:
             parser.add_section(section)
 
-    try:
-      N_t             = parser.getfloat('detection', 'N_t')
-    except Exception:
-      N_t             = parser.getfloat('data', 'N_t')
-
-    for key in ['whitening', 'clustering']:
-        safety_time = parser.get(key, 'safety_time')
-        if safety_time == 'auto':
-            parser.set(key, 'safety_time', '%g' %(N_t//3.))
-
-    sampling_rate   = parser.getint('data', 'sampling_rate')
-    N_t             = int(sampling_rate*N_t*1e-3)
-    if numpy.mod(N_t, 2) == 0:
-        N_t += 1
-    parser.set('detection', 'N_t', str(N_t))
-    parser.set('detection', 'template_shift', str(int((N_t-1)//2)))
-
-    data_offset = parser.get('data', 'data_offset')
     probe = read_probe(parser)
 
     parser.set('data', 'N_total', str(probe['total_nb_channels']))   
@@ -265,11 +247,6 @@ def load_parameters(file_name):
     parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(parser.get('triggers', 'trig_file'))))
     parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(parser.get('triggers', 'trig_windows'))))
 
-    chunk_size = parser.getint('data', 'chunk_size')
-    parser.set('data', 'chunk_size', str(chunk_size*sampling_rate))
-    chunk_size = parser.getint('whitening', 'chunk_size')
-    parser.set('whitening', 'chunk_size', str(chunk_size*sampling_rate))
-
     test = (parser.get('clustering', 'extraction') in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
     if not test:
         print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', parser)
@@ -288,8 +265,7 @@ def load_parameters(file_name):
     file_out = os.path.join(f_next, os.path.basename(f_next))
     parser.set('data', 'file_out', file_out) # Output file without suffix
     parser.set('data', 'file_out_suff', file_out  + parser.get('data', 'suffix')) # Output file with suffix
-    parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
-    parser.set('detection', 'dist_peaks', str(N_t)) # Get only isolated spikes for a single electrode (whitening, clustering, basis)    
+    parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)   
 
     for section in ['whitening', 'clustering']:
         test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
@@ -391,10 +367,9 @@ def data_stats(data_file, show=True, export_times=False):
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
              "Number of analyzed channels : %d" %data_file.N_e,
-             "File format                 : %s" %data_file.params.get('data', 'file_format'),
+             "File format                 : %s" %data_file.params.get('data', 'file_format').upper(),
              "Data type                   : %s" %str(data_file.data_dtype),
              "Sampling rate               : %d kHz" %(data_file.rate//1000.),
-             "Header offset for the data  : %d" %data_file.data_offset,
              "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, int(nb_seconds), last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %data_file.params.getint('detection', 'radius'),
@@ -505,14 +480,10 @@ def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=No
     params = data_file.params
 
     # Load parameters.
-    N_t = params.getint('detection', 'N_t')
-    data_file = params.get('data', 'data_file')
-    data_offset = params.getint('data', 'data_offset')
-    dtype_offset = params.getint('data', 'dtype_offset')
-    data_dtype = params.get('data', 'data_dtype')
-    N_total = params.getint('data', 'N_total')
-    alignment = params.getboolean('detection', 'alignment') and auto_align
-    datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
+    N_t          = params.getint('detection', 'N_t')
+    data_file    = params.get('data', 'data_file')
+    N_total      = data_file.N_tot
+    alignment    = params.getboolean('detection', 'alignment') and auto_align
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
     template_shift = params.getint('detection', 'template_shift')
@@ -1113,31 +1084,19 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.triggers%s.npy' %extension
         if os.path.exists(filename):
             triggers = numpy.load(filename)
-            N_tr = triggers.shape[0]
+            N_tr     = triggers.shape[0]
 
-            data_file = params.get('data', 'data_file')
-            data_offset = params.getint('data', 'data_offset')
-            data_dtype = params.get('data', 'data_dtype')
-            chunk_size = params.getint('data', 'chunk_size')
-            N_total = params.getint('data', 'N_total')
-            N_t = params.getint('detection', 'N_t')
-            dtype_offset = params.getint('data', 'dtype_offset')
+            data_file = io.get_data_file(params)
+            data_file.open()
+
+            N_total = data_file.N_tot
+            N_t     = params.getint('detection', 'N_t')
             
-            datablock = numpy.memmap(data_file, offset=data_offset, dtype=data_dtype, mode='r')
             template_shift = numpy.int64((N_t - 1) / 2)
 
             spikes = numpy.zeros((N_t, N_total, N_tr))
             for (count, idx) in enumerate(triggers):
-                chunk_len = numpy.int64(chunk_size) * N_total
-                chunk_start = (idx - template_shift) * N_total
-                chunk_end = (idx + template_shift + 1)  * N_total
-                local_chunk = datablock[chunk_start:chunk_end]
-
-                local_chunk = local_chunk.reshape(N_t, N_total)
-                local_chunk = local_chunk.astype(numpy.float32)
-                local_chunk -= dtype_offset
-
-                spikes[:, :, count] = local_chunk
+                spikes[:, :, count] = data_file.get_snippet(idx - template_shift, N_t)
             return triggers, spikes
         else:
             raise Exception('No triggers found! Check suffix or check if file `%s` exists?' %filename)
@@ -1367,15 +1326,15 @@ def collect_data(nb_threads, data_file, erase=False, with_real_amps=False, with_
 
     # Retrieve the key parameters.
     params         = data_file.params
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
     file_out_suff  = params.get('data', 'file_out_suff')
-    N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detection', 'N_t')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     chunks         = params.getfloat('fitting', 'chunk')
     data_length    = data_stats(data_file, show=False)
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
-    sampling_rate  = params.getint('data', 'sampling_rate')
     refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')

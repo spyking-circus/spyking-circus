@@ -18,6 +18,6 @@ class KwdFile(H5File):
     def __init__(self, file_name, params, empty=False, comm=None):
 
         kwargs = {}
-        kwargs = _check_requierements_(self._requiered_fields, params, **kwargs)
+        kwargs = _check_requierements_(self._description, self._requiered_fields, params, **kwargs)
         kwargs['h5_key'] = 'recordings/%s/data' %kwargs['recording_number']
         H5File.__init__(self, file_name, params, empty, comm, **kwargs)

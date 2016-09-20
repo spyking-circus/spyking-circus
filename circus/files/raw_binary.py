@@ -11,14 +11,14 @@ class RawBinaryFile(DataFile):
     _is_writable    = True
 
     _requiered_fields = {'data_offset'   : ['int', 0],
-                         'data_dtype'    : ['string', 'float32'],
+                         'data_dtype'    : ['string', None],
                          'dtype_offset'  : ['string', 'auto'],
                          'sampling_rate' : ['float', None],
                          'gain'          : ['float', 1]}
 
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
-        kwargs = _check_requierements_(self._requiered_fields, params, **kwargs)
+        kwargs = _check_requierements_(self._description, self._requiered_fields, params, **kwargs)
 
         if kwargs['dtype_offset'] == 'auto':
             if kwargs['data_dtype'] == 'uint16':

@@ -1,14 +1,13 @@
+### Note that depending on the file format selected, the parameters in the data section can vary
+### You should refer to the documentation to know what are the needed parameters for a given
+### file file_format
+
 [data]
-file_format    = raw_binary             # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd.
-data_offset    = 0                      # Length of the header [only for raw_binary files]
-data_dtype     = uint16                 # Type of the data [for raw_binary, MCS_raw_binary]
-dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
+file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys
 mapping        = ~/probes/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files
-sampling_rate  = 20000                  # Sampling rate of the data [Hz]
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
 multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
-hdf5_key_data  =                        # If data are stored as a hdf5 structure, key to the data [hdf5]
 
 [detection]
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)

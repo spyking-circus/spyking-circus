@@ -3,7 +3,7 @@ import ConfigParser as configparser
 
 from circus.shared.messages import print_error, print_and_log
 
-def _check_requierements_(fields, params, **kwargs):
+def _check_requierements_(description, fields, params, **kwargs):
 
     for key, values in fields.items():
         if key not in kwargs.keys():
@@ -21,9 +21,27 @@ def _check_requierements_(fields, params, **kwargs):
                     elif value == 'bool':
                         kwargs[key] = params.getboolean('data', key)
             except Exception:
+                _display_requierements_(description, params, fields)
                 print_error(['%s must be specified as type %s in the [data] section!' %(key, value)])
                 sys.exit(0)
     return kwargs
+
+
+def _display_requierements_(description, params, fields):
+
+    to_write = ['The parameters for %s file format are:' %description.upper(), '']
+    for key, values in fields.items():
+            
+        mystring = '-- %s -- of type %s' %(key, values[0])
+
+        if values[1] is None:
+            mystring += ' [mandatory]'
+        else:
+            mystring += ' [default is %s]' %values[1]
+
+        to_write += [mystring]
+
+    print_and_log(to_write, 'info', params)
 
 
 class DataFile(object):
@@ -40,12 +58,11 @@ class DataFile(object):
     the filtering and benchmarking steps.
     '''
 
-    # _description    = "mydatafile"    
-    # _extension      = [".myextension"]
-    # _parallel_write = True/False
-    # _is_writable    = True/False
-
-    #_requiered_fields = {'value that need to be specified' : 'type of that value'}
+    _description      = "mydatafile"    
+    _extension        = [".myextension"]
+    _parallel_write   = False
+    _is_writable      = False
+    _requiered_fields = {}
     # Note that those values can be either infered from header, or otherwise read from the parameter file
 
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
@@ -104,6 +121,29 @@ class DataFile(object):
 
         if not self.empty:
             self._get_info_()
+            
+            chunk_size  = self.params.getint('data', 'chunk_size')
+            self.params.set('data', 'chunk_size', str(chunk_size*self.rate))            
+            chunk_size = self.params.getint('whitening', 'chunk_size')
+            self.params.set('whitening', 'chunk_size', str(chunk_size*self.rate))
+
+            try:
+                N_t             = self.params.getfloat('detection', 'N_t')
+            except Exception:
+                N_t             = self.params.getfloat('data', 'N_t')
+
+            N_t = int(self.rate*N_t*1e-3)
+
+            for key in ['whitening', 'clustering']:
+                safety_time = self.params.get(key, 'safety_time')
+                if safety_time == 'auto':
+                    self.params.set(key, 'safety_time', '%g' %(N_t//3.))
+
+            if numpy.mod(N_t, 2) == 0:
+                N_t += 1
+            self.params.set('detection', 'N_t', str(N_t))
+            self.params.set('detection', 'template_shift', str(int((N_t-1)//2)))
+            self.params.set('detection', 'dist_peaks', str(N_t)) # Get only isolated spikes for a single electrode (whitening, clustering, basis) 
 
 
     def _get_info_(self):
