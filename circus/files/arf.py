@@ -115,10 +115,4 @@ class ARFFile(H5File):
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)
 
-        for i in xrange(self.N_tot):
-            print self._get_channel_key_(i)
-
         self.data = [self.my_file.get(self._get_channel_key_(i)) for i in xrange(self.N_tot)]
-        
-    def close(self):
-        self.my_file.close()

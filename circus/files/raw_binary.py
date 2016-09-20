@@ -11,8 +11,8 @@ class RawBinaryFile(DataFile):
     _is_writable    = True
 
     _requiered_fields = {'data_offset'   : ['int', 0],
-                         'data_dtype'    : ['string', None],
-                         'dtype_offset'  : ['string', None],
+                         'data_dtype'    : ['string', 'float32'],
+                         'dtype_offset'  : ['string', 'auto'],
                          'sampling_rate' : ['float', None],
                          'gain'          : ['float', 1]}
 
