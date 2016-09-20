@@ -408,7 +408,7 @@ def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=Fa
 
     do_temporal_whitening = data_file.params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = data_file.params.getboolean('whitening', 'spatial')
-    template_shift        = data_file.params.getint('detection', 'template_shift')
+    template_shift        = data_file.template_shift
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(data_file.params, 'spatial_whitening')
@@ -486,7 +486,7 @@ def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=No
     alignment    = params.getboolean('detection', 'alignment') and auto_align
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
-    template_shift = params.getint('detection', 'template_shift')
+    template_shift = data_file.template_shift
     
     # Calculate the sizes of the data structures to share.
     nb_triggers = 0
@@ -693,10 +693,12 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     intsize   = MPI.INT.Get_size()
     floatsize = MPI.FLOAT.Get_size() 
     sub_comm  = comm.Split(myip, 0)
+
+    data_file = get_data_file(params)
+    N_e       = data_file.N_e
+    N_t       = data_file.N_t
     
     if data == 'templates':
-        N_e = params.getint('data', 'N_e')
-        N_t = params.getint('detection', 'N_t')
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             nb_data = 0
             nb_ptr  = 0
@@ -988,13 +990,11 @@ def load_data(params, data, extension=''):
         myfile.close()
         return waveforms
     elif data == 'templates':
-        N_e = params.getint('data', 'N_e')
-        N_t = params.getint('detection', 'N_t')
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             temp_x = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
             temp_y = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
             temp_data = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]
-            nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms').shape[0]
+            N_e, N_t, nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_shape')[:]
             return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
         else:
             raise Exception('No templates found! Check suffix?')
@@ -1520,6 +1520,13 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
     except NotImplementedError:
         SHARED_MEMORY = False
 
+
+    data_file      = get_data_file(params)
+    params         = data_file.params
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
+    N_t            = data_file.N_t
+    N_total        = data_file.N_tot
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
@@ -1545,11 +1552,8 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
         best_elec  = load_data(params, 'electrodes', extension)
     else:
         best_elec  = load_data(params, 'electrodes')
-    N_total        = params.getint('data', 'N_total')
     nodes, edges   = get_nodes_and_edges(params)
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('detection', 'N_t')
-    x,        N_tm = templates.shape
+    N,        N_tm = templates.shape
 
     if not SHARED_MEMORY and normalize:
         norm_templates = load_data(params, 'norm-templates')[:N_tm]

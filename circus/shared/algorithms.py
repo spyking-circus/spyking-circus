@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use('Agg', warn=False)
 import os
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
-from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges, print_and_log
+from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges, print_and_log, get_data_file
 from circus.shared.utils import get_progressbar
 from circus.shared.mpi import all_gather_array
 import scipy.linalg, scipy.sparse
@@ -178,13 +178,18 @@ def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
     import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
+    data_file      = get_data_file(params)
+    params         = data_file.params
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
+    N_total        = data_file.N_tot
+    N_t            = data_file.N_t
+    template_shift = data_file.template_shift
 
     if comm.rank == 0:
         print_and_log(['Node 0 is slicing templates'], 'debug', params)
         old_templates  = load_data(params, 'templates')
         old_limits     = load_data(params, 'limits')
-        N_e            = params.getint('data', 'N_e')
-        N_t            = params.getint('detection', 'N_t')
         x, N_tm        = old_templates.shape
         norm_templates = load_data(params, 'norm-templates')
 
@@ -241,7 +246,13 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
     
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
-    N_e            = params.getint('data', 'N_e')
+    data_file      = get_data_file(params)
+    params         = data_file.params
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
+    N_total        = data_file.N_tot
+    N_t            = data_file.N_t
+    template_shift = data_file.template_shift
 
     if comm.rank == 0:
 
@@ -357,10 +368,16 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
                 g_idx.pop(to_remove)
 
         return to_merge, result
-            
+         
+    data_file      = get_data_file(params)
+    params         = data_file.params
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
+    N_total        = data_file.N_tot
+    N_t            = data_file.N_t
+    template_shift = data_file.template_shift
+
     templates      = load_data(params, 'templates')
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('detection', 'N_t')
     x,        N_tm = templates.shape
     nb_temp        = N_tm//2
     to_merge       = []
@@ -405,9 +422,14 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
 def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
         
     templates      = load_data(params, 'templates')
-    templates      = load_data(params, 'templates')
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('detection', 'N_t')
+    
+    data_file      = get_data_file(params)
+    params         = data_file.params
+    sampling_rate  = data_file.rate
+    N_e            = data_file.N_e
+    N_total        = data_file.N_tot
+    N_t            = data_file.N_t
+    template_shift = data_file.template_shift
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     x,        N_tm = templates.shape
     nb_temp        = N_tm//2
@@ -424,7 +446,6 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     result           = load_data(params, 'clusters')
     best_elec        = load_data(params, 'electrodes')
     limits           = load_data(params, 'limits')
-    N_total          = params.getint('data', 'N_total')
     nodes, edges     = get_nodes_and_edges(params)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)

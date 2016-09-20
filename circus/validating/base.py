@@ -40,12 +40,10 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     data_file = io.get_data_file(params)
     data_file.open()
-    data_offset = data_file.data_offset
-    data_dtype = data_file.data_dtype
     N_total = data_file.N_tot
     sampling_rate = data_file.rate
     N_e = data_file.N_e
-    template_shift = params.getint('detection', 'template_shift')
+    template_shift = data_file.template_shift
     file_out_suff = params.get('data', 'file_out_suff')
     nb_repeats = params.getint('clustering', 'nb_repeats')
     max_iter = params.getint('validating', 'max_iter')

@@ -86,35 +86,6 @@ def with_quadratic_feature(X_raw, pairwise=False):
                 X[:, K + k] = X[:, i] * X[:, j]
                 k = k + 1
     
-    ##### Second try (~ 0.6s)
-    # if pairwise:
-    #     # Add the pairwise product of feature vector elements.
-    #     k = 0
-    #     for i in xrange(0, K):
-    #         for j in xrange(i, K):
-    #             X[:, K + k] = X[:, [i, j]].prod(axis=1)
-    #             k = k + 1
-    
-    ##### Third try (~ 0.6s)
-    # if pairwise:
-    #     import itertools
-    #     comb = itertools.combinations(range(K), 2)
-    #     for k, c in enumerate(comb):
-    #         X[:, K + k] = X[:, c].prod(axis=1)
-    
-    ##### Fourth try (~ 16s)
-    # if pairwise:
-    #     def func(x_raw):
-    #         x = np.empty(M)
-    #         x[:K] = x_raw
-    #         k = 0
-    #         for i in xrange(0, K):
-    #             for j in xrange(i, K):
-    #                 x[K + k] = x_raw[i] * x_raw[j]
-    #                 k = k + 1
-    #         return x
-    #     X = numpy.apply_along_axis(func, 1, X_raw)
-    
     return X
 
 
@@ -127,7 +98,7 @@ def extract_extra_thresholds(params):
     data_file      = io.get_data_file(params)
     data_file.open()
 
-    chunk_size = params.getint('data', 'chunk_size')
+    chunk_size = int(params.getint('data', 'chunk_size') * data_file.rate)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     N_total = data_file.N_tot
@@ -251,15 +222,15 @@ def extract_extra_spikes_(params):
     data_file = io.get_data_file(params)
     data_file.open()
     sampling_rate  = data_file.rate
-    dist_peaks     = params.getint('detection', 'dist_peaks')
+    dist_peaks     = data_file.dist_peaks
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    template_shift = params.getint('detection', 'template_shift')
+    template_shift = data_file.template_shift
     alignment      = params.getboolean('detection', 'alignment')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    safety_time = params.getfloat('clustering', 'safety_time')
+    safety_time  = int(data_file.get_safety_time('whitening')*data_file.rate*1e-3)
     safety_space = params.getboolean('clustering', 'safety_space')
-    chunk_size = params.getint('data', 'chunk_size')
+    chunk_size   = int(params.getint('data', 'chunk_size') * data_file.rate)
     # chunk_size = params.getint('whitening', 'chunk_size')
     N_total        = data_file.N_tot
     file_out_suff  = params.get('data', 'file_out_suff')
