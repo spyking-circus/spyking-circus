@@ -35,7 +35,7 @@ def _display_requierements_(description, params, fields):
         mystring = '-- %s -- of type %s' %(key, values[0])
 
         if values[1] is None:
-            mystring += ' [mandatory]'
+            mystring += ' [** mandatory **]'
         else:
             mystring += ' [default is %s]' %values[1]
 
@@ -99,16 +99,19 @@ class DataFile(object):
                 print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
                 sys.exit(0)
 
-        requiered_values = {'rate'  : ['data', 'sampling_rate'], 
-                            'N_e'   : ['data', 'N_e'],
-                            'N_tot' : ['data', 'N_total']}
+        requiered_values = {'rate'  : ['data', 'sampling_rate', 'float'], 
+                            'N_e'   : ['data', 'N_e', 'int'],
+                            'N_tot' : ['data', 'N_total', 'int']}
 
         for key, value in kwargs.items():
             self.__setattr__(key, value)
 
         for key, value in requiered_values.items():
             if not hasattr(self, key):
-                to_be_set = numpy.int64(self.params.getint(value[0], value[1]))
+                if value[2] == 'int':
+                    to_be_set = numpy.int64(self.params.getint(value[0], value[1]))
+                if value[2] == 'float':
+                    to_be_set = self.params.getfloat(value[0], value[1])
                 self.__setattr__(key, to_be_set)
                 print_and_log(['%s is read from the params with a value of %s' %(key, to_be_set)], 'debug', self.params)
             else:
@@ -117,33 +120,55 @@ class DataFile(object):
 
         self.max_offset  = 0
         self._shape      = None
+        self._N_t        = None
+        self._dist_peaks = None
+        self._template_shift = None
+        self._safety_time    = None
         print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
         if not self.empty:
             self._get_info_()
             
-            chunk_size  = self.params.getint('data', 'chunk_size')
-            self.params.set('data', 'chunk_size', str(chunk_size*self.rate))            
-            chunk_size = self.params.getint('whitening', 'chunk_size')
-            self.params.set('whitening', 'chunk_size', str(chunk_size*self.rate))
+    @property
+    def N_t(self):
+        if self._N_t is not None:
+            return self._N_t
+        else:
+            try:
+                self._N_t = self.params.getfloat('detection', 'N_t')
+            except Exception:
+                self._N_t = self.params.getfloat('data', 'N_t')
+
+            self._N_t = int(self.rate*self._N_t*1e-3)
+            if numpy.mod(self._N_t, 2) == 0:
+                self._N_t += 1
+
+            return self.N_t
+
+    @property
+    def dist_peaks(self):
+        return self.N_t
+
+    @property
+    def template_shift(self):
+        if self._template_shift is not None:
+            return self._template_shift
+        else:
+            return int((self.N_t-1)//2)
+
+
+    def get_safety_time(self, key):
+        safety_time = self.params.get(key, 'safety_time')
+        if safety_time == 'auto':
 
             try:
-                N_t             = self.params.getfloat('detection', 'N_t')
+                N_t = self.params.getfloat('detection', 'N_t')
             except Exception:
-                N_t             = self.params.getfloat('data', 'N_t')
+                N_t = self.params.getfloat('data', 'N_t')
 
-            N_t = int(self.rate*N_t*1e-3)
-
-            for key in ['whitening', 'clustering']:
-                safety_time = self.params.get(key, 'safety_time')
-                if safety_time == 'auto':
-                    self.params.set(key, 'safety_time', '%g' %(N_t//3.))
-
-            if numpy.mod(N_t, 2) == 0:
-                N_t += 1
-            self.params.set('detection', 'N_t', str(N_t))
-            self.params.set('detection', 'template_shift', str(int((N_t-1)//2)))
-            self.params.set('detection', 'dist_peaks', str(N_t)) # Get only isolated spikes for a single electrode (whitening, clustering, basis) 
+            return N_t//3.
+        else:
+            return float(safety_time)
 
 
     def _get_info_(self):

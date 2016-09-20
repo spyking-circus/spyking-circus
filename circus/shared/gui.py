@@ -122,7 +122,7 @@ class MergeWindow(QtGui.QMainWindow):
         data_file       = io.get_data_file(params)
         data_file.open()
         self.N_e             = data_file.N_e
-        self.N_t             = params.getint('detection', 'N_t')
+        self.N_t             = data_file.N_t
         self.N_total         = data_file.N_tot
         self.sampling_rate   = data_file.rate
         self.correct_lag   = params.getboolean('merging', 'correct_lag')
@@ -1041,12 +1041,12 @@ class PreviewGUI(QtGui.QMainWindow):
         self.init_gui_layout()
         self.probe            = io.read_probe(data_file.params)
         self.N_e              = data_file.N_e
-        self.N_t              = data_file.params.getint('detection', 'N_t')
+        self.N_t              = data_file.N_t
         self.spike_thresh     = data_file.params.getfloat('detection', 'spike_thresh')
         self.peaks_sign       = data_file.params.get('detection', 'peaks')  
         self.N_total          = numpy.int64(data_file.N_tot)
         self.sampling_rate    = data_file.rate
-        self.template_shift   = data_file.params.getint('detection', 'template_shift')
+        self.template_shift   = data_file.template_shift
         self.filename         = data_file.params.get('data', 'data_file')
 
         name = os.path.basename(self.filename)

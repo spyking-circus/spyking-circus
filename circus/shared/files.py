@@ -354,7 +354,7 @@ def data_stats(data_file, show=True, export_times=False):
         data_file.params.set('data', 'data_file', init_file)
 
 
-    N_t = data_file.params.getint('detection', 'N_t')
+    N_t = data_file.N_t
     N_t = numpy.round(1000.*N_t/data_file.rate, 1)
 
     nb_seconds      = last_chunk_len//data_file.rate
@@ -394,7 +394,7 @@ def data_stats(data_file, show=True, export_times=False):
 
 def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
-    N_t          = data_file.params.getint('detection', 'N_t')
+    N_t          = data_file.N_t
     if not all_labels:
         if not mean_mode:
             stas = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
@@ -480,8 +480,8 @@ def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=No
     params = data_file.params
 
     # Load parameters.
-    N_t          = params.getint('detection', 'N_t')
     data_file    = params.get('data', 'data_file')
+    N_t          = data_file.N_t
     N_total      = data_file.N_tot
     alignment    = params.getboolean('detection', 'alignment') and auto_align
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -1090,7 +1090,7 @@ def load_data(params, data, extension=''):
             data_file.open()
 
             N_total = data_file.N_tot
-            N_t     = params.getint('detection', 'N_t')
+            N_t     = data_file.N_t
             
             template_shift = numpy.int64((N_t - 1) / 2)
 
@@ -1328,8 +1328,8 @@ def collect_data(nb_threads, data_file, erase=False, with_real_amps=False, with_
     params         = data_file.params
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
+    N_t            = data_file.N_t
     file_out_suff  = params.get('data', 'file_out_suff')
-    N_t            = params.getint('detection', 'N_t')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     chunks         = params.getfloat('fitting', 'chunk')
     data_length    = data_stats(data_file, show=False)

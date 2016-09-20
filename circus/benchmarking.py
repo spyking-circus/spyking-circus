@@ -116,7 +116,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     N_e              = data_file.N_e
     N_total          = data_file.N_tot
     nodes, edges     = io.get_nodes_and_edges(params)
-    N_t              = params.getint('detection', 'N_t')
+    N_t              = data_file.N_t
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -317,7 +317,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         io.purge(file_out, '.data')
 
 
-    template_shift = int((N_t-1)//2)
+    template_shift = data_file.template_shift
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)

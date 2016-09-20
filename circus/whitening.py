@@ -11,8 +11,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     data_file      = io.get_data_file(params)
     data_file.open()
     params         = data_file.params
-    dist_peaks     = params.getint('detection', 'dist_peaks')
-    template_shift = params.getint('detection', 'template_shift')
+    dist_peaks     = data_file.dist_peaks
+    template_shift = data_file.template_shift
     file_out_suff  = params.get('data', 'file_out_suff')
     file_out       = params.get('data', 'file_out')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -21,10 +21,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size       = params.getint('whitening', 'chunk_size')
+    chunk_size       = int(params.getint('whitening', 'chunk_size') * data_file.rate)
     plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     nodes, edges     = io.get_nodes_and_edges(params)
-    safety_time      = int(params.getfloat('whitening', 'safety_time')*data_file.rate*1e-3)
+    safety_time      = int(data_file.get_safety_time('whitening')*data_file.rate*1e-3)
+    print safety_time
     nb_temp_white    = min(max(20, comm.size), data_file.N_e)
     max_silence_1    = int(20*data_file.rate // comm.size)
     max_silence_2    = 5000
@@ -249,17 +250,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     data_file      = io.get_data_file(params)
     data_file.open()
     params         = data_file.params
-    N_t            = params.getint('detection', 'N_t')
-    dist_peaks     = params.getint('detection', 'dist_peaks')
-    template_shift = params.getint('detection', 'template_shift')
+    N_t            = data_file.N_t
+    dist_peaks     = data_file.dist_peaks
+    template_shift = data_file.template_shift
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     nodes, edges   = io.get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size       = params.getint('data', 'chunk_size')
-    safety_time      = int(params.getfloat('whitening', 'safety_time')*data_file.rate*1e-3)
+    chunk_size       = int(params.getint('data', 'chunk_size') * data_file.rate)
+    safety_time      = int(data_file.get_safety_time('whitening')*data_file.rate*1e-3)
     max_elts_elec    = params.getint('whitening', 'max_elts')
     nb_elts          = int(params.getfloat('whitening', 'nb_elts')*data_file.N_e*max_elts_elec)
     output_dim       = params.getfloat('whitening', 'output_dim')

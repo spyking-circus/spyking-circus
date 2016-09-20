@@ -17,12 +17,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     params         = circus.shared.utils.io.load_parameters(filename)
     data_file      = io.get_data_file(params)
     params         = data_file.params
-    sampling_rate  = float(data_file.rate)
+    sampling_rate  = data_file.rate
     file_out_suff  = params.get('data', 'file_out_suff')
     probe          = read_probe(params)
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
     N_e            = data_file.N_e
-    N_t            = params.getint('detection', 'N_t')
+    N_t            = data_file.N_t
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
     export_all     = params.getboolean('converting', 'export_all')
