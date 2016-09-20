@@ -1,6 +1,6 @@
 ### Note that depending on the file format selected, the parameters in the data section can vary
 ### You should refer to the documentation to know what are the needed parameters for a given
-### file file_format
+### file file_format. Otherwise, launch the code and a message will tell you what is needed
 
 [data]
 file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys

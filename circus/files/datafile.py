@@ -96,7 +96,8 @@ class DataFile(object):
         
         if self._extension is not None:
             if not extension in self._extension + [item.upper() for item in self._extension]:
-                print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
+                if self.is_master:
+                    print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
                 sys.exit(0)
 
         requiered_values = {'rate'  : ['data', 'sampling_rate', 'float'], 
@@ -113,9 +114,11 @@ class DataFile(object):
                 if value[2] == 'float':
                     to_be_set = self.params.getfloat(value[0], value[1])
                 self.__setattr__(key, to_be_set)
-                print_and_log(['%s is read from the params with a value of %s' %(key, to_be_set)], 'debug', self.params)
+                if self.is_master:
+                    print_and_log(['%s is read from the params with a value of %s' %(key, to_be_set)], 'debug', self.params)
             else:
-                print_and_log(['%s is infered from the data file with a value of %s' %(key, value)], 'debug', self.params)
+                if self.is_master:
+                    print_and_log(['%s is infered from the data file with a value of %s' %(key, value)], 'debug', self.params)
 
 
         self.max_offset  = 0
@@ -124,7 +127,8 @@ class DataFile(object):
         self._dist_peaks = None
         self._template_shift = None
         self._safety_time    = None
-        print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
+        if self.is_master:
+            print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
         if not self.empty:
             self._get_info_()

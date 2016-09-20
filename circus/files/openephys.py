@@ -33,7 +33,7 @@ class OpenEphysFile(DataFile):
     def __init__(self, file_name, params, empty=False, comm=None):
 
         kwargs = {}
-        kwargs['data_dtype']   = 'float32'
+        kwargs['data_dtype']   = 'int16'
         kwargs['dtype_offset'] = 0
         kwargs['data_offset']  = self.NUM_HEADER_BYTES
 
@@ -58,9 +58,6 @@ class OpenEphysFile(DataFile):
         self._shape      = (self.size, self.N_tot)
         self.max_offset  = self._shape[0]
         self.close()
-
-    def allocate(self, shape, data_dtype=None):
-        pass
 
     def _get_slice_(self, t_start, t_stop):
 
@@ -126,9 +123,8 @@ class OpenEphysFile(DataFile):
             t_stop      = self.max_offset
 
         data_slice  = self._get_slice_(t_start, t_stop) 
-
-        data /= self.gain
-        data  = data.astype('>i2')
+        data       /= self.gain
+        data        = data.astype('>i2')
         
         self.open(mode='r+')
         for i in xrange(self.N_tot):

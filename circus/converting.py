@@ -26,7 +26,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
     export_all     = params.getboolean('converting', 'export_all')
-    
+    if export_all and not params.getboolean('fitting', 'collect_all'):
+        if comm.rank == 0:
+            print_error(['Export unfitted spikes only if [fitting] collect_all is True'])
+        sys.exit(0)
+
     def generate_mapping(probe):
         p         = {}
         positions = []
