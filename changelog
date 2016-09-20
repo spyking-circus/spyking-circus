@@ -4,7 +4,7 @@ Release 0.5
 
 * garbage collector mode, to collect also all unfitted spikes
 * complete restructuration of the I/O such that the code can now handle multiple file formats
-* Because of the file format, slight restructuration of the parameter files
+* because of the file format, slight restructuration of the parameter files
 * N_t and radius have been moved to the [detection] section, more consistent
 * addition of a file_format parameter in the [data] section
 * can now work natively with open ephys data files (.openephys)
@@ -12,7 +12,9 @@ Release 0.5
 * can now work natively with Kwik (KWD) data files (.kwd)
 * can now work natively with NeuroDataWithoutBorders files (.nwb)
 * can now work natively with any HDF5-like structure data files (.h5)
+* can now work natively with Arf data files (.arf)
 * can still work with raw binary files with/without headers
+* refactoring of the exports during multi-file/preview: everything is now in raw binary
 
 
 
