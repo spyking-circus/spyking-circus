@@ -62,15 +62,6 @@ class OpenEphysFile(DataFile):
     def allocate(self, shape, data_dtype=None):
         pass
 
-    def copy_header(self, file_out):
-        if self.is_master:
-            fin  = open(self.file_name, 'rb')
-            fout = open(file_out, 'wb')
-            data = fin.read(self.data_offset)
-            fout.write(data)
-            fin.close()
-            fout.close()
-
     def _get_slice_(self, t_start, t_stop):
 
         x_beg = numpy.int64(t_start // self.SAMPLES_PER_RECORD)

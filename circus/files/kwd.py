@@ -11,8 +11,8 @@ class KwdFile(H5File):
     _extension   = [".kwd"]
     _parallel_write = h5py.get_config().mpi
 
-    _requiered_fields = {'recording_number'  : 'int', 
-                         'sampling_rate'     : 'float'}
+    _requiered_fields = {'recording_number'  : ['int', 0], 
+                         'sampling_rate'     : ['float', None]}
 
 
     def __init__(self, file_name, params, empty=False, comm=None):

@@ -21,12 +21,12 @@ class RawMCSFile(RawBinaryFile):
             kwargs['data_offset']  = b
             kwargs['N_tot']        = c
             kwargs['dtype_offset'] = int(self.header['ADC zero'])
+            kwargs['gain']         = float(self.header['El'].replace('\xb5V/AD', ''))
             if kwargs['dtype_offset'] == 32768:
                 kwargs['data_dtype'] = 'uint16'
             elif kwargs['dtype_offset'] == 0:
                 kwargs['data_dtype'] = 'int16'
 
-        print kwargs
         RawBinaryFile.__init__(self, file_name, params, empty, comm, **kwargs)
 
     def _read_header(self):

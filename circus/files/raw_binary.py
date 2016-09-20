@@ -10,10 +10,11 @@ class RawBinaryFile(DataFile):
     _parallel_write = True
     _is_writable    = True
 
-    _requiered_fields = {'data_offset'   : 'int', 
-                         'data_dtype'    : 'string',
-                         'dtype_offset'  : 'string',
-                         'sampling_rate' : 'float'}
+    _requiered_fields = {'data_offset'   : ['int', 0],
+                         'data_dtype'    : ['string', None],
+                         'dtype_offset'  : ['string', None],
+                         'sampling_rate' : ['float', None],
+                         'gain'          : ['float', 1]}
 
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
@@ -21,7 +22,7 @@ class RawBinaryFile(DataFile):
 
         if kwargs['dtype_offset'] == 'auto':
             if kwargs['data_dtype'] == 'uint16':
-                kwargs['dtype_offset'] = 32767
+                kwargs['dtype_offset'] = 32768
             elif kwargs['data_dtype'] == 'int16':
                 kwargs['dtype_offset'] = 0
             elif kwargs['data_dtype'] == 'float32':
@@ -65,7 +66,7 @@ class RawBinaryFile(DataFile):
         local_chunk  = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]]
         local_shape  = len(local_chunk)//self.N_tot
         local_chunk  = local_chunk.reshape(local_shape, self.N_tot)
-        local_chunk  = local_chunk.astype(numpy.float32)
+        local_chunk  = local_chunk.astype(numpy.float32)*self.gain
         local_chunk -= self.dtype_offset
         self.close()
 
@@ -78,7 +79,7 @@ class RawBinaryFile(DataFile):
     def set_data(self, time, data):
         self.open(mode='r+')
         data  += self.dtype_offset
-        data   = data.astype(self.data_dtype)
+        data   = data.astype(self.data_dtype)/self.gain
         data   = data.ravel()
         self.data[self.N_tot*time:self.N_tot*time+len(data)] = data
         self.close()
@@ -94,15 +95,6 @@ class RawBinaryFile(DataFile):
             nb_chunks += 1
 
         return nb_chunks, last_chunk_len
-
-    def copy_header(self, file_out):
-        if self.is_master:
-            fin  = open(self.file_name, 'rb')
-            fout = open(file_out, 'wb')
-            data = fin.read(self.data_offset)
-            fout.write(data)
-            fin.close()
-            fout.close()
 
     def open(self, mode='r'):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)

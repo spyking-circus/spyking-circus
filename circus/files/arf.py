@@ -1,43 +1,29 @@
 import h5py, numpy, re, sys
 import ConfigParser as configparser
 from circus.shared.messages import print_error, print_and_log
-from datafile import DataFile, _check_requierements_
+from hdf5 import H5File
+from datafile import _check_requierements_
 
-class H5File(DataFile):
+class ARFFile(H5File):
 
-    _description    = "hdf5"    
-    _extension      = [".h5", ".hdf5"]
+    _description    = "arf"    
+    _extension      = [".arf", ".hdf5", ".h5"]
     _parallel_write = h5py.get_config().mpi
     _is_writable    = True
 
-    _requiered_fields = {'h5_key' : ['string', None]}
+    _requiered_fields = {'h5_key'       : ['string', None] 
+                         'channel_name' : ['string', None]}
 
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
-        kwargs['compression'] = 'gzip'
         kwargs = _check_requierements_(self._requiered_fields, params, **kwargs)
         DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
         
 
-    def __explore__(self, name, obj):
-        mylist = []
-        if isinstance(obj, h5py.Dataset):
-            mylist.append(name)
-        return mylist
-
-    def __check_valid_key__(self, file_name, key):
-        file = h5py.File(file_name)
-        if not key in file.keys():
-            all_fields = file.visititems(self.__explore__)
-            print_error(['The key %s can not be found in the dataset! Keys found are:' %key, 
-                         ", ".join(all_fields)])
-            sys.exit(0)
-        file.close()
-
     def _get_info_(self):
 
         self.empty = False
-        self.__check_valid_key__(self.file_name, self.h5_key)
+        self._check_requierements_(self.file_name, self.h5_key)
         self.open()
         self.data_dtype  = self.my_file.get(self.h5_key).dtype
         self.compression = self.my_file.get(self.h5_key).compression

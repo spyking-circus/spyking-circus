@@ -5,17 +5,21 @@ from circus.shared.messages import print_error, print_and_log
 
 def _check_requierements_(fields, params, **kwargs):
 
-    for key, value in fields.items():
+    for key, values in fields.items():
         if key not in kwargs.keys():
             try:
-                if value == 'int':
-                    kwargs[key] = params.getint('data', key)
-                elif value == 'string':
-                    kwargs[key] = params.get('data', key)
-                elif value == 'float':
-                    kwargs[key] = params.getfloat('data', key)
-                elif value == 'bool':
-                    kwargs[key] = params.getboolean('data', key)
+                value, default = values
+                if default is not None:
+                    kwargs[key] = default
+                else:
+                    if value == 'int':
+                        kwargs[key] = params.getint('data', key)
+                    elif value == 'string':
+                        kwargs[key] = params.get('data', key)
+                    elif value == 'float':
+                        kwargs[key] = params.getfloat('data', key)
+                    elif value == 'bool':
+                        kwargs[key] = params.getboolean('data', key)
             except Exception:
                 print_error(['%s must be specified as type %s in the [data] section!' %(key, value)])
                 sys.exit(0)
@@ -36,6 +40,14 @@ class DataFile(object):
     the filtering and benchmarking steps.
     '''
 
+    # _description    = "mydatafile"    
+    # _extension      = [".myextension"]
+    # _parallel_write = True/False
+    # _is_writable    = True/False
+
+    #_requiered_fields = {'value that need to be specified' : 'type of that value'}
+    # Note that those values can be either infered from header, or otherwise read from the parameter file
+
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from
@@ -43,9 +55,11 @@ class DataFile(object):
         from the datafile itself. 
         What you need to specify
             - _parallel_write : can the file be safely written in parallel ?
-            - max_offset : the time length of the data, in time steps
-            - _shape : the size of the data, should be a tuple (max_offset, N_tot)
+            - _is_writable    : if the file can be written
+            - _shape          : the size of the data, should be a tuple (max_offset, N_tot)
+            - max_offset      : the time length of the data, in time steps
             - comm is a MPI communicator ring, if the file is created in a MPI environment
+            - empty is a flag to say if the file is created without data
 
         Note that you can overwrite values such as N_e, rate from the header in your data. Those will then be
         used in the code, instead of the ones from the parameter files.
@@ -91,12 +105,14 @@ class DataFile(object):
         if not self.empty:
             self._get_info_()
 
+
     def _get_info_(self):
         '''
             This function is called only if the file is not empty, and should fill the values in the constructor
             such as max_offset, _shape, ...
         '''
         pass
+
 
     def _get_chunk_size_(self, chunk_size=None):
         '''
@@ -106,6 +122,7 @@ class DataFile(object):
             chunk_size = self.params.getint('data', 'chunk_size')
         
         return chunk_size     
+
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
         '''
@@ -131,6 +148,7 @@ class DataFile(object):
         '''
         return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
 
+
     def set_data(self, time, data):
         '''
             This function writes data at a given time.
@@ -138,6 +156,7 @@ class DataFile(object):
             - data must be a 2D matrix of size time_length x N_total
         '''
         pass
+
 
     def analyze(self, chunk_size=None):
         '''
@@ -149,7 +168,7 @@ class DataFile(object):
         '''
         chunk_size     = self._get_chunk_size_(chunk_size)
         nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
-        last_chunk_len = self.shape[0] - nb_chunks * chunk_size
+        last_chunk_len = numpy.int64(self.shape[0]) - nb_chunks * chunk_size
 
         if last_chunk_len > 0:
             nb_chunks += 1
@@ -164,19 +183,13 @@ class DataFile(object):
         '''
         pass
 
-    def copy_header(self, file_out):
-        '''
-            If the data has some header that need to be copied when a new file of the same
-            time is created. Note that in the code, this is always followed by a all to the
-            allocate() function for that new file
-        '''
-        pass
 
     def close(self):
         '''
             This function closes the file
         '''
         pass
+
 
     def allocate(self, shape, data_dtype):
         '''
@@ -187,9 +200,11 @@ class DataFile(object):
         '''
         pass
 
+
     @property
     def shape(self):
         return self._shape   
+
 
     @property
     def is_master(self):

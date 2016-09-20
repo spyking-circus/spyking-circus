@@ -13,6 +13,7 @@ from colorama import Fore, Back, Style
 import circus.shared.files as io
 import circus
 from circus.shared.messages import print_error, print_info, write_to_logger, get_colored_header
+from circus.files.raw_binary import RawBinaryFile
 
 
 def gather_mpi_arguments(hostfile, params):
@@ -181,20 +182,19 @@ but a subset x,y can be done. Steps are:
         filename     = os.path.join(tmp_path_loc, os.path.basename(filename))
         f_next, extens = os.path.splitext(filename)
         shutil.copyfile(file_params, f_next + '.params')
+        io.change_flag(f_next + '.params', 'file_format', 'raw_binary')
         steps        = ['filtering', 'whitening']
 
         chunk_size = 2*data_file.rate
-        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
         data_file.open()
         local_chunk  = data_file.get_data(0, chunk_size)
-        params.set('data', 'data_file', filename)
-        data_file_out = io.get_data_file(params, empty=True)
-        data_file.copy_header(filename)
-        data_file_out.allocate(shape=local_chunk.shape, data_dtype=data_file.data_dtype)
-        
+        data_file.close()
+
+        params.set('data', 'file_format', 'raw_binary')
+        data_file_out = RawBinaryFile(filename, params, True)
+        data_file_out.allocate(shape=local_chunk.shape, data_dtype=local_chunk.dtype)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)
-        data_file.close()
         data_file_out.close()
         io.change_flag(filename, 'chunk_size', '2')
         io.change_flag(filename, 'safety_time', '0')
