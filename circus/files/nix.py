@@ -5,8 +5,8 @@ from hdf5 import H5File
 
 class NWBFile(H5File):
 
-    _description    = "nwb"    
-    _extension      = [".nwb", ".h5", ".hdf5"]
+    _description    = "nix"    
+    _extension      = [".nix", ".h5", ".hdf5"]
     _parallel_write = h5py.get_config().mpi
     _is_writable    = True
 

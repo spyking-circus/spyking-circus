@@ -27,12 +27,13 @@ __supported_data_files__ = {
 	OpenEphysFile._description : OpenEphysFile,
 	KwdFile._description : KwdFile,
 	NWBFile._description : NWBFile,
-	ARFFile._description : ARFFile
+	ARFFile._description : ARFFile,
+	NIXFile._description : NixFile
 }
 
-#if HAVE_NIX_SUPPORT:
-#	from nixfile import NixFile
-#	__supported_data_files__[NIXFile._description] = NixFile
+if HAVE_NIX_SUPPORT:
+	from nixfile import NixFile
+	__supported_data_files__[NIXFile._description] = NixFile
 
 if HAVE_NEUROSHARE:
 	from mcd import MCDFile

@@ -19,7 +19,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
             sys.exit(0)
 
-    if do_filter or multi_files or clean_artefact:
+    if do_filter or multi_files or clean_artefact or remove_median:
 
         def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True, display=True):
 
@@ -49,7 +49,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if filter_done:
                 if comm.rank == 0:
-                    to_write = ["Filtering has already been done in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
+                    to_write = []
+                    if do_filter:
+                        to_write += ["Filtering has already been done in band [%dHz, %dHz]" %(cut_off[0], cut_off[1])]
                     if remove_median:
                         to_write += ["Median over all channels was substracted to each channels"]
                     if display:

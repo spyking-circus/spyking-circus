@@ -95,7 +95,7 @@ class DataFile(object):
                 self.__setattr__(key, to_be_set)
                 print_and_log(['%s is read from the params with a value of %s' %(key, to_be_set)], 'debug', self.params)
             else:
-                print_and_log(['%s is infered from the data with a value of %s' %(key, value)], 'debug', self.params)
+                print_and_log(['%s is infered from the data file with a value of %s' %(key, value)], 'debug', self.params)
 
 
         self.max_offset  = 0

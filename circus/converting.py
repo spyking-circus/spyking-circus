@@ -16,6 +16,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
     params         = circus.shared.utils.io.load_parameters(filename)
     data_file      = io.get_data_file(params)
+    params         = data_file.params
     sampling_rate  = float(data_file.rate)
     file_out_suff  = params.get('data', 'file_out_suff')
     probe          = read_probe(params)
@@ -230,7 +231,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             os.makedirs(output_path)
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
         
-            numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening').astype(numpy.double))
+            if params.getboolean('whitening', 'temporal'):
+                numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening').astype(numpy.double))
+            else:
+                numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.eye(N_e))
+
             numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe).astype(numpy.double))
             nodes, edges   = get_nodes_and_edges(params)
             numpy.save(os.path.join(output_path, 'channel_map'), nodes.astype(numpy.int32))
@@ -238,7 +243,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             write_results(output_path, params, extension)    
             N_tm = write_templates(output_path, params, extension)
             similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
-            norm = params.getint('data', 'N_e')*params.getint('detection', 'N_t')
+            norm = N_e*N_t
 
             if export_all:
                 to_write = numpy.zeros((N_tm + N_e, N_tm + N_e), dtype=numpy.single)
