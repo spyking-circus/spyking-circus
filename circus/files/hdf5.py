@@ -17,18 +17,12 @@ class H5File(DataFile):
         kwargs['compression'] = 'gzip'
         kwargs = _check_requierements_(self._requiered_fields, params, **kwargs)
         DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
-        
-
-    def __explore__(self, name, obj):
-        mylist = []
-        if isinstance(obj, h5py.Dataset):
-            mylist.append(name)
-        return mylist
 
     def __check_valid_key__(self, file_name, key):
         file = h5py.File(file_name)
-        if not key in file.keys():
-            all_fields = file.visititems(self.__explore__)
+        all_fields = []
+        file.visit(all_fields.append)    
+        if not key in all_fields:
             print_error(['The key %s can not be found in the dataset! Keys found are:' %key, 
                          ", ".join(all_fields)])
             sys.exit(0)
