@@ -1,7 +1,7 @@
 import h5py, numpy, re, sys
 import ConfigParser as configparser
 from circus.shared.messages import print_error, print_and_log
-from datafile import DataFile
+from datafile import DataFile, _check_requierements_
 
 class RawBinaryFile(DataFile):
 
@@ -10,22 +10,14 @@ class RawBinaryFile(DataFile):
     _parallel_write = True
     _is_writable    = True
 
-    _requiered_fields = {'data_offset'  : 'int', 
-                         'data_dtype'   : 'string',
-                         'dtype_offset' : 'string'}
+    _requiered_fields = {'data_offset'   : 'int', 
+                         'data_dtype'    : 'string',
+                         'dtype_offset'  : 'string',
+                         'sampling_rate' : 'float'}
 
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
-        for key in self._requiered_fields.keys():
-            if key not in kwargs.keys():
-                try:
-                    if self._requiered_fields[key] == 'int':
-                        kwargs[key] = params.getint('data', key)
-                    if self._requiered_fields[key] == 'string':
-                        kwargs[key] = params.get('data', key)
-                except Exception:
-                    print_error(['%s must be specified in the [data] section!' %key])
-                    sys.exit(0)
+        kwargs = _check_requierements_(self._requiered_fields, params, **kwargs)
 
         if kwargs['dtype_offset'] == 'auto':
             if kwargs['data_dtype'] == 'uint16':
@@ -66,14 +58,11 @@ class RawBinaryFile(DataFile):
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
     	
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
-
-        chunk_len    = chunk_size * self.N_tot 
+        chunk_size   = self._get_chunk_size_(chunk_size) * self.N_tot
         padding      = numpy.array(padding) * self.N_tot
 
         self.open()
-        local_chunk  = self.data[idx*numpy.int64(chunk_len)+padding[0]:(idx+1)*numpy.int64(chunk_len)+padding[1]]
+        local_chunk  = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]]
         local_shape  = len(local_chunk)//self.N_tot
         local_chunk  = local_chunk.reshape(local_shape, self.N_tot)
         local_chunk  = local_chunk.astype(numpy.float32)
@@ -96,10 +85,7 @@ class RawBinaryFile(DataFile):
 
     def analyze(self, chunk_size=None):
 
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
-	    
-        chunk_size    *= numpy.int64(self.N_tot)
+        chunk_size     = self._get_chunk_size_(chunk_size) * self.N_tot
         nb_chunks      = numpy.int64(self.size) // chunk_size
         last_chunk_len = self.size - (nb_chunks * chunk_size)
         last_chunk_len = last_chunk_len//self.N_tot

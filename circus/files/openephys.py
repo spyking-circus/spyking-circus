@@ -33,6 +33,9 @@ class OpenEphysFile(DataFile):
     def __init__(self, file_name, params, empty=False, comm=None):
 
         kwargs = {}
+        kwargs['data_dtype']   = 'float32'
+        kwargs['dtype_offset'] = 0
+        kwargs['data_offset']  = self.NUM_HEADER_BYTES
 
         if not empty:
             folder_path     = os.path.dirname(os.path.realpath(file_name))
@@ -43,9 +46,6 @@ class OpenEphysFile(DataFile):
             kwargs['N_tot'] = len(self.all_files)
             kwargs['gain']  = float(self.header['bitVolts'])        
 
-        kwargs['data_dtype']   = 'float32'
-        kwargs['dtype_offset'] = 0
-        kwargs['data_offset']  = self.NUM_HEADER_BYTES
         DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
 
 
@@ -98,9 +98,7 @@ class OpenEphysFile(DataFile):
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
         
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
-
+        chunk_size  = self._get_chunk_size_(chunk_size)
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
         local_shape = t_stop - t_start
@@ -108,7 +106,6 @@ class OpenEphysFile(DataFile):
         if (t_start + local_shape) > self.max_offset:
             local_shape = self.max_offset - t_start
             t_stop      = self.max_offset
-
 
         if nodes is None:
             nodes = numpy.arange(self.N_tot)

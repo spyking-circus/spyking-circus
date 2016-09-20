@@ -1,7 +1,7 @@
 import h5py, numpy, re, sys
 import ConfigParser as configparser
 from circus.shared.messages import print_error, print_and_log
-from datafile import DataFile
+from datafile import DataFile, _check_requierements_
 
 class H5File(DataFile):
 
@@ -10,22 +10,16 @@ class H5File(DataFile):
     _parallel_write = h5py.get_config().mpi
     _is_writable    = True
 
-    def __init__(self, file_name, params, empty=False, comm=None):
+    _requiered_fields = {'h5_key' : 'string'}
 
-        kwargs = {'compression' : 'gzip'}
+    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
-        try:
-            kwargs['h5_key'] = self.params.get('data', 'hdf5_key_data')
-        except Exception:
-            print_error('hdf5_key_data must be specified in the [data] section!')
-            sys.exit(0)
-
-        DataFile.__init__(self, file_name, params, empty, comm, kwargs)
+        kwargs['compression'] = 'gzip'
+        kwargs = _check_requierements_(self._requiered_fields, params, **kwargs)
+        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
         
 
-    def _get_info_(self, key=None):
-        if key is not None:
-            self.h5_key = key
+    def _get_info_(self):
 
         self.empty = False
         self.open()
@@ -36,8 +30,7 @@ class H5File(DataFile):
         if self.compression != '':
         	self._parallel_write = False
         
-        self.size        = self.my_file.get(self.h5_key).shape
-        self.set_dtype_offset(self.data_dtype)
+        self.size = self.my_file.get(self.h5_key).shape
         
         assert (self.size[0] == self.N_tot) or (self.size[1] == self.N_tot)
         if self.size[0] == self.N_tot:
@@ -72,8 +65,7 @@ class H5File(DataFile):
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
 
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
+        chunk_size = self._get_chunk_size_(chunk_size)
 
         if nodes is None:
             if self.time_axis == 0:
@@ -87,13 +79,11 @@ class H5File(DataFile):
                 local_chunk = self.data[nodes, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
 
         local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk -= self.dtype_offset
 
         return numpy.ascontiguousarray(local_chunk)
 
     def set_data(self, time, data):
         
-    	data += self.dtype_offset
     	data  = data.astype(self.data_dtype)
 
         if self.time_axis == 0:

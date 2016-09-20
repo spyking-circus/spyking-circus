@@ -3,6 +3,25 @@ import ConfigParser as configparser
 
 from circus.shared.messages import print_error, print_and_log
 
+def _check_requierements_(fields, params, **kwargs):
+
+    for key, value in fields.items():
+        if key not in kwargs.keys():
+            try:
+                if value == 'int':
+                    kwargs[key] = params.getint('data', key)
+                elif value == 'string':
+                    kwargs[key] = params.get('data', key)
+                elif value == 'float':
+                    kwargs[key] = params.getfloat('data', key)
+                elif value == 'bool':
+                    kwargs[key] = params.getboolean('data', key)
+            except Exception:
+                print_error(['%s must be specified as type %s in the [data] section!' %(key, value)])
+                sys.exit(0)
+    return kwargs
+
+
 class DataFile(object):
 
     '''
@@ -58,7 +77,12 @@ class DataFile(object):
 
         for key, value in requiered_values.items():
             if not hasattr(self, key):
-                self.__setattr__(key, self.params.getint(value[0], value[1]))
+                to_be_set = numpy.int64(self.params.getint(value[0], value[1]))
+                self.__setattr__(key, to_be_set)
+                print_and_log(['%s is read from the params with a value of %s' %(key, to_be_set)], 'debug', self.params)
+            else:
+                print_and_log(['%s is infered from the data with a value of %s' %(key, value)], 'debug', self.params)
+
 
         self.max_offset  = 0
         self._shape      = None
@@ -73,6 +97,15 @@ class DataFile(object):
             such as max_offset, _shape, ...
         '''
         pass
+
+    def _get_chunk_size_(self, chunk_size=None):
+        '''
+            This function returns a default size for the data chunks
+        '''
+        if chunk_size is None:
+            chunk_size = self.params.getint('data', 'chunk_size')
+        
+        return chunk_size     
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
         '''
@@ -114,9 +147,7 @@ class DataFile(object):
             counted. chunk_size is expressed in time steps
             - the length of the last uncomplete chunk, in time steps
         '''
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
-
+        chunk_size     = self._get_chunk_size_(chunk_size)
         nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
         last_chunk_len = self.shape[0] - nb_chunks * chunk_size
 
