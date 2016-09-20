@@ -6,16 +6,17 @@ Release 0.5
 * complete restructuration of the I/O such that the code can now handle multiple file formats
 * because of the file format, slight restructuration of the parameter files
 * N_t and radius have been moved to the [detection] section, more consistent
-* addition of a file_format parameter in the [data] section
+* addition of an explicit file_format parameter in the [data] section
+* every file format may have its own parameters, see documentation for details
 * can now work natively with open ephys data files (.openephys)
 * can now work natively with MCD data files (.mcd)
 * can now work natively with Kwik (KWD) data files (.kwd)
 * can now work natively with NeuroDataWithoutBorders files (.nwb)
 * can now work natively with any HDF5-like structure data files (.h5)
 * can now work natively with Arf data files (.arf)
-* can still work with raw binary files with/without headers
+* can still work natively with raw binary files with/without headers
 * refactoring of the exports during multi-file/preview: everything is now in raw binary
-
+* fix a bug with the size of the safety time parameter during whitening and clustering
 
 
 =============

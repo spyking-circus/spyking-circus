@@ -1160,11 +1160,8 @@ class PreviewGUI(QtGui.QMainWindow):
         io.change_flag(self.filename, 'spike_thresh', '%g' %self.get_threshold.value())
 
     def get_data(self):
-        self.chunk_size       = self.sampling_rate
-        self.padding          = (self.t_start*self.sampling_rate, self.t_start*self.sampling_rate)
-        nb_chunks, last_chunk_len = self.data_file.analyze(self.chunk_size)
-        self.data = self.data_file.get_data(0, self.chunk_size,
-            padding=self.padding, nodes=self.nodes)
+        self.chunk_size       = int(self.sampling_rate)
+        self.data = self.data_file.get_snippet(int(self.t_start*self.sampling_rate), self.chunk_size, nodes=self.nodes)
 
 
         if self.do_spatial_whitening:
