@@ -31,7 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
-        collect_zone = int(0.5*sampling_rate*1e-3)
+        collect_zone = int(0.25*sampling_rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -90,7 +90,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     if collect_all:
-        neigbors = {}
+        neighbors = {}
         for i in xrange(n_tm):
             tmp  = templates[i, :].toarray().reshape(N_e, N_t) * norm_templates[i]
             if sign_peaks == 'negative':
@@ -98,20 +98,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     threshs = -matched_tresholds_neg
                 else:
                     threshs = -thresholds
-                idx      = numpy.where(numpy.min(tmp, 1) <= amp_limits[i, 0]*threshs)[0]
+                idx      = numpy.where(numpy.min(tmp, 1) <= threshs)[0]
             elif sign_peaks == 'positive':
                 if matched_filter:
                     threshs = matched_tresholds_pos
                 else:
                     threshs = thresholds
-                idx      = numpy.where(numpy.max(tmp, 1) >= amp_limits[i, 0]*threshs)[0]
+                idx      = numpy.where(numpy.max(tmp, 1) >= threshs)[0]
             elif sign_peaks == 'both':
                 if matched_filter:
                     threshs = numpy.minimum(matched_tresholds_neg, matched_tresholds_pos)
                 else:
                     threshs = thresholds
-                idx      = numpy.where(numpy.max(numpy.abs(tmp), 1) >= amp_limits[i, 0]*threshs)[0]
-            neigbors[i] = idx
+                idx      = numpy.where(numpy.max(numpy.abs(tmp), 1) >= threshs)[0]
+            neighbors[i] = idx
 
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
@@ -152,7 +152,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         for i in xrange(N_over):
             c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
-        
         del overlaps
 
     comm.Barrier()
@@ -216,7 +215,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
         local_chunk = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
-        local_shape = len(local_chunk)
+        len_chunk   = len(local_chunk)
 
         if do_spatial_whitening:
             if use_gpu:
@@ -268,7 +267,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.unique(local_peaktimes)
         
         #print "Removing the useless borders..."
-        local_borders   = (template_shift, local_shape - template_shift)
+        local_borders   = (template_shift, len_chunk - template_shift)
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes)
 
@@ -279,7 +278,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 all_found_spikes[i] = numpy.compress(idx, all_found_spikes[i])
 
         n_t             = len(local_peaktimes)
-        len_chunk       = local_chunk.shape[0]
         all_indices     = numpy.arange(n_t)
                             
 
@@ -317,7 +315,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             del sub_mat
 
             local_offset = gidx*chunk_size+padding[0]
-            local_bounds = (temp_2_shift, local_shape - temp_2_shift)
+            local_bounds = (temp_2_shift, len_chunk - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
@@ -344,11 +342,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             max_n_t      = int(space_explo*(max_time-min_time+1)//(2*temp_2_shift + 1))
 
             if collect_all:
-                c_all_times = numpy.zeros((N_e, local_len), dtype=numpy.bool)
+                c_all_times = numpy.zeros((local_len, N_e), dtype=numpy.bool)
                 c_min_times = numpy.maximum(numpy.arange(0, local_len) - collect_zone, 0)
                 c_max_times = numpy.minimum(numpy.arange(0, local_len) + collect_zone + 1, max_time - min_time)
                 for i in xrange(N_e):
-                    c_all_times[i, all_found_spikes[i] - min_time] = True
+                    c_all_times[all_found_spikes[i] - min_time, i] = True
                     
             while (numpy.mean(failure) < nb_chances):
 
@@ -473,10 +471,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if collect_all:
 
                 for temp, spike in zip(templates_to_write, spikes_to_write - local_offset):
-                    c_all_times[neigbors[temp], c_min_times[spike-min_time]:c_max_times[spike-min_time]] = False
+                    c_all_times[c_min_times[spike-min_time]:c_max_times[spike-min_time], neighbors[temp]] = False
 
-                gspikes       = numpy.where(numpy.sum(c_all_times, 0) > 0)[0]
-                c_local_chunk = numpy.take(c_local_chunk, gspikes, axis=0)
+                gspikes       = numpy.where(numpy.sum(c_all_times, 1) > 0)[0]
+                c_all_times   = numpy.take(c_all_times, gspikes, axis=0)
+                c_local_chunk = numpy.take(c_local_chunk, gspikes, axis=0) * c_all_times                
 
                 if sign_peaks == 'negative':
                     bestlecs = numpy.argmin(c_local_chunk, 1)
@@ -519,6 +518,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spiketimes_file.close()
     amplitudes_file.close()
     templates_file.close()
+    garbage_temp_file.close()
+    garbage_times_file.close()
 
     comm.Barrier()
 

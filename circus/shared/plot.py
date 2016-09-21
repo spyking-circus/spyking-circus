@@ -1,5 +1,5 @@
 import numpy, scipy, pylab, os
-from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results, read_probe
+from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results, read_probe, get_data_file
 import numpy, pylab
 from circus.shared import algorithms as algo
 from circus.shared.utils import *
@@ -11,7 +11,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
     data_file       = get_data_file(params)
     data_file.open()
     N_e             = data_file.N_e
-    N_t             = params.getint('detection', 'N_t')
+    N_t             = data_file.N_t
     N_total         = data_file.N_tot
     sampling_rate   = data_file.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -254,7 +254,7 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
     file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = params.getint('detection', 'N_t')
+    N_t              = data_file.N_t
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
     
@@ -363,7 +363,7 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
     file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = params.getint('detection', 'N_t')
+    N_t              = data_file.N_t
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
 
@@ -598,7 +598,7 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
     file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = params.getint('detection', 'N_t')
+    N_t              = data_file.N_t
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate, t_start*sampling_rate)
@@ -657,7 +657,7 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
     file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = params.getint('detection', 'N_t')
+    N_t              = data_file.N_t
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate, t_start*sampling_rate)

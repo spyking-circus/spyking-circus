@@ -1373,6 +1373,7 @@ def collect_data(nb_threads, data_file, erase=False, with_real_amps=False, with_
         if with_voltages:
             voltages_file  = file_out_suff + '.voltages-%d.data' %node
             voltages       = numpy.fromfile(voltages_file, dtype=numpy.float32)
+        
         if collect_all:
             gspikes_file = file_out_suff + '.gspiketimes-%d.data' %node
             gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.uint32)
