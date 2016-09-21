@@ -20,6 +20,15 @@ Release 0.5
 
 
 =============
+Release 0.4.3
+=============
+
+* cosmetic changes in the terminal
+* automatic reduction of chunk sizes for high density probes (N_e > 500) to save memory
+
+
+
+=============
 Release 0.4.2
 =============
 

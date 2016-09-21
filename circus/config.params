@@ -30,7 +30,7 @@ clean_artefact = False     # If True, external artefacts induced by triggers wil
 make_plots     = png       # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 [whitening]
-chunk_size     = 60         # Size of the data chunks [in s]
+chunk_size     = 30         # Size of the data chunks [in s]
 safety_time    = 1          # Temporal zone around which templates are isolated [in ms]
 temporal       = False      # Perform temporal whitening
 spatial        = True       # Perform spatial whitening

@@ -160,7 +160,7 @@ def load_parameters(file_name):
                   ['fitting', 'refractory', 'float', '0.5'],
                   ['fitting', 'collect_all', 'bool', 'False'],
                   ['data', 'global_tmp', 'bool', 'True'],
-                  ['data', 'chunk_size', 'int', '10'],
+                  ['data', 'chunk_size', 'int', '30'],
                   ['data', 'multi-files', 'bool', 'False'],
                   ['detection', 'alignment', 'bool', 'True'],
                   ['detection', 'matched-filter', 'bool', 'False'],
@@ -171,7 +171,7 @@ def load_parameters(file_name):
                   ['triggers', 'make_plots', 'string', 'png'],
                   ['triggers', 'trig_file', 'string', ''],
                   ['triggers', 'trig_windows', 'string', ''],
-                  ['whitening', 'chunk_size', 'int', '60'],
+                  ['whitening', 'chunk_size', 'int', '30'],
                   ['filtering', 'remove_median', 'bool', 'False'],
                   ['clustering', 'max_clusters', 'int', '10'],
                   ['clustering', 'nb_repeats', 'int', '3'],
@@ -219,7 +219,7 @@ def load_parameters(file_name):
                 parser.get(section, name)
         except Exception:
             parser.set(section, name, value)
-  
+
     try:
       parser.get('data', 'file_format')
     except Exception:

@@ -10,7 +10,8 @@ class H5File(DataFile):
     _parallel_write = h5py.get_config().mpi
     _is_writable    = True
 
-    _requiered_fields = {'h5_key' : ['string', None]}
+    _requiered_fields = {'h5_key'        : ['string', None], 
+                         'sampling_rate' : ['float' , None]}
 
     def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
 
