@@ -5,15 +5,17 @@ import argparse
 import shutil
 import subprocess
 import psutil
+import h5py
 import pkg_resources
+import circus
 from os.path import join as pjoin
 import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 import circus.shared.files as io
-import circus
 from circus.shared.messages import print_error, print_info, write_to_logger, get_colored_header
 from circus.files.raw_binary import RawBinaryFile
+from circus.shared.mpi import SHARED_MEMORY
 
 
 def gather_mpi_arguments(hostfile, params):
@@ -53,18 +55,10 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    import h5py
+    
     parallel_hdf5 = h5py.get_config().mpi
-
-    from mpi4py import MPI
-    try:
-        SHARED_MEMORY = True
-        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-    except (NotImplementedError, AttributeError):
-        SHARED_MEMORY = False
-
-    user_path  = pjoin(os.path.expanduser('~'), 'spyking-circus')
-    tasks_list = None
+    user_path     = pjoin(os.path.expanduser('~'), 'spyking-circus')
+    tasks_list    = None
 
     if not os.path.exists(user_path):
         os.makedirs(user_path)

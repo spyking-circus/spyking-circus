@@ -27,14 +27,7 @@ from .utils import *
 
 
 
-def main(filename, params, nb_cpu, nb_gpu, us_gpu):
-    
-    try:
-        SHARED_MEMORY = False
-        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-    except NotImplementedError:
-        SHARED_MEMORY = False
-    
+def main(filename, params, nb_cpu, nb_gpu, us_gpu):    
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
     

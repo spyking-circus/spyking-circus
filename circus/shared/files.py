@@ -9,14 +9,12 @@ import numpy, h5py, os, platform, re, sys, scipy
 import ConfigParser as configparser
 import sys
 from colorama import Fore
-from mpi import all_gather_array
+from mpi import all_gather_array, gather_array, SHARED_MEMORY
 from mpi4py import MPI
-from .mpi import gather_array
 import logging
 
 from circus.files.datafile import *
 from circus.files import __supported_data_files__
-
 
 def get_data_file(params, multi=False, empty=False, comm=None, force_raw='auto'):
 
@@ -1513,14 +1511,6 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
 
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
-
-    try:
-        SHARED_MEMORY = True
-        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-    except NotImplementedError:
-        SHARED_MEMORY = False
-
-
     data_file      = get_data_file(params)
     params         = data_file.params
     sampling_rate  = data_file.rate

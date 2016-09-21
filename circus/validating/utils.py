@@ -30,7 +30,7 @@ def get_juxta_stas(params, times_i, labels_i):
 
     file_out_suff = params.get('data', 'file_out_suff')
     sampling_rate = params.getint('data', 'sampling_rate')
-    N_t = params.getint('data', 'N_t')
+    N_t = params.getint('detection', 'N_t')
     juxta_dtype = params.get('validating', 'juxta_dtype')
     
     juxta_filename = "{}.juxta.dat".format(file_out_suff)

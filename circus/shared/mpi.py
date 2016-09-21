@@ -1,6 +1,12 @@
-import numpy, pylab, os, mpi4py, progressbar, tempfile
+import numpy, os, mpi4py
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
+
+try:
+    MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+    SHARED_MEMORY = True
+except NotImplementedError:
+    SHARED_MEMORY = False
 
 def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     # gather 1D or 2D numpy arrays

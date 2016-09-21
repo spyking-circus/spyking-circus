@@ -23,6 +23,7 @@ else:
 
 from utils import *
 from algorithms import slice_templates, slice_clusters
+from mpi import SHARED_MEMORY
 
 
 class SymmetricVCursor(widgets.AxesWidget):
@@ -105,12 +106,6 @@ class MergeWindow(QtGui.QMainWindow):
 
         if comm.rank == 0:
             super(MergeWindow, self).__init__()
-
-        try:
-            SHARED_MEMORY = True
-            MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-        except NotImplementedError:
-            SHARED_MEMORY = False
 
         if comm.rank == 0:
             io.print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)

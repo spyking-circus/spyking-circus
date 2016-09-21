@@ -1,13 +1,8 @@
 import circus.shared.algorithms as algo
 from .shared.utils import *
+from .shared.mpi import SHARED_MEMORY
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
-
-    try:
-        SHARED_MEMORY = True
-        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-    except NotImplementedError:
-        SHARED_MEMORY = False
 
     #################################################################
     data_file      = io.get_data_file(params)

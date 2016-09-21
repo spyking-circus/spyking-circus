@@ -1,11 +1,11 @@
 from .shared.utils import *
 import circus.shared.algorithms as algo
 from .shared import plot
+import h5py
 
 def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
-    import h5py
 
     #################################################################
     data_file      = io.get_data_file(params)
