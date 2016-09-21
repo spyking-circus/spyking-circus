@@ -146,7 +146,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     # Retrieve some additional key parameters.
-    chunk_size     = params.getint('data', 'chunk_size')
+    chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
     scalings       = []
     
     params.set('data', 'data_file', file_name)

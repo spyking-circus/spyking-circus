@@ -2,14 +2,14 @@
 Release 0.5
 ===========
 
-* garbage collector mode, to collect also all unfitted spikes
+* garbage collector mode, to collect also all unfitted spikes, per channel
 * complete restructuration of the I/O such that the code can now handle multiple file formats
 * because of the file format, slight restructuration of the parameter files
 * N_t and radius have been moved to the [detection] section, more consistent
 * addition of an explicit file_format parameter in the [data] section
 * every file format may have its own parameters, see documentation for details
 * can now work natively with open ephys data files (.openephys)
-* can now work natively with MCD data files (.mcd)
+* can now work natively with MCD data files (.mcd) [using neuroshare]
 * can now work natively with Kwik (KWD) data files (.kwd)
 * can now work natively with NeuroDataWithoutBorders files (.nwb)
 * can now work natively with any HDF5-like structure data files (.h5)
