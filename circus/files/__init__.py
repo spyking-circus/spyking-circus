@@ -30,9 +30,9 @@ __supported_data_files__ = {
 	ARFFile._description : ARFFile
 }
 
-if HAVE_NIX_SUPPORT:
-	from nixfile import NixFile
-	__supported_data_files__[NIXFile._description] = NixFile
+#if HAVE_NIX_SUPPORT:
+#	from nixfile import NixFile
+#	__supported_data_files__[NIXFile._description] = NixFile
 
 if HAVE_NEUROSHARE:
 	from mcd import MCDFile
