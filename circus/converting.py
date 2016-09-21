@@ -235,7 +235,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             os.makedirs(output_path)
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
         
-            if params.getboolean('whitening', 'temporal'):
+            if params.getboolean('whitening', 'spatial'):
                 numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening').astype(numpy.double))
             else:
                 numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.eye(N_e))
