@@ -1,7 +1,8 @@
-import numpy, os
+import numpy, os, sys
+from messages import print_error
 
 def read_probe(parser):
-    probe = {}
+    probe    = {}
     filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
     if not os.path.exists(filename):
         print_error(["The probe file can not be found"])
@@ -22,7 +23,7 @@ def read_probe(parser):
     return probe
 
 
-def get_nodes_and_edges(parameters, validating=False):
+def get_nodes_and_edges(parser, validating=False):
     """
     Retrieve the topology of the probe.
     
@@ -42,11 +43,10 @@ def get_nodes_and_edges(parameters, validating=False):
     
     edges  = {}
     nodes  = []
-    probe  = read_probe(parameters)
-    radius = parameters.getint('detection', 'radius')
+    radius = parser.getint('detection', 'radius')
 
     if validating:
-        radius_factor = parameters.getfloat('validating', 'radius_factor')
+        radius_factor = parser.getfloat('validating', 'radius_factor')
         radius = int(radius_factor * float(radius))
 
     def get_edges(i, channel_groups):
@@ -58,16 +58,16 @@ def get_nodes_and_edges(parameters, validating=False):
                 edges += [c2]
         return edges
 
-    for key in probe['channel_groups'].keys():
-        for i in probe['channel_groups'][key]['channels']:
-            edges[i] = get_edges(i, probe['channel_groups'][key])
+    for key in parser.probe['channel_groups'].keys():
+        for i in parser.probe['channel_groups'][key]['channels']:
+            edges[i] = get_edges(i, parser.probe['channel_groups'][key])
             nodes   += [i]
 
     return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
 
 
-def get_averaged_n_edges(parameters):
-    nodes, edges = get_nodes_and_edges(parameters)
+def get_averaged_n_edges(parser):
+    nodes, edges = get_nodes_and_edges(parser)
     n = 0
     for key, value in edges.items():
         n += len(value)

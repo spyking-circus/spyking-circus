@@ -12,7 +12,7 @@ from os.path import join as pjoin
 import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
-import circus.shared.files as io
+from circus.shared.files import get_data_file, data_stats 
 from circus.shared.messages import print_error, print_info, print_and_log, write_to_logger, get_colored_header
 from circus.files.raw_binary import RawBinaryFile
 from circus.shared.mpi import SHARED_MEMORY
@@ -164,7 +164,7 @@ but a subset x,y can be done. Steps are:
     if not batch:
         params       = CircusParser(filename)
         multi_files  = params.getboolean('data', 'multi-files')
-        data_file    = io.get_data_file(params, multi_files, force_raw=False)
+        data_file    = get_data_file(params, multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file._parallel_write
 
@@ -195,7 +195,7 @@ but a subset x,y can be done. Steps are:
         params.write(new_params)
         new_params.close()
 
-        data_file_out = io.get_data_file(params, multi_files, empty=True, force_raw=True)
+        data_file_out = get_data_file(params, multi_files, empty=True, force_raw=True)
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=local_chunk.dtype)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)
@@ -251,7 +251,7 @@ but a subset x,y can be done. Steps are:
             use_gpu = 'False'
 
 
-        time = io.data_stats(data_file)/60.
+        time = data_stats(data_file)/60.
         
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
@@ -342,7 +342,7 @@ but a subset x,y can be done. Steps are:
             pass
 
         params    = CircusParser(filename)
-        data_file = io.get_data_file(params) 
+        data_file = get_data_file(params) 
 
         if preview:
             mygui = gui.PreviewGUI(data_file)

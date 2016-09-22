@@ -1,5 +1,3 @@
-from datafile import *
-
 from raw_binary import RawBinaryFile
 from mcs_raw_binary import RawMCSFile
 from hdf5 import H5File
