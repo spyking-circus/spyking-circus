@@ -76,6 +76,10 @@ def main(argv=None):
 
     print_and_log(["Launching the MATLAB GUI..."], 'info', params)
 
+    if params.getboolean('fitting', 'collect_all'):
+        print_and_log(['You can not view the unfitted spikes with the MATLAB GUI',
+                       'Please consider using phy if you really would like to see them'], 'info', params)
+
     try:
         sys.exit(subprocess.call(['matlab',
                               '-nodesktop',
