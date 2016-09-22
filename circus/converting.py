@@ -14,8 +14,6 @@ from circus.shared.messages import print_and_log, print_error
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     data_file      = params.get_data_file()
-    params         = data_file.params
-    sampling_rate  = data_file.rate
     file_out_suff  = params.get('data', 'file_out_suff')
     probe          = params.probe
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
@@ -50,7 +48,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         return max_loc_channel
 
     def write_results(path, params, extension):
-        result     = get_results(params, extension)
+        result     = io.get_results(params, extension)
         spikes     = numpy.zeros(0, dtype=numpy.uint64)
         clusters   = numpy.zeros(0, dtype=numpy.uint32)
         amplitudes = numpy.zeros(0, dtype=numpy.double)
@@ -82,7 +80,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     def write_templates(path, params, extension):
 
         max_loc_channel = get_max_loc_channel(params)
-        templates       = load_data(params, 'templates', extension)
+        templates       = io.load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
         if export_all:
             to_write    = numpy.zeros((N_tm + N_e, N_t, N_e), dtype=numpy.float32)
@@ -106,7 +104,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping.astype(numpy.double))
         return N_tm
 
-    def write_pcs(path, params, comm, extension, mode=0):
+    def write_pcs(path, params, extension, mode=0):
 
         spikes          = numpy.load(os.path.join(output_path, 'spike_times.npy'))
         labels          = numpy.load(os.path.join(output_path, 'spike_templates.npy'))
@@ -114,7 +112,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         nb_features     = params.getint('whitening', 'output_dim')
         nodes, edges    = get_nodes_and_edges(params)
         N_total         = params.getint('data', 'N_total')
-        templates       = load_data(params, 'templates', extension)
+        templates       = io.load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
         if export_all:
             nb_templates = N_tm + N_e
@@ -122,7 +120,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_templates = N_tm
 
         pc_features_ind = numpy.zeros((nb_templates, max_loc_channel), dtype=numpy.int32)            
-        clusters        = load_data(params, 'clusters', extension)
+        clusters        = io.load_data(params, 'clusters', extension)
         best_elec       = clusters['electrodes']
         if export_all:
             best_elec = numpy.concatenate((best_elec, numpy.arange(N_e)))
@@ -133,7 +131,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_loc                = len(edges[nodes[elec]])
             pc_features_ind[count, numpy.arange(nb_loc)] = inv_nodes[edges[nodes[elec]]]
 
-        basis_proj, basis_rec = load_data(params, 'basis')
+        basis_proj, basis_rec = io.load_data(params, 'basis')
 
         to_process = numpy.arange(comm.rank, nb_templates, comm.size)
 
@@ -182,7 +180,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
             times_i  = numpy.take(spikes, idx).astype(numpy.int64)
-            sub_data = get_stas(data_file, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
+            sub_data = io.get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
             if mode == 0:
@@ -234,7 +232,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
         
             if params.getboolean('whitening', 'spatial'):
-                numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening').astype(numpy.double))
+                numpy.save(os.path.join(output_path, 'whitening_mat'), io.load_data(params, 'spatial_whitening').astype(numpy.double))
             else:
                 numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.eye(N_e))
 
@@ -285,4 +283,4 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         comm.Barrier()
         if make_pcs < 2:
-            write_pcs(output_path, params, comm, extension, make_pcs)
+            write_pcs(output_path, params, extension, make_pcs)

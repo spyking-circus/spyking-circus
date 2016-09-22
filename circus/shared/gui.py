@@ -23,7 +23,7 @@ else:
 
 from utils import *
 from algorithms import slice_templates, slice_clusters
-from mpi import SHARED_MEMORY
+from mpi import SHARED_MEMORY, comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
 
@@ -104,7 +104,7 @@ class SymmetricVCursor(widgets.AxesWidget):
 
 class MergeWindow(QtGui.QMainWindow):
 
-    def __init__(self, comm, params, app, extension_in='', extension_out='-merged'):
+    def __init__(self, params, app, extension_in='', extension_out='-merged'):
 
         if comm.rank == 0:
             super(MergeWindow, self).__init__()
@@ -112,7 +112,6 @@ class MergeWindow(QtGui.QMainWindow):
         if comm.rank == 0:
             print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)
         self.app        = app
-        self.comm       = comm
         self.params     = params
         self.ext_in     = extension_in
         self.ext_out    = extension_out
@@ -140,8 +139,8 @@ class MergeWindow(QtGui.QMainWindow):
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
         
         if SHARED_MEMORY:
-            self.templates  = io.load_data_memshared(params, self.comm, 'templates', extension=self.ext_in)
-            self.clusters   = io.load_data_memshared(params, self.comm, 'clusters-light', extension=self.ext_in)
+            self.templates  = io.load_data_memshared(params, 'templates', extension=self.ext_in)
+            self.clusters   = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
         else:
             self.templates  = io.load_data(params, 'templates', self.ext_in)
             self.clusters   = io.load_data(params, 'clusters-light', self.ext_in)
@@ -180,7 +179,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
         self.mpi_wait   = numpy.array([0], dtype=numpy.int32)
 
-        if self.comm.rank > 0:
+        if comm.rank > 0:
             self.listen()
 
         self.init_gui_layout()
@@ -267,15 +266,15 @@ class MergeWindow(QtGui.QMainWindow):
             sys.exit(0)
 
     def closeEvent(self, event):
-        if self.comm.rank == 0:
-            self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
+        if comm.rank == 0:
+            self.mpi_wait = comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
             super(MergeWindow, self).closeEvent(event)
 
     def init_gui_layout(self):
         gui_fname = pkg_resources.resource_filename('circus',
                                                     os.path.join('qt_GUI',
                                                                  'qt_merge.ui'))
-        if self.comm.rank == 0:
+        if comm.rank == 0:
             self.ui = uic.loadUi(gui_fname, self)
             # print dir(self.ui)
             self.score_ax1 = self.ui.score_1.axes
@@ -309,17 +308,17 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
         
-        self.mpi_wait    = self.comm.bcast(self.mpi_wait, root=0)
+        self.mpi_wait    = comm.bcast(self.mpi_wait, root=0)
         
         if self.mpi_wait[0] > 0:
             return
         
-        self.indices     = self.comm.bcast(self.indices, root=0)
-        self.to_delete   = self.comm.bcast(self.to_delete, root=0)
+        self.indices     = comm.bcast(self.indices, root=0)
+        self.to_delete   = comm.bcast(self.to_delete, root=0)
 
         to_consider      = set(self.indices) - set(self.to_delete)
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
-        real_indices     = self.to_consider[self.comm.rank::self.comm.size]
+        real_indices     = self.to_consider[comm.rank::comm.size]
         
         n_size           = 2*self.max_delay + 1
 
@@ -351,11 +350,11 @@ class MergeWindow(QtGui.QMainWindow):
         if comm.rank == 0:
             pbar.finish()
 
-        self.pairs       = gather_array(self.pairs, self.comm, 0, 1, dtype='int32')
-        self.raw_control = gather_array(self.raw_control, self.comm, 0, 1)
-        self.raw_data    = gather_array(self.raw_data, self.comm, 0, 1)
+        self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
+        self.raw_control = gather_array(self.raw_control, comm, 0, 1)
+        self.raw_data    = gather_array(self.raw_data, comm, 0, 1)
         self.sort_idcs   = numpy.arange(len(self.pairs))
-        self.comm.Barrier()
+        comm.Barrier()
 
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
@@ -977,16 +976,16 @@ class MergeWindow(QtGui.QMainWindow):
         
         if comm.rank == 0:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
-            self.mpi_wait = self.comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
+            self.mpi_wait = comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
 
         comm.Barrier()
-        self.all_merges = self.comm.bcast(self.all_merges, root=0)
-        self.to_delete  = self.comm.bcast(self.to_delete, root=0)
+        self.all_merges = comm.bcast(self.all_merges, root=0)
+        self.to_delete  = comm.bcast(self.to_delete, root=0)
         
-        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out)
-        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out, light=True)
+        slice_templates(self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out)
+        slice_clusters(self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out, light=True)
 
-        if self.comm.rank == 0:
+        if comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
             
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
@@ -999,6 +998,11 @@ class MergeWindow(QtGui.QMainWindow):
                 new_result['amplitudes'][key_after] = self.result['amplitudes'].pop(key_before)
             
             keys = ['spiketimes', 'amplitudes']
+            
+            if self.params.getboolean('fitting', 'collect_all'):
+                keys += ['gspikes']
+                new_result['gspikes'] = io.get_garbage(self.params)['gspikes']
+
             mydata = h5py.File(self.file_out_suff + '.result%s.hdf5' %self.ext_out, 'w', libver='latest')
             for key in keys:
                 mydata.create_group(key)
@@ -1039,12 +1043,12 @@ class PreviewGUI(QtGui.QMainWindow):
         self.probe            = self.params.probe
         self.N_e              = self.data_file.N_e
         self.N_t              = self.data_file.N_t
-        self.spike_thresh     = self.data_file.params.getfloat('detection', 'spike_thresh')
-        self.peaks_sign       = self.data_file.params.get('detection', 'peaks')  
+        self.spike_thresh     = self.params.getfloat('detection', 'spike_thresh')
+        self.peaks_sign       = self.params.get('detection', 'peaks')  
         self.N_total          = numpy.int64(self.data_file.N_tot)
         self.sampling_rate    = self.data_file.rate
         self.template_shift   = self.data_file.template_shift
-        self.filename         = self.data_file.params.get('data', 'data_file')
+        self.filename         = self.params.get('data', 'data_file')
 
         name = os.path.basename(self.filename)
         r, f = os.path.splitext(name)

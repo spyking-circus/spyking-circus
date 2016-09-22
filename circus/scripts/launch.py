@@ -15,7 +15,7 @@ from colorama import Fore, Back, Style
 from circus.shared.files import data_stats 
 from circus.shared.messages import print_error, print_info, print_and_log, write_to_logger, get_colored_header
 from circus.files.raw_binary import RawBinaryFile
-from circus.shared.mpi import SHARED_MEMORY
+from circus.shared.mpi import SHARED_MEMORY, comm
 from circus.shared.parser import CircusParser
 from circus.shared.probes import get_averaged_n_edges
 
@@ -164,7 +164,7 @@ but a subset x,y can be done. Steps are:
     if not batch:
         params       = CircusParser(filename)
         multi_files  = params.getboolean('data', 'multi-files')
-        data_file    = params.get_data_file(multi_files, force_raw=False)
+        data_file    = params.get_data_file(multi_files)
         file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file._parallel_write
 
@@ -198,7 +198,7 @@ but a subset x,y can be done. Steps are:
 
         new_params = CircusParser(filename)
 
-        data_file_out = new_params.get_data_file(multi_files, empty=True)
+        data_file_out = new_params.get_data_file(multi_files, is_empty=True)
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=local_chunk.dtype)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)

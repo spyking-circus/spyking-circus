@@ -32,8 +32,7 @@ def main(argv=None):
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
     params         = CircusParser(filename)
-    data_file      = circus.shared.utils.io.get_data_file(params)
-    sampling_rate  = data_file.rate
+    data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
     gain           = 1
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -63,7 +62,7 @@ def main(argv=None):
     mapping    = generate_matlab_mapping(probe)
     filename   = params.get('data', 'data_file')
 
-    gui_params = [sampling_rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
+    gui_params = [data_file.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
 
     gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
     # Change to the directory of the matlab file

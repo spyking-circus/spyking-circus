@@ -15,7 +15,7 @@ class RawBinaryFile(DataFile):
                          'sampling_rate' : ['float', None],
                          'gain'          : ['float', 1]}
 
-    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
+    def __init__(self, file_name, params, empty=False, **kwargs):
 
         kwargs = _check_requierements_(self._description, self._requiered_fields, params, **kwargs)
 
@@ -39,14 +39,14 @@ class RawBinaryFile(DataFile):
                 print_error(["Offset %s is not valid" %kwargs['dtype_offset']])
                 sys.exit(0)
 
-        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)     
+        DataFile.__init__(self, file_name, params, empty, **kwargs)     
     
     def _get_info_(self):
         self.empty = False
         self.open()
-        self.size       = len(self.data)
-        self._shape     = (self.size//self.N_tot, self.N_tot)
-        self.max_offset = self._shape[0] 
+        self.size        = len(self.data)
+        self._shape      = (self.size//self.N_tot, self.N_tot)
+        self._max_offset = self._shape[0] 
         self.close()
 
     def allocate(self, shape, data_dtype=None):

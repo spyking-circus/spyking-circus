@@ -9,7 +9,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     data_file      = params.get_data_file()
     data_file.open()
-    sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
     N_t            = data_file.N_t
@@ -21,7 +20,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size     = int(params.getfloat('fitting', 'chunk_size')*sampling_rate)
+    chunk_size     = int(params.getfloat('fitting', 'chunk_size')*data_file.rate)
     gpu_only       = params.getboolean('fitting', 'gpu_only')
     nodes, edges   = get_nodes_and_edges(params)
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
@@ -32,7 +31,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
-        collect_zone = int(0.25*sampling_rate*1e-3)
+        collect_zone = int(0.25*data_file.rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -49,7 +48,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_sync_threads()
 
     if SHARED_MEMORY:
-        templates  = io.load_data_memshared(params, comm, 'templates', normalize=True, transpose=True)
+        templates  = io.load_data_memshared(params, 'templates', normalize=True, transpose=True)
         N_tm, x    = templates.shape
     else:
         templates  = io.load_data(params, 'templates')
@@ -130,13 +129,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     
     if SHARED_MEMORY:
-        c_overs    = io.load_data_memshared(params, comm, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)        
-        c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        c_overs    = io.load_data_memshared(params, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)        
+        c_overlap  = io.get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
         N_over     = int(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
     else:
-        c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        c_overlap  = io.get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_x     = c_overlap.get('over_x')[:]
         over_y     = c_overlap.get('over_y')[:]
         over_data  = c_overlap.get('over_data')[:]

@@ -10,7 +10,7 @@ class MCDFile(DataFile):
     _parallel_write = False
     _is_writable    = False
 
-    def __init__(self, file_name, params, empty=False, comm=None):
+    def __init__(self, file_name, params, empty=False):
 
         kwargs = {}
         kwargs['data_offset']  = 0
@@ -24,7 +24,7 @@ class MCDFile(DataFile):
             kwargs['gain']  = f.entities[0].resolution
             f.close()
 
-        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
+        DataFile.__init__(self, file_name, params, empty, **kwargs)
 
 
     def _get_info_(self):

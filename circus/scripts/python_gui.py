@@ -49,8 +49,7 @@ def main(argv=None):
         print_and_log(['You need to update phy-contrib to the latest git version'], 'error', params)
         sys.exit(0)
 
-    data_file      = circus.shared.utils.io.get_data_file(params)
-    sampling_rate  = data_file.rate
+    data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
     data_offset    = data_file.data_offset
     file_format    = data_file._description
@@ -79,7 +78,7 @@ def main(argv=None):
         gui_params['n_features_per_channel'] = 5
         gui_params['dtype']          = data_dtype
         gui_params['offset']         = data_offset
-        gui_params['sample_rate']    = sampling_rate
+        gui_params['sample_rate']    = data_file.rate
         gui_params['hp_filtered']    = True
 
         os.chdir(output_path)

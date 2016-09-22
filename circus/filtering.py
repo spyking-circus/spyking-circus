@@ -5,7 +5,6 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_error, print_info, print_and_log
 
 
-
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
@@ -26,11 +25,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True, display=True):
 
-            sampling_rate  = data_file_in.rate
-
             try:
                 cut_off    = params.getfloat('filtering', 'cut_off')
-                cut_off    = [cut_off, 0.95*(sampling_rate/2.)]
+                cut_off    = [cut_off, 0.95*(data_file_in.rate/2.)]
             except Exception:
                 cut_off        = params.get('filtering', 'cut_off')
                 cut_off        = cut_off.split(',')
@@ -42,7 +39,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 
                 cut_off[1] = cut_off[1].replace(' ', '')
                 if cut_off[1] == 'auto':
-                    cut_off[1] = 0.95*(sampling_rate/2.)
+                    cut_off[1] = 0.95*(data_file_in.rate/2.)
                 else:
                     try:
                         cut_off[1] = float(cut_off[1])
@@ -73,7 +70,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
             nb_chunks, last_chunk_len = data_file_in.analyze(chunk_size)
             
-            b, a          = signal.butter(3, np.array(cut_off)/(sampling_rate/2.), 'pass')
+            b, a          = signal.butter(3, np.array(cut_off)/(data_file_in.rate/2.), 'pass')
             all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
@@ -128,10 +125,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             return goffset + offset
 
-        def compute_artefacts(data_file, max_offset):
+        def compute_artefacts(params, max_offset):
 
             data_file.open()
-            sampling_rate  = data_file.rate
             chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
@@ -141,8 +137,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= numpy.int64(sampling_rate*1e-3)
-            windows[:, 1]   *= numpy.int64(sampling_rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
+            windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
@@ -179,7 +175,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if comm.rank == 0:
                         print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
                     sys.exit(0)
-                art_dict[artefact] = get_artefact(data_file, times, tau, nodes)
+                art_dict[artefact] = get_artefact(params, times, tau, nodes)
                 if make_plots not in ['None', '']:
                     save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                     plot.view_artefact(art_dict[artefact], save=save)
@@ -195,10 +191,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             return art_dict
 
 
-        def remove_artefacts(art_dict, data_file, max_offset):
+        def remove_artefacts(art_dict, params, max_offset):
 
+            data_file = params.get_data_file()
             data_file.open()
-            sampling_rate  = data_file.rate
             chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
@@ -208,8 +204,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= numpy.int64(sampling_rate*1e-3)
-            windows[:, 1]   *= numpy.int64(sampling_rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
+            windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
@@ -265,22 +261,23 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if not multi_files:  
 
-            data_file = params.get_data_file(comm=comm)
+            data_file = params.get_data_file()
             goffset   = filter_file(data_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(data_file, goffset)
-                remove_artefacts(art_dict, data_file, goffset)
+                art_dict   = compute_artefacts(params, goffset)
+                remove_artefacts(art_dict, params, goffset)
 
         else:
 
             all_files     = params.get_multi_files()
             combined_file = params.get('data', 'data_file')
-            data_file     = params.get_data_file(params, multi=True, comm=comm, force_raw=False)
+            data_file     = params.get_data_file(multi=True)
             comm.Barrier()
 
-            times    = data_stats(data_file, show=False, export_times=True)
-            data_out = params.get_data_file(empty=True, comm=comm)
+            times         = io.data_stats(params, show=False, export_times=True)
+            data_out      = params.get_data_file(is_empty=True, force_raw=True)
+
             data_out.allocate(shape=(times[-1][1], data_out.N_tot), data_dtype=data_file.data_dtype)
             
             print_and_log(['Output file: %s' %combined_file], 'debug', params)
@@ -289,7 +286,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for data_file in all_files:
 
                 params.set('data', 'data_multi_file', data_file)
-                data_in = params.get_data_file(multi=True, comm=comm, force_raw=False)
+                data_in = params.get_data_file(multi=True, force_raw=False)
 
                 print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
                 goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))

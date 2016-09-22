@@ -29,7 +29,7 @@ class OpenEphysFile(DataFile):
         f.close()
         return header
 
-    def __init__(self, file_name, params, empty=False, comm=None):
+    def __init__(self, file_name, params, empty=False):
 
         kwargs = {}
         kwargs['data_dtype']   = 'int16'
@@ -45,7 +45,7 @@ class OpenEphysFile(DataFile):
             kwargs['N_tot'] = len(self.all_files)
             kwargs['gain']  = float(self.header['bitVolts'])        
 
-        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
+        DataFile.__init__(self, file_name, params, empty, **kwargs)
 
 
     def _get_info_(self):

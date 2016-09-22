@@ -14,9 +14,9 @@ class KwdFile(H5File):
                          'sampling_rate'     : ['float', None]}
 
 
-    def __init__(self, file_name, params, empty=False, comm=None):
+    def __init__(self, file_name, params, empty=False):
 
         kwargs = {}
         kwargs = _check_requierements_(self._description, self._requiered_fields, params, **kwargs)
         kwargs['h5_key'] = 'recordings/%s/data' %kwargs['recording_number']
-        H5File.__init__(self, file_name, params, empty, comm, **kwargs)
+        H5File.__init__(self, file_name, params, empty, **kwargs)

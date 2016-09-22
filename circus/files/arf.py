@@ -14,7 +14,7 @@ class ARFFile(H5File):
                          'channel_name'  : ['string', None], 
                          'sampling_rate' : ['float' , None]}
 
-    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
+    def __init__(self, file_name, params, empty=False, **kwargs):
 
         kwargs = _check_requierements_(self._description, self._requiered_fields, params, **kwargs)
 
@@ -26,7 +26,7 @@ class ARFFile(H5File):
             kwargs['channels'] = channels
             kwargs['indices']  = idx
 
-        H5File.__init__(self, file_name, params, empty, comm, **kwargs)
+        H5File.__init__(self, file_name, params, empty, **kwargs)
 
     def _get_sorted_channels_(self, all_keys, pattern):
         sub_list     = [f for f in all_keys if pattern in f]
@@ -52,7 +52,7 @@ class ARFFile(H5File):
         self.size   = self.my_file.get(self._get_channel_key_(0)).shape
         self._shape = (self.size[0], self.N_tot)
         
-        self.max_offset = self._shape[0]
+        self._max_offset = self._shape[0]
         self.data_offset = 0
         self.close()
 
@@ -61,8 +61,8 @@ class ARFFile(H5File):
         if data_dtype is None:
             data_dtype = self.data_dtype
 
-        if self._parallel_write and (self.comm is not None):
-            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=self.comm)
+        if self._parallel_write:
+            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=comm)
             self.my_file.create_group(self.h5_key)
             for i in xrange(self.N_tot):
                 self.my_file.create_dataset(self._get_channel_key_(i), dtype=data_dtype, shape=shape)
@@ -109,8 +109,8 @@ class ARFFile(H5File):
             self.data[i][time:time+data.shape[0]] = data[:, i]
 
     def open(self, mode='r'):
-        if self._parallel_write and (self.comm is not None):
-            self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=self.comm)
+        if self._parallel_write:
+            self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=comm)
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)
 

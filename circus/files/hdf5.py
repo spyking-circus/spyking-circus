@@ -1,6 +1,6 @@
 import h5py, numpy, re, sys
 from circus.shared.messages import print_error, print_and_log
-from datafile import DataFile, _check_requierements_
+from datafile import DataFile, _check_requierements_, comm
 
 class H5File(DataFile):
 
@@ -12,11 +12,11 @@ class H5File(DataFile):
     _requiered_fields = {'h5_key'        : ['string', None], 
                          'sampling_rate' : ['float' , None]}
 
-    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
+    def __init__(self, file_name, params, empty=False, **kwargs):
 
         kwargs['compression'] = 'gzip'
         kwargs = _check_requierements_(self._description, self._requiered_fields, params, **kwargs)
-        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
+        DataFile.__init__(self, file_name, params, empty, **kwargs)
 
     def __check_valid_key__(self, file_name, key):
         file = h5py.File(file_name)
@@ -50,7 +50,7 @@ class H5File(DataFile):
             self.time_axis = 0
             self._shape = self.size
 
-        self.max_offset = self._shape[0]
+        self._max_offset = self._shape[0]
         self.data_offset = 0
         self.close()
 
@@ -59,8 +59,8 @@ class H5File(DataFile):
         if data_dtype is None:
             data_dtype = self.data_dtype
 
-        if self._parallel_write and (self.comm is not None):
-            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=self.comm)
+        if self._parallel_write:
+            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=comm)
             self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
         else:
             self.my_file = h5py.File(self.file_name, mode='w')
@@ -102,8 +102,8 @@ class H5File(DataFile):
             self.data[:, time:time+data.shape[0]] = data.T
 
     def open(self, mode='r'):
-        if self._parallel_write and (self.comm is not None):
-            self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=self.comm)
+        if self._parallel_write:
+            self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=comm)
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)
 

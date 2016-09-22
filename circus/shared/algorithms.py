@@ -6,7 +6,7 @@ from circus.shared.files import load_data, write_datasets, get_overlaps
 from circus.shared.utils import get_progressbar
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.mpi import all_gather_array, SHARED_MEMORY
+from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm
 import scipy.linalg, scipy.sparse
 
 def distancematrix(data, ydata=None):
@@ -155,13 +155,12 @@ def merging(groups, sim_same_elec, data):
             merged[1] += 1
     return groups, merged
 
-def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
+def slice_templates(params, to_remove=[], to_merge=[], extension=''):
 
     import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
     data_file      = params.get_data_file()
-    sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
     N_t            = data_file.N_t
@@ -223,12 +222,11 @@ def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
 
     
 
-def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension='', light=False):
+def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', light=False):
     
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
     data_file      = params.get_data_file()
-    sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
     N_t            = data_file.N_t
@@ -300,7 +298,7 @@ def slice_result(result, times):
 
     return sub_results
 
-def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
+def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
 
     def remove(result, distances, cc_merge):
@@ -350,7 +348,6 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
         return to_merge, result
          
     data_file      = params.get_data_file()
-    sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
     N_t            = data_file.N_t
@@ -363,7 +360,7 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
     cc_merge       = params.getfloat('clustering', 'cc_merge')
         
     result   = []
-    overlap  = get_overlaps(comm, params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+    overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
     if comm.rank > 0:
@@ -389,8 +386,8 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
     to_merge = comm.bcast(to_merge, root=0)
     
     if len(to_merge) > 0:
-        slice_templates(comm, params, to_merge=to_merge)
-        slice_clusters(comm, params, result)
+        slice_templates(params, to_merge=to_merge)
+        slice_clusters(params, result)
 
     if comm.rank == 0:
         os.remove(filename)
@@ -398,12 +395,11 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
     return [nb_temp, len(to_merge)]
 
 
-def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
+def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         
     templates      = load_data(params, 'templates')
     
     data_file      = params.get_data_file()
-    sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
     N_t            = data_file.N_t
@@ -415,7 +411,7 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     mixtures       = []
     to_remove      = []
 
-    overlap  = get_overlaps(comm, params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+    overlap  = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     result   = []
     
@@ -498,8 +494,8 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
     
     if len(to_remove) > 0:
-        slice_templates(comm, params, to_remove)
-        slice_clusters(comm, params, result, to_remove=to_remove)
+        slice_templates(params, to_remove)
+        slice_clusters(params, result, to_remove=to_remove)
 
     if comm.rank == 0:
         os.remove(filename)

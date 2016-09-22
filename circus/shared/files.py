@@ -6,7 +6,7 @@ from circus.shared.utils import get_progressbar
 import numpy, h5py, os, platform, re, sys, scipy
 import sys
 from colorama import Fore
-from mpi import all_gather_array, gather_array, SHARED_MEMORY
+from mpi import all_gather_array, gather_array, SHARED_MEMORY, comm
 from mpi4py import MPI
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
@@ -16,7 +16,6 @@ from circus.shared.utils import purge
 def data_stats(params, show=True, export_times=False):
     multi_files    = params.getboolean('data', 'multi-files')
     
-
     if not multi_files:
         data_file      = params.get_data_file()
         chunk_size     = 60 * data_file.rate    
@@ -30,7 +29,9 @@ def data_stats(params, show=True, export_times=False):
         last_chunk_len = 0
         t_start        = 0
         times          = []
-        data_file      = params.get_data_file()
+        data_file      = params.get_data_file(multi=True, force_raw=False)
+        chunk_size     = 60 * data_file.rate 
+        init_file      = params.get('data', 'data_file')
         for f in all_files:
             params.set('data', 'data_file', f)
             new_data_file = params.get_data_file(force_raw=False)
@@ -44,6 +45,7 @@ def data_stats(params, show=True, export_times=False):
             times   += [[t_start, t_start + new_data_file.max_offset]]
             t_start += new_data_file.max_offset
 
+        params.set('data', 'data_file', init_file)
 
     N_t = data_file.N_t
     N_t = numpy.round(1000.*N_t/data_file.rate, 1)
@@ -86,6 +88,7 @@ def data_stats(params, show=True, export_times=False):
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
     data_file    = params.get_data_file()
+    data_file.open()
     N_t          = data_file.N_t
     if not all_labels:
         if not mean_mode:
@@ -155,10 +158,12 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             else:
                 stas += local_chunk.T
 
+    data_file.close()
+
     return stas
 
 
-def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
+def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
                        mean_mode=False, all_labels=False, auto_align=True):
     
     # First we need to identify machines in the MPI ring.
@@ -172,6 +177,7 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
 
     # Load parameters.
     data_file    = params.get_data_file()
+    data_file.open()
     N_t          = data_file.N_t
     N_total      = data_file.N_tot
     alignment    = params.getboolean('detection', 'alignment') and auto_align
@@ -285,14 +291,17 @@ def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
     # stas = numpy.reshape(stas, stas_shape)
     
     sub_comm.Free()
+    data_file.close()
     
     return stas
 
 ##### end working zone
 
 
-def get_artefact(data_file, times_i, tau, nodes, normalize=True):
+def get_artefact(params, times_i, tau, nodes, normalize=True):
     
+    data_file    = params.get_data_file()
+    data_file.open()
 
     artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
     for time in times_i:
@@ -301,11 +310,13 @@ def get_artefact(data_file, times_i, tau, nodes, normalize=True):
     if normalize:
         artefact /= len(times_i)
 
+    data_file.close()
+
     return artefact
 
 
 
-def load_data_memshared(params, comm, data, extension='', normalize=False, transpose=False, nb_cpu=1, nb_gpu=0, use_gpu=False):
+def load_data_memshared(params, data, extension='', normalize=False, transpose=False, nb_cpu=1, nb_gpu=0, use_gpu=False):
 
     file_out        = params.get('data', 'file_out')
     file_out_suff   = params.get('data', 'file_out_suff')
@@ -398,7 +409,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
             raise Exception('No templates found! Check suffix?')
     elif data == "overlaps":
         
-        c_overlap  = get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        c_overlap  = get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
         N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
@@ -951,7 +962,6 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     # Retrieve the key parameters.
     data_file      = params.get_data_file()
-    sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_t            = data_file.N_t
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -960,7 +970,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     data_length    = data_stats(params, show=False)
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
-    refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
+    refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*data_file.rate*1e-3)
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
@@ -1135,12 +1145,11 @@ def get_garbage(params, extension=''):
     myfile.close()
     return result
 
-def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0):
+def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0):
 
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
     data_file      = params.get_data_file()
-    sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_t            = data_file.N_t
     N_total        = data_file.N_tot
@@ -1156,12 +1165,12 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
 
     if maxoverlap:
         if SHARED_MEMORY:
-            templates  = load_data_memshared(params, comm, 'templates', extension=extension, normalize=normalize)
+            templates  = load_data_memshared(params, 'templates', extension=extension, normalize=normalize)
         else:
             templates  = load_data(params, 'templates', extension=extension)
     else:
         if SHARED_MEMORY:
-            templates  = load_data_memshared(params, comm, 'templates', normalize=normalize)
+            templates  = load_data_memshared(params, 'templates', normalize=normalize)
         else:
             templates  = load_data(params, 'templates')
 

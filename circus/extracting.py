@@ -9,8 +9,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     parallel_hdf5 = h5py.get_config().mpi
 
     #################################################################
-    data_file      = io.get_data_file(params)
-    sampling_rate  = data_file.rate
+    data_file      = params.get_data_file()
     N_e            = data_file.N_e
     N_t            = data_file.N_t
     N_total        = data_file.N_tot
@@ -21,7 +20,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     nodes, edges   = get_nodes_and_edges(params)
-    safety_time    = int(params.getfloat('extracting', 'safety_time')*sampling_rate*1e-3)
+    safety_time    = int(params.getfloat('extracting', 'safety_time')*data_file.rate*1e-3)
     max_elts_temp  = params.getint('extracting', 'max_elts')
     output_dim     = params.getfloat('extracting', 'output_dim')
     noise_thr      = params.getfloat('extracting', 'noise_thr')
@@ -342,13 +341,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         io.print_and_log(["Merging similar templates..."], 'default', params)
     
-    merged1 = algo.merging_cc(comm, params, parallel_hdf5)
+    merged1 = algo.merging_cc(params, parallel_hdf5)
 
     comm.Barrier()
     if remove_mixture:
         if comm.rank == 0:
             io.print_and_log(["Removing mixtures..."], 'default', params)
-        merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+        merged2 = algo.delete_mixtures(params, parallel_hdf5)
     else:
         merged2 = [0, 0]
 
@@ -357,6 +356,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                        "Number of mixtures removed : %d" %merged2[1]], 'info', params)    
 
     comm.Barrier()
-    io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
+    io.get_overlaps(params, erase=True, parallel_hdf5=parallel_hdf5)
 
     data_file.close()

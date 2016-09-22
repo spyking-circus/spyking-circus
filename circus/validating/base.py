@@ -7,6 +7,7 @@ from ..shared.files import get_stas, get_stas_memshared
 from ..shared import plot
 from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, print_error
+from circus.shared.mpi import SHARED_MEMORY, comm
 
 try:
     import sklearn
@@ -36,7 +37,6 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     data_file = params.get_data_file()
     data_file.open()
     N_total = data_file.N_tot
-    sampling_rate = data_file.rate
     N_e = data_file.N_e
     template_shift = data_file.template_shift
     file_out_suff = params.get('data', 'file_out_suff')
@@ -310,7 +310,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"
+    thresh = int(float(data_file.rate) * matching_jitter * 1.0e-3) # "matching threshold"
     
     N_e = data_file.N_e
     for e in xrange(0, N_e):
@@ -381,7 +381,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     
     # Retrieve the spike times of the "ground truth cell".
-    tresh = int(float(sampling_rate) * matching_jitter * 1.0e-3) # "matching threshold"
+    tresh = int(float(data_file.rate) * matching_jitter * 1.0e-3) # "matching threshold"
     matched_spike_times_juxta = numpy.zeros_like(spike_times_juxta, dtype='bool')
     matched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
     mismatched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
@@ -441,9 +441,9 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     labels_gt = numpy.zeros(spike_times_gt.size)
     ##### TODO: clean test zone
     if SHARED_MEMORY:
-        spikes_gt = get_stas_memshared(data_file, comm, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
+        spikes_gt = get_stas_memshared(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
     else:
-        spikes_gt = get_stas(data_file, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
+        spikes_gt = get_stas(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
     ##### end test zone
     
     # Reshape data.
@@ -515,9 +515,9 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     labels_ngt = numpy.zeros(spike_times_ngt.size)
     ##### TODO: clean temporary zone
     if SHARED_MEMORY:
-        spikes_ngt = get_stas_memshared(data_file, comm, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
+        spikes_ngt = get_stas_memshared(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
     else:
-        spikes_ngt = get_stas(data_file, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
+        spikes_ngt = get_stas(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
     ##### TODO: end temporary zone
     
     # Reshape data.
@@ -1291,7 +1291,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         if MODE == 'custom':
             
             # Define the "matching threshold".
-            thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3)
+            thresh = int(float(data_file.rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results")
@@ -1434,7 +1434,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             spike_times_gt = spike_times_gt
             
             # Define the "matching threshold".
-            thresh = int(float(sampling_rate) * matching_jitter * 1.0e-3)
+            thresh = int(float(data_file.rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results")

@@ -13,7 +13,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     data_file      = params.get_data_file()
     data_file.open()
-    sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
     N_t            = data_file.N_t
@@ -32,7 +31,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    safety_time    = int(data_file.get_safety_time('clustering')*sampling_rate*1e-3)
+    safety_time    = int(data_file.get_safety_time('clustering')*data_file.rate*1e-3)
     safety_space   = params.getboolean('clustering', 'safety_space')
     comp_templates = params.getboolean('clustering', 'compress')
     dispersion     = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
@@ -147,7 +146,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if nb_chunks < comm.size:
 
         res        = io.data_stats(params, show=False)
-        chunk_size = int(res*sampling_rate//comm.size)
+        chunk_size = int(res*data_file.rate//comm.size)
         if comm.rank == 0:
             print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
@@ -968,14 +967,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         print_and_log(["Merging similar templates..."], 'default', params)
     
     
-    merged1 = algo.merging_cc(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    merged1 = algo.merging_cc(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     
     comm.Barrier()
 
     if remove_mixture:
         if comm.rank == 0:
             print_and_log(["Removing mixtures..."], 'default', params)
-        merged2 = algo.delete_mixtures(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     else:
         merged2 = [0, 0]
 
@@ -986,4 +985,4 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     
     
     comm.Barrier()
-    io.get_overlaps(comm, params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)

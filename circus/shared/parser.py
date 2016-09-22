@@ -240,16 +240,43 @@ class CircusParser(object):
         self.parser.set(data, section, value)
 
 
-    def get_data_file(self, multi=False, empty=False, comm=None, force_raw='auto'):
-        old_file_format = None
+    def _create_data_file(self, params, is_empty=False):
+        keys        = __supported_data_files__.keys()
         
-        if force_raw == 'auto':        
-            old_file_format = self.parser.get('data', 'file_format')
-            if self.parser.getboolean('data', 'multi-files'):
-                self.parser.set('data', 'file_format', 'raw_binary')
+        file_format = params['file_format']
+        data_file   = params['data_file']
+
+        if file_format not in keys:
+            print_error(["The type %s is not recognized as a valid file format" %file_format, 
+                         "Valid files formats can be:", 
+                         ", ".join(keys)])
+            sys.exit(0)
+        else:
+            data = __supported_data_files__[file_format](data_file, params, is_empty)
+
+        return data
+
+    def get_data_file(self, multi=False, is_empty=False, force_raw=False):
+
+        ## A bit tricky because we want to deal with multifiles export
+        # If multi is False, we use the default REAL data files
+        # If multi is True, we use the combined file of all data files
+
+        several_files = self.parser.getboolean('data', 'multi-files')
+        
+        params        = self.parser._sections['data']
+
+        '''
+        if force_raw == True:  
+            data = self._create_data_file(params, is_empty)
+
+            params['file_format'] = 'raw_binary'
+            params['data_dtype']  = data.data_dtype
+            params['data_offset'] = 0
+            params['']
         elif force_raw == True:
-            old_file_format = self.parser.get('data', 'file_format')
             self.parser.set('data', 'file_format', 'raw_binary')
+        '''
 
         if not multi:
             data_file = self.parser.get('data', 'data_file')    
@@ -257,18 +284,10 @@ class CircusParser(object):
             data_file = self.parser.get('data', 'data_multi_file')
 
         file_format = self.parser.get('data', 'file_format').lower()
+        print file_format, data_file, params
 
-        keys     = __supported_data_files__.keys()
-        if file_format not in keys:
-            print_error(["The type %s is not recognized as a valid file format" %file_format, 
-                         "Valid files formats can be:", 
-                         ", ".join(keys)])
-            sys.exit(0)
-        else:
-            data = __supported_data_files__[file_format](data_file, self.parser, empty, comm)
-            if old_file_format is not None:
-                self.parser.set('data', 'file_format', old_file_format)
-        return data
+        
+        return self._create_data_file(params, is_empty)
 
 
     def get_multi_files(self):

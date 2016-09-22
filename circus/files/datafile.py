@@ -1,5 +1,6 @@
 import h5py, numpy, re, sys, os
 from circus.shared.messages import print_error, print_and_log
+from circus.shared.mpi import comm
 
 def _check_requierements_(description, fields, params, **kwargs):
 
@@ -61,9 +62,11 @@ class DataFile(object):
     _parallel_write   = False
     _is_writable      = False
     _requiered_fields = {}
+    _shape            = (0, 0)
+    _max_offset       = 0
     # Note that those values can be either infered from header, or otherwise read from the parameter file
 
-    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
+    def __init__(self, file_name, params, is_empty=False, **kwargs):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from
         the parameter file, but you could completly fill them based on values that would be obtained
@@ -84,9 +87,13 @@ class DataFile(object):
         '''
 
         self.file_name = file_name
-        self.empty     = empty
-        self.comm      = comm
+        self.is_empty  = is_empty
         self.params    = params
+
+        if is_empty and not self._is_writable:
+            if self.is_master:
+                print_error(["The file %s is empty and non writable..." %(extension, self._description)])
+            sys.exit(0)
 
         f_next, extension = os.path.splitext(self.file_name)
         
@@ -117,8 +124,6 @@ class DataFile(object):
                     print_and_log(['%s is infered from the data file with a value of %s' %(key, value)], 'debug', self.params)
 
 
-        self.max_offset  = 0
-        self._shape      = None
         self._N_t        = None
         self._dist_peaks = None
         self._template_shift = None
@@ -126,7 +131,7 @@ class DataFile(object):
         if self.is_master:
             print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
-        if not self.empty:
+        if not self.is_empty:
             self._get_info_()
             
     @property
@@ -268,12 +273,14 @@ class DataFile(object):
 
     @property
     def shape(self):
-        return self._shape   
+        return self._shape  
+    
+    @property
+    def max_offset(self):
+        return self._max_offset
+     
 
 
     @property
     def is_master(self):
-    	if self.comm == None:
-            return True
-    	else:
-            return self.comm.rank == 0
+    	return comm.rank == 0

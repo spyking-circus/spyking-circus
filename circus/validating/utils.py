@@ -1,6 +1,5 @@
 import h5py
 import matplotlib.pyplot as plt
-from scipy import sparse
 from scipy import signal
 
 
@@ -224,7 +223,6 @@ def extract_extra_spikes_(params):
     
     data_file = params.get_data_file()
     data_file.open()
-    sampling_rate  = data_file.rate
     dist_peaks     = data_file.dist_peaks
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     template_shift = data_file.template_shift
@@ -250,7 +248,7 @@ def extract_extra_spikes_(params):
     N_elec = nodes.size
     
     # Convert 'safety_time' from milliseconds to number of samples.
-    safety_time = int(safety_time * float(sampling_rate) * 1e-3)
+    safety_time = int(safety_time * float(data_file.rate) * 1e-3)
     
     extra_medians, extra_mads = extract_extra_thresholds(params)
     
