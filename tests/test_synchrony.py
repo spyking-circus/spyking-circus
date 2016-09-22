@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, t_stop, name):
 
@@ -205,14 +206,15 @@ class TestSynchrony(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'synchrony')
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
+        self.params = CircusParser(self.file_name)
 
     #def tearDown(self):
     #    data_path = '.'.join(self.file_name.split('.')[:-1])
     #    shutil.rmtree(data_path)
 
     def test_synchrony(self):
-        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
+        self.params.write('fitting', 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'max_chunk', 'inf')
+        self.params.write('fitting', 'max_chunk', 'inf')
         res = get_performance(self.file_name, 20000, 'test')
         assert (numpy.abs(res - 1) < 0.75), "Synchrony not properly resolved %g" %res

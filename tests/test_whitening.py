@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, name):
 
@@ -49,9 +50,11 @@ class TestWhitening(unittest.TestCase):
         self.whitening      = None
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')   
-        io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
-        io.change_flag(self.file_name, 'spatial', 'True')
-        io.change_flag(self.file_name, 'temporal', 'True')
+        self.params = ConfigParser(self.file_name)
+        self.params.write('clustering', 'max_elts', '1000')
+        self.params.write('whitening', 'spatial', 'True')
+        self.params.write('clustering', 'temporal', 'False')
+
 
     def test_whitening_one_CPU(self):
         mpi_launch('whitening', self.file_name, 1, 0, 'False')
@@ -68,9 +71,9 @@ class TestWhitening(unittest.TestCase):
         assert (((res['spatial'] - self.whitening['spatial'])**2).mean() < 0.1) and (((res['temporal'] - self.whitening['temporal'])**2).mean() < 0.1)
 
     def test_whitening_safety_time(self):
-        io.change_flag(self.file_name, 'safety_time', '5')
+        self.params.write('clustering', 'safety_time', '5')
         mpi_launch('whitening', self.file_name, 1, 0, 'False')
-        io.change_flag(self.file_name, 'safety_time', '0.5')
+        self.params.write('clustering', 'safety_time', 'auto')
         res = get_performance(self.file_name, 'safety_time')
         if self.whitening is None:
             self.whitening = res

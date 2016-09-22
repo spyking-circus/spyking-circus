@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, name):
 
@@ -151,6 +152,7 @@ class TestCompleteWorkflow(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'drifts')
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
+        self.parser = CircusParser(self.file_name)
 
     def test_all_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')

@@ -6,20 +6,17 @@ import circus
 import logging
 import numpy as np
 import h5py
-from circus.shared.messages import print_error, print_info, print_and_log
-from circus.shared.files import write_datasets, get_results, load_data, get_stas
-from circus.shared.utils import get_progressbar
-from circus.shared.parser import read_probe
+
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
-    data_file      = io.get_data_file(params)
+    data_file      = params.get_data_file()
     params         = data_file.params
     sampling_rate  = data_file.rate
     file_out_suff  = params.get('data', 'file_out_suff')
-    probe          = read_probe(params)
+    probe          = params.probe
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
     N_e            = data_file.N_e
     N_t            = data_file.N_t
@@ -67,7 +64,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         
         if export_all:
             print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', params)
-            garbage = circus.shared.utils.io.load_data(params, 'garbage', extension)
+            garbage = io.load_data(params, 'garbage', extension)
             for key in garbage['gspikes'].keys():
                 elec_id    = int(key.split('_')[-1])
                 data       = garbage['gspikes'].pop(key).astype(numpy.uint64)

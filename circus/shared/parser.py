@@ -1,9 +1,9 @@
 import ConfigParser as configparser
 from messages import print_error, print_and_log
 from circus.shared.probes import read_probe
-#from circus.files import __supported_data_files__
+from circus.files import __supported_data_files__
 	
-import os, sys, copy
+import os, sys, copy, StringIO
 
 class CircusParser(object):
 
@@ -74,6 +74,7 @@ class CircusParser(object):
         file_path         = os.path.dirname(self.file_name)
         self.file_params  = f_next + '.params'
         self.parser       = configparser.ConfigParser()
+
         if not os.path.exists(self.file_params):
             print_error(["%s does not exist" %self.file_params])
             sys.exit(0)
@@ -104,7 +105,14 @@ class CircusParser(object):
         self.probe = read_probe(self.parser)
 
 
+        N_e = 0
+        for key in self.probe['channel_groups'].keys():
+            N_e += len(self.probe['channel_groups'][key]['channels'])
 
+        self.set('data', 'N_e', str(N_e))      
+        self.set('data', 'N_total', str(self.probe['total_nb_channels']))      
+
+        '''
         try:
             self.file_format = parser.get('data', 'file_format')
         except Exception:
@@ -114,46 +122,43 @@ class CircusParser(object):
                        "", 
                        ", ".join(__supported_data_files__.keys())])
             sys.exit(0)
-       	return self.file_format
+        '''
 	
 
         try: 
-            parser.get('detection', 'radius')
+            self.parser.get('detection', 'radius')
         except Exception:
-            parser.set('detection', 'radius', 'auto')
+            self.parser.set('detection', 'radius', 'auto')
         try:
-            parser.getint('detection', 'radius')
+            self.parser.getint('detection', 'radius')
         except Exception:
-            parser.set('detection', 'radius', str(int(probe['radius'])))
+            self.parser.set('detection', 'radius', str(int(self.probe['radius'])))	    
 
-        return self._radius
-	    
-
-        if parser.getboolean('data', 'multi-files'):
-            parser.set('data', 'data_multi_file', file_name)
+        if self.parser.getboolean('data', 'multi-files'):
+            self.parser.set('data', 'data_multi_file', file_name)
             pattern     = os.path.basename(file_name).replace('0', 'all')
             multi_file  = os.path.join(file_path, pattern)
-            parser.set('data', 'data_file', multi_file)
+            self.parser.set('data', 'data_file', multi_file)
             f_next, extension = os.path.splitext(multi_file)
         else:
-            parser.set('data', 'data_file', file_name)
+            self.parser.set('data', 'data_file', file_name)
 
-        if parser.getboolean('triggers', 'clean_artefact'):
-            if (parser.get('triggers', 'trig_file') == '') or (parser.get('triggers', 'trig_windows') == ''):
-                print_and_log(["trig_file and trig_windows must be specified"], 'error', parser)
+        if self.parser.getboolean('triggers', 'clean_artefact'):
+            if (self.parser.get('triggers', 'trig_file') == '') or (self.parser.get('triggers', 'trig_windows') == ''):
+                print_and_log(["trig_file and trig_windows must be specified"], 'error', self.parser)
                 sys.exit(0)
 	    
-        parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(parser.get('triggers', 'trig_file'))))
-        parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(parser.get('triggers', 'trig_windows'))))
+        self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
+        self.parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_windows'))))
 
-        test = (parser.get('clustering', 'extraction') in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
+        test = (self.parser.get('clustering', 'extraction') in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
         if not test:
-            print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', parser)
+            print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', self.parser)
             sys.exit(0)
 
-        test = (parser.get('detection', 'peaks') in ['negative', 'positive', 'both'])
+        test = (self.parser.get('detection', 'peaks') in ['negative', 'positive', 'both'])
         if not test:
-            print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', parser)
+            print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', self.parser)
             sys.exit(0)
 
         try:
@@ -162,61 +167,61 @@ class CircusParser(object):
             pass
 
         file_out = os.path.join(f_next, os.path.basename(f_next))
-        parser.set('data', 'file_out', file_out) # Output file without suffix
-        parser.set('data', 'file_out_suff', file_out  + parser.get('data', 'suffix')) # Output file with suffix
-        parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)   
+        self.parser.set('data', 'file_out', file_out) # Output file without suffix
+        self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
+        self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)   
 
         for section in ['whitening', 'clustering']:
-            test = (parser.getfloat(section, 'nb_elts') > 0) and (parser.getfloat(section, 'nb_elts') <= 1)
+            test = (self.parser.getfloat(section, 'nb_elts') > 0) and (self.parser.getfloat(section, 'nb_elts') <= 1)
             if not test: 
-                print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', parser)
+                print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', self.parser)
                 sys.exit(0)
 
-        test = (parser.getfloat('clustering', 'nclus_min') >= 0) and (parser.getfloat('clustering', 'nclus_min') < 1)
+        test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
         if not test:
-            print_and_log(["nclus_min in clustering should be in [0,1["], 'error', parser)
+            print_and_log(["nclus_min in clustering should be in [0,1["], 'error', self.parser)
             sys.exit(0)
 
-        test = (parser.getfloat('clustering', 'noise_thr') >= 0) and (parser.getfloat('clustering', 'noise_thr') <= 1)
+        test = (self.parser.getfloat('clustering', 'noise_thr') >= 0) and (self.parser.getfloat('clustering', 'noise_thr') <= 1)
         if not test:
-            print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', parser)
+            print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', self.parser)
             sys.exit(0)
 
-        test = (parser.getfloat('validating', 'test_size') > 0) and (parser.getfloat('validating', 'test_size') < 1)
+        test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)
         if not test:
-            print_and_log(["test_size in validating should be in ]0,1["], 'error', parser)
+            print_and_log(["test_size in validating should be in ]0,1["], 'error', self.parser)
             sys.exit(0)
 
         fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
-        test = parser.get('clustering', 'make_plots') in fileformats
+        test = self.parser.get('clustering', 'make_plots') in fileformats
         if not test:
-            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
+            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', self.parser)
             sys.exit(0)
-        test = parser.get('validating', 'make_plots') in fileformats
+        test = self.parser.get('validating', 'make_plots') in fileformats
         if not test:
-            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', parser)
+            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', self.parser)
             sys.exit(0)
 	    
-        dispersion     = parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
+        dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
         dispersion     = map(float, dispersion)
         test =  (0 < dispersion[0]) and (0 < dispersion[1])
         if not test:
-            print_and_log(["min and max dispersions should be positive"], 'error', parser)
+            print_and_log(["min and max dispersions should be positive"], 'error', self.parser)
             sys.exit(0)
 	        
 
         pcs_export = ['prompt', 'none', 'all', 'some']
-        test = parser.get('converting', 'export_pcs') in pcs_export
+        test = self.parser.get('converting', 'export_pcs') in pcs_export
         if not test:
-            print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', parser)
+            print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', self.parser)
             sys.exit(0)
         else:
-            if parser.get('converting', 'export_pcs') == 'none':
-                parser.set('converting', 'export_pcs', 'n')
-            elif parser.get('converting', 'export_pcs') == 'some':
-                parser.set('converting', 'export_pcs', 's')
-            elif parser.get('converting', 'export_pcs') == 'all':
-                parser.set('converting', 'export_pcs', 'a')
+            if self.parser.get('converting', 'export_pcs') == 'none':
+                self.parser.set('converting', 'export_pcs', 'n')
+            elif self.parser.get('converting', 'export_pcs') == 'some':
+                self.parser.set('converting', 'export_pcs', 's')
+            elif self.parser.get('converting', 'export_pcs') == 'all':
+                self.parser.set('converting', 'export_pcs', 'a')
 	    
 
     def get(self, data, section):
@@ -232,27 +237,87 @@ class CircusParser(object):
       	return self.parser.getint(data, section)
 
     def set(self, data, section, value):
-        return self.original.set(data, section, value)
+        self.parser.set(data, section, value)
 
-    def save(self):
-        f = open(self.file_params, 'wb')
-        self.original.write(f)
+
+    def get_data_file(self, multi=False, empty=False, comm=None, force_raw='auto'):
+        old_file_format = None
+        
+        if force_raw == 'auto':        
+            old_file_format = self.parser.get('data', 'file_format')
+            if self.parser.getboolean('data', 'multi-files'):
+                self.parser.set('data', 'file_format', 'raw_binary')
+        elif force_raw == True:
+            old_file_format = self.parser.get('data', 'file_format')
+            self.parser.set('data', 'file_format', 'raw_binary')
+
+        if not multi:
+            data_file = self.parser.get('data', 'data_file')    
+        else:
+            data_file = self.parser.get('data', 'data_multi_file')
+
+        file_format = self.parser.get('data', 'file_format').lower()
+
+        keys     = __supported_data_files__.keys()
+        if file_format not in keys:
+            print_error(["The type %s is not recognized as a valid file format" %file_format, 
+                         "Valid files formats can be:", 
+                         ", ".join(keys)])
+            sys.exit(0)
+        else:
+            data = __supported_data_files__[file_format](data_file, self.parser, empty, comm)
+            if old_file_format is not None:
+                self.parser.set('data', 'file_format', old_file_format)
+        return data
+
+
+    def get_multi_files(self):
+        file_name   = self.parser.get('data', 'data_multi_file')
+        dirname     = os.path.abspath(os.path.dirname(file_name))
+        all_files   = os.listdir(dirname)
+        pattern     = os.path.basename(file_name)
+        to_process  = []
+        count       = 0
+
+        while pattern in all_files:
+            to_process += [os.path.join(os.path.abspath(dirname), pattern)]
+            pattern     = pattern.replace(str(count), str(count+1))
+            count      += 1
+
+        print_and_log(['Multi-files:'] + to_process, 'debug', self.parser)
+        return to_process
+
+    def write(self, section, flag, value):
+        f     = open(self.file_params, 'r')
+        lines = f.readlines()
         f.close()
+        to_write = '%s      = %s              #!! AUTOMATICALLY EDITED: DO NOT MODIFY !!\n' %(flag, value)
+        
+        section_area = [0, len(lines)]
+        idx          = 0
+        for count, line in enumerate(lines):
 
-    @property
-    def N_e(self):
+            if (idx == 1) and line.strip().replace('[', '').replace(']', '') in self.__all_section__ :
+                section_area[idx] = count
+                idx += 1
 
-        if hasattr(self, '_N_e'):
-            return self._N_e
+            if (line.find('[%s]' %section) > -1):
+                section_area[idx] = count
+                idx += 1
 
-        self.__setattr__('_N_e', 0)
-        for key in self.probe['channel_groups'].keys():
-            self._N_e += len(self.probe['channel_groups'][key]['channels'])
-        return self._N_e
+        has_been_changed = False
 
-    @property
-    def N_total(self):
-        if hasattr(self, '_N_total'):
-            return self._N_total
-        self.__setattr__('_N_total', str(self.probe['total_nb_channels'])) 		
-        return self._N_total    
+        for count in xrange(section_area[0]+1, section_area[1]):
+            if '=' in line:
+                key  = lines[count].split('=')[0].replace(' ', '')
+                if key == flag:
+                    lines[count] = to_write
+                    has_been_changed = True
+
+        if not has_been_changed:
+            lines.insert(section_area[1]-1, to_write)
+
+        f     = open(self.file_params, 'w')
+        for line in lines:
+            f.write(line)
+        f.close()

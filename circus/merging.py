@@ -23,7 +23,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 print("Export already made! Do you want to erase everything? (y)es / (n)o ")
                 key = raw_input('')
                 if key =='y':
-                    io.purge(file_out_suff, extension)
+                    purge(file_out_suff, extension)
                     extension_in = ''
 
     comm.Barrier()

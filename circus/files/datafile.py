@@ -1,5 +1,4 @@
 import h5py, numpy, re, sys, os
-from circus.shared.parser import CircusParser
 from circus.shared.messages import print_error, print_and_log
 
 def _check_requierements_(description, fields, params, **kwargs):
@@ -87,9 +86,7 @@ class DataFile(object):
         self.file_name = file_name
         self.empty     = empty
         self.comm      = comm
-
-        assert isinstance(params, CircusParser)
-        self.params = params
+        self.params    = params
 
         f_next, extension = os.path.splitext(self.file_name)
         

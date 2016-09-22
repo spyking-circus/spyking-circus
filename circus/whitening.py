@@ -3,15 +3,15 @@ import circus.shared.algorithms as algo
 from .shared import plot
 from circus.shared.probes import get_nodes_and_edges
 import h5py
+from circus.shared.messages import print_error, print_info, print_and_log
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
 
     #################################################################
-    data_file      = io.get_data_file(params)
+    data_file      = params.get_data_file()
     data_file.open()
-    params         = data_file.params
     dist_peaks     = data_file.dist_peaks
     template_shift = data_file.template_shift
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -34,7 +34,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if comm.rank == 0:
-        io.print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', params)
+        print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', params)
 
     if use_gpu:
         import cudamat as cmt
@@ -54,7 +54,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         res        = io.data_stats(data_file, show=False)
         chunk_size = int(res*data_file.rate//comm.size)
         if comm.rank == 0:
-            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+            print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
@@ -161,7 +161,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 nb_silences     = numpy.sum(all_elecs > 0)
                 all_res         = all_res.reshape((nb_silences, N_t**2))
             except Exception:
-                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
+                print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             all_res             = numpy.sum(all_res, 0)
             all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
             temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
@@ -177,17 +177,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if do_spatial_whitening:
             if len(all_silences)/data_file.rate == 0:
-                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
+                print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
-            io.print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/data_file.rate)], 'default', params)
+            print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/data_file.rate)], 'default', params)
         
             have_nans = numpy.sum(numpy.isnan(spatial_whitening))
 
             if have_nans > 0:
                 spatial_whitening = numpy.eye(spatial_whitening.shape[0], dtype=numpy.float32)
                 to_write['spatial'] = spatial_whitening
-                io.print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', params)
+                print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', params)
 
         bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, to_write.keys(), to_write)
@@ -199,7 +199,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if do_spatial_whitening or do_temporal_whitening:
 
         if comm.rank == 0:
-            io.print_and_log(["Because of whitening, need to recompute the thresholds..."], 'default', params)
+            print_and_log(["Because of whitening, need to recompute the thresholds..."], 'default', params)
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -247,9 +247,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(422)
 
     #################################################################
-    data_file      = io.get_data_file(params)
+    data_file      = params.get_data_file()
     data_file.open()
-    params         = data_file.params
     N_t            = data_file.N_t
     dist_peaks     = data_file.dist_peaks
     template_shift = data_file.template_shift
@@ -272,7 +271,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
     if comm.rank == 0:
-        io.print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
+        print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
         
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
@@ -281,7 +280,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         res        = io.data_stats(data_file, show=False)
         chunk_size = int(res*data_file.rate//comm.size)
         if comm.rank == 0:
-            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+            print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
@@ -429,7 +428,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
-    io.print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', params)
+    print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', params)
     
     if sign_peaks in ['negative', 'both']:
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
@@ -445,7 +444,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['positive', 'both']:
             nb_waveforms += gdata_pos.shape[0]
         
-        io.print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', params)
+        print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', params)
         pca = PCA(output_dim, copy=False)
         res = {}   
         if sign_peaks in ['negative', 'both']:  
@@ -472,11 +471,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
         if sign_peaks == 'positive':
-            io.print_and_log(["A basis with %s dimensions has been built" %res['proj_pos'].shape[1]], 'info', params)
+            print_and_log(["A basis with %s dimensions has been built" %res['proj_pos'].shape[1]], 'info', params)
         elif sign_peaks == 'negative':
-            io.print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
+            print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
         elif sign_peaks == 'both':
-            io.print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
+            print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
 
         bfile.close()
 
@@ -485,7 +484,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if matched_filter:
 
         if comm.rank == 0:
-            io.print_and_log(["Because of matched filters, need to recompute the thresholds..."], 'default', params)
+            print_and_log(["Because of matched filters, need to recompute the thresholds..."], 'default', params)
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')

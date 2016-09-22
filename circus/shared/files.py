@@ -8,106 +8,32 @@ import sys
 from colorama import Fore
 from mpi import all_gather_array, gather_array, SHARED_MEMORY
 from mpi4py import MPI
-import logging
-
-from circus.files.datafile import *
-from circus.files import __supported_data_files__
 from circus.shared.probes import get_nodes_and_edges
+from circus.shared.messages import print_and_log
+from circus.shared.utils import purge
 
-def get_data_file(params, multi=False, empty=False, comm=None, force_raw='auto'):
 
-    old_file_format = None
+def data_stats(params, show=True, export_times=False):
+    multi_files    = params.getboolean('data', 'multi-files')
     
-    if force_raw == 'auto':        
-        old_file_format = params.get('data', 'file_format')
-        if params.getboolean('data', 'multi-files'):
-            params.set('data', 'file_format', 'raw_binary')
-    elif force_raw == True:
-        old_file_format = params.get('data', 'file_format')
-        params.set('data', 'file_format', 'raw_binary')
-
-    if not multi:
-        data_file = params.get('data', 'data_file')    
-    else:
-        data_file = params.get('data', 'data_multi_file')
-
-    file_format = params.get('data', 'file_format').lower()
-
-    keys     = __supported_data_files__.keys()
-    if file_format not in keys:
-        print_error(["The type %s is not recognized as a valid file format" %file_format, 
-                     "Valid files formats can be:", 
-                     ", ".join(keys)])
-        sys.exit(0)
-    else:
-        data = __supported_data_files__[file_format](data_file, params, empty, comm)
-        if old_file_format is not None:
-            params.set('data', 'file_format', old_file_format)
-        return data
-
-
-def purge(file, pattern):
-    dir = os.path.dirname(os.path.abspath(file))
-    for f in os.listdir(dir):
-        if f.find(pattern) > -1:
-            os.remove(os.path.join(dir, f))
-
-def get_multi_files(params):
-    file_name   = params.get('data', 'data_multi_file')
-    dirname     = os.path.abspath(os.path.dirname(file_name))
-    all_files   = os.listdir(dirname)
-    pattern     = os.path.basename(file_name)
-    to_process  = []
-    count       = 0
-
-    while pattern in all_files:
-        to_process += [os.path.join(os.path.abspath(dirname), pattern)]
-        pattern     = pattern.replace(str(count), str(count+1))
-        count      += 1
-
-    print_and_log(['Multi-files:'] + to_process, 'debug', params)
-    return to_process
-
-# def change_flag(file_name, flag, value, avoid_flag=None):
-#     """Set a new value to a flag of a given parameter file."""
-#     f_next, extension = os.path.splitext(os.path.abspath(file_name))
-#     file_params       = os.path.abspath(file_name.replace(extension, '.params'))
-#     f     = open(file_params, 'r')
-#     lines = f.readlines()
-#     f.close()
-#     f     = open(file_params, 'w')
-#     to_write = '%s      = %s              #!! AUTOMATICALLY EDITED: DO NOT MODIFY !!\n' %(flag, value)
-#     for line in lines:
-#         if avoid_flag is not None:
-#             mytest = (line.find(flag) > -1) and (line.find(avoid_flag) == -1)
-#         else:
-#             mytest = (line.find(flag) > -1)
-#         if mytest:
-#             f.write(to_write)
-#         else:
-#             f.write(line)
-#     f.close()
-
-
-def data_stats(data_file, show=True, export_times=False):
-    multi_files    = data_file.params.getboolean('data', 'multi-files')
-    chunk_size     = 60 * data_file.rate    
 
     if not multi_files:
+        data_file      = params.get_data_file()
+        chunk_size     = 60 * data_file.rate    
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
         if last_chunk_len > 0:
             nb_chunks -= 1
     else:
-        all_files      = get_multi_files(data_file.params)
+        all_files      = params.get_multi_files()
         N              = 0
         nb_chunks      = 0
         last_chunk_len = 0
         t_start        = 0
         times          = []
-        init_file      = data_file.params.get('data', 'data_file')
+        data_file      = params.get_data_file()
         for f in all_files:
-            data_file.params.set('data', 'data_file', f)
-            new_data_file = get_data_file(data_file.params, force_raw=False)
+            params.set('data', 'data_file', f)
+            new_data_file = params.get_data_file(force_raw=False)
             loc_nb_chunks, last_chunk_len = new_data_file.analyze(chunk_size)
             if last_chunk_len > 0:
                 loc_nb_chunks -= 1
@@ -117,7 +43,6 @@ def data_stats(data_file, show=True, export_times=False):
 
             times   += [[t_start, t_start + new_data_file.max_offset]]
             t_start += new_data_file.max_offset
-        data_file.params.set('data', 'data_file', init_file)
 
 
     N_t = data_file.N_t
@@ -133,23 +58,23 @@ def data_stats(data_file, show=True, export_times=False):
 
     lines = ["Number of recorded channels : %d" %data_file.N_tot,
              "Number of analyzed channels : %d" %data_file.N_e,
-             "File format                 : %s" %data_file.params.get('data', 'file_format').upper(),
+             "File format                 : %s" %params.get('data', 'file_format').upper(),
              "Data type                   : %s" %str(data_file.data_dtype),
              "Sampling rate               : %d kHz" %(data_file.rate//1000.),
              "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, int(nb_seconds), last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
-             "Spatial radius considered   : %d um" %data_file.params.getint('detection', 'radius'),
-             "Threshold crossing          : %s" %data_file.params.get('detection', 'peaks'),
-             "Waveform alignment          : %s" %data_file.params.getboolean('detection', 'alignment'),
-             "Matched filters             : %s" %data_file.params.getboolean('detection', 'matched-filter'),
-             "Template Extraction         : %s" %data_file.params.get('clustering', 'extraction'),
-             "Collect all spikes          : %s" %data_file.params.getboolean('fitting', 'collect_all'),
-             "Smart Search                : %s" %data_file.params.getboolean('clustering', 'smart_search')]
+             "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
+             "Threshold crossing          : %s" %params.get('detection', 'peaks'),
+             "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
+             "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
+             "Template Extraction         : %s" %params.get('clustering', 'extraction'),
+             "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
+             "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
     
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
 
-    print_and_log(lines, 'info', data_file.params, show)
+    print_and_log(lines, 'info', params, show)
 
     if not export_times:
         return nb_chunks*60 + nb_seconds + last_chunk_len/1000.
@@ -158,8 +83,9 @@ def data_stats(data_file, show=True, export_times=False):
 
 
 
-def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
+    data_file    = params.get_data_file()
     N_t          = data_file.N_t
     if not all_labels:
         if not mean_mode:
@@ -170,16 +96,16 @@ def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=Fa
         nb_labels = numpy.unique(labels_i)
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
-    alignment     = data_file.params.getboolean('detection', 'alignment') and auto_align
+    alignment     = params.getboolean('detection', 'alignment') and auto_align
 
-    do_temporal_whitening = data_file.params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = data_file.params.getboolean('whitening', 'spatial')
+    do_temporal_whitening = params.getboolean('whitening', 'temporal')
+    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     template_shift        = data_file.template_shift
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(data_file.params, 'spatial_whitening')
+        spatial_whitening  = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:     
-        temporal_whitening = load_data(data_file.params, 'temporal_whitening')
+        temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
         cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
@@ -232,7 +158,7 @@ def get_stas(data_file, times_i, labels_i, src, neighs, nodes=None, mean_mode=Fa
     return stas
 
 
-def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=None,
+def get_stas_memshared(params, comm, times_i, labels_i, src, neighs, nodes=None,
                        mean_mode=False, all_labels=False, auto_align=True):
     
     # First we need to identify machines in the MPI ring.
@@ -243,10 +169,9 @@ def get_stas_memshared(data_file, comm, times_i, labels_i, src, neighs, nodes=No
     ##### end quarantine zone
     float_size = MPI.FLOAT.Get_size() 
     sub_comm = comm.Split(myip, 0)
-    params = data_file.params
 
     # Load parameters.
-    data_file    = params.get('data', 'data_file')
+    data_file    = params.get_data_file()
     N_t          = data_file.N_t
     N_total      = data_file.N_tot
     alignment    = params.getboolean('detection', 'alignment') and auto_align
@@ -394,7 +319,7 @@ def load_data_memshared(params, comm, data, extension='', normalize=False, trans
     floatsize = MPI.FLOAT.Get_size() 
     sub_comm  = comm.Split(myip, 0)
 
-    data_file = get_data_file(params)
+    data_file = params.get_data_file()
     N_e       = data_file.N_e
     N_t       = data_file.N_t
     
@@ -786,7 +711,7 @@ def load_data(params, data, extension=''):
             triggers = numpy.load(filename)
             N_tr     = triggers.shape[0]
 
-            data_file = io.get_data_file(params)
+            data_file = params.get_data_file()
             data_file.open()
 
             N_total = data_file.N_tot
@@ -1022,17 +947,17 @@ def write_datasets(h5file, to_write, result, electrode=None):
         h5file.create_dataset(mykey, shape=result[mykey].shape, dtype=result[mykey].dtype, chunks=True)
         h5file.get(mykey)[:] = result[mykey]
 
-def collect_data(nb_threads, data_file, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
+def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     # Retrieve the key parameters.
-    params         = data_file.params
+    data_file      = params.get_data_file()
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_t            = data_file.N_t
     file_out_suff  = params.get('data', 'file_out_suff')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
-    chunks         = params.getfloat('fitting', 'chunk')
-    data_length    = data_stats(data_file, show=False)
+    chunks         = params.getfloat('fitting', 'chunk_size')
+    data_length    = data_stats(params, show=False)
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
     refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*sampling_rate*1e-3)
@@ -1214,8 +1139,7 @@ def get_overlaps(comm, params, extension='', erase=False, normalize=True, maxove
 
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
-    data_file      = get_data_file(params)
-    params         = data_file.params
+    data_file      = params.get_data_file()
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_t            = data_file.N_t

@@ -24,7 +24,7 @@ else:
 from utils import *
 from algorithms import slice_templates, slice_clusters
 from mpi import SHARED_MEMORY
-from circus.shared.probes import get_nodes_and_edges, read_probe
+from circus.shared.probes import get_nodes_and_edges
 
 
 class SymmetricVCursor(widgets.AxesWidget):
@@ -115,7 +115,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.params     = params
         self.ext_in     = extension_in
         self.ext_out    = extension_out
-        data_file       = io.get_data_file(params)
+        data_file       = params.get_data_file()
         data_file.open()
         self.N_e             = data_file.N_e
         self.N_t             = data_file.N_t
@@ -184,7 +184,7 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.init_gui_layout()
 
-        self.probe      = read_probe(params)
+        self.probe      = self.params.probe
         self.x_position = []
         self.y_position = []
         self.order      = []
@@ -1026,24 +1026,24 @@ class MergeWindow(QtGui.QMainWindow):
 
 class PreviewGUI(QtGui.QMainWindow):
 
-    def __init__(self, data_file, show_fit=False):
+    def __init__(self, params, show_fit=False):
         super(PreviewGUI, self).__init__()
 
         self.show_fit         = show_fit
-        self.data_file        = data_file
+        self.params           = params
+        self.data_file        = params.get_data_file()
         self.data_file.open()
-        self.params           = data_file.params
-        self.maxtime          = io.data_stats(data_file, show=False) - 1
+        self.maxtime          = io.data_stats(self.params, show=False) - 1
         self.init_gui_layout()
-        self.probe            = read_probe(data_file.params)
-        self.N_e              = data_file.N_e
-        self.N_t              = data_file.N_t
-        self.spike_thresh     = data_file.params.getfloat('detection', 'spike_thresh')
-        self.peaks_sign       = data_file.params.get('detection', 'peaks')  
-        self.N_total          = numpy.int64(data_file.N_tot)
-        self.sampling_rate    = data_file.rate
-        self.template_shift   = data_file.template_shift
-        self.filename         = data_file.params.get('data', 'data_file')
+        self.probe            = self.params.probe
+        self.N_e              = self.data_file.N_e
+        self.N_t              = self.data_file.N_t
+        self.spike_thresh     = self.data_file.params.getfloat('detection', 'spike_thresh')
+        self.peaks_sign       = self.data_file.params.get('detection', 'peaks')  
+        self.N_total          = numpy.int64(self.data_file.N_tot)
+        self.sampling_rate    = self.data_file.rate
+        self.template_shift   = self.data_file.template_shift
+        self.filename         = self.data_file.params.get('data', 'data_file')
 
         name = os.path.basename(self.filename)
         r, f = os.path.splitext(name)
@@ -1153,7 +1153,7 @@ class PreviewGUI(QtGui.QMainWindow):
 
 
     def write_threshold(self):
-        io.change_flag(self.filename, 'spike_thresh', '%g' %self.get_threshold.value())
+        self.params.write('detection', 'spike_thresh', '%g' %self.get_threshold.value())
 
     def get_data(self):
         self.chunk_size       = int(self.sampling_rate)

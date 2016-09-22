@@ -14,6 +14,11 @@ import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.nd
 from mpi import *
 import files as io
 
+def purge(file, pattern):
+    dir = os.path.dirname(os.path.abspath(file))
+    for f in os.listdir(dir):
+        if f.find(pattern) > -1:
+            os.remove(os.path.join(dir, f))
 
 def update_and_flush(pbar, *args, **kwds):
     return_value = progressbar.ProgressBar.update(pbar, *args, **kwds)

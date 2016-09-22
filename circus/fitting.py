@@ -2,13 +2,13 @@ import circus.shared.algorithms as algo
 from .shared.utils import *
 from .shared.mpi import SHARED_MEMORY
 from .shared.probes import get_nodes_and_edges
+from circus.shared.messages import print_and_log
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
-    data_file      = io.get_data_file(params)
+    data_file      = params.get_data_file()
     data_file.open()
-    params         = data_file.params
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
@@ -21,7 +21,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size     = int(params.getfloat('fitting', 'chunk')*sampling_rate)
+    chunk_size     = int(params.getfloat('fitting', 'chunk_size')*sampling_rate)
     gpu_only       = params.getboolean('fitting', 'gpu_only')
     nodes, edges   = get_nodes_and_edges(params)
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
@@ -158,8 +158,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if comm.rank == 0:
-        io.print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
-        io.purge(file_out_suff, '.data')
+        print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
+        purge(file_out_suff, '.data')
 
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -173,7 +173,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_overs[i] = cmt.SparseCUDAMatrix(c_overs[i], copy_on_host=False)
         except Exception:
             if comm.rank == 0:
-                io.print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
+                print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
             for i in xrange(N_over):
                 if c_overs.has_key(i):
                     del c_overs[i]
@@ -531,6 +531,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         pbar.finish()
 
     if comm.rank == 0:
-        io.collect_data(comm.size, data_file, erase=True)
+        io.collect_data(comm.size, params, erase=True)
 
     data_file.close()

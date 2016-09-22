@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 class TestFitting(unittest.TestCase):
     
@@ -17,15 +18,16 @@ class TestFitting(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
-            io.change_flag(self.file_name, 'max_chunk', '10')
+            self.parser = CircusParser(self.file_name)
+            self.parser.write('fitting', 'max_chunk', '10')
             mpi_launch('fitting', self.file_name, 2, 0, 'False')
 
     def test_converting_some(self):
-        io.change_flag(self.file_name, 'export_pcs', 'some')
+        self.parser.write('converting', 'export_pcs', 'some')
         mpi_launch('converting', self.file_name, 1, 0, 'False')
-        io.change_flag(self.file_name, 'export_pcs', 'prompt')
+        self.parser.write('converting', 'export_pcs', 'prompt')
 
     def test_converting_all(self):
-        io.change_flag(self.file_name, 'export_pcs', 'all')
+        self.parser.write('converting', 'export_pcs', 'all')
         mpi_launch('converting', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'export_pcs', 'prompt')
+        self.parser.write('converting', 'export_pcs', 'prompt')

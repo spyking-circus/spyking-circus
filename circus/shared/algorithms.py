@@ -2,8 +2,9 @@ import matplotlib
 matplotlib.use('Agg', warn=False)
 import os
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
-from circus.shared.files import load_data, write_datasets, get_overlaps, print_and_log, get_data_file
+from circus.shared.files import load_data, write_datasets, get_overlaps
 from circus.shared.utils import get_progressbar
+from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, SHARED_MEMORY
 import scipy.linalg, scipy.sparse
@@ -33,26 +34,6 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=0, max_clusters=10, sav
         else:
             pylab.show()
     return subidx
-
-def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
-    
-    max_dis = distances.max()
-    min_dis = distances.min()
-    dc      = (max_dis + min_dis) / 2
-
-    while True:
-        nneighs = numpy.mean(distances < dc)
-        if nneighs >= bounds[0] and nneighs <= bounds[1]:
-            break
-        # binary search
-        if nneighs < bounds[0]:
-            min_dis = dc
-        else:
-            max_dis = dc
-        dc = (max_dis + min_dis) / 2
-        if max_dis - min_dis < 0.0001:
-            break
-    return dc
 
 
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
@@ -179,8 +160,7 @@ def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
     import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
-    data_file      = get_data_file(params)
-    params         = data_file.params
+    data_file      = params.get_data_file()
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
@@ -247,8 +227,7 @@ def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension=''
     
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_file      = get_data_file(params)
-    params         = data_file.params
+    data_file      = params.get_data_file()
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
@@ -370,8 +349,7 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
 
         return to_merge, result
          
-    data_file      = get_data_file(params)
-    params         = data_file.params
+    data_file      = params.get_data_file()
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot
@@ -424,8 +402,7 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
         
     templates      = load_data(params, 'templates')
     
-    data_file      = get_data_file(params)
-    params         = data_file.params
+    data_file      = params.get_data_file()
     sampling_rate  = data_file.rate
     N_e            = data_file.N_e
     N_total        = data_file.N_tot

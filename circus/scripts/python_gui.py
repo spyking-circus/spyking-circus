@@ -9,7 +9,6 @@ import tempfile
 import numpy, h5py
 from distutils.version import LooseVersion, StrictVersion
 from circus.shared.messages import print_error, print_info, print_and_log, get_header, get_colored_header
-from circus.shared.files import read_probe
 from circus.shared.parser import CircusParser
 
 import logging
@@ -60,7 +59,7 @@ def main(argv=None):
     if file_format not in supported_by_phy:
         print_and_log(["File format %s is not supported by phy. TraceView disabled" %file_format], 'info', params)
 
-    probe          = read_probe(params)
+    probe          = params.probe
     if extension != '':
         extension = '-' + extension
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'

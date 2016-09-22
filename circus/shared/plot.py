@@ -1,15 +1,15 @@
 import numpy, scipy, pylab, os
-from circus.shared.files import load_data, get_results, get_results, get_data_file
+from circus.shared.files import load_data, get_results, get_results
 import numpy, pylab
 from circus.shared import algorithms as algo
 from circus.shared.utils import *
-from parser import CircusParser, read_probe
+from parser import CircusParser
 from probes import get_nodes_and_edges
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
     params          = CircusParser(file_name)
-    data_file       = get_data_file(params)
+    data_file       = params.get_data_file()
     data_file.open()
     N_e             = data_file.N_e
     N_t             = data_file.N_t
@@ -246,7 +246,7 @@ def view_artefact(data, save=False):
 def view_waveforms(file_name, temp_id, n_spikes=2000):
     
     params          = CircusParser(file_name)
-    data_file       = get_data_file(params)
+    data_file       = params.get_data_file()
     data_file.open()
     N_e             = data_file.N_e
     N_total         = data_file.N_tot
@@ -299,7 +299,7 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
 def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     
     params          = CircusParser(file_name)
-    data_file       = get_data_file(params)
+    data_file       = params.get_data_file()
     data_file.open()
     N_e             = data_file.N_e
     N_total         = data_file.N_tot
@@ -355,7 +355,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
 def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100, temp_id=None):
     
     params          = CircusParser(file_name)
-    data_file       = get_data_file(params)
+    data_file       = params.get_data_file()
     data_file.open()
     N_e             = data_file.N_e
     N_total         = data_file.N_tot
@@ -493,7 +493,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     if templates is None:
         templates    = load_data(params, 'templates')
     clusters         = load_data(params, 'clusters')
-    probe            = read_probe(params)
+    probe            = params.probe
 
     positions = {}
     for i in probe['channel_groups'].keys():
@@ -590,7 +590,7 @@ def view_whitening(data):
 def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
 
     params          = CircusParser(file_name)
-    data_file       = get_data_file(params)
+    data_file       = params.get_data_file()
     data_file.open()
     N_e             = data_file.N_e
     N_total         = data_file.N_tot
@@ -650,7 +650,7 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
 def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None, yzoom=None):
     
     params          = CircusParser(file_name)
-    data_file       = get_data_file(params)
+    data_file       = params.get_data_file()
     data_file.open()
     N_e             = data_file.N_e
     N_total         = data_file.N_tot

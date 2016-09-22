@@ -1,6 +1,8 @@
 from .shared.utils import *
 import h5py
 from circus.shared.probes import get_nodes_and_edges
+from circus.shared.parser import CircusParser
+from circus.shared.messages import print_and_log
 
 def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     """
@@ -20,7 +22,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
-            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
+            print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
         sys.exit(0)
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
@@ -112,7 +114,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
-    data_file        = io.get_data_file(params, comm=comm)
+    data_file        = params.get_data_file(comm=comm)
     sampling_rate    = data_file.rate
     N_e              = data_file.N_e
     N_total          = data_file.N_tot
@@ -151,7 +153,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     scalings       = []
     
     params.set('data', 'data_file', file_name)
-    data_file_out = io.get_data_file(params, empty=True, comm=comm, force_raw=True)    
+    data_file_out = params.get_data_file(empty=True, comm=comm, force_raw=True)    
     data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
     # Synchronize all the threads/processes.
@@ -173,7 +175,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
-                    io.print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
+                    print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
                 sys.exit(0)
             else:
                 # Get the next shuffled electrode.
@@ -314,8 +316,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     # Display informations about the generated benchmark.
     if comm.rank == 0:
-        io.print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
-        io.purge(file_out, '.data')
+        print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
+        purge(file_out, '.data')
 
 
     template_shift = data_file.template_shift
@@ -480,6 +482,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
         # Copy initial configuration file from `<dataset1>.params` to `<dataset2>.params`.
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
+        new_params = CircusParser(file_name)
         # Copy initial basis file from `<dataset1>/<dataset1>.basis.hdf5` to
         # `<dataset2>/injected/<dataset2>.basis.hdf5.
         shutil.copy2(params.get('data', 'file_out') + '.basis.hdf5',
@@ -512,12 +515,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         data_file_out.params.set('data', 'file_out_suff', file_out_bis  + data_file_out.params.get('data', 'suffix'))
     
 
-        io.collect_data(comm.size, data_file_out, erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
+        io.collect_data(comm.size, new_params, erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
         # Change some flags in the configuration file.
-        io.change_flag(file_name, 'temporal', 'False') # Disable temporal filtering
-        io.change_flag(file_name, 'spatial', 'False') # Disable spatial filtering
-        io.change_flag(file_name, 'data_dtype', 'float32') # Set type of the data to float32
-        io.change_flag(file_name, 'dtype_offset', 'auto') # Set padding for data to auto
+        new_params.write('whitening', 'temporal', 'False') # Disable temporal filtering
+        new_params.write('whitening', 'spatial', 'False') # Disable spatial filtering
+        new_params.write('data', 'data_dtype', 'float32') # Set type of the data to float32
+        new_params.write('data', 'dtype_offset', 'auto') # Set padding for data to auto
         # Move results from `<dataset>/<dataset>.result.hdf5` to
         # `<dataset>/injected/<dataset>.result.hdf5`.
         

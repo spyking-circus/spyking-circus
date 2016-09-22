@@ -12,7 +12,7 @@ from os.path import join as pjoin
 import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
-from circus.shared.files import get_data_file, data_stats 
+from circus.shared.files import data_stats 
 from circus.shared.messages import print_error, print_info, print_and_log, write_to_logger, get_colored_header
 from circus.files.raw_binary import RawBinaryFile
 from circus.shared.mpi import SHARED_MEMORY
@@ -164,7 +164,7 @@ but a subset x,y can be done. Steps are:
     if not batch:
         params       = CircusParser(filename)
         multi_files  = params.getboolean('data', 'multi-files')
-        data_file    = get_data_file(params, multi_files, force_raw=False)
+        data_file    = params.get_data_file(multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file._parallel_write
 
@@ -179,23 +179,26 @@ but a subset x,y can be done. Steps are:
         shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']
 
-        chunk_size = 2*data_file.rate
+        chunk_size = int(2*data_file.rate)
         data_file.open()
         local_chunk  = data_file.get_data(0, chunk_size)
         data_file.close()
 
-        new_params = open(f_next + '.params', 'w')
-        params.set('data', 'chunk_size', str(2))
-        params.set('data', 'data_file', filename)
-        params.set('data', 'file_format', 'raw_binary')
-        params.set('data', 'data_dtype', 'float32')
-        params.set('whitening', 'safety_time', str(0))
-        params.set('clustering', 'safety_time', str(0))
-        params.set('data', 'sampling_rate', str(data_file.rate))        
-        params.write(new_params)
-        new_params.close()
+        new_params = CircusParser(filename)
 
-        data_file_out = get_data_file(params, multi_files, empty=True, force_raw=True)
+        new_params.write('data', 'chunk_size', '2')
+        new_params.write('data', 'file_format', 'raw_binary')
+        new_params.write('data', 'data_dtype', 'float32')
+        new_params.write('data', 'data_offset', '0')
+        new_params.write('data', 'dtype_offset', '0')
+        new_params.write('data', 'sampling_rate', str(data_file.rate))
+        new_params.write('whitening', 'safety_time', '0')
+        new_params.write('clustering', 'safety_time', '0')
+        new_params.write('whitening', 'chunk_size', '2')
+
+        new_params = CircusParser(filename)
+
+        data_file_out = new_params.get_data_file(multi_files, empty=True)
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=local_chunk.dtype)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)
@@ -250,8 +253,7 @@ but a subset x,y can be done. Steps are:
         else:
             use_gpu = 'False'
 
-
-        time = data_stats(data_file)/60.
+        time = data_stats(params)/60.
         
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
@@ -342,11 +344,10 @@ but a subset x,y can be done. Steps are:
             pass
 
         params    = CircusParser(filename)
-        data_file = get_data_file(params) 
 
         if preview:
-            mygui = gui.PreviewGUI(data_file)
+            mygui = gui.PreviewGUI(params)
             shutil.rmtree(tmp_path_loc)
         elif result:
-            mygui = gui.PreviewGUI(data_file, show_fit=True)
+            mygui = gui.PreviewGUI(params, show_fit=True)
         sys.exit(app.exec_())
