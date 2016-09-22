@@ -9,7 +9,7 @@ if use_pyside:
 else:
     from PyQt4 import QtGui, QtCore, uic
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
+def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     file_out_suff = params.get('data', 'file_out_suff')
     extension_in  = extension

@@ -1,8 +1,9 @@
 import circus.shared.algorithms as algo
 from .shared.utils import *
 from .shared.mpi import SHARED_MEMORY
+from .shared.probes import get_nodes_and_edges
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     data_file      = io.get_data_file(params)
@@ -22,7 +23,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size     = int(params.getfloat('fitting', 'chunk')*sampling_rate)
     gpu_only       = params.getboolean('fitting', 'gpu_only')
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     tmp_limits     = map(float, tmp_limits)
     amp_auto       = params.getboolean('fitting', 'amp_auto')
@@ -518,8 +519,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spiketimes_file.close()
     amplitudes_file.close()
     templates_file.close()
-    garbage_temp_file.close()
-    garbage_times_file.close()
+
+    if collect_all:
+        garbage_temp_file.close()
+        garbage_times_file.close()
 
     comm.Barrier()
 

@@ -8,12 +8,13 @@ import circus.shared.algorithms as algo
 from ..shared.utils import *
 from ..shared import plot
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from circus.shared.probes import get_nodes_and_edges
 
 
 
 def get_neighbors(params, chan=None):
     N_total = params.getint('data', 'N_total')
-    nodes, edges = io.get_nodes_and_edges(params, validating=True)
+    nodes, edges = get_nodes_and_edges(params, validating=True)
     inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     if chan is None:
@@ -111,7 +112,7 @@ def extract_extra_thresholds(params):
     #mpi_file = MPI.File()
     #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
-    nodes, _ = io.get_nodes_and_edges(params)
+    nodes, _ = get_nodes_and_edges(params)
     N_elec = nodes.size
     
     def weighted_mean(weights, values):
@@ -243,7 +244,7 @@ def extract_extra_spikes_(params):
     #mpi_file = MPI.File()
     #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
-    nodes, _ = io.get_nodes_and_edges(params)
+    nodes, _ = get_nodes_and_edges(params)
     N_elec = nodes.size
     
     # Convert 'safety_time' from milliseconds to number of samples.

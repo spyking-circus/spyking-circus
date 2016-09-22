@@ -10,6 +10,7 @@ import numpy, h5py
 from distutils.version import LooseVersion, StrictVersion
 from circus.shared.messages import print_error, print_info, print_and_log, get_header, get_colored_header
 from circus.shared.files import read_probe
+from circus.shared.parser import CircusParser
 
 import logging
 from phy import add_default_handler
@@ -42,7 +43,7 @@ def main(argv=None):
 
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
-    params         = circus.shared.utils.io.load_parameters(filename)
+    params         = CircusParser(filename)
     
     mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
     if not mytest:

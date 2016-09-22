@@ -1,9 +1,10 @@
 from scipy import signal
 from .shared import plot
 from .shared.utils import *
+from circus.shared.probes import get_nodes_and_edges
 
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     multi_files    = params.getboolean('data', 'multi-files')
@@ -11,7 +12,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median  = params.getboolean('filtering', 'remove_median')
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     #################################################################
 
     if clean_artefact:
@@ -298,6 +299,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 remove_artefacts(art_dict, data_out, goffset)
 
         if comm.rank == 0 and (do_filter or clean_artefact):
-            io.change_flag(filename, 'filter_done', 'True')
+            params.set('noedits', 'filter_done', 'True')
+            params.save()
 
     comm.Barrier()

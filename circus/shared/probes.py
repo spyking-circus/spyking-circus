@@ -1,0 +1,74 @@
+import numpy, os
+
+def read_probe(parser):
+    probe = {}
+    filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
+    if not os.path.exists(filename):
+        print_error(["The probe file can not be found"])
+        sys.exit(0)
+    try:
+        with open(filename, 'r') as f:
+            probetext = f.read()
+            exec(probetext, probe)
+    except Exception as ex:
+        print_error(["Something wrong with the syntax of the probe file:\n" + str(ex)])
+        sys.exit(0)
+
+    key_flags = ['total_nb_channels', 'radius', 'channel_groups']
+    for key in key_flags:
+        if not probe.has_key(key):
+            print_error(["%s is missing in the probe file" %key])
+            sys.exit(0)
+    return probe
+
+
+def get_nodes_and_edges(parameters, validating=False):
+    """
+    Retrieve the topology of the probe.
+    
+    Other parameters
+    ----------------
+    radius : integer
+    
+    Returns
+    -------
+    nodes : ndarray of integers
+        Array of channel ids retrieved from the description of the probe.
+    edges : dictionary
+        Dictionary which link each channel id to the ids of the channels whose
+        distance is less or equal than radius.
+    
+    """
+    
+    edges  = {}
+    nodes  = []
+    probe  = read_probe(parameters)
+    radius = parameters.getint('detection', 'radius')
+
+    if validating:
+        radius_factor = parameters.getfloat('validating', 'radius_factor')
+        radius = int(radius_factor * float(radius))
+
+    def get_edges(i, channel_groups):
+        edges = []
+        pos_x, pos_y = channel_groups['geometry'][i]
+        for c2 in channel_groups['channels']:
+            pos_x2, pos_y2 = channel_groups['geometry'][c2]
+            if (((pos_x - pos_x2)**2 + (pos_y - pos_y2)**2) <= radius**2):
+                edges += [c2]
+        return edges
+
+    for key in probe['channel_groups'].keys():
+        for i in probe['channel_groups'][key]['channels']:
+            edges[i] = get_edges(i, probe['channel_groups'][key])
+            nodes   += [i]
+
+    return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
+
+
+def get_averaged_n_edges(parameters):
+    nodes, edges = get_nodes_and_edges(parameters)
+    n = 0
+    for key, value in edges.items():
+        n += len(value)
+    return n/float(len(edges.values()))

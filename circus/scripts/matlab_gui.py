@@ -9,6 +9,7 @@ import tempfile
 import numpy, h5py
 from circus.shared.messages import print_error, print_and_log, get_colored_header
 from circus.shared.files import write_datasets, read_probe
+from circus.shared.parser import CircusParser
 
 def main(argv=None):
 
@@ -30,7 +31,7 @@ def main(argv=None):
 
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
-    params         = circus.shared.utils.io.load_parameters(filename)
+    params         = CircusParser(filename)
     data_file      = circus.shared.utils.io.get_data_file(params)
     sampling_rate  = data_file.rate
     data_dtype     = data_file.data_dtype

@@ -10,6 +10,7 @@ import h5py
 import numpy
 from circus.shared.messages import print_error, print_and_log, get_colored_header
 from circus.shared.algorithms import slice_result
+from circus.shared.parser import CircusParser
 
 def main(argv=None):
     
@@ -31,7 +32,7 @@ def main(argv=None):
 
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
-    params         = circus.shared.utils.io.load_parameters(filename)
+    params         = CircusParser(filename)
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if not params.get('data', 'multi-files'):

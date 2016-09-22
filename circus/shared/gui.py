@@ -24,6 +24,7 @@ else:
 from utils import *
 from algorithms import slice_templates, slice_clusters
 from mpi import SHARED_MEMORY
+from circus.shared.probes import get_nodes_and_edges, read_probe
 
 
 class SymmetricVCursor(widgets.AxesWidget):
@@ -146,7 +147,7 @@ class MergeWindow(QtGui.QMainWindow):
         
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
-        nodes, edges    = io.get_nodes_and_edges(params)
+        nodes, edges    = get_nodes_and_edges(params)
         self.nodes      = nodes
         self.edges      = edges
         self.inv_nodes  = numpy.zeros(self.N_total, dtype=numpy.int32)
@@ -183,7 +184,7 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.init_gui_layout()
 
-        self.probe      = io.read_probe(params)
+        self.probe      = read_probe(params)
         self.x_position = []
         self.y_position = []
         self.order      = []
@@ -1034,7 +1035,7 @@ class PreviewGUI(QtGui.QMainWindow):
         self.params           = data_file.params
         self.maxtime          = io.data_stats(data_file, show=False) - 1
         self.init_gui_layout()
-        self.probe            = io.read_probe(data_file.params)
+        self.probe            = read_probe(data_file.params)
         self.N_e              = data_file.N_e
         self.N_t              = data_file.N_t
         self.spike_thresh     = data_file.params.getfloat('detection', 'spike_thresh')
@@ -1049,7 +1050,7 @@ class PreviewGUI(QtGui.QMainWindow):
         local_path    = os.path.join(r, 'tmp')
         self.filename = self.filename.replace(local_path, '')
         
-        nodes, edges          = io.get_nodes_and_edges(self.params)
+        nodes, edges          = get_nodes_and_edges(self.params)
         self.nodes            = nodes
         self.edges            = edges
 

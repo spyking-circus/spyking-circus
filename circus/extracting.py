@@ -1,7 +1,8 @@
 from .shared.utils import *
 import circus.shared.algorithms as algo
+from circus.shared.probes import get_nodes_and_edges
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(426236)
     
     import h5py
@@ -19,7 +20,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out_suff  = params.get('data', 'file_out_suff')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     safety_time    = int(params.getfloat('extracting', 'safety_time')*sampling_rate*1e-3)
     max_elts_temp  = params.getint('extracting', 'max_elts')
     output_dim     = params.getfloat('extracting', 'output_dim')

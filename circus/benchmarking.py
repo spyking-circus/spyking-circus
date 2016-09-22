@@ -1,7 +1,8 @@
 from .shared.utils import *
 import h5py
+from circus.shared.probes import get_nodes_and_edges
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
+def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     """
     Useful tool to create synthetic datasets for benchmarking.
     
@@ -115,7 +116,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     sampling_rate    = data_file.rate
     N_e              = data_file.N_e
     N_total          = data_file.N_tot
-    nodes, edges     = io.get_nodes_and_edges(params)
+    nodes, edges     = get_nodes_and_edges(params)
     N_t              = data_file.N_t
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)

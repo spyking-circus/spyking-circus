@@ -7,13 +7,14 @@ import logging
 import numpy as np
 import h5py
 from circus.shared.messages import print_error, print_info, print_and_log
-from circus.shared.files import write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, get_stas
+from circus.shared.files import write_datasets, get_results, load_data, get_stas
 from circus.shared.utils import get_progressbar
+from circus.shared.parser import read_probe
+from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
+def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
-    params         = circus.shared.utils.io.load_parameters(filename)
     data_file      = io.get_data_file(params)
     params         = data_file.params
     sampling_rate  = data_file.rate
@@ -43,7 +44,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         return positions
 
     def get_max_loc_channel(params):
-        nodes, edges    = circus.shared.utils.io.get_nodes_and_edges(params)
+        nodes, edges    = get_nodes_and_edges(params)
         max_loc_channel = 0
         for key in edges.keys():
             if len(edges[key]) > max_loc_channel:

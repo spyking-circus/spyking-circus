@@ -2,8 +2,9 @@ import matplotlib
 matplotlib.use('Agg', warn=False)
 import os
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
-from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges, print_and_log, get_data_file
+from circus.shared.files import load_data, write_datasets, get_overlaps, print_and_log, get_data_file
 from circus.shared.utils import get_progressbar
+from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, SHARED_MEMORY
 import scipy.linalg, scipy.sparse
 

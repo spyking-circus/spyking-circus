@@ -2,9 +2,10 @@ from .shared.utils import *
 import circus.shared.algorithms as algo
 from .shared import plot
 import h5py
+from circus.shared.probes import get_nodes_and_edges
 
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
 
     parallel_hdf5 = h5py.get_config().mpi
 
@@ -36,7 +37,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comp_templates = params.getboolean('clustering', 'compress')
     dispersion     = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
     dispersion     = map(float, dispersion)
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
     max_elts_elec  = params.getint('clustering', 'max_elts')
     if sign_peaks == 'both':

@@ -1,13 +1,14 @@
 import numpy, scipy, pylab, os
-from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results, read_probe, get_data_file
+from circus.shared.files import load_data, get_results, get_results, get_data_file
 import numpy, pylab
 from circus.shared import algorithms as algo
 from circus.shared.utils import *
-
+from parser import CircusParser, read_probe
+from probes import get_nodes_and_edges
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     data_file       = get_data_file(params)
     data_file.open()
     N_e             = data_file.N_e
@@ -244,7 +245,7 @@ def view_artefact(data, save=False):
 
 def view_waveforms(file_name, temp_id, n_spikes=2000):
     
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     data_file       = get_data_file(params)
     data_file.open()
     N_e             = data_file.N_e
@@ -297,7 +298,7 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
 
 def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     data_file       = get_data_file(params)
     data_file.open()
     N_e             = data_file.N_e
@@ -353,7 +354,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
 
 def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100, temp_id=None):
     
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     data_file       = get_data_file(params)
     data_file.open()
     N_e             = data_file.N_e
@@ -435,7 +436,7 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
 
 def view_performance(file_name, triggers, lims=(150,150)):
     
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     N_e             = params.getint('data', 'N_e')
     N_total         = params.getint('data', 'N_total')
     sampling_rate   = params.getint('data', 'sampling_rate')
@@ -474,7 +475,7 @@ def view_performance(file_name, triggers, lims=(150,150)):
 
 def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
 
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     N_e             = params.getint('data', 'N_e')
     N_total         = params.getint('data', 'N_total')
     sampling_rate   = params.getint('data', 'sampling_rate')
@@ -588,7 +589,7 @@ def view_whitening(data):
 
 def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
 
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     data_file       = get_data_file(params)
     data_file.open()
     N_e             = data_file.N_e
@@ -647,7 +648,8 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     return peaks
 
 def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None, yzoom=None):
-    params          = load_parameters(file_name)
+    
+    params          = CircusParser(file_name)
     data_file       = get_data_file(params)
     data_file.open()
     N_e             = data_file.N_e
@@ -748,7 +750,7 @@ def view_norms(file_name, save=True):
     """
 
     # Retrieve the key parameters.
-    params = load_parameters(file_name)
+    params = CircusParser(file_name)
     norms = load_data(params, 'norm-templates')
     N_tm = norms.shape[0] / 2
     y_margin = 0.1
@@ -813,7 +815,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
     plt.rcParams['axes.linewidth'] = 1
     
     # Retrieve the key parameters.
-    params = load_parameters(file_name)
+    params = CircusParser(file_name)
     triggers, spikes = load_data(params, 'triggers')
     
     mean_spike = numpy.mean(spikes, axis=2)

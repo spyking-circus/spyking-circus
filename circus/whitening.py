@@ -1,9 +1,10 @@
 from .shared.utils import *
 import circus.shared.algorithms as algo
 from .shared import plot
+from circus.shared.probes import get_nodes_and_edges
 import h5py
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
 
@@ -23,7 +24,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size       = int(params.getint('whitening', 'chunk_size') * data_file.rate)
     plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
-    nodes, edges     = io.get_nodes_and_edges(params)
+    nodes, edges     = get_nodes_and_edges(params)
     safety_time      = int(data_file.get_safety_time('whitening')*data_file.rate*1e-3)
     nb_temp_white    = min(max(20, comm.size), data_file.N_e)
     max_silence_1    = int(20*data_file.rate // comm.size)
@@ -255,7 +256,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size       = int(params.getint('data', 'chunk_size') * data_file.rate)

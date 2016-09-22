@@ -13,10 +13,11 @@ import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 import circus.shared.files as io
-from circus.shared.messages import print_error, print_info, write_to_logger, get_colored_header
+from circus.shared.messages import print_error, print_info, print_and_log, write_to_logger, get_colored_header
 from circus.files.raw_binary import RawBinaryFile
 from circus.shared.mpi import SHARED_MEMORY
-
+from circus.shared.parser import CircusParser
+from circus.shared.probes import get_averaged_n_edges
 
 def gather_mpi_arguments(hostfile, params):
     from mpi4py import MPI
@@ -161,7 +162,7 @@ but a subset x,y can be done. Steps are:
         tasks_list = filename
 
     if not batch:
-        params       = io.load_parameters(filename)
+        params       = CircusParser(filename)
         multi_files  = params.getboolean('data', 'multi-files')
         data_file    = io.get_data_file(params, multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
@@ -250,28 +251,28 @@ but a subset x,y can be done. Steps are:
             use_gpu = 'False'
 
 
-        time = circus.shared.io.data_stats(data_file)/60.
+        time = io.data_stats(data_file)/60.
         
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
-                io.print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
+                print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
 
         if params.getboolean('detection', 'matched-filter') and not params.getboolean('clustering', 'smart_search'):
-            io.print_and_log(['Smart Search should be activated for matched filtering' ], 'info', params)
+            print_and_log(['Smart Search should be activated for matched filtering' ], 'info', params)
 
         if time > 30 and not params.getboolean('clustering', 'smart_search'):
-            io.print_and_log(['Smart Search could be activated for long recordings' ], 'info', params)
+            print_and_log(['Smart Search could be activated for long recordings' ], 'info', params)
 
-        n_edges = circus.shared.io.get_averaged_n_edges(params)
+        n_edges = get_averaged_n_edges(params)
         if n_edges > 100 and not params.getboolean('clustering', 'compress'):
-            io.print_and_log(['Template compression is highly recommended based on parameters'], 'info', params)    
+            print_and_log(['Template compression is highly recommended based on parameters'], 'info', params)    
 
         if params.getint('data', 'N_e') > 500:
             if params.getint('data', 'chunk_size') > 10:
                 params.set('data', 'chunk_size', '10')
             if params.getint('whitening', 'chunk_size') > 10:
                 params.set('whitening', 'chunk_size', '10')
-            io.print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', params)
+            print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', params)
 
         if not result:
             for subtask, command in subtasks:
@@ -288,7 +289,7 @@ but a subset x,y can be done. Steps are:
                         mpi_args = gather_mpi_arguments(hostfile, params)
 
                         if subtask in ['filtering', 'benchmarking'] and not support_parallel_write and (args.cpu > 1):
-                            io.print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', params)
+                            print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', params)
                             nb_tasks = str(1)
                         else:
                             if subtask != 'fitting':
@@ -340,7 +341,7 @@ but a subset x,y can be done. Steps are:
         except Exception:
             pass
 
-        params    = io.load_parameters(filename)
+        params    = CircusParser(filename)
         data_file = io.get_data_file(params) 
 
         if preview:
