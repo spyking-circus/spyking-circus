@@ -5,6 +5,8 @@ import sys, h5py
 from ..shared.utils import *
 from ..shared.files import get_stas, get_stas_memshared
 from ..shared import plot
+from circus.shared.parser import CircusParser
+from circus.shared.messages import print_and_log, print_error
 
 try:
     import sklearn
@@ -27,11 +29,11 @@ from .utils import *
 
 
 
-def main(filename, params, nb_cpu, nb_gpu, us_gpu):    
+def main(params, nb_cpu, nb_gpu, us_gpu):    
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
     
-    data_file = io.get_data_file(params)
+    data_file = params.get_data_file()
     data_file.open()
     N_total = data_file.N_tot
     sampling_rate = data_file.rate
@@ -169,7 +171,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
         nodes, chans = get_neighbors(params, chan=chan)
         if comm.rank == 0:
             msg = ["Ground truth neuron is close to channel {} (set automatically)".format(chan)]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
         ##### TODO: clean temporary zone
     else:
         chanl = int(chan)
@@ -186,7 +188,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
         tmp_juxta_spikes_ = juxta_spikes_
         if comm.rank == 0:
             msg = ["Ground truth neuron is close to channel {} (set manually)".format(chan)]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
 
     if comm.rank == 0:
         
@@ -375,7 +377,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     ##### GROUND TRUTH CELL'S SAMPLES ##########################################
     
     if comm.rank == 0:
-        io.print_and_log(["Collecting ground truth cell's samples..."], level='debug', logger=params)
+        print_and_log(["Collecting ground truth cell's samples..."], level='debug', logger=params)
     
     
     # Retrieve the spike times of the "ground truth cell".
@@ -430,7 +432,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
             msg = [
                 "spike_times_gt.size: {}".format(spike_times_gt.size),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     
     ##### TODO: clean working zone
@@ -472,7 +474,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "X_gt.shape: {}".format(X_gt.shape),
                 "y_gt.shape: {}".format(y_gt.shape),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     ##### end working zone
     
@@ -481,7 +483,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
     
     if comm.rank == 0:
-        io.print_and_log(["Collecting non ground truth cells' samples..."], level='debug', logger=params)
+        print_and_log(["Collecting non ground truth cells' samples..."], level='debug', logger=params)
     
     
     mask_ngt = numpy.logical_or(matched_spike_times_extra, mismatched_spike_times_extra)
@@ -495,7 +497,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
             msg = [
                 "Number of 'non ground truth' spike times too high (i.e. {}), limitation to {}.".format(spike_times_ngt.size, max_spike_times_ngt),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
         spike_times_ngt = numpy.random.choice(spike_times_ngt, size=max_spike_times_ngt, replace=False)
     ##### end temporary zone
     spike_times_ngt = numpy.sort(spike_times_ngt)
@@ -505,7 +507,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
             msg = [
                 "spike_times_ngt.size: {}".format(spike_times_ngt.size),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     
     ##### TODO: clean working zone
@@ -546,7 +548,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "X_ngt.shape: {}".format(X_ngt.shape),
                 "y_ngt.shape: {}".format(y_ngt.shape),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     # import time
     # secs = 10.0 # s
@@ -562,7 +564,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     # NORMALIZE DATASETS #######################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Normalizing datasets..."], level='debug', logger=params)
+        print_and_log(["Normalizing datasets..."], level='debug', logger=params)
     
     
     X_raw = numpy.vstack((X_gt, X_ngt))
@@ -575,7 +577,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     ##### SAMPLES ##############################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Samples..."], level='debug', logger=params)
+        print_and_log(["Samples..."], level='debug', logger=params)
     
     
     # Option to include the pairwise product of feature vector elements.
@@ -611,7 +613,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 msg = [
                     "X.shape (with pairwise product of feature vector element): {}".format(X.shape),
                 ]
-                io.print_and_log(msg, level='default', logger=params)
+                print_and_log(msg, level='default', logger=params)
     
     ## Create the output dataset.
     y_raw = numpy.vstack((y_gt, y_ngt))
@@ -626,7 +628,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "X.shape: {}".format(X.shape),
                 "y.shape: {}".format(y.shape),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     
     
@@ -634,7 +636,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     if comm.rank == 0:
         
-        #io.print_and_log(["Sanity plot..."], level='info', logger=params)
+        #print_and_log(["Sanity plot..."], level='info', logger=params)
         
         
         if make_plots not in ['None', '']:
@@ -651,7 +653,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     ##### INITIAL PARAMETER ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Initializing parameters for the non-linear classifier..."], level='default', logger=params)
+        print_and_log(["Initializing parameters for the non-linear classifier..."], level='default', logger=params)
     
     
     mu = numpy.mean(X_gt.T, axis=1)
@@ -671,7 +673,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
             msg = [
                 "coefs_init: {}".format(coefs_init),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     
     # Compute false positive rate and true positive rate for various cutoffs.
@@ -705,7 +707,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
             #     "fprs: {}".format(fprs),
             #     "tprs: {}".format(tprs),
             # ]
-            # io.print_and_log(msg, level='default', logger=params)
+            # print_and_log(msg, level='default', logger=params)
             pass
     
     # Compute mean acccuracy for various cutoffs.
@@ -728,7 +730,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "cutoff_opt_acc: {}".format(cutoff_opt_acc),
                 "acc_opt: {}".format(accs[i_opt]),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
         
         #if make_plots not in ['None', '']:
         #    # Plot accuracy curve.
@@ -764,7 +766,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "cutoff_opt_norm_acc: {}".format(cutoff_opt_norm_acc),
                 "norm_acc_opt: {}".format(norm_accs[i_opt]),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
         
         if make_plots not in ['None', '']:
             # Plot normalized accuracy curve.
@@ -796,7 +798,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "fpr: {}".format(fpr),
                 "tpr: {}".format(tpr),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
         
         #if make_plots not in ['None', '']:
             # Plot ROC curve.
@@ -815,7 +817,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
     if comm.rank == 0:
-        io.print_and_log(["Sanity plot (classifier projection)..."],
+        print_and_log(["Sanity plot (classifier projection)..."],
                          level='debug', logger=params)
         
         
@@ -833,7 +835,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     if comm.rank == 0:
         
-        io.print_and_log(["Intialising Mahalanobis distributions..."],
+        print_and_log(["Intialising Mahalanobis distributions..."],
                          level='debug', logger=params)
         
         
@@ -868,7 +870,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     y_test = y[indices_test]
     
     if comm.rank == 0:
-        io.print_and_log(["Start learning..."], level='debug', logger=params)
+        print_and_log(["Start learning..."], level='debug', logger=params)
     
     
     if comm.rank == 0:
@@ -877,7 +879,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "X_train.shape: {}".format(X_train.shape),
                 "X_test.shape: {}".format(X_test.shape),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     # Declare model.
     if model == 'mlp':
@@ -947,7 +949,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 # Print the score on the test set.
                 "accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
     if model == 'mlp':
@@ -988,7 +990,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 # Print the score on the test set.
                 "accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     # Train model.
     if model == 'mlp':
@@ -1032,7 +1034,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 # Print the score on the test set.
                 "accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
     
     
     # # TODO: uncomment (i.e. compute loss curve for perceptron and sgd)
@@ -1065,7 +1067,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     if comm.rank == 0:
         
-        io.print_and_log(["Sanity plot (classifier projection)..."],
+        print_and_log(["Sanity plot (classifier projection)..."],
                          level='debug', logger=params)
         
         
@@ -1085,7 +1087,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     
     if comm.rank == 0:
         
-        io.print_and_log(["Computing final Mahalanobis distributions..."],
+        print_and_log(["Computing final Mahalanobis distributions..."],
                          level='debug', logger=params)
         
         
@@ -1100,7 +1102,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
             msg = [
                 "# Mhlnb_gt: {}".format(Mhlnb_gt),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
         
         if make_plots not in ['None', '']:
             # Plot Mahalanobis distributions.
@@ -1119,7 +1121,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     ##### WEIGHTED LEARNING ####################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Estimating the ROC curve..."], level='default', logger=params)
+        print_and_log(["Estimating the ROC curve..."], level='default', logger=params)
     
     
     _, _, class_weights = get_class_weights(y_gt, y_ngt, n=roc_sampling)
@@ -1564,7 +1566,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
                 "# false positive rates: {}".format(fprs),
                 "# true positive rates: {}".format(tprs),
             ]
-            io.print_and_log(msg, level='default', logger=params)
+            print_and_log(msg, level='default', logger=params)
         
         if make_plots not in ['None', '']:
             # Plot the ROC curve of the BEER estimate.
@@ -1591,7 +1593,7 @@ def main(filename, params, nb_cpu, nb_gpu, us_gpu):
     ############################################################################
     
     if comm.rank == 0:
-        io.print_and_log(["Validation done."], level='debug', logger=params)
+        print_and_log(["Validation done."], level='debug', logger=params)
 
     data_file.close()
 

@@ -3,6 +3,7 @@ import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
 from circus.shared.parser import CircusParser
+from circus.shared.messages import print_error
 
 def get_performance(file_name, t_stop, name):
 
@@ -105,7 +106,7 @@ def get_performance(file_name, t_stop, name):
     try:
         exec probetext in probe
     except Exception:
-        io.print_error(["Something wrong with the probe file!"])
+        print_error(["Something wrong with the probe file!"])
     probetext.close()
 
     positions = {}

@@ -9,6 +9,7 @@ import h5py
 
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
+from circus.shared.messages import print_and_log, print_error
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 

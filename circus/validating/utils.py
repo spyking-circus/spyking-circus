@@ -9,6 +9,8 @@ from ..shared.utils import *
 from ..shared import plot
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from circus.shared.probes import get_nodes_and_edges
+from circus.shared.parser import CircusParser
+from circus.shared.messages import print_and_log, print_error
 
 
 
@@ -96,7 +98,7 @@ def with_quadratic_feature(X_raw, pairwise=False):
 def extract_extra_thresholds(params):
     """Compute the mean and the standard deviation for each extracellular channel"""
     
-    data_file      = io.get_data_file(params)
+    data_file      = params.get_data_file()
     data_file.open()
 
     chunk_size = int(params.getint('data', 'chunk_size') * data_file.rate)
@@ -152,7 +154,7 @@ def extract_extra_thresholds(params):
     loc_nbs_chunks = comm.gather(loc_nb_chunks, root=0)
     
     if comm.rank == 0:
-        io.print_and_log(["Computing extracellular medians..."],
+        print_and_log(["Computing extracellular medians..."],
                          level='default', logger=params)
     
     if comm.rank == 0:
@@ -183,7 +185,7 @@ def extract_extra_thresholds(params):
     comm.Barrier()
     
     if comm.rank == 0:
-        io.print_and_log(["Computing extracellular thresholds..."],
+        print_and_log(["Computing extracellular thresholds..."],
                          level='default', logger=params)
     
     if comm.rank == 0:
@@ -220,7 +222,7 @@ def extract_extra_thresholds(params):
 def extract_extra_spikes_(params):
     """Detect spikes from the extracellular traces"""
     
-    data_file = io.get_data_file(params)
+    data_file = params.get_data_file()
     data_file.open()
     sampling_rate  = data_file.rate
     dist_peaks     = data_file.dist_peaks
@@ -389,7 +391,7 @@ def extract_extra_spikes_(params):
     loc_nb_chunks = len(loc_all_chunks)
     
     if comm.rank == 0:
-        io.print_and_log(["Collecting extracellular spikes..."], level='default', logger=params)
+        print_and_log(["Collecting extracellular spikes..."], level='default', logger=params)
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
@@ -447,8 +449,8 @@ def extract_extra_spikes_(params):
         msg2 = [
             "Number of extracellular spikes extracted on channel {}: {}".format(i, channels[channels == i].size) for i in numpy.unique(channels)
         ]
-        io.print_and_log(msg, level='info', logger=params)
-        io.print_and_log(msg2, level='debug', logger=params)
+        print_and_log(msg, level='info', logger=params)
+        print_and_log(msg2, level='debug', logger=params)
     
     
     if comm.rank == 0:
@@ -492,7 +494,7 @@ def extract_extra_spikes(filename, params):
             msg = [
                 "Spike detection for extracellular traces has already been done"
             ]
-            io.print_and_log(msg, 'info', params)
+            print_and_log(msg, 'info', params)
     else:
         extract_extra_spikes_(params)
 
@@ -549,7 +551,7 @@ def extract_juxta_spikes_(params):
     beer_file.close()
 
     if comm.rank == 0:
-        io.print_and_log(["Extract juxtacellular spikes"], level='debug', logger=params)
+        print_and_log(["Extract juxtacellular spikes"], level='debug', logger=params)
     
     # Detect juxta spike times.
     threshold = juxta_thresh * juxta_mad
@@ -604,7 +606,7 @@ def extract_juxta_spikes(filename, params):
             msg = [
                 "Spike detection for juxtacellular traces has already been done"
             ]
-            io.print_and_log(msg, 'info', params)
+            print_and_log(msg, 'info', params)
     elif do_juxta:
         extract_juxta_spikes_(params)
     return
@@ -717,7 +719,7 @@ def ellipsoid_standard_to_general(t, s, O, verbose=False, logger=None):
             "# Eigenvalues",
             "%s" %(w,),
         ]
-        io.print_and_log(msg, level='default', logger=logger)
+        print_and_log(msg, level='default', logger=logger)
     ##### end test zone
     b = - 2.0 * numpy.dot(t, A)
     c = numpy.dot(t, numpy.dot(A, t)) - 1
@@ -771,7 +773,7 @@ def ellipsoid_general_to_standard(coefs, verbose=False, logger=None):
             "# N",
             "%s" %(N,),
         ]
-        io.print_and_log(msg, level='default', logger=logger)
+        print_and_log(msg, level='default', logger=logger)
     # Retrieve the matrix representation.
     A = numpy.zeros((N, N))
     k = 0
@@ -793,7 +795,7 @@ def ellipsoid_general_to_standard(coefs, verbose=False, logger=None):
             "# Test of symmetry",
             "%s" %(numpy.all(A == A.T),),
         ]
-        io.print_and_log(msg, level='default', logger=logger)
+        print_and_log(msg, level='default', logger=logger)
     ##### end test zone
     
     # Each eigenvector of A lies along one of the axes.
@@ -808,7 +810,7 @@ def ellipsoid_general_to_standard(coefs, verbose=False, logger=None):
             "## evals",
             "%s" %(evals,),
         ]
-        io.print_and_log(msg, level='default', logger=logger)
+        print_and_log(msg, level='default', logger=logger)
     ##### end print zone.
     
     # Semi-axes from reduced canonical equation.
@@ -907,7 +909,7 @@ def find_rotation(v1, v2, verbose=False, logger=None):
         #     "# R * v2",
         #     "%s" %(u2,),
         # ]
-        # io.print_and_log(msg, level='default', logger=logger)
+        # print_and_log(msg, level='default', logger=logger)
         pass
     return R
 
