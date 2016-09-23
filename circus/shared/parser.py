@@ -120,6 +120,10 @@ class CircusParser(object):
         self.set('data', 'nb_channels', str(self.probe['total_nb_channels']))
         self.nb_channels = self.probe['total_nb_channels']
 
+        if N_e > self.nb_channels:
+            print_error(['The number of analyzed channels is higher than the number of recorded channels'])
+            sys.exit(0)
+
         try:
             self.file_format = self.parser.get('data', 'file_format')
         except Exception:
@@ -288,6 +292,12 @@ class CircusParser(object):
         self.rate         = data.sampling_rate
         self.nb_channels  = data.nb_channels
         self._update_rate_values()
+        N_e = self.getint('data', 'N_e')
+        if N_e > self.nb_channels:
+            print_error(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)])
+            sys.exit(0)
+
+
         return data 
 
 
@@ -335,22 +345,25 @@ class CircusParser(object):
         return params
 
 
-    def get_data_file(self, multi=False, force_raw='auto', is_empty=False):
+    def get_data_file(self, multi=False, force_raw='auto', is_empty=False, **params):
 
         ## A bit tricky because we want to deal with multifiles export
         # If multi is False, we use the default REAL data files
         # If multi is True, we use the combined file of all data files
 
-        params        = copy.copy(self.parser._sections['data'])
+        for key, value in self.parser._sections['data'].items():
+            if key not in params:
+                params[key] = value
+
         data_file     = params.pop('data_file')
+        
         if force_raw == 'auto' and self.parser.getboolean('data', 'multi-files'):
             force_raw = True
 
         if multi:
             data_file = params.pop('data_multi_file')
         
-        if force_raw == True:  
-            params                 = {}
+        if force_raw == True:
             params['file_format']  = 'raw_binary'
             params['data_dtype']   = 'float32'
             params['dtype_offset'] = 'auto'

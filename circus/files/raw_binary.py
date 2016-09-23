@@ -1,6 +1,6 @@
 import h5py, numpy, re, sys
 from circus.shared.messages import print_error, print_and_log
-from datafile import DataFile, get_offset
+from datafile import DataFile, get_offset, comm
 
 class RawBinaryFile(DataFile):
 
@@ -30,7 +30,11 @@ class RawBinaryFile(DataFile):
     def allocate(self, shape, data_dtype=None):
         if data_dtype is None:
             data_dtype = self.data_dtype
-        self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='w+', shape=shape)
+        
+        if self.is_master:
+            self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode='w+', shape=shape)
+        comm.Barrier()
+        
         self._get_info_()
         del self.data
 

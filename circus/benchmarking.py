@@ -148,11 +148,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     # Retrieve some additional key parameters.
-    chunk_size     = int(params.getint('data', 'chunk_size') * params.rate)
+    chunk_size     = params.getint('data', 'chunk_size')
     scalings       = []
     
     params.set('data', 'data_file', file_name)
-    data_file_out = params.get_data_file(is_empty=True, force_raw=True)    
+    
+    data_file_out = params.get_data_file(is_empty=True, force_raw=True, **data_file.get_description())    
     data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
     # Synchronize all the threads/processes.
@@ -449,10 +450,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             pbar.update(count)
 
     # Close the thread/process' files.
+    spiketimes_file.flush()
+    os.fsync(spiketimes_file.fileno())
     spiketimes_file.close()
+
+    amplitudes_file.flush()
+    os.fsync(amplitudes_file.fileno())
     amplitudes_file.close()
+
+    templates_file.flush()
+    os.fsync(templates_file.fileno())
     templates_file.close()
+
+    real_amps_file.flush()
+    os.fsync(real_amps_file.fileno())
     real_amps_file.close()
+
+    voltages_file.flush()
+    os.fsync(voltages_file.fileno())
     voltages_file.close()
 
     # Finish the progress bar about the generation of the benchmark.

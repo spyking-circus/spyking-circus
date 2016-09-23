@@ -9,6 +9,7 @@ import h5py
 import pkg_resources
 import circus
 import logging
+import numpy
 from os.path import join as pjoin
 import colorama
 colorama.init(autoreset=True)
@@ -168,6 +169,7 @@ but a subset x,y can be done. Steps are:
         data_file    = params.get_data_file(multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file._parallel_write
+        is_writable            = data_file._is_writable
 
     if preview:
         print_info(['Preview mode, showing only first second of the recording'])
@@ -291,9 +293,17 @@ but a subset x,y can be done. Steps are:
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
 
-                        if subtask in ['filtering', 'benchmarking'] and not support_parallel_write and (args.cpu > 1):
+                        if subtask in ['filtering', 'benchmarking'] and not is_writable and multi_files:
+                            print_and_log(['The file format %s is read only!' %file_format, 
+                                            'One solution to still filter the file is to activate',
+                                            'the multi-files mode, even with one file.',
+                                            'This will creates a raw_binary file, as float32.'], 'info', params)
+                            sys.exit(0)
+                        
+                        if subtask in ['filtering', 'benchmarking'] and not support_parallel_write and (args.cpu > 1) and not multi_files:
                             print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', params)
                             nb_tasks = str(1)
+
                         else:
                             if subtask != 'fitting':
                                 nb_tasks = str(max(args.cpu, args.gpu))

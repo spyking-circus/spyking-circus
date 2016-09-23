@@ -98,6 +98,11 @@ class DataFile(object):
 
         
 
+    def get_description(self):
+        result = {}
+        for key in self._mandatory:
+            result[key] = self.__getattribute__(key)
+        return result
 
     def _check_valid_(self):
         for key in self._mandatory:
