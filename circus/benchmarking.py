@@ -20,6 +20,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_suff, ext = os.path.splitext(os.path.basename(file_name))
     file_out, ext  = os.path.splitext(file_name)
 
+    if ext == '':
+        ext = '.dat'
+        file_name += ext
+    
+    if ext != '.dat':
+        if comm.rank == 0:
+            print_and_log(['Benchmarking produces raw files: select a .dat extension'], 'error', params)
+        sys.exit(0)
+
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
             print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
@@ -152,7 +161,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     scalings       = []
     
     params.set('data', 'data_file', file_name)
-    
+
     data_file_out = params.get_data_file(is_empty=True, force_raw=True, **data_file.get_description())    
     data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
@@ -320,7 +329,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         purge(file_out, '.data')
 
 
-    template_shift = params.get('detection', 'template_shift')
+    template_shift = params.getint('detection', 'template_shift')
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)
@@ -525,8 +534,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         # Gather data from all threads/processes.
         f_next, extension = os.path.splitext(file_name)
         file_out_bis = os.path.join(f_next, os.path.basename(f_next))
-        data_file_out.params.set('data', 'file_out', file_out_bis) # Output file without suffix
-        data_file_out.params.set('data', 'file_out_suff', file_out_bis  + data_file_out.params.get('data', 'suffix'))
+        #new_params.set('data', 'file_out', file_out_bis) # Output file without suffix
+        #new_params.set('data', 'file_out_suff', file_out_bis  + params.get('data', 'suffix'))
     
 
         io.collect_data(comm.size, new_params, erase=True, with_real_amps=True, with_voltages=True, benchmark=True)

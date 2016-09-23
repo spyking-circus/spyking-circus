@@ -300,7 +300,7 @@ but a subset x,y can be done. Steps are:
                                             'This will creates a raw_binary file, as float32.'], 'info', params)
                             sys.exit(0)
                         
-                        if subtask in ['filtering', 'benchmarking'] and not support_parallel_write and (args.cpu > 1) and not multi_files:
+                        if subtask in ['filtering'] and not support_parallel_write and (args.cpu > 1) and not multi_files:
                             print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', params)
                             nb_tasks = str(1)
 

@@ -85,11 +85,6 @@ class DataFile(object):
             else:
                 self.__setattr__(key, value)
 
-        self._N_t        = None
-        self._dist_peaks = None
-        self._template_shift = None
-        self._safety_time    = None
-
         self._check_requierements_(**kwargs)
 
         if not self.is_empty:
