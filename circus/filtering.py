@@ -275,7 +275,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             times         = io.data_stats(params, show=False, export_times=True)
             data_out      = params.get_data_file(force_raw=True, is_empty=True)
 
-            data_out.allocate(shape=(times[-1][1], data_out.nb_channels), data_dtype=data_file.data_dtype)
+            data_out.allocate(shape=(times[-1][1], data_out.nb_channels), data_dtype=numpy.float32)
             
             print_and_log(['Output file: %s' %combined_file], 'debug', params)
             goffset = 0

@@ -8,6 +8,7 @@ import psutil
 import h5py
 import pkg_resources
 import circus
+import logging
 from os.path import join as pjoin
 import colorama
 colorama.init(autoreset=True)
@@ -199,7 +200,7 @@ but a subset x,y can be done. Steps are:
         new_params = CircusParser(filename)
 
         data_file_out = new_params.get_data_file(multi_files, is_empty=True)
-        data_file_out.allocate(shape=local_chunk.shape, data_dtype=local_chunk.dtype)
+        data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)
         data_file_out.close()
