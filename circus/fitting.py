@@ -432,11 +432,20 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             pbar.update(gcount)
 
+    spiketimes_file.flush()
+    os.fsync(spiketimes_file.fileno())
     spiketimes_file.close()
+
+    amplitudes_file.flush()
+    os.fsync(amplitudes_file.fileno())
     amplitudes_file.close()
+
+    templates_file.flush()
+    os.fsync(templates_file.fileno())
     templates_file.close()
 
     comm.Barrier()
+    
 
 
     if comm.rank == 0:

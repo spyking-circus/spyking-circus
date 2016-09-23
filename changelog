@@ -3,8 +3,8 @@ Release 0.4.3
 =============
 
 * cosmetic changes in the terminal
-* automatic reduction of chunk sizes for high density probes (N_e > 500) to save memory
-
+* suggest reduction of chunk sizes for high density probes (N_e > 500) to save memory
+* fix a a once-in-a-while bug due to file synchronization during the fitting procedure
 
 
 =============

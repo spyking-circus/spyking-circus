@@ -248,11 +248,8 @@ but a subset x,y can be done. Steps are:
             io.print_and_log(['Template compression is highly recommended based on parameters'], 'info', params)    
 
         if params.getint('data', 'N_e') > 500:
-            if params.getint('data', 'chunk_size') > 10:
-                params.set('data', 'chunk_size', '10')
-            if params.getint('whitening', 'chunk_size') > 10:
-                params.set('whitening', 'chunk_size', '10')
-            io.print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', params)
+            if (params.getint('data', 'chunk_size') > 10) or (params.getint('whitening', 'chunk_size') > 10):
+                io.print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', params)
 
         if not result:
             for subtask, command in subtasks:
