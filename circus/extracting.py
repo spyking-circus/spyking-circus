@@ -20,7 +20,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     nodes, edges   = get_nodes_and_edges(params)
-    safety_time    = params.getfloat('extracting', 'safety_time')
+    safety_time    = params.getint('extracting', 'safety_time')
     max_elts_temp  = params.getint('extracting', 'max_elts')
     output_dim     = params.getfloat('extracting', 'output_dim')
     noise_thr      = params.getfloat('extracting', 'noise_thr')

@@ -50,7 +50,10 @@ def main(argv=None):
 
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
-    data_offset    = data_file.data_offset
+    if hasattr(data_file, 'data_offset'):
+        data_offset = data_file.data_offset
+    else:
+        data_offset = 0
     file_format    = data_file._description
     file_out_suff  = params.get('data', 'file_out_suff')
 
@@ -73,11 +76,11 @@ def main(argv=None):
             gui_params['dat_path']   = params.get('data', 'data_file')
         else:
             gui_params['dat_path']   = ''
-        gui_params['n_channels_dat'] = data_file.N_tot
+        gui_params['n_channels_dat'] = params.nb_channels
         gui_params['n_features_per_channel'] = 5
         gui_params['dtype']          = data_dtype
         gui_params['offset']         = data_offset
-        gui_params['sample_rate']    = data_file.rate
+        gui_params['sample_rate']    = params.rate
         gui_params['hp_filtered']    = True
 
         os.chdir(output_path)

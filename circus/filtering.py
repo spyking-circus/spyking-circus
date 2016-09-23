@@ -75,7 +75,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
-            goffset       = data_file_in.max_offset
+            goffset       = data_file_in.duration
 
             if comm.rank == 0:
                 if perform_filtering:

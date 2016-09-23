@@ -42,7 +42,7 @@ class OpenEphysFile(DataFile):
             self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
             self.header     = self._read_header_(self.all_files[0])
             kwargs['sampling_rate'] = float(self.header['sampleRate'])        
-            kwargs['N_tot']         = len(self.all_files)
+            kwargs['nb_channels']   = len(self.all_files)
             kwargs['gain']          = float(self.header['bitVolts'])        
 
         DataFile.__init__(self, file_name, empty, **kwargs)
@@ -54,7 +54,7 @@ class OpenEphysFile(DataFile):
         g = open(self.all_files[0], 'rb')
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
         g.close()
-        self._shape      = (self.size, self.N_tot)
+        self._shape      = (self.size, self.nb_channels)
         self.close()
 
     def _get_slice_(self, t_start, t_stop):
@@ -94,7 +94,7 @@ class OpenEphysFile(DataFile):
             t_stop      = self.duration
 
         if nodes is None:
-            nodes = numpy.arange(self.N_tot)
+            nodes = numpy.arange(self.nb_channels)
 
         local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
         data_slice  = self._get_slice_(t_start, t_stop) 
@@ -120,12 +120,12 @@ class OpenEphysFile(DataFile):
         data_slice  = self._get_slice_(t_start, t_stop) 
         
         self.open(mode='r+')
-        for i in xrange(self.N_tot):
+        for i in xrange(self.nb_channels):
             self.data[i][data_slice] = self._unscale_data_from_from32(data)[:, i]
         self.close()
 
     def open(self, mode='r'):
-        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode) for i in xrange(self.N_tot)]
+        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode) for i in xrange(self.nb_channels)]
         
     def close(self):
         self.data = None

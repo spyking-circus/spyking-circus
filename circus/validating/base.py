@@ -36,9 +36,12 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     data_file = params.get_data_file()
     data_file.open()
-    N_total = data_file.N_tot
-    N_e = data_file.N_e
-    template_shift = data_file.template_shift
+    N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('detection', 'N_t')
+    N_total         = params.nb_channels
+    sampling_rate   = params.rate
+
+    template_shift = params.get('detection', 'template_shift')
     file_out_suff = params.get('data', 'file_out_suff')
     nb_repeats = params.getint('clustering', 'nb_repeats')
     max_iter = params.getint('validating', 'max_iter')
@@ -217,7 +220,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    N_e = data_file.N_e
+    N_e = params.getint('data', 'N_e')
     threshs = N_e * [None]
     counts = N_e * [None]
     for e in xrange(0, N_e):
@@ -258,7 +261,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    N_e = data_file.N_e
+    N_e = params.getint('data', 'N_e')
     for e in xrange(0, N_e):
         spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
     spike_values_extra = numpy.concatenate(spike_values_extra)
@@ -310,9 +313,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    thresh = int(float(data_file.rate) * matching_jitter * 1.0e-3) # "matching threshold"
+    thresh = int(float(params.rate) * matching_jitter * 1.0e-3) # "matching threshold"
     
-    N_e = data_file.N_e
     for e in xrange(0, N_e):
         spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
     spike_times_extra = numpy.concatenate(spike_times_extra)
@@ -381,7 +383,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     
     # Retrieve the spike times of the "ground truth cell".
-    tresh = int(float(data_file.rate) * matching_jitter * 1.0e-3) # "matching threshold"
+    tresh = int(float(params.rate) * matching_jitter * 1.0e-3) # "matching threshold"
     matched_spike_times_juxta = numpy.zeros_like(spike_times_juxta, dtype='bool')
     matched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
     mismatched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
@@ -1291,7 +1293,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         if MODE == 'custom':
             
             # Define the "matching threshold".
-            thresh = int(float(data_file.rate) * matching_jitter * 1.0e-3)
+            thresh = int(float(params.rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results")
@@ -1434,7 +1436,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             spike_times_gt = spike_times_gt
             
             # Define the "matching threshold".
-            thresh = int(float(data_file.rate) * matching_jitter * 1.0e-3)
+            thresh = int(float(params.rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results")

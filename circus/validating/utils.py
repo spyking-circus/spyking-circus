@@ -100,10 +100,10 @@ def extract_extra_thresholds(params):
     data_file      = params.get_data_file()
     data_file.open()
 
-    chunk_size = int(params.getint('data', 'chunk_size') * data_file.rate)
+    chunk_size = params.getint('data', 'chunk_size')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    N_total = data_file.N_tot
+    N_total = params.nb_channels
     
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -223,17 +223,17 @@ def extract_extra_spikes_(params):
     
     data_file = params.get_data_file()
     data_file.open()
-    dist_peaks     = data_file.dist_peaks
+    dist_peaks     = params.getint('detection', 'dist_peaks')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    template_shift = data_file.template_shift
+    template_shift = params.getint('detection', 'template_shift')
     alignment      = params.getboolean('detection', 'alignment')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    safety_time  = int(data_file.get_safety_time('whitening')*data_file.rate*1e-3)
+    safety_time  = params.get_safety_time('whitening', 'safety_time')
     safety_space = params.getboolean('clustering', 'safety_space')
-    chunk_size   = int(params.getint('data', 'chunk_size') * data_file.rate)
+    chunk_size   = params.getint('data', 'chunk_size')
     # chunk_size = params.getint('whitening', 'chunk_size')
-    N_total        = data_file.N_tot
+    N_total        = params.nb_channels
     file_out_suff  = params.get('data', 'file_out_suff')
     
     if do_spatial_whitening:
@@ -248,7 +248,7 @@ def extract_extra_spikes_(params):
     N_elec = nodes.size
     
     # Convert 'safety_time' from milliseconds to number of samples.
-    safety_time = int(safety_time * float(data_file.rate) * 1e-3)
+    safety_time = int(safety_time * float(params.rate) * 1e-3)
     
     extra_medians, extra_mads = extract_extra_thresholds(params)
     

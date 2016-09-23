@@ -10,11 +10,12 @@ class NWBFile(H5File):
     _parallel_write = h5py.get_config().mpi
     _is_writable    = True
 
-    def __init__(self, file_name, params, empty=False):
+    _requiered_fields = {'h5_key'            : ['string', None],
+                         'dtype_offset'      : ['string', 'auto'], 
+                         'sampling_rate'     : ['float', None], 
+                         'gain'              : ['float', 1.]}
 
-        H5File.__init__(self, file_name, params, True)
 
-        self.h5_key = self.params.get('data', 'hdf5_key_data')
-        self.empty  = empty
-        if not self.empty:
-            self._get_info_(self.h5_key)
+    def __init__(self, file_name, is_empty=False, **kwargs):
+
+        H5File.__init__(self, file_name, is_empty, **kwargs)

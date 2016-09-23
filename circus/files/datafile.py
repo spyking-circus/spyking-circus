@@ -45,30 +45,27 @@ class DataFile(object):
     _extension        = [".myextension"]
     _parallel_write   = False
     _is_writable      = False
+
+    # This is a dictionary of values that need to be provided to the constructor, with a specified type and
+    # eventually default value. For example {'sampling_rate' : ['float' : 20000]}
     _requiered_fields = {}
     _shape            = (0, 0)
-    _max_offset       = 0
-    _mandatory        = ['sampling_rate', 'data_dtype', 'data_offset', 'gain']
-    # Note that those values can be either infered from header, or otherwise read from the parameter file
 
+    # Those are the attributes that need to be common in ALL file formats
+    # Note that those values can be either infered from header, or otherwise read from the parameter file
+    _mandatory        = ['sampling_rate', 'data_dtype', 'dtype_offset', 'gain', 'nb_channels']
+    
     def __init__(self, file_name, is_empty=False, **kwargs):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from
         the parameter file, but you could completly fill them based on values that would be obtained
         from the datafile itself. 
-        What you need to specify
+        What you need to specify (usually be getting value in the _get_info function)
             - _parallel_write : can the file be safely written in parallel ?
             - _is_writable    : if the file can be written
-            - _shape          : the size of the data, should be a tuple (max_offset, N_tot)
-            - max_offset      : the time length of the data, in time steps
-            - comm is a MPI communicator ring, if the file is created in a MPI environment
-            - empty is a flag to say if the file is created without data
-
-        Note that you can overwrite values such as N_e, rate from the header in your data. Those will then be
-        used in the code, instead of the ones from the parameter files.
-
-        Note also that the code can create empty files [multi-file, benchmarking], this is why there is an empty
-        flag to warn the constructor about the fact that the file may be empty
+            - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
+            - is_empty is a flag to say if the file is created without data. It has no sense if the file is
+             not writable
         '''
 
         self.file_name = file_name
@@ -124,7 +121,6 @@ class DataFile(object):
             sys.exit(0)
 
 
-
     def _display_requierements_(self):
 
         to_write = ['The parameters for %s file format are:' %self._description.upper(), '']
@@ -161,9 +157,15 @@ class DataFile(object):
 
 
     def _scale_data_to_float32(self, data):
+        '''
+            This function will convert data from local data dtype into float32, the default format of the algorithm
+        '''
 
         if self.data_dtype != numpy.float32:
             data  = data.astype(numpy.float32)
+
+        if self.dtype_offset != 0:
+            data  -= self.dtype_offset
 
         if self.gain != 1:
             data *= self.gain
@@ -171,6 +173,10 @@ class DataFile(object):
         return numpy.ascontiguousarray(data)
 
     def _unscale_data_from_from32(self, data):
+        '''
+            This function will convert data from float32 back to the original format of the file
+        '''
+
 
         if self.gain != 1:
             data /= self.gain

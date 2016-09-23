@@ -36,7 +36,10 @@ def main(argv=None):
     data_dtype     = data_file.data_dtype
     gain           = 1
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_offset    = data_file.data_offset
+    if hasattr(data_file, 'data_offset'):
+        data_offset = data_file.data_offset
+    else:
+        data_offset = 0
     probe          = params.probe
     if extension != '':
         extension = '-' + extension

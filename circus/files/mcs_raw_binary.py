@@ -18,7 +18,7 @@ class RawMCSFile(RawBinaryFile):
             a, b, c = self._read_header()
             self.header            = a 
             kwargs['data_offset']  = b
-            kwargs['N_tot']        = c
+            kwargs['nb_channels']  = c
             kwargs['dtype_offset'] = int(self.header['ADC zero'])
             kwargs['gain']         = float(self.header['El'].replace('\xb5V/AD', ''))
             if kwargs['dtype_offset'] == 32768:

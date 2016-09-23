@@ -13,7 +13,6 @@ class MCDFile(DataFile):
     def __init__(self, file_name, is_empty=False, **kwargs):
 
         kwargs = {}
-        kwargs['data_offset']  = 0
         kwargs['data_dtype']   = 'float64'
         kwargs['dtype_offset'] = 0
         
@@ -40,9 +39,7 @@ class MCDFile(DataFile):
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
         
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
-
+        chunk_size  = self._get_chunk_size_(chunk_size)
         t_start     = numpy.int64(idx*numpy.int64(chunk_size)+padding[0])
         t_stop      = numpy.int64((idx+1)*numpy.int64(chunk_size)+padding[1])
         local_shape = t_stop - t_start
@@ -51,7 +48,7 @@ class MCDFile(DataFile):
             local_shape = self.duration - t_start
 
         if nodes is None:
-            nodes = numpy.arange(self.N_tot, dtype=numpy.int32)
+            nodes = numpy.arange(self.nb_channels, dtype=numpy.int32)
 
         local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
 

@@ -3,8 +3,8 @@ from mcs_raw_binary import RawMCSFile
 from hdf5 import H5File
 from kwd import KwdFile
 from openephys import OpenEphysFile
-#from nwb import NWBFile
-#from arf import ARFFile
+from nwb import NWBFile
+from arf import ARFFile
 
 try:
 	import nixio
@@ -24,8 +24,8 @@ __supported_data_files__ = {
 	H5File._description : H5File,
 	OpenEphysFile._description : OpenEphysFile,
 	KwdFile._description : KwdFile,
-#	NWBFile._description : NWBFile,
-#	ARFFile._description : ARFFile
+	NWBFile._description : NWBFile,
+	ARFFile._description : ARFFile
 }
 
 #if HAVE_NIX_SUPPORT:
