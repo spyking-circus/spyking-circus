@@ -90,11 +90,13 @@ class DataFile(object):
         self._template_shift = None
         self._safety_time    = None
 
+        self._check_requierements_(**kwargs)
+
         if not self.is_empty:
             self._get_info_()
             self._check_valid_()
 
-        self._check_requierements_(**kwargs)
+        
 
 
     def _check_valid_(self):

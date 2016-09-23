@@ -293,39 +293,46 @@ class CircusParser(object):
 
     def _get_values_for_datafiles(self, file_format, **kwargs):
 
+        params = {}
+
         for key, value in __supported_data_files__[file_format]._requiered_fields.items():
             
-            if key not in kwargs:
-                try:
-                    if value[0] == 'int':
-                        kwargs[key] = self.parser.getint('data', key)
-                    if value[0] == 'float':
-                        kwargs[key] = self.parser.getfloat('data', key)
-                    if value[0] == 'bool':
-                        kwargs[key] = self.parser.getfloat('data', key)
-                    if value[0] == 'string':
-                        kwargs[key] = self.parser.get('data', key)
+            if key in kwargs:
                 
-                    print_and_log(['%s is read from the params with a value of %s' %(key, kwargs[key])], 'debug', self.parser)
+                if value[0] == 'int':
+                    params[key] = int(kwargs[key])
+                if value[0] == 'float':
+                    params[key] = float(kwargs[key])
+                if value[0] == 'bool':
+                    params[key] = bool(kwargs[key])
+                if value[0] == 'string':
+                    params[key] = str(kwargs[key])
+
+                print_and_log(['%s is set to a value of %s' %(key, params[key])], 'debug', self.parser)
+
+            elif key not in kwargs:
                 
-                except Exception:
+                if value[1] is None:
+                    try:
+                        if value[0] == 'int':
+                            params[key] = self.parser.getint('data', key)
+                        if value[0] == 'float':
+                            params[key] = self.parser.getfloat('data', key)
+                        if value[0] == 'bool':
+                            params[key] = self.parser.getfloat('data', key)
+                        if value[0] == 'string':
+                            params[key] = self.parser.get('data', key)
+                    
+                        print_and_log(['%s is read from the params with a value of %s' %(key, params[key])], 'debug', self.parser)
+                    
+                    except Exception:
+                        pass
 
-                    if value[1] is not None:
-                        kwargs[key] = value[1]
-                        print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', self.parser)
-            else:
-                try:
-                    if value[0] == 'int':
-                        kwargs[key] = int(kwargs[key])
-                    if value[0] == 'float':
-                        kwargs[key] = float(kwargs[key])
-                    if value[0] == 'bool':
-                        kwargs[key] = bool(kwargs[key])
-                    print_and_log(['%s is set to a value of %s' %(key, kwargs[key])], 'debug', self.parser)
-                except Exception:
-                    print_and_log(['%s has the wrong type...' %key], 'debug', self.parser)
+                elif value[1] is not None:
+                    params[key] = value[1]
+                    print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', self.parser)
 
-        return kwargs
+        return params
 
 
     def get_data_file(self, multi=False, force_raw='auto', is_empty=False):
