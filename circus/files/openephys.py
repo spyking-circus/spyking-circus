@@ -29,7 +29,7 @@ class OpenEphysFile(DataFile):
         f.close()
         return header
 
-    def __init__(self, file_name, params, empty=False):
+    def __init__(self, file_name, empty=False):
 
         kwargs = {}
         kwargs['data_dtype']   = 'int16'
@@ -41,11 +41,11 @@ class OpenEphysFile(DataFile):
             self.all_channels = self._get_sorted_channels_(folder_path)
             self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
             self.header     = self._read_header_(self.all_files[0])
-            kwargs['rate']  = float(self.header['sampleRate'])        
-            kwargs['N_tot'] = len(self.all_files)
-            kwargs['gain']  = float(self.header['bitVolts'])        
+            kwargs['sampling_rate'] = float(self.header['sampleRate'])        
+            kwargs['N_tot']         = len(self.all_files)
+            kwargs['gain']          = float(self.header['bitVolts'])        
 
-        DataFile.__init__(self, file_name, params, empty, **kwargs)
+        DataFile.__init__(self, file_name, empty, **kwargs)
 
 
     def _get_info_(self):
@@ -55,7 +55,6 @@ class OpenEphysFile(DataFile):
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
         g.close()
         self._shape      = (self.size, self.N_tot)
-        self.max_offset  = self._shape[0]
         self.close()
 
     def _get_slice_(self, t_start, t_stop):
@@ -90,14 +89,14 @@ class OpenEphysFile(DataFile):
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
         local_shape = t_stop - t_start
 
-        if (t_start + local_shape) > self.max_offset:
-            local_shape = self.max_offset - t_start
-            t_stop      = self.max_offset
+        if (t_start + local_shape) > self.duration:
+            local_shape = self.duration - t_start
+            t_stop      = self.duration
 
         if nodes is None:
             nodes = numpy.arange(self.N_tot)
 
-        local_chunk = numpy.zeros((local_shape, len(nodes)), dtype='>i2')
+        local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
         data_slice  = self._get_slice_(t_start, t_stop) 
 
         self.open()
@@ -105,10 +104,7 @@ class OpenEphysFile(DataFile):
             local_chunk[:, count] = self.data[i][data_slice]
         self.close()
 
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk *= self.gain
-
-        return numpy.ascontiguousarray(local_chunk)
+        return self._scale_data_to_float32(local_chunk)
 
 
     def set_data(self, time, data):
@@ -117,21 +113,19 @@ class OpenEphysFile(DataFile):
         t_stop      = time + data.shape[0]
         local_shape = t_stop - t_start
 
-        if (t_start + local_shape) > self.max_offset:
-            local_shape = self.max_offset - t_start
-            t_stop      = self.max_offset
+        if (t_start + local_shape) > self.duration:
+            local_shape = self.duration - t_start
+            t_stop      = self.duration
 
         data_slice  = self._get_slice_(t_start, t_stop) 
-        data       /= self.gain
-        data        = data.astype('>i2')
         
         self.open(mode='r+')
         for i in xrange(self.N_tot):
-            self.data[i][data_slice] = data[:, i]
+            self.data[i][data_slice] = self._unscale_data_from_from32(data)[:, i]
         self.close()
 
     def open(self, mode='r'):
-        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype='>i2', mode=mode) for i in xrange(self.N_tot)]
+        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode) for i in xrange(self.N_tot)]
         
     def close(self):
         self.data = None

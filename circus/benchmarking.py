@@ -114,11 +114,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
-    data_file        = params.get_data_file(comm=comm)
-    N_e              = data_file.N_e
-    N_total          = data_file.N_tot
+    data_file        = params.get_data_file()
+    N_e              = params.getint('data', 'N_e')
+    N_total          = params.nb_channels
     nodes, edges     = get_nodes_and_edges(params)
-    N_t              = data_file.N_t
+    N_t              = params.getint('detection', 'N_t')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -137,7 +137,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # Save benchmark parameters in a file to remember them.
     if comm.rank == 0:
         write_benchmark(file_out, benchmark, cells, rate, amplitude,
-                        data_file.rate, params.get('data', 'mapping'), trends)
+                        params.rate, params.get('data', 'mapping'), trends)
 
     # Synchronize all the threads/processes.
     comm.Barrier()
@@ -148,7 +148,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     # Retrieve some additional key parameters.
-    chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+    chunk_size     = int(params.getint('data', 'chunk_size') * params.rate)
     scalings       = []
     
     params.set('data', 'data_file', file_name)
@@ -319,7 +319,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         purge(file_out, '.data')
 
 
-    template_shift = data_file.template_shift
+    template_shift = params.get('detection', 'template_shift')
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)
@@ -377,7 +377,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             # Generate some spike indices (i.e. times) at the given rate for
             # 'synchrony' mode. Each synthesized cell will use a subset of this
             # spike times.
-            mips = numpy.random.rand(chunk_size) < rate[0] / float(data_file.rate)
+            mips = numpy.random.rand(chunk_size) < rate[0] / float(params.rate)
 
         # For each synthesized cell generate its spike indices (i.e.times) and
         # add them to the dataset.
@@ -391,9 +391,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 spikes[sidx[numpy.random.rand(len(sidx)) < corrcoef]] = True
             else:
                 # Generate some spike indices at the given rate.
-                spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(data_file.rate)
+                spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(params.rate)
             if benchmark == 'drifts':
-                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(data_file.rate)))
+                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(params.rate)))
             else:
                 amplitudes = numpy.ones(len(spikes))
             # Padding with `False` to avoid the insertion of partial spikes at
@@ -408,7 +408,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             norm_flat      = numpy.sum(first_flat ** 2)
             # For each index (i.e. spike sample location) add the spike to the
             # chunk of data.
-            refractory     = int(5 * 1e-3 * data_file.rate)         
+            refractory     = int(5 * 1e-3 * params.rate)         
             t_last         = - refractory
             for scount, spike in enumerate(spikes):
                 if (spike - t_last) > refractory:

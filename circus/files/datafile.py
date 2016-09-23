@@ -2,46 +2,30 @@ import h5py, numpy, re, sys, os
 from circus.shared.messages import print_error, print_and_log
 from circus.shared.mpi import comm
 
-def _check_requierements_(description, fields, params, **kwargs):
 
-    for key, values in fields.items():
-        if key not in kwargs.keys():
-            try:
-                value, default = values
-                if default is not None:
-                    kwargs[key] = default
-                else:
-                    if value == 'int':
-                        kwargs[key] = params.getint('data', key)
-                    elif value == 'string':
-                        kwargs[key] = params.get('data', key)
-                    elif value == 'float':
-                        kwargs[key] = params.getfloat('data', key)
-                    elif value == 'bool':
-                        kwargs[key] = params.getboolean('data', key)
-            except Exception:
-                _display_requierements_(description, params, fields)
-                print_error(['%s must be specified as type %s in the [data] section!' %(key, value)])
-                sys.exit(0)
-    return kwargs
+def get_offset(data_dtype, dtype_offset):
 
+    if dtype_offset == 'auto':
+        if data_dtype in ['uint16', numpy.uint16]:
+            dtype_offset = 32768
+        elif data_dtype in ['int16', numpy.int16]:
+            dtype_offset = 0
+        elif data_dtype in ['float32', numpy.float32]:
+            dtype_offset = 0
+        elif data_dtype in ['int8', numpy.int8]:
+            dtype_offset = 0        
+        elif data_dtype in ['uint8', numpy.uint8]:
+            dtype_offset = 127
+        elif data_dtype in ['float64', numpy.float64]:
+            dtype_offset = 0    
+    else:
+        try:
+            dtype_offset = int(dtype_offset)
+        except Exception:
+            print_error(["Offset %s is not valid" %dtype_offset])
+            sys.exit(0)
 
-def _display_requierements_(description, params, fields):
-
-    to_write = ['The parameters for %s file format are:' %description.upper(), '']
-    for key, values in fields.items():
-            
-        mystring = '-- %s -- of type %s' %(key, values[0])
-
-        if values[1] is None:
-            mystring += ' [** mandatory **]'
-        else:
-            mystring += ' [default is %s]' %values[1]
-
-        to_write += [mystring]
-
-    print_and_log(to_write, 'info', params)
-
+    return dtype_offset
 
 class DataFile(object):
 
@@ -64,9 +48,10 @@ class DataFile(object):
     _requiered_fields = {}
     _shape            = (0, 0)
     _max_offset       = 0
+    _mandatory        = ['sampling_rate', 'data_dtype', 'data_offset', 'gain']
     # Note that those values can be either infered from header, or otherwise read from the parameter file
 
-    def __init__(self, file_name, params, is_empty=False, **kwargs):
+    def __init__(self, file_name, is_empty=False, **kwargs):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from
         the parameter file, but you could completly fill them based on values that would be obtained
@@ -88,9 +73,8 @@ class DataFile(object):
 
         self.file_name = file_name
         self.is_empty  = is_empty
-        self.params    = params
 
-        if is_empty and not self._is_writable:
+        if self.is_empty and not self._is_writable:
             if self.is_master:
                 print_error(["The file %s is empty and non writable..." %(extension, self._description)])
             sys.exit(0)
@@ -103,77 +87,59 @@ class DataFile(object):
                     print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
                 sys.exit(0)
 
-        requiered_values = {'rate'  : ['data', 'sampling_rate', 'float'], 
-                            'N_e'   : ['data', 'N_e', 'int'],
-                            'N_tot' : ['data', 'N_total', 'int']}
+        self._check_requierements_(**kwargs)
 
         for key, value in kwargs.items():
-            self.__setattr__(key, value)
-
-        for key, value in requiered_values.items():
-            if not hasattr(self, key):
-                if value[2] == 'int':
-                    to_be_set = numpy.int64(self.params.getint(value[0], value[1]))
-                if value[2] == 'float':
-                    to_be_set = self.params.getfloat(value[0], value[1])
-                self.__setattr__(key, to_be_set)
-                if self.is_master:
-                    print_and_log(['%s is read from the params with a value of %s' %(key, to_be_set)], 'debug', self.params)
+            if key == 'nb_channels':
+                self._shape = (0, value)
             else:
-                if self.is_master:
-                    print_and_log(['%s is infered from the data file with a value of %s' %(key, value)], 'debug', self.params)
-
+                self.__setattr__(key, value)
 
         self._N_t        = None
         self._dist_peaks = None
         self._template_shift = None
         self._safety_time    = None
-        if self.is_master:
-            print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
 
         if not self.is_empty:
             self._get_info_()
-            
-    @property
-    def N_t(self):
-        if self._N_t is not None:
-            return self._N_t
-        else:
-            try:
-                self._N_t = self.params.getfloat('detection', 'N_t')
-            except Exception:
-                self._N_t = self.params.getfloat('data', 'N_t')
+            self._check_valid_()
 
-            self._N_t = int(self.rate*self._N_t*1e-3)
-            if numpy.mod(self._N_t, 2) == 0:
-                self._N_t += 1
+    def _check_valid_(self):
+        for key in self._mandatory:
+            if not hasattr(self, key):
+                print_error(['%s is a needed attribute of a datafile, and it is not defined' %key])
 
-            return self.N_t
+    def _check_requierements_(self, **kwargs):
 
-    @property
-    def dist_peaks(self):
-        return self.N_t
+        missing = {}
 
-    @property
-    def template_shift(self):
-        if self._template_shift is not None:
-            return self._template_shift
-        else:
-            return int((self.N_t-1)//2)
+        for key, value in self._requiered_fields.items():
+            if key not in kwargs.keys():
+                missing[key] = value
+                print_error(['%s must be specified as type %s in the [data] section!' %(key, value[0])])
+        
+
+        if len(missing) > 0:
+            self._display_requierements_()
+            sys.exit(0)
 
 
-    def get_safety_time(self, key):
-        safety_time = self.params.get(key, 'safety_time')
-        if safety_time == 'auto':
 
-            try:
-                N_t = self.params.getfloat('detection', 'N_t')
-            except Exception:
-                N_t = self.params.getfloat('data', 'N_t')
+    def _display_requierements_(self):
 
-            return N_t//3.
-        else:
-            return float(safety_time)
+        to_write = ['The parameters for %s file format are:' %self._description.upper(), '']
+        for key, values in self._requiered_fields.items():
+                
+            mystring = '-- %s -- of type %s' %(key, values[0])
+
+            if values[1] is None:
+                mystring += ' [** mandatory **]'
+            else:
+                mystring += ' [default is %s]' %values[1]
+
+            to_write += [mystring]
+
+        print_error(to_write)
 
 
     def _get_info_(self):
@@ -193,6 +159,29 @@ class DataFile(object):
         
         return chunk_size     
 
+
+    def _scale_data_to_float32(self, data):
+
+        if self.data_dtype != numpy.float32:
+            data  = data.astype(numpy.float32)
+
+        if self.gain != 1:
+            data *= self.gain
+
+        return numpy.ascontiguousarray(data)
+
+    def _unscale_data_from_from32(self, data):
+
+        if self.gain != 1:
+            data /= self.gain
+        
+        if self.dtype_offset != 0:
+            data  += self.dtype_offset
+        
+        if data.dtype != self.data_dtype:
+            data = data.astype(self.data_dtype)
+
+        return data
 
     def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
         '''
@@ -274,12 +263,14 @@ class DataFile(object):
     @property
     def shape(self):
         return self._shape  
+         
+    @property
+    def nb_channels(self):
+        return self._shape[1]
     
     @property
-    def max_offset(self):
-        return self._max_offset
-     
-
+    def duration(self):
+        return self._shape[0]
 
     @property
     def is_master(self):

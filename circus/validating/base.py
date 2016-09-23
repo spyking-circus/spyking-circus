@@ -64,7 +64,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     # Compute 'time_min' and 'time_max'.
 
     time_min = template_shift
-    time_max = (data_file.max_offset - 1) - template_shift
+    time_max = (data_file.duration - 1) - template_shift
     
     # Initialize the random seed.
     _ = numpy.random.seed(0)

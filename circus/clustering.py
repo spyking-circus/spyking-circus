@@ -13,11 +13,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     data_file      = params.get_data_file()
     data_file.open()
-    N_e            = data_file.N_e
-    N_total        = data_file.N_tot
-    N_t            = data_file.N_t
-    dist_peaks     = data_file.dist_peaks
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    dist_peaks     = params.getint('detection', 'dist_peaks')
+    template_shift = params.getint('detection', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
@@ -31,13 +31,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    safety_time    = int(data_file.get_safety_time('clustering')*data_file.rate*1e-3)
+    safety_time    = params.getint('clustering', 'safety_time')
     safety_space   = params.getboolean('clustering', 'safety_space')
     comp_templates = params.getboolean('clustering', 'compress')
     dispersion     = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
     dispersion     = map(float, dispersion)
     nodes, edges   = get_nodes_and_edges(params)
-    chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+    chunk_size     = params.getint('data', 'chunk_size')
     max_elts_elec  = params.getint('clustering', 'max_elts')
     if sign_peaks == 'both':
        max_elts_elec *= 2
@@ -146,7 +146,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if nb_chunks < comm.size:
 
         res        = io.data_stats(params, show=False)
-        chunk_size = int(res*data_file.rate//comm.size)
+        chunk_size = int(res*params.rate//comm.size)
         if comm.rank == 0:
             print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 

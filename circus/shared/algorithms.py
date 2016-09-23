@@ -161,10 +161,10 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
     file_out_suff  = params.get('data', 'file_out_suff')
 
     data_file      = params.get_data_file()
-    N_e            = data_file.N_e
-    N_total        = data_file.N_tot
-    N_t            = data_file.N_t
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
 
     if comm.rank == 0:
         print_and_log(['Node 0 is slicing templates'], 'debug', params)
@@ -227,10 +227,10 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
     data_file      = params.get_data_file()
-    N_e            = data_file.N_e
-    N_total        = data_file.N_tot
-    N_t            = data_file.N_t
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
 
     if comm.rank == 0:
 
@@ -348,10 +348,10 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         return to_merge, result
          
     data_file      = params.get_data_file()
-    N_e            = data_file.N_e
-    N_total        = data_file.N_tot
-    N_t            = data_file.N_t
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
 
     templates      = load_data(params, 'templates')
     x,        N_tm = templates.shape
@@ -400,10 +400,10 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     templates      = load_data(params, 'templates')
     
     data_file      = params.get_data_file()
-    N_e            = data_file.N_e
-    N_total        = data_file.N_tot
-    N_t            = data_file.N_t
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     x,        N_tm = templates.shape
     nb_temp        = N_tm//2

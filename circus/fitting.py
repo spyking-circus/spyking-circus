@@ -9,10 +9,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     data_file      = params.get_data_file()
     data_file.open()
-    N_e            = data_file.N_e
-    N_total        = data_file.N_tot
-    N_t            = data_file.N_t
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
@@ -20,7 +20,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size     = int(params.getfloat('fitting', 'chunk_size')*data_file.rate)
+    chunk_size     = params.getint('fitting', 'chunk_size')
     gpu_only       = params.getboolean('fitting', 'gpu_only')
     nodes, edges   = get_nodes_and_edges(params)
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
@@ -31,7 +31,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
-        collect_zone = int(0.25*data_file.rate*1e-3)
+        collect_zone = int(0.25*params.rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################

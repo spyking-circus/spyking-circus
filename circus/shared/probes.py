@@ -5,7 +5,7 @@ def read_probe(parser):
     probe    = {}
     filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
     if not os.path.exists(filename):
-        print_error(["The probe file can not be found"])
+        print_error(["The probe file %s can not be found" %filename])
         sys.exit(0)
     try:
         with open(filename, 'r') as f:

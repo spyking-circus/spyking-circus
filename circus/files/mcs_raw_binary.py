@@ -9,7 +9,7 @@ class RawMCSFile(RawBinaryFile):
     _parallel_write = True
     _is_writable    = True
 
-    def __init__(self, file_name, params, empty=False):
+    def __init__(self, file_name, is_empty=False, **kwargs):
 
         kwargs = {}
 
@@ -26,7 +26,7 @@ class RawMCSFile(RawBinaryFile):
             elif kwargs['dtype_offset'] == 0:
                 kwargs['data_dtype'] = 'int16'
 
-        RawBinaryFile.__init__(self, file_name, params, empty, **kwargs)
+        RawBinaryFile.__init__(self, file_name, is_empty, **kwargs)
 
     def _read_header(self):
         try:

@@ -10,29 +10,28 @@ class MCDFile(DataFile):
     _parallel_write = False
     _is_writable    = False
 
-    def __init__(self, file_name, params, empty=False):
+    def __init__(self, file_name, is_empty=False, **kwargs):
 
         kwargs = {}
         kwargs['data_offset']  = 0
         kwargs['data_dtype']   = 'float64'
         kwargs['dtype_offset'] = 0
         
-        if not empty:
+        if not is_empty:
             f = ns.File(file_name)
-            kwargs['N_tot'] = f.entity_count
-            kwargs['rate']  = f.entities[0].sample_rate
-            kwargs['gain']  = f.entities[0].resolution
+            kwargs['nb_channels']   = f.entity_count
+            kwargs['sampling_rate'] = f.entities[0].sample_rate
+            kwargs['gain']          = f.entities[0].resolution
             f.close()
 
-        DataFile.__init__(self, file_name, params, empty, **kwargs)
+        DataFile.__init__(self, file_name, is_empty, **kwargs)
 
 
     def _get_info_(self):
         self.empty = False
         self.open()        
-        self.size  = self.data.time_span * self.rate
-        self._shape = (self.size, self.N_tot)
-        self.max_offset = self._shape[0]
+        self.size  = self.data.time_span * self.sampling_rate
+        self._shape = (self.size, self.nb_channels)
         self.close()
 
     def allocate(self, shape, data_dtype=None):
@@ -48,8 +47,8 @@ class MCDFile(DataFile):
         t_stop      = numpy.int64((idx+1)*numpy.int64(chunk_size)+padding[1])
         local_shape = t_stop - t_start
 
-        if (t_start + local_shape) > self.max_offset:
-            local_shape = self.max_offset - t_start
+        if (t_start + local_shape) > self.duration:
+            local_shape = self.duration - t_start
 
         if nodes is None:
             nodes = numpy.arange(self.N_tot, dtype=numpy.int32)
@@ -59,9 +58,7 @@ class MCDFile(DataFile):
         for count, i in enumerate(nodes):
             local_chunk[:, count] = self.data.get_entity(numpy.int64(i)).get_data(t_start, numpy.int64(local_shape))[0]
         
-        local_chunk  = local_chunk.astype(numpy.float32)
-
-        return numpy.ascontiguousarray(local_chunk)
+        return self._scale_data_to_float32(local_chunk)
 
     def set_data(self, time, data):
         print_error(['No write support for %s file' %self._description])

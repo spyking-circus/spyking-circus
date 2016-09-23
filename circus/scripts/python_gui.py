@@ -11,7 +11,6 @@ from distutils.version import LooseVersion, StrictVersion
 from circus.shared.messages import print_error, print_info, print_and_log, get_header, get_colored_header
 from circus.shared.parser import CircusParser
 
-import logging
 from phy import add_default_handler
 from phy.utils._misc import _read_python
 from phy.gui import create_app, run_app

@@ -27,7 +27,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             try:
                 cut_off    = params.getfloat('filtering', 'cut_off')
-                cut_off    = [cut_off, 0.95*(data_file_in.rate/2.)]
+                cut_off    = [cut_off, 0.95*(params.rate/2.)]
             except Exception:
                 cut_off        = params.get('filtering', 'cut_off')
                 cut_off        = cut_off.split(',')
@@ -39,7 +39,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 
                 cut_off[1] = cut_off[1].replace(' ', '')
                 if cut_off[1] == 'auto':
-                    cut_off[1] = 0.95*(data_file_in.rate/2.)
+                    cut_off[1] = 0.95*(params.rate/2.)
                 else:
                     try:
                         cut_off[1] = float(cut_off[1])
@@ -67,10 +67,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 data_file_in.open()
                 data_file_out.open(mode='r+')
 
-            chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+            chunk_size     = params.getint('data', 'chunk_size')
             nb_chunks, last_chunk_len = data_file_in.analyze(chunk_size)
             
-            b, a          = signal.butter(3, np.array(cut_off)/(data_file_in.rate/2.), 'pass')
+            b, a          = signal.butter(3, np.array(cut_off)/(params.rate/2.), 'pass')
             all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
@@ -127,8 +127,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         def compute_artefacts(params, max_offset):
 
+            data_file = params.get_data_file()
             data_file.open()
-            chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
             make_plots     = params.get('triggers', 'make_plots')
@@ -137,8 +138,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
-            windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(params.rate*1e-3)
+            windows[:, 1]   *= numpy.int64(params.rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
@@ -195,7 +196,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             data_file = params.get_data_file()
             data_file.open()
-            chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
             make_plots     = params.get('triggers', 'make_plots')
@@ -204,8 +205,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
-            windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(params.rate*1e-3)
+            windows[:, 1]   *= numpy.int64(params.rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 

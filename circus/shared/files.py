@@ -18,7 +18,7 @@ def data_stats(params, show=True, export_times=False):
     
     if not multi_files:
         data_file      = params.get_data_file()
-        chunk_size     = 60 * data_file.rate    
+        chunk_size     = 60 * params.rate    
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
         if last_chunk_len > 0:
             nb_chunks -= 1
@@ -30,7 +30,7 @@ def data_stats(params, show=True, export_times=False):
         t_start        = 0
         times          = []
         data_file      = params.get_data_file(multi=True, force_raw=False)
-        chunk_size     = 60 * data_file.rate 
+        chunk_size     = 60 * params.rate 
         init_file      = params.get('data', 'data_file')
         for f in all_files:
             params.set('data', 'data_file', f)
@@ -40,29 +40,29 @@ def data_stats(params, show=True, export_times=False):
                 loc_nb_chunks -= 1
 
             nb_chunks      += loc_nb_chunks
-            last_chunk_len += new_data_file.max_offset - (loc_nb_chunks*chunk_size)
+            last_chunk_len += new_data_file.duration - (loc_nb_chunks*chunk_size)
 
-            times   += [[t_start, t_start + new_data_file.max_offset]]
-            t_start += new_data_file.max_offset
+            times   += [[t_start, t_start + new_data_file.duration]]
+            t_start += new_data_file.duration
 
         params.set('data', 'data_file', init_file)
 
-    N_t = data_file.N_t
-    N_t = numpy.round(1000.*N_t/data_file.rate, 1)
+    N_t = params.getint('detection', 'N_t')
+    N_t = numpy.round(1000.*N_t/params.rate, 1)
 
-    nb_seconds      = last_chunk_len//data_file.rate
-    last_chunk_len -= (nb_seconds*data_file.rate)
+    nb_seconds      = last_chunk_len//params.rate
+    last_chunk_len -= (nb_seconds*params.rate)
     if nb_seconds > 60:
       nb_extra_seconds = nb_seconds // 60
       nb_chunks  += nb_extra_seconds
       nb_seconds -= 60*nb_extra_seconds
-    last_chunk_len  = int(1000*last_chunk_len/data_file.rate)
+    last_chunk_len  = int(1000*last_chunk_len/params.rate)
 
-    lines = ["Number of recorded channels : %d" %data_file.N_tot,
-             "Number of analyzed channels : %d" %data_file.N_e,
+    lines = ["Number of recorded channels : %d" %params.nb_channels,
+             "Number of analyzed channels : %d" %params.getint('data', 'N_e'),
              "File format                 : %s" %params.get('data', 'file_format').upper(),
              "Data type                   : %s" %str(data_file.data_dtype),
-             "Sampling rate               : %d kHz" %(data_file.rate//1000.),
+             "Sampling rate               : %d kHz" %(params.rate//1000.),
              "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, int(nb_seconds), last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
@@ -89,7 +89,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
     data_file    = params.get_data_file()
     data_file.open()
-    N_t          = data_file.N_t
+    N_t          = params.getint('detection', 'N_t')
     if not all_labels:
         if not mean_mode:
             stas = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
@@ -103,7 +103,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    template_shift        = data_file.template_shift
+    template_shift        = params.getint('detection', 'template_shift')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -178,12 +178,12 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     # Load parameters.
     data_file    = params.get_data_file()
     data_file.open()
-    N_t          = data_file.N_t
-    N_total      = data_file.N_tot
+    N_t          = params.getint('detection', 'N_t')
+    N_total      = params.nb_channels
     alignment    = params.getboolean('detection', 'alignment') and auto_align
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
-    template_shift = data_file.template_shift
+    template_shift = params.getint('detection', 'template_shift')
     
     # Calculate the sizes of the data structures to share.
     nb_triggers = 0
@@ -331,8 +331,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
     sub_comm  = comm.Split(myip, 0)
 
     data_file = params.get_data_file()
-    N_e       = data_file.N_e
-    N_t       = data_file.N_t
+    N_e       = params.getint('data', 'N_e')
+    N_t       = params.getint('detection', 'N_t')
     
     if data == 'templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
@@ -725,10 +725,10 @@ def load_data(params, data, extension=''):
             data_file = params.get_data_file()
             data_file.open()
 
-            N_total = data_file.N_tot
-            N_t     = data_file.N_t
+            N_total = params.nb_channels
+            N_t     = params.getint('detection', 'N_t')
             
-            template_shift = numpy.int64((N_t - 1) / 2)
+            template_shift = params.getint('detection', 'template_shift')
 
             spikes = numpy.zeros((N_t, N_total, N_tr))
             for (count, idx) in enumerate(triggers):
@@ -962,15 +962,15 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     # Retrieve the key parameters.
     data_file      = params.get_data_file()
-    N_e            = data_file.N_e
-    N_t            = data_file.N_t
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('detection', 'N_t')
     file_out_suff  = params.get('data', 'file_out_suff')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     chunks         = params.getfloat('fitting', 'chunk_size')
     data_length    = data_stats(params, show=False)
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
-    refractory     = numpy.int64(params.getfloat('fitting', 'refractory')*data_file.rate*1e-3)
+    refractory     = params.getfloat('fitting', 'refractory')
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
@@ -1150,9 +1150,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
     data_file      = params.get_data_file()
-    N_e            = data_file.N_e
-    N_t            = data_file.N_t
-    N_total        = data_file.N_tot
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('detection', 'N_t')
+    N_total        = params.nb_channels
     file_out_suff  = params.get('data', 'file_out_suff')   
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension

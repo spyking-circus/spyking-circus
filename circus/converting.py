@@ -3,7 +3,6 @@ import os
 import os.path as op
 import shutil
 import circus
-import logging
 import numpy as np
 import h5py
 
@@ -17,8 +16,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     file_out_suff  = params.get('data', 'file_out_suff')
     probe          = params.probe
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
-    N_e            = data_file.N_e
-    N_t            = data_file.N_t
+    N_e            = params.get('data', 'N_e')
+    N_t            = params.get('detection', 'N_t')
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
     export_all     = params.getboolean('converting', 'export_all')

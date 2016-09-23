@@ -3,7 +3,7 @@ from messages import print_error, print_and_log
 from circus.shared.probes import read_probe
 from circus.files import __supported_data_files__
 	
-import os, sys, copy, StringIO
+import os, sys, copy, numpy
 
 class CircusParser(object):
 
@@ -67,20 +67,21 @@ class CircusParser(object):
                         ['clustering', 'sub_dim', 'int', '5']]
 
 
-    def __init__(self, file_name):
+    def __init__(self, file_name, **kwargs):
 
         self.file_name    = os.path.abspath(file_name)
         f_next, extension = os.path.splitext(self.file_name)
         file_path         = os.path.dirname(self.file_name)
         self.file_params  = f_next + '.params'
         self.parser       = configparser.ConfigParser()
+        self._N_t         = None
 
         if not os.path.exists(self.file_params):
             print_error(["%s does not exist" %self.file_params])
             sys.exit(0)
 
         self.parser.read(self.file_params)
-	    
+    
         for section in self.__all_section__:
             if self.parser.has_section(section):
                 for (key, value) in self.parser.items(section):
@@ -102,28 +103,31 @@ class CircusParser(object):
             except Exception:
                 self.parser.set(section, name, value)
 
-        self.probe = read_probe(self.parser)
+        for key, value in kwargs.items():
+            for section in self.__all_section__:
+                if self.parser._sections[section].has_key(key):
+                    self.parser._sections[section][key] = value
 
+
+        self.probe = read_probe(self.parser)
 
         N_e = 0
         for key in self.probe['channel_groups'].keys():
             N_e += len(self.probe['channel_groups'][key]['channels'])
 
-        self.set('data', 'N_e', str(N_e))      
+        self.set('data', 'N_e', str(N_e))   
         self.set('data', 'N_total', str(self.probe['total_nb_channels']))      
+        self.set('data', 'nb_channels', str(self.probe['total_nb_channels']))
 
-        '''
         try:
-            self.file_format = parser.get('data', 'file_format')
+            self.file_format = self.parser.get('data', 'file_format')
         except Exception:
             print_error(["Now you must specify explicitly the file format in the config file", 
                        "Please have a look to the documentation and add a file_format", 
                        "parameter in the [data] section. Valid files formats can be:",
                        "", 
                        ", ".join(__supported_data_files__.keys())])
-            sys.exit(0)
-        '''
-	
+            sys.exit(0)	
 
         try: 
             self.parser.get('detection', 'radius')
@@ -224,37 +228,95 @@ class CircusParser(object):
                 self.parser.set('converting', 'export_pcs', 'a')
 	    
 
-    def get(self, data, section):
-      	return self.parser.get(data, section)
+    def get(self, section, data):
+      	return self.parser.get(section, data)
 
-    def getboolean(self, data, section):
-      	return self.parser.getboolean(data, section)
+    def getboolean(self, section, data):
+      	return self.parser.getboolean(section, data)
 
-    def getfloat(self, data, section):
-      	return self.parser.getfloat(data, section)
+    def getfloat(self, section, data):
+      	return self.parser.getfloat(section, data)
 
-    def getint(self, data, section):
-      	return self.parser.getint(data, section)
+    def getint(self, section, data):
+      	return self.parser.getint(section, data)
 
-    def set(self, data, section, value):
-        self.parser.set(data, section, value)
+    def set(self, section, data, value):
+        self.parser.set(section, data, value)
 
+    def _updadate_rate_values(self):
 
-    def _create_data_file(self, params, is_empty=False):
-        keys        = __supported_data_files__.keys()
+        if self._N_t is None:
+
+            try:
+                self._N_t = self.getfloat('detection', 'N_t')
+            except Exception:
+                self._N_t = self.getfloat('data', 'N_t')
+                print_error(['N_t is now defined in the [detection] section'])
+
+            self._N_t = int(self.rate*self._N_t*1e-3)
+            if numpy.mod(self._N_t, 2) == 0:
+                self._N_t += 1
+
+        self.set('detection', 'N_t', str(self._N_t))
+        self.set('detection', 'dist_peaks', str(self._N_t))
+        self.set('detection', 'template_shift', str((self._N_t-1)//2))
+
+        if self.parser._sections['fitting'].has_key('chunk'):
+            self.parser.set('fitting', 'chunk_size', self.parser._sections['fitting']['chunk'])
+
+        for section in ['data', 'whitening', 'fitting']:
+            chunk_size = int(self.parser.getfloat(section, 'chunk_size') * self.rate)
+            self.set(section, 'chunk_size', str(chunk_size))
         
+        for section in ['clustering', 'whitening', 'extracting']:
+            safety_time = self.get(section, 'safety_time')
+            if safety_time == 'auto':
+                self.set(section, 'safety_time', str(self._N_t//3))
+            else:
+                safety_time = float(safety_time)
+                self.set(section, 'safety_time', str(int(safety_time*self.rate*1e-3)))
+
+        refactory = self.getfloat('fitting', 'refractory')
+        self.set('fitting', 'refactory', str(int(refactory*self.rate*1e-3)))
+
+
+    def _create_data_file(self, data_file, is_empty=False, **params):
         file_format = params['file_format']
-        data_file   = params['data_file']
+        params      = self._get_values_for_datafiles(file_format)
+        data        = __supported_data_files__[file_format](data_file, is_empty, **params)
+        self.rate         = data.sampling_rate
+        self.nb_channels  = data.nb_channels
+        self._updadate_rate_values()
+        return data 
 
-        if file_format not in keys:
-            print_error(["The type %s is not recognized as a valid file format" %file_format, 
-                         "Valid files formats can be:", 
-                         ", ".join(keys)])
-            sys.exit(0)
-        else:
-            data = __supported_data_files__[file_format](data_file, params, is_empty)
 
-        return data
+    def _get_values_for_datafiles(self, file_format, **kwargs):
+
+        for key, value in __supported_data_files__[file_format]._requiered_fields.items():
+            
+            if key not in kwargs:
+                try:
+                    if value[0] == 'int':
+                        kwargs[key] = self.parser.getint('data', key)
+                    if value[0] == 'float':
+                        kwargs[key] = self.parser.getfloat('data', key)
+                    if value[0] == 'bool':
+                        kwargs[key] = self.parser.getfloat('data', key)
+                    if value[0] == 'string':
+                        kwargs[key] = self.parser.get('data', key)
+                
+                    print_and_log(['%s is read from the params with a value of %s' %(key, wargs[key])], 'debug', self.parser)
+                
+                except Exception:
+
+                    if value[1] is not None:
+                        kwargs[key] = value[1]
+                        print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', self.parser)
+            else:
+                print_and_log(['%s is set to a value of %s' %(key, wargs[key])], 'debug', self.parser)
+
+        return kwargs
+
 
     def get_data_file(self, multi=False, is_empty=False, force_raw=False):
 
@@ -263,8 +325,8 @@ class CircusParser(object):
         # If multi is True, we use the combined file of all data files
 
         several_files = self.parser.getboolean('data', 'multi-files')
-        
-        params        = self.parser._sections['data']
+        params        = copy.copy(self.parser._sections['data'])
+        params.pop('data_file')
 
         '''
         if force_raw == True:  
@@ -284,10 +346,8 @@ class CircusParser(object):
             data_file = self.parser.get('data', 'data_multi_file')
 
         file_format = self.parser.get('data', 'file_format').lower()
-        print file_format, data_file, params
-
         
-        return self._create_data_file(params, is_empty)
+        return self._create_data_file(data_file, is_empty, **params)
 
 
     def get_multi_files(self):
@@ -307,6 +367,7 @@ class CircusParser(object):
         return to_process
 
     def write(self, section, flag, value):
+        self.parser.set(section, flag, value)
         f     = open(self.file_params, 'r')
         lines = f.readlines()
         f.close()

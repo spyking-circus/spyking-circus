@@ -179,7 +179,7 @@ but a subset x,y can be done. Steps are:
         shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']
 
-        chunk_size = int(2*data_file.rate)
+        chunk_size = int(2*params.rate)
         data_file.open()
         local_chunk  = data_file.get_data(0, chunk_size)
         data_file.close()
@@ -191,7 +191,7 @@ but a subset x,y can be done. Steps are:
         new_params.write('data', 'data_dtype', 'float32')
         new_params.write('data', 'data_offset', '0')
         new_params.write('data', 'dtype_offset', '0')
-        new_params.write('data', 'sampling_rate', str(data_file.rate))
+        new_params.write('data', 'sampling_rate', str(params.rate))
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
