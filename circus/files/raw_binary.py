@@ -60,17 +60,6 @@ class RawBinaryFile(DataFile):
         self.data[self.nb_channels*time:self.nb_channels*time+len(data)] = data
         self.close()
 
-    def analyze(self, chunk_size):
-
-        chunk_size    *= self.nb_channels
-        nb_chunks      = numpy.int64(self.size) // chunk_size
-        last_chunk_len = self.size - (nb_chunks * chunk_size)
-        last_chunk_len = last_chunk_len//self.nb_channels
-        
-        if last_chunk_len > 0:
-            nb_chunks += 1
-
-        return nb_chunks, last_chunk_len
 
     def open(self, mode='r'):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)

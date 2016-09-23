@@ -19,6 +19,14 @@ class ARFFile(H5File):
 
     def __init__(self, file_name, is_empty=False, **kwargs):
 
+        if not is_empty:
+            self.__check_valid_key__(file_name, kwargs['h5_key'])
+            all_keys           = h5py.File(file_name).get(kwargs['h5_key']).keys()
+            channels, idx      = self._get_sorted_channels_(all_keys, self.channel_name)    
+            kwargs['channels'] = channels
+            kwargs['indices']  = idx.astype(numpy.int32)
+
+
         H5File.__init__(self, file_name, is_empty, **kwargs)
 
     def _get_sorted_channels_(self, all_keys, pattern):
@@ -28,17 +36,11 @@ class ARFFile(H5File):
         return sub_list, idx
 
     def _get_channel_key_(self, i):
-        return self.h5_key + '/' + self.channels[i]
+        return self.h5_key + '/' + self.channels[int(i)]
 
     def _get_info_(self):
 
-        self.__check_valid_key__(self.h5_key)
         self.open()
-
-        all_keys = self.my_file.get(self.h5_key).keys()
-        channels, idx = self._get_sorted_channels_(all_keys, self.channel_name)    
-        self.channels    = channels
-        self.indices     = idx
         self.data_dtype   = self.my_file.get(self._get_channel_key_(0)).dtype
         self.dtype_offset = get_offset(self.data_dtype, self.dtype_offset)
         self.compression  = self.my_file.get(self._get_channel_key_(0)).compression

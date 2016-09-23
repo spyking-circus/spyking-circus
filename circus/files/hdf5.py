@@ -19,8 +19,8 @@ class H5File(DataFile):
         kwargs['compression'] = 'gzip'
         DataFile.__init__(self, file_name, is_empty, **kwargs)
 
-    def __check_valid_key__(self, key):
-        file       = h5py.File(self.file_name)
+    def __check_valid_key__(self, file_name, key):
+        file       = h5py.File(file_name)
         all_fields = []
         file.visit(all_fields.append)    
         if not key in all_fields:
@@ -31,7 +31,7 @@ class H5File(DataFile):
 
     def _get_info_(self):
 
-        self.__check_valid_key__(self.h5_key)
+        self.__check_valid_key__(self.file_name, self.h5_key)
         self.open()
         self.data_dtype   = self.my_file.get(self.h5_key).dtype
         self.dtype_offset = get_offset(self.data_dtype, self.dtype_offset)
