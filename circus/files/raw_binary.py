@@ -21,9 +21,8 @@ class RawBinaryFile(DataFile):
         DataFile.__init__(self, file_name, is_empty, **kwargs)     
     
     def _get_info_(self):
-        self.empty = False
-        self.open()
         self.dtype_offset  = get_offset(self.data_dtype, self.dtype_offset)
+        self.open()
         self.size          = len(self.data)
         self._shape        = (self.size//self.nb_channels, self.nb_channels)
         self.close()
@@ -35,9 +34,9 @@ class RawBinaryFile(DataFile):
         self._get_info_()
         del self.data
 
-    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
     	
-        chunk_size   = self._get_chunk_size_(chunk_size) * self.nb_channels
+        chunk_size  *= self.nb_channels
         padding      = numpy.array(padding) * self.nb_channels
 
         self.open()
@@ -61,9 +60,9 @@ class RawBinaryFile(DataFile):
         self.data[self.nb_channels*time:self.nb_channels*time+len(data)] = data
         self.close()
 
-    def analyze(self, chunk_size=None):
+    def analyze(self, chunk_size):
 
-        chunk_size     = self._get_chunk_size_(chunk_size) * self.nb_channels
+        chunk_size    *= self.nb_channels
         nb_chunks      = numpy.int64(self.size) // chunk_size
         last_chunk_len = self.size - (nb_chunks * chunk_size)
         last_chunk_len = last_chunk_len//self.nb_channels

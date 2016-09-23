@@ -71,11 +71,6 @@ class DataFile(object):
         self.file_name = file_name
         self.is_empty  = is_empty
 
-        if self.is_empty and not self._is_writable:
-            if self.is_master:
-                print_error(["The file %s is empty and non writable..." %(extension, self._description)])
-            sys.exit(0)
-
         f_next, extension = os.path.splitext(self.file_name)
         
         if self._extension is not None:
@@ -83,8 +78,6 @@ class DataFile(object):
                 if self.is_master:
                     print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
                 sys.exit(0)
-
-        self._check_requierements_(**kwargs)
 
         for key, value in kwargs.items():
             if key == 'nb_channels':
@@ -100,6 +93,9 @@ class DataFile(object):
         if not self.is_empty:
             self._get_info_()
             self._check_valid_()
+
+        self._check_requierements_(**kwargs)
+
 
     def _check_valid_(self):
         for key in self._mandatory:
@@ -143,17 +139,7 @@ class DataFile(object):
             This function is called only if the file is not empty, and should fill the values in the constructor
             such as max_offset, _shape, ...
         '''
-        pass
-
-
-    def _get_chunk_size_(self, chunk_size=None):
-        '''
-            This function returns a default size for the data chunks
-        '''
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
-        
-        return chunk_size     
+        pass  
 
 
     def _scale_data_to_float32(self, data):
@@ -189,7 +175,7 @@ class DataFile(object):
 
         return data
 
-    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
         '''
         Assuming the analyze function has been called before, this is the main function
         used by the code, in all steps, to get data chunks. More precisely, assuming your
@@ -223,7 +209,7 @@ class DataFile(object):
         pass
 
 
-    def analyze(self, chunk_size=None):
+    def analyze(self, chunk_size):
         '''
             This function should return two values: 
             - the number of temporal chunks of temporal size chunk_size that can be found 
@@ -231,7 +217,6 @@ class DataFile(object):
             counted. chunk_size is expressed in time steps
             - the length of the last uncomplete chunk, in time steps
         '''
-        chunk_size     = self._get_chunk_size_(chunk_size)
         nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
         last_chunk_len = numpy.int64(self.shape[0]) - nb_chunks * chunk_size
 
@@ -263,7 +248,9 @@ class DataFile(object):
                 - shape is a tuple with (time lenght, N_total)
                 - data_dtype is the data type
         '''
-        pass
+        if self.master:
+            print_error(["The method is not implemented for file format %s" %self._description])
+        sys.exit(0)
 
 
     @property

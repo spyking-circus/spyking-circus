@@ -32,7 +32,6 @@ class ARFFile(H5File):
 
     def _get_info_(self):
 
-        self.empty = False
         self.__check_valid_key__(self.h5_key)
         self.open()
 
@@ -77,9 +76,8 @@ class ARFFile(H5File):
         self.my_file.close()
         self._get_info_()
 
-    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
-        chunk_size  = self._get_chunk_size_(chunk_size)
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
         local_shape = t_stop - t_start

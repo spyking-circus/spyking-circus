@@ -164,7 +164,7 @@ but a subset x,y can be done. Steps are:
     if not batch:
         params       = CircusParser(filename)
         multi_files  = params.getboolean('data', 'multi-files')
-        data_file    = params.get_data_file(multi_files)
+        data_file    = params.get_data_file(multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file._parallel_write
 

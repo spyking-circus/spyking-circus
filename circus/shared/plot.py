@@ -1134,9 +1134,7 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
 
     data_file = params.get_data_file()
     N_total   = params.nb_channels
-
-    nb_chunks, last_chunk_len = data_file.analyze()
-    ttmax = data_file.duration
+    ttmax     = data_file.duration
 
     pylab.subplots_adjust(wspace=0.3)
     ax = fig.add_subplot(1, 2, 2)

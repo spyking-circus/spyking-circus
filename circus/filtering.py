@@ -125,10 +125,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             return goffset + offset
 
-        def compute_artefacts(params, max_offset):
+        def compute_artefacts(data_file, max_offset):
 
-            data_file = params.get_data_file()
-            data_file.open()
             chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
@@ -138,8 +136,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= numpy.int64(params.rate*1e-3)
-            windows[:, 1]   *= numpy.int64(params.rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
+            windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
@@ -192,10 +190,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             return art_dict
 
 
-        def remove_artefacts(art_dict, params, max_offset):
+        def remove_artefacts(art_dict, data_file, max_offset):
 
-            data_file = params.get_data_file()
-            data_file.open()
             chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
@@ -205,8 +201,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= numpy.int64(params.rate*1e-3)
-            windows[:, 1]   *= numpy.int64(params.rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
+            windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
@@ -266,20 +262,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             goffset   = filter_file(data_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(params, goffset)
-                remove_artefacts(art_dict, params, goffset)
+                art_dict   = compute_artefacts(data_file, goffset)
+                remove_artefacts(art_dict, data_file, goffset)
 
         else:
 
             all_files     = params.get_multi_files()
             combined_file = params.get('data', 'data_file')
-            data_file     = params.get_data_file(multi=True)
+            data_file     = params.get_data_file(multi=True, force_raw=False)
             comm.Barrier()
 
             times         = io.data_stats(params, show=False, export_times=True)
-            data_out      = params.get_data_file(is_empty=True, force_raw=True)
+            data_out      = params.get_data_file(force_raw=True, is_empty=True)
 
-            data_out.allocate(shape=(times[-1][1], data_out.N_tot), data_dtype=data_file.data_dtype)
+            data_out.allocate(shape=(times[-1][1], data_out.nb_channels), data_dtype=data_file.data_dtype)
             
             print_and_log(['Output file: %s' %combined_file], 'debug', params)
             goffset = 0
@@ -295,7 +291,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(goffset)
+                art_dict   = compute_artefacts(data_out, goffset)
                 remove_artefacts(art_dict, data_out, goffset)
 
         if comm.rank == 0 and (do_filter or clean_artefact):

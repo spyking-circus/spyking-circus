@@ -118,6 +118,7 @@ class CircusParser(object):
         self.set('data', 'N_e', str(N_e))   
         self.set('data', 'N_total', str(self.probe['total_nb_channels']))      
         self.set('data', 'nb_channels', str(self.probe['total_nb_channels']))
+        self.nb_channels = self.probe['total_nb_channels']
 
         try:
             self.file_format = self.parser.get('data', 'file_format')
@@ -243,7 +244,7 @@ class CircusParser(object):
     def set(self, section, data, value):
         self.parser.set(section, data, value)
 
-    def _updadate_rate_values(self):
+    def _update_rate_values(self):
 
         if self._N_t is None:
 
@@ -257,36 +258,36 @@ class CircusParser(object):
             if numpy.mod(self._N_t, 2) == 0:
                 self._N_t += 1
 
-        self.set('detection', 'N_t', str(self._N_t))
-        self.set('detection', 'dist_peaks', str(self._N_t))
-        self.set('detection', 'template_shift', str((self._N_t-1)//2))
+            self.set('detection', 'N_t', str(self._N_t))
+            self.set('detection', 'dist_peaks', str(self._N_t))
+            self.set('detection', 'template_shift', str((self._N_t-1)//2))
 
-        if self.parser._sections['fitting'].has_key('chunk'):
-            self.parser.set('fitting', 'chunk_size', self.parser._sections['fitting']['chunk'])
+            if self.parser._sections['fitting'].has_key('chunk'):
+                self.parser.set('fitting', 'chunk_size', self.parser._sections['fitting']['chunk'])
 
-        for section in ['data', 'whitening', 'fitting']:
-            chunk_size = int(self.parser.getfloat(section, 'chunk_size') * self.rate)
-            self.set(section, 'chunk_size', str(chunk_size))
-        
-        for section in ['clustering', 'whitening', 'extracting']:
-            safety_time = self.get(section, 'safety_time')
-            if safety_time == 'auto':
-                self.set(section, 'safety_time', str(self._N_t//3))
-            else:
-                safety_time = float(safety_time)
-                self.set(section, 'safety_time', str(int(safety_time*self.rate*1e-3)))
+            for section in ['data', 'whitening', 'fitting']:
+                chunk_size = int(self.parser.getfloat(section, 'chunk_size') * self.rate)
+                self.set(section, 'chunk_size', str(chunk_size))
+            
+            for section in ['clustering', 'whitening', 'extracting']:
+                safety_time = self.get(section, 'safety_time')
+                if safety_time == 'auto':
+                    self.set(section, 'safety_time', str(self._N_t//3))
+                else:
+                    safety_time = float(safety_time)
+                    self.set(section, 'safety_time', str(int(safety_time*self.rate*1e-3)))
 
-        refactory = self.getfloat('fitting', 'refractory')
-        self.set('fitting', 'refactory', str(int(refactory*self.rate*1e-3)))
+            refactory = self.getfloat('fitting', 'refractory')
+            self.set('fitting', 'refactory', str(int(refactory*self.rate*1e-3)))
 
 
-    def _create_data_file(self, data_file, is_empty=False, **params):
-        file_format = params['file_format']
-        params      = self._get_values_for_datafiles(file_format)
-        data        = __supported_data_files__[file_format](data_file, is_empty, **params)
+    def _create_data_file(self, data_file, is_empty, **params):
+        file_format       = params.pop('file_format').lower()
+        params            = self._get_values_for_datafiles(file_format, **params)
+        data              = __supported_data_files__[file_format](data_file, is_empty, **params)
         self.rate         = data.sampling_rate
         self.nb_channels  = data.nb_channels
-        self._updadate_rate_values()
+        self._update_rate_values()
         return data 
 
 
@@ -305,7 +306,7 @@ class CircusParser(object):
                     if value[0] == 'string':
                         kwargs[key] = self.parser.get('data', key)
                 
-                    print_and_log(['%s is read from the params with a value of %s' %(key, wargs[key])], 'debug', self.parser)
+                    print_and_log(['%s is read from the params with a value of %s' %(key, kwargs[key])], 'debug', self.parser)
                 
                 except Exception:
 
@@ -313,40 +314,44 @@ class CircusParser(object):
                         kwargs[key] = value[1]
                         print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', self.parser)
             else:
-                print_and_log(['%s is set to a value of %s' %(key, wargs[key])], 'debug', self.parser)
+                try:
+                    if value[0] == 'int':
+                        kwargs[key] = int(kwargs[key])
+                    if value[0] == 'float':
+                        kwargs[key] = float(kwargs[key])
+                    if value[0] == 'bool':
+                        kwargs[key] = bool(kwargs[key])
+                    print_and_log(['%s is set to a value of %s' %(key, kwargs[key])], 'debug', self.parser)
+                except Exception:
+                    print_and_log(['%s has the wrong type...' %key], 'debug', self.parser)
 
         return kwargs
 
 
-    def get_data_file(self, multi=False, is_empty=False, force_raw=False):
+    def get_data_file(self, multi=False, force_raw='auto', is_empty=False):
 
         ## A bit tricky because we want to deal with multifiles export
         # If multi is False, we use the default REAL data files
         # If multi is True, we use the combined file of all data files
 
-        several_files = self.parser.getboolean('data', 'multi-files')
         params        = copy.copy(self.parser._sections['data'])
-        params.pop('data_file')
+        data_file     = params.pop('data_file')
+        if force_raw == 'auto' and self.parser.getboolean('data', 'multi-files'):
+            force_raw = True
 
-        '''
-        if force_raw == True:  
-            data = self._create_data_file(params, is_empty)
-
-            params['file_format'] = 'raw_binary'
-            params['data_dtype']  = data.data_dtype
-            params['data_offset'] = 0
-            params['']
-        elif force_raw == True:
-            self.parser.set('data', 'file_format', 'raw_binary')
-        '''
-
-        if not multi:
-            data_file = self.parser.get('data', 'data_file')    
-        else:
-            data_file = self.parser.get('data', 'data_multi_file')
-
-        file_format = self.parser.get('data', 'file_format').lower()
+        if multi:
+            data_file = params.pop('data_multi_file')
         
+        if force_raw == True:  
+            params                 = {}
+            params['file_format']  = 'raw_binary'
+            params['data_dtype']   = 'float32'
+            params['dtype_offset'] = 'auto'
+            params['data_offset']  = 0
+            data_file, extension   = os.path.splitext(data_file)
+            data_file             += ".dat" 
+            params['nb_channels']  = self.nb_channels
+
         return self._create_data_file(data_file, is_empty, **params)
 
 

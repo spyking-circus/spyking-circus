@@ -31,7 +31,6 @@ class H5File(DataFile):
 
     def _get_info_(self):
 
-        self.empty = False
         self.__check_valid_key__(self.h5_key)
         self.open()
         self.data_dtype   = self.my_file.get(self.h5_key).dtype
@@ -72,9 +71,7 @@ class H5File(DataFile):
         self.my_file.close()
         self._get_info_()
 
-    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
-
-        chunk_size = self._get_chunk_size_(chunk_size)
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         if nodes is None:
             if self.time_axis == 0:

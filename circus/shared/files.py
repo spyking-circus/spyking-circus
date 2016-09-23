@@ -18,7 +18,7 @@ def data_stats(params, show=True, export_times=False):
     
     if not multi_files:
         data_file      = params.get_data_file()
-        chunk_size     = 60 * params.rate    
+        chunk_size     = 60 * params.rate  
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
         if last_chunk_len > 0:
             nb_chunks -= 1

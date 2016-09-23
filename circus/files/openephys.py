@@ -29,14 +29,14 @@ class OpenEphysFile(DataFile):
         f.close()
         return header
 
-    def __init__(self, file_name, empty=False):
+    def __init__(self, file_name, is_empty=False, **kwargs):
 
         kwargs = {}
         kwargs['data_dtype']   = 'int16'
         kwargs['dtype_offset'] = 0
         kwargs['data_offset']  = self.NUM_HEADER_BYTES
 
-        if not empty:
+        if not is_empty:
             folder_path     = os.path.dirname(os.path.realpath(file_name))
             self.all_channels = self._get_sorted_channels_(folder_path)
             self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
@@ -45,11 +45,10 @@ class OpenEphysFile(DataFile):
             kwargs['nb_channels']   = len(self.all_files)
             kwargs['gain']          = float(self.header['bitVolts'])        
 
-        DataFile.__init__(self, file_name, empty, **kwargs)
+        DataFile.__init__(self, file_name, is_empty, **kwargs)
 
 
     def _get_info_(self):
-        self.empty       = False
         self.open()
         g = open(self.all_files[0], 'rb')
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
@@ -82,9 +81,8 @@ class OpenEphysFile(DataFile):
         return data_slice 
 
 
-    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
-        chunk_size  = self._get_chunk_size_(chunk_size)
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
         local_shape = t_stop - t_start

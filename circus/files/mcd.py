@@ -33,13 +33,9 @@ class MCDFile(DataFile):
         self._shape = (self.size, self.nb_channels)
         self.close()
 
-    def allocate(self, shape, data_dtype=None):
-        print_error(['No write support for %s file' %self._description])
-        sys.exit(0)
 
-    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
-        chunk_size  = self._get_chunk_size_(chunk_size)
         t_start     = numpy.int64(idx*numpy.int64(chunk_size)+padding[0])
         t_stop      = numpy.int64((idx+1)*numpy.int64(chunk_size)+padding[1])
         local_shape = t_stop - t_start
