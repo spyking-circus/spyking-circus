@@ -356,12 +356,15 @@ class CircusParser(object):
                 params[key] = value
 
         data_file     = params.pop('data_file')
-        
-        if force_raw == 'auto' and self.parser.getboolean('data', 'multi-files'):
-            force_raw = True
 
         if multi:
-            data_file = params.pop('data_multi_file')
+            data_file = params['data_multi_file']
+
+        if force_raw == 'auto':
+            if self.parser.getboolean('data', 'multi-files'):
+                force_raw = True
+                data      = self._create_data_file(params['data_multi_file'], is_empty, **params)
+                params    = data.get_description()
         
         if force_raw == True:
             params['file_format']  = 'raw_binary'
