@@ -17,4 +17,8 @@ class KwdFile(H5File):
     def __init__(self, file_name, is_empty=False, **kwargs):
 
         kwargs['h5_key'] = 'recordings/%s/data' %kwargs['recording_number']
+
+        if not is_empty:
+            kwargs['gain'] = dict(h5py.File(file_name).get('recordings/0/application_data').attrs.items())['channel_bit_volts']
+        
         H5File.__init__(self, file_name, is_empty, **kwargs)

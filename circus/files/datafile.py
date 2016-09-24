@@ -91,8 +91,6 @@ class DataFile(object):
             self._get_info_()
             self._check_valid_()
 
-        
-
     def get_description(self):
         result = {}
         for key in self._mandatory:
@@ -155,7 +153,7 @@ class DataFile(object):
         if self.dtype_offset != 0:
             data  -= self.dtype_offset
 
-        if self.gain != 1:
+        if numpy.any(self.gain != 1):
             data *= self.gain
 
         return numpy.ascontiguousarray(data)
@@ -166,7 +164,7 @@ class DataFile(object):
         '''
 
 
-        if self.gain != 1:
+        if numpy.any(self.gain != 1):
             data /= self.gain
         
         if self.dtype_offset != 0:
