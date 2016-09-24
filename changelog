@@ -2,6 +2,7 @@
 Release 0.5
 ===========
 
+* various cosmetic changes in the terminal
 * garbage collector mode, to collect also all unfitted spikes, per channel
 * complete restructuration of the I/O such that the code can now handle multiple file formats
 * because of the file format, slight restructuration of the parameter files

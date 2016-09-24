@@ -11,8 +11,7 @@ class ARFFile(H5File):
     _is_writable    = True
 
     _requiered_fields = {'h5_key'        : ['string', None], 
-                         'channel_name'  : ['string', None], 
-                         'sampling_rate' : ['float' , None],
+                         'channel_name'  : ['string', None],
                          'dtype_offset'  : ['string', 'auto'], 
                          'gain'          : ['float', 1.]
                          }
@@ -22,9 +21,11 @@ class ARFFile(H5File):
         if not is_empty:
             self.__check_valid_key__(file_name, kwargs['h5_key'])
             all_keys           = h5py.File(file_name).get(kwargs['h5_key']).keys()
-            channels, idx      = self._get_sorted_channels_(all_keys, self.channel_name)    
-            kwargs['channels'] = channels
-            kwargs['indices']  = idx.astype(numpy.int32)
+            channels, idx      = self._get_sorted_channels_(all_keys, kwargs['channel_name'])    
+            kwargs['channels']      = channels
+            key                     = kwargs['h5_key'] + '/' + channels[0]
+            kwargs['sampling_rate'] = dict(h5py.File(file_name).get(key).attrs.items())['sampling_rate']
+            kwargs['indices']       = idx.astype(numpy.int32)
 
 
         H5File.__init__(self, file_name, is_empty, **kwargs)
@@ -50,7 +51,7 @@ class ARFFile(H5File):
         	self._parallel_write = False
         
         self.size   = self.my_file.get(self._get_channel_key_(0)).shape
-        self._shape = (self.size[0], len(channels))
+        self._shape = (self.size[0], len(self.channels))
         
         self.close()
 
