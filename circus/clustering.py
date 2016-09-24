@@ -450,6 +450,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_rejected = numpy.int64(numpy.sum(gdata2))
         nb_total    = numpy.int64(nb_elts*comm.size)
 
+
+        if ((smart_search and (gpass == 0)) or (not smart_search and (gpass == 1))) and nb_elements == 0:
+            if comm.rank == 0:
+                print_and_log(['No waveforms found! Are the data properly loaded??'], 'error', params)
+            sys.exit(0)
+
         if nb_elements == 0:
             gpass = nb_repeats
 

@@ -232,7 +232,12 @@ but a subset x,y can be done. Steps are:
         if HAVE_CUDA:
             print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
         print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
-        print Fore.GREEN + "Shared memory :", Fore.CYAN + str(SHARED_MEMORY)
+
+        do_upgrade = ''
+        if not SHARED_MEMORY:
+            do_upgrade = Fore.WHITE + '   [please consider upgrading MPI]'
+
+        print Fore.GREEN + "Shared memory :", Fore.CYAN + str(SHARED_MEMORY) + do_upgrade
         print Fore.GREEN + "Hostfile      :", Fore.CYAN + hostfile
         print ""
         print Fore.GREEN + "##################################################################"
@@ -293,7 +298,7 @@ but a subset x,y can be done. Steps are:
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
 
-                        if subtask in ['filtering', 'benchmarking'] and not is_writable and not multi_files:
+                        if subtask in ['filtering', 'benchmarking'] and not is_writable and not multi_files and not preview:
                             print_and_log(['The file format %s is read only!' %file_format, 
                                             'One solution to still filter the file is to activate',
                                             'the multi-files mode, even with one file.',
