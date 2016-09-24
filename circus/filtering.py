@@ -1,9 +1,11 @@
 from scipy import signal
 from .shared import plot
 from .shared.utils import *
+from circus.shared.probes import get_nodes_and_edges
+from circus.shared.messages import print_error, print_info, print_and_log
 
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
     multi_files    = params.getboolean('data', 'multi-files')
@@ -11,7 +13,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median  = params.getboolean('filtering', 'remove_median')
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     #################################################################
 
     if clean_artefact:
@@ -23,28 +25,26 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True, display=True):
 
-            sampling_rate  = data_file_in.rate
-
             try:
                 cut_off    = params.getfloat('filtering', 'cut_off')
-                cut_off    = [cut_off, 0.95*(sampling_rate/2.)]
+                cut_off    = [cut_off, 0.95*(params.rate/2.)]
             except Exception:
                 cut_off        = params.get('filtering', 'cut_off')
                 cut_off        = cut_off.split(',')
                 try:
                     cut_off[0] = float(cut_off[0])
                 except Exception:
-                    io.print_and_log(['First value of cut off must be a valid number'], 'error', params)
+                    print_and_log(['First value of cut off must be a valid number'], 'error', params)
                     sys.exit(0)
                 
                 cut_off[1] = cut_off[1].replace(' ', '')
                 if cut_off[1] == 'auto':
-                    cut_off[1] = 0.95*(sampling_rate/2.)
+                    cut_off[1] = 0.95*(params.rate/2.)
                 else:
                     try:
                         cut_off[1] = float(cut_off[1])
                     except Exception:
-                        io.print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
+                        print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
                         sys.exit(0)
 
             if filter_done:
@@ -55,7 +55,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     if remove_median:
                         to_write += ["Median over all channels was substracted to each channels"]
                     if display:
-                        io.print_and_log(to_write, 'info', params)
+                        print_and_log(to_write, 'info', params)
                 return
 
             if data_file_out is None:
@@ -67,15 +67,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 data_file_in.open()
                 data_file_out.open(mode='r+')
 
-            chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+            chunk_size     = params.getint('data', 'chunk_size')
             nb_chunks, last_chunk_len = data_file_in.analyze(chunk_size)
             
-            b, a          = signal.butter(3, np.array(cut_off)/(sampling_rate/2.), 'pass')
+            b, a          = signal.butter(3, np.array(cut_off)/(params.rate/2.), 'pass')
             all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
 
-            goffset       = data_file_in.max_offset
+            goffset       = data_file_in.duration
 
             if comm.rank == 0:
                 if perform_filtering:
@@ -85,7 +85,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 if remove_median:
                     to_write += ["Median over all channels is substracted to each channels"]
                 if display:
-                    io.print_and_log(to_write, 'default', params)
+                    print_and_log(to_write, 'default', params)
 
                 pbar = get_progressbar(loc_nb_chunks)
 
@@ -127,9 +127,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         def compute_artefacts(data_file, max_offset):
 
-            data_file.open()
-            sampling_rate  = data_file.rate
-            chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
             make_plots     = params.get('triggers', 'make_plots')
@@ -138,13 +136,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= numpy.int64(sampling_rate*1e-3)
-            windows[:, 1]   *= numpy.int64(sampling_rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
+            windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
             if not mytest:
-                io.print_and_log(['Error in the trigger files'], 'error', params)
+                print_and_log(['Error in the trigger files'], 'error', params)
                 sys.exit(0)
 
             all_labels   = artefacts[:, 0]
@@ -158,7 +156,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 to_write = ["Computing averaged artefacts from %d stimuli" %(nb_stimuli)]
-                io.print_and_log(to_write, 'default', params)
+                print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(len(local_labels))
                 if not os.path.exists(plot_path):
                     os.makedirs(plot_path)
@@ -174,9 +172,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
                 if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
                     if comm.rank == 0:
-                        io.print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
+                        print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
                     sys.exit(0)
-                art_dict[artefact] = io.get_artefact(data_file, times, tau, nodes)
+                art_dict[artefact] = get_artefact(params, times, tau, nodes)
                 if make_plots not in ['None', '']:
                     save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                     plot.view_artefact(art_dict[artefact], save=save)
@@ -194,9 +192,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         def remove_artefacts(art_dict, data_file, max_offset):
 
-            data_file.open()
-            sampling_rate  = data_file.rate
-            chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+            chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
             windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
             make_plots     = params.get('triggers', 'make_plots')
@@ -205,13 +201,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(windows.shape) == 1:
                 windows = windows.reshape(1, 2)
 
-            artefacts[:, 1] *= numpy.int64(sampling_rate*1e-3)
-            windows[:, 1]   *= numpy.int64(sampling_rate*1e-3)
+            artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
+            windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
             nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
             mytest           = nb_stimuli == len(windows)
 
             if not mytest:
-                io.print_and_log(['Error in the trigger files'], 'error', params)
+                print_and_log(['Error in the trigger files'], 'error', params)
                 sys.exit(0)
 
             all_labels   = artefacts[:, 0]
@@ -220,7 +216,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
-                io.print_and_log(to_write, 'default', params)
+                print_and_log(to_write, 'default', params)
                 pbar = get_progressbar(len(all_times))
 
             comm.Barrier()
@@ -262,7 +258,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if not multi_files:  
 
-            data_file = io.get_data_file(params, comm=comm)
+            data_file = params.get_data_file()
             goffset   = filter_file(data_file)
 
             if clean_artefact:
@@ -271,33 +267,37 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         else:
 
-            all_files     = io.get_multi_files(params)
+            all_files     = params.get_multi_files()
             combined_file = params.get('data', 'data_file')
-            data_file     = io.get_data_file(params, multi=True, comm=comm, force_raw=False)
+            data_file     = params.get_data_file(multi=True, force_raw=False)
             comm.Barrier()
 
-            times    = io.data_stats(data_file, show=False, export_times=True)
-            data_out = io.get_data_file(params, empty=True, comm=comm)
-            data_out.allocate(shape=(times[-1][1], data_out.N_tot), data_dtype=data_file.data_dtype)
+            times         = io.data_stats(params, show=False, export_times=True)
+            data_out      = params.get_data_file(force_raw=True, is_empty=True, **data_file.get_description())
+
+            data_out.allocate(shape=(times[-1][1], data_out.nb_channels), data_dtype=numpy.float32)
+            comm.Barrier()
             
-            io.print_and_log(['Output file: %s' %combined_file], 'debug', params)
+            print_and_log(['Output file: %s' %combined_file], 'debug', params)
             goffset = 0
             
             for data_file in all_files:
 
                 params.set('data', 'data_multi_file', data_file)
-                data_in = io.get_data_file(params, multi=True, comm=comm, force_raw=False)
+                data_in = params.get_data_file(multi=True, force_raw=False)
 
-                io.print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
+                print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
                 goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))
 
             params.set('data', 'data_file', combined_file)
 
             if clean_artefact:
-                art_dict   = compute_artefacts(goffset)
+                art_dict   = compute_artefacts(data_out, goffset)
                 remove_artefacts(art_dict, data_out, goffset)
 
         if comm.rank == 0 and (do_filter or clean_artefact):
-            io.change_flag(filename, 'filter_done', 'True')
+            params.write('noedits', 'filter_done', 'True')
+
+        sys.exit(0)
 
     comm.Barrier()

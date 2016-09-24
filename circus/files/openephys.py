@@ -1,5 +1,4 @@
 import h5py, numpy, re, sys, os
-import ConfigParser as configparser
 from circus.shared.messages import print_error, print_and_log
 from datafile import DataFile
 
@@ -30,33 +29,31 @@ class OpenEphysFile(DataFile):
         f.close()
         return header
 
-    def __init__(self, file_name, params, empty=False, comm=None):
+    def __init__(self, file_name, is_empty=False, **kwargs):
 
         kwargs = {}
         kwargs['data_dtype']   = 'int16'
         kwargs['dtype_offset'] = 0
         kwargs['data_offset']  = self.NUM_HEADER_BYTES
 
-        if not empty:
+        if not is_empty:
             folder_path     = os.path.dirname(os.path.realpath(file_name))
             self.all_channels = self._get_sorted_channels_(folder_path)
             self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
             self.header     = self._read_header_(self.all_files[0])
-            kwargs['rate']  = float(self.header['sampleRate'])        
-            kwargs['N_tot'] = len(self.all_files)
-            kwargs['gain']  = float(self.header['bitVolts'])        
+            kwargs['sampling_rate'] = float(self.header['sampleRate'])        
+            kwargs['nb_channels']   = len(self.all_files)
+            kwargs['gain']          = float(self.header['bitVolts'])        
 
-        DataFile.__init__(self, file_name, params, empty, comm, **kwargs)
+        DataFile.__init__(self, file_name, is_empty, **kwargs)
 
 
     def _get_info_(self):
-        self.empty       = False
         self.open()
         g = open(self.all_files[0], 'rb')
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
         g.close()
-        self._shape      = (self.size, self.N_tot)
-        self.max_offset  = self._shape[0]
+        self._shape      = (self.size, self.nb_channels)
         self.close()
 
     def _get_slice_(self, t_start, t_stop):
@@ -84,21 +81,20 @@ class OpenEphysFile(DataFile):
         return data_slice 
 
 
-    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
-        chunk_size  = self._get_chunk_size_(chunk_size)
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
         local_shape = t_stop - t_start
 
-        if (t_start + local_shape) > self.max_offset:
-            local_shape = self.max_offset - t_start
-            t_stop      = self.max_offset
+        if (t_start + local_shape) > self.duration:
+            local_shape = self.duration - t_start
+            t_stop      = self.duration
 
         if nodes is None:
-            nodes = numpy.arange(self.N_tot)
+            nodes = numpy.arange(self.nb_channels)
 
-        local_chunk = numpy.zeros((local_shape, len(nodes)), dtype='>i2')
+        local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
         data_slice  = self._get_slice_(t_start, t_stop) 
 
         self.open()
@@ -106,10 +102,7 @@ class OpenEphysFile(DataFile):
             local_chunk[:, count] = self.data[i][data_slice]
         self.close()
 
-        local_chunk  = local_chunk.astype(numpy.float32)
-        local_chunk *= self.gain
-
-        return numpy.ascontiguousarray(local_chunk)
+        return self._scale_data_to_float32(local_chunk)
 
 
     def set_data(self, time, data):
@@ -118,21 +111,19 @@ class OpenEphysFile(DataFile):
         t_stop      = time + data.shape[0]
         local_shape = t_stop - t_start
 
-        if (t_start + local_shape) > self.max_offset:
-            local_shape = self.max_offset - t_start
-            t_stop      = self.max_offset
+        if (t_start + local_shape) > self.duration:
+            local_shape = self.duration - t_start
+            t_stop      = self.duration
 
         data_slice  = self._get_slice_(t_start, t_stop) 
-        data       /= self.gain
-        data        = data.astype('>i2')
         
         self.open(mode='r+')
-        for i in xrange(self.N_tot):
-            self.data[i][data_slice] = data[:, i]
+        for i in xrange(self.nb_channels):
+            self.data[i][data_slice] = self._unscale_data_from_from32(data)[:, i]
         self.close()
 
     def open(self, mode='r'):
-        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype='>i2', mode=mode) for i in xrange(self.N_tot)]
+        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode) for i in xrange(self.nb_channels)]
         
     def close(self):
         self.data = None

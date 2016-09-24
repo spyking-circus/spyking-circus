@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, name):
 
@@ -128,7 +129,9 @@ class TestClustering(unittest.TestCase):
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
+
+        self.parser = CircusParser(self.file_name)
+        self.parser.write('clustering', 'max_elts', '1000')
 
     def test_clustering_one_CPU(self):
         mpi_launch('clustering', self.file_name, 1, 0, 'False')
@@ -146,10 +149,10 @@ class TestClustering(unittest.TestCase):
             self.all_matches   = res[1]
         assert numpy.all(self.all_templates == res[0])
 
-    def test_clustering_quadratic(self):
-        io.change_flag(self.file_name, 'extraction', 'quadratic')
+    def test_clustering_pca(self):
+        self.parser.write('clustering', 'extraction', 'median_pca')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'extraction', 'median-raw')
+        self.parser.write('clustering', 'extraction', 'median-raw')
         res = get_performance(self.file_name, 'quadratic')
         if self.all_templates is None:
             self.all_templates = res[0]
@@ -157,9 +160,9 @@ class TestClustering(unittest.TestCase):
         assert numpy.all(self.all_templates == res[0])
 
     def test_clustering_nb_passes(self):
-        io.change_flag(self.file_name, 'nb_repeats', '1')
+        self.parser.write('clustering', 'nb_repeats', '1')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'nb_repeats', '3')
+        self.parser.write('clustering', 'nb_repeats', '3')
         res = get_performance(self.file_name, 'nb_passes')
         if self.all_templates is None:
             self.all_templates = res[0]
@@ -167,9 +170,9 @@ class TestClustering(unittest.TestCase):
         assert numpy.all(self.all_templates == res[0])
 
     def test_clustering_sim_same_elec(self):
-        io.change_flag(self.file_name, 'sim_same_elec', '5')
+        self.parser.write('clustering', 'sim_same_elec', '5')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'sim_same_elec', '3')
+        self.parser.write('clustering', 'sim_same_elec', '3')
         res = get_performance(self.file_name, 'sim_same_elec')
         if self.all_templates is None:
             self.all_templates = res[0]
@@ -177,9 +180,9 @@ class TestClustering(unittest.TestCase):
         assert numpy.sum(res[1]) <= numpy.sum(self.all_matches)
 
     def test_clustering_cc_merge(self):
-        io.change_flag(self.file_name, 'cc_merge', '0.8')
+        self.parser.write('clustering', 'cc_merge', '0.8')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'cc_merge', '0.95')
+        self.parser.write('clustering', 'cc_merge', '0.95')
         res = get_performance(self.file_name, 'cc_merge')
         if self.all_templates is None:
             self.all_templates = res[0]
@@ -187,9 +190,9 @@ class TestClustering(unittest.TestCase):
         assert res[0].shape[1] <= self.all_templates.shape[1]
 
     def test_remove_mixtures(self):
-        io.change_flag(self.file_name, 'remove_mixtures', 'False')
+        self.parser.write('clustering', 'remove_mixtures', 'False')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'remove_mixtures', 'True')
+        self.parser.write('clustering', 'remove_mixtures', 'True')
         res = get_performance(self.file_name, 'cc_merge')
         if self.all_templates is None:
             self.all_templates = res[0]

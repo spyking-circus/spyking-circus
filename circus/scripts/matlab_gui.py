@@ -8,7 +8,8 @@ import circus
 import tempfile
 import numpy, h5py
 from circus.shared.messages import print_error, print_and_log, get_colored_header
-from circus.shared.files import write_datasets, read_probe
+from circus.shared.files import write_datasets
+from circus.shared.parser import CircusParser
 
 def main(argv=None):
 
@@ -30,14 +31,16 @@ def main(argv=None):
 
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
-    params         = circus.shared.utils.io.load_parameters(filename)
-    data_file      = circus.shared.utils.io.get_data_file(params)
-    sampling_rate  = data_file.rate
+    params         = CircusParser(filename)
+    data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
     gain           = 1
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_offset    = data_file.data_offset
-    probe          = read_probe(params)
+    if hasattr(data_file, 'data_offset'):
+        data_offset = data_file.data_offset
+    else:
+        data_offset = 0
+    probe          = params.probe
     if extension != '':
         extension = '-' + extension
 
@@ -62,7 +65,7 @@ def main(argv=None):
     mapping    = generate_matlab_mapping(probe)
     filename   = params.get('data', 'data_file')
 
-    gui_params = [sampling_rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
+    gui_params = [data_file.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
 
     gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
     # Change to the directory of the matlab file

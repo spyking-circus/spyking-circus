@@ -1,48 +1,31 @@
 import h5py, numpy, re, sys, os
-import ConfigParser as configparser
-
 from circus.shared.messages import print_error, print_and_log
-
-def _check_requierements_(description, fields, params, **kwargs):
-
-    for key, values in fields.items():
-        if key not in kwargs.keys():
-            try:
-                value, default = values
-                if default is not None:
-                    kwargs[key] = default
-                else:
-                    if value == 'int':
-                        kwargs[key] = params.getint('data', key)
-                    elif value == 'string':
-                        kwargs[key] = params.get('data', key)
-                    elif value == 'float':
-                        kwargs[key] = params.getfloat('data', key)
-                    elif value == 'bool':
-                        kwargs[key] = params.getboolean('data', key)
-            except Exception:
-                _display_requierements_(description, params, fields)
-                print_error(['%s must be specified as type %s in the [data] section!' %(key, value)])
-                sys.exit(0)
-    return kwargs
+from circus.shared.mpi import comm
 
 
-def _display_requierements_(description, params, fields):
+def get_offset(data_dtype, dtype_offset):
 
-    to_write = ['The parameters for %s file format are:' %description.upper(), '']
-    for key, values in fields.items():
-            
-        mystring = '-- %s -- of type %s' %(key, values[0])
+    if dtype_offset == 'auto':
+        if data_dtype in ['uint16', numpy.uint16]:
+            dtype_offset = 32768
+        elif data_dtype in ['int16', numpy.int16]:
+            dtype_offset = 0
+        elif data_dtype in ['float32', numpy.float32]:
+            dtype_offset = 0
+        elif data_dtype in ['int8', numpy.int8]:
+            dtype_offset = 0        
+        elif data_dtype in ['uint8', numpy.uint8]:
+            dtype_offset = 127
+        elif data_dtype in ['float64', numpy.float64]:
+            dtype_offset = 0    
+    else:
+        try:
+            dtype_offset = int(dtype_offset)
+        except Exception:
+            print_error(["Offset %s is not valid" %dtype_offset])
+            sys.exit(0)
 
-        if values[1] is None:
-            mystring += ' [** mandatory **]'
-        else:
-            mystring += ' [default is %s]' %values[1]
-
-        to_write += [mystring]
-
-    print_and_log(to_write, 'info', params)
-
+    return dtype_offset
 
 class DataFile(object):
 
@@ -62,35 +45,31 @@ class DataFile(object):
     _extension        = [".myextension"]
     _parallel_write   = False
     _is_writable      = False
-    _requiered_fields = {}
-    # Note that those values can be either infered from header, or otherwise read from the parameter file
 
-    def __init__(self, file_name, params, empty=False, comm=None, **kwargs):
+    # This is a dictionary of values that need to be provided to the constructor, with a specified type and
+    # eventually default value. For example {'sampling_rate' : ['float' : 20000]}
+    _requiered_fields = {}
+    _shape            = (0, 0)
+
+    # Those are the attributes that need to be common in ALL file formats
+    # Note that those values can be either infered from header, or otherwise read from the parameter file
+    _mandatory        = ['sampling_rate', 'data_dtype', 'dtype_offset', 'gain', 'nb_channels']
+    
+    def __init__(self, file_name, is_empty=False, **kwargs):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from
         the parameter file, but you could completly fill them based on values that would be obtained
         from the datafile itself. 
-        What you need to specify
+        What you need to specify (usually be getting value in the _get_info function)
             - _parallel_write : can the file be safely written in parallel ?
             - _is_writable    : if the file can be written
-            - _shape          : the size of the data, should be a tuple (max_offset, N_tot)
-            - max_offset      : the time length of the data, in time steps
-            - comm is a MPI communicator ring, if the file is created in a MPI environment
-            - empty is a flag to say if the file is created without data
-
-        Note that you can overwrite values such as N_e, rate from the header in your data. Those will then be
-        used in the code, instead of the ones from the parameter files.
-
-        Note also that the code can create empty files [multi-file, benchmarking], this is why there is an empty
-        flag to warn the constructor about the fact that the file may be empty
+            - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
+            - is_empty is a flag to say if the file is created without data. It has no sense if the file is
+             not writable
         '''
 
         self.file_name = file_name
-        self.empty     = empty
-        self.comm      = comm
-
-        assert isinstance(params, configparser.ConfigParser)
-        self.params = params
+        self.is_empty  = is_empty
 
         f_next, extension = os.path.splitext(self.file_name)
         
@@ -100,79 +79,61 @@ class DataFile(object):
                     print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
                 sys.exit(0)
 
-        requiered_values = {'rate'  : ['data', 'sampling_rate', 'float'], 
-                            'N_e'   : ['data', 'N_e', 'int'],
-                            'N_tot' : ['data', 'N_total', 'int']}
-
         for key, value in kwargs.items():
-            self.__setattr__(key, value)
-
-        for key, value in requiered_values.items():
-            if not hasattr(self, key):
-                if value[2] == 'int':
-                    to_be_set = numpy.int64(self.params.getint(value[0], value[1]))
-                if value[2] == 'float':
-                    to_be_set = self.params.getfloat(value[0], value[1])
-                self.__setattr__(key, to_be_set)
-                if self.is_master:
-                    print_and_log(['%s is read from the params with a value of %s' %(key, to_be_set)], 'debug', self.params)
+            if key == 'nb_channels':
+                self._shape = (0, value)
             else:
-                if self.is_master:
-                    print_and_log(['%s is infered from the data file with a value of %s' %(key, value)], 'debug', self.params)
+                self.__setattr__(key, value)
 
+        self._check_requierements_(**kwargs)
 
-        self.max_offset  = 0
-        self._shape      = None
-        self._N_t        = None
-        self._dist_peaks = None
-        self._template_shift = None
-        self._safety_time    = None
-        if self.is_master:
-            print_and_log(["The datafile %s with type %s has been created" %(self.file_name, self._description)], 'debug', self.params)
-
-        if not self.empty:
+        if not self.is_empty:
             self._get_info_()
-            
-    @property
-    def N_t(self):
-        if self._N_t is not None:
-            return self._N_t
-        else:
-            try:
-                self._N_t = self.params.getfloat('detection', 'N_t')
-            except Exception:
-                self._N_t = self.params.getfloat('data', 'N_t')
+            self._check_valid_()
 
-            self._N_t = int(self.rate*self._N_t*1e-3)
-            if numpy.mod(self._N_t, 2) == 0:
-                self._N_t += 1
+        
 
-            return self.N_t
+    def get_description(self):
+        result = {}
+        for key in self._mandatory:
+            result[key] = self.__getattribute__(key)
+        return result
 
-    @property
-    def dist_peaks(self):
-        return self.N_t
+    def _check_valid_(self):
+        for key in self._mandatory:
+            if not hasattr(self, key):
+                print_error(['%s is a needed attribute of a datafile, and it is not defined' %key])
 
-    @property
-    def template_shift(self):
-        if self._template_shift is not None:
-            return self._template_shift
-        else:
-            return int((self.N_t-1)//2)
+    def _check_requierements_(self, **kwargs):
+
+        missing = {}
+
+        for key, value in self._requiered_fields.items():
+            if key not in kwargs.keys():
+                missing[key] = value
+                print_error(['%s must be specified as type %s in the [data] section!' %(key, value[0])])
+        
+
+        if len(missing) > 0:
+            self._display_requierements_()
+            sys.exit(0)
 
 
-    def get_safety_time(self, key):
-        safety_time = self.params.get(key, 'safety_time')
-        if safety_time == 'auto':
+    def _display_requierements_(self):
 
-            try:
-                N_t = self.params.getfloat('detection', 'N_t')
-            except Exception:
-                N_t = self.params.getfloat('data', 'N_t')
+        to_write = ['The parameters for %s file format are:' %self._description.upper(), '']
+        for key, values in self._requiered_fields.items():
+                
+            mystring = '-- %s -- of type %s' %(key, values[0])
 
-            return N_t//3.
-        else:
-            return float(safety_time)
+            if values[1] is None:
+                mystring += ' [** mandatory **]'
+            else:
+                mystring += ' [default is %s]' %values[1]
+
+            to_write += [mystring]
+
+        print_error(to_write)
 
 
     def _get_info_(self):
@@ -180,20 +141,43 @@ class DataFile(object):
             This function is called only if the file is not empty, and should fill the values in the constructor
             such as max_offset, _shape, ...
         '''
-        pass
+        pass  
 
 
-    def _get_chunk_size_(self, chunk_size=None):
+    def _scale_data_to_float32(self, data):
         '''
-            This function returns a default size for the data chunks
+            This function will convert data from local data dtype into float32, the default format of the algorithm
         '''
-        if chunk_size is None:
-            chunk_size = self.params.getint('data', 'chunk_size')
+
+        if self.data_dtype != numpy.float32:
+            data  = data.astype(numpy.float32)
+
+        if self.dtype_offset != 0:
+            data  -= self.dtype_offset
+
+        if self.gain != 1:
+            data *= self.gain
+
+        return numpy.ascontiguousarray(data)
+
+    def _unscale_data_from_from32(self, data):
+        '''
+            This function will convert data from float32 back to the original format of the file
+        '''
+
+
+        if self.gain != 1:
+            data /= self.gain
         
-        return chunk_size     
+        if self.dtype_offset != 0:
+            data  += self.dtype_offset
+        
+        if data.dtype != self.data_dtype:
+            data = data.astype(self.data_dtype)
 
+        return data
 
-    def get_data(self, idx, chunk_size=None, padding=(0, 0), nodes=None):
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
         '''
         Assuming the analyze function has been called before, this is the main function
         used by the code, in all steps, to get data chunks. More precisely, assuming your
@@ -227,7 +211,7 @@ class DataFile(object):
         pass
 
 
-    def analyze(self, chunk_size=None):
+    def analyze(self, chunk_size):
         '''
             This function should return two values: 
             - the number of temporal chunks of temporal size chunk_size that can be found 
@@ -235,7 +219,6 @@ class DataFile(object):
             counted. chunk_size is expressed in time steps
             - the length of the last uncomplete chunk, in time steps
         '''
-        chunk_size     = self._get_chunk_size_(chunk_size)
         nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
         last_chunk_len = numpy.int64(self.shape[0]) - nb_chunks * chunk_size
 
@@ -267,17 +250,23 @@ class DataFile(object):
                 - shape is a tuple with (time lenght, N_total)
                 - data_dtype is the data type
         '''
-        pass
+        if self.master:
+            print_error(["The method is not implemented for file format %s" %self._description])
+        sys.exit(0)
 
 
     @property
     def shape(self):
-        return self._shape   
-
+        return self._shape  
+         
+    @property
+    def nb_channels(self):
+        return self._shape[1]
+    
+    @property
+    def duration(self):
+        return self._shape[0]
 
     @property
     def is_master(self):
-    	if self.comm == None:
-            return True
-    	else:
-            return self.comm.rank == 0
+    	return comm.rank == 0

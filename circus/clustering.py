@@ -2,22 +2,22 @@ from .shared.utils import *
 import circus.shared.algorithms as algo
 from .shared import plot
 import h5py
+from circus.shared.probes import get_nodes_and_edges
+from circus.shared.messages import print_and_log
 
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
 
     parallel_hdf5 = h5py.get_config().mpi
 
     #################################################################
-    data_file      = io.get_data_file(params)
+    data_file      = params.get_data_file()
     data_file.open()
-    params         = data_file.params
-    sampling_rate  = data_file.rate
-    N_e            = data_file.N_e
-    N_total        = data_file.N_tot
-    N_t            = data_file.N_t
-    dist_peaks     = data_file.dist_peaks
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    dist_peaks     = params.getint('detection', 'dist_peaks')
+    template_shift = params.getint('detection', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
@@ -31,13 +31,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    safety_time    = int(data_file.get_safety_time('clustering')*sampling_rate*1e-3)
+    safety_time    = params.getint('clustering', 'safety_time')
     safety_space   = params.getboolean('clustering', 'safety_space')
     comp_templates = params.getboolean('clustering', 'compress')
     dispersion     = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
     dispersion     = map(float, dispersion)
-    nodes, edges   = io.get_nodes_and_edges(params)
-    chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+    nodes, edges   = get_nodes_and_edges(params)
+    chunk_size     = params.getint('data', 'chunk_size')
     max_elts_elec  = params.getint('clustering', 'max_elts')
     if sign_peaks == 'both':
        max_elts_elec *= 2
@@ -145,10 +145,10 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if nb_chunks < comm.size:
 
-        res        = io.data_stats(data_file, show=False)
-        chunk_size = int(res*sampling_rate//comm.size)
+        res        = io.data_stats(params, show=False)
+        chunk_size = int(res*params.rate//comm.size)
         if comm.rank == 0:
-            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+            print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
@@ -167,17 +167,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass == 0:
-                io.print_and_log(["Searching random spikes to sample amplitudes..."], 'default', params)
+                print_and_log(["Searching random spikes to sample amplitudes..."], 'default', params)
             elif gpass == 1:
                 if not numpy.all(sdata > 0):
                     lines = ["Smart Search disabled on %d electrodes" %(numpy.sum(sdata == 0))]
-                    io.print_and_log(lines, 'info', params)
+                    print_and_log(lines, 'info', params)
                 if numpy.any(sdata > 0):
-                    io.print_and_log(["Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', params)
+                    print_and_log(["Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', params)
                 else:
-                    io.print_and_log(["Searching random spikes for the clustering (%d/%d) (no smart search)..." %(gpass, nb_repeats)], 'default', params)
+                    print_and_log(["Searching random spikes for the clustering (%d/%d) (no smart search)..." %(gpass, nb_repeats)], 'default', params)
             else:
-                io.print_and_log(["Searching random spikes to refine the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', params)
+                print_and_log(["Searching random spikes to refine the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', params)
 
         for i in xrange(N_e):
             if gpass == 0:
@@ -443,7 +443,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
 
-        io.print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', params)
+        print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', params)
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = numpy.int64(numpy.sum(gdata))
@@ -455,11 +455,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass != 1:
-                io.print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', params)
+                print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', params)
                 if nb_elements == 0:
-                    io.print_and_log(["No more isolated spikes in the recording, stop searching"], 'info', params)
+                    print_and_log(["No more isolated spikes in the recording, stop searching"], 'info', params)
             else:
-                io.print_and_log(["We found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', params)
+                print_and_log(["We found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', params)
                 if nb_elements < 0.2*nb_total:
                     few_elts = True
 
@@ -482,11 +482,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass == 0:
-                io.print_and_log(["Estimating amplitudes distributions..."], 'default', params)
+                print_and_log(["Estimating amplitudes distributions..."], 'default', params)
             elif gpass == 1:
-                io.print_and_log(["Computing density estimations..."], 'default', params)
+                print_and_log(["Computing density estimations..."], 'default', params)
             else:
-                io.print_and_log(["Refining density estimations..."], 'default', params)
+                print_and_log(["Refining density estimations..."], 'default', params)
             if not os.path.exists(plot_path):
                 os.makedirs(plot_path)
 
@@ -496,7 +496,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             dist_file.close()
             result['dist_file'] = tmp_file
             tmp_h5py  = h5py.File(result['dist_file'], 'w', libver='latest')
-            io.print_and_log(["Node %d will use temp file %s" %(comm.rank, tmp_file)], 'debug', params)
+            print_and_log(["Node %d will use temp file %s" %(comm.rank, tmp_file)], 'debug', params)
         elif gpass > 1:
             tmp_h5py  = h5py.File(result['dist_file'], 'r', libver='latest')
 
@@ -541,7 +541,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         smart_searches[p][ielec] = 0
 
                     if smart_searches[p][ielec] > 0:
-                        io.print_and_log(['Smart search is actived on channel %d' % ielec], 'debug', params)
+                        print_and_log(['Smart search is actived on channel %d' % ielec], 'debug', params)
 
                 elif gpass == 1:
                     if len(result['data_%s_' %p + str(ielec)]) > 1:
@@ -633,7 +633,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                             n_clusters += [numpy.sum(cluster_results[p][ielec]['groups'][mask] == i)]
             
                         line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
-                        io.print_and_log(line, 'default', params)
+                        print_and_log(line, 'default', params)
                         if (merged[0]-merged[1]) == max_clusters:
                             local_hits += 1
                         local_mergings += merged[1]
@@ -642,7 +642,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                         cluster_results[p][ielec]['n_clus'] = 0
                         result['clusters_%s_' %p + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
                         line = ["Node %d: not enough %s spikes on channel %d" %(comm.rank, flag, ielec)]
-                        io.print_and_log(line, 'default', params)
+                        print_and_log(line, 'default', params)
 
                     local_nb_clusters += cluster_results[p][ielec]['n_clus']
 
@@ -676,9 +676,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if total_hits > 0:
             lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
             lines += ["                              -increase sim_same_elec?"]
-        io.print_and_log(lines, 'info', params)
+        print_and_log(lines, 'info', params)
 
-        io.print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', params)
+        print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', params)
 
     if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
 
@@ -749,13 +749,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     elif extraction == 'median-raw':                
                         labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                         times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(data_file, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component  = numpy.median(sub_data, 0)
                         tmp_templates    = first_component
                     elif extraction == 'mean-raw':                
                         labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 1000)]
                         times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(data_file, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data         = io.get_stas(sub_data, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component  = numpy.mean(sub_data, 0)
                         tmp_templates    = first_component
 
@@ -902,7 +902,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             idx           = numpy.where(gdata4 != 0)[0]
             mean_channels = numpy.mean(gdata4[idx])
             if mean_channels < 3 and params.getfloat('clustering', 'cc_merge') != 1:
-                io.print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', params)
+                print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', params)
 
         #We need to gather the sparse arrays
         temp_x    = gather_array(temp_x, comm, dtype='int32')        
@@ -964,25 +964,25 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     data_file.close()
 
     if comm.rank == 0:
-        io.print_and_log(["Merging similar templates..."], 'default', params)
+        print_and_log(["Merging similar templates..."], 'default', params)
     
     
-    merged1 = algo.merging_cc(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    merged1 = algo.merging_cc(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     
     comm.Barrier()
 
     if remove_mixture:
         if comm.rank == 0:
-            io.print_and_log(["Removing mixtures..."], 'default', params)
-        merged2 = algo.delete_mixtures(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+            print_and_log(["Removing mixtures..."], 'default', params)
+        merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     else:
         merged2 = [0, 0]
 
     if comm.rank == 0:
 
-        io.print_and_log(["Number of global merges    : %d" %merged1[1], 
+        print_and_log(["Number of global merges    : %d" %merged1[1], 
                           "Number of mixtures removed : %d" %merged2[1]], 'info', params)    
     
     
     comm.Barrier()
-    io.get_overlaps(comm, params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)

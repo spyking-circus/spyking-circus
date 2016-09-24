@@ -3,25 +3,21 @@ import os
 import os.path as op
 import shutil
 import circus
-import logging
 import numpy as np
 import h5py
-from circus.shared.messages import print_error, print_info, print_and_log
-from circus.shared.files import write_datasets, get_results, read_probe, load_data, get_nodes_and_edges, get_stas
-from circus.shared.utils import get_progressbar
+
+from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
+from circus.shared.messages import print_and_log, print_error
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
+def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
-    params         = circus.shared.utils.io.load_parameters(filename)
-    data_file      = io.get_data_file(params)
-    params         = data_file.params
-    sampling_rate  = data_file.rate
+    data_file      = params.get_data_file()
     file_out_suff  = params.get('data', 'file_out_suff')
-    probe          = read_probe(params)
+    probe          = params.probe
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
-    N_e            = data_file.N_e
-    N_t            = data_file.N_t
+    N_e            = params.get('data', 'N_e')
+    N_t            = params.get('detection', 'N_t')
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
     export_all     = params.getboolean('converting', 'export_all')
@@ -43,7 +39,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         return positions
 
     def get_max_loc_channel(params):
-        nodes, edges    = circus.shared.utils.io.get_nodes_and_edges(params)
+        nodes, edges    = get_nodes_and_edges(params)
         max_loc_channel = 0
         for key in edges.keys():
             if len(edges[key]) > max_loc_channel:
@@ -51,7 +47,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         return max_loc_channel
 
     def write_results(path, params, extension):
-        result     = get_results(params, extension)
+        result     = io.get_results(params, extension)
         spikes     = numpy.zeros(0, dtype=numpy.uint64)
         clusters   = numpy.zeros(0, dtype=numpy.uint32)
         amplitudes = numpy.zeros(0, dtype=numpy.double)
@@ -66,7 +62,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         
         if export_all:
             print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', params)
-            garbage = circus.shared.utils.io.load_data(params, 'garbage', extension)
+            garbage = io.load_data(params, 'garbage', extension)
             for key in garbage['gspikes'].keys():
                 elec_id    = int(key.split('_')[-1])
                 data       = garbage['gspikes'].pop(key).astype(numpy.uint64)
@@ -83,7 +79,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
     def write_templates(path, params, extension):
 
         max_loc_channel = get_max_loc_channel(params)
-        templates       = load_data(params, 'templates', extension)
+        templates       = io.load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
         if export_all:
             to_write    = numpy.zeros((N_tm + N_e, N_t, N_e), dtype=numpy.float32)
@@ -107,7 +103,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         numpy.save(os.path.join(output_path, 'templates_ind'), mapping.astype(numpy.double))
         return N_tm
 
-    def write_pcs(path, params, comm, extension, mode=0):
+    def write_pcs(path, params, extension, mode=0):
 
         spikes          = numpy.load(os.path.join(output_path, 'spike_times.npy'))
         labels          = numpy.load(os.path.join(output_path, 'spike_templates.npy'))
@@ -115,7 +111,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
         nb_features     = params.getint('whitening', 'output_dim')
         nodes, edges    = get_nodes_and_edges(params)
         N_total         = params.getint('data', 'N_total')
-        templates       = load_data(params, 'templates', extension)
+        templates       = io.load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
         if export_all:
             nb_templates = N_tm + N_e
@@ -123,7 +119,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_templates = N_tm
 
         pc_features_ind = numpy.zeros((nb_templates, max_loc_channel), dtype=numpy.int32)            
-        clusters        = load_data(params, 'clusters', extension)
+        clusters        = io.load_data(params, 'clusters', extension)
         best_elec       = clusters['electrodes']
         if export_all:
             best_elec = numpy.concatenate((best_elec, numpy.arange(N_e)))
@@ -134,7 +130,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_loc                = len(edges[nodes[elec]])
             pc_features_ind[count, numpy.arange(nb_loc)] = inv_nodes[edges[nodes[elec]]]
 
-        basis_proj, basis_rec = load_data(params, 'basis')
+        basis_proj, basis_rec = io.load_data(params, 'basis')
 
         to_process = numpy.arange(comm.rank, nb_templates, comm.size)
 
@@ -183,7 +179,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             indices  = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
             times_i  = numpy.take(spikes, idx).astype(numpy.int64)
-            sub_data = get_stas(data_file, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
+            sub_data = io.get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
             if mode == 0:
@@ -235,7 +231,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
         
             if params.getboolean('whitening', 'spatial'):
-                numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening').astype(numpy.double))
+                numpy.save(os.path.join(output_path, 'whitening_mat'), io.load_data(params, 'spatial_whitening').astype(numpy.double))
             else:
                 numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.eye(N_e))
 
@@ -286,4 +282,4 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
 
         comm.Barrier()
         if make_pcs < 2:
-            write_pcs(output_path, params, comm, extension, make_pcs)
+            write_pcs(output_path, params, extension, make_pcs)

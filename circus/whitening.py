@@ -1,18 +1,22 @@
 from .shared.utils import *
 import circus.shared.algorithms as algo
 from .shared import plot
+from circus.shared.probes import get_nodes_and_edges
 import h5py
+from circus.shared.messages import print_error, print_info, print_and_log
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
 
     #################################################################
-    data_file      = io.get_data_file(params)
+    data_file      = params.get_data_file()
     data_file.open()
-    params         = data_file.params
-    dist_peaks     = data_file.dist_peaks
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    dist_peaks     = params.getint('detection', 'dist_peaks')
+    template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
     file_out       = params.get('data', 'file_out')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -21,19 +25,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size       = int(params.getint('whitening', 'chunk_size') * data_file.rate)
+    chunk_size       = params.getint('whitening', 'chunk_size')
     plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
-    nodes, edges     = io.get_nodes_and_edges(params)
-    safety_time      = int(data_file.get_safety_time('whitening')*data_file.rate*1e-3)
-    nb_temp_white    = min(max(20, comm.size), data_file.N_e)
-    max_silence_1    = int(20*data_file.rate // comm.size)
+    nodes, edges     = get_nodes_and_edges(params)
+    safety_time      = params.getint('whitening', 'safety_time')
+    nb_temp_white    = min(max(20, comm.size), N_e)
+    max_silence_1    = int(20*params.rate // comm.size)
     max_silence_2    = 5000
-    inv_nodes        = numpy.zeros(data_file.N_tot, dtype=numpy.int32)
+    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
 
     if comm.rank == 0:
-        io.print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', params)
+        print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', params)
 
     if use_gpu:
         import cudamat as cmt
@@ -50,17 +54,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     if nb_chunks < comm.size:
 
-        res        = io.data_stats(data_file, show=False)
-        chunk_size = int(res*data_file.rate//comm.size)
+        res        = io.data_stats(params, show=False)
+        chunk_size = int(res*params.rate//comm.size)
         if comm.rank == 0:
-            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+            print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
 
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
-    all_electrodes = numpy.random.permutation(data_file.N_e)
+    all_electrodes = numpy.random.permutation(N_e)
 
     for gidx in [all_chunks[comm.rank]]:
 
@@ -69,13 +73,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         local_shape = len(local_chunk)
 
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
-        thresholds = numpy.zeros(data_file.N_e, dtype=numpy.float32)
-        for i in xrange(data_file.N_e):
+        thresholds = numpy.zeros(N_e, dtype=numpy.float32)
+        for i in xrange(N_e):
             u             = numpy.median(local_chunk[:, i], 0)
             thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
         gdata      = gather_array(thresholds, comm)
         if comm.rank == 0:
-            gdata      = gdata.reshape((comm.size, data_file.N_e))
+            gdata      = gdata.reshape((comm.size, N_e))
             thresholds = numpy.mean(gdata, 0)
             bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'w', libver='latest')
             io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
@@ -85,7 +89,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         
         #print "Extracting the peaks..."
         local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-        for i in xrange(data_file.N_e):
+        for i in xrange(N_e):
             peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
@@ -99,7 +103,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if len(local_peaktimes) > 0:
 
             diff_times      = local_peaktimes[-1]-local_peaktimes[0]
-            all_times       = numpy.zeros((data_file.N_e, diff_times+1), dtype=numpy.bool)
+            all_times       = numpy.zeros((N_e, diff_times+1), dtype=numpy.bool)
             min_times       = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
             max_times       = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
             argmax_peak     = numpy.random.permutation(numpy.arange(len(local_peaktimes)))
@@ -111,7 +115,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 indices = numpy.take(inv_nodes, edges[nodes[elec]])
                 all_times[indices, min_times[idx]:max_times[idx]] = True
         else:
-            all_times   = numpy.zeros((data_file.N_e, len(local_chunk)), dtype=numpy.bool)
+            all_times   = numpy.zeros((N_e, len(local_chunk)), dtype=numpy.bool)
     
     all_times_Ne   = numpy.any(all_times, 0)
     subset         = numpy.where(all_times_Ne == False)[0]
@@ -160,7 +164,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 nb_silences     = numpy.sum(all_elecs > 0)
                 all_res         = all_res.reshape((nb_silences, N_t**2))
             except Exception:
-                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
+                print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             all_res             = numpy.sum(all_res, 0)
             all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
             temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
@@ -175,18 +179,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 io.print_and_log(["Disabling temporal whitening because of NaNs found"], 'info', params)
 
         if do_spatial_whitening:
-            if len(all_silences)/data_file.rate == 0:
-                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
+            if len(all_silences)/params.rate == 0:
+                print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
-            io.print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/data_file.rate)], 'default', params)
+            print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/params.rate)], 'default', params)
         
             have_nans = numpy.sum(numpy.isnan(spatial_whitening))
 
             if have_nans > 0:
                 spatial_whitening = numpy.eye(spatial_whitening.shape[0], dtype=numpy.float32)
                 to_write['spatial'] = spatial_whitening
-                io.print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', params)
+                print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', params)
 
         bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, to_write.keys(), to_write)
@@ -198,7 +202,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if do_spatial_whitening or do_temporal_whitening:
 
         if comm.rank == 0:
-            io.print_and_log(["Because of whitening, need to recompute the thresholds..."], 'default', params)
+            print_and_log(["Because of whitening, need to recompute the thresholds..."], 'default', params)
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -220,13 +224,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-            thresholds = numpy.zeros(data_file.N_e, dtype=numpy.float32)
-            for i in xrange(data_file.N_e):
+            thresholds = numpy.zeros(N_e, dtype=numpy.float32)
+            for i in xrange(N_e):
                 u             = numpy.median(local_chunk[:, i], 0)
                 thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
             gdata      = gather_array(thresholds, comm)
             if comm.rank == 0:
-                gdata      = gdata.reshape((comm.size, data_file.N_e))
+                gdata      = gdata.reshape((comm.size, N_e))
                 thresholds = numpy.mean(gdata, 0)
                 bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
                 bfile.pop('thresholds')
@@ -246,24 +250,19 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(422)
 
     #################################################################
-    data_file      = io.get_data_file(params)
     data_file.open()
-    params         = data_file.params
-    N_t            = data_file.N_t
-    dist_peaks     = data_file.dist_peaks
-    template_shift = data_file.template_shift
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size       = int(params.getint('data', 'chunk_size') * data_file.rate)
-    safety_time      = int(data_file.get_safety_time('whitening')*data_file.rate*1e-3)
+    chunk_size       = params.getint('data', 'chunk_size')
+    safety_time      = params.getint('whitening', 'safety_time')
     max_elts_elec    = params.getint('whitening', 'max_elts')
-    nb_elts          = int(params.getfloat('whitening', 'nb_elts')*data_file.N_e*max_elts_elec)
+    nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
     output_dim       = params.getfloat('whitening', 'output_dim')
-    inv_nodes        = numpy.zeros(data_file.N_tot, dtype=numpy.int32)
+    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     if sign_peaks == 'both':
        max_elts_elec *= 2
@@ -271,21 +270,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
 
     if comm.rank == 0:
-        io.print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
+        print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
         
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
 
-        res        = io.data_stats(data_file, show=False)
-        chunk_size = int(res*data_file.rate//comm.size)
+        res        = io.data_stats(params, show=False)
+        chunk_size = int(res*params.rate//comm.size)
         if comm.rank == 0:
-            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+            print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
 
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     groups    = {}
-    for i in xrange(data_file.N_e):
+    for i in xrange(N_e):
         groups[i] = 0
 
     # I guess this is more relevant, to take signals from all over the recordings
@@ -332,7 +331,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
             all_extremas  = numpy.zeros(0, dtype=numpy.int32)
 
-            for i in xrange(data_file.N_e):
+            for i in xrange(N_e):
 
                 if sign_peaks == 'negative':
                     peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
@@ -357,7 +356,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             if len(local_peaktimes) > 0:
 
                 diff_times      = local_peaktimes[-1]-local_peaktimes[0]
-                all_times       = numpy.zeros((data_file.N_e, diff_times+1), dtype=numpy.bool)
+                all_times       = numpy.zeros((N_e, diff_times+1), dtype=numpy.bool)
                 min_times       = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
                 max_times       = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
 
@@ -428,7 +427,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
-    io.print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', params)
+    print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', params)
     
     if sign_peaks in ['negative', 'both']:
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
@@ -444,7 +443,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['positive', 'both']:
             nb_waveforms += gdata_pos.shape[0]
         
-        io.print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', params)
+        print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', params)
         pca = PCA(output_dim, copy=False)
         res = {}   
         if sign_peaks in ['negative', 'both']:  
@@ -471,11 +470,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
         if sign_peaks == 'positive':
-            io.print_and_log(["A basis with %s dimensions has been built" %res['proj_pos'].shape[1]], 'info', params)
+            print_and_log(["A basis with %s dimensions has been built" %res['proj_pos'].shape[1]], 'info', params)
         elif sign_peaks == 'negative':
-            io.print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
+            print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
         elif sign_peaks == 'both':
-            io.print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
+            print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
 
         bfile.close()
 
@@ -484,7 +483,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if matched_filter:
 
         if comm.rank == 0:
-            io.print_and_log(["Because of matched filters, need to recompute the thresholds..."], 'default', params)
+            print_and_log(["Because of matched filters, need to recompute the thresholds..."], 'default', params)
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -515,13 +514,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if sign_peaks in ['negative', 'both']:
                 tmp_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
-                thresholds = numpy.zeros(data_file.N_e, dtype=numpy.float32)
-                for i in xrange(data_file.N_e):
+                thresholds = numpy.zeros(N_e, dtype=numpy.float32)
+                for i in xrange(N_e):
                     u             = numpy.median(tmp_chunk[:, i], 0)
                     thresholds[i] = numpy.median(numpy.abs(tmp_chunk[:, i] - u), 0)
                 gdata      = gather_array(thresholds, comm)
                 if comm.rank == 0:
-                    gdata      = gdata.reshape((comm.size, data_file.N_e))
+                    gdata      = gdata.reshape((comm.size, N_e))
                     thresholds = numpy.mean(gdata, 0)
                     bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
                     io.write_datasets(bfile, ['matched_thresholds'], {'matched_thresholds' : thresholds})
@@ -530,13 +529,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             if sign_peaks in ['positive', 'both']:
                 tmp_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
-                thresholds = numpy.zeros(data_file.N_e, dtype=numpy.float32)
-                for i in xrange(data_file.N_e):
+                thresholds = numpy.zeros(N_e, dtype=numpy.float32)
+                for i in xrange(N_e):
                     u             = numpy.median(tmp_chunk[:, i], 0)
                     thresholds[i] = numpy.median(numpy.abs(tmp_chunk[:, i] - u), 0)
                 gdata      = gather_array(thresholds, comm)
                 if comm.rank == 0:
-                    gdata      = gdata.reshape((comm.size, data_file.N_e))
+                    gdata      = gdata.reshape((comm.size, N_e))
                     thresholds = numpy.mean(gdata, 0)
                     bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
                     io.write_datasets(bfile, ['matched_thresholds_pos'], {'matched_thresholds_pos' : thresholds})

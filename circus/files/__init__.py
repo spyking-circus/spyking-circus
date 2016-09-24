@@ -1,5 +1,3 @@
-from datafile import *
-
 from raw_binary import RawBinaryFile
 from mcs_raw_binary import RawMCSFile
 from hdf5 import H5File
@@ -7,6 +5,7 @@ from kwd import KwdFile
 from openephys import OpenEphysFile
 from nwb import NWBFile
 from arf import ARFFile
+from brw import BRWFile
 
 try:
 	import nixio
@@ -27,7 +26,8 @@ __supported_data_files__ = {
 	OpenEphysFile._description : OpenEphysFile,
 	KwdFile._description : KwdFile,
 	NWBFile._description : NWBFile,
-	ARFFile._description : ARFFile
+	ARFFile._description : ARFFile,
+	BRWFile._description : BRWFile
 }
 
 #if HAVE_NIX_SUPPORT:

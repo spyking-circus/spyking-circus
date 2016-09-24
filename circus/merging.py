@@ -9,7 +9,7 @@ if use_pyside:
 else:
     from PyQt4 import QtGui, QtCore, uic
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
+def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     file_out_suff = params.get('data', 'file_out_suff')
     extension_in  = extension
@@ -23,7 +23,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
                 print("Export already made! Do you want to erase everything? (y)es / (n)o ")
                 key = raw_input('')
                 if key =='y':
-                    io.purge(file_out_suff, extension)
+                    purge(file_out_suff, extension)
                     extension_in = ''
 
     comm.Barrier()

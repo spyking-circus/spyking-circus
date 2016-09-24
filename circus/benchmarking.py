@@ -1,7 +1,10 @@
 from .shared.utils import *
 import h5py
+from circus.shared.probes import get_nodes_and_edges
+from circus.shared.parser import CircusParser
+from circus.shared.messages import print_and_log
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
+def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     """
     Useful tool to create synthetic datasets for benchmarking.
     
@@ -17,9 +20,18 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     data_suff, ext = os.path.splitext(os.path.basename(file_name))
     file_out, ext  = os.path.splitext(file_name)
 
+    if ext == '':
+        ext = '.dat'
+        file_name += ext
+    
+    if ext != '.dat':
+        if comm.rank == 0:
+            print_and_log(['Benchmarking produces raw files: select a .dat extension'], 'error', params)
+        sys.exit(0)
+
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
-            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
+            print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
         sys.exit(0)
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
@@ -111,12 +123,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
-    data_file        = io.get_data_file(params, comm=comm)
-    sampling_rate    = data_file.rate
-    N_e              = data_file.N_e
-    N_total          = data_file.N_tot
-    nodes, edges     = io.get_nodes_and_edges(params)
-    N_t              = data_file.N_t
+    data_file        = params.get_data_file()
+    N_e              = params.getint('data', 'N_e')
+    N_total          = params.nb_channels
+    nodes, edges     = get_nodes_and_edges(params)
+    N_t              = params.getint('detection', 'N_t')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -135,7 +146,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # Save benchmark parameters in a file to remember them.
     if comm.rank == 0:
         write_benchmark(file_out, benchmark, cells, rate, amplitude,
-                        sampling_rate, params.get('data', 'mapping'), trends)
+                        params.rate, params.get('data', 'mapping'), trends)
 
     # Synchronize all the threads/processes.
     comm.Barrier()
@@ -146,11 +157,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     # Retrieve some additional key parameters.
-    chunk_size     = int(params.getint('data', 'chunk_size') * data_file.rate)
+    chunk_size     = params.getint('data', 'chunk_size')
     scalings       = []
     
     params.set('data', 'data_file', file_name)
-    data_file_out = io.get_data_file(params, empty=True, comm=comm, force_raw=True)    
+
+    data_file_out = params.get_data_file(is_empty=True, force_raw=True, **data_file.get_description())    
     data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
     # Synchronize all the threads/processes.
@@ -172,7 +184,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
-                    io.print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
+                    print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
                 sys.exit(0)
             else:
                 # Get the next shuffled electrode.
@@ -313,11 +325,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     # Display informations about the generated benchmark.
     if comm.rank == 0:
-        io.print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
-        io.purge(file_out, '.data')
+        print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
+        purge(file_out, '.data')
 
 
-    template_shift = data_file.template_shift
+    template_shift = params.getint('detection', 'template_shift')
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)
@@ -375,7 +387,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             # Generate some spike indices (i.e. times) at the given rate for
             # 'synchrony' mode. Each synthesized cell will use a subset of this
             # spike times.
-            mips = numpy.random.rand(chunk_size) < rate[0] / float(sampling_rate)
+            mips = numpy.random.rand(chunk_size) < rate[0] / float(params.rate)
 
         # For each synthesized cell generate its spike indices (i.e.times) and
         # add them to the dataset.
@@ -389,9 +401,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 spikes[sidx[numpy.random.rand(len(sidx)) < corrcoef]] = True
             else:
                 # Generate some spike indices at the given rate.
-                spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(sampling_rate)
+                spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(params.rate)
             if benchmark == 'drifts':
-                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(sampling_rate)))
+                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(params.rate)))
             else:
                 amplitudes = numpy.ones(len(spikes))
             # Padding with `False` to avoid the insertion of partial spikes at
@@ -406,7 +418,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             norm_flat      = numpy.sum(first_flat ** 2)
             # For each index (i.e. spike sample location) add the spike to the
             # chunk of data.
-            refractory     = int(5 * 1e-3 * sampling_rate)         
+            refractory     = int(5 * 1e-3 * params.rate)         
             t_last         = - refractory
             for scount, spike in enumerate(spikes):
                 if (spike - t_last) > refractory:
@@ -447,10 +459,24 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             pbar.update(count)
 
     # Close the thread/process' files.
+    spiketimes_file.flush()
+    os.fsync(spiketimes_file.fileno())
     spiketimes_file.close()
+
+    amplitudes_file.flush()
+    os.fsync(amplitudes_file.fileno())
     amplitudes_file.close()
+
+    templates_file.flush()
+    os.fsync(templates_file.fileno())
     templates_file.close()
+
+    real_amps_file.flush()
+    os.fsync(real_amps_file.fileno())
     real_amps_file.close()
+
+    voltages_file.flush()
+    os.fsync(voltages_file.fileno())
     voltages_file.close()
 
     # Finish the progress bar about the generation of the benchmark.
@@ -479,6 +505,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
         # Copy initial configuration file from `<dataset1>.params` to `<dataset2>.params`.
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
+        new_params = CircusParser(file_name)
         # Copy initial basis file from `<dataset1>/<dataset1>.basis.hdf5` to
         # `<dataset2>/injected/<dataset2>.basis.hdf5.
         shutil.copy2(params.get('data', 'file_out') + '.basis.hdf5',
@@ -507,16 +534,16 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         # Gather data from all threads/processes.
         f_next, extension = os.path.splitext(file_name)
         file_out_bis = os.path.join(f_next, os.path.basename(f_next))
-        data_file_out.params.set('data', 'file_out', file_out_bis) # Output file without suffix
-        data_file_out.params.set('data', 'file_out_suff', file_out_bis  + data_file_out.params.get('data', 'suffix'))
+        #new_params.set('data', 'file_out', file_out_bis) # Output file without suffix
+        #new_params.set('data', 'file_out_suff', file_out_bis  + params.get('data', 'suffix'))
     
 
-        io.collect_data(comm.size, data_file_out, erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
+        io.collect_data(comm.size, new_params, erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
         # Change some flags in the configuration file.
-        io.change_flag(file_name, 'temporal', 'False') # Disable temporal filtering
-        io.change_flag(file_name, 'spatial', 'False') # Disable spatial filtering
-        io.change_flag(file_name, 'data_dtype', 'float32') # Set type of the data to float32
-        io.change_flag(file_name, 'dtype_offset', 'auto') # Set padding for data to auto
+        new_params.write('whitening', 'temporal', 'False') # Disable temporal filtering
+        new_params.write('whitening', 'spatial', 'False') # Disable spatial filtering
+        new_params.write('data', 'data_dtype', 'float32') # Set type of the data to float32
+        new_params.write('data', 'dtype_offset', 'auto') # Set padding for data to auto
         # Move results from `<dataset>/<dataset>.result.hdf5` to
         # `<dataset>/injected/<dataset>.result.hdf5`.
         

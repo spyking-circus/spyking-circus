@@ -1,19 +1,20 @@
 import numpy, scipy, pylab, os
-from circus.shared.files import load_parameters, load_data, load_chunk, get_results, get_nodes_and_edges, get_results, read_probe, get_data_file
+from circus.shared.files import load_data, get_results, get_results
 import numpy, pylab
 from circus.shared import algorithms as algo
 from circus.shared.utils import *
-
+from parser import CircusParser
+from probes import get_nodes_and_edges
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
-    params          = load_parameters(file_name)
-    data_file       = get_data_file(params)
+    params          = CircusParser(file_name)
+    data_file       = params.get_data_file()
     data_file.open()
-    N_e             = data_file.N_e
-    N_t             = data_file.N_t
-    N_total         = data_file.N_tot
-    sampling_rate   = data_file.rate
+    N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('detection', 'N_t')
+    N_total         = params.nb_channels
+    sampling_rate   = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
@@ -244,17 +245,17 @@ def view_artefact(data, save=False):
 
 def view_waveforms(file_name, temp_id, n_spikes=2000):
     
-    params          = load_parameters(file_name)
-    data_file       = get_data_file(params)
+    params          = CircusParser(file_name)
+    data_file       = params.get_data_file()
     data_file.open()
-    N_e             = data_file.N_e
-    N_total         = data_file.N_tot
-    sampling_rate   = data_file.rate
+    N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('detection', 'N_t')
+    N_total         = params.nb_channels
+    sampling_rate   = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
     file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = data_file.N_t
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
     
@@ -297,12 +298,13 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
 
 def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     
-    params          = load_parameters(file_name)
-    data_file       = get_data_file(params)
+    params          = CircusParser(file_name)
+    data_file       = params.get_data_file()
     data_file.open()
-    N_e             = data_file.N_e
-    N_total         = data_file.N_tot
-    sampling_rate   = data_file.rate
+    N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('detection', 'N_t')
+    N_total         = params.nb_channels
+    sampling_rate   = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
@@ -353,17 +355,17 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
 
 def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100, temp_id=None):
     
-    params          = load_parameters(file_name)
-    data_file       = get_data_file(params)
+    params          = CircusParser(file_name)
+    data_file       = params.get_data_file()
     data_file.open()
-    N_e             = data_file.N_e
-    N_total         = data_file.N_tot
-    sampling_rate   = data_file.rate
+    N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('detection', 'N_t')
+    N_total         = params.nb_channels
+    sampling_rate   = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
     file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = data_file.N_t
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = N_t
 
@@ -435,7 +437,7 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
 
 def view_performance(file_name, triggers, lims=(150,150)):
     
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     N_e             = params.getint('data', 'N_e')
     N_total         = params.getint('data', 'N_total')
     sampling_rate   = params.getint('data', 'sampling_rate')
@@ -474,7 +476,7 @@ def view_performance(file_name, triggers, lims=(150,150)):
 
 def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
 
-    params          = load_parameters(file_name)
+    params          = CircusParser(file_name)
     N_e             = params.getint('data', 'N_e')
     N_total         = params.getint('data', 'N_total')
     sampling_rate   = params.getint('data', 'sampling_rate')
@@ -492,7 +494,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     if templates is None:
         templates    = load_data(params, 'templates')
     clusters         = load_data(params, 'clusters')
-    probe            = read_probe(params)
+    probe            = params.probe
 
     positions = {}
     for i in probe['channel_groups'].keys():
@@ -588,23 +590,23 @@ def view_whitening(data):
 
 def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
 
-    params          = load_parameters(file_name)
-    data_file       = get_data_file(params)
+    params          = CircusParser(file_name)
+    data_file       = params.get_data_file()
     data_file.open()
-    N_e             = data_file.N_e
-    N_total         = data_file.N_tot
-    sampling_rate   = data_file.rate
+    N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('detection', 'N_t')
+    N_total         = params.nb_channels
+    sampling_rate   = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
     file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = data_file.N_t
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate, t_start*sampling_rate)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    safety_time      = int(params.getfloat('clustering', 'safety_time')*sampling_rate*1e-3)
+    safety_time      = params.getint('clustering', 'safety_time')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -647,17 +649,19 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     return peaks
 
 def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None, yzoom=None):
-    params          = load_parameters(file_name)
-    data_file       = get_data_file(params)
+    
+    params          = CircusParser(file_name)
+    data_file       = params.get_data_file()
     data_file.open()
-    N_e             = data_file.N_e
-    N_total         = data_file.N_tot
-    sampling_rate   = data_file.rate
+    N_e             = params.getint('data', 'N_e')
+    N_t             = params.getint('detection', 'N_t')
+    N_total         = params.nb_channels
+    sampling_rate   = params.rate
+
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
     file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = data_file.N_t
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
     padding          = (t_start*sampling_rate, t_start*sampling_rate)
@@ -748,7 +752,7 @@ def view_norms(file_name, save=True):
     """
 
     # Retrieve the key parameters.
-    params = load_parameters(file_name)
+    params = CircusParser(file_name)
     norms = load_data(params, 'norm-templates')
     N_tm = norms.shape[0] / 2
     y_margin = 0.1
@@ -813,7 +817,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
     plt.rcParams['axes.linewidth'] = 1
     
     # Retrieve the key parameters.
-    params = load_parameters(file_name)
+    params = CircusParser(file_name)
     triggers, spikes = load_data(params, 'triggers')
     
     mean_spike = numpy.mean(spikes, axis=2)
@@ -1087,7 +1091,7 @@ def view_dataset(X, color='blue', title=None, save=None):
         pylab.close(fig)
     return
 
-def view_datasets(data_file, xs, ys, all_trigger_times, colors=None, labels=None, save=None):
+def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, save=None):
     if colors is None:
         colors = ['b'] * len(xs)
     from circus.validating.utils import Projection, find_rotation
@@ -1128,9 +1132,9 @@ def view_datasets(data_file, xs, ys, all_trigger_times, colors=None, labels=None
     #ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
 
 
-    N_total = data_file.N_tot
-    nb_chunks, last_chunk_len = data_file.analyze()
-    ttmax = data_file.max_offset
+    data_file = params.get_data_file()
+    N_total   = params.nb_channels
+    ttmax     = data_file.duration
 
     pylab.subplots_adjust(wspace=0.3)
     ax = fig.add_subplot(1, 2, 2)

@@ -14,6 +14,11 @@ import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.nd
 from mpi import *
 import files as io
 
+def purge(file, pattern):
+    dir = os.path.dirname(os.path.abspath(file))
+    for f in os.listdir(dir):
+        if f.find(pattern) > -1:
+            os.remove(os.path.join(dir, f))
 
 def update_and_flush(pbar, *args, **kwds):
     return_value = progressbar.ProgressBar.update(pbar, *args, **kwds)
@@ -35,50 +40,6 @@ def get_progressbar(size):
         pbar.update = types.MethodType(update_and_flush, pbar)
         pbar.finish = types.MethodType(finish_and_flush, pbar)
     return pbar
-
-
-def smooth(x,window_len=11,window='hanning'):
-    """smooth the data using a window with requested size.
-
-    This method is based on the convolution of a scaled window with the signal.
-    The signal is prepared by introducing reflected copies of the signal
-    (with the window size) in both ends so that transient parts are minimized
-    in the begining and end part of the output signal.
-
-    input:
-        x: the input signal
-        window_len: the dimension of the smoothing window; should be an odd integer
-        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
-            flat window will produce a moving average smoothing.
-
-    output:
-        the smoothed signal
-    """
-
-    if x.ndim != 1:
-        raise ValueError, "smooth only accepts 1 dimension arrays."
-
-    if x.size < window_len:
-        raise ValueError, "Input vector needs to be bigger than window size."
-
-
-    if window_len<3:
-        return x
-
-
-    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
-
-
-    s=numpy.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
-    #print(len(s))
-    if window == 'flat': #moving average
-        w=numpy.ones(window_len,'d')
-    else:
-        w=eval('numpy.'+window+'(window_len)')
-
-    y=numpy.convolve(w/w.sum(),s,mode='valid')
-    return y[(window_len//2-1):-(window_len//2)]
 
 
 def get_whitening_matrix(X, fudge=1E-18):

@@ -1,18 +1,18 @@
 import circus.shared.algorithms as algo
 from .shared.utils import *
 from .shared.mpi import SHARED_MEMORY
+from .shared.probes import get_nodes_and_edges
+from circus.shared.messages import print_and_log
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
-    data_file      = io.get_data_file(params)
+    data_file      = params.get_data_file()
     data_file.open()
-    params         = data_file.params
-    sampling_rate  = data_file.rate
-    N_e            = data_file.N_e
-    N_total        = data_file.N_tot
-    N_t            = data_file.N_t
-    template_shift = data_file.template_shift
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
@@ -20,9 +20,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size     = int(params.getfloat('fitting', 'chunk')*sampling_rate)
+    chunk_size     = params.getint('fitting', 'chunk_size')
     gpu_only       = params.getboolean('fitting', 'gpu_only')
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     tmp_limits     = map(float, tmp_limits)
     amp_auto       = params.getboolean('fitting', 'amp_auto')
@@ -31,7 +31,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
-        collect_zone = int(0.25*sampling_rate*1e-3)
+        collect_zone = int(0.25*params.rate*1e-3)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -48,7 +48,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_sync_threads()
 
     if SHARED_MEMORY:
-        templates  = io.load_data_memshared(params, comm, 'templates', normalize=True, transpose=True)
+        templates  = io.load_data_memshared(params, 'templates', normalize=True, transpose=True)
         N_tm, x    = templates.shape
     else:
         templates  = io.load_data(params, 'templates')
@@ -129,13 +129,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     
     if SHARED_MEMORY:
-        c_overs    = io.load_data_memshared(params, comm, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)        
-        c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        c_overs    = io.load_data_memshared(params, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)        
+        c_overlap  = io.get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
         N_over     = int(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
     else:
-        c_overlap  = io.get_overlaps(comm, params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        c_overlap  = io.get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_x     = c_overlap.get('over_x')[:]
         over_y     = c_overlap.get('over_y')[:]
         over_data  = c_overlap.get('over_data')[:]
@@ -157,8 +157,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if comm.rank == 0:
-        io.print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
-        io.purge(file_out_suff, '.data')
+        print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
+        purge(file_out_suff, '.data')
 
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -172,7 +172,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 c_overs[i] = cmt.SparseCUDAMatrix(c_overs[i], copy_on_host=False)
         except Exception:
             if comm.rank == 0:
-                io.print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
+                print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
             for i in xrange(N_over):
                 if c_overs.has_key(i):
                     del c_overs[i]
@@ -515,11 +515,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             pbar.update(gcount)
 
+    spiketimes_file.flush()
+    os.fsync(spiketimes_file.fileno())
     spiketimes_file.close()
+
+    amplitudes_file.flush()
+    os.fsync(amplitudes_file.fileno())
     amplitudes_file.close()
+
+    templates_file.flush()
+    os.fsync(templates_file.fileno())
     templates_file.close()
-    garbage_temp_file.close()
-    garbage_times_file.close()
+
+    if collect_all:
+
+        garbage_temp_file.flush()
+        os.fsync(garbage_temp_file.fileno())
+        garbage_temp_file.close()
+        
+        garbage_times_file.flush()
+        os.fsync(garbage_times_file.fileno())
+        garbage_times_file.close()
+
 
     comm.Barrier()
 
@@ -528,6 +545,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         pbar.finish()
 
     if comm.rank == 0:
-        io.collect_data(comm.size, data_file, erase=True)
+        io.collect_data(comm.size, params, erase=True)
 
     data_file.close()
