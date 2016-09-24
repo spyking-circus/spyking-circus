@@ -367,13 +367,14 @@ class CircusParser(object):
                 params    = data.get_description()
         
         if force_raw == True:
-            params['file_format']  = 'raw_binary'
-            params['data_dtype']   = 'float32'
-            params['dtype_offset'] = 'auto'
-            params['data_offset']  = 0
-            data_file, extension   = os.path.splitext(data_file)
-            data_file             += ".dat" 
-            params['nb_channels']  = self.nb_channels
+            params['file_format']   = 'raw_binary'
+            params['data_dtype']    = 'float32'
+            params['dtype_offset']  = 'auto'
+            params['data_offset']   = 0
+            data_file, extension    = os.path.splitext(data_file)
+            data_file              += ".dat" 
+            params['sampling_rate'] = self.rate
+            params['nb_channels']   = self.nb_channels
 
         return self._create_data_file(data_file, is_empty, **params)
 

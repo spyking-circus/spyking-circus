@@ -15,42 +15,10 @@ import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 from circus.shared.files import data_stats 
-from circus.shared.messages import print_error, print_info, print_and_log, write_to_logger, get_colored_header
-from circus.files.raw_binary import RawBinaryFile
-from circus.shared.mpi import SHARED_MEMORY, comm
+from circus.shared.messages import print_error, print_and_log, get_colored_header
+from circus.shared.mpi import SHARED_MEMORY, comm, gather_mpi_arguments
 from circus.shared.parser import CircusParser
 from circus.shared.probes import get_averaged_n_edges
-
-def gather_mpi_arguments(hostfile, params):
-    from mpi4py import MPI
-    vendor = MPI.get_vendor()
-    write_to_logger(params, ['MPI detected: %s' % str(vendor)], 'debug')
-    if vendor[0] == 'Open MPI':
-        mpi_args = ['mpirun']
-        if os.getenv('LD_LIBRARY_PATH'):
-            mpi_args += ['-x', 'LD_LIBRARY_PATH']
-        if os.getenv('PATH'):
-            mpi_args += ['-x', 'PATH']
-        if os.getenv('PYTHONPATH'):
-            mpi_args += ['-x', 'PYTHONPATH']
-        if os.path.exists(hostfile):
-            mpi_args += ['-hostfile', hostfile]
-    elif vendor[0] == 'Microsoft MPI':
-        mpi_args = ['mpiexec']
-        if os.path.exists(hostfile):
-            mpi_args += ['-machinefile', hostfile]
-    elif vendor[0] == 'MPICH2':
-        mpi_args = ['mpiexec']
-        if os.path.exists(hostfile):
-            mpi_args += ['-f', hostfile]
-    else:
-        print_error([
-                        '%s may not be yet properly implemented: contact developpers' %
-                        vendor[0]])
-        mpi_args = ['mpirun']
-        if os.path.exists(hostfile):
-            mpi_args += ['-hostfile', hostfile]
-    return mpi_args
 
 
 def main(argv=None):
@@ -172,7 +140,7 @@ but a subset x,y can be done. Steps are:
         is_writable            = data_file._is_writable
 
     if preview:
-        print_info(['Preview mode, showing only first second of the recording'])
+        print_and_log(['Preview mode, showing only first second of the recording'], 'info', params)
 
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
         if not os.path.exists(tmp_path_loc):
@@ -217,8 +185,8 @@ but a subset x,y can be done. Steps are:
         if os.path.exists(f_next + '.log'):
             os.remove(f_next + '.log')
 
-        write_to_logger(params, ['Config file: %s' %(f_next + '.params')], 'debug')
-        write_to_logger(params, ['Data file  : %s' %filename], 'debug')
+        print_and_log(['Config file: %s' %(f_next + '.params')], 'debug', params)
+        print_and_log(['Data file  : %s' %filename], 'debug', params)
 
         print get_colored_header()
         if preview:
@@ -301,8 +269,8 @@ but a subset x,y can be done. Steps are:
                         if subtask in ['filtering', 'benchmarking'] and not is_writable and not multi_files and not preview:
                             print_and_log(['The file format %s is read only!' %file_format, 
                                             'One solution to still filter the file is to activate',
-                                            'the multi-files mode, even with one file.',
-                                            'This will creates a raw_binary file, as float32.'], 'info', params)
+                                            'the multi-files mode, even with only one file,',
+                                            'as this will creates an external raw_binary file'], 'info', params)
                             sys.exit(0)
                         
                         if subtask in ['filtering'] and not support_parallel_write and (args.cpu > 1) and not multi_files:
@@ -334,8 +302,8 @@ but a subset x,y can be done. Steps are:
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
 
-                        write_to_logger(params, ['Launching task %s' %subtask], 'debug')
-                        write_to_logger(params, ['Command: %s' %str(mpi_args)], 'debug')
+                        print_and_log(['Launching task %s' %subtask], 'debug', params)
+                        print_and_log(['Command: %s' %str(mpi_args)], 'debug', params)
 
                         try:
                             subprocess.check_call(mpi_args)
