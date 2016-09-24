@@ -2,7 +2,7 @@ from scipy import signal
 from .shared import plot
 from .shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.messages import print_error, print_info, print_and_log
+from circus.shared.messages import print_error, print_and_log
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
@@ -74,7 +74,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
             loc_nb_chunks = len(to_process)
-
+            N_total       = params.nb_channels
             goffset       = data_file_in.duration
 
             if comm.rank == 0:
@@ -102,7 +102,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
 
                 if remove_median:
-                    if not numpy.all(nodes == numpy.arange(data_in.N_tot)):
+                    if not numpy.all(nodes == numpy.arange(N_total)):
                         global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
                     else:
                         global_median = numpy.median(local_chunk, 1)

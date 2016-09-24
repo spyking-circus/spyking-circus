@@ -35,21 +35,20 @@ class DataFile(object):
     depending on the complexity of the datastructure, this can slow down the code.
 
     The method belows are all methods that can be used, at some point, by the different steps of the code. 
-    In order to provide a full compatibility with a given file format, they must all be implemented.
-
-    Note also that you must specify if your file format allows parallel write calls, as this is used in
-    the filtering and benchmarking steps.
+    In order to provide a full compatibility with a given file format, they must all be implemented, but 
+    feel free to reuse as much as possible those from the datafile main class.
     '''
 
-    _description      = "mydatafile"    
-    _extension        = [".myextension"]
-    _parallel_write   = False
-    _is_writable      = False
+    _description      = "mydatafile"     #Description of the file format
+    _extension        = [".myextension"] #extensions
+    _parallel_write   = False            #can be written in parallel (using the comm object)
+    _is_writable      = False            #can be written
+    _shape            = (0, 0)           #The shape of the data (nb time steps, nb channels)
+
 
     # This is a dictionary of values that need to be provided to the constructor, with a specified type and
     # eventually default value. For example {'sampling_rate' : ['float' : 20000]}
     _requiered_fields = {}
-    _shape            = (0, 0)
 
     # Those are the attributes that need to be common in ALL file formats
     # Note that those values can be either infered from header, or otherwise read from the parameter file
@@ -57,15 +56,17 @@ class DataFile(object):
     
     def __init__(self, file_name, is_empty=False, **kwargs):
         '''
-        The constructor that will create the DataFile object. Note that by default, values are read from
-        the parameter file, but you could completly fill them based on values that would be obtained
-        from the datafile itself. 
+        The constructor that will create the DataFile object. Note that by default, values are read from the header
+        of the file. If not found in the header, they are read from the parameter file. If no values are found, the 
+        code will trigger an error
+
         What you need to specify (usually be getting value in the _get_info function)
             - _parallel_write : can the file be safely written in parallel ?
             - _is_writable    : if the file can be written
             - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
             - is_empty is a flag to say if the file is created without data. It has no sense if the file is
              not writable
+            - _requiered_fields : what parameter must be specified for the file format
         '''
 
         self.file_name = file_name
@@ -185,7 +186,7 @@ class DataFile(object):
             - chunk_size is the time of those chunks, in time steps
             - if the data loaded are data[idx:idx+1], padding should add some offsets, 
                 in time steps, such that we can load data[idx+padding[0]:idx+padding[1]]
-            - nodes is a list of nodes, between 0 and N_total            
+            - nodes is a list of nodes, between 0 and nb_channels            
         '''
 
         pass
@@ -195,7 +196,7 @@ class DataFile(object):
             This function should return a time snippet of size length x nodes
             - time is in timestep
             - length is in timestep
-            - nodes is a list of nodes, between 0 and N_total
+            - nodes is a list of nodes, between 0 and nb_channels
         '''
         return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
 
@@ -204,7 +205,7 @@ class DataFile(object):
         '''
             This function writes data at a given time.
             - time is expressed in timestep
-            - data must be a 2D matrix of size time_length x N_total
+            - data must be a 2D matrix of size time_length x nb_channels
         '''
         pass
 
@@ -245,7 +246,7 @@ class DataFile(object):
         '''
             This function may be used during benchmarking mode, or if multi-files mode is activated
             Starting from an empty file, it will allocates a given size:
-                - shape is a tuple with (time lenght, N_total)
+                - shape is a tuple with (time lenght, nb_channels)
                 - data_dtype is the data type
         '''
         if self.master:

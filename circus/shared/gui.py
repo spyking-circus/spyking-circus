@@ -1441,7 +1441,7 @@ class PreviewGUI(QtGui.QMainWindow):
                     fit = self.curve[electrode_idx, rel_time_idx]
                     msg += ' (fit: %.2f)' % fit
                 msg += '  t: %.2fs ' % self.time[time_idx]
-                msg += u'(electrode at x: %.0fμm  y: %.0fμm)' % (electrode_x, electrode_y)
+                msg += u'(electrode %d at x: %.0fμm  y: %.0fμm)' % (electrode_idx, electrode_x, electrode_y)
                 status_bar.showMessage(msg)
 
     def zoom(self, event):

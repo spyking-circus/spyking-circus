@@ -3,7 +3,7 @@ import circus.shared.algorithms as algo
 from .shared import plot
 from circus.shared.probes import get_nodes_and_edges
 import h5py
-from circus.shared.messages import print_error, print_info, print_and_log
+from circus.shared.messages import print_error, print_and_log
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening

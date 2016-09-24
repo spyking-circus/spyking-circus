@@ -8,7 +8,7 @@ import circus
 import tempfile
 import numpy, h5py
 from distutils.version import LooseVersion, StrictVersion
-from circus.shared.messages import print_error, print_info, print_and_log, get_header, get_colored_header
+from circus.shared.messages import print_error, print_and_log, get_header, get_colored_header
 from circus.shared.parser import CircusParser
 
 from phy import add_default_handler

@@ -1,5 +1,6 @@
 import numpy, os, mpi4py
 from mpi4py import MPI
+from messages import print_and_log, print_error
 comm = MPI.COMM_WORLD
 
 try:
@@ -7,6 +8,38 @@ try:
     SHARED_MEMORY = True
 except NotImplementedError:
     SHARED_MEMORY = False
+
+
+def gather_mpi_arguments(hostfile, params):
+    from mpi4py import MPI
+    vendor = MPI.get_vendor()
+    print_and_log(['MPI detected: %s' % str(vendor)], 'debug', params)
+    if vendor[0] == 'Open MPI':
+        mpi_args = ['mpirun']
+        if os.getenv('LD_LIBRARY_PATH'):
+            mpi_args += ['-x', 'LD_LIBRARY_PATH']
+        if os.getenv('PATH'):
+            mpi_args += ['-x', 'PATH']
+        if os.getenv('PYTHONPATH'):
+            mpi_args += ['-x', 'PYTHONPATH']
+        if os.path.exists(hostfile):
+            mpi_args += ['-hostfile', hostfile]
+    elif vendor[0] == 'Microsoft MPI':
+        mpi_args = ['mpiexec']
+        if os.path.exists(hostfile):
+            mpi_args += ['-machinefile', hostfile]
+    elif vendor[0] == 'MPICH2':
+        mpi_args = ['mpiexec']
+        if os.path.exists(hostfile):
+            mpi_args += ['-f', hostfile]
+    else:
+        print_error([
+                        '%s may not be yet properly implemented: contact developpers' %
+                        vendor[0]])
+        mpi_args = ['mpirun']
+        if os.path.exists(hostfile):
+            mpi_args += ['-hostfile', hostfile]
+    return mpi_args
 
 def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     # gather 1D or 2D numpy arrays
