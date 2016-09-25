@@ -45,7 +45,7 @@ class TestWhitening(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'whitening.raw')
+        self.file_name      = os.path.join(self.path, 'whitening.dat')
         self.source_dataset = get_dataset(self)     
         self.whitening      = None
         if not os.path.exists(self.file_name):

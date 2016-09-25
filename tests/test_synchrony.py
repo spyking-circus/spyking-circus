@@ -202,7 +202,7 @@ class TestSynchrony(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'synchrony.raw')
+        self.file_name      = os.path.join(self.path, 'synchrony.dat')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'synchrony')

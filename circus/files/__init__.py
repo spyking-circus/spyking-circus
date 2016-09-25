@@ -6,6 +6,7 @@ from openephys import OpenEphysFile
 from nwb import NWBFile
 from arf import ARFFile
 from brw import BRWFile
+from npy import NumpyFile
 
 try:
 	import nixio
@@ -27,7 +28,8 @@ __supported_data_files__ = {
 	KwdFile._description : KwdFile,
 	NWBFile._description : NWBFile,
 	ARFFile._description : ARFFile,
-	BRWFile._description : BRWFile
+	BRWFile._description : BRWFile,
+	NumpyFile._description : NumpyFile
 }
 
 #if HAVE_NIX_SUPPORT:

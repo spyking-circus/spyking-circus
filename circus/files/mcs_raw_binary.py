@@ -13,7 +13,7 @@ class RawMCSFile(RawBinaryFile):
 
         kwargs = {}
 
-        if self.is_empty:
+        if not is_empty:
             self.file_name = file_name
             a, b, c = self._read_header()
             self.header            = a 

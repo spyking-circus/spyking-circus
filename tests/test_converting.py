@@ -13,7 +13,7 @@ class TestFitting(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'fitting.raw')
+        self.file_name      = os.path.join(self.path, 'fitting.dat')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
@@ -21,6 +21,8 @@ class TestFitting(unittest.TestCase):
             self.parser = CircusParser(self.file_name)
             self.parser.write('fitting', 'max_chunk', '10')
             mpi_launch('fitting', self.file_name, 2, 0, 'False')
+        else:
+            self.parser = CircusParser(self.file_name)
 
     def test_converting_some(self):
         self.parser.write('converting', 'export_pcs', 'some')

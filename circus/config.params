@@ -3,7 +3,7 @@
 ### file file_format. Otherwise, launch the code and a message will tell you what is needed
 
 [data]
-file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys
+file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys, brw, npy
 mapping        = ~/probes/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
