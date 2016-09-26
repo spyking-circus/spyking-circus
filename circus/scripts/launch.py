@@ -252,7 +252,7 @@ but a subset x,y can be done. Steps are:
                 params.set('data', 'chunk_size', '10')
             if params.getint('whitening', 'chunk_size') > 10:
                 params.set('whitening', 'chunk_size', '10')
-            io.print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', params)
+            io.print_and_log(["Large number of electrodes, reduce chunk sizes to 10s in [data] and [whitening]"], 'info', params)
 
         if not result:
             for subtask, command in subtasks:
