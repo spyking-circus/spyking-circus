@@ -1,6 +1,6 @@
 import h5py, numpy, re, sys
 from circus.shared.messages import print_error, print_and_log
-from raw_binary import NumpyFile
+from raw_binary import RawBinaryFile
 from numpy.lib.format import open_memmap
 
 class NumpyFile(RawBinaryFile):
@@ -27,11 +27,30 @@ class NumpyFile(RawBinaryFile):
         RawBinaryFile.__init__(self, file_name, is_empty, **kwargs)
 
     def _get_info_(self):
-        self.data_dtype    = 
         self.dtype_offset  = get_offset(self.data_dtype, self.dtype_offset)
         self.open()
         self.size          = len(self.data)
         self._shape        = (self.size, self.nb_channels)
+        self.close()
+
+
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+        
+        self.open()
+        local_chunk  = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], :]
+        self.close()
+
+        if nodes is not None:
+            if not numpy.all(nodes == numpy.arange(self.nb_channels)):
+                local_chunk = numpy.take(local_chunk, nodes, axis=1)
+
+        return self._scale_data_to_float32(local_chunk)
+
+
+    def set_data(self, time, data):
+        self.open(mode='r+')
+        data = self._unscale_data_from_from32(data)
+        self.data[time:time+len(data)] = data
         self.close()
 
     def open(self, mode='r'):
@@ -42,7 +61,7 @@ class NumpyFile(RawBinaryFile):
             data_dtype = self.data_dtype
         
         if self.is_master:
-            self.data = open_memmap(self.file_name, shape=(self.duration, self.nb_channels), dtype=self.data_dtype, mode='w+')
+            self.data = open_memmap(self.file_name, shape=shape, dtype=data_dtype, mode='w+')
         comm.Barrier()
         
         self._get_info_()

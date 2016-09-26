@@ -27,7 +27,7 @@ remove_median  = False      # If True, median over all channels is substracted t
 trig_file      =           # If external stimuli need to be considered as putative artefacts (see documentation)
 trig_windows   =           # The time windows of those external stimuli [in ms]
 clean_artefact = False     # If True, external artefacts induced by triggers will be suppressed from data
-make_plots     = png       # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
+make_plots     =           # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 [whitening]
 chunk_size     = 30         # Size of the data chunks [in s]
@@ -53,7 +53,7 @@ compress       = True       # Compress templates for large physical radius or nu
 cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
-make_plots     = png        # Generate sanity plots of the clustering [Nothing or None if no plots]
+make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
 
 [fitting]

@@ -86,11 +86,12 @@ class DataFile(object):
             else:
                 self.__setattr__(key, value)
 
-        self._check_requierements_(**kwargs)
-
         if not self.is_empty:
             self._get_info_()
             self._check_valid_()
+
+        self._check_requierements_(**kwargs)
+
 
     def get_description(self):
         result = {}

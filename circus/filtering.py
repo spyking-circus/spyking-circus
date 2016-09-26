@@ -190,7 +190,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             return art_dict
 
 
-        def remove_artefacts(art_dict, data_file, max_offset):
+        def remove_artefacts(data_file, art_dict, max_offset):
 
             chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
@@ -263,7 +263,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if clean_artefact:
                 art_dict   = compute_artefacts(data_file, goffset)
-                remove_artefacts(art_dict, data_file, goffset)
+                remove_artefacts(data_file, art_dict, goffset)
 
         else:
 
@@ -289,11 +289,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
                 goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))
 
-            params.set('data', 'data_file', combined_file)
-
             if clean_artefact:
                 art_dict   = compute_artefacts(data_out, goffset)
-                remove_artefacts(art_dict, data_out, goffset)
+                remove_artefacts(data_out, art_dict, goffset)
 
         if comm.rank == 0 and (do_filter or clean_artefact):
             params.write('noedits', 'filter_done', 'True')
