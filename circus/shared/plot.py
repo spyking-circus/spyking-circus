@@ -1132,9 +1132,8 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
     #ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
 
 
-    data_file = params.get_data_file()
     N_total   = params.nb_channels
-    ttmax     = data_file.duration
+    ttmax     = params.data_file.duration
 
     pylab.subplots_adjust(wspace=0.3)
     ax = fig.add_subplot(1, 2, 2)

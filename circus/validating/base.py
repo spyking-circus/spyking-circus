@@ -648,7 +648,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             ys = [y_gt, y_ngt]
             colors = ['r', 'b']
             labels = ["GT", "Non GT"]
-            plot.view_datasets(data_file, xs, ys, [spike_times_gt, spike_times_ngt], colors=colors, labels=labels, save=path)
+            plot.view_datasets(params, xs, ys, [spike_times_gt, spike_times_ngt], colors=colors, labels=labels, save=path)
     
     
     

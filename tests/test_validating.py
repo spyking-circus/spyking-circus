@@ -41,6 +41,5 @@ class TestValidating(unittest.TestCase):
         f = numpy.memmap(juxta_file, shape=(self.length,1), dtype=self.parser.get('validating', 'juxta_dtype'), mode='w+')
         f[spikes['temp_9']] = 100
         del f
-        print self.length, len(spikes['temp_9'])
 
         mpi_launch('validating', self.file_name, 2, 0, 'False')
