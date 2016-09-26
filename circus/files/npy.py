@@ -16,8 +16,6 @@ class NumpyFile(RawBinaryFile):
 
     def __init__(self, file_name, is_empty=False, **kwargs):
 
-        kwargs = {}
-
         if not is_empty:
             f = open_memmap(file_name)
             kwargs['nb_channels']  = f.shape[1]

@@ -31,7 +31,6 @@ class OpenEphysFile(DataFile):
 
     def __init__(self, file_name, is_empty=False, **kwargs):
 
-        kwargs = {}
         kwargs['data_dtype']   = 'int16'
         kwargs['dtype_offset'] = 0
         kwargs['data_offset']  = self.NUM_HEADER_BYTES

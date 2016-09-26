@@ -12,7 +12,6 @@ class MCDFile(DataFile):
 
     def __init__(self, file_name, is_empty=False, **kwargs):
 
-        kwargs = {}
         kwargs['data_dtype']   = 'float64'
         kwargs['dtype_offset'] = 0
         

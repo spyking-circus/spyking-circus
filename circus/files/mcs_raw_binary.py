@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys
+import h5py, numpy, re, sys, re
 from circus.shared.messages import print_error, print_and_log
 from raw_binary import RawBinaryFile
 
@@ -11,8 +11,6 @@ class RawMCSFile(RawBinaryFile):
 
     def __init__(self, file_name, is_empty=False, **kwargs):
 
-        kwargs = {}
-
         if not is_empty:
             self.file_name = file_name
             a, b, c = self._read_header()
@@ -20,8 +18,8 @@ class RawMCSFile(RawBinaryFile):
             kwargs['data_offset']  = b
             kwargs['nb_channels']  = c
             kwargs['dtype_offset'] = int(self.header['ADC zero'])
-            kwargs['gain']         = float(self.header['El'].replace('\xb5V/AD', ''))
-            if kwargs['dtype_offset'] == 32768:
+            kwargs['gain']         = float(re.findall("\d+\.\d+", self.header['El'])[0])
+            if kwargs['dtype_offset'] > 0:
                 kwargs['data_dtype'] = 'uint16'
             elif kwargs['dtype_offset'] == 0:
                 kwargs['data_dtype'] = 'int16'

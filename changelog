@@ -16,6 +16,7 @@ Release 0.5
 * can now work natively with any HDF5-like structure data files (.h5)
 * can now work natively with Arf data files (.arf)
 * can now work natively with 3Brain data files (.brw)
+* can now work natively with Numpy arrays (.npy)
 * can still work natively with raw binary files with/without headers :)
 * faster IO for raw binary files
 * refactoring of the exports during multi-file/preview/benchmark: everything is now handled in raw binary
