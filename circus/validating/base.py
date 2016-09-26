@@ -41,7 +41,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     N_total         = params.nb_channels
     sampling_rate   = params.rate
 
-    template_shift = params.get('detection', 'template_shift')
+    template_shift = params.getint('detection', 'template_shift')
     file_out_suff = params.get('data', 'file_out_suff')
     nb_repeats = params.getint('clustering', 'nb_repeats')
     max_iter = params.getint('validating', 'max_iter')
@@ -78,7 +78,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     # Detect the spikes times of the juxtacellular trace.
     if comm.rank == 0:
-        extract_juxta_spikes(filename, params)
+        extract_juxta_spikes(params)
     comm.Barrier()
     
     # Retrieve the spike times of the juxtacellular trace.
@@ -139,7 +139,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         nodes, chans = get_neighbors(params, chan=None)
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
         #juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
-        juxta_spikes = get_stas(data_file, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
+        juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
         
@@ -184,7 +184,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         chan = elec
         ##### end temporary zone
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
-        juxta_spikes = get_stas(data_file, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
+        juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
         tmp_juxta_spikes = juxta_spikes
@@ -205,7 +205,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     ###### EXTRACELLULAR SPIKE DETECTION #######################################
     
     # Detect the spikes times of the "non ground truth cell".
-    extract_extra_spikes(filename, params)
+    extract_extra_spikes(params)
     
     # Retrieve the spike times of the "non ground truth cell".
     spike_times_ngt_tmp = io.load_data(params, 'extra-triggers')

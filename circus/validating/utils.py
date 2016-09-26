@@ -32,8 +32,8 @@ def get_juxta_stas(params, times_i, labels_i):
 
     file_out_suff = params.get('data', 'file_out_suff')
     sampling_rate = params.getint('data', 'sampling_rate')
-    N_t = params.getint('detection', 'N_t')
-    juxta_dtype = params.get('validating', 'juxta_dtype')
+    N_t           = params.getint('detection', 'N_t')
+    juxta_dtype   = params.get('validating', 'juxta_dtype')
     
     juxta_filename = "{}.juxta.dat".format(file_out_suff)
     beer_path = "{}.beer.hdf5".format(file_out_suff)
@@ -229,7 +229,7 @@ def extract_extra_spikes_(params):
     alignment      = params.getboolean('detection', 'alignment')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    safety_time  = params.get_safety_time('whitening', 'safety_time')
+    safety_time  = params.getint('whitening', 'safety_time')
     safety_space = params.getboolean('clustering', 'safety_space')
     chunk_size   = params.getint('data', 'chunk_size')
     # chunk_size = params.getint('whitening', 'chunk_size')
@@ -478,7 +478,7 @@ def extract_extra_spikes_(params):
     
     
 
-def extract_extra_spikes(filename, params):
+def extract_extra_spikes(params):
     
     do_extra = True
     try:
@@ -512,13 +512,13 @@ def highpass(data, BUTTER_ORDER=3, sampling_rate=10000, cut_off=500.0):
 def extract_juxta_spikes_(params):
     '''Detect spikes from the extracellular traces'''
     
-    file_out_suff = params.get('data', 'file_out_suff')
-    sampling_rate = params.getint('data', 'sampling_rate')
-    dist_peaks = params.getint('detection', 'dist_peaks')
+    file_out_suff  = params.get('data', 'file_out_suff')
+    sampling_rate  = params.getint('data', 'sampling_rate')
+    dist_peaks     = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
-    juxta_dtype = params.get('validating', 'juxta_dtype')
-    juxta_thresh = params.getfloat('validating', 'juxta_thresh')
-    juxta_valley = params.getboolean('validating', 'juxta_valley')
+    juxta_dtype    = params.get('validating', 'juxta_dtype')
+    juxta_thresh   = params.getfloat('validating', 'juxta_thresh')
+    juxta_valley   = params.getboolean('validating', 'juxta_valley')
     
     juxta_filename = "{}.juxta.dat".format(file_out_suff)
     beer_path = "{}.beer.hdf5".format(file_out_suff)
@@ -591,7 +591,7 @@ def extract_juxta_spikes_(params):
 
 
 
-def extract_juxta_spikes(filename, params):
+def extract_juxta_spikes(params):
     do_juxta = True
     try:
         data = io.load_data(params, 'juxta-triggers')

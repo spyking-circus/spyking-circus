@@ -140,7 +140,7 @@ def get_performance(file_name, name):
     pylab.savefig(output)
 
 
-class TestCompleteWorkflow(unittest.TestCase):
+class TestDrifts(unittest.TestCase):
 
     def setUp(self):
         dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))

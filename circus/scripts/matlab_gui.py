@@ -34,7 +34,7 @@ def main(argv=None):
     params         = CircusParser(filename)
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
-    gain           = 1
+    gain           = data_file.gain
     file_out_suff  = params.get('data', 'file_out_suff')
     if hasattr(data_file, 'data_offset'):
         data_offset = data_file.data_offset

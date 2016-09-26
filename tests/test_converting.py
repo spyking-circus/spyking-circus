@@ -4,7 +4,7 @@ from . import mpi_launch, get_dataset
 from circus.shared.utils import *
 from circus.shared.parser import CircusParser
 
-class TestFitting(unittest.TestCase):
+class TestConverting(unittest.TestCase):
     
     def setUp(self):
         self.all_spikes     = None
