@@ -19,7 +19,6 @@ class Stream(object):
         return self.sources[cidx].get_data()
 
         
-
     def get_snippet(self, time, length, nodes=None):
         return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
 
@@ -53,3 +52,10 @@ class Stream(object):
 			duration += b.duration
 		return duration
 
+	@property
+    def shape(self):
+        return (self.duration, self.nb_channels)
+         
+    @property
+    def nb_channels(self):
+        return self.sources[0].nb_channels

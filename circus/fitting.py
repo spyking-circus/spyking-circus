@@ -31,7 +31,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     collect_all    = params.getboolean('fitting', 'collect_all')
     if collect_all:
-        collect_zone = int(0.25*params.rate*1e-3)
+        collect_zone = int((N_t/2))
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
@@ -343,8 +343,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if collect_all:
                 c_all_times = numpy.zeros((local_len, N_e), dtype=numpy.bool)
-                c_min_times = numpy.maximum(numpy.arange(0, local_len) - collect_zone, 0)
-                c_max_times = numpy.minimum(numpy.arange(0, local_len) + collect_zone + 1, max_time - min_time)
+                c_min_times = numpy.maximum(numpy.arange(local_len) - collect_zone, 0)
+                c_max_times = numpy.minimum(numpy.arange(local_len) + collect_zone + 1, max_time - min_time)
                 for i in xrange(N_e):
                     c_all_times[all_found_spikes[i] - min_time, i] = True
                     
@@ -471,11 +471,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if collect_all:
 
                 for temp, spike in zip(templates_to_write, spikes_to_write - local_offset):
-                    c_all_times[c_min_times[spike-min_time]:c_max_times[spike-min_time], neighbors[temp]] = False
+                    c_all_times[c_min_times[spike]:c_max_times[spike], neighbors[temp]] = False
 
                 gspikes       = numpy.where(numpy.sum(c_all_times, 1) > 0)[0]
                 c_all_times   = numpy.take(c_all_times, gspikes, axis=0)
                 c_local_chunk = numpy.take(c_local_chunk, gspikes, axis=0) * c_all_times                
+
+                #idx = numpy.where((gspikes/float(params.rate) > 0.802) & (gspikes/float(params.rate) < 0.803))[0]
+                #print "VACUUM", gspikes[idx]/float(params.rate), c_local_chunk[idx]
+                #idx2 = numpy.where((spikes_to_write/float(params.rate) > 0.802) & (spikes_to_write/float(params.rate) < 0.803))[0]
+                #spike = spikes_to_write[idx2][0]
+                #print "SPIKES", spikes_to_write[idx2]/float(params.rate), templates_to_write[idx2[0]], neighbors[templates_to_write[idx2[0]]], collect_zone, c_min_times[spike-min_time], c_max_times[spike-min_time]
 
                 if sign_peaks == 'negative':
                     bestlecs = numpy.argmin(c_local_chunk, 1)
@@ -502,6 +508,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 
                 gspikes  = numpy.take(gspikes, idx)
                 bestlecs = numpy.take(bestlecs, idx)
+
+                #idx = numpy.where((gspikes/float(params.rate) > 0.802) & (gspikes/float(params.rate) < 0.803))[0]
+                #print "VACUUM", gspikes[idx]/float(params.rate)
+                
+
                 gspikes_to_write     = numpy.array(gspikes + local_offset, dtype=numpy.uint32)
                 gtemplates_to_write  = numpy.array(bestlecs, dtype=numpy.int32)
 
