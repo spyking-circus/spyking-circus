@@ -1,0 +1,55 @@
+import h5py, numpy, re, sys, os
+from circus.shared.messages import print_error, print_and_log
+from circus.shared.mpi import comm
+
+class Stream(object):
+
+	def __init__(self, data_sources, **kwargs):
+
+		self.sources = data_sources
+
+
+	def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+        
+        if not hasattr(self, '_chunks_in_sources'):
+        	print_error(['The Stream must be initialized with the analyze() function'])
+
+        cidx = numpy.searchsorted(idx, self._chunks_in_sources)
+
+        return self.sources[cidx].get_data()
+
+        
+
+    def get_snippet(self, time, length, nodes=None):
+        return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
+
+
+    def set_data(self, time, data):
+        
+        if not hasattr(self, '_chunks_in_sources'):
+        	print_error(['The Stream must be initialized with the analyze() function'])
+
+        cidx = numpy.searchsorted(idx, self._chunks_in_sources)
+        
+        return self.sources[idx].set_data()
+
+
+    def analyze(self, chunk_size):
+        nb_chunks = 0
+        self._chunks_in_sources = [0]
+        for source in self.sources:
+        	a, b = source.analyze(chunk_size)
+        	nb_chunks += a
+        	if b > 0:
+        		nb_chunks += 1
+        	self._chunks_in_sources += [nb_chunks]
+
+        return nb_chunks
+
+
+	@property
+	def duration(self):
+		for source in self.sources:
+			duration += b.duration
+		return duration
+
