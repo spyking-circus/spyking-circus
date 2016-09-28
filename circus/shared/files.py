@@ -1115,7 +1115,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     to_write = ["Number of spikes %s : %d" %(to_print, count)]
 
     if collect_all:
-        to_write += ["Number of spikes not fitted : %d [%g percent]" %(gcount, 100*gcount/float(count))]
+        to_write += ["Number of spikes not fitted (roughly): %d [%g percent]" %(gcount, 100*gcount/float(count))]
 
     print_and_log(to_write, 'info', params)
 
