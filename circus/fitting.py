@@ -451,12 +451,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if collect_all:
 
-                numpy.save('tata', c_all_times)
-
                 for temp, spike in zip(templates_to_write, spikes_to_write - local_offset):
                     c_all_times[c_min_times[spike]:c_max_times[spike], neighbors[temp]] = False
 
-                numpy.save('toto', c_all_times)
                 gspikes       = numpy.where(numpy.sum(c_all_times, 1) > 0)[0]
                 c_all_times   = numpy.take(c_all_times, gspikes, axis=0)
                 c_local_chunk = numpy.take(c_local_chunk, gspikes, axis=0) * c_all_times                
