@@ -292,7 +292,7 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
     pylab.subplot(121)
     pylab.imshow(numpy.mean(curve, 0), aspect='auto')
     pylab.subplot(122)
-    pylab.imshow(templates[:,:,temp_id], aspect='auto')
+    pylab.imshow(templates[:,temp_id].toarray().reshape(N_e, N_t), aspect='auto')
     pylab.show()    
     return curve
 
@@ -503,7 +503,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     xmax = 0
     ymin = 0
     ymax = 0
-    scaling = 10*numpy.max(numpy.abs(templates[:,:,temp_id]))
+    scaling = 10*numpy.max(numpy.abs(templates[:,temp_id].toarray().reshape(N_e, N_t)))
     for i in xrange(N_e):
         if positions[i][0] < xmin:
             xmin = positions[i][0]
