@@ -16,7 +16,6 @@ class H5File(DataFile):
 
     def __init__(self, file_name, is_empty=False, **kwargs):
 
-        kwargs['compression'] = 'gzip'
         DataFile.__init__(self, file_name, is_empty, **kwargs)
 
     def __check_valid_key__(self, file_name, key):

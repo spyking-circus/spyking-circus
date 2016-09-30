@@ -44,6 +44,8 @@ class DataFile(object):
     _parallel_write   = False            #can be written in parallel (using the comm object)
     _is_writable      = False            #can be written
     _shape            = (0, 0)           #The shape of the data (nb time steps, nb channels)
+    _t_start          = 0
+    _t_stop           = 0
 
 
     # This is a dictionary of values that need to be provided to the constructor, with a specified type and
@@ -208,7 +210,7 @@ class DataFile(object):
             - time is expressed in timestep
             - data must be a 2D matrix of size time_length x nb_channels
         '''
-        pass
+        print_error(['No write support is implemented for %s file' %self._description])
 
 
     def analyze(self, chunk_size):
@@ -219,8 +221,8 @@ class DataFile(object):
             counted. chunk_size is expressed in time steps
             - the length of the last uncomplete chunk, in time steps
         '''
-        nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
-        last_chunk_len = numpy.int64(self.shape[0]) - nb_chunks * chunk_size
+        nb_chunks      = self.duration // chunk_size
+        last_chunk_len = self.duration - nb_chunks * chunk_size
 
         if last_chunk_len > 0:
             nb_chunks += 1
@@ -265,8 +267,16 @@ class DataFile(object):
     
     @property
     def duration(self):
-        return self._shape[0]
+        return numpy.int64(self._shape[0])
 
     @property
     def is_master(self):
     	return comm.rank == 0
+
+    @property
+    def t_start(self):
+        return self._t_start
+
+    @property
+    def t_stop(self):
+        return self._t_stop
