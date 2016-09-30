@@ -93,7 +93,7 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-o', '--output', help='output file [for generation of synthetic benchmarks]')
     parser.add_argument('-t', '--type', help='benchmark type',
                         choices=['fitting', 'clustering', 'synchrony'])
-    parser.add_argument('-i', '--info', help='List the file format supported by SpyKING CIRCUS', action='store_true')
+    parser.add_argument('-i', '--info', help='List the file formats supported by SpyKING CIRCUS', action='store_true')
 
     if len(argv) == 0:
         parser.print_help()
@@ -116,9 +116,16 @@ but a subset x,y can be done. Steps are:
     f_next, extens = os.path.splitext(filename)
 
     if info:
-        to_write = ['The file formats that are supported are:']
+        to_write = ['The file formats that are supported are:', '']
         for file in __supported_data_files__:
-            to_write += ['-- ' + file]
+            if __supported_data_files__[file]._is_writable:
+                if __supported_data_files__[file]._parallel_write:
+                    rw = '(read/parallel write)'
+                else:
+                    rw = '(read/write)'
+            else:
+                rw = '(read only)'    
+            to_write += ['-- ' + file + ' ' + rw]
         print_and_log(to_write)
         sys.exit(0)
 

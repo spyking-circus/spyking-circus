@@ -43,9 +43,10 @@ class DataFile(object):
     _extension        = [".myextension"] #extensions
     _parallel_write   = False            #can be written in parallel (using the comm object)
     _is_writable      = False            #can be written
-    _shape            = (0, 0)           #The shape of the data (nb time steps, nb channels)
-    _t_start          = 0
-    _t_stop           = 0
+    _is_streamable    = False            #If the file formats can support streams of data
+    _shape            = (0, 0)           #The total shape of the data (nb time steps, nb channels) accross streams if any
+    _t_start          = None             #The global t_start of the data
+    _t_stop           = None             #The final t_stop of the data, accross all streams if any
 
 
     # This is a dictionary of values that need to be provided to the constructor, with a specified type and
@@ -65,6 +66,7 @@ class DataFile(object):
         What you need to specify (usually be getting value in the _get_info function)
             - _parallel_write : can the file be safely written in parallel ?
             - _is_writable    : if the file can be written
+            - _is_streamable  : if the file format can support streaming data
             - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
             - is_empty is a flag to say if the file is created without data. It has no sense if the file is
              not writable
@@ -275,8 +277,12 @@ class DataFile(object):
 
     @property
     def t_start(self):
+        if self._t_start is None:
+            self._t_start = 0
         return self._t_start
 
     @property
     def t_stop(self):
+        if self._t_stop is None:
+            self._t_stop = self.duration
         return self._t_stop
