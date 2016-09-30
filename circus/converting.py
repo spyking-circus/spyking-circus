@@ -231,7 +231,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
         
             if params.getboolean('whitening', 'spatial'):
-                numpy.save(os.path.join(output_path, 'whitening_mat'), io.load_data(params, 'spatial_whitening').astype(numpy.double))
+                whitening_mat = io.load_data(params, 'spatial_whitening').astype(numpy.double)
+                numpy.save(os.path.join(output_path, 'whitening_mat'), whitening_mat)
+                numpy.save(os.path.join(output_path, 'whitening_mat_inv'), numpy.linalg.inv(whitening_mat))
             else:
                 numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.eye(N_e))
 

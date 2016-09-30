@@ -19,6 +19,7 @@ from circus.shared.messages import print_error, print_and_log, get_colored_heade
 from circus.shared.mpi import SHARED_MEMORY, comm, gather_mpi_arguments
 from circus.shared.parser import CircusParser
 from circus.shared.probes import get_averaged_n_edges
+from circus.files import __supported_data_files__
 
 
 def main(argv=None):
@@ -92,6 +93,7 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-o', '--output', help='output file [for generation of synthetic benchmarks]')
     parser.add_argument('-t', '--type', help='benchmark type',
                         choices=['fitting', 'clustering', 'synchrony'])
+    parser.add_argument('-i', '--info', help='List the file format supported by SpyKING CIRCUS', action='store_true')
 
     if len(argv) == 0:
         parser.print_help()
@@ -107,11 +109,18 @@ but a subset x,y can be done. Steps are:
 
     # To save some typing later
     (nb_cpu, nb_gpu, hostfile, batch,
-     preview, result, extension, output, benchmark) = (args.cpu, args.gpu, args.hostfile, args.batch,
-                                                       args.preview, args.result, args.extension, args.output, args.type)
+     preview, result, extension, output, benchmark, info) = (args.cpu, args.gpu, args.hostfile, args.batch,
+                                                       args.preview, args.result, args.extension, args.output, args.type, args.info)
     filename = os.path.abspath(args.datafile)
 
     f_next, extens = os.path.splitext(filename)
+
+    if info:
+        to_write = ['The file formats that are supported are:']
+        for file in __supported_data_files__:
+            to_write += ['-- ' + file]
+        print_and_log(to_write)
+        sys.exit(0)
 
     if extens == '.params':
         print_error(['You should launch the code on the data file!'])
