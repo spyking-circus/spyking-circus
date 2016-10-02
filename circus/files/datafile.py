@@ -1,5 +1,5 @@
 import h5py, numpy, re, sys, os
-from circus.shared.messages import print_error, print_and_log
+from circus.shared.messages import print_error
 from circus.shared.mpi import comm
 
 

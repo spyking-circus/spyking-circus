@@ -1,5 +1,5 @@
 import h5py, numpy, re, sys
-from circus.shared.messages import print_error, print_and_log
+from circus.shared.messages import print_error
 from datafile import DataFile, comm, get_offset
 
 class H5File(DataFile):
