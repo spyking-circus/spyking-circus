@@ -89,7 +89,7 @@ def data_stats(params, show=True, export_times=False):
 
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
-    data_file    = params.get_data_file()
+    data_file    = params.data_file
     data_file.open()
     N_t          = params.getint('detection', 'N_t')
     if not all_labels:
@@ -178,7 +178,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     sub_comm = comm.Split(myip, 0)
 
     # Load parameters.
-    data_file    = params.get_data_file()
+    data_file    = params.data_file
     data_file.open()
     N_t          = params.getint('detection', 'N_t')
     N_total      = params.nb_channels
@@ -302,7 +302,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
 
 def get_artefact(params, times_i, tau, nodes, normalize=True):
     
-    data_file    = params.get_data_file()
+    data_file    = params.data_file
     data_file.open()
 
     artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
@@ -332,7 +332,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
     floatsize = MPI.FLOAT.Get_size() 
     sub_comm  = comm.Split(myip, 0)
 
-    data_file = params.get_data_file()
+    data_file = params.data_file
     N_e       = params.getint('data', 'N_e')
     N_t       = params.getint('detection', 'N_t')
     
@@ -724,7 +724,7 @@ def load_data(params, data, extension=''):
             triggers = numpy.load(filename)
             N_tr     = triggers.shape[0]
 
-            data_file = params.get_data_file()
+            data_file = params.data_file
             data_file.open()
 
             N_total = params.nb_channels
@@ -963,7 +963,7 @@ def write_datasets(h5file, to_write, result, electrode=None):
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     # Retrieve the key parameters.
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detection', 'N_t')
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -1151,7 +1151,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detection', 'N_t')
     N_total        = params.nb_channels

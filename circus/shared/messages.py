@@ -1,7 +1,6 @@
 from colorama import Fore
 import sys, os, logging
 
-
 def get_header():
 
     import circus
@@ -44,16 +43,7 @@ def init_logging(logfile, debug=True, level=None):
     return logging.getLogger("circus")
 
 
-def set_logger(params):
-    f_next, extension = os.path.splitext(params.get('data', 'data_file'))
-    log_file          = f_next + '.log'
-    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', 
-        filename=log_file,
-        level=logging.DEBUG, 
-        datefmt='%m/%d/%Y %I:%M:%S %p')
-
 def write_to_logger(logger, to_write, level='info'):
-    #set_logger(params)
     for line in to_write:
         if level == 'info':
             logger.info(line)

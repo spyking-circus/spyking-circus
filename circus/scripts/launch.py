@@ -187,8 +187,6 @@ but a subset x,y can be done. Steps are:
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
 
-        new_params = CircusParser(filename)
-
         data_file_out = new_params.get_data_file(multi_files, is_empty=True)
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
@@ -344,11 +342,11 @@ but a subset x,y can be done. Steps are:
         except Exception:
             pass
 
-        params    = CircusParser(filename)
-
         if preview:
-            mygui = gui.PreviewGUI(params)
+            print_and_log(['Launching the preview GUI...'], 'debug', logger)
+            mygui = gui.PreviewGUI(new_params)
             shutil.rmtree(tmp_path_loc)
         elif result:
+            print_and_log(['Launching the result GUI...'], 'debug', logger)
             mygui = gui.PreviewGUI(params, show_fit=True)
         sys.exit(app.exec_())

@@ -22,7 +22,8 @@ def purge(file, pattern):
     for f in os.listdir(dir):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
-    print_and_log(['Removing %s for directory %s' %(pattern, dir)], 'debug', logger)
+    if comm.rank == 0:
+        print_and_log(['Removing %s for directory %s' %(pattern, dir)], 'debug', logger)
 
 def update_and_flush(pbar, *args, **kwds):
     return_value = progressbar.ProgressBar.update(pbar, *args, **kwds)

@@ -37,7 +37,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 try:
                     cut_off[0] = float(cut_off[0])
                 except Exception:
-                    print_and_log(['First value of cut off must be a valid number'], 'error', logger)
+                    if comm.rank == 0:
+                        print_and_log(['First value of cut off must be a valid number'], 'error', logger)
                     sys.exit(0)
                 
                 cut_off[1] = cut_off[1].replace(' ', '')
@@ -47,7 +48,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     try:
                         cut_off[1] = float(cut_off[1])
                     except Exception:
-                        print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', logger)
+                        if comm.rank == 0:
+                            print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', logger)
                         sys.exit(0)
 
             if filter_done:
@@ -145,7 +147,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             mytest           = nb_stimuli == len(windows)
 
             if not mytest:
-                print_and_log(['Error in the trigger files'], 'error', logger)
+                if comm.rank == 0:
+                    print_and_log(['Error in the trigger files'], 'error', logger)
                 sys.exit(0)
 
             all_labels   = artefacts[:, 0]
@@ -210,7 +213,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             mytest           = nb_stimuli == len(windows)
 
             if not mytest:
-                print_and_log(['Error in the trigger files'], 'error', logger)
+                if comm.rank == 0:
+                    print_and_log(['Error in the trigger files'], 'error', logger)
                 sys.exit(0)
 
             all_labels   = artefacts[:, 0]
@@ -261,7 +265,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if not multi_files:  
 
-            data_file = params.get_data_file()
+            if comm.rank == 0:
+                print_and_log(['Single file mode...'], 'debug', logger)
+            data_file = params.data_file
             goffset   = filter_file(data_file)
 
             if clean_artefact:
@@ -281,7 +287,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             data_out.allocate(shape=(times[-1][1], data_out.nb_channels), data_dtype=numpy.float32)
             comm.Barrier()
             
-            print_and_log(['Output file: %s' %combined_file], 'debug', logger)
+            if comm.rank == 0:
+                print_and_log(['Output file: %s' %combined_file], 'debug', logger)
             goffset = 0
             
             for data_file in all_files:
@@ -289,7 +296,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 params.set('data', 'data_multi_file', data_file)
                 data_in = params.get_data_file(multi=True, force_raw=False)
 
-                print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', logger)
+                if comm.rank == 0:
+                    print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', logger)
                 goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))
 
             if clean_artefact:

@@ -14,7 +14,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.converting')
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     file_out_suff  = params.get('data', 'file_out_suff')
     probe          = params.probe
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'

@@ -1037,7 +1037,7 @@ class PreviewGUI(QtGui.QMainWindow):
 
         self.show_fit         = show_fit
         self.params           = params
-        self.data_file        = params.get_data_file()
+        self.data_file        = params.data_file
         self.data_file.open()
         self.maxtime          = io.data_stats(self.params, show=False) - 1
         self.init_gui_layout()

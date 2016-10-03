@@ -1,6 +1,6 @@
 from .shared.utils import *
 from shared import gui
-from shared.messages import init_logging
+from shared.messages import init_logging, print_and_log
 import pylab
 from matplotlib.backends import qt_compat
 
@@ -12,8 +12,8 @@ else:
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
-    logger         = init_logging(params.logfile)
-    logger         = logging.getLogger('circus.merging')
+    logger        = init_logging(params.logfile)
+    logger        = logging.getLogger('circus.merging')
     file_out_suff = params.get('data', 'file_out_suff')
     extension_in  = extension
     extension_out = '-merged'
@@ -40,5 +40,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     else:
         app = None
 
+    print_and_log(['Launching the merging GUI...'], 'debug', logger)
     mygui = gui.MergeWindow(params, app, extension_in, extension_out)
     sys.exit(app.exec_())

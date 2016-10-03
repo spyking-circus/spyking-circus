@@ -1,6 +1,7 @@
 import ConfigParser as configparser
 from messages import print_and_log
 from circus.shared.probes import read_probe
+from circus.shared.mpi import comm
 from circus.files import __supported_data_files__
 	
 import os, sys, copy, numpy, logging
@@ -80,9 +81,12 @@ class CircusParser(object):
         self._N_t         = None
 
         if not os.path.exists(self.file_params):
-            print_and_log(["%s does not exist" %self.file_params], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["%s does not exist" %self.file_params], 'error', logger)
             sys.exit(0)
 
+        if comm.rank == 0:
+            print_and_log(['Creating a Circus Parser for datafile %s' %self.file_name], 'debug', logger)
         self.parser.read(self.file_params)
     
         for section in self.__all_section__:
@@ -124,13 +128,15 @@ class CircusParser(object):
         self.nb_channels = self.probe['total_nb_channels']
 
         if N_e > self.nb_channels:
-            print_and_log(['The number of analyzed channels is higher than the number of recorded channels'], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(['The number of analyzed channels is higher than the number of recorded channels'], 'error', logger)
             sys.exit(0)
 
         try:
             self.file_format = self.parser.get('data', 'file_format')
         except Exception:
-            print_and_log(["Now you must specify explicitly the file format in the config file", 
+            if comm.rank == 0:
+                print_and_log(["Now you must specify explicitly the file format in the config file", 
                        "Please have a look to the documentation and add a file_format", 
                        "parameter in the [data] section. Valid files formats can be:",
                        "", 
@@ -157,20 +163,23 @@ class CircusParser(object):
 
         if self.parser.getboolean('triggers', 'clean_artefact'):
             if (self.parser.get('triggers', 'trig_file') == '') or (self.parser.get('triggers', 'trig_windows') == ''):
-                print_and_log(["trig_file and trig_windows must be specified"], 'error', logger)
+                if comm.rank == 0:
+                    print_and_log(["trig_file and trig_windows must be specified"], 'error', logger)
                 sys.exit(0)
 	    
         self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
         self.parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_windows'))))
 
-        test = (self.parser.get('clustering', 'extraction') in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
+        test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
         if not test:
-            print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
             sys.exit(0)
 
-        test = (self.parser.get('detection', 'peaks') in ['negative', 'positive', 'both'])
+        test = (self.parser.get('detection', 'peaks').lower() in ['negative', 'positive', 'both'])
         if not test:
-            print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', logger)
 
         try:
             os.makedirs(f_next)
@@ -185,53 +194,62 @@ class CircusParser(object):
         for section in ['whitening', 'clustering']:
             test = (self.parser.getfloat(section, 'nb_elts') > 0) and (self.parser.getfloat(section, 'nb_elts') <= 1)
             if not test: 
-                print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', logger)
+                if comm.rank == 0:
+                    print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', logger)
                 sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
         if not test:
-            print_and_log(["nclus_min in clustering should be in [0,1["], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["nclus_min in clustering should be in [0,1["], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'noise_thr') >= 0) and (self.parser.getfloat('clustering', 'noise_thr') <= 1)
         if not test:
-            print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)
         if not test:
-            print_and_log(["test_size in validating should be in ]0,1["], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["test_size in validating should be in ]0,1["], 'error', logger)
             sys.exit(0)
 
         fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
-        test = self.parser.get('clustering', 'make_plots') in fileformats
+        test = self.parser.get('clustering', 'make_plots').lower() in fileformats
         if not test:
-            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
             sys.exit(0)
-        test = self.parser.get('validating', 'make_plots') in fileformats
+
+        test = self.parser.get('validating', 'make_plots').lower() in fileformats
         if not test:
-            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
             sys.exit(0)
 	    
         dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
         dispersion     = map(float, dispersion)
         test =  (0 < dispersion[0]) and (0 < dispersion[1])
         if not test:
-            print_and_log(["min and max dispersions should be positive"], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["min and max dispersions should be positive"], 'error', logger)
             sys.exit(0)
 	        
 
         pcs_export = ['prompt', 'none', 'all', 'some']
-        test = self.parser.get('converting', 'export_pcs') in pcs_export
+        test = self.parser.get('converting', 'export_pcs').lower() in pcs_export
         if not test:
-            print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', logger)
             sys.exit(0)
         else:
-            if self.parser.get('converting', 'export_pcs') == 'none':
+            if self.parser.get('converting', 'export_pcs').lower() == 'none':
                 self.parser.set('converting', 'export_pcs', 'n')
-            elif self.parser.get('converting', 'export_pcs') == 'some':
+            elif self.parser.get('converting', 'export_pcs').lower() == 'some':
                 self.parser.set('converting', 'export_pcs', 's')
-            elif self.parser.get('converting', 'export_pcs') == 'all':
+            elif self.parser.get('converting', 'export_pcs').lower() == 'all':
                 self.parser.set('converting', 'export_pcs', 'a')
 	    
 
@@ -258,7 +276,8 @@ class CircusParser(object):
                 self._N_t = self.getfloat('detection', 'N_t')
             except Exception:
                 self._N_t = self.getfloat('data', 'N_t')
-                print_and_log(['N_t is now defined in the [detection] section'], 'error', logger)
+                if comm.rank == 0:
+                    print_and_log(['N_t is now defined in the [detection] section'], 'error', logger)
 
             self._N_t = int(self.rate*self._N_t*1e-3)
             if numpy.mod(self._N_t, 2) == 0:
@@ -289,7 +308,8 @@ class CircusParser(object):
 
     def _create_data_file(self, data_file, is_empty, **params):
         file_format       = params.pop('file_format').lower()
-        print_and_log(['Trying to read file %s' %data_file], 'debug', logger)
+        if comm.rank == 0:
+            print_and_log(['Trying to read file %s as %s' %(data_file, file_format)], 'debug', logger)
         params            = self._get_values_for_datafiles(file_format, **params)
         data              = __supported_data_files__[file_format](data_file, is_empty, **params)
         self.rate         = data.sampling_rate
@@ -298,7 +318,8 @@ class CircusParser(object):
         self._update_rate_values()
         N_e = self.getint('data', 'N_e')
         if N_e > self.nb_channels:
-            print_and_log(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)], 'error', logger)
             sys.exit(0)
 
         return data 
@@ -321,7 +342,8 @@ class CircusParser(object):
                 if value[0] == 'string':
                     params[key] = str(kwargs[key])
 
-                print_and_log(['%s is set to a value of %s' %(key, params[key])], 'debug', logger)
+                if comm.rank == 0:
+                    print_and_log(['%s is set to a value of %s' %(key, params[key])], 'debug', logger)
 
             elif key not in kwargs:
                 
@@ -336,14 +358,16 @@ class CircusParser(object):
                         if value[0] == 'string':
                             params[key] = self.parser.get('data', key)
                     
-                        print_and_log(['%s is read from the params with a value of %s' %(key, params[key])], 'debug', logger)
+                        if comm.rank == 0:
+                            print_and_log(['%s is read from the params with a value of %s' %(key, params[key])], 'debug', logger)
                     
                     except Exception:
                         pass
 
                 elif value[1] is not None:
                     params[key] = value[1]
-                    print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', logger)
+                    if comm.rank == 0:
+                       print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', logger)
 
         return params
 
@@ -370,6 +394,8 @@ class CircusParser(object):
                 params    = data.get_description()
         
         if force_raw == True:
+            if comm.rank == 0:
+                print_and_log(['Forcing the data file to be of type raw_binary'], 'debug', logger)
             params['file_format']   = 'raw_binary'
             params['data_dtype']    = 'float32'
             params['dtype_offset']  = 'auto'
@@ -394,11 +420,14 @@ class CircusParser(object):
             to_process += [os.path.join(os.path.abspath(dirname), pattern)]
             pattern     = pattern.replace(str(count), str(count+1))
             count      += 1
-
-        print_and_log(['Multi-files:'] + to_process, 'debug', logger)
+    
+        if comm.rank == 0:
+            print_and_log(['Multi-files:'] + to_process, 'debug', logger)
         return to_process
 
     def write(self, section, flag, value):
+        if comm.rank == 0:
+            print_and_log(['Writing value %s for %s:%s' %(value, section, flag)], 'debug', logger)
         self.parser.set(section, flag, value)
         f     = open(self.file_params, 'r')
         lines = f.readlines()

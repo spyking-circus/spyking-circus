@@ -12,7 +12,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.clustering')
     #################################################################
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     data_file.open()
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels

@@ -24,7 +24,8 @@ Release 0.5
 * fix a bug with the size of the safety time parameter during whitening and clustering
 * all the interactions with the parameters are now done in the circus/shared/parser.py file
 * all the interactions with the probe are now done in the circus/shared/probes.py file
-* more robust logging system
+* more robust and explicit logging system
+* more robust checking of the parameters
 * display the electrode number in the preview/result GUI
 
 

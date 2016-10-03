@@ -12,7 +12,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.extracting')
     #################################################################
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detecton', 'N_t')
     N_total        = params.nb_channels

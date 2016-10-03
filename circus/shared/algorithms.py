@@ -162,7 +162,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
     import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
@@ -228,7 +228,7 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
     
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
@@ -349,7 +349,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         return to_merge, result
          
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
@@ -401,7 +401,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         
     templates      = load_data(params, 'templates')
     
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')

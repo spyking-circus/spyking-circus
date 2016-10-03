@@ -125,7 +125,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
-    data_file        = params.get_data_file()
+    data_file        = params.data_file
     N_e              = params.getint('data', 'N_e')
     N_total          = params.nb_channels
     nodes, edges     = get_nodes_and_edges(params)

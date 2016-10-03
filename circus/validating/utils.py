@@ -98,7 +98,7 @@ def with_quadratic_feature(X_raw, pairwise=False):
 def extract_extra_thresholds(params):
     """Compute the mean and the standard deviation for each extracellular channel"""
     
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     data_file.open()
 
     chunk_size = params.getint('data', 'chunk_size')
@@ -222,7 +222,7 @@ def extract_extra_thresholds(params):
 def extract_extra_spikes_(params):
     """Detect spikes from the extracellular traces"""
     
-    data_file = params.get_data_file()
+    data_file = params.data_file
     data_file.open()
     dist_peaks     = params.getint('detection', 'dist_peaks')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')

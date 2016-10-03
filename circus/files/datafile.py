@@ -20,11 +20,14 @@ def get_offset(data_dtype, dtype_offset):
             dtype_offset = 127
         elif data_dtype in ['float64', numpy.float64]:
             dtype_offset = 0    
+        if comm.rank == 0:
+            print_and_log(['data type offset for %s is automatically set to %d' %(data_dtype, dtype_offset)], 'debug', logger)
     else:
         try:
             dtype_offset = int(dtype_offset)
         except Exception:
-            print_and_log(["Offset %s is not valid" %dtype_offset], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(["Offset %s is not valid" %dtype_offset], 'error', logger)
             sys.exit(0)
 
     return dtype_offset
@@ -117,7 +120,8 @@ class DataFile(object):
         for key, value in self._requiered_fields.items():
             if key not in kwargs.keys():
                 missing[key] = value
-                print_and_log(['%s must be specified as type %s in the [data] section!' %(key, value[0])], 'error', logger)
+                if self.is_master:
+                    print_and_log(['%s must be specified as type %s in the [data] section!' %(key, value[0])], 'error', logger)
         
 
         if len(missing) > 0:
@@ -139,7 +143,8 @@ class DataFile(object):
 
             to_write += [mystring]
 
-        print_and_log(to_write, 'error', logger)
+        if self.is_master:
+            print_and_log(to_write, 'error', logger)
 
 
     def _get_info_(self):
