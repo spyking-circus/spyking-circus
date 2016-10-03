@@ -116,8 +116,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.params     = params
         self.ext_in     = extension_in
         self.ext_out    = extension_out
-        data_file       = params.get_data_file()
-        data_file.open()
+        data_file       = params.data_file
         self.N_e           = params.getint('data', 'N_e')
         self.N_t           = params.getint('detection', 'N_t')
         self.N_total       = params.nb_channels

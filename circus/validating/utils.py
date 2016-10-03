@@ -427,6 +427,7 @@ def extract_extra_spikes_(params):
     if comm.rank == 0:
         pbar.finish()
     
+    data_file.close()
     comm.Barrier()
     
     # Gather times, channels and values.

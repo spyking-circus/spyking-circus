@@ -735,6 +735,7 @@ def load_data(params, data, extension=''):
             spikes = numpy.zeros((N_t, N_total, N_tr))
             for (count, idx) in enumerate(triggers):
                 spikes[:, :, count] = data_file.get_snippet(idx - template_shift, N_t)
+            data_file.close()
             return triggers, spikes
         else:
             raise Exception('No triggers found! Check suffix or check if file `%s` exists?' %filename)

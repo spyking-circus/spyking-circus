@@ -240,7 +240,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 bfile.close()
             comm.Barrier()
 
-    data_file.close()
     #if comm.rank == 0:
         #if not os.path.exists(plot_path):
         #    os.makedirs(plot_path)
@@ -252,7 +251,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(422)
 
     #################################################################
-    data_file.open()
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')

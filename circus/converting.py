@@ -164,8 +164,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         if comm.rank == 0:
           pbar    = get_progressbar(len(to_process))
 
-        data_file.open()
-
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_process):
 
@@ -196,7 +194,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
           pbar.finish()
 
         comm.Barrier()
-        data_file.close()
 
         if comm.rank == 0:
             numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind.astype(numpy.uint32)) #n_templates, n_loc_chan

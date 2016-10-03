@@ -37,11 +37,10 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.validating')
     data_file      = params.data_file
-    data_file.open()
-    N_e             = params.getint('data', 'N_e')
-    N_t             = params.getint('detection', 'N_t')
-    N_total         = params.nb_channels
-    sampling_rate   = params.rate
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('detection', 'N_t')
+    N_total        = params.nb_channels
+    sampling_rate  = params.rate
 
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -1598,7 +1597,5 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     if comm.rank == 0:
         print_and_log(["Validation done."], level='debug', logger=logger)
-
-    data_file.close()
 
     return

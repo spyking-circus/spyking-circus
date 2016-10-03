@@ -718,6 +718,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
         count_templates = node_pad
 
+        data_file.close()
         
         if (comm.rank == 0):
             if local_nb_clusters > 0:
@@ -968,7 +969,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             hfile.close()
     
     comm.Barrier()
-    data_file.close()
 
     if comm.rank == 0:
         print_and_log(["Merging similar templates..."], 'default', logger)
