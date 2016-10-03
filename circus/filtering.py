@@ -21,7 +21,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
-            io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', logger)
+            if comm.rank == 0:
+                print_and_log(['trig_file or trig_windows file can not be found'], 'error', logger)
             sys.exit(0)
 
     if do_filter or multi_files or clean_artefact or remove_median:
@@ -168,6 +169,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     os.makedirs(plot_path)
 
             comm.Barrier()
+            data_file.open()
             # First we need to get the average artefacts
             art_dict = {}
             for count, artefact in enumerate(local_labels):
@@ -227,6 +229,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 pbar = get_progressbar(len(all_times))
 
             comm.Barrier()
+            data_file.open(mode='r+')
             
             count    = 0
     

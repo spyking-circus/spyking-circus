@@ -539,7 +539,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         #new_params.set('data', 'file_out', file_out_bis) # Output file without suffix
         #new_params.set('data', 'file_out_suff', file_out_bis  + params.get('data', 'suffix'))
     
-
+        new_params.get_data_file()
         io.collect_data(comm.size, new_params, erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
         # Change some flags in the configuration file.
         new_params.write('whitening', 'temporal', 'False') # Disable temporal filtering

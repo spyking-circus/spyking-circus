@@ -323,7 +323,7 @@ but a subset x,y can be done. Steps are:
                         try:
                             subprocess.check_call(mpi_args)
                         except:
-                            pring_and_log(['Step "%s" failed!' % subtask], 'error', logger)
+                            print_and_log(['Step "%s" failed!' % subtask], 'error', logger)
                             raise
 
     if preview or result:
