@@ -522,6 +522,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
     comm.Barrier()
+    
 
 
     if comm.rank == 0:
