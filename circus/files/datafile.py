@@ -212,7 +212,9 @@ class DataFile(object):
             - time is expressed in timestep
             - data must be a 2D matrix of size time_length x nb_channels
         '''
-        print_error(['No write support is implemented for %s file' %self._description])
+        if self.is_master:
+            print_error(['No write support is implemented for %s file' %self._description])
+        sys.exit(0)
 
 
     def analyze(self, chunk_size):
@@ -254,7 +256,7 @@ class DataFile(object):
                 - shape is a tuple with (time lenght, nb_channels)
                 - data_dtype is the data type
         '''
-        if self.master:
+        if self.is_master:
             print_error(["The method is not implemented for file format %s" %self._description])
         sys.exit(0)
 
