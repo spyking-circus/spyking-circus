@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
-import six, h5py, pkg_resources
+import six, h5py, pkg_resources, logging
 
 import numpy as np
 import matplotlib as mpl
@@ -27,6 +27,7 @@ from mpi import SHARED_MEMORY, comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
 
+logger = logging.getLogger(__name__)
 
 class SymmetricVCursor(widgets.AxesWidget):
     '''Variant of matplotlib.widgets.Cursor, drawing two symmetric vertical
@@ -110,7 +111,7 @@ class MergeWindow(QtGui.QMainWindow):
             super(MergeWindow, self).__init__()
 
         if comm.rank == 0:
-            print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)
+            print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', logger)
         self.app        = app
         self.params     = params
         self.ext_in     = extension_in
@@ -327,7 +328,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
         if comm.rank == 0:
-            print_and_log(['Updating the data...'], 'default', self.params)
+            print_and_log(['Updating the data...'], 'default', logger)
             pbar = get_progressbar(len(real_indices))
 
         for count, temp_id1 in enumerate(real_indices):
@@ -874,7 +875,7 @@ class MergeWindow(QtGui.QMainWindow):
             self.lasso_selector.points = self.points[2]
 
     def remove_templates(self, event):
-        print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', self.params)
+        print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', logger)
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
         self.to_delete = numpy.concatenate((self.to_delete, self.to_consider[self.inspect_templates]))
@@ -899,7 +900,7 @@ class MergeWindow(QtGui.QMainWindow):
 
     def do_merge(self, event, regenerate=True):
         # This simply removes the data points for now
-        print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', self.params)
+        print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', logger)
         
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
@@ -1187,7 +1188,7 @@ class PreviewGUI(QtGui.QMainWindow):
                         self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
             except Exception:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
-                print_and_log(["No results found!"], 'info', self.params)
+                print_and_log(["No results found!"], 'info', logger)
 
             if self.has_garbage:
                 self.uncollected = {}

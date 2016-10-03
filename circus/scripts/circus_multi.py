@@ -8,7 +8,7 @@ import circus
 import tempfile
 import h5py
 import numpy
-from circus.shared.messages import print_error, print_and_log, get_colored_header
+from circus.shared.messages import print_and_log, get_colored_header
 from circus.shared.algorithms import slice_result
 from circus.shared.parser import CircusParser
 
@@ -33,10 +33,14 @@ def main(argv=None):
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
     params         = CircusParser(filename)
+    if os.path.exists(params.logfile):
+        os.remove(params.logfile)
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger(__name__)
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if not params.get('data', 'multi-files'):
-        print_and_log(['Not a multi-file!'], 'error', params)
+        print_and_log(['Not a multi-file!'], 'error', logger)
         sys.exit(0)
 
     to_process  = circus.shared.files.get_multi_files(params)

@@ -289,6 +289,7 @@ class CircusParser(object):
 
     def _create_data_file(self, data_file, is_empty, **params):
         file_format       = params.pop('file_format').lower()
+        print_and_log(['Trying to read file %s' %data_file], 'debug', logger)
         params            = self._get_values_for_datafiles(file_format, **params)
         data              = __supported_data_files__[file_format](data_file, is_empty, **params)
         self.rate         = data.sampling_rate
@@ -300,13 +301,12 @@ class CircusParser(object):
             print_and_log(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)], 'error', logger)
             sys.exit(0)
 
-
         return data 
 
 
     def _get_values_for_datafiles(self, file_format, **kwargs):
 
-        params = {}
+        params       = {}
 
         for key, value in __supported_data_files__[file_format]._requiered_fields.items():
             

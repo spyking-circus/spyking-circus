@@ -148,10 +148,11 @@ but a subset x,y can be done. Steps are:
         tasks_list = filename
 
     if not batch:
+        logfile      = f_next + '.log'
+        if os.path.exists(logfile):
+            os.remove(logfile)
+        logger       = init_logging(logfile)
         params       = CircusParser(filename)
-        if os.path.exists(params.logfile):
-            os.remove(params.logfile)
-        logger       = init_logging(params.logfile)
         multi_files  = params.getboolean('data', 'multi-files')
         data_file    = params.get_data_file(multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
@@ -276,8 +277,8 @@ but a subset x,y can be done. Steps are:
                         try:
                             circus.launch(subtask, filename, nb_cpu, nb_gpu, use_gpu)
                         except:
-                            print_error(['Step "%s" failed!' % subtask])
-                            raise
+                            print_and_log(['Step "%s" failed!' % subtask], 'error', logger)
+                            sys.exit(0)
                     elif command == 'mpirun':
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
@@ -304,8 +305,8 @@ but a subset x,y can be done. Steps are:
 
                         if subtask == 'benchmarking':
                             if (output is None) or (benchmark is None):
-                                print_error(["To generate synthetic datasets, you must provide output and type"])
-                                sys.exit()
+                                print_and_log(["To generate synthetic datasets, you must provide output and type"], 'error', logger)
+                                sys.exit(0)
                             mpi_args += ['-np', nb_tasks,
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
@@ -324,7 +325,7 @@ but a subset x,y can be done. Steps are:
                         try:
                             subprocess.check_call(mpi_args)
                         except:
-                            print_error(['Step "%s" failed!' % subtask])
+                            pring_and_log(['Step "%s" failed!' % subtask], 'error', logger)
                             raise
 
     if preview or result:

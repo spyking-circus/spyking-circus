@@ -1,5 +1,5 @@
     # -*- coding: utf-8 -*-
-import warnings
+import warnings, logging
 warnings.filterwarnings("ignore")
 import matplotlib
 matplotlib.use('Agg', warn=False)
@@ -13,12 +13,16 @@ import numpy, pylab, os, mpi4py, progressbar, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
 from mpi import *
 import files as io
+from messages import print_and_log
+
+logger = logging.getLogger(__name__)
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))
     for f in os.listdir(dir):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
+    print_and_log(['Removing %s for directory %s' %(pattern, dir)], 'debug', logger)
 
 def update_and_flush(pbar, *args, **kwds):
     return_value = progressbar.ProgressBar.update(pbar, *args, **kwds)

@@ -1,4 +1,4 @@
-import h5py
+import h5py, logging
 import matplotlib.pyplot as plt
 from scipy import signal
 
@@ -9,9 +9,10 @@ from ..shared import plot
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.parser import CircusParser
-from circus.shared.messages import print_and_log, print_error
+from circus.shared.messages import print_and_log
 
 
+logger = logging.getLogger(__name__)
 
 def get_neighbors(params, chan=None):
     N_total = params.getint('data', 'N_total')
@@ -154,7 +155,7 @@ def extract_extra_thresholds(params):
     
     if comm.rank == 0:
         print_and_log(["Computing extracellular medians..."],
-                         level='default', logger=params)
+                         level='default', logger=logger)
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
@@ -185,7 +186,7 @@ def extract_extra_thresholds(params):
     
     if comm.rank == 0:
         print_and_log(["Computing extracellular thresholds..."],
-                         level='default', logger=params)
+                         level='default', logger=logger)
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
@@ -389,7 +390,7 @@ def extract_extra_spikes_(params):
     loc_nb_chunks = len(loc_all_chunks)
     
     if comm.rank == 0:
-        print_and_log(["Collecting extracellular spikes..."], level='default', logger=params)
+        print_and_log(["Collecting extracellular spikes..."], level='default', logger=logger)
     
     if comm.rank == 0:
         pbar = get_progressbar(loc_nb_chunks)
@@ -447,8 +448,8 @@ def extract_extra_spikes_(params):
         msg2 = [
             "Number of extracellular spikes extracted on channel {}: {}".format(i, channels[channels == i].size) for i in numpy.unique(channels)
         ]
-        print_and_log(msg, level='info', logger=params)
-        print_and_log(msg2, level='debug', logger=params)
+        print_and_log(msg, level='info', logger=logger)
+        print_and_log(msg2, level='debug', logger=logger)
     
     
     if comm.rank == 0:
@@ -492,7 +493,7 @@ def extract_extra_spikes(params):
             msg = [
                 "Spike detection for extracellular traces has already been done"
             ]
-            print_and_log(msg, 'info', params)
+            print_and_log(msg, 'info', logger)
     else:
         extract_extra_spikes_(params)
 
@@ -549,7 +550,7 @@ def extract_juxta_spikes_(params):
     beer_file.close()
 
     if comm.rank == 0:
-        print_and_log(["Extract juxtacellular spikes"], level='debug', logger=params)
+        print_and_log(["Extract juxtacellular spikes"], level='debug', logger=logger)
     
     # Detect juxta spike times.
     threshold = juxta_thresh * juxta_mad
@@ -604,7 +605,7 @@ def extract_juxta_spikes(params):
             msg = [
                 "Spike detection for juxtacellular traces has already been done"
             ]
-            print_and_log(msg, 'info', params)
+            print_and_log(msg, 'info', logger)
     elif do_juxta:
         extract_juxta_spikes_(params)
     return

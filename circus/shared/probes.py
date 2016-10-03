@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 def read_probe(parser):
     probe    = {}
     filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
+    print_and_log(["Reading the probe file %s" %filename], 'debug', logger)
     if not os.path.exists(filename):
         print_and_log(["The probe file %s can not be found" %filename], 'error', logger)
         sys.exit(0)

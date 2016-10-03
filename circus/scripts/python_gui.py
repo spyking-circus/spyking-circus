@@ -6,9 +6,9 @@ import pkg_resources
 import argparse
 import circus
 import tempfile
-import numpy, h5py
+import numpy, h5py, logging
 from distutils.version import LooseVersion, StrictVersion
-from circus.shared.messages import print_error, print_and_log, get_header, get_colored_header
+from circus.shared.messages import print_and_log, get_header, get_colored_header, init_logging
 from circus.shared.parser import CircusParser
 
 from phy import add_default_handler
@@ -42,10 +42,14 @@ def main(argv=None):
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
     params         = CircusParser(filename)
+    if os.path.exists(params.logfile):
+        os.remove(params.logfile)
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger(__name__)
     
     mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
     if not mytest:
-        print_and_log(['You need to update phy-contrib to the latest git version'], 'error', params)
+        print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
         sys.exit(0)
 
     data_file      = params.get_data_file()
@@ -58,11 +62,11 @@ def main(argv=None):
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if file_format not in supported_by_phy:
-        print_and_log(["File format %s is not supported by phy. TraceView disabled" %file_format], 'info', params)
+        print_and_log(["File format %s is not supported by phy. TraceView disabled" %file_format], 'info', logger)
 
     gain           = data_file.gain
     if numpy.any(gain != 1):
-        print_and_log(["Gain of %g is not supported by phy. Expecting a scaling mismatch" %gain], 'info', params)
+        print_and_log(["Gain of %g is not supported by phy. Expecting a scaling mismatch" %gain], 'info', logger)
 
 
     probe          = params.probe
@@ -71,10 +75,10 @@ def main(argv=None):
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
 
     if not os.path.exists(output_path):
-        print_and_log(['Data should be first exported with the converting method!'], 'error', params)
+        print_and_log(['Data should be first exported with the converting method!'], 'error', logger)
     else:
 
-        print_and_log(["Launching the phy GUI..."], 'info', params)
+        print_and_log(["Launching the phy GUI..."], 'info', logger)
 
         gui_params                   = {}
         if file_format in supported_by_phy:

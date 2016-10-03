@@ -8,7 +8,7 @@ import h5py
 
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
-from circus.shared.messages import print_and_log, print_error, init_logging
+from circus.shared.messages import print_and_log, init_logging
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
@@ -25,7 +25,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     export_all     = params.getboolean('converting', 'export_all')
     if export_all and not params.getboolean('fitting', 'collect_all'):
         if comm.rank == 0:
-            print_error(['Export unfitted spikes only if [fitting] collect_all is True'])
+            print_and_log(['Export unfitted spikes only if [fitting] collect_all is True'], 'error', logger)
         sys.exit(0)
 
     def generate_mapping(probe):

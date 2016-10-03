@@ -77,7 +77,8 @@ def data_stats(params, show=True, export_times=False):
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
 
-    print_and_log(lines, 'info', logger, show)
+    if show:
+        print_and_log(lines, 'info', logger)
 
     if not export_times:
         return nb_chunks*60 + nb_seconds + last_chunk_len/1000.
