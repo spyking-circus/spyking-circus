@@ -1,6 +1,8 @@
-import h5py, numpy, re, sys, os
-from circus.shared.messages import print_error
+import h5py, numpy, re, sys, os, logging
+from circus.shared.messages import print_and_log
 from circus.shared.mpi import comm
+
+logger = logging.getLogger(__name__)
 
 
 def get_offset(data_dtype, dtype_offset):
@@ -22,7 +24,7 @@ def get_offset(data_dtype, dtype_offset):
         try:
             dtype_offset = int(dtype_offset)
         except Exception:
-            print_error(["Offset %s is not valid" %dtype_offset])
+            print_and_log(["Offset %s is not valid" %dtype_offset], 'error', logger)
             sys.exit(0)
 
     return dtype_offset
@@ -81,7 +83,7 @@ class DataFile(object):
         if self._extension is not None:
             if not extension in self._extension + [item.upper() for item in self._extension]:
                 if self.is_master:
-                    print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
+                    print_and_log(["The extension %s is not valid for a %s file" %(extension, self._description)], 'error', logger)
                 sys.exit(0)
 
         for key, value in kwargs.items():
@@ -106,7 +108,7 @@ class DataFile(object):
     def _check_valid_(self):
         for key in self._mandatory:
             if not hasattr(self, key):
-                print_error(['%s is a needed attribute of a datafile, and it is not defined' %key])
+                print_and_log(['%s is a needed attribute of a datafile, and it is not defined' %key], 'error', logger)
 
     def _check_requierements_(self, **kwargs):
 
@@ -115,7 +117,7 @@ class DataFile(object):
         for key, value in self._requiered_fields.items():
             if key not in kwargs.keys():
                 missing[key] = value
-                print_error(['%s must be specified as type %s in the [data] section!' %(key, value[0])])
+                print_and_log(['%s must be specified as type %s in the [data] section!' %(key, value[0])], 'error', logger)
         
 
         if len(missing) > 0:
@@ -137,7 +139,7 @@ class DataFile(object):
 
             to_write += [mystring]
 
-        print_error(to_write)
+        print_and_log(to_write, 'error', logger)
 
 
     def _get_info_(self):
@@ -213,7 +215,7 @@ class DataFile(object):
             - data must be a 2D matrix of size time_length x nb_channels
         '''
         if self.is_master:
-            print_error(['No write support is implemented for %s file' %self._description])
+            print_and_log(['No write support is implemented for %s file' %self._description], 'error', logger)
         sys.exit(0)
 
 
@@ -257,7 +259,7 @@ class DataFile(object):
                 - data_dtype is the data type
         '''
         if self.is_master:
-            print_error(["The method is not implemented for file format %s" %self._description])
+            print_and_log(["The method is not implemented for file format %s" %self._description], 'error', logger)
         sys.exit(0)
 
 

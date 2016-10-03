@@ -1,6 +1,8 @@
-import h5py, numpy, re, sys, re
-from circus.shared.messages import print_error
+import h5py, numpy, re, sys, re, logging
+from circus.shared.messages import print_and_log
 from raw_binary import RawBinaryFile
+
+logger = logging.getLogger(__name__)
 
 class RawMCSFile(RawBinaryFile):
 
@@ -43,7 +45,7 @@ class RawMCSFile(RawBinaryFile):
                         stop = True
             fid.close()
             if stop is False:
-                print_error(['Wrong MCS header: file is not exported with MCRack'])
+                print_and_log(['Wrong MCS header: file is not exported with MCRack'], 'error', logger)
                 sys.exit(0) 
             else:
                 header += 2
@@ -58,5 +60,5 @@ class RawMCSFile(RawBinaryFile):
 
             return full_header, header, len(regexp.findall(full_header['Streams']))
         except Exception:
-            print_error(["Wrong MCS header: file is not exported with MCRack"])
+            print_and_log(["Wrong MCS header: file is not exported with MCRack"], 'error', logger)
             sys.exit(0)

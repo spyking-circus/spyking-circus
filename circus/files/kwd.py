@@ -1,5 +1,4 @@
 import h5py, numpy, re, sys
-from circus.shared.messages import print_error
 from hdf5 import H5File
 
 class KwdFile(H5File):

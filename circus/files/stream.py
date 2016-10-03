@@ -1,6 +1,8 @@
 import h5py, numpy, re, sys, os
-from circus.shared.messages import print_error
+from circus.shared.messages import print_and_log
 from circus.shared.mpi import comm
+
+logger = logging.getLogger(__name__)
 
 class Stream(object):
 
@@ -12,7 +14,7 @@ class Stream(object):
 	def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         if not hasattr(self, '_chunks_in_sources'):
-        	print_error(['The Stream must be initialized with the analyze() function'])
+        	print_and_log(['The Stream must be initialized with the analyze() function'], 'error', logger)
 
         cidx = numpy.searchsorted(idx, self._chunks_in_sources)
 
@@ -26,7 +28,7 @@ class Stream(object):
     def set_data(self, time, data):
         
         if not hasattr(self, '_chunks_in_sources'):
-        	print_error(['The Stream must be initialized with the analyze() function'])
+        	print_and_log(['The Stream must be initialized with the analyze() function'], 'error', logger)
 
         cidx = numpy.searchsorted(idx, self._chunks_in_sources)
         

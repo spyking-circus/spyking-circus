@@ -1,5 +1,4 @@
 import h5py, numpy, re, sys, os
-from circus.shared.messages import print_error
 from datafile import DataFile
 
 class OpenEphysFile(DataFile):

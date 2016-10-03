@@ -1,5 +1,5 @@
 import ConfigParser as configparser
-from messages import print_error, print_and_log
+from messages import print_and_log
 from circus.shared.probes import read_probe
 from circus.files import __supported_data_files__
 	
@@ -80,7 +80,7 @@ class CircusParser(object):
         self._N_t         = None
 
         if not os.path.exists(self.file_params):
-            print_error(["%s does not exist" %self.file_params])
+            print_and_log(["%s does not exist" %self.file_params], 'error', logger)
             sys.exit(0)
 
         self.parser.read(self.file_params)
@@ -124,17 +124,17 @@ class CircusParser(object):
         self.nb_channels = self.probe['total_nb_channels']
 
         if N_e > self.nb_channels:
-            print_error(['The number of analyzed channels is higher than the number of recorded channels'])
+            print_and_log(['The number of analyzed channels is higher than the number of recorded channels'], 'error', logger)
             sys.exit(0)
 
         try:
             self.file_format = self.parser.get('data', 'file_format')
         except Exception:
-            print_error(["Now you must specify explicitly the file format in the config file", 
+            print_and_log(["Now you must specify explicitly the file format in the config file", 
                        "Please have a look to the documentation and add a file_format", 
                        "parameter in the [data] section. Valid files formats can be:",
                        "", 
-                       ", ".join(__supported_data_files__.keys())])
+                       ", ".join(__supported_data_files__.keys())], 'error', logger)
             sys.exit(0)	
 
         try: 
@@ -258,7 +258,7 @@ class CircusParser(object):
                 self._N_t = self.getfloat('detection', 'N_t')
             except Exception:
                 self._N_t = self.getfloat('data', 'N_t')
-                print_error(['N_t is now defined in the [detection] section'])
+                print_and_log(['N_t is now defined in the [detection] section'], 'error', logger)
 
             self._N_t = int(self.rate*self._N_t*1e-3)
             if numpy.mod(self._N_t, 2) == 0:
@@ -297,7 +297,7 @@ class CircusParser(object):
         self._update_rate_values()
         N_e = self.getint('data', 'N_e')
         if N_e > self.nb_channels:
-            print_error(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)])
+            print_and_log(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)], 'error', logger)
             sys.exit(0)
 
 

@@ -2,7 +2,7 @@ from scipy import signal
 from .shared import plot
 from .shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.messages import print_error, print_and_log, init_logging
+from circus.shared.messages import print_and_log, init_logging
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):

@@ -1,5 +1,4 @@
 import h5py, numpy, re, sys
-from circus.shared.messages import print_error
 from datafile import DataFile
 import neuroshare as ns
 

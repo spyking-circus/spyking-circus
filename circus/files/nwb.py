@@ -1,6 +1,5 @@
 import h5py, numpy, re, sys
 import ConfigParser as configparser
-from circus.shared.messages import print_error
 from hdf5 import H5File
 
 class NWBFile(H5File):

@@ -1,6 +1,6 @@
 import numpy, os, mpi4py, logging
 from mpi4py import MPI
-from messages import print_and_log, print_error
+from messages import print_and_log
 comm = MPI.COMM_WORLD
 
 try:
@@ -35,9 +35,9 @@ def gather_mpi_arguments(hostfile, params):
         if os.path.exists(hostfile):
             mpi_args += ['-f', hostfile]
     else:
-        print_error([
+        print_and_log([
                         '%s may not be yet properly implemented: contact developpers' %
-                        vendor[0]])
+                        vendor[0]], 'error', logger)
         mpi_args = ['mpirun']
         if os.path.exists(hostfile):
             mpi_args += ['-hostfile', hostfile]
