@@ -2,7 +2,7 @@ from .shared.utils import *
 import h5py
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.parser import CircusParser
-from circus.shared.messages import print_and_log
+from circus.shared.messages import print_and_log, init_logging
 
 def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     """
@@ -13,7 +13,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     benchmark : {'fitting', 'clustering', 'synchrony', 'pca-validation', 'smart-search', 'drifts'}
         
     """
-    
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.benchmarking')
+
     numpy.random.seed(4235)
     file_name      = os.path.abspath(file_name)
     data_path      = os.path.dirname(file_name)
@@ -26,12 +28,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     
     if ext != '.dat':
         if comm.rank == 0:
-            print_and_log(['Benchmarking produces raw files: select a .dat extension'], 'error', params)
+            print_and_log(['Benchmarking produces raw files: select a .dat extension'], 'error', logger)
         sys.exit(0)
 
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
-            print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
+            print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', logger)
         sys.exit(0)
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
@@ -184,7 +186,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
-                    print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
+                    print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', logger)
                 sys.exit(0)
             else:
                 # Get the next shuffled electrode.
@@ -325,7 +327,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     # Display informations about the generated benchmark.
     if comm.rank == 0:
-        print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
+        print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', logger)
         purge(file_out, '.data')
 
 

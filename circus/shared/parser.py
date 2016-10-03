@@ -3,7 +3,9 @@ from messages import print_error, print_and_log
 from circus.shared.probes import read_probe
 from circus.files import __supported_data_files__
 	
-import os, sys, copy, numpy
+import os, sys, copy, numpy, logging
+
+logger = logging.getLogger(__name__)
 
 class CircusParser(object):
 
@@ -73,6 +75,7 @@ class CircusParser(object):
         f_next, extension = os.path.splitext(self.file_name)
         file_path         = os.path.dirname(self.file_name)
         self.file_params  = f_next + '.params'
+        self.logfile      = f_next + '.log'
         self.parser       = configparser.ConfigParser()
         self._N_t         = None
 
@@ -154,7 +157,7 @@ class CircusParser(object):
 
         if self.parser.getboolean('triggers', 'clean_artefact'):
             if (self.parser.get('triggers', 'trig_file') == '') or (self.parser.get('triggers', 'trig_windows') == ''):
-                print_and_log(["trig_file and trig_windows must be specified"], 'error', self.parser)
+                print_and_log(["trig_file and trig_windows must be specified"], 'error', logger)
                 sys.exit(0)
 	    
         self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
@@ -162,13 +165,12 @@ class CircusParser(object):
 
         test = (self.parser.get('clustering', 'extraction') in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
         if not test:
-            print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', self.parser)
+            print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.get('detection', 'peaks') in ['negative', 'positive', 'both'])
         if not test:
-            print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', self.parser)
-            sys.exit(0)
+            print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', logger)
 
         try:
             os.makedirs(f_next)
@@ -183,46 +185,46 @@ class CircusParser(object):
         for section in ['whitening', 'clustering']:
             test = (self.parser.getfloat(section, 'nb_elts') > 0) and (self.parser.getfloat(section, 'nb_elts') <= 1)
             if not test: 
-                print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', self.parser)
+                print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', logger)
                 sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
         if not test:
-            print_and_log(["nclus_min in clustering should be in [0,1["], 'error', self.parser)
+            print_and_log(["nclus_min in clustering should be in [0,1["], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'noise_thr') >= 0) and (self.parser.getfloat('clustering', 'noise_thr') <= 1)
         if not test:
-            print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', self.parser)
+            print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)
         if not test:
-            print_and_log(["test_size in validating should be in ]0,1["], 'error', self.parser)
+            print_and_log(["test_size in validating should be in ]0,1["], 'error', logger)
             sys.exit(0)
 
         fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
         test = self.parser.get('clustering', 'make_plots') in fileformats
         if not test:
-            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', self.parser)
+            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
             sys.exit(0)
         test = self.parser.get('validating', 'make_plots') in fileformats
         if not test:
-            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', self.parser)
+            print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
             sys.exit(0)
 	    
         dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
         dispersion     = map(float, dispersion)
         test =  (0 < dispersion[0]) and (0 < dispersion[1])
         if not test:
-            print_and_log(["min and max dispersions should be positive"], 'error', self.parser)
+            print_and_log(["min and max dispersions should be positive"], 'error', logger)
             sys.exit(0)
 	        
 
         pcs_export = ['prompt', 'none', 'all', 'some']
         test = self.parser.get('converting', 'export_pcs') in pcs_export
         if not test:
-            print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', self.parser)
+            print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', logger)
             sys.exit(0)
         else:
             if self.parser.get('converting', 'export_pcs') == 'none':
@@ -319,7 +321,7 @@ class CircusParser(object):
                 if value[0] == 'string':
                     params[key] = str(kwargs[key])
 
-                print_and_log(['%s is set to a value of %s' %(key, params[key])], 'debug', self.parser)
+                print_and_log(['%s is set to a value of %s' %(key, params[key])], 'debug', logger)
 
             elif key not in kwargs:
                 
@@ -334,14 +336,14 @@ class CircusParser(object):
                         if value[0] == 'string':
                             params[key] = self.parser.get('data', key)
                     
-                        print_and_log(['%s is read from the params with a value of %s' %(key, params[key])], 'debug', self.parser)
+                        print_and_log(['%s is read from the params with a value of %s' %(key, params[key])], 'debug', logger)
                     
                     except Exception:
                         pass
 
                 elif value[1] is not None:
                     params[key] = value[1]
-                    print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', self.parser)
+                    print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', logger)
 
         return params
 
@@ -393,7 +395,7 @@ class CircusParser(object):
             pattern     = pattern.replace(str(count), str(count+1))
             count      += 1
 
-        print_and_log(['Multi-files:'] + to_process, 'debug', self.parser)
+        print_and_log(['Multi-files:'] + to_process, 'debug', logger)
         return to_process
 
     def write(self, section, flag, value):

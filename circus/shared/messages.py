@@ -23,6 +23,26 @@ def get_header():
 
     return header
 
+def init_logging(logfile, debug=True, level=None):
+    """
+    Simple configuration of logging.
+    """
+
+    if debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
+    # allow user to override exact log_level
+    if level:
+        log_level = level
+
+    logging.basicConfig(level=log_level,
+                        format='%(asctime)s %(levelname)-8s [%(name)s] %(message)s',
+                        filename=logfile,
+                        filemode='a')
+    return logging.getLogger("circus")
+
 
 def set_logger(params):
     f_next, extension = os.path.splitext(params.get('data', 'data_file'))
@@ -32,15 +52,15 @@ def set_logger(params):
         level=logging.DEBUG, 
         datefmt='%m/%d/%Y %I:%M:%S %p')
 
-def write_to_logger(params, to_write, level='info'):
-    set_logger(params)
+def write_to_logger(logger, to_write, level='info'):
+    #set_logger(params)
     for line in to_write:
         if level == 'info':
-            logging.info(line)
+            logger.info(line)
         elif level in ['debug', 'default']:
-            logging.debug(line)
+            logger.debug(line)
         elif level == 'warning':
-            logging.warning(line)
+            logger.warning(line)
 
 
 def print_and_log(to_print, level='info', logger=None, display=True):

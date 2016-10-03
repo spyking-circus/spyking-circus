@@ -1,7 +1,7 @@
 from .shared.utils import *
 import circus.shared.algorithms as algo
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.messages import print_and_log
+from circus.shared.messages import print_and_log, init_logging
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
@@ -9,7 +9,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     
     import h5py
     parallel_hdf5 = h5py.get_config().mpi
-
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.extracting')
     #################################################################
     data_file      = params.get_data_file()
     N_e            = params.getint('data', 'N_e')
@@ -34,7 +35,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if comm.rank == 0:
-        print_and_log(["Extracting templates from already found clusters..."], 'default', params)
+        print_and_log(["Extracting templates from already found clusters..."], 'default', logger)
 
     thresholds                           = io.load_data(params, 'thresholds')
     basis_proj, basis_rec                = io.load_data(params, 'basis')
@@ -152,7 +153,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     gdata = gather_array(numpy.array([total_nb_elts], dtype=numpy.float32), comm, 0)
     if comm.rank == 0:
-        print_and_log(["Found %d spikes over %d requested" %(int(numpy.sum(gdata)), int(nb_elts))], 'default', params)
+        print_and_log(["Found %d spikes over %d requested" %(int(numpy.sum(gdata)), int(nb_elts))], 'default', logger)
 
     #print "Spikes extracted in", time.time() - t_start, "s"
 
@@ -168,7 +169,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     if comm.rank == 0:
-        print_and_log(["Extracting the templates..."], 'default', params)
+        print_and_log(["Extracting the templates..."], 'default', logger)
     
     total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
     offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
@@ -341,21 +342,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if comm.rank == 0:
-        print_and_log(["Merging similar templates..."], 'default', params)
+        print_and_log(["Merging similar templates..."], 'default', logger)
     
     merged1 = algo.merging_cc(params, parallel_hdf5)
 
     comm.Barrier()
     if remove_mixture:
         if comm.rank == 0:
-            print_and_log(["Removing mixtures..."], 'default', params)
+            print_and_log(["Removing mixtures..."], 'default', logger)
         merged2 = algo.delete_mixtures(params, parallel_hdf5)
     else:
         merged2 = [0, 0]
 
     if comm.rank == 0:
         print_and_log(["Number of global merges    : %d" %merged1[1], 
-                       "Number of mixtures removed : %d" %merged2[1]], 'info', params)    
+                       "Number of mixtures removed : %d" %merged2[1]], 'info', logger)    
 
     comm.Barrier()
     io.get_overlaps(params, erase=True, parallel_hdf5=parallel_hdf5)

@@ -8,10 +8,12 @@ import h5py
 
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
-from circus.shared.messages import print_and_log, print_error
+from circus.shared.messages import print_and_log, print_error, init_logging
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.converting')
     data_file      = params.get_data_file()
     file_out_suff  = params.get('data', 'file_out_suff')
     probe          = params.probe
@@ -61,7 +63,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.uint32)))
         
         if export_all:
-            print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', params)
+            print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', logger)
             garbage = io.load_data(params, 'garbage', extension)
             for key in garbage['gspikes'].keys():
                 elec_id    = int(key.split('_')[-1])
@@ -228,7 +230,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         if comm.rank == 0:
             os.makedirs(output_path)
-            print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
+            print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', logger)
         
             if params.getboolean('whitening', 'spatial'):
                 whitening_mat = io.load_data(params, 'spatial_whitening').astype(numpy.double)

@@ -15,7 +15,7 @@ import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 from circus.shared.files import data_stats 
-from circus.shared.messages import print_error, print_and_log, get_colored_header
+from circus.shared.messages import print_error, print_and_log, get_colored_header, init_logging
 from circus.shared.mpi import SHARED_MEMORY, comm, gather_mpi_arguments
 from circus.shared.parser import CircusParser
 from circus.shared.probes import get_averaged_n_edges
@@ -149,6 +149,9 @@ but a subset x,y can be done. Steps are:
 
     if not batch:
         params       = CircusParser(filename)
+        if os.path.exists(params.logfile):
+            os.remove(params.logfile)
+        logger       = init_logging(params.logfile)
         multi_files  = params.getboolean('data', 'multi-files')
         data_file    = params.get_data_file(multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
@@ -156,7 +159,7 @@ but a subset x,y can be done. Steps are:
         is_writable            = data_file._is_writable
 
     if preview:
-        print_and_log(['Preview mode, showing only first second of the recording'], 'info', params)
+        print_and_log(['Preview mode, showing only first second of the recording'], 'info', logger)
 
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
         if not os.path.exists(tmp_path_loc):
@@ -198,11 +201,8 @@ but a subset x,y can be done. Steps are:
                     subprocess.check_call(['spyking-circus'] + line.replace('\n', '').split(" "))
     else:
 
-        if os.path.exists(f_next + '.log'):
-            os.remove(f_next + '.log')
-
-        print_and_log(['Config file: %s' %(f_next + '.params')], 'debug', params)
-        print_and_log(['Data file  : %s' %filename], 'debug', params)
+        print_and_log(['Config file: %s' %(f_next + '.params')], 'debug', logger)
+        print_and_log(['Data file  : %s' %filename], 'debug', logger)
 
         print get_colored_header()
         if preview:
@@ -249,24 +249,24 @@ but a subset x,y can be done. Steps are:
         
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
-                print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', params)
+                print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', logger)
 
         if params.getboolean('detection', 'matched-filter') and not params.getboolean('clustering', 'smart_search'):
-            print_and_log(['Smart Search should be activated for matched filtering' ], 'info', params)
+            print_and_log(['Smart Search should be activated for matched filtering' ], 'info', logger)
 
         if time > 30 and not params.getboolean('clustering', 'smart_search'):
-            print_and_log(['Smart Search could be activated for long recordings' ], 'info', params)
+            print_and_log(['Smart Search could be activated for long recordings' ], 'info', logger)
 
         n_edges = get_averaged_n_edges(params)
         if n_edges > 100 and not params.getboolean('clustering', 'compress'):
-            print_and_log(['Template compression is highly recommended based on parameters'], 'info', params)    
+            print_and_log(['Template compression is highly recommended based on parameters'], 'info', logger)    
 
         if params.getint('data', 'N_e') > 500:
             if params.getint('data', 'chunk_size') > 10:
                 params.write('data', 'chunk_size', '10')
             if params.getint('whitening', 'chunk_size') > 10:
                 params.write('whitening', 'chunk_size', '10')
-            print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', params)
+            print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', logger)
 
         if not result:
             for subtask, command in subtasks:
@@ -286,11 +286,11 @@ but a subset x,y can be done. Steps are:
                             print_and_log(['The file format %s is read only!' %file_format, 
                                             'One solution to still filter the file is to activate',
                                             'the multi-files mode, even with only one file,',
-                                            'as this will creates an external raw_binary file'], 'info', params)
+                                            'as this will creates an external raw_binary file'], 'info', logger)
                             sys.exit(0)
                         
                         if subtask in ['filtering'] and not support_parallel_write and (args.cpu > 1) and not multi_files:
-                            print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', params)
+                            print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', logger)
                             nb_tasks = str(1)
 
                         else:
@@ -318,8 +318,8 @@ but a subset x,y can be done. Steps are:
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
 
-                        print_and_log(['Launching task %s' %subtask], 'debug', params)
-                        print_and_log(['Command: %s' %str(mpi_args)], 'debug', params)
+                        print_and_log(['Launching task %s' %subtask], 'debug', logger)
+                        print_and_log(['Command: %s' %str(mpi_args)], 'debug', logger)
 
                         try:
                             subprocess.check_call(mpi_args)

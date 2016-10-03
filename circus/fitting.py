@@ -2,11 +2,13 @@ import circus.shared.algorithms as algo
 from .shared.utils import *
 from .shared.mpi import SHARED_MEMORY
 from .shared.probes import get_nodes_and_edges
-from circus.shared.messages import print_and_log
+from circus.shared.messages import print_and_log, init_logging
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.fitting')
     data_file      = params.get_data_file()
     data_file.open()
     N_e            = params.getint('data', 'N_e')
@@ -138,7 +140,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if comm.rank == 0:
-        print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', params)
+        print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', logger)
         purge(file_out_suff, '.data')
 
     if do_spatial_whitening:
@@ -153,7 +155,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_overs[i] = cmt.SparseCUDAMatrix(c_overs[i], copy_on_host=False)
         except Exception:
             if comm.rank == 0:
-                print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', params)
+                print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', logger)
             for i in xrange(N_over):
                 if c_overs.has_key(i):
                     del c_overs[i]

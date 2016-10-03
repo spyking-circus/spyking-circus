@@ -3,7 +3,7 @@ import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
 from circus.shared.utils import get_progressbar
-import numpy, h5py, os, platform, re, sys, scipy
+import numpy, h5py, os, platform, re, sys, scipy, logging
 import sys
 from colorama import Fore
 from mpi import all_gather_array, gather_array, SHARED_MEMORY, comm
@@ -12,6 +12,7 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
 from circus.shared.utils import purge
 
+logger = logging.getLogger(__name__)
 
 def data_stats(params, show=True, export_times=False):
     multi_files    = params.getboolean('data', 'multi-files')
@@ -76,7 +77,7 @@ def data_stats(params, show=True, export_times=False):
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
 
-    print_and_log(lines, 'info', params, show)
+    print_and_log(lines, 'info', logger, show)
 
     if not export_times:
         return nb_chunks*60 + nb_seconds + last_chunk_len/1000.
@@ -973,7 +974,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     refractory     = params.getfloat('fitting', 'refractory')
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')
-    print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
+    print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', logger)
 
     # Initialize data collection.
     result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
@@ -1117,7 +1118,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if collect_all:
         to_write += ["Number of spikes not fitted (roughly): %d [%g percent]" %(gcount, 100*gcount/float(count))]
 
-    print_and_log(to_write, 'info', params)
+    print_and_log(to_write, 'info', logger)
 
     # TODO: find a programmer comment
     if erase:
@@ -1227,7 +1228,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     if comm.rank == 0:
         if verbose:
-            print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', params)
+            print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', logger)
         N_0  = len(range(comm.rank, N_e, comm.size))
         pbar = get_progressbar(size=N_0)
 
@@ -1287,7 +1288,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     if comm.rank == 0:
         pbar.finish()
-        print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', params)
+        print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)
 
     comm.Barrier()
 
