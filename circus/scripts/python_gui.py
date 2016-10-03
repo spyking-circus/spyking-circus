@@ -60,6 +60,11 @@ def main(argv=None):
     if file_format not in supported_by_phy:
         print_and_log(["File format %s is not supported by phy. TraceView disabled" %file_format], 'info', params)
 
+    gain           = data_file.gain
+    if numpy.any(gain != 1):
+        print_and_log(["Gain of %g is not supported by phy. Expecting a scaling mismatch" %gain], 'info', params)
+
+
     probe          = params.probe
     if extension != '':
         extension = '-' + extension
