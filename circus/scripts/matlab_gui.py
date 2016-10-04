@@ -6,10 +6,12 @@ import argparse
 import pkg_resources
 import circus
 import tempfile
-import numpy, h5py
-from circus.shared.messages import print_error, print_and_log, get_colored_header
+import numpy, h5py, logging
+from circus.shared.messages import print_and_log, get_colored_header, init_logging
 from circus.shared.files import write_datasets
 from circus.shared.parser import CircusParser
+
+supported_by_matlab = ['raw_binary', 'mcs_raw_binary']
 
 def main(argv=None):
 
@@ -32,9 +34,22 @@ def main(argv=None):
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
     params         = CircusParser(filename)
+    if os.path.exists(params.logfile):
+        os.remove(params.logfile)
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger(__name__)
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
     gain           = data_file.gain
+    file_format    = data_file._description
+
+    if file_format not in supported_by_matlab:
+        print_and_log(["File format %s is not supported by MATLAB. Waveforms will not work" %file_format], 'info', logger)
+
+    if numpy.iterable(gain):
+        print_and_log(['Multiple gains are not supported, using a default value of 1'], 'info', logger)
+        gain = 1
+
     file_out_suff  = params.get('data', 'file_out_suff')
     if hasattr(data_file, 'data_offset'):
         data_offset = data_file.data_offset
@@ -65,7 +80,7 @@ def main(argv=None):
     mapping    = generate_matlab_mapping(probe)
     filename   = params.get('data', 'data_file')
 
-    gui_params = [data_file.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
+    gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
 
     gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
     # Change to the directory of the matlab file
@@ -77,11 +92,11 @@ def main(argv=None):
                            for arg, s in zip(gui_params, is_string)])
     matlab_command = 'SortingGUI(%s)' % arguments
 
-    print_and_log(["Launching the MATLAB GUI..."], 'info', params)
+    print_and_log(["Launching the MATLAB GUI..."], 'info', logger)
 
     if params.getboolean('fitting', 'collect_all'):
         print_and_log(['You can not view the unfitted spikes with the MATLAB GUI',
-                       'Please consider using phy if you really would like to see them'], 'info', params)
+                       'Please consider using phy if you really would like to see them'], 'info', logger)
 
     try:
         sys.exit(subprocess.call(['matlab',
@@ -89,7 +104,8 @@ def main(argv=None):
                               '-nosplash',
                               '-r', matlab_command]))
     except Exception:
-        print_error(["Something wrong with MATLAB. Try circus-gui-python instead?"])
+        print_and_log(["Something wrong with MATLAB. Try circus-gui-python instead?"], 'error', logger)
+        sys.exit(0)
 
 if __name__ == '__main__':
     main()

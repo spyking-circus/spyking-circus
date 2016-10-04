@@ -8,11 +8,13 @@ import h5py
 
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
-from circus.shared.messages import print_and_log, print_error
+from circus.shared.messages import print_and_log, init_logging
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
-    data_file      = params.get_data_file()
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.converting')
+    data_file      = params.data_file
     file_out_suff  = params.get('data', 'file_out_suff')
     probe          = params.probe
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
@@ -23,7 +25,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     export_all     = params.getboolean('converting', 'export_all')
     if export_all and not params.getboolean('fitting', 'collect_all'):
         if comm.rank == 0:
-            print_error(['Export unfitted spikes only if [fitting] collect_all is True'])
+            print_and_log(['Export unfitted spikes only if [fitting] collect_all is True'], 'error', logger)
         sys.exit(0)
 
     def generate_mapping(probe):
@@ -61,7 +63,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.uint32)))
         
         if export_all:
-            print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', params)
+            print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', logger)
             garbage = io.load_data(params, 'garbage', extension)
             for key in garbage['gspikes'].keys():
                 elec_id    = int(key.split('_')[-1])
@@ -162,8 +164,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         if comm.rank == 0:
           pbar    = get_progressbar(len(to_process))
 
-        data_file.open()
-
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_process):
 
@@ -194,7 +194,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
           pbar.finish()
 
         comm.Barrier()
-        data_file.close()
 
         if comm.rank == 0:
             numpy.save(os.path.join(output_path, 'pc_feature_ind'), pc_features_ind.astype(numpy.uint32)) #n_templates, n_loc_chan
@@ -228,10 +227,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         if comm.rank == 0:
             os.makedirs(output_path)
-            print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
+            print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', logger)
         
             if params.getboolean('whitening', 'spatial'):
-                numpy.save(os.path.join(output_path, 'whitening_mat'), io.load_data(params, 'spatial_whitening').astype(numpy.double))
+                whitening_mat = io.load_data(params, 'spatial_whitening').astype(numpy.double)
+                numpy.save(os.path.join(output_path, 'whitening_mat'), whitening_mat)
+                numpy.save(os.path.join(output_path, 'whitening_mat_inv'), numpy.linalg.inv(whitening_mat))
             else:
                 numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.eye(N_e))
 

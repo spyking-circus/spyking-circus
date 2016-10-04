@@ -2,11 +2,14 @@ from scipy import signal
 from .shared import plot
 from .shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.messages import print_error, print_and_log
+from circus.shared.messages import print_and_log, init_logging
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
+
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.filtering')
     #################################################################
     multi_files    = params.getboolean('data', 'multi-files')
     do_filter      = params.getboolean('filtering', 'filter')
@@ -18,7 +21,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
-            io.print_and_log(['trig_file or trig_windows file can not be found'], 'error', params)
+            if comm.rank == 0:
+                print_and_log(['trig_file or trig_windows file can not be found'], 'error', logger)
             sys.exit(0)
 
     if do_filter or multi_files or clean_artefact or remove_median:
@@ -34,7 +38,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 try:
                     cut_off[0] = float(cut_off[0])
                 except Exception:
-                    print_and_log(['First value of cut off must be a valid number'], 'error', params)
+                    if comm.rank == 0:
+                        print_and_log(['First value of cut off must be a valid number'], 'error', logger)
                     sys.exit(0)
                 
                 cut_off[1] = cut_off[1].replace(' ', '')
@@ -44,7 +49,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     try:
                         cut_off[1] = float(cut_off[1])
                     except Exception:
-                        print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', params)
+                        if comm.rank == 0:
+                            print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', logger)
                         sys.exit(0)
 
             if filter_done:
@@ -55,7 +61,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if remove_median:
                         to_write += ["Median over all channels was substracted to each channels"]
                     if display:
-                        print_and_log(to_write, 'info', params)
+                        print_and_log(to_write, 'info', logger)
                 return
 
             if data_file_out is None:
@@ -85,7 +91,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if remove_median:
                     to_write += ["Median over all channels is substracted to each channels"]
                 if display:
-                    print_and_log(to_write, 'default', params)
+                    print_and_log(to_write, 'default', logger)
 
                 pbar = get_progressbar(loc_nb_chunks)
 
@@ -142,7 +148,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             mytest           = nb_stimuli == len(windows)
 
             if not mytest:
-                print_and_log(['Error in the trigger files'], 'error', params)
+                if comm.rank == 0:
+                    print_and_log(['Error in the trigger files'], 'error', logger)
                 sys.exit(0)
 
             all_labels   = artefacts[:, 0]
@@ -156,12 +163,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 to_write = ["Computing averaged artefacts from %d stimuli" %(nb_stimuli)]
-                print_and_log(to_write, 'default', params)
+                print_and_log(to_write, 'default', logger)
                 pbar = get_progressbar(len(local_labels))
                 if not os.path.exists(plot_path):
                     os.makedirs(plot_path)
 
             comm.Barrier()
+            data_file.open()
             # First we need to get the average artefacts
             art_dict = {}
             for count, artefact in enumerate(local_labels):
@@ -172,7 +180,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
                 if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
                     if comm.rank == 0:
-                        print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', params)
+                        print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', logger)
                     sys.exit(0)
                 art_dict[artefact] = get_artefact(params, times, tau, nodes)
                 if make_plots not in ['None', '']:
@@ -207,7 +215,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             mytest           = nb_stimuli == len(windows)
 
             if not mytest:
-                print_and_log(['Error in the trigger files'], 'error', params)
+                if comm.rank == 0:
+                    print_and_log(['Error in the trigger files'], 'error', logger)
                 sys.exit(0)
 
             all_labels   = artefacts[:, 0]
@@ -216,10 +225,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if comm.rank == 0:
                 to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
-                print_and_log(to_write, 'default', params)
+                print_and_log(to_write, 'default', logger)
                 pbar = get_progressbar(len(all_times))
 
             comm.Barrier()
+            data_file.open(mode='r+')
             
             count    = 0
     
@@ -258,7 +268,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if not multi_files:  
 
-            data_file = params.get_data_file()
+            if comm.rank == 0:
+                print_and_log(['Single file mode...'], 'debug', logger)
+            data_file = params.data_file
             goffset   = filter_file(data_file)
 
             if clean_artefact:
@@ -278,7 +290,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             data_out.allocate(shape=(times[-1][1], data_out.nb_channels), data_dtype=numpy.float32)
             comm.Barrier()
             
-            print_and_log(['Output file: %s' %combined_file], 'debug', params)
+            if comm.rank == 0:
+                print_and_log(['Output file: %s' %combined_file], 'debug', logger)
             goffset = 0
             
             for data_file in all_files:
@@ -286,7 +299,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 params.set('data', 'data_multi_file', data_file)
                 data_in = params.get_data_file(multi=True, force_raw=False)
 
-                print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', params)
+                if comm.rank == 0:
+                    print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', logger)
                 goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))
 
             if clean_artefact:

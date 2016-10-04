@@ -1,24 +1,32 @@
-import numpy, os, sys
-from messages import print_error
+import numpy, os, sys, logging
+from messages import print_and_log
+from mpi import comm
+
+logger = logging.getLogger(__name__)
 
 def read_probe(parser):
     probe    = {}
     filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
+    if comm.rank == 0:
+        print_and_log(["Reading the probe file %s" %filename], 'debug', logger)
     if not os.path.exists(filename):
-        print_error(["The probe file %s can not be found" %filename])
+        if comm.rank == 0:
+            print_and_log(["The probe file %s can not be found" %filename], 'error', logger)
         sys.exit(0)
     try:
         with open(filename, 'r') as f:
             probetext = f.read()
             exec(probetext, probe)
     except Exception as ex:
-        print_error(["Something wrong with the syntax of the probe file:\n" + str(ex)])
+        if comm.rank == 0:
+            print_and_log(["Something wrong with the syntax of the probe file:\n" + str(ex)], 'error', logger)
         sys.exit(0)
 
     key_flags = ['total_nb_channels', 'radius', 'channel_groups']
     for key in key_flags:
         if not probe.has_key(key):
-            print_error(["%s is missing in the probe file" %key])
+            if comm.rank == 0:
+                print_and_log(["%s is missing in the probe file" %key], 'error', logger)
             sys.exit(0)
     return probe
 

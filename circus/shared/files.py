@@ -3,7 +3,7 @@ import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
 from circus.shared.utils import get_progressbar
-import numpy, h5py, os, platform, re, sys, scipy
+import numpy, h5py, os, platform, re, sys, scipy, logging
 import sys
 from colorama import Fore
 from mpi import all_gather_array, gather_array, SHARED_MEMORY, comm
@@ -12,6 +12,7 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
 from circus.shared.utils import purge
 
+logger = logging.getLogger(__name__)
 
 def data_stats(params, show=True, export_times=False):
     multi_files    = params.getboolean('data', 'multi-files')
@@ -76,7 +77,8 @@ def data_stats(params, show=True, export_times=False):
     if multi_files:
         lines += ["Multi-files activated       : %s files" %len(all_files)]    
 
-    print_and_log(lines, 'info', params, show)
+    if show:
+        print_and_log(lines, 'info', logger)
 
     if not export_times:
         return nb_chunks*60 + nb_seconds + last_chunk_len/1000.
@@ -87,7 +89,7 @@ def data_stats(params, show=True, export_times=False):
 
 def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
-    data_file    = params.get_data_file()
+    data_file    = params.data_file
     data_file.open()
     N_t          = params.getint('detection', 'N_t')
     if not all_labels:
@@ -176,7 +178,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     sub_comm = comm.Split(myip, 0)
 
     # Load parameters.
-    data_file    = params.get_data_file()
+    data_file    = params.data_file
     data_file.open()
     N_t          = params.getint('detection', 'N_t')
     N_total      = params.nb_channels
@@ -300,7 +302,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
 
 def get_artefact(params, times_i, tau, nodes, normalize=True):
     
-    data_file    = params.get_data_file()
+    data_file    = params.data_file
     data_file.open()
 
     artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
@@ -330,7 +332,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
     floatsize = MPI.FLOAT.Get_size() 
     sub_comm  = comm.Split(myip, 0)
 
-    data_file = params.get_data_file()
+    data_file = params.data_file
     N_e       = params.getint('data', 'N_e')
     N_t       = params.getint('detection', 'N_t')
     
@@ -722,7 +724,7 @@ def load_data(params, data, extension=''):
             triggers = numpy.load(filename)
             N_tr     = triggers.shape[0]
 
-            data_file = params.get_data_file()
+            data_file = params.data_file
             data_file.open()
 
             N_total = params.nb_channels
@@ -733,6 +735,7 @@ def load_data(params, data, extension=''):
             spikes = numpy.zeros((N_t, N_total, N_tr))
             for (count, idx) in enumerate(triggers):
                 spikes[:, :, count] = data_file.get_snippet(idx - template_shift, N_t)
+            data_file.close()
             return triggers, spikes
         else:
             raise Exception('No triggers found! Check suffix or check if file `%s` exists?' %filename)
@@ -961,7 +964,7 @@ def write_datasets(h5file, to_write, result, electrode=None):
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     # Retrieve the key parameters.
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detection', 'N_t')
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -973,7 +976,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     refractory     = params.getfloat('fitting', 'refractory')
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')
-    print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', params)
+    print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', logger)
 
     # Initialize data collection.
     result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
@@ -1117,7 +1120,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if collect_all:
         to_write += ["Number of spikes not fitted (roughly): %d [%g percent]" %(gcount, 100*gcount/float(count))]
 
-    print_and_log(to_write, 'info', params)
+    print_and_log(to_write, 'info', logger)
 
     # TODO: find a programmer comment
     if erase:
@@ -1149,7 +1152,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     import h5py
     parallel_hdf5  = h5py.get_config().mpi
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detection', 'N_t')
     N_total        = params.nb_channels
@@ -1227,7 +1230,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     if comm.rank == 0:
         if verbose:
-            print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', params)
+            print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', logger)
         N_0  = len(range(comm.rank, N_e, comm.size))
         pbar = get_progressbar(size=N_0)
 
@@ -1287,7 +1290,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     if comm.rank == 0:
         pbar.finish()
-        print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', params)
+        print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)
 
     comm.Barrier()
 

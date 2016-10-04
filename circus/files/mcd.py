@@ -1,5 +1,4 @@
 import h5py, numpy, re, sys
-from circus.shared.messages import print_error, print_and_log
 from datafile import DataFile
 import neuroshare as ns
 
@@ -52,9 +51,6 @@ class MCDFile(DataFile):
         
         return self._scale_data_to_float32(local_chunk)
 
-    def set_data(self, time, data):
-        print_error(['No write support for %s file' %self._description])
-        sys.exit(0)
 
     def open(self, mode='r'):
         self.data = ns.File(self.file_name)

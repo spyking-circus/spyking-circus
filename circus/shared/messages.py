@@ -1,7 +1,6 @@
 from colorama import Fore
 import sys, os, logging
 
-
 def get_header():
 
     import circus
@@ -23,24 +22,35 @@ def get_header():
 
     return header
 
+def init_logging(logfile, debug=True, level=None):
+    """
+    Simple configuration of logging.
+    """
 
-def set_logger(params):
-    f_next, extension = os.path.splitext(params.get('data', 'data_file'))
-    log_file          = f_next + '.log'
-    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', 
-        filename=log_file,
-        level=logging.DEBUG, 
-        datefmt='%m/%d/%Y %I:%M:%S %p')
+    if debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
 
-def write_to_logger(params, to_write, level='info'):
-    set_logger(params)
+    # allow user to override exact log_level
+    if level:
+        log_level = level
+
+    logging.basicConfig(level=log_level,
+                        format='%(asctime)s %(levelname)-8s [%(name)s] %(message)s',
+                        filename=logfile,
+                        filemode='a')
+    return logging.getLogger("circus")
+
+
+def write_to_logger(logger, to_write, level='info'):
     for line in to_write:
         if level == 'info':
-            logging.info(line)
+            logger.info(line)
         elif level in ['debug', 'default']:
-            logging.debug(line)
+            logger.debug(line)
         elif level == 'warning':
-            logging.warning(line)
+            logger.warning(line)
 
 
 def print_and_log(to_print, level='info', logger=None, display=True):

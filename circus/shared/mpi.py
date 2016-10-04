@@ -1,6 +1,6 @@
-import numpy, os, mpi4py
+import numpy, os, mpi4py, logging
 from mpi4py import MPI
-from messages import print_and_log, print_error
+from messages import print_and_log
 comm = MPI.COMM_WORLD
 
 try:
@@ -10,10 +10,12 @@ except NotImplementedError:
     SHARED_MEMORY = False
 
 
+logger = logging.getLogger(__name__)
+
 def gather_mpi_arguments(hostfile, params):
     from mpi4py import MPI
     vendor = MPI.get_vendor()
-    print_and_log(['MPI detected: %s' % str(vendor)], 'debug', params)
+    print_and_log(['MPI detected: %s' % str(vendor)], 'debug', logger)
     if vendor[0] == 'Open MPI':
         mpi_args = ['mpirun']
         if os.getenv('LD_LIBRARY_PATH'):
@@ -33,9 +35,9 @@ def gather_mpi_arguments(hostfile, params):
         if os.path.exists(hostfile):
             mpi_args += ['-f', hostfile]
     else:
-        print_error([
+        print_and_log([
                         '%s may not be yet properly implemented: contact developpers' %
-                        vendor[0]])
+                        vendor[0]], 'error', logger)
         mpi_args = ['mpirun']
         if os.path.exists(hostfile):
             mpi_args += ['-hostfile', hostfile]

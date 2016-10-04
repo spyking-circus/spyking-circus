@@ -1,5 +1,4 @@
 import h5py, numpy, re, sys
-from circus.shared.messages import print_error, print_and_log
 from raw_binary import RawBinaryFile
 from numpy.lib.format import open_memmap
 

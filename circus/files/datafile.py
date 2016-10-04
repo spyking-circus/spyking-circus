@@ -1,6 +1,8 @@
-import h5py, numpy, re, sys, os
-from circus.shared.messages import print_error, print_and_log
+import h5py, numpy, re, sys, os, logging
+from circus.shared.messages import print_and_log
 from circus.shared.mpi import comm
+
+logger = logging.getLogger(__name__)
 
 
 def get_offset(data_dtype, dtype_offset):
@@ -18,11 +20,14 @@ def get_offset(data_dtype, dtype_offset):
             dtype_offset = 127
         elif data_dtype in ['float64', numpy.float64]:
             dtype_offset = 0    
+        if comm.rank == 0:
+            print_and_log(['data type offset for %s is automatically set to %d' %(data_dtype, dtype_offset)], 'debug', logger)
     else:
         try:
             dtype_offset = int(dtype_offset)
         except Exception:
-            print_error(["Offset %s is not valid" %dtype_offset])
+            if comm.rank == 0:
+                print_and_log(["Offset %s is not valid" %dtype_offset], 'error', logger)
             sys.exit(0)
 
     return dtype_offset
@@ -43,7 +48,10 @@ class DataFile(object):
     _extension        = [".myextension"] #extensions
     _parallel_write   = False            #can be written in parallel (using the comm object)
     _is_writable      = False            #can be written
-    _shape            = (0, 0)           #The shape of the data (nb time steps, nb channels)
+    _is_streamable    = False            #If the file formats can support streams of data
+    _shape            = (0, 0)           #The total shape of the data (nb time steps, nb channels) accross streams if any
+    _t_start          = None             #The global t_start of the data
+    _t_stop           = None             #The final t_stop of the data, accross all streams if any
 
 
     # This is a dictionary of values that need to be provided to the constructor, with a specified type and
@@ -63,6 +71,7 @@ class DataFile(object):
         What you need to specify (usually be getting value in the _get_info function)
             - _parallel_write : can the file be safely written in parallel ?
             - _is_writable    : if the file can be written
+            - _is_streamable  : if the file format can support streaming data
             - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
             - is_empty is a flag to say if the file is created without data. It has no sense if the file is
              not writable
@@ -77,7 +86,7 @@ class DataFile(object):
         if self._extension is not None:
             if not extension in self._extension + [item.upper() for item in self._extension]:
                 if self.is_master:
-                    print_error(["The extension %s is not valid for a %s file" %(extension, self._description)])
+                    print_and_log(["The extension %s is not valid for a %s file" %(extension, self._description)], 'error', logger)
                 sys.exit(0)
 
         for key, value in kwargs.items():
@@ -102,7 +111,7 @@ class DataFile(object):
     def _check_valid_(self):
         for key in self._mandatory:
             if not hasattr(self, key):
-                print_error(['%s is a needed attribute of a datafile, and it is not defined' %key])
+                print_and_log(['%s is a needed attribute of a datafile, and it is not defined' %key], 'error', logger)
 
     def _check_requierements_(self, **kwargs):
 
@@ -111,7 +120,8 @@ class DataFile(object):
         for key, value in self._requiered_fields.items():
             if key not in kwargs.keys():
                 missing[key] = value
-                print_error(['%s must be specified as type %s in the [data] section!' %(key, value[0])])
+                if self.is_master:
+                    print_and_log(['%s must be specified as type %s in the [data] section!' %(key, value[0])], 'error', logger)
         
 
         if len(missing) > 0:
@@ -133,7 +143,8 @@ class DataFile(object):
 
             to_write += [mystring]
 
-        print_error(to_write)
+        if self.is_master:
+            print_and_log(to_write, 'error', logger)
 
 
     def _get_info_(self):
@@ -208,7 +219,9 @@ class DataFile(object):
             - time is expressed in timestep
             - data must be a 2D matrix of size time_length x nb_channels
         '''
-        pass
+        if self.is_master:
+            print_and_log(['No write support is implemented for %s file' %self._description], 'error', logger)
+        sys.exit(0)
 
 
     def analyze(self, chunk_size):
@@ -219,11 +232,17 @@ class DataFile(object):
             counted. chunk_size is expressed in time steps
             - the length of the last uncomplete chunk, in time steps
         '''
-        nb_chunks      = numpy.int64(self.shape[0]) // chunk_size
-        last_chunk_len = numpy.int64(self.shape[0]) - nb_chunks * chunk_size
+        nb_chunks      = self.duration // chunk_size
+        last_chunk_len = self.duration - nb_chunks * chunk_size
+
+        if self.is_master:
+            print_and_log(['There are %d chunks of size %d' %(nb_chunks, chunk_size)], 'debug', logger)
 
         if last_chunk_len > 0:
             nb_chunks += 1
+
+        if self.is_master:
+            print_and_log(['The last chunk has size %d' %(last_chunk_len)], 'debug', logger)
 
         return nb_chunks, last_chunk_len
 
@@ -250,8 +269,8 @@ class DataFile(object):
                 - shape is a tuple with (time lenght, nb_channels)
                 - data_dtype is the data type
         '''
-        if self.master:
-            print_error(["The method is not implemented for file format %s" %self._description])
+        if self.is_master:
+            print_and_log(["The method is not implemented for file format %s" %self._description], 'error', logger)
         sys.exit(0)
 
 
@@ -265,8 +284,20 @@ class DataFile(object):
     
     @property
     def duration(self):
-        return self._shape[0]
+        return numpy.int64(self._shape[0])
 
     @property
     def is_master(self):
     	return comm.rank == 0
+
+    @property
+    def t_start(self):
+        if self._t_start is None:
+            self._t_start = 0
+        return self._t_start
+
+    @property
+    def t_stop(self):
+        if self._t_stop is None:
+            self._t_stop = self.duration
+        return self._t_stop

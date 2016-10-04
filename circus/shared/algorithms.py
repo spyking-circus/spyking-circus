@@ -1,6 +1,6 @@
 import matplotlib
 matplotlib.use('Agg', warn=False)
-import os
+import os, logging
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 from circus.shared.files import load_data, write_datasets, get_overlaps
 from circus.shared.utils import get_progressbar
@@ -8,6 +8,8 @@ from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm
 import scipy.linalg, scipy.sparse
+
+logger = logging.getLogger(__name__)
 
 def distancematrix(data, ydata=None):
     
@@ -160,14 +162,14 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
     import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
 
     if comm.rank == 0:
-        print_and_log(['Node 0 is slicing templates'], 'debug', params)
+        print_and_log(['Node 0 is slicing templates'], 'debug', logger)
         old_templates  = load_data(params, 'templates')
         old_limits     = load_data(params, 'limits')
         x, N_tm        = old_templates.shape
@@ -226,7 +228,7 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
     
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
@@ -234,7 +236,7 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
 
     if comm.rank == 0:
 
-        print_and_log(['Node 0 is slicing clusters'], 'debug', params)
+        print_and_log(['Node 0 is slicing clusters'], 'debug', logger)
 
         if to_merge != []:
             for count in xrange(len(to_merge)):
@@ -347,7 +349,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         return to_merge, result
          
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
@@ -399,7 +401,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         
     templates      = load_data(params, 'templates')
     
-    data_file      = params.get_data_file()
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')

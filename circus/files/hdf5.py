@@ -1,6 +1,8 @@
-import h5py, numpy, re, sys
-from circus.shared.messages import print_error, print_and_log
+import h5py, numpy, re, sys, logging
+from circus.shared.messages import print_and_log
 from datafile import DataFile, comm, get_offset
+
+logger = logging.getLogger(__name__)
 
 class H5File(DataFile):
 
@@ -16,7 +18,6 @@ class H5File(DataFile):
 
     def __init__(self, file_name, is_empty=False, **kwargs):
 
-        kwargs['compression'] = 'gzip'
         DataFile.__init__(self, file_name, is_empty, **kwargs)
 
     def __check_valid_key__(self, file_name, key):
@@ -24,8 +25,8 @@ class H5File(DataFile):
         all_fields = []
         file.visit(all_fields.append)    
         if not key in all_fields:
-            print_error(['The key %s can not be found in the dataset! Keys found are:' %key, 
-                         ", ".join(all_fields)])
+            print_and_log(['The key %s can not be found in the dataset! Keys found are:' %key, 
+                         ", ".join(all_fields)], 'error', logger)
             sys.exit(0)
         file.close()
 
