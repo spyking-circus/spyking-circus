@@ -6,7 +6,7 @@ from ..shared.utils import *
 from ..shared.files import get_stas, get_stas_memshared
 from ..shared import plot
 from circus.shared.parser import CircusParser
-from circus.shared.messages import print_and_log
+from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import SHARED_MEMORY, comm
 
 try:
