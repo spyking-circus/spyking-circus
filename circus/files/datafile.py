@@ -235,8 +235,14 @@ class DataFile(object):
         nb_chunks      = self.duration // chunk_size
         last_chunk_len = self.duration - nb_chunks * chunk_size
 
+        if self.is_master:
+            print_and_log(['There are %d chunks of size %d' %(nb_chunks, chunk_size)], 'debug', logger)
+
         if last_chunk_len > 0:
             nb_chunks += 1
+
+        if self.is_master:
+            print_and_log(['The last chunk has size %d' %(last_chunk_len)], 'debug', logger)
 
         return nb_chunks, last_chunk_len
 

@@ -40,6 +40,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     else:
         app = None
 
-    print_and_log(['Launching the merging GUI...'], 'debug', logger)
+    if comm.rank == 0:
+        print_and_log(['Launching the merging GUI...'], 'debug', logger)
     mygui = gui.MergeWindow(params, app, extension_in, extension_out)
     sys.exit(app.exec_())
