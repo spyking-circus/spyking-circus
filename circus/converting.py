@@ -9,6 +9,7 @@ import h5py
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.utils import query_yes_no
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
@@ -202,14 +203,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     if comm.rank == 0:
         if os.path.exists(output_path):
             if not erase_all:
-                key = ''
-                while key not in ['y', 'n']:
-                    print(Fore.WHITE + "Export already made! Do you want to erase everything? (y)es / (n)o ")
-                    key = raw_input('')
-                    if key =='y':
-                        do_export = True
-                    else:
-                        do_export = False
+                do_export = query_yes_no(Fore.WHITE + "Export already made! Do you want to erase everything?", default=None)
+
             if do_export:
                 if os.path.exists(os.path.abspath('.phy')):
                     shutil.rmtree(os.path.abspath('.phy'))

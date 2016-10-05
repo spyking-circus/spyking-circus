@@ -18,6 +18,7 @@ from circus.shared.files import data_stats
 from circus.shared.messages import print_error, print_info, print_and_log, get_colored_header, init_logging
 from circus.shared.mpi import SHARED_MEMORY, comm, gather_mpi_arguments
 from circus.shared.parser import CircusParser
+from circus.shared.utils import query_yes_no
 from circus.shared.probes import get_averaged_n_edges
 from circus.files import __supported_data_files__
 
@@ -136,10 +137,9 @@ but a subset x,y can be done. Steps are:
     file_params = f_next + '.params'
     if not os.path.exists(file_params) and not batch:
         print Fore.RED + 'The parameter file %s is not present!' %file_params
-        key = ''
-        while key not in ['y', 'n']:
-            key = raw_input(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
-        if key == 'y':
+        create_params = query_yes_no(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file?")
+        
+        if create_params:
             print Fore.WHITE + "Creating", file_params
             print Fore.WHITE + "Fill it properly before launching the code! (see documentation)"
             print_info(['Keep in mind that filtering is performed on site, so please',
