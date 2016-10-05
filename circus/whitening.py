@@ -178,7 +178,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 temporal_whitening = numpy.zeros(N_t, dtype=numpy.float32)
                 temporal_whitening[N_t//2] = 1
                 to_write['temporal']       = temporal_whitening
-                io.print_and_log(["Disabling temporal whitening because of NaNs found"], 'info', logger)
+                print_and_log(["Disabling temporal whitening because of NaNs found"], 'info', logger)
 
         if do_spatial_whitening:
             if len(all_silences)/params.rate == 0:
