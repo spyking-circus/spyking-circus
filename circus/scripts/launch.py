@@ -37,6 +37,10 @@ def gather_mpi_arguments(hostfile, params):
         mpi_args = ['mpiexec']
         if os.path.exists(hostfile):
             mpi_args += ['-f', hostfile]
+    elif vendor[0] == 'MPICH':
+        mpi_args = ['mpiexec']
+        if os.path.exists(hostfile):
+            mpi_args += ['-f', hostfile]
     else:
         print_error([
                         '%s may not be yet properly implemented: contact developpers' %
