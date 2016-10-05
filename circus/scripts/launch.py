@@ -15,7 +15,7 @@ import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 from circus.shared.files import data_stats 
-from circus.shared.messages import print_error, print_and_log, get_colored_header, init_logging
+from circus.shared.messages import print_error, print_info, print_and_log, get_colored_header, init_logging
 from circus.shared.mpi import SHARED_MEMORY, comm, gather_mpi_arguments
 from circus.shared.parser import CircusParser
 from circus.shared.probes import get_averaged_n_edges
@@ -140,8 +140,10 @@ but a subset x,y can be done. Steps are:
         while key not in ['y', 'n']:
             key = raw_input(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file? [y/n]")
         if key == 'y':
-            print Fore.WHITE + "Generating template file", file_params
+            print Fore.WHITE + "Creating", file_params
             print Fore.WHITE + "Fill it properly before launching the code! (see documentation)"
+            print_info(['Keep in mind that filtering is performed on site, so please',
+                        'be sure to keep a copy of your data elsewhere'])
             shutil.copyfile(config_file, file_params)
         sys.exit()
     elif batch:
