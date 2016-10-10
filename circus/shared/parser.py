@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class CircusParser(object):
 
-    __all_section__ = ['data', 'whitening', 'extracting', 'clustering', 
+    __all_sections__ = ['data', 'whitening', 'extracting', 'clustering', 
                        'fitting', 'filtering', 'merging', 'noedits', 'triggers', 
                        'detection', 'validating', 'converting']
 
@@ -69,6 +69,18 @@ class CircusParser(object):
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '5']]
 
+    '''
+    __rate_dependent_values__ = [['detection', 'N_t', lambda N, rate: int(N*rate*1e-3)],
+                                 ['detection', 'dist_peaks',0]
+                                 ['detection', 'template_shift',0],
+                                 ['fitting', 'chunk_size', lambda N, rate: int(N*rate*1e-3)],
+                                 ['data', 'chunk_size', lambda N, rate: int(N*rate*1e-3)],
+                                 ['whitening', 'chunk_size', lambda N, rate: int(N*rate*1e-3)],
+                                 ['clustering', 'safety_time',0],
+                                 ['whitening', 'safety_time',0],
+                                 ['extracting', 'safety_time',0],
+                                 ['fitting', 'refractory', lambda N, rate: int(N*rate*1e-3)]]
+    '''
 
     def __init__(self, file_name, **kwargs):
 
@@ -89,7 +101,7 @@ class CircusParser(object):
             print_and_log(['Creating a Circus Parser for datafile %s' %self.file_name], 'debug', logger)
         self.parser.read(self.file_params)
     
-        for section in self.__all_section__:
+        for section in self.__all_sections__:
             if self.parser.has_section(section):
                 for (key, value) in self.parser.items(section):
                     self.parser.set(section, key, value.split('#')[0].replace(' ', '').replace('\t', '')) 
@@ -111,7 +123,7 @@ class CircusParser(object):
                 self.parser.set(section, name, value)
 
         for key, value in kwargs.items():
-            for section in self.__all_section__:
+            for section in self.__all_sections__:
                 if self.parser._sections[section].has_key(key):
                     self.parser._sections[section][key] = value
 
@@ -275,9 +287,8 @@ class CircusParser(object):
             try:
                 self._N_t = self.getfloat('detection', 'N_t')
             except Exception:
-                self._N_t = self.getfloat('data', 'N_t')
                 if comm.rank == 0:
-                    print_and_log(['N_t is now defined in the [detection] section'], 'error', logger)
+                    print_and_log(['N_t must now be defined in the [detection] section'], 'error', logger)
 
             self._N_t = int(self.rate*self._N_t*1e-3)
             if numpy.mod(self._N_t, 2) == 0:
@@ -438,7 +449,7 @@ class CircusParser(object):
         idx          = 0
         for count, line in enumerate(lines):
 
-            if (idx == 1) and line.strip().replace('[', '').replace(']', '') in self.__all_section__ :
+            if (idx == 1) and line.strip().replace('[', '').replace(']', '') in self.__all_sections__ :
                 section_area[idx] = count
                 idx += 1
 
