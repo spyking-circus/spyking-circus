@@ -32,7 +32,7 @@ build: false  # not a C# project
 
 test_script:
   - 'conda install --yes --quiet conda-build'
-  - 'conda build conda_recipe'
+  - 'conda build -c spyking-circus conda_recipe'
   - 'python packaging_tools/move_conda_package.py'
 
 artifacts:
