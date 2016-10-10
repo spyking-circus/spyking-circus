@@ -115,7 +115,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             ax.step(threshs, counts, 'k', where='post')
             ax.add_patch(unknown_zone)
             ax.grid(True)
-            ax.set_xlim(0.0, numpy.amax(spike_values_juxta))
+            if len(spike_values_juxta) > 0:
+                ax.set_xlim(0.0, numpy.amax(spike_values_juxta))
             ax.set_ylim(0, spike_values_juxta.size)
             ax.set_title("Juxtacellular threshold detection")
             ax.set_xlabel("threshold")

@@ -1019,8 +1019,11 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=No
         pad = 0.1
         xmin = 0
         xmax = juxta_spikes_.shape[0] - 1
-        ymin = numpy.amin(juxta_spikes_[:, selected_juxta_indices])
-        ymax = numpy.amax(juxta_spikes_[:, selected_juxta_indices])
+        if len(selected_juxta_indices) > 0:
+            ymin = numpy.amin(juxta_spikes_[:, selected_juxta_indices])
+            ymax = numpy.amax(juxta_spikes_[:, selected_juxta_indices])
+        else:
+            ymin, ymax = 0, 1
         ydif = ymax - ymin
         ymin -= pad * ydif
         ymax += pad * ydif
@@ -1038,8 +1041,11 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=No
     pad = 0.1
     xmin = 0
     xmax = juxta_spikes.shape[0] - 1
-    ymin = numpy.amin(juxta_spikes[:, selected_juxta_indices])
-    ymax = numpy.amax(juxta_spikes[:, selected_juxta_indices])
+    if len(selected_juxta_indices) > 0:
+        ymin = numpy.amin(juxta_spikes[:, selected_juxta_indices])
+        ymax = numpy.amax(juxta_spikes[:, selected_juxta_indices])
+    else:
+        ymin, ymax = 0, 1
     ydif = ymax - ymin
     ymin -= pad * ydif
     ymax += pad * ydif
