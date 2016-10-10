@@ -1,0 +1,41 @@
+environment:
+   matrix:
+    - PYTHON: "C:\\Miniconda35"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "32"
+      platform: x86
+
+    - PYTHON: "C:\\Miniconda35-x64"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "64"
+      platform: x64
+
+    - PYTHON: "C:\\Miniconda"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "32"
+      platform: x86
+
+    - PYTHON: "C:\\Miniconda-x64"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "64"
+      platform: x64
+
+install:
+  # Add the paths
+  - 'set PATH=%PYTHON%;%PYTHON%\Library\bin;%PYTHON%\Scripts;%PATH%'
+
+  # Check that we have the expected version and architecture for Python
+  - 'python --version'
+  - 'python -c "import struct; print(struct.calcsize(''P'') * 8)"'
+
+build: false  # not a C# project
+
+test_script:
+  - 'conda install --yes --quiet conda-build'
+  - 'conda build conda_recipe'
+  - 'python packaging_tools/move_conda_package.py'
+
+artifacts:
+  # Archive the generated conda package in the ci.appveyor.com build report.
+  - path: '*.tar.bz2'
+    name: conda package
