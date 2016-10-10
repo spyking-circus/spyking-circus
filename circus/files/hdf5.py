@@ -40,7 +40,7 @@ class H5File(DataFile):
 
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
-        	self._parallel_write = False
+            self._parallel_write = False
         
         self.size        = self.my_file.get(self.h5_key).shape
         
@@ -97,7 +97,7 @@ class H5File(DataFile):
             self.data[:, time:time+data.shape[0]] = data.T
 
     def open(self, mode='r'):
-        if self._parallel_write:
+        if mode in ['r+', 'w'] and self._parallel_write:
             self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=comm)
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)

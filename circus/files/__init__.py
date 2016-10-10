@@ -9,27 +9,27 @@ from brw import BRWFile
 from npy import NumpyFile
 
 try:
-	import nixio
-	HAVE_NIX_SUPPORT = True
+    import nixio
+    HAVE_NIX_SUPPORT = True
 except ImportError:
-	HAVE_NIX_SUPPORT = False
+    HAVE_NIX_SUPPORT = False
 
 try:
-	import neuroshare
-	HAVE_NEUROSHARE = True
+    import neuroshare
+    HAVE_NEUROSHARE = True
 except ImportError:
-	HAVE_NEUROSHARE = False
+    HAVE_NEUROSHARE = False
 
 __supported_data_files__ = {
-	RawBinaryFile._description : RawBinaryFile,
-	RawMCSFile._description : RawMCSFile,
-	H5File._description : H5File,
-	OpenEphysFile._description : OpenEphysFile,
-	KwdFile._description : KwdFile,
-	NWBFile._description : NWBFile,
-	ARFFile._description : ARFFile,
-	BRWFile._description : BRWFile,
-	NumpyFile._description : NumpyFile
+    RawBinaryFile._description : RawBinaryFile,
+    RawMCSFile._description : RawMCSFile,
+    H5File._description : H5File,
+    OpenEphysFile._description : OpenEphysFile,
+    KwdFile._description : KwdFile,
+    NWBFile._description : NWBFile,
+    ARFFile._description : ARFFile,
+    BRWFile._description : BRWFile,
+    NumpyFile._description : NumpyFile
 }
 
 #if HAVE_NIX_SUPPORT:
@@ -37,7 +37,7 @@ __supported_data_files__ = {
 #	__supported_data_files__[NIXFile._description] = NixFile
 
 if HAVE_NEUROSHARE:
-	from mcd import MCDFile
-	__supported_data_files__[MCDFile._description] = MCDFile
+    from mcd import MCDFile
+    __supported_data_files__[MCDFile._description] = MCDFile
 
 

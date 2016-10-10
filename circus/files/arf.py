@@ -47,7 +47,7 @@ class ARFFile(H5File):
 
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
-        	self._parallel_write = False
+            self._parallel_write = False
         
         self.size   = self.my_file.get(self._get_channel_key_(0)).shape
         self._shape = (self.size[0], len(self.channels))
@@ -99,12 +99,12 @@ class ARFFile(H5File):
 
     def set_data(self, time, data):
         
-    	data  = data.astype(self.data_dtype)
+        data  = data.astype(self.data_dtype)
         for i in xrange(self.nb_channels):
             self.data[i][time:time+data.shape[0]] = self._unscale_data_from_from32(data[:, i])
 
     def open(self, mode='r'):
-        if self._parallel_write:
+        if mode in ['r+', 'w'] and self._parallel_write:
             self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=comm)
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)
