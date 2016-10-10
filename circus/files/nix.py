@@ -10,7 +10,7 @@ class NWBFile(H5File):
 
     def __init__(self, file_name, is_empty=False, **kwargs):
 
-    	#if not is_empty:
+        #if not is_empty:
         #    self.__check_valid_key__(file_name, kwargs['h5_key'])
         #    all_keys           = h5py.File(file_name).get(kwargs['h5_key']).keys()
         #    channels, idx      = self._get_sorted_channels_(all_keys, kwargs['channel_name'])    

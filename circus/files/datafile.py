@@ -288,7 +288,7 @@ class DataFile(object):
 
     @property
     def is_master(self):
-    	return comm.rank == 0
+        return comm.rank == 0
 
     @property
     def t_start(self):
