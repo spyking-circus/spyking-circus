@@ -104,7 +104,7 @@ class ARFFile(H5File):
             self.data[i][time:time+data.shape[0]] = self._unscale_data_from_from32(data[:, i])
 
     def open(self, mode='r'):
-        if self._parallel_write:
+        if mode in ['r+', 'w'] and self._parallel_write:
             self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=comm)
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)
