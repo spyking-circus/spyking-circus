@@ -58,7 +58,8 @@ install:
 
 # command to run tests (make sure to not run it from the source directory)
 script:
-- conda build -c spyking-circus conda_recipe
+- if [ "$TRAVIS_OS_NAME" == "osx" ]; then OTHER_CHANNELS="-c mpi4py"; fi
+- conda build -c spyking-circus $OTHER_CHANNELS conda_recipe
 - python packaging_tools/move_conda_package.py
 
 notifications:
