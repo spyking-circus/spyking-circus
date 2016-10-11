@@ -1,6 +1,13 @@
 language: c  # We are not using the Python infrastructure
 sudo: false  # Make sure we are using the container-based infrastructure
 
+# Install packages to have 32bit Python run on 64bit
+addons:
+  apt:
+    packages:
+    - gcc-multilib
+    - lib32z1
+
 matrix:
   include:
     - python: "2.7"
