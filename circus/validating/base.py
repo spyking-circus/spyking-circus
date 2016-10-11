@@ -81,6 +81,17 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     if comm.rank == 0:
         extract_juxta_spikes(params)
     comm.Barrier()
+
+    beer_path  = "{}.beer.hdf5".format(file_out_suff)
+    beer_file  = h5py.File(beer_path, 'a', libver='latest')
+    group_name = "juxta_spike_values"
+    key = "{}/elec_0".format(group_name)
+
+    if len(beer_file.get(key)) == 0:
+        if comm.rank == 0:
+            print_and_log(['No juxta-cellular spikes have been found!'], 'error', logger)
+        sys.exit(0)
+    
     
     # Retrieve the spike times of the juxtacellular trace.
     spike_times_juxta = io.load_data(params, 'juxta-triggers')
@@ -332,7 +343,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     matches = sorted(matches)
     counts = numpy.arange(len(matches) - 1, -1, -1)
     matches = numpy.concatenate((numpy.array([extra_thresh]), matches))
-    counts = numpy.concatenate((numpy.array([counts[0]]), counts))
+    if len(counts) > 0:
+        counts = numpy.concatenate((numpy.array([counts[0]]), counts))
     counts = 100.0 * counts.astype('float') / float(spike_times_juxta.size)
     
     unknown_zone = Rectangle((0.0, 0), extra_thresh, 100.0,
@@ -341,7 +353,10 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     if comm.rank == 0:
         
         # Save proportion in BEER file.
-        proportion = counts[0]
+        if len(counts) > 0:
+            proportion = counts[0]
+        else:
+            proportion = 0
         beer_path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(beer_path, 'a', libver='latest')
         beer_key = 'proportion'
@@ -350,7 +365,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         beer_file.create_dataset(beer_key, data=proportion)
         beer_file.close()
         
-        if make_plots not in ['None', '']:
+        if make_plots not in ['None', ''] and len(counts) > 0:
             plot_filename = "beer-proportion.{}".format(make_plots)
             path = os.path.join(plot_path, plot_filename)
             import pylab
@@ -405,7 +420,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     threshold_false_negatives = matched_spike_times_juxta.size - numpy.count_nonzero(matched_spike_times_juxta)
     
-    if comm.Get_rank() == 0:
+    if comm.rank == 0:
         
         # Save number of false negatives due to threshold in BEER file.
         beer_path = "{}.beer.hdf5".format(file_out_suff)

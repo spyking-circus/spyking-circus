@@ -106,3 +106,4 @@ class H5File(DataFile):
         
     def close(self):
         self.my_file.close()
+        del self.data

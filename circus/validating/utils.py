@@ -247,10 +247,7 @@ def extract_extra_spikes_(params):
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     nodes, _ = get_nodes_and_edges(params)
     N_elec = nodes.size
-    
-    # Convert 'safety_time' from milliseconds to number of samples.
-    safety_time = int(safety_time * float(params.rate) * 1e-3)
-    
+        
     extra_medians, extra_mads = extract_extra_thresholds(params)
     
     if comm.rank == 0:
@@ -410,6 +407,7 @@ def extract_extra_spikes_(params):
     channels = len(loc_all_chunks) * [None]
     values = len(loc_all_chunks) * [None]
     
+    data_file.open()
     # For each chunk attributed to the current CPU.
     for (count, gidx) in enumerate(loc_all_chunks):
         time, channel, value = extract_chunk_spikes(gidx, spike_thresh, valley=extra_valley)
@@ -538,7 +536,7 @@ def extract_juxta_spikes_(params):
     # Compute median and median absolute deviation.
     juxta_median = numpy.median(juxta_data)
     juxta_ad     = numpy.abs(juxta_data - juxta_median)
-    juxta_mad   = numpy.median(juxta_ad, axis=0)
+    juxta_mad    = numpy.median(juxta_ad, axis=0)
     
     # Save medians and median absolute deviations to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='latest')
@@ -588,7 +586,7 @@ def extract_juxta_spikes_(params):
     key = "{}/elec_0".format(group_name)
     beer_file.create_dataset(key, data=juxta_spike_values)
     beer_file.close()
-    
+
     return
 
 
