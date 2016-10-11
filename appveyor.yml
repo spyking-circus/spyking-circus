@@ -1,0 +1,49 @@
+environment:
+   matrix:
+    - PYTHON: "C:\\Miniconda35"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "32"
+      platform: x86
+
+    - PYTHON: "C:\\Miniconda35-x64"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "64"
+      platform: x64
+
+    - PYTHON: "C:\\Miniconda"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "32"
+      platform: x86
+
+    - PYTHON: "C:\\Miniconda-x64"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "64"
+      platform: x64
+
+install:
+  # Add the paths for anaconda
+  - 'set PATH=%PYTHON%;%PYTHON%\Library\bin;%PYTHON%\Scripts;%PATH%'
+  # Install MPI
+  - ps: (new-object net.webclient).DownloadFile(
+        "https://download.microsoft.com/download/D/7/B/D7BBA00F-71B7-436B-80BC-4D22F2EE9862/MSMpiSetup.exe",
+        "C:\projects\MSMpiSetup.exe")
+  - C:\projects\MSMpiSetup.exe -unattend -minimal
+  - set PATH=C:\Program Files\Microsoft MPI\Bin;%PATH%
+  # Check that we have the expected version and architecture for Python
+  - 'python --version'
+  - 'python -c "import struct; print(struct.calcsize(''P'') * 8)"'
+
+build: false  # not a C# project
+
+test_script:
+  - 'conda install --yes --quiet conda-build'
+  - 'conda build -c spyking-circus conda_recipe'
+  - 'python packaging_tools/move_conda_package.py'
+
+cache:
+  - C:\Downloads\MSMPI    -> conf\ci\appveyor\install-msmpi.ps1
+
+artifacts:
+  # Archive the generated conda package in the ci.appveyor.com build report.
+  - path: '*.tar.bz2'
+    name: conda package
