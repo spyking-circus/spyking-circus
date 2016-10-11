@@ -35,3 +35,4 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 	:target: http://spyking-circus.readthedocs.io/en/latest/?badge=latest
 
 .. image:: https://ci.appveyor.com/api/projects/status/crb1gm862985hieq?svg=true
+	:target: https://ci.appveyor.com/project/spyking-circus/spyking-circus

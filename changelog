@@ -2,6 +2,7 @@
 Release 0.5
 ===========
 
+* code is now hosted on GitHub
 * various cosmetic changes in the terminal
 * garbage collector mode, to collect also all unfitted spikes, per channel
 * complete restructuration of the I/O such that the code can now handle multiple file formats
@@ -27,6 +28,7 @@ Release 0.5
 * more robust and explicit logging system
 * more robust checking of the parameters
 * display the electrode number in the preview/result GUI
+* setting up a continuous integration workflow to test all conda packages with appveyor and travis automatically
 
 
 
