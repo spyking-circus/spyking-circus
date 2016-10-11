@@ -54,15 +54,25 @@ before_install:
 
 # command to install dependencies
 install:
-  - conda install --yes --quiet conda-build wheel
+  - conda install --yes --quiet conda-build setuptools wheel
 
 # command to run tests
 script:
+# Build the conda package
 - if [ "$TRAVIS_OS_NAME" == "osx" ]; then OTHER_CHANNELS="-c mpi4py"; fi
 - conda build -c spyking-circus $OTHER_CHANNELS conda_recipe
 - python packaging_tools/move_conda_package.py
+# Build source and binary packages
 - python setup.py sdist --formats=zip,gztar,bztar
 - python setup.py bdist_wheel
+# Try installing from the source package (install dependencies via conda first)
+- conda install --yes --quiet -c spyking-circus progressbar2 mpi4py numpy cython scipy matplotlib h5py colorama psutil
+- pip install dist/*.tar.gz
+- spyking-circus -h
+- pip uninstall -y -q spyking-circus
+# Try installing from the binary wheel
+- pip install dist/*.whl
+- spyking-circus -h
 
 notifications:
   email: false
