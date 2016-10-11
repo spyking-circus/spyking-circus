@@ -26,13 +26,16 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 :license: CeCILL, see LICENSE for details.
 
 .. image::  https://anaconda.org/spyking-circus/spyking-circus/badges/version.svg
-	:target: https://anaconda.org/spyking-circus/spyking-circus
+    :target: https://anaconda.org/spyking-circus/spyking-circus
 
 .. image::  https://badge.fury.io/py/spyking-circus.svg
-	:target: https://badge.fury.io/py/spyking-circus
+    :target: https://badge.fury.io/py/spyking-circus
 
 .. image:: https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat
-	:target: http://spyking-circus.readthedocs.io/en/latest/?badge=latest
+    :target: http://spyking-circus.readthedocs.io/en/latest/?badge=latest
 
 .. image:: https://ci.appveyor.com/api/projects/status/crb1gm862985hieq?svg=true
-	:target: https://ci.appveyor.com/project/spyking-circus/spyking-circus
+    :target: https://ci.appveyor.com/project/spyking-circus/spyking-circus
+
+.. image:: https://travis-ci.org/spyking-circus/spyking-circus.svg?branch=master
+    :target: https://travis-ci.org/spyking-circus/spyking-circus
