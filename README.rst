@@ -20,7 +20,7 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 
 * Documentation can be found at http://spyking-circus.rtfd.org
 * A Google group can be found at http://groups.google.com/forum/#!forum/spyking-circus-users
-* A bug tracker can be found at https://bitbucket.org/yger/spyking-circus/issues?status=new&status=open
+* A bug tracker can be found at https://github.com/spyking-circus/spyking-circus/issues
 
 :copyright: Copyright 2006-2016 by the SpyKING CIRCUS team, see AUTHORS.
 :license: CeCILL, see LICENSE for details.
