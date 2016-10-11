@@ -44,11 +44,11 @@ test_script:
   - 'python setup.py bdist_wheel'
   # Try installing from the source package (install dependencies via conda first)
   - 'conda install --yes --quiet -c spyking-circus progressbar2 mpi4py numpy cython scipy matplotlib h5py colorama psutil'
-  - 'pip install dist/*.tar.gz'
+  - 'FOR /R dist %F in (*.tar.gz) do pip install %F'
   - 'spyking-circus -h'
   - 'pip uninstall -y -q spyking-circus'
   # Try installing from the binary wheel
-  - 'pip install dist/*.whl'
+  - 'FOR /R dist %F in (*.whl) do pip install %F'
   - 'spyking-circus -h'
 
 artifacts:
