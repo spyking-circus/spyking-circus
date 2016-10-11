@@ -54,13 +54,15 @@ before_install:
 
 # command to install dependencies
 install:
-  - conda install --yes --quiet conda-build
+  - conda install --yes --quiet conda-build wheel
 
-# command to run tests (make sure to not run it from the source directory)
+# command to run tests
 script:
 - if [ "$TRAVIS_OS_NAME" == "osx" ]; then OTHER_CHANNELS="-c mpi4py"; fi
 - conda build -c spyking-circus $OTHER_CHANNELS conda_recipe
 - python packaging_tools/move_conda_package.py
+- python setup.py sdist --formats=zip,gztar,bztar
+- python setup.py bdist_wheel
 
 notifications:
   email: false

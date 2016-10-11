@@ -39,11 +39,13 @@ test_script:
   - 'conda install --yes --quiet conda-build'
   - 'conda build -c spyking-circus conda_recipe'
   - 'python packaging_tools/move_conda_package.py'
-
-cache:
-  - C:\Downloads\MSMPI    -> conf\ci\appveyor\install-msmpi.ps1
+  - 'conda install --yes --quiet wheel'
+  - 'python setup.py sdist --formats=zip,gztar,bztar'
+  - 'python setup.py bdist_wheel'
 
 artifacts:
   # Archive the generated conda package in the ci.appveyor.com build report.
   - path: '*.tar.bz2'
     name: conda package
+  - path: dist\*
+    name: PyPI binaries
