@@ -181,6 +181,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             labels_i = target*numpy.ones(len(idx))
             times_i  = numpy.take(spikes, idx).astype(numpy.int64)
             sub_data = io.get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
+            
             pcs      = numpy.dot(sub_data, basis_proj)
             pcs      = numpy.swapaxes(pcs, 1,2)
             if mode == 0:

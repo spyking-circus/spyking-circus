@@ -80,16 +80,23 @@ def main(argv=None):
     mapping    = generate_matlab_mapping(probe)
     filename   = params.get('data', 'data_file')
 
-    gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
-
+    
     gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
     # Change to the directory of the matlab file
     os.chdir(os.path.abspath(os.path.dirname(gui_file)))
 
     # Use quotation marks for string arguments
-    is_string = [False, True, True, True, False, True, False, False, True]
+    if file_format not in supported_by_matlab:
+        gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2]
+        is_string = [False, True, True, True, False]
+    
+    else:
+
+        gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
+        is_string = [False, True, True, True, False, True, False, False, True]
+    
     arguments = ', '.join(["'%s'" % arg if s else "%s" % arg
-                           for arg, s in zip(gui_params, is_string)])
+                               for arg, s in zip(gui_params, is_string)])
     matlab_command = 'SortingGUI(%s)' % arguments
 
     print_and_log(["Launching the MATLAB GUI..."], 'info', logger)
