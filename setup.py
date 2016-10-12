@@ -1,15 +1,13 @@
 from __future__ import print_function
 import os
 from os.path import join as pjoin
-import sys, subprocess
+import sys, subprocess, re
 
 requires = ['progressbar2', 'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
             'psutil']
 
-if '--nocuda' in sys.argv:
-  sys.argv.remove('--nocuda')
-  HAVE_CUDA = False
-else:
+if '--cuda' in sys.argv:
+  sys.argv.remove('--cuda')
   try:
     subprocess.check_call(['nvcc', '--version'])
     requires += ['cudamat==0.3circus']
@@ -17,9 +15,11 @@ else:
   except (OSError, subprocess.CalledProcessError):
     print("CUDA not found")
     HAVE_CUDA = False
+else:
+  HAVE_CUDA = False
 
 from setuptools import setup
-from setuptools.command.install import install
+
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
@@ -33,8 +33,14 @@ if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
 else:
     data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
 
+# Find version number from `__init__.py` without executing it.
+curdir = os.path.dirname(os.path.realpath(__file__))
+filename = os.path.join(curdir, 'circus/__init__.py')
+with open(filename, 'r') as f:
+    version = re.search(r"__version__ = '([^']+)'", f.read()).group(1)
+
 setup(name='spyking-circus',
-      version='0.5',
+      version=version,
       description='Fast spike sorting by template matching',
       long_description=read('README.rst'),
       url='http://spyking-circus.rtfd.org',

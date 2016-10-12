@@ -29,6 +29,7 @@ Release 0.5
 * more robust checking of the parameters
 * display the electrode number in the preview/result GUI
 * setting up a continuous integration workflow to test all conda packages with appveyor and travis automatically
+* cuda support is now turned off by default, for smoother install procedures (GPU yet do not bring much)
 
 
 
