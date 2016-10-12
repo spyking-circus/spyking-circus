@@ -44,7 +44,7 @@ def main(argv=None):
     file_format    = data_file._description
 
     if file_format not in supported_by_matlab:
-        print_and_log(["File format %s is not supported by MATLAB. Waveforms will not work" %file_format], 'info', logger)
+        print_and_log(["File format %s is not supported by MATLAB. Waveforms disabled" %file_format], 'info', logger)
 
     if numpy.iterable(gain):
         print_and_log(['Multiple gains are not supported, using a default value of 1'], 'info', logger)
