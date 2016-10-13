@@ -4,7 +4,7 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, init_logging
 
-def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
+def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec=1):
     """
     Useful tool to create synthetic datasets for benchmarking.
     
@@ -16,7 +16,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.benchmarking')
 
-    numpy.random.seed(4235)
+    numpy.random.seed(26535)
     file_name      = os.path.abspath(file_name)
     data_path      = os.path.dirname(file_name)
     data_suff, ext = os.path.splitext(os.path.basename(file_name))
@@ -182,7 +182,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         # Initialize the similarity (i.e. default value).
         similarity = 1.0
         # Find the first eligible template for the wanted synthesized cell.
-        while len(new_indices) != len(indices) or (similarity >= sim_same_elec):   
+        while len(new_indices) != len(indices) or (similarity >= sim_same_elec): 
+            print similarity  , len(new_indices), len(indices), count, cell_id
             similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
@@ -201,6 +202,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                     # to the synthesized cell are identical.
                     local_test = n_elec == best_elec
 
+                print local_test
                 if local_test:
                     # Shuffle the neighboring electrodes whithout modifying
                     # the nearest electrode to the synthesized cell.

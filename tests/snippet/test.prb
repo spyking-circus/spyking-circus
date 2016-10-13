@@ -1,0 +1,17 @@
+total_nb_channels = 4
+radius            = 5
+channel_groups    = {}
+
+channel_groups = {
+    # Shank index.
+    1:
+        {   
+            'graph' :[],
+            'channels': range(4),
+            'geometry': {
+                0: (0, -1050),
+                1: (22, -1050),
+                2: (0, -1072),
+                3: (22, -1072)            }
+    }
+}
