@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, name):
 
@@ -123,17 +124,18 @@ class TestFitting(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'fitting.raw')
+        self.file_name      = os.path.join(self.path, 'fitting.dat')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
+        self.parser = CircusParser(self.file_name)
 
 
     def test_fitting_one_CPU(self):
-        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
+        self.parser.write('fitting', 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 1, 0, 'False')
-        io.change_flag(self.file_name, 'max_chunk', 'inf')
+        self.parser.write('fitting', 'max_chunk', 'inf')
         res = get_performance(self.file_name, 'one_CPU')
         if self.all_spikes is None:
             self.all_spikes = res
@@ -141,9 +143,9 @@ class TestFitting(unittest.TestCase):
     
     
     def test_fitting_two_CPUs(self):
-        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
+        self.parser.write('fitting', 'max_chunk', self.max_chunk)
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'max_chunk', 'inf')
+        self.parser.write('fitting', 'max_chunk', 'inf')
         res = get_performance(self.file_name, 'two_CPU')
         if self.all_spikes is None:
             self.all_spikes = res
@@ -158,34 +160,21 @@ class TestFitting(unittest.TestCase):
         except ImportError:
             pass
         if HAVE_CUDA:
-            io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
+            self.parser.write('fitting', 'max_chunk', self.max_chunk)
             mpi_launch('fitting', self.file_name, 1, 0, 'False')
-            io.change_flag(self.file_name, 'max_chunk', 'inf')
+            self.parser.write('fitting', 'max_chunk', 'inf')
             res = get_performance(self.file_name, 'one_GPU')
             if self.all_spikes is None:
                 self.all_spikes = res
             assert numpy.all(self.all_spikes == res)
 
     def test_fitting_large_chunks(self):
-        io.change_flag(self.file_name, 'chunk', '1', avoid_flag='max_chunk')
-        io.change_flag(self.file_name, 'max_chunk', str(int(self.max_chunk)//2))
+        self.parser.write('fitting', 'chunk_size', '1')
+        self.parser.write('fitting', 'max_chunk', str(int(self.max_chunk)//2))
         mpi_launch('fitting', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'max_chunk', 'inf')
-        io.change_flag(self.file_name, 'chunk', '0.5', avoid_flag='max_chunk')
+        self.parser.write('fitting', 'max_chunk', 'inf')
+        self.parser.write('fitting', 'chunk_size', '0.5')
         res = get_performance(self.file_name, 'large_chunks')
         if self.all_spikes is None:
             self.all_spikes = res
         assert numpy.all(self.all_spikes == res)
-
-    '''
-    def test_fitting_refractory(self):
-        io.change_flag(self.file_name, 'max_chunk', self.max_chunk)
-        io.change_flag(self.file_name, 'refractory', '5')
-        mpi_launch('fitting', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'refractory', '0')
-        io.change_flag(self.file_name, 'max_chunk', 'inf')
-        res = get_performance(self.file_name, 'refractory')
-        if self.all_spikes is None:
-            self.all_spikes = res
-        assert numpy.all(self.all_spikes == res)
-    '''

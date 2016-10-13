@@ -1,11 +1,15 @@
 import matplotlib
 matplotlib.use('Agg', warn=False)
-import os
+import os, logging
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
-from circus.shared.files import load_data, write_datasets, get_overlaps, get_nodes_and_edges, print_and_log
+from circus.shared.files import load_data, write_datasets, get_overlaps
 from circus.shared.utils import get_progressbar
-from circus.shared.mpi import all_gather_array
+from circus.shared.messages import print_and_log
+from circus.shared.probes import get_nodes_and_edges
+from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm
 import scipy.linalg, scipy.sparse
+
+logger = logging.getLogger(__name__)
 
 def distancematrix(data, ydata=None):
     
@@ -32,26 +36,6 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=0, max_clusters=10, sav
         else:
             pylab.show()
     return subidx
-
-def autoselect_dc(distances, bounds=[0.0025, 0.0075]):
-    
-    max_dis = distances.max()
-    min_dis = distances.min()
-    dc      = (max_dis + min_dis) / 2
-
-    while True:
-        nneighs = numpy.mean(distances < dc)
-        if nneighs >= bounds[0] and nneighs <= bounds[1]:
-            break
-        # binary search
-        if nneighs < bounds[0]:
-            min_dis = dc
-        else:
-            max_dis = dc
-        dc = (max_dis + min_dis) / 2
-        if max_dis - min_dis < 0.0001:
-            break
-    return dc
 
 
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
@@ -173,18 +157,21 @@ def merging(groups, sim_same_elec, data):
             merged[1] += 1
     return groups, merged
 
-def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
+def slice_templates(params, to_remove=[], to_merge=[], extension=''):
 
     import shutil, h5py
     file_out_suff  = params.get('data', 'file_out_suff')
 
+    data_file      = params.data_file
+    N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
 
     if comm.rank == 0:
-        print_and_log(['Node 0 is slicing templates'], 'debug', params)
+        print_and_log(['Node 0 is slicing templates'], 'debug', logger)
         old_templates  = load_data(params, 'templates')
         old_limits     = load_data(params, 'limits')
-        N_e            = params.getint('data', 'N_e')
-        N_t            = params.getint('data', 'N_t')
         x, N_tm        = old_templates.shape
         norm_templates = load_data(params, 'norm-templates')
 
@@ -237,15 +224,19 @@ def slice_templates(comm, params, to_remove=[], to_merge=[], extension=''):
 
     
 
-def slice_clusters(comm, params, result, to_remove=[], to_merge=[], extension='', light=False):
+def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', light=False):
     
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
 
     if comm.rank == 0:
 
-        print_and_log(['Node 0 is slicing clusters'], 'debug', params)
+        print_and_log(['Node 0 is slicing clusters'], 'debug', logger)
 
         if to_merge != []:
             for count in xrange(len(to_merge)):
@@ -309,7 +300,7 @@ def slice_result(result, times):
 
     return sub_results
 
-def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
+def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
 
     def remove(result, distances, cc_merge):
@@ -357,17 +348,21 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
                 g_idx.pop(to_remove)
 
         return to_merge, result
-            
-    templates      = load_data(params, 'templates')
+         
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
+
+    templates      = load_data(params, 'templates')
     x,        N_tm = templates.shape
     nb_temp        = N_tm//2
     to_merge       = []
     cc_merge       = params.getfloat('clustering', 'cc_merge')
         
     result   = []
-    overlap  = get_overlaps(comm, params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+    overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
     if comm.rank > 0:
@@ -393,8 +388,8 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
     to_merge = comm.bcast(to_merge, root=0)
     
     if len(to_merge) > 0:
-        slice_templates(comm, params, to_merge=to_merge)
-        slice_clusters(comm, params, result)
+        slice_templates(params, to_merge=to_merge)
+        slice_clusters(params, result)
 
     if comm.rank == 0:
         os.remove(filename)
@@ -402,12 +397,15 @@ def merging_cc(comm, params, nb_cpu, nb_gpu, use_gpu):
     return [nb_temp, len(to_merge)]
 
 
-def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
+def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         
     templates      = load_data(params, 'templates')
-    templates      = load_data(params, 'templates')
+    
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    template_shift = params.getint('detection', 'template_shift')
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     x,        N_tm = templates.shape
     nb_temp        = N_tm//2
@@ -415,7 +413,7 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     mixtures       = []
     to_remove      = []
 
-    overlap  = get_overlaps(comm, params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+    overlap  = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     result   = []
     
@@ -424,7 +422,6 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     result           = load_data(params, 'clusters')
     best_elec        = load_data(params, 'electrodes')
     limits           = load_data(params, 'limits')
-    N_total          = params.getint('data', 'N_total')
     nodes, edges     = get_nodes_and_edges(params)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
@@ -499,8 +496,8 @@ def delete_mixtures(comm, params, nb_cpu, nb_gpu, use_gpu):
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
     
     if len(to_remove) > 0:
-        slice_templates(comm, params, to_remove)
-        slice_clusters(comm, params, result, to_remove=to_remove)
+        slice_templates(params, to_remove)
+        slice_clusters(params, result, to_remove=to_remove)
 
     if comm.rank == 0:
         os.remove(filename)

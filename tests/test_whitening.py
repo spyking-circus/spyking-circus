@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, name):
 
@@ -11,7 +12,7 @@ def get_performance(file_name, name):
     data            = {}
     result          = h5py.File(file_out + '.basis.hdf5')
     data['spatial']  = result.get('spatial')[:]
-    data['temporal'] = result.get('temporal')[:]
+    data['temporal'] = numpy.zeros(61) #result.get('temporal')[:]
 
     pylab.figure()
     pylab.subplot(121)
@@ -44,34 +45,36 @@ class TestWhitening(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'whitening.raw')
+        self.file_name      = os.path.join(self.path, 'whitening.dat')
         self.source_dataset = get_dataset(self)     
         self.whitening      = None
         if not os.path.exists(self.file_name):
             mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')   
-        io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
-        io.change_flag(self.file_name, 'spatial', 'True')
-        io.change_flag(self.file_name, 'temporal', 'True')
+        self.params = CircusParser(self.file_name)
+        self.params.write('clustering', 'max_elts', '1000')
+        self.params.write('whitening', 'spatial', 'True')
+        self.params.write('clustering', 'temporal', 'False')
+
 
     def test_whitening_one_CPU(self):
         mpi_launch('whitening', self.file_name, 1, 0, 'False')
         res = get_performance(self.file_name, 'one_CPU')
         if self.whitening is None:
             self.whitening = res
-        assert (((res['spatial'] - self.whitening['spatial'])**2).mean() < 0.1) and (((res['temporal'] - self.whitening['temporal'])**2).mean() < 0.1)
+        assert ((res['spatial'] - self.whitening['spatial'])**2).mean() < 0.1
 
     def test_whitening_two_CPU(self):
         mpi_launch('whitening', self.file_name, 2, 0, 'False')
         res = get_performance(self.file_name, 'two_CPU')
         if self.whitening is None:
             self.whitening = res
-        assert (((res['spatial'] - self.whitening['spatial'])**2).mean() < 0.1) and (((res['temporal'] - self.whitening['temporal'])**2).mean() < 0.1)
+        assert ((res['spatial'] - self.whitening['spatial'])**2).mean() < 0.1
 
     def test_whitening_safety_time(self):
-        io.change_flag(self.file_name, 'safety_time', '5')
+        self.params.write('clustering', 'safety_time', '5')
         mpi_launch('whitening', self.file_name, 1, 0, 'False')
-        io.change_flag(self.file_name, 'safety_time', '0.5')
+        self.params.write('clustering', 'safety_time', 'auto')
         res = get_performance(self.file_name, 'safety_time')
         if self.whitening is None:
             self.whitening = res
-        assert (((res['spatial'] - self.whitening['spatial'])**2).mean() < 0.1) and (((res['temporal'] - self.whitening['temporal'])**2).mean() < 0.1)
+        assert ((res['spatial'] - self.whitening['spatial'])**2).mean() < 0.1

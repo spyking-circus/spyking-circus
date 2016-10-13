@@ -1,6 +1,6 @@
 package:
   name: spyking-circus
-  version: "0.4.3"
+  version: "0.5"
 
 requirements:
   build:
@@ -37,7 +37,7 @@ source:
 build:
   noarch_python: False
   number: 0
-  script: python setup.py install --nocuda --single-version-externally-managed --record=record.txt
+  script: python setup.py install --single-version-externally-managed --record=record.txt
 
 app:
   entry: spyking-circus .        [win]

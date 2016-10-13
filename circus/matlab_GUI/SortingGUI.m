@@ -238,7 +238,14 @@ if length(varargin)>=6
             end
         end
     end
+else
+    set(handles.ForwardNavigate,'Enable','off');
+    set(handles.BackwardNavigate,'Enable','off'); 
+    set(handles.SelectAmp, 'Enable', 'off');
+    set(handles.EnableWaveforms, 'Enable', 'off');
 end
+
+
 
 %% spiketimes file
 if exist([handles.filename '.spiketimes' handles.suffix],'file')

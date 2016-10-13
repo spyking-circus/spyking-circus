@@ -1,16 +1,17 @@
+### Note that depending on the file format selected, the parameters in the data section can vary
+### You should refer to the documentation to know what are the needed parameters for a given
+### file file_format. Otherwise, launch the code and a message will tell you what is needed
+
 [data]
-data_offset    = MCS                    # Length of the header ('MCS' is auto for MCS file)
-mapping        = probes/mea_252.prb     # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys, brw, npy
+mapping        = ~/probes/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files
-data_dtype     = uint16                 # Type of the data
-dtype_offset   = auto                   # Padding for data (if auto: uint16 is 32767, uint8 is 127, int16 is 0, ...)
-sampling_rate  = 20000                  # Sampling rate of the data [Hz]
-N_t            = 5                      # Width of the templates [in ms]
-radius         = auto                   # Radius [in um] (if auto, read from the prb file)
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
-multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation
+multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
 
 [detection]
+radius         = auto                   # Radius [in um] (if auto, read from the prb file)
+N_t            = 5                      # Width of the templates [in ms]
 spike_thresh   = 6                      # Threshold for spike detection
 peaks          = negative               # Can be negative (default), positive or both
 matched-filter = False                  # If True, we perform spike detection with matched filters
@@ -26,7 +27,7 @@ remove_median  = False      # If True, median over all channels is substracted t
 trig_file      =           # If external stimuli need to be considered as putative artefacts (see documentation)
 trig_windows   =           # The time windows of those external stimuli [in ms]
 clean_artefact = False     # If True, external artefacts induced by triggers will be suppressed from data
-make_plots     = png       # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
+make_plots     =           # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 [whitening]
 chunk_size     = 30         # Size of the data chunks [in s]
@@ -52,15 +53,16 @@ compress       = True       # Compress templates for large physical radius or nu
 cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
-make_plots     = png        # Generate sanity plots of the clustering [Nothing or None if no plots]
+make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
 
 [fitting]
-chunk          = 1         # Size of chunks used during fitting [in second]
+chunk_size     = 1         # Size of chunks used during fitting [in second]
 gpu_only       = False     # Use GPU for computation of b's AND fitting [not optimized yet]
 amp_limits     = (0.3, 5)  # Amplitudes for the templates during spike detection [if not auto]
 amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
 max_chunk      = inf       # Fit only up to max_chunk   
+collect_all    = False     # If True, one garbage template per electrode is created, to store unfitted spikes
 
 [merging]
 cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
@@ -70,6 +72,7 @@ correct_lag    = False     # If spikes are aligned when merging. May be better f
 [converting]
 erase_all      = True      # If False, a prompt will ask you to export if export has already been done
 export_pcs     = prompt    # Can be prompt [default] or in none, all, some
+export_all     = False     # If True, unfitted spikes will be exported as the last Ne templates
 
 [validating]
 nearest_elec   = auto      # Validation channel (e.g. electrode closest to the ground truth cell)

@@ -1,0 +1,79 @@
+language: c  # We are not using the Python infrastructure
+sudo: false  # Make sure we are using the container-based infrastructure
+
+# Install packages to have 32bit Python run on 64bit
+addons:
+  apt:
+    packages:
+    - gcc-multilib
+    - lib32z1
+
+matrix:
+  include:
+    - python: "2.7"
+      env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86_64"
+      os: linux
+    - python: "2.7"
+      env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86"
+      os: linux
+    - python: "3.5"
+      env: PYTHON="3.5" CONDA_PY="35" ARCHITECTURE="x86_64"
+      os: linux
+    - python: "3.5"
+      env: PYTHON="3.5" CONDA_PY="35" ARCHITECTURE="x86"
+      os: linux
+    - python: "2.7"
+      env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86_64"
+      os: osx
+    - python: "3.5"
+      env: PYTHON="3.5" CONDA_PY="35" ARCHITECTURE="x86_64"
+      os: osx
+
+# Use miniconda to install binary versions of numpy etc. from continuum
+# analytic's repository. Follows an approach described by Dan Blanchard:
+# https://gist.github.com/dan-blanchard/7045057
+before_install:
+- if [ ${PYTHON:0:1} == "2" ]; then
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-$ARCHITECTURE.sh -O miniconda.sh;
+    else
+    wget http://repo.continuum.io/miniconda/Miniconda-latest-MacOSX-$ARCHITECTURE.sh -O miniconda.sh;
+    fi;
+    else
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-$ARCHITECTURE.sh -O miniconda.sh;
+    else
+    wget http://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-$ARCHITECTURE.sh -O miniconda.sh;
+    fi;
+  fi
+- chmod +x miniconda.sh
+# When we are installing the 32 Bit conda on a 64 Bit system, the miniconda
+# installer will ask for a "yes" despite the -b flag, so we pipe in a yes
+- yes | ./miniconda.sh -b -p ~/miniconda
+- export PATH=~/miniconda/bin:$PATH
+
+# command to install dependencies
+install:
+  - conda install --yes --quiet conda-build setuptools wheel
+
+# command to run tests
+script:
+# Build the conda package
+- if [ "$TRAVIS_OS_NAME" == "osx" ]; then OTHER_CHANNELS="-c mpi4py"; fi
+- conda build -c spyking-circus $OTHER_CHANNELS conda_recipe
+- python packaging_tools/move_conda_package.py
+# Build source and binary packages
+- python setup.py sdist --formats=zip,gztar,bztar
+- python setup.py bdist_wheel
+# Try installing from the source package (install dependencies via conda first)
+- conda install --yes --quiet -c spyking-circus $OTHER_CHANNELS progressbar2 mpi4py numpy cython scipy matplotlib h5py colorama psutil
+- pip install dist/*.tar.gz
+- spyking-circus -h
+- pip uninstall -y -q spyking-circus
+# Try installing from the binary wheel
+- pip install dist/*.whl
+- spyking-circus -h
+
+notifications:
+  email: false
+

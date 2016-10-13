@@ -5,7 +5,10 @@ the main spyking_circus script, since we want to start them with ``mpirun``.
 '''
 import sys
 import circus
+import logging
+from circus.shared.messages import print_and_log
 
+logger = logging.getLogger(__name__)
 
 def main():
 
@@ -19,6 +22,7 @@ def main():
     nb_cpu   = int(sys.argv[3])
     nb_gpu   = int(sys.argv[4])
     use_gpu  = (sys.argv[5].lower() == 'true')
+    print_and_log(['Launching subtask %s with params %s' %(task, sys.argv[2:])], 'debug', logger)
     if task == 'benchmarking':
         output    = sys.argv[6]
         benchmark = sys.argv[7]

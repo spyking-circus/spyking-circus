@@ -6,30 +6,27 @@ import pkg_resources
 import argparse
 import circus
 import tempfile
-import numpy, h5py
+import numpy, h5py, logging
 from distutils.version import LooseVersion, StrictVersion
-from circus.shared.files import print_error, print_info, print_and_log, read_probe, get_header
-import colorama
-colorama.init(autoreset=True)
-from colorama import Fore, Back, Style
+from circus.shared.messages import print_and_log, get_header, get_colored_header, init_logging
+from circus.shared.parser import CircusParser
 
-
-import logging
 from phy import add_default_handler
 from phy.utils._misc import _read_python
 from phy.gui import create_app, run_app
 from phycontrib.template import TemplateController
-
 import numpy as np
+
+
+supported_by_phy = ['raw_binary', 'mcs_raw_binary']
+
 
 def main(argv=None):
 
     if argv is None:
         argv = sys.argv[1:]
 
-    gheader = Fore.GREEN + get_header()
-    header  = gheader + Fore.RESET
-
+    header = get_colored_header()
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')
@@ -44,35 +41,59 @@ def main(argv=None):
 
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
-    params         = circus.shared.utils.io.load_parameters(filename)
+    params         = CircusParser(filename)
+    if os.path.exists(params.logfile):
+        os.remove(params.logfile)
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger(__name__)
     
     mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
     if not mytest:
-        print_and_log(['You need to update phy-contrib to the latest git version'], 'error', params)
+        print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
         sys.exit(0)
 
-    sampling_rate  = float(params.getint('data', 'sampling_rate'))
-    data_dtype     = params.get('data', 'data_dtype')
+    data_file      = params.get_data_file()
+    data_dtype     = data_file.data_dtype
+    if hasattr(data_file, 'data_offset'):
+        data_offset = data_file.data_offset
+    else:
+        data_offset = 0
+    file_format    = data_file._description
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_offset    = params.getint('data', 'data_offset')
-    probe          = read_probe(params)
+
+    if file_format not in supported_by_phy:
+        print_and_log(["File format %s is not supported by phy. TraceView disabled" %file_format], 'info', logger)
+
+    if numpy.iterable(data_file.gain):
+        print_and_log(['Multiple gains are not supported, using a default value of 1'], 'info', logger)
+        gain = 1
+    else:
+        if data_file.gain != 1:
+            print_and_log(["Gain of %g is not supported by phy. Expecting a scaling mismatch" %gain], 'info', logger)
+            gain = data_file.gain
+
+
+    probe          = params.probe
     if extension != '':
         extension = '-' + extension
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
 
     if not os.path.exists(output_path):
-        print_and_log(['Data should be first exported with the converting method!'], 'error', params)
+        print_and_log(['Data should be first exported with the converting method!'], 'error', logger)
     else:
 
-        print_and_log(["Launching the phy GUI..."], 'info', params)
+        print_and_log(["Launching the phy GUI..."], 'info', logger)
 
         gui_params                   = {}
-        gui_params['dat_path']       = params.get('data', 'data_file')
-        gui_params['n_channels_dat'] = params.getint('data', 'N_total')
+        if file_format in supported_by_phy:
+            gui_params['dat_path']   = params.get('data', 'data_file')
+        else:
+            gui_params['dat_path']   = ''
+        gui_params['n_channels_dat'] = params.nb_channels
         gui_params['n_features_per_channel'] = 5
-        gui_params['dtype']          = params.get('data', 'data_dtype')
-        gui_params['offset']         = params.getint('data', 'data_offset')
-        gui_params['sample_rate']    = params.getint('data', 'sampling_rate')
+        gui_params['dtype']          = data_dtype
+        gui_params['offset']         = data_offset
+        gui_params['sample_rate']    = params.rate
         gui_params['hp_filtered']    = True
 
         os.chdir(output_path)
