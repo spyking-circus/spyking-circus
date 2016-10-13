@@ -28,7 +28,7 @@ def run():
         sys.stderr.write(('OK: %d/%d test suite(s) did complete '
                           'successfully.\n') % (len(success), len(success)))
 
-def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None):
+def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None, sim_same_elec=None):
     args     = ['mpirun'] 
         
     from mpi4py import MPI
@@ -64,7 +64,7 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
                 sys.exit()
             args += ['-np', nb_tasks,
                      'spyking-circus-subtask',
-                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark, str(sim_same_elec)]
         else:
             args += ['-np', nb_tasks,
                  'spyking-circus-subtask',

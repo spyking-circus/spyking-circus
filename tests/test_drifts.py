@@ -150,7 +150,7 @@ class TestDrifts(unittest.TestCase):
         self.file_name      = os.path.join(self.path, 'drifts.dat')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
-            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'drifts')
+            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'drifts', 1)
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
         self.parser = CircusParser(self.file_name)
 

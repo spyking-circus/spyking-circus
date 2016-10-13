@@ -49,7 +49,7 @@ class TestWhitening(unittest.TestCase):
         self.source_dataset = get_dataset(self)     
         self.whitening      = None
         if not os.path.exists(self.file_name):
-            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting')   
+            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'fitting', 1) 
         self.params = CircusParser(self.file_name)
         self.params.write('clustering', 'max_elts', '1000')
         self.params.write('whitening', 'spatial', 'True')
