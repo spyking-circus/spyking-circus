@@ -82,11 +82,11 @@ def get_dataset(self):
     result   = os.path.join(filename, 'data')
     filename = os.path.join(filename, 'data.dat')
     if not os.path.exists(filename):
-        print "Generating a synthetic dataset of 4 channels, 2min at 20kHz..."
+        print "Generating a synthetic dataset of 4 channels, 1min at 20kHz..."
         sampling_rate = 20000
         N_total       = 4
         gain          = 0.5
-        data          = (gain * numpy.random.randn(sampling_rate * N_total * 2 * 60)).astype(numpy.float32)
+        data          = (gain * numpy.random.randn(sampling_rate * N_total * 1 * 60)).astype(numpy.float32)
         myfile        = open(filename, 'w')
         myfile.write(data.tostring())
         myfile.close()  

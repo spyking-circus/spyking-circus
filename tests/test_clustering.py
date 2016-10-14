@@ -60,7 +60,7 @@ def get_performance(file_name, name):
     pylab.figure()
 
 
-    pylab.subplot(221)
+    pylab.subplot(121)
     pylab.imshow(res.reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
     cb = pylab.colorbar()
     cb.set_label('Correlation')
@@ -71,33 +71,10 @@ def get_performance(file_name, name):
     pylab.xlim(-0.5, n_point-0.5)
     pylab.ylim(-0.5, n_point-0.5)
 
-    pylab.subplot(222)
+    pylab.subplot(122)
     pylab.imshow(res2.reshape(n_point, n_point).astype(numpy.int32), aspect='auto', interpolation='nearest', origin='lower')
     cb = pylab.colorbar()
     cb.set_label('Number of templates')
-    pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
-    pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
-    pylab.ylabel('Rate [Hz]')
-    pylab.xlabel('Relative Amplitude')
-    pylab.xlim(-0.5, n_point-0.5)
-    pylab.ylim(-0.5, n_point-0.5)
-
-    print n_cells, amplitudes.shape, n_point
-    pylab.subplot(223)
-    pylab.imshow(amplitudes[-len(n_cells):][:,0].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
-    cb = pylab.colorbar()
-    cb.set_label('Min amplitude')
-    pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
-    pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
-    pylab.ylabel('Rate [Hz]')
-    pylab.xlabel('Relative Amplitude')
-    pylab.xlim(-0.5, n_point-0.5)
-    pylab.ylim(-0.5, n_point-0.5)
-
-    pylab.subplot(224)
-    pylab.imshow(amplitudes[-len(n_cells):][:,1].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
-    cb = pylab.colorbar()
-    cb.set_label('Max amplitude')
     pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
     pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
     pylab.ylabel('Rate [Hz]')
@@ -141,15 +118,14 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.sum(self.all_templates) == numpy.sum(res[0])
-        
+
+
     def test_clustering_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         res = get_performance(self.file_name, 'two_CPU')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.sum(self.all_templates) == numpy.sum(res[0])
 
     def test_clustering_pca(self):
         self.parser.write('clustering', 'extraction', 'median-pca')
@@ -159,7 +135,6 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.sum(self.all_templates) == numpy.sum(res[0])
 
     def test_clustering_nb_passes(self):
         self.parser.write('clustering', 'nb_repeats', '1')
@@ -169,7 +144,6 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.sum(self.all_templates) == numpy.sum(res[0])
 
     def test_clustering_sim_same_elec(self):
         self.parser.write('clustering', 'sim_same_elec', '5')
@@ -179,7 +153,6 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.sum(res[1]) <= numpy.sum(self.all_matches)
 
     def test_clustering_cc_merge(self):
         self.parser.write('clustering', 'cc_merge', '0.8')
@@ -189,7 +162,6 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert res[0].shape[1] <= self.all_templates.shape[1]
 
     def test_remove_mixtures(self):
         self.parser.write('clustering', 'remove_mixtures', 'False')
@@ -199,4 +171,3 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert res[0].shape[1] >= self.all_templates.shape[1]
