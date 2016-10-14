@@ -73,7 +73,7 @@ setup(name='spyking-circus',
           ]
       },
       extras_require={'beer': ['scikit-learn']},
-      package_data={'circus': [pjoin('circus', 'config.params'),
+      package_data={'circus': ['config.params',
                                # Only include the actual GUI, not other test scripts
                                pjoin('matlab_GUI', 'SortingGUI.m'),
                                pjoin('matlab_GUI', 'SortingGUI.fig'),
