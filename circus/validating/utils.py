@@ -246,7 +246,7 @@ def extract_extra_spikes_(params):
     #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     nodes, _ = get_nodes_and_edges(params)
-    N_elec = nodes.size
+    N_elec   = params.getint('data', 'N_e')
         
     extra_medians, extra_mads = extract_extra_thresholds(params)
     
@@ -429,9 +429,9 @@ def extract_extra_spikes_(params):
     comm.Barrier()
     
     # Gather times, channels and values.
-    times = gather_array(times.astype(numpy.int64), comm, 0, dtype='int64')
+    times    = gather_array(times.astype(numpy.int64), comm, 0, dtype='int64')
     channels = gather_array(channels.astype(numpy.int64), comm, 0, dtype='int64')
-    values = gather_array(values.astype(numpy.float64), comm, 0, dtype='float64')
+    values   = gather_array(values.astype(numpy.float64), comm, 0, dtype='float64')
     
     if comm.rank == 0:
         # Sort times, channels and values according to time.
@@ -440,7 +440,6 @@ def extract_extra_spikes_(params):
         channels = channels[idx]
         values = values[idx]
     
-    if comm.rank == 0:
         msg = [
             "Total number of extracellular spikes extracted: {}".format(channels.size),
         ] 
@@ -450,8 +449,6 @@ def extract_extra_spikes_(params):
         print_and_log(msg, level='info', logger=logger)
         print_and_log(msg2, level='debug', logger=logger)
     
-    
-    if comm.rank == 0:
         path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(path, 'a', libver='latest')
         group_name = "extra_spiketimes"
@@ -471,7 +468,7 @@ def extract_extra_spikes_(params):
             data = values[mask]
             beer_file.create_dataset("{}/elec_{}".format(group_name, i), data=data)
         beer_file.close()
-    
+
     comm.Barrier()
     
     return

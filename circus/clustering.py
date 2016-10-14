@@ -184,7 +184,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if gpass == 0:
                 for p in search_peaks:
                     result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
-                    result['nb_chunks_%s_' %p + str(i)] = 0
+                    result['nb_chunks_%s_' %p + str(i)] = 1
             else:
                 n_neighb = len(edges[nodes[i]])
                 for p in search_peaks:
@@ -970,19 +970,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     
     comm.Barrier()
 
-    if comm.rank == 0:
-        print_and_log(["Merging similar templates..."], 'default', logger)
-    
-    
-    merged1 = algo.merging_cc(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
-    
-    comm.Barrier()
+    if total_nb_clusters > 0:
 
-    if remove_mixture:
         if comm.rank == 0:
-            print_and_log(["Removing mixtures..."], 'default', logger)
-        merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+            print_and_log(["Merging similar templates..."], 'default', logger)
+    
+        merged1 = algo.merging_cc(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    
+        comm.Barrier()
+
+        if remove_mixture:
+            if comm.rank == 0:
+                print_and_log(["Removing mixtures..."], 'default', logger)
+            merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        else:
+            merged2 = [0, 0]
+
     else:
+        merged1 = [0, 0]
         merged2 = [0, 0]
 
     if comm.rank == 0:

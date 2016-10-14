@@ -91,7 +91,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         if comm.rank == 0:
             print_and_log(['No juxta-cellular spikes have been found!'], 'error', logger)
         sys.exit(0)
-    
+    beer_file.close()
     
     # Retrieve the spike times of the juxtacellular trace.
     spike_times_juxta = io.load_data(params, 'juxta-triggers')
@@ -219,7 +219,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     # Detect the spikes times of the "non ground truth cell".
     extract_extra_spikes(params)
-    
+    comm.Barrier()
     # Retrieve the spike times of the "non ground truth cell".
     spike_times_ngt_tmp = io.load_data(params, 'extra-triggers')
     
@@ -1300,7 +1300,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         tprs = [1.0] + tprs + [0.0]
     
     
-    if comm.Get_rank() == 0:
+    if comm.rank == 0:
         
         ##### TODO: clean temporary zone
         

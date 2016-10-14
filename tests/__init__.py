@@ -28,7 +28,7 @@ def run():
         sys.stderr.write(('OK: %d/%d test suite(s) did complete '
                           'successfully.\n') % (len(success), len(success)))
 
-def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None):
+def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None, sim_same_elec=None):
     args     = ['mpirun'] 
         
     from mpi4py import MPI
@@ -43,8 +43,10 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
             args += ['-x', 'PYTHONPATH']
     elif vendor[0] == 'Microsoft MPI':
         args  = ['mpiexec']
-    else: 
-        args  = ['mpirun']
+    elif vendor[0] == 'MPICH2':
+        mpi_args = ['mpiexec']
+    elif vendor[0] == 'MPICH':
+        mpi_args = ['mpiexec']
     
     if use_gpu == 'True':
         nb_tasks = str(nb_gpu)
@@ -62,7 +64,7 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
                 sys.exit()
             args += ['-np', nb_tasks,
                      'spyking-circus-subtask',
-                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark, str(sim_same_elec)]
         else:
             args += ['-np', nb_tasks,
                  'spyking-circus-subtask',
@@ -80,18 +82,19 @@ def get_dataset(self):
     result   = os.path.join(filename, 'data')
     filename = os.path.join(filename, 'data.dat')
     if not os.path.exists(filename):
-        print "Generating a synthetic dataset of 30 channels, 5min at 20kHz..."
+        print "Generating a synthetic dataset of 4 channels, 1min at 20kHz..."
         sampling_rate = 20000
-        N_total       = 30
+        N_total       = 4
         gain          = 0.5
-        data          = (gain * numpy.random.randn(sampling_rate * N_total * 5 * 60)).astype(numpy.float32)
+        data          = (gain * numpy.random.randn(sampling_rate * N_total * 1 * 60)).astype(numpy.float32)
         myfile        = open(filename, 'w')
         myfile.write(data.tostring())
-        myfile.close()
+        myfile.close()  
     
+    src_path = os.path.abspath(os.path.join(dirname, 'snippet'))
+
     if not os.path.exists(result):
         os.makedirs(result)
-        src_path = os.path.join(dirname, 'snippet')
         shutil.copy(os.path.join(src_path, 'test.basis.hdf5'), os.path.join(result, 'data.basis.hdf5'))
         shutil.copy(os.path.join(src_path, 'test.templates.hdf5'), os.path.join(result, 'data.templates.hdf5'))
         shutil.copy(os.path.join(src_path, 'test.clusters.hdf5'), os.path.join(result, 'data.clusters.hdf5'))
@@ -99,9 +102,9 @@ def get_dataset(self):
     config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
     file_params = os.path.abspath(filename.replace('.dat', '.params'))
     if not os.path.exists(file_params):
+        
         shutil.copyfile(config_file, file_params)
-        user_path  = os.path.join(os.path.expanduser('~'), 'spyking-circus')
-        probe_file = os.path.join(os.path.join(user_path, 'probes'), 'dan.prb')
+        probe_file = os.path.join(src_path, 'test.prb')
         parser = CircusParser(filename, mapping=probe_file)
         parser.write('data', 'file_format', 'raw_binary')
         parser.write('data', 'data_offset', '0')

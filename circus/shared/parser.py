@@ -443,7 +443,9 @@ class CircusParser(object):
         f     = open(self.file_params, 'r')
         lines = f.readlines()
         f.close()
-        to_write = '%s      = %s              #!! AUTOMATICALLY EDITED: DO NOT MODIFY !!\n' %(flag, value)
+        spaces = ''.join([' ']*(max(0, 15 - len(flag))))
+
+        to_write = '%s%s= %s              #!! AUTOMATICALLY EDITED: DO NOT MODIFY !!\n' %(flag, spaces, value)
         
         section_area = [0, len(lines)]
         idx          = 0

@@ -83,4 +83,4 @@ class TestGarbage(unittest.TestCase):
         self.parser.write('fitting', 'max_chunk', 'inf')
         self.parser.write('fitting', 'collect_all', 'False')
         ctruth, cspikes, cgarbage = get_performance(self.file_name)
-        assert cgarbage < cspikes/10.
+        assert cgarbage < cspikes
