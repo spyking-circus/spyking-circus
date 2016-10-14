@@ -39,6 +39,14 @@ filename = os.path.join(curdir, 'circus/__init__.py')
 with open(filename, 'r') as f:
     version = re.search(r"__version__ = '([^']+)'", f.read()).group(1)
 
+
+def _package_tree(pkgroot):
+    path = os.path.dirname(__file__)
+    subdirs = [os.path.relpath(i[0], path).replace(os.path.sep, '.')
+               for i in os.walk(os.path.join(path, pkgroot))
+               if '__init__.py' in i[2]]
+    return subdirs
+
 setup(name='spyking-circus',
       version=version,
       description='Fast spike sorting by template matching',
@@ -48,7 +56,7 @@ setup(name='spyking-circus',
       author_email='pierre.yger@inserm.fr',
       license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
       keywords="spike sorting template matching tetrodes extracellular",
-      packages=['circus', 'circus.shared', 'circus.scripts', 'circus.files'],
+      packages=_package_tree('circus'),
       setup_requires=['setuptools>0.18'],
       dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
       install_requires=requires,
@@ -65,7 +73,7 @@ setup(name='spyking-circus',
           ]
       },
       extras_require={'beer': ['scikit-learn']},
-      package_data={'circus': ['config.params',
+      package_data={'circus': [pjoin('circus', 'config.params'),
                                # Only include the actual GUI, not other test scripts
                                pjoin('matlab_GUI', 'SortingGUI.m'),
                                pjoin('matlab_GUI', 'SortingGUI.fig'),
