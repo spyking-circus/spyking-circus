@@ -197,7 +197,7 @@ class TestSynchrony(unittest.TestCase):
     def setUp(self):
         self.all_matches    = None
         self.all_templates  = None
-        self.max_chunk      = '2'
+        self.max_chunk      = 'inf'
         dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):

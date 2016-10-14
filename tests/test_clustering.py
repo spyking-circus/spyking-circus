@@ -19,7 +19,7 @@ def get_performance(file_name, name):
     rate            = data['rates'][::n_point]
     sampling        = data['sampling']
     probe_file      = data['probe']
-    sim_templates   = 0.8
+    sim_templates   = 1
 
     temp_file       = file_out + '.templates.hdf5'
     temp_x          = h5py.File(temp_file).get('temp_x')[:]
@@ -50,14 +50,15 @@ def get_performance(file_name, name):
         for i in xrange(templates.shape[1]//2):
             d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
-            if d > dmax:
+            if d >= dmax:
                 temp_match = i
                 dmax       = d
         res[gcount]  = numpy.max(similarity)
-        res2[gcount] = numpy.sum(numpy.array(similarity) > sim_templates)
+        res2[gcount] = numpy.sum(numpy.array(similarity) >= sim_templates)
         res3[gcount] = temp_match
 
     pylab.figure()
+
 
     pylab.subplot(221)
     pylab.imshow(res.reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
@@ -81,6 +82,7 @@ def get_performance(file_name, name):
     pylab.xlim(-0.5, n_point-0.5)
     pylab.ylim(-0.5, n_point-0.5)
 
+    print n_cells, amplitudes.shape, n_point
     pylab.subplot(223)
     pylab.imshow(amplitudes[-len(n_cells):][:,0].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
     cb = pylab.colorbar()
