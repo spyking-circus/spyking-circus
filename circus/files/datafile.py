@@ -44,25 +44,24 @@ class DataFile(object):
     feel free to reuse as much as possible those from the datafile main class.
     '''
 
-    _description      = "mydatafile"     #Description of the file format
-    _extension        = [".myextension"] #extensions
-    _parallel_write   = False            #can be written in parallel (using the comm object)
-    _is_writable      = False            #can be written
-    _is_streamable    = False            #If the file formats can support streams of data
-    _shape            = (0, 0)           #The total shape of the data (nb time steps, nb channels) accross streams if any
-    _t_start          = None             #The global t_start of the data
-    _t_stop           = None             #The final t_stop of the data, accross all streams if any
+    description      = "mydatafile"     #Description of the file format
+    extension        = [".myextension"] #extensions
+    parallel_write   = False            #can be written in parallel (using the comm object)
+    is_writable      = False            #can be written
+    is_streamable    = False            #If the file formats can support streams of data
+    _shape           = None             #The total shape of the data (nb time steps, nb channels) accross streams if any
+    _t_start         = None             #The global t_start of the data
+    _t_stop          = None             #The final t_stop of the data, accross all streams if any
+    _params          = {}
 
+    # This is a dictionary of values that need to be provided to the constructor, without default values
+    _required_fields = {}
 
-    # This is a dictionary of values that need to be provided to the constructor, with a specified type and
-    # eventually default value. For example {'sampling_rate' : ['float' : 20000]}
-    _requiered_fields = {}
+    # This is a dictionary of values that may have a default value, if not provided to the constructor
+    _default_values  = {}
 
-    # Those are the attributes that need to be common in ALL file formats
-    # Note that those values can be either infered from header, or otherwise read from the parameter file
-    _mandatory        = ['sampling_rate', 'data_dtype', 'dtype_offset', 'gain', 'nb_channels']
     
-    def __init__(self, file_name, is_empty=False, **kwargs):
+    def __init__(self, file_name, params, is_empty=False):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from the header
         of the file. If not found in the header, they are read from the parameter file. If no values are found, the 
@@ -78,46 +77,145 @@ class DataFile(object):
             - _requiered_fields : what parameter must be specified for the file format
         '''
 
+        self._check_filename(file_name)
+
         self.file_name = file_name
         self.is_empty  = is_empty
 
         f_next, extension = os.path.splitext(self.file_name)
         
-        if self._extension is not None:
-            if not extension in self._extension + [item.upper() for item in self._extension]:
-                if self.is_master:
-                    print_and_log(["The extension %s is not valid for a %s file" %(extension, self._description)], 'error', logger)
-                sys.exit(0)
-
-        for key, value in kwargs.items():
-            if key == 'nb_channels':
-                self._shape = (0, value)
-            else:
-                self.__setattr__(key, value)
+        self._check_extension(extension)
+        print "Init", self.description, params
+        self._fill_from_params(params)
 
         if not self.is_empty:
-            self._get_info_()
-            self._check_valid_()
+            self._fill_from_heade(self._read_from_header())
+        else:
+            self._shape = (0, 0)
 
-        self._check_requierements_(**kwargs)
+        if self._shape is None:
+            if self.is_master:
+                print_and_log(["Shape of the data is not defined. Are you sure of the wrapper?"], 'error', logger)
 
 
-    def get_description(self):
-        result = {}
-        for key in self._mandatory:
-            result[key] = self.__getattribute__(key)
-        return result
+        if self.dtype_offset == 'auto':
+            self.dtype_offset = get_offset(self.data_dtype, self.dtype_offset)
 
-    def _check_valid_(self):
-        for key in self._mandatory:
-            if not hasattr(self, key):
-                print_and_log(['%s is a needed attribute of a datafile, and it is not defined' %key], 'error', logger)
 
-    def _check_requierements_(self, **kwargs):
+
+    ##################################################################################################################
+    ##################################################################################################################
+    #########                  Methods that need to be overwritten for a given fileformat                      #######
+    ##################################################################################################################
+    ##################################################################################################################
+
+
+    def _read_from_header(self):
+        '''
+            This function is called only if the file is not empty, and should fill the values in the constructor
+            such as max_offset, _shape, ...
+        '''
+        raise NotImplementedError('The _read_from_header method needs to be implemented for file format %s' %self.description)
+
+
+    
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+        '''
+        Assuming the analyze function has been called before, this is the main function
+        used by the code, in all steps, to get data chunks. More precisely, assuming your
+        dataset can be divided in nb_chunks (see analyze) of temporal size (chunk_size), 
+
+            - idx is the index of the chunk you want to load
+            - chunk_size is the time of those chunks, in time steps
+            - if the data loaded are data[idx:idx+1], padding should add some offsets, 
+                in time steps, such that we can load data[idx+padding[0]:idx+padding[1]]
+            - nodes is a list of nodes, between 0 and nb_channels            
+        '''
+
+        raise NotImplementedError('The get_data method needs to be implemented for file format %s' %self.description)
+
+
+    def set_data(self, time, data):
+        '''
+            This function writes data at a given time.
+            - time is expressed in timestep
+            - data must be a 2D matrix of size time_length x nb_channels
+        '''
+        raise NotImplementedError('The set_data method needs to be implemented for file format %s' %self.description)
+
+
+    def open(self, mode):
+        ''' 
+            This function should open the file
+            - mode can be to read only 'r', or to write 'w'
+        '''
+        raise NotImplementedError('The open method needs to be implemented for file format %s' %self.description)
+
+
+    def close(self):
+        '''
+            This function closes the file
+        '''
+        raise NotImplementedError('The close method needs to be implemented for file format %s' %self.description)
+
+
+    def allocate(self, shape, data_dtype):
+        '''
+            This function may be used during benchmarking mode, or if multi-files mode is activated
+            Starting from an empty file, it will allocates a given size:
+                - shape is a tuple with (time lenght, nb_channels)
+                - data_dtype is the data type
+        '''
+        raise NotImplementedError('The allocate method needs to be implemented for file format %s' %self.description)
+
+
+    ##################################################################################################################
+    ##################################################################################################################
+    #########           End of methods that need to be overwritten for a given fileformat                      #######
+    ##################################################################################################################
+    ##################################################################################################################
+
+    def _check_filename(self, file_name):
+        if not os.path.exists(file_name):
+            if self.is_master:
+                print_and_log(["The file %s can not be found!" %file_name], 'error', logger)
+            sys.exit(1)
+
+    def _check_extension(self, extension):
+        if self.extension is not None:
+            if not extension in self.extension + [item.upper() for item in self.extension]:
+                if self.is_master:
+                    print_and_log(["The extension %s is not valid for a %s file" %(extension, self.description)], 'error', logger)
+                sys.exit(1)
+
+    def _fill_from_params(self, params):
+    
+        for key in self._required_fields:
+            if not params.has_key(key):
+                if key in self._default_values.keys():
+                    setattr(self, key, self._default_values[key])
+                    if self.is_master:
+                        print_and_log(['%s is not set and has the default value of %s' %(key, self.key)], 'debug', logger)
+                else:
+                    self._check_requirements_(params)
+            else:
+                setattr(self, key, self._required_fields[key](params[key]))
+                print params[key], self.key
+                if self.is_master:
+                    print_and_log(['%s is read from the params with a value of %s' %(key, self.key)], 'debug', logger)
+
+    def _fill_from_header(self, header):
+       
+        for key in header.keys():
+            setattr(self, key, header[key])
+            if self.is_master:
+                print_and_log(['%s is read from the header with a value of %s' %(key, self.key)], 'debug', logger)
+
+    def _check_requirements_(self, params):
 
         missing = {}
 
-        for key, value in self._requiered_fields.items():
+        for key, value in self._required_fields.items():
             if key not in kwargs.keys():
                 missing[key] = value
                 if self.is_master:
@@ -125,14 +223,14 @@ class DataFile(object):
         
 
         if len(missing) > 0:
-            self._display_requierements_()
-            sys.exit(0)
+            self._display_requirements_()
+            sys.exit(1)
 
 
-    def _display_requierements_(self):
+    def _display_requirements_(self):
 
-        to_write = ['The parameters for %s file format are:' %self._description.upper(), '']
-        for key, values in self._requiered_fields.items():
+        to_write = ['The parameters for %s file format are:' %self.description.upper(), '']
+        for key, values in self._required_fields.items():
                 
             mystring = '-- %s -- of type %s' %(key, values[0])
 
@@ -145,14 +243,6 @@ class DataFile(object):
 
         if self.is_master:
             print_and_log(to_write, 'error', logger)
-
-
-    def _get_info_(self):
-        '''
-            This function is called only if the file is not empty, and should fill the values in the constructor
-            such as max_offset, _shape, ...
-        '''
-        pass  
 
 
     def _scale_data_to_float32(self, data):
@@ -188,21 +278,6 @@ class DataFile(object):
 
         return data
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
-        '''
-        Assuming the analyze function has been called before, this is the main function
-        used by the code, in all steps, to get data chunks. More precisely, assuming your
-        dataset can be divided in nb_chunks (see analyze) of temporal size (chunk_size), 
-
-            - idx is the index of the chunk you want to load
-            - chunk_size is the time of those chunks, in time steps
-            - if the data loaded are data[idx:idx+1], padding should add some offsets, 
-                in time steps, such that we can load data[idx+padding[0]:idx+padding[1]]
-            - nodes is a list of nodes, between 0 and nb_channels            
-        '''
-
-        pass
-
     def get_snippet(self, time, length, nodes=None):
         '''
             This function should return a time snippet of size length x nodes
@@ -211,17 +286,6 @@ class DataFile(object):
             - nodes is a list of nodes, between 0 and nb_channels
         '''
         return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
-
-
-    def set_data(self, time, data):
-        '''
-            This function writes data at a given time.
-            - time is expressed in timestep
-            - data must be a 2D matrix of size time_length x nb_channels
-        '''
-        if self.is_master:
-            print_and_log(['No write support is implemented for %s file' %self._description], 'error', logger)
-        sys.exit(0)
 
 
     def analyze(self, chunk_size):
@@ -245,34 +309,6 @@ class DataFile(object):
             print_and_log(['The last chunk has size %d' %(last_chunk_len)], 'debug', logger)
 
         return nb_chunks, last_chunk_len
-
-
-    def open(self, mode):
-        ''' 
-            This function should open the file
-            - mode can be to read only 'r', or to write 'w'
-        '''
-        pass
-
-
-    def close(self):
-        '''
-            This function closes the file
-        '''
-        pass
-
-
-    def allocate(self, shape, data_dtype):
-        '''
-            This function may be used during benchmarking mode, or if multi-files mode is activated
-            Starting from an empty file, it will allocates a given size:
-                - shape is a tuple with (time lenght, nb_channels)
-                - data_dtype is the data type
-        '''
-        if self.is_master:
-            print_and_log(["The method is not implemented for file format %s" %self._description], 'error', logger)
-        sys.exit(0)
-
 
     @property
     def shape(self):

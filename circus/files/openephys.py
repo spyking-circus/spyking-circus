@@ -3,10 +3,10 @@ from datafile import DataFile
 
 class OpenEphysFile(DataFile):
 
-    _description    = "openephys"    
-    _extension      = [".openephys"]
-    _parallel_write = True
-    _is_writable    = True
+    description    = "openephys"    
+    extension      = [".openephys"]
+    parallel_write = True
+    is_writable    = True
 
     # constants
     NUM_HEADER_BYTES   = 1024L
@@ -28,31 +28,32 @@ class OpenEphysFile(DataFile):
         f.close()
         return header
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
 
-        kwargs['data_dtype']   = 'int16'
-        kwargs['dtype_offset'] = 0
-        kwargs['data_offset']  = self.NUM_HEADER_BYTES
+    def _read_from_header(self):
 
-        if not is_empty:
-            folder_path     = os.path.dirname(os.path.realpath(file_name))
-            self.all_channels = self._get_sorted_channels_(folder_path)
-            self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
-            self.header     = self._read_header_(self.all_files[0])
-            kwargs['sampling_rate'] = float(self.header['sampleRate'])        
-            kwargs['nb_channels']   = len(self.all_files)
-            kwargs['gain']          = float(self.header['bitVolts'])        
+        header                 = self._read_header_(self.file_name)
+        header['data_dtype']   = 'int16'
+        header['dtype_offset'] = 0
+        header['data_offset']  = self.NUM_HEADER_BYTES
 
-        DataFile.__init__(self, file_name, is_empty, **kwargs)
+        folder_path     = os.path.dirname(os.path.realpath(file_name))
+        self.all_channels = self._get_sorted_channels_(folder_path)
+        self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
+        self.header     = self._read_header_(self.all_files[0])
+        
+        kwargs['sampling_rate'] = float(self.header['sampleRate'])        
+        kwargs['nb_channels']   = len(self.all_files)
+        kwargs['gain']          = float(self.header['bitVolts'])        
 
-
-    def _get_info_(self):
         self.open()
         g = open(self.all_files[0], 'rb')
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
         g.close()
         self._shape      = (self.size, self.nb_channels)
         self.close()
+
+        return header
+
 
     def _get_slice_(self, t_start, t_stop):
 

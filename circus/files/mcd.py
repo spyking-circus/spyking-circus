@@ -4,32 +4,28 @@ import neuroshare as ns
 
 class MCDFile(DataFile):
 
-    _description    = "mcd"    
-    _extension      = [".mcd"]
-    _parallel_write = False
-    _is_writable    = False
-
-    def __init__(self, file_name, is_empty=False, **kwargs):
-
-        kwargs['data_dtype']   = 'float64'
-        kwargs['dtype_offset'] = 0
+    description    = "mcd"    
+    extension      = [".mcd"]
+    parallel_write = False
+    is_writable    = False
         
-        if not is_empty:
-            f = ns.File(file_name)
-            kwargs['nb_channels']   = f.entity_count
-            kwargs['sampling_rate'] = f.entities[0].sample_rate
-            kwargs['gain']          = f.entities[0].resolution
-            f.close()
 
-        DataFile.__init__(self, file_name, is_empty, **kwargs)
+    def _read_from_header(self):
 
+        header                 = {}
+        header['data_dtype']   = 'float64'
+        header['dtype_offset'] = 0
+        
+        self.open()
+        header['nb_channels']   = self.data.entity_count
+        header['sampling_rate'] = self.data.entities[0].sample_rate
+        header['gain']          = self.data.entities[0].resolution
 
-    def _get_info_(self):
-        self.empty = False
-        self.open()        
         self.size  = self.data.time_span * self.sampling_rate
         self._shape = (self.size, self.nb_channels)
         self.close()
+
+        return header
 
 
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):

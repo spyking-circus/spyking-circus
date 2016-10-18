@@ -3,28 +3,25 @@ from datafile import DataFile, get_offset, comm
 
 class RawBinaryFile(DataFile):
 
-    _description    = "raw_binary"    
-    _extension      = None
-    _parallel_write = True
-    _is_writable    = True
+    description    = "raw_binary"    
+    extension      = None
+    parallel_write = True
+    is_writable    = True
 
-    _requiered_fields = {'data_offset'   : ['int', 0],
-                         'data_dtype'    : ['string', None],
-                         'dtype_offset'  : ['string', 'auto'],
-                         'sampling_rate' : ['float', None],
-                         'gain'          : ['float', 1.],
-                         'nb_channels'   : ['int' , None]}
-
-    def __init__(self, file_name, is_empty=False, **kwargs):
-
-        DataFile.__init__(self, file_name, is_empty, **kwargs)     
+    _required_fields = {'data_offset'   : int,
+                        'data_dtype'    : str,
+                        'sampling_rate' : float,
+                        'nb_channels'   : int}
     
-    def _get_info_(self):
-        self.dtype_offset  = get_offset(self.data_dtype, self.dtype_offset)
+    _default_values  = {'dtype_offset'  : 'auto', 
+                        'gain'          : 1}
+
+    def _read_from_header(self):
         self.open()
         self.size          = len(self.data)
         self._shape        = (self.size//self.nb_channels, self.nb_channels)
         self.close()
+        return {}
 
     def allocate(self, shape, data_dtype=None):
         if data_dtype is None:

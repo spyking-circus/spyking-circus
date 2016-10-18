@@ -317,12 +317,13 @@ class CircusParser(object):
             self.set('fitting', 'refactory', str(int(refactory*self.rate*1e-3)))
 
 
-    def _create_data_file(self, data_file, is_empty, **params):
+    def _create_data_file(self, data_file, is_empty, params):
         file_format       = params.pop('file_format').lower()
         if comm.rank == 0:
             print_and_log(['Trying to read file %s as %s' %(data_file, file_format)], 'debug', logger)
-        params            = self._get_values_for_datafiles(file_format, **params)
-        data              = __supported_data_files__[file_format](data_file, is_empty, **params)
+
+        print params, file_format
+        data              = __supported_data_files__[file_format](data_file, params)
         self.rate         = data.sampling_rate
         self.nb_channels  = data.nb_channels
         self.data_file    = data
@@ -336,54 +337,14 @@ class CircusParser(object):
         return data 
 
 
-    def _get_values_for_datafiles(self, file_format, **kwargs):
 
-        params       = {}
-
-        for key, value in __supported_data_files__[file_format]._requiered_fields.items():
-            
-            if key in kwargs:
-                
-                if value[0] == 'int':
-                    params[key] = int(kwargs[key])
-                if value[0] == 'float':
-                    params[key] = float(kwargs[key])
-                if value[0] == 'bool':
-                    params[key] = bool(kwargs[key])
-                if value[0] == 'string':
-                    params[key] = str(kwargs[key])
-
-                if comm.rank == 0:
-                    print_and_log(['%s is set to a value of %s' %(key, params[key])], 'debug', logger)
-
-            elif key not in kwargs:
-                
-                if value[1] is None:
-                    try:
-                        if value[0] == 'int':
-                            params[key] = self.parser.getint('data', key)
-                        if value[0] == 'float':
-                            params[key] = self.parser.getfloat('data', key)
-                        if value[0] == 'bool':
-                            params[key] = self.parser.getfloat('data', key)
-                        if value[0] == 'string':
-                            params[key] = self.parser.get('data', key)
-                    
-                        if comm.rank == 0:
-                            print_and_log(['%s is read from the params with a value of %s' %(key, params[key])], 'debug', logger)
-                    
-                    except Exception:
-                        pass
-
-                elif value[1] is not None:
-                    params[key] = value[1]
-                    if comm.rank == 0:
-                       print_and_log(['%s is not set and has the default value of %s' %(key, value[1])], 'debug', logger)
-
-        return params
+    # Those are the attributes that need to be common in ALL file formats
+    # Note that those values can be either infered from header, or otherwise read from the parameter file
+    _mandatory        = ['sampling_rate', 'data_dtype', 'dtype_offset', 'gain', 'nb_channels']
 
 
-    def get_data_file(self, multi=False, force_raw='auto', is_empty=False, **params):
+
+    def get_data_file(self, multi=False, force_raw='auto', is_empty=False, params={}):
 
         ## A bit tricky because we want to deal with multifiles export
         # If multi is False, we use the default REAL data files
@@ -401,7 +362,7 @@ class CircusParser(object):
         if force_raw == 'auto':
             if self.parser.getboolean('data', 'multi-files'):
                 force_raw = True
-                data      = self._create_data_file(params['data_multi_file'], is_empty, **params)
+                data      = self._create_data_file(params['data_multi_file'], params, is_empty)
                 params    = data.get_description()
         
         if force_raw == True:
@@ -416,7 +377,7 @@ class CircusParser(object):
             params['sampling_rate'] = self.rate
             params['nb_channels']   = self.nb_channels
 
-        return self._create_data_file(data_file, is_empty, **params)
+        return self._create_data_file(data_file, is_empty, params)
 
 
     def get_multi_files(self):

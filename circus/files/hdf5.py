@@ -6,19 +6,18 @@ logger = logging.getLogger(__name__)
 
 class H5File(DataFile):
 
-    _description    = "hdf5"    
-    _extension      = [".h5", ".hdf5"]
-    _parallel_write = h5py.get_config().mpi
-    _is_writable    = True
+    description    = "hdf5"    
+    extension      = [".h5", ".hdf5"]
+    parallel_write = h5py.get_config().mpi
+    is_writable    = True
 
-    _requiered_fields = {'h5_key'        : ['string', None], 
-                         'sampling_rate' : ['float' , None],
-                         'gain'          : ['float', 1.],
-                         'dtype_offset'  : ['string', 'auto']}
+    _required_fields = {'h5_key'        : str,
+                        'sampling_rate' : float,
+                        'nb_channels'   : int}
+    
+    _default_values  = {'dtype_offset'  : 'auto', 
+                        'gain'          : 1}
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
-
-        DataFile.__init__(self, file_name, is_empty, **kwargs)
 
     def __check_valid_key__(self, file_name, key):
         file       = h5py.File(file_name)
@@ -30,16 +29,18 @@ class H5File(DataFile):
             sys.exit(0)
         file.close()
 
-    def _get_info_(self):
+    def _read_from_header(self):
+
+        header = {}
 
         self.__check_valid_key__(self.file_name, self.h5_key)
         self.open()
-        self.data_dtype   = self.my_file.get(self.h5_key).dtype
-        self.dtype_offset = get_offset(self.data_dtype, self.dtype_offset)
-        self.compression  = self.my_file.get(self.h5_key).compression
+
+        header['data_dtype']   = self.my_file.get(self.h5_key).dtype
+        header['compression']  = self.my_file.get(self.h5_key).compression
 
         # HDF5 does not support parallel writes with compression
-        if self.compression != '':
+        if header['compression'] != '':
             self._parallel_write = False
         
         self.size        = self.my_file.get(self.h5_key).shape
@@ -52,6 +53,8 @@ class H5File(DataFile):
             self._shape = self.size
 
         self.close()
+
+        return header
 
     def allocate(self, shape, data_dtype=None):
 

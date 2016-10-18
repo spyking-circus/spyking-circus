@@ -21,15 +21,15 @@ except ImportError:
     HAVE_NEUROSHARE = False
 
 __supported_data_files__ = {
-    RawBinaryFile._description : RawBinaryFile,
-    RawMCSFile._description : RawMCSFile,
-    H5File._description : H5File,
-    OpenEphysFile._description : OpenEphysFile,
-    KwdFile._description : KwdFile,
-    NWBFile._description : NWBFile,
-    ARFFile._description : ARFFile,
-    BRWFile._description : BRWFile,
-    NumpyFile._description : NumpyFile
+    RawBinaryFile.description : RawBinaryFile,
+    RawMCSFile.description : RawMCSFile,
+    H5File.description : H5File,
+    OpenEphysFile.description : OpenEphysFile,
+    KwdFile.description : KwdFile,
+    NWBFile.description : NWBFile,
+    ARFFile.description : ARFFile,
+    BRWFile.description : BRWFile,
+    NumpyFile.description : NumpyFile
 }
 
 #if HAVE_NIX_SUPPORT:
@@ -38,6 +38,6 @@ __supported_data_files__ = {
 
 if HAVE_NEUROSHARE:
     from mcd import MCDFile
-    __supported_data_files__[MCDFile._description] = MCDFile
+    __supported_data_files__[MCDFile.description] = MCDFile
 
 
