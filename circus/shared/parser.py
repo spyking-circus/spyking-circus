@@ -327,6 +327,7 @@ class CircusParser(object):
         self.nb_channels  = data.nb_channels
         self.data_file    = data
         self._update_rate_values()
+        
         N_e = self.getint('data', 'N_e')
         if N_e > self.nb_channels:
             if comm.rank == 0:

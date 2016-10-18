@@ -342,7 +342,10 @@ class DataFile(object):
         return nb_chunks, last_chunk_len
 
     def get_description(self):
-        return self._params
+        result = {}
+        for key in ['sampling_rate', 'data_dtype', 'gain', 'nb_channels', 'dtype_offset']:
+            result[key] = self._params[key]
+        return result
 
     @property
     def shape(self):

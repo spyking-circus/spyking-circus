@@ -166,7 +166,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     
     params.set('data', 'data_file', file_name)
 
-    data_file_out = params.get_data_file(is_empty=True, force_raw=True, **data_file.get_description())    
+    data_file_out = params.get_data_file(is_empty=True, force_raw=True, params=data_file.get_description())
     data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
 
     # Synchronize all the threads/processes.
