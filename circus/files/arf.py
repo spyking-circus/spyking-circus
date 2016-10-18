@@ -28,7 +28,7 @@ class ARFFile(H5File):
 
         header = {}
         
-        self.__check_valid_key__(file_name, self.h5_key)
+        self.__check_valid_key__(self.h5_key)
         all_keys                = h5py.File(file_name).get(self.h5_key).keys()
         channels, idx           = self._get_sorted_channels_(all_keys, self.channel_name)    
         header['channels']      = channels

@@ -112,7 +112,7 @@ def main(argv=None):
                               '-r', matlab_command]))
     except Exception:
         print_and_log(["Something wrong with MATLAB. Try circus-gui-python instead?"], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

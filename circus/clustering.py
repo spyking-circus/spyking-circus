@@ -455,7 +455,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if ((smart_search and (gpass == 0)) or (not smart_search and (gpass == 1))) and nb_elements == 0:
             if comm.rank == 0:
                 print_and_log(['No waveforms found! Are the data properly loaded??'], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         if nb_elements == 0:
             gpass = nb_repeats

@@ -95,7 +95,7 @@ class CircusParser(object):
         if not os.path.exists(self.file_params):
             if comm.rank == 0:
                 print_and_log(["%s does not exist" %self.file_params], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         if comm.rank == 0:
             print_and_log(['Creating a Circus Parser for datafile %s' %self.file_name], 'debug', logger)
@@ -142,7 +142,7 @@ class CircusParser(object):
         if N_e > self.nb_channels:
             if comm.rank == 0:
                 print_and_log(['The number of analyzed channels is higher than the number of recorded channels'], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         try:
             self.file_format = self.parser.get('data', 'file_format')
@@ -153,7 +153,7 @@ class CircusParser(object):
                        "parameter in the [data] section. Valid files formats can be:",
                        "", 
                        ", ".join(__supported_data_files__.keys())], 'error', logger)
-            sys.exit(0)	
+            sys.exit(1)	
 
         try: 
             self.parser.get('detection', 'radius')
@@ -177,7 +177,7 @@ class CircusParser(object):
             if (self.parser.get('triggers', 'trig_file') == '') or (self.parser.get('triggers', 'trig_windows') == ''):
                 if comm.rank == 0:
                     print_and_log(["trig_file and trig_windows must be specified"], 'error', logger)
-                sys.exit(0)
+                sys.exit(1)
 	    
         self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
         self.parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_windows'))))
@@ -186,7 +186,7 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         test = (self.parser.get('detection', 'peaks').lower() in ['negative', 'positive', 'both'])
         if not test:
@@ -208,38 +208,38 @@ class CircusParser(object):
             if not test: 
                 if comm.rank == 0:
                     print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', logger)
-                sys.exit(0)
+                sys.exit(1)
 
         test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["nclus_min in clustering should be in [0,1["], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         test = (self.parser.getfloat('clustering', 'noise_thr') >= 0) and (self.parser.getfloat('clustering', 'noise_thr') <= 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["test_size in validating should be in ]0,1["], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
         test = self.parser.get('clustering', 'make_plots').lower() in fileformats
         if not test:
             if comm.rank == 0:
                 print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         test = self.parser.get('validating', 'make_plots').lower() in fileformats
         if not test:
             if comm.rank == 0:
                 print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 	    
         dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
         dispersion     = map(float, dispersion)
@@ -247,7 +247,7 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["min and max dispersions should be positive"], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 	        
 
         pcs_export = ['prompt', 'none', 'all', 'some']
@@ -255,7 +255,7 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
         else:
             if self.parser.get('converting', 'export_pcs').lower() == 'none':
                 self.parser.set('converting', 'export_pcs', 'n')
@@ -332,7 +332,7 @@ class CircusParser(object):
         if N_e > self.nb_channels:
             if comm.rank == 0:
                 print_and_log(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
         return data 
 

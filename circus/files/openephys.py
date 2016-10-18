@@ -45,13 +45,11 @@ class OpenEphysFile(DataFile):
         kwargs['nb_channels']   = len(self.all_files)
         kwargs['gain']          = float(self.header['bitVolts'])        
 
-        self.open()
         g = open(self.all_files[0], 'rb')
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
-        g.close()
         self._shape      = (self.size, self.nb_channels)
-        self.close()
-
+        g.close()
+        
         return header
 
 

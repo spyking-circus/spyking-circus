@@ -23,7 +23,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
             if comm.rank == 0:
                 print_and_log(['trig_file or trig_windows file can not be found'], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
     if do_filter or multi_files or clean_artefact or remove_median:
 
@@ -40,7 +40,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 except Exception:
                     if comm.rank == 0:
                         print_and_log(['First value of cut off must be a valid number'], 'error', logger)
-                    sys.exit(0)
+                    sys.exit(1)
                 
                 cut_off[1] = cut_off[1].replace(' ', '')
                 if cut_off[1] == 'auto':
@@ -51,7 +51,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     except Exception:
                         if comm.rank == 0:
                             print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', logger)
-                        sys.exit(0)
+                        sys.exit(1)
 
             if filter_done:
                 if comm.rank == 0:
@@ -150,7 +150,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if not mytest:
                 if comm.rank == 0:
                     print_and_log(['Error in the trigger files'], 'error', logger)
-                sys.exit(0)
+                sys.exit(1)
 
             all_labels   = artefacts[:, 0]
             all_times    = artefacts[:, 1]
@@ -181,7 +181,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
                     if comm.rank == 0:
                         print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', logger)
-                    sys.exit(0)
+                    sys.exit(1)
                 art_dict[artefact] = get_artefact(params, times, tau, nodes)
                 if make_plots not in ['None', '']:
                     save     = [plot_path, '%d.%s' %(artefact, make_plots)]
@@ -217,7 +217,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if not mytest:
                 if comm.rank == 0:
                     print_and_log(['Error in the trigger files'], 'error', logger)
-                sys.exit(0)
+                sys.exit(1)
 
             all_labels   = artefacts[:, 0]
             all_times    = artefacts[:, 1]
@@ -310,6 +310,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0 and (do_filter or clean_artefact):
             params.write('noedits', 'filter_done', 'True')
 
-        sys.exit(0)
+        sys.exit(1)
 
     comm.Barrier()

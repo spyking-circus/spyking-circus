@@ -61,7 +61,7 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
         if subtask == 'benchmarking':
             if (output is None) or (benchmark is None):
                 print "To generate synthetic datasets, you must provide output and type"
-                sys.exit()
+                sys.exit(1)
             args += ['-np', nb_tasks,
                      'spyking-circus-subtask',
                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark, str(sim_same_elec)]

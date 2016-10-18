@@ -19,11 +19,10 @@ class NumpyFile(RawBinaryFile):
         header = {}
 
         self.open()
-        header['nb_channels']  = self.data.shape[1]
-        header['data_dtype']   = self.data.dtype
-
-        self.size          = len(self.data)
-        self._shape        = (self.size, self.nb_channels)
+        header['nb_channels'] = self.data.shape[1]
+        header['data_dtype']  = self.data.dtype
+        self.size             = len(self.data)
+        self._shape           = (self.size, self.nb_channels)
         self.close()
 
         return header

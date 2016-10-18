@@ -29,7 +29,7 @@ class RawMCSFile(RawBinaryFile):
             fid.close()
             if stop is False:
                 print_and_log(['Wrong MCS header: file is not exported with MCRack'], 'error', logger)
-                sys.exit(0) 
+                sys.exit(1) 
             else:
                 header += 2
 
@@ -44,7 +44,7 @@ class RawMCSFile(RawBinaryFile):
             return full_header, header, len(regexp.findall(full_header['Streams']))
         except Exception:
             print_and_log(["Wrong MCS header: file is not exported with MCRack"], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
     def _read_from_header(self):
 

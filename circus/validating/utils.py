@@ -399,7 +399,7 @@ def extract_extra_spikes_(params):
     #                             chunk_len, chunk_size, N_total, nodes,
     #                             extra_medians, extra_mads, k, params, safety_space,
     #                             safety_time)
-    # sys.exit(0)
+    # sys.exit(1)
     ##### end test zone
     
     # Preallocation for results.

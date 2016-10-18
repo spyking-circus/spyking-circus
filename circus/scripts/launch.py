@@ -98,7 +98,7 @@ but a subset x,y can be done. Steps are:
 
     if len(argv) == 0:
         parser.print_help()
-        sys.exit()
+        sys.exit(1)
 
     args = parser.parse_args(argv)
 
@@ -128,7 +128,7 @@ but a subset x,y can be done. Steps are:
                 rw = '(read only)'    
             to_write += ['-- ' + file + ' ' + rw]
         print_and_log(to_write)
-        sys.exit(0)
+        sys.exit(1)
 
     if extens == '.params':
         print_error(['You should launch the code on the data file!'])
@@ -145,7 +145,7 @@ but a subset x,y can be done. Steps are:
             print_info(['Keep in mind that filtering is performed on site, so please',
                         'be sure to keep a copy of your data elsewhere'])
             shutil.copyfile(config_file, file_params)
-        sys.exit()
+        sys.exit(0)
     elif batch:
         tasks_list = filename
 
@@ -278,7 +278,7 @@ but a subset x,y can be done. Steps are:
                             circus.launch(subtask, filename, nb_cpu, nb_gpu, use_gpu)
                         except:
                             print_and_log(['Step "%s" failed!' % subtask], 'error', logger)
-                            sys.exit(0)
+                            sys.exit(1)
                     elif command == 'mpirun':
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
@@ -288,7 +288,7 @@ but a subset x,y can be done. Steps are:
                                             'One solution to still filter the file is to activate',
                                             'the multi-files mode, even with only one file,',
                                             'as this will creates an external raw_binary file'], 'info', logger)
-                            sys.exit(0)
+                            sys.exit(1)
                         
                         if subtask in ['filtering'] and not support_parallel_write and (args.cpu > 1) and not multi_files:
                             print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', logger)
@@ -306,7 +306,7 @@ but a subset x,y can be done. Steps are:
                         if subtask == 'benchmarking':
                             if (output is None) or (benchmark is None):
                                 print_and_log(["To generate synthetic datasets, you must provide output and type"], 'error', logger)
-                                sys.exit(0)
+                                sys.exit(1)
                             mpi_args += ['-np', nb_tasks,
                                      'spyking-circus-subtask',
                                      subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]

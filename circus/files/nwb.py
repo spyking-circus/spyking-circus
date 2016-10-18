@@ -9,7 +9,3 @@ class NWBFile(H5File):
     parallel_write = h5py.get_config().mpi
     is_writable    = True
 
-    _requiered_fields = {'h5_key'            : ['string', None],
-                         'dtype_offset'      : ['string', 'auto'], 
-                         'sampling_rate'     : ['float', None], 
-                         'gain'              : ['float', 1.]}

@@ -50,7 +50,7 @@ def main(argv=None):
     mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
     if not mytest:
         print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
 
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype

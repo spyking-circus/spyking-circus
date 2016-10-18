@@ -29,7 +29,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     if export_all and not params.getboolean('fitting', 'collect_all'):
         if comm.rank == 0:
             print_and_log(['Export unfitted spikes only if [fitting] collect_all is True'], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
 
     def generate_mapping(probe):
         p         = {}

@@ -19,21 +19,21 @@ class H5File(DataFile):
                         'gain'          : 1}
 
 
-    def __check_valid_key__(self, file_name, key):
-        file       = h5py.File(file_name)
+    def __check_valid_key__(self, key):
+        file       = h5py.File(self.file_name)
         all_fields = []
         file.visit(all_fields.append)    
         if not key in all_fields:
             print_and_log(['The key %s can not be found in the dataset! Keys found are:' %key, 
                          ", ".join(all_fields)], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
         file.close()
 
     def _read_from_header(self):
 
         header = {}
 
-        self.__check_valid_key__(self.file_name, self.h5_key)
+        self.__check_valid_key__(self.h5_key)
         self.open()
 
         header['data_dtype']   = self.my_file.get(self.h5_key).dtype

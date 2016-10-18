@@ -28,7 +28,7 @@ def get_offset(data_dtype, dtype_offset):
         except Exception:
             if comm.rank == 0:
                 print_and_log(["Offset %s is not valid" %dtype_offset], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
 
     return dtype_offset
 
@@ -77,6 +77,7 @@ class DataFile(object):
             - _requiered_fields : what parameter must be specified for the file format
         '''
 
+        self.__dict__ = {}
         self._check_filename(file_name)
 
         self.file_name = file_name
@@ -85,7 +86,6 @@ class DataFile(object):
         f_next, extension = os.path.splitext(self.file_name)
         
         self._check_extension(extension)
-        print "Init", self.description, params
         self._fill_from_params(params)
 
         if not self.is_empty:
@@ -193,21 +193,20 @@ class DataFile(object):
         for key in self._required_fields:
             if not params.has_key(key):
                 if key in self._default_values.keys():
-                    setattr(self, key, self._default_values[key])
+                    self.__setattr__(key, self._default_values[key])
                     if self.is_master:
                         print_and_log(['%s is not set and has the default value of %s' %(key, self.key)], 'debug', logger)
                 else:
                     self._check_requirements_(params)
             else:
-                setattr(self, key, self._required_fields[key](params[key]))
-                print params[key], self.key
+                self.__setattr__(key, self._required_fields[key](params[key]))
                 if self.is_master:
                     print_and_log(['%s is read from the params with a value of %s' %(key, self.key)], 'debug', logger)
 
     def _fill_from_header(self, header):
        
         for key in header.keys():
-            setattr(self, key, header[key])
+            self.__setattr__(key, header[key])
             if self.is_master:
                 print_and_log(['%s is read from the header with a value of %s' %(key, self.key)], 'debug', logger)
 
@@ -216,12 +215,11 @@ class DataFile(object):
         missing = {}
 
         for key, value in self._required_fields.items():
-            if key not in kwargs.keys():
+            if key not in params.keys():
                 missing[key] = value
                 if self.is_master:
-                    print_and_log(['%s must be specified as type %s in the [data] section!' %(key, value[0])], 'error', logger)
+                    print_and_log(['%s must be specified as type %s in the [data] section!' %(key, str(value))], 'error', logger)
         
-
         if len(missing) > 0:
             self._display_requirements_()
             sys.exit(1)
@@ -230,15 +228,15 @@ class DataFile(object):
     def _display_requirements_(self):
 
         to_write = ['The parameters for %s file format are:' %self.description.upper(), '']
-        for key, values in self._required_fields.items():
-                
-            mystring = '-- %s -- of type %s' %(key, values[0])
 
-            if values[1] is None:
-                mystring += ' [** mandatory **]'
-            else:
-                mystring += ' [default is %s]' %values[1]
+        for key, value in self._required_fields.items():    
+            mystring = '-- %s -- of type %s' %(key, str(value))
+            mystring += ' [** mandatory **]'
+            to_write += [mystring]
 
+        for key, value in self._default_values.items():            
+            mystring = '-- %s -- of type %s' %(key, str(type(value)))
+            mystring += ' [default is %s]' %value
             to_write += [mystring]
 
         if self.is_master:
