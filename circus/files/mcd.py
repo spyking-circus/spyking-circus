@@ -21,8 +21,8 @@ class MCDFile(DataFile):
         header['sampling_rate'] = self.data.entities[0].sample_rate
         header['gain']          = self.data.entities[0].resolution
 
-        self.size  = self.data.time_span * self.sampling_rate
-        self._shape = (self.size, self.nb_channels)
+        self.size  = self.data.time_span * header['sampling_rate']
+        self._shape = (self.size, header['nb_channels'])
         self.close()
 
         return header

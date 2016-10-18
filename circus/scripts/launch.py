@@ -119,8 +119,8 @@ but a subset x,y can be done. Steps are:
     if info:
         to_write = ['The file formats that are supported are:', '']
         for file in __supported_data_files__:
-            if __supported_data_files__[file]._is_writable:
-                if __supported_data_files__[file]._parallel_write:
+            if __supported_data_files__[file].is_writable:
+                if __supported_data_files__[file].parallel_write:
                     rw = '(read/parallel write)'
                 else:
                     rw = '(read/write)'
@@ -158,8 +158,8 @@ but a subset x,y can be done. Steps are:
         multi_files  = params.getboolean('data', 'multi-files')
         data_file    = params.get_data_file(multi_files, force_raw=False)
         file_format  = params.get('data', 'file_format')
-        support_parallel_write = data_file._parallel_write
-        is_writable            = data_file._is_writable
+        support_parallel_write = data_file.parallel_write
+        is_writable            = data_file.is_writable
 
     if preview:
         print_and_log(['Preview mode, showing only first second of the recording'], 'info', logger)

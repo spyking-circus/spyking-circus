@@ -52,8 +52,7 @@ class DataFile(object):
     _shape           = None             #The total shape of the data (nb time steps, nb channels) accross streams if any
     _t_start         = None             #The global t_start of the data
     _t_stop          = None             #The final t_stop of the data, accross all streams if any
-    _params          = {}
-
+    
     # This is a dictionary of values that need to be provided to the constructor, without default values
     _required_fields = {}
 
@@ -77,9 +76,9 @@ class DataFile(object):
             - _requiered_fields : what parameter must be specified for the file format
         '''
 
-        self.__dict__ = {}
         self._check_filename(file_name)
 
+        self._params   = {}
         self.file_name = file_name
         self.is_empty  = is_empty
 
@@ -89,7 +88,10 @@ class DataFile(object):
         self._fill_from_params(params)
 
         if not self.is_empty:
-            self._fill_from_heade(self._read_from_header())
+            try:
+                self._fill_from_header(self._read_from_header())
+            except Exception:
+                print_and_log(["There is an error in the _read_from_header method of the wrapper"], 'error', logger)
         else:
             self._shape = (0, 0)
 
@@ -97,9 +99,8 @@ class DataFile(object):
             if self.is_master:
                 print_and_log(["Shape of the data is not defined. Are you sure of the wrapper?"], 'error', logger)
 
-
         if self.dtype_offset == 'auto':
-            self.dtype_offset = get_offset(self.data_dtype, self.dtype_offset)
+            self._params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
 
 
 
@@ -169,6 +170,32 @@ class DataFile(object):
         raise NotImplementedError('The allocate method needs to be implemented for file format %s' %self.description)
 
 
+    ################################## Optional, only if internal names are changed ##################################
+
+    @property
+    def sampling_rate(self):
+        return self._params['sampling_rate']
+
+    @property
+    def data_dtype(self):
+        return self._params['data_dtype']
+
+    @property
+    def dtype_offset(self):
+        return self._params['dtype_offset']
+
+    @property
+    def data_offset(self):
+        return self._params['data_offset']
+    
+    @property
+    def nb_channels(self):
+        return self._params['nb_channels']
+
+    @property
+    def gain(self):
+        return self._params['gain']
+
     ##################################################################################################################
     ##################################################################################################################
     #########           End of methods that need to be overwritten for a given fileformat                      #######
@@ -192,23 +219,29 @@ class DataFile(object):
     
         for key in self._required_fields:
             if not params.has_key(key):
-                if key in self._default_values.keys():
-                    self.__setattr__(key, self._default_values[key])
-                    if self.is_master:
-                        print_and_log(['%s is not set and has the default value of %s' %(key, self.key)], 'debug', logger)
-                else:
-                    self._check_requirements_(params)
+                self._check_requirements_(params)
             else:
-                self.__setattr__(key, self._required_fields[key](params[key]))
+                self._params[key] = self._required_fields[key](params[key])
                 if self.is_master:
-                    print_and_log(['%s is read from the params with a value of %s' %(key, self.key)], 'debug', logger)
+                    print_and_log(['%s is read from the params with a value of %s' %(key, self._params[key])], 'debug', logger)
+
+        for key in self._default_values:
+            if not params.has_key(key):
+                self._params[key] = self._default_values[key]
+                if self.is_master:
+                    print_and_log(['%s is not set and has the default value of %s' %(key, self._params[key])], 'debug', logger)
+            else:
+                self._params[key] = params[key]
+                if self.is_master:
+                    print_and_log(['%s is read from the params with a value of %s' %(key, self._params[key])], 'debug', logger)
+
 
     def _fill_from_header(self, header):
        
         for key in header.keys():
-            self.__setattr__(key, header[key])
+            self._params[key] = header[key]
             if self.is_master:
-                print_and_log(['%s is read from the header with a value of %s' %(key, self.key)], 'debug', logger)
+                print_and_log(['%s is read from the header with a value of %s' %(key, self._params[key])], 'debug', logger)
 
     def _check_requirements_(self, params):
 
@@ -311,11 +344,7 @@ class DataFile(object):
     @property
     def shape(self):
         return self._shape  
-         
-    @property
-    def nb_channels(self):
-        return self._shape[1]
-    
+             
     @property
     def duration(self):
         return numpy.int64(self._shape[0])

@@ -16,7 +16,7 @@ class KwdFile(H5File):
 
     def __init__(self, file_name, params, is_empty=False):
 
-        params['h5_key'] = 'recordings/%s/data' %kwargs['recording_number']
+        params['h5_key'] = 'recordings/%s/data' %params['recording_number']
         H5File.__init__(self, file_name, params, is_empty)
 
     def _read_from_header_(self):

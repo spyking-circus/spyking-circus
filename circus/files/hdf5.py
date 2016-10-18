@@ -29,9 +29,7 @@ class H5File(DataFile):
             sys.exit(1)
         file.close()
 
-    def _read_from_header(self):
-
-        header = {}
+    def _read_from_header(self, **header):
 
         self.__check_valid_key__(self.h5_key)
         self.open()

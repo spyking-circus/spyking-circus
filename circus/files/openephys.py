@@ -22,6 +22,7 @@ class OpenEphysFile(DataFile):
         header = { }
         f = open(file, 'rb')
         h = f.read(self.NUM_HEADER_BYTES).replace('\n','').replace('header.','')
+        print h
         for i,item in enumerate(h.split(';')):
             if '=' in item:
                 header[item.split(' = ')[0]] = item.split(' = ')[1]
