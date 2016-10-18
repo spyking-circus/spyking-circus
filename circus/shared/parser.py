@@ -20,6 +20,7 @@ class CircusParser(object):
 		                  ['data', 'global_tmp', 'bool', 'True'],
 		                  ['data', 'chunk_size', 'int', '30'],
 		                  ['data', 'multi-files', 'bool', 'False'],
+                          ['data', 'stream_mode', 'bool', 'False'],
 		                  ['detection', 'alignment', 'bool', 'True'],
 		                  ['detection', 'matched-filter', 'bool', 'False'],
 		                  ['detection', 'matched_thresh', 'float', '5'],
@@ -68,19 +69,6 @@ class CircusParser(object):
                         ['fitting', 'nb_chances', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '5']]
-
-    '''
-    __rate_dependent_values__ = [['detection', 'N_t', lambda N, rate: int(N*rate*1e-3)],
-                                 ['detection', 'dist_peaks',0]
-                                 ['detection', 'template_shift',0],
-                                 ['fitting', 'chunk_size', lambda N, rate: int(N*rate*1e-3)],
-                                 ['data', 'chunk_size', lambda N, rate: int(N*rate*1e-3)],
-                                 ['whitening', 'chunk_size', lambda N, rate: int(N*rate*1e-3)],
-                                 ['clustering', 'safety_time',0],
-                                 ['whitening', 'safety_time',0],
-                                 ['extracting', 'safety_time',0],
-                                 ['fitting', 'refractory', lambda N, rate: int(N*rate*1e-3)]]
-    '''
 
     def __init__(self, file_name, **kwargs):
 
@@ -327,7 +315,7 @@ class CircusParser(object):
         self.nb_channels  = data.nb_channels
         self.data_file    = data
         self._update_rate_values()
-        
+
         N_e = self.getint('data', 'N_e')
         if N_e > self.nb_channels:
             if comm.rank == 0:

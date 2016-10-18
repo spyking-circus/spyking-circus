@@ -4,6 +4,7 @@
 
 [data]
 file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys, brw, npy
+stream_mode    = False                  # If True, all recordings in the datafile are processed as a whole
 mapping        = ~/probes/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)

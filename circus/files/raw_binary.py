@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys
+import h5py, numpy, re, sys, os
 from datafile import DataFile, get_offset, comm
 
 class RawBinaryFile(DataFile):
@@ -7,6 +7,7 @@ class RawBinaryFile(DataFile):
     extension      = None
     parallel_write = True
     is_writable    = True
+    is_streamable  = True
 
     _required_fields = {'data_dtype'    : str,
                         'sampling_rate' : float,
@@ -26,8 +27,8 @@ class RawBinaryFile(DataFile):
     def set_streams(self):
         dirname     = os.path.abspath(os.path.dirname(self.file_name))
         all_files   = os.listdir(dirname)
-        pattern     = os.path.basename(file_name)
-        to_process  = []
+        pattern     = os.path.basename(self.file_name)
+        streams     = []
         count       = 0
 
         while pattern in all_files:
@@ -35,6 +36,7 @@ class RawBinaryFile(DataFile):
             pattern    = pattern.replace(str(count), str(count+1))
             count     += 1
             streams   += [RawBinaryFile(to_process, self.get_description())]
+            print to_process
 
         return streams
 

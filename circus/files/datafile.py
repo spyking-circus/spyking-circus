@@ -81,10 +81,15 @@ class DataFile(object):
         if not is_empty:
             self._check_filename(file_name)
 
-        if is_stream and not self.is_streamable:
-            if self.is_master:
-                print_and_log(["The file format %s can does not support streams" %self.description], 'error', logger)
-            sys.exit(1)
+        if is_stream:
+            if not self.is_streamable:
+                if self.is_master:
+                    print_and_log(["The file format %s can does not support streams" %self.description], 'error', logger)
+                sys.exit(1)
+            if is_empty:
+                if self.is_master:
+                    print_and_log(["A datafile can not have streams and be empty!" %self.description], 'error', logger)
+                sys.exit(1)
 
         self._params   = {}
         self.file_name = file_name
@@ -112,10 +117,11 @@ class DataFile(object):
         self._params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
 
         if self.is_stream:
-            self.sources  = self.set_streams() 
-            for source in self.sources:
+            self._sources = self.set_streams() 
+            self._times   = [0]
+            for source in self._sources:
                 self._times += [source.duration]
-
+            print_and_log(['The file is made of %d streams' %len(self._sources)], 'debug', logger)
 
     ##################################################################################################################
     ##################################################################################################################
@@ -357,7 +363,12 @@ class DataFile(object):
             - length is in timestep
             - nodes is a list of nodes, between 0 and nb_channels
         '''
-        return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
+        if self.is_stream:
+            cidx  = numpy.searchsorted(time, numpy.cumsum(self._times))
+            time -= numpy.cumsum(self._times)[cidx]
+            return self._sources[cidx].read_block(0, chunk_size=length, padding=(time, time), nodes=nodes)
+        else:
+            return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
 
 
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
@@ -367,22 +378,16 @@ class DataFile(object):
                 print_and_log(['The streams must are not properly initialized'], 'error', logger)
 
             cidx = numpy.searchsorted(idx, self._chunks_in_sources)
-            return self.sources[cidx].read_chunk(idx - self._chunks_in_sources[cidx], chunk_size, padding, nodes), self.sources[cidx].t_start
+            return self._sources[cidx].read_chunk(idx - self._chunks_in_sources[cidx], chunk_size, padding, nodes), self._sources[cidx].t_start
         else:
-            return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start
-
-        
-    #def get_snippet(self, time, length, nodes=None):
-    #    cidx  = numpy.searchsorted(time, numpy.cumsum(self._times))
-    #    time -= numpy.cumsum(self._times)[cidx]
-    #    return self.sources[cidx].read_block(0, chunk_size=length, padding=(time, time), nodes=nodes)
+            return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start       
 
 
     def set_data(self, time, data):
 
         if self.is_stream:
             cidx = numpy.searchsorted(time, numpy.cumsum(self._times))
-            return self.sources[cidx].write_chunk(time - numpy.cumsum(self._times)[cidx], data)
+            return self._sources[cidx].write_chunk(time - numpy.cumsum(self._times)[cidx], data)
         else:
             return self.write_chunk(time, data)
 
@@ -397,14 +402,18 @@ class DataFile(object):
         '''
         if self.is_stream:
             nb_chunks               = 0
+            last_chunk_len          = 0
             self._chunks_in_sources = [0]
-            for source in self.sources:
-                a, b = self._count_chunks(chunk_size, source.duration)
-                nb_chunks += a
+
+            for source in self._sources:
+                a, b            = self._count_chunks(chunk_size, source.duration)
+                nb_chunks      += a
+                last_chunk_len += b
                 if b > 0:
                     nb_chunks += 1
                 self._chunks_in_sources += [nb_chunks]
-            return nb_chunks, b
+
+            return nb_chunks, last_chunk_len
         else:
             return self._count_chunks(chunk_size, self.duration)
 
