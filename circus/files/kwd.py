@@ -20,6 +20,6 @@ class KwdFile(H5File):
         H5File.__init__(self, file_name, params, is_empty)
 
     def _read_from_header_(self):
-        header = {}
+        header = H5File._read_from_header_(self)
         header['gain'] = dict(h5py.File(file_name).get('recordings/0/application_data').attrs.items())['channel_bit_volts']
         return header

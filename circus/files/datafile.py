@@ -44,16 +44,16 @@ class DataFile(object):
     feel free to reuse as much as possible those from the datafile main class.
     '''
 
-    description      = "mydatafile"     #Description of the file format
-    extension        = [".myextension"] #extensions
-    parallel_write   = False            #can be written in parallel (using the comm object)
-    is_writable      = False            #can be written
-    is_streamable    = False            #If the file formats can support streams of data
-    _shape           = None             #The total shape of the data (nb time steps, nb channels) accross streams if any
-    _t_start         = None             #The global t_start of the data
-    _t_stop          = None             #The final t_stop of the data, accross all streams if any
+    description      = "mydatafile"     # Description of the file format
+    extension        = [".myextension"] # extensions
+    parallel_write   = False            # can be written in parallel (using the comm object)
+    is_writable      = False            # can be written
+    is_streamable    = False            # If the file formats can support streams of data
+    _shape           = None             # The total shape of the data (nb time steps, nb channels) accross streams if any
+    _t_start         = None             # The global t_start of the data
+    _t_stop          = None             # The final t_stop of the data, accross all streams if any
     
-    # This is a dictionary of values that need to be provided to the constructor, without default values
+    # This is a dictionary of values that need to be provided to the constructor, with the corresponding type
     _required_fields = {}
 
     # This is a dictionary of values that may have a default value, if not provided to the constructor
@@ -67,16 +67,18 @@ class DataFile(object):
         code will trigger an error
 
         What you need to specify (usually be getting value in the _get_info function)
-            - _parallel_write : can the file be safely written in parallel ?
-            - _is_writable    : if the file can be written
-            - _is_streamable  : if the file format can support streaming data
-            - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
+            - parallel_write : can the file be safely written in parallel ?
+            - is_writable    : if the file can be written
+            - is_streamable  : if the file format can support streaming data
+            - _shape         : the size of the data, should be a tuple (duration in time bins, nb_channels)
             - is_empty is a flag to say if the file is created without data. It has no sense if the file is
              not writable
-            - _requiered_fields : what parameter must be specified for the file format
+            - required_fields : what parameter must be specified for the file format, along with the type
+            - default_values  : parameters that may have default values if not provided
         '''
 
-        self._check_filename(file_name)
+        if not is_empty:
+            self._check_filename(file_name)
 
         self._params   = {}
         self.file_name = file_name
@@ -88,10 +90,10 @@ class DataFile(object):
         self._fill_from_params(params)
 
         if not self.is_empty:
-            try:
-                self._fill_from_header(self._read_from_header())
-            except Exception:
-                print_and_log(["There is an error in the _read_from_header method of the wrapper"], 'error', logger)
+            #try:
+            self._fill_from_header(self._read_from_header())
+            #except Exception as ex:
+            #    print_and_log(["There is an error in the _read_from_header method of the wrapper\n" + str(ex)], 'error', logger)
         else:
             self._shape = (0, 0)
 
@@ -99,9 +101,7 @@ class DataFile(object):
             if self.is_master:
                 print_and_log(["Shape of the data is not defined. Are you sure of the wrapper?"], 'error', logger)
 
-        if self.dtype_offset == 'auto':
-            self._params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
-
+        self._params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
 
 
     ##################################################################################################################
@@ -114,7 +114,7 @@ class DataFile(object):
     def _read_from_header(self):
         '''
             This function is called only if the file is not empty, and should fill the values in the constructor
-            such as max_offset, _shape, ...
+            such as _shape
         '''
         raise NotImplementedError('The _read_from_header method needs to be implemented for file format %s' %self.description)
 
@@ -164,7 +164,7 @@ class DataFile(object):
         '''
             This function may be used during benchmarking mode, or if multi-files mode is activated
             Starting from an empty file, it will allocates a given size:
-                - shape is a tuple with (time lenght, nb_channels)
+                - shape is a tuple with (time length, nb_channels)
                 - data_dtype is the data type
         '''
         raise NotImplementedError('The allocate method needs to be implemented for file format %s' %self.description)
@@ -231,7 +231,7 @@ class DataFile(object):
                 if self.is_master:
                     print_and_log(['%s is not set and has the default value of %s' %(key, self._params[key])], 'debug', logger)
             else:
-                self._params[key] = params[key]
+                self._params[key] = type(self._default_values[key])(params[key])
                 if self.is_master:
                     print_and_log(['%s is read from the params with a value of %s' %(key, self._params[key])], 'debug', logger)
 
@@ -340,6 +340,9 @@ class DataFile(object):
             print_and_log(['The last chunk has size %d' %(last_chunk_len)], 'debug', logger)
 
         return nb_chunks, last_chunk_len
+
+    def get_description(self):
+        return self._params
 
     @property
     def shape(self):

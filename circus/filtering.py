@@ -310,6 +310,4 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0 and (do_filter or clean_artefact):
             params.write('noedits', 'filter_done', 'True')
 
-        sys.exit(1)
-
     comm.Barrier()

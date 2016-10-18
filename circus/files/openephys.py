@@ -22,7 +22,6 @@ class OpenEphysFile(DataFile):
         header = { }
         f = open(file, 'rb')
         h = f.read(self.NUM_HEADER_BYTES).replace('\n','').replace('header.','')
-        print h
         for i,item in enumerate(h.split(';')):
             if '=' in item:
                 header[item.split(' = ')[0]] = item.split(' = ')[1]
@@ -32,23 +31,22 @@ class OpenEphysFile(DataFile):
 
     def _read_from_header(self):
 
-        header                 = self._read_header_(self.file_name)
-        header['data_dtype']   = 'int16'
-        header['dtype_offset'] = 0
-        header['data_offset']  = self.NUM_HEADER_BYTES
-
-        folder_path     = os.path.dirname(os.path.realpath(file_name))
+        folder_path     = os.path.dirname(os.path.realpath(self.file_name))
         self.all_channels = self._get_sorted_channels_(folder_path)
         self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
         self.header     = self._read_header_(self.all_files[0])
         
-        kwargs['sampling_rate'] = float(self.header['sampleRate'])        
-        kwargs['nb_channels']   = len(self.all_files)
-        kwargs['gain']          = float(self.header['bitVolts'])        
+        header                  = {}
+        header['data_dtype']    = 'int16'
+        header['dtype_offset']  = 0
+        header['data_offset']   = self.NUM_HEADER_BYTES
+        header['sampling_rate'] = float(self.header['sampleRate'])        
+        header['nb_channels']   = len(self.all_files)
+        header['gain']          = float(self.header['bitVolts'])        
 
         g = open(self.all_files[0], 'rb')
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
-        self._shape      = (self.size, self.nb_channels)
+        self._shape      = (self.size, header['nb_channels'])
         g.close()
         
         return header

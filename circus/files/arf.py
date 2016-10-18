@@ -24,24 +24,27 @@ class ARFFile(H5File):
     def _get_channel_key_(self, i):
         return self.h5_key + '/' + self.channels[int(i)]
 
+    @property
+    def channel_name(self):
+        return self._params['channel_name']
+
     def _read_from_header(self):
 
         header = {}
         
         self.__check_valid_key__(self.h5_key)
-        all_keys                = h5py.File(file_name).get(self.h5_key).keys()
-        channels, idx           = self._get_sorted_channels_(all_keys, self.channel_name)    
-        header['channels']      = channels
-        key                     = self.h5_key + '/' + channels[0]
-        header['sampling_rate'] = dict(h5py.File(file_name).get(key).attrs.items())['sampling_rate']
-        header['indices']       = idx.astype(numpy.int32)
-
         self.open()
+
+        all_keys                = self.my_file.get(self.h5_key).keys()
+        channels, idx           = self._get_sorted_channels_(all_keys, self.channel_name)    
+        self.channels           = channels
+        key                     = self.h5_key + '/' + self.channels[0]
+        header['sampling_rate'] = dict(h5py.File(file_name).get(key).attrs.items())['sampling_rate']
         header['data_dtype']    = self.my_file.get(self._get_channel_key_(0)).dtype
-        header['compression']   = self.my_file.get(self._get_channel_key_(0)).compression
+        self.compression        = self.my_file.get(self._get_channel_key_(0)).compression
 
         # HDF5 does not support parallel writes with compression
-        if header['compression'] != '':
+        if self.compression != '':
             self._parallel_write = False
         
         self.size   = self.my_file.get(self._get_channel_key_(0)).shape
@@ -73,7 +76,7 @@ class ARFFile(H5File):
                         self.my_file.create_dataset(self._get_channel_key_(i), dtype=data_dtype, shape=shape, chunks=True)
 
         self.my_file.close()
-        self._get_info_()
+        self._read_from_header()
 
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
 

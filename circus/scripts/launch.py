@@ -332,7 +332,7 @@ but a subset x,y can be done. Steps are:
         from circus.shared import gui
         import pylab
         from matplotlib.backends import qt_compat
-
+        
         use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
         if use_pyside:
             from PySide import QtGui, QtCore, uic

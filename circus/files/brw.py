@@ -15,7 +15,7 @@ class BRWFile(H5File):
         self.open() 
         f                       = h5py.File(file_name)
         header['sampling_rate'] = f.get('3BRecInfo/3BRecVars/SamplingRate').value[0]
-        header['n_frames']      = f.get('3BRecInfo/3BRecVars/NRecFrames').value[0]
+        
         header['h5_key']        = '3BData/Raw'
 
         max_volt       = f.get('3BRecInfo/3BRecVars/MaxVolt').value[0]
@@ -24,14 +24,14 @@ class BRWFile(H5File):
         inversion      = f.get('3BRecInfo/3BRecVars/SignalInversion').value[0]
         header['gain'] = inversion * ((max_volt - min_volt) / 2**bit_depth)
         header['dtype_offset'] = inversion*min_volt
-
-        header['data_dtype']  = self.my_file.get(self.h5_key).dtype
-        header['compression'] = self.my_file.get(self.h5_key).compression
+        header['data_dtype'] = self.my_file.get(self.h5_key).dtype
+        self.compression     = self.my_file.get(self.h5_key).compression
 
         # HDF5 does not support parallel writes with compression
-        if header['compression'] != '':
+        if self.compression != '':
             self._parallel_write = False
         
+        n_frames    = f.get('3BRecInfo/3BRecVars/NRecFrames').value[0]
         self.size   = self.my_file.get(self.h5_key).shape[0]
         self._shape = (self.n_frames, self.size/self.n_frames)
         self.close()

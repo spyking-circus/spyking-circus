@@ -322,8 +322,7 @@ class CircusParser(object):
         if comm.rank == 0:
             print_and_log(['Trying to read file %s as %s' %(data_file, file_format)], 'debug', logger)
 
-        print params, file_format
-        data              = __supported_data_files__[file_format](data_file, params)
+        data              = __supported_data_files__[file_format](data_file, params, is_empty)
         self.rate         = data.sampling_rate
         self.nb_channels  = data.nb_channels
         self.data_file    = data
@@ -335,13 +334,6 @@ class CircusParser(object):
             sys.exit(1)
 
         return data 
-
-
-
-    # Those are the attributes that need to be common in ALL file formats
-    # Note that those values can be either infered from header, or otherwise read from the parameter file
-    _mandatory        = ['sampling_rate', 'data_dtype', 'dtype_offset', 'gain', 'nb_channels']
-
 
 
     def get_data_file(self, multi=False, force_raw='auto', is_empty=False, params={}):

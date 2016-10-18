@@ -29,16 +29,17 @@ class H5File(DataFile):
             sys.exit(1)
         file.close()
 
-    def _read_from_header(self, **header):
+    def _read_from_header(self):
 
         self.__check_valid_key__(self.h5_key)
         self.open()
 
+        header = {}
         header['data_dtype']   = self.my_file.get(self.h5_key).dtype
-        header['compression']  = self.my_file.get(self.h5_key).compression
+        self.compression       = self.my_file.get(self.h5_key).compression
 
         # HDF5 does not support parallel writes with compression
-        if header['compression'] != '':
+        if self.compression != '':
             self._parallel_write = False
         
         self.size        = self.my_file.get(self.h5_key).shape
@@ -48,7 +49,7 @@ class H5File(DataFile):
             self._shape = (self.size[0], self.size[1])
         else:
             self.time_axis = 1
-            self._shape = self.size
+            self._shape = (self.size[1], self.size[0])
 
         self.close()
 
@@ -71,7 +72,7 @@ class H5File(DataFile):
                     self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
 
         self.my_file.close()
-        self._get_info_()
+        self._read_from_header()
 
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
@@ -108,3 +109,7 @@ class H5File(DataFile):
     def close(self):
         self.my_file.close()
         del self.data
+
+    @property
+    def h5_key(self):
+        return self._params['h5_key']

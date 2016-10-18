@@ -8,18 +8,18 @@ class RawBinaryFile(DataFile):
     parallel_write = True
     is_writable    = True
 
-    _required_fields = {'data_offset'   : int,
-                        'data_dtype'    : str,
+    _required_fields = {'data_dtype'    : str,
                         'sampling_rate' : float,
                         'nb_channels'   : int}
     
     _default_values  = {'dtype_offset'  : 'auto', 
+                        'data_offset'   : 0,
                         'gain'          : 1}
 
     def _read_from_header(self):
         self.open()
-        self.size          = len(self.data)
-        self._shape        = (self.size//self.nb_channels, self.nb_channels)
+        self.size   = len(self.data)
+        self._shape = (self.size//self.nb_channels, self.nb_channels)
         self.close()
         return {}
 
@@ -31,7 +31,7 @@ class RawBinaryFile(DataFile):
             self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=data_dtype, mode='w+', shape=shape)
         comm.Barrier()
         
-        self._get_info_()
+        self._read_from_header()
         del self.data
 
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
