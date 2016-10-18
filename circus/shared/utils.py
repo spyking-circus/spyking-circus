@@ -1,8 +1,6 @@
     # -*- coding: utf-8 -*-
 import warnings, logging
 warnings.filterwarnings("ignore")
-import matplotlib
-matplotlib.use('Qt4Agg', warn=False)
 import os, sys, time, types
 import numpy as np
 import scipy.sparse as sp

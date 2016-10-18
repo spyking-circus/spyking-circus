@@ -27,7 +27,7 @@ requirements:
     - h5py
     - setuptools >=26
     - colorama
-    - qt
+    - qt >=4,<=5
     - psutil
     - pyqt >=4,<=5
     - scikit-learn

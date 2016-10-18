@@ -263,7 +263,7 @@ class MergeWindow(QtGui.QMainWindow):
         if self.mpi_wait[0] == 1:
             self.finalize(None)
         elif self.mpi_wait[0] == 2:
-            sys.exit(1)
+            sys.exit(0)
 
     def closeEvent(self, event):
         if comm.rank == 0:

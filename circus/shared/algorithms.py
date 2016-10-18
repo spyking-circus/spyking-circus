@@ -1,5 +1,3 @@
-import matplotlib
-matplotlib.use('Agg', warn=False)
 import os, logging
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 from circus.shared.files import load_data, write_datasets, get_overlaps
