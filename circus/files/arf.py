@@ -8,6 +8,7 @@ class ARFFile(H5File):
     extension      = [".arf", ".hdf5", ".h5"]
     parallel_write = h5py.get_config().mpi
     is_writable    = True
+    is_streamable  = True
 
     _required_fields = {'h5_key'        : str,
                         'channel_name'  : str}
@@ -27,6 +28,17 @@ class ARFFile(H5File):
     @property
     def channel_name(self):
         return self._params['channel_name']
+
+
+    def set_streams(self):
+        
+        params  = self.get_description()
+        streams = []
+        for i in source:
+            params['channel_name'] = myname
+            streams += [ARFFile(to_process, params)]
+            
+        return streams
 
     def _read_from_header(self):
 

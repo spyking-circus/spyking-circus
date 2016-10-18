@@ -30,13 +30,13 @@ class RawBinaryFile(DataFile):
         pattern     = os.path.basename(self.file_name)
         streams     = []
         count       = 0
+        params      = self.get_description()
 
         while pattern in all_files:
             to_process = os.path.join(os.path.abspath(dirname), pattern)
             pattern    = pattern.replace(str(count), str(count+1))
             count     += 1
-            streams   += [RawBinaryFile(to_process, self.get_description())]
-            print to_process
+            streams   += [RawBinaryFile(to_process, params)]
 
         return streams
 

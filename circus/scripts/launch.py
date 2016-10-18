@@ -174,7 +174,7 @@ but a subset x,y can be done. Steps are:
 
         chunk_size = int(2*params.rate)
         data_file.open()
-        local_chunk  = data_file.get_data(0, chunk_size)
+        local_chunk, t_offset  = data_file.get_data(0, chunk_size)
         data_file.close()
 
         new_params = CircusParser(filename)

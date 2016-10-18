@@ -8,8 +8,8 @@ class RawMCSFile(RawBinaryFile):
 
     description    = "mcs_raw_binary"
     extension      = [".raw", ".dat"]
-    parallel_write = True
-    is_writable    = True
+
+    _required_fields = {'sampling_rate' : float}
 
     def _get_header(self):
         try:
@@ -46,6 +46,7 @@ class RawMCSFile(RawBinaryFile):
             print_and_log(["Wrong MCS header: file is not exported with MCRack"], 'error', logger)
             sys.exit(1)
 
+
     def _read_from_header(self):
 
         a, b, c                = self._get_header()
@@ -60,4 +61,9 @@ class RawMCSFile(RawBinaryFile):
         elif header['dtype_offset'] == 0:
              header['data_dtype'] = 'int16'
 
+        self.data   = numpy.memmap(self.file_name, offset=header['data_offset'], dtype=header['data_dtype'], mode='r')
+        self.size   = len(self.data)
+        self._shape = (self.size//header['nb_channels'], header['nb_channels'])
+        del self.data
+        
         return header

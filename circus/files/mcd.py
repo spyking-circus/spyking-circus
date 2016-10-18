@@ -7,8 +7,7 @@ class MCDFile(DataFile):
     description    = "mcd"    
     extension      = [".mcd"]
     parallel_write = False
-    is_writable    = False
-        
+    is_writable    = False        
 
     def _read_from_header(self):
 
@@ -50,6 +49,7 @@ class MCDFile(DataFile):
 
     def open(self, mode='r'):
         self.data = ns.File(self.file_name)
+        
         
     def close(self):
         self.data.close()

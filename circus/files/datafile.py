@@ -75,7 +75,7 @@ class DataFile(object):
 
         What you need to specify at a low level (maybe by getting specific values with _read_from_header)
             - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
-
+            - _t_start        : the time (in time steps) of the recording (0 by default)
         '''
 
         if not is_empty:
@@ -120,7 +120,7 @@ class DataFile(object):
             self._sources = self.set_streams() 
             self._times   = [0]
             for source in self._sources:
-                self._times += [source.duration]
+                self._times += [source.t_start]
             print_and_log(['The file is made of %d streams' %len(self._sources)], 'debug', logger)
 
     ##################################################################################################################
@@ -459,5 +459,5 @@ class DataFile(object):
             return self.sources[-1].t_stop
         else:
             if self._t_stop is None:
-                self._t_stop = self.duration
+                self._t_stop = self.t_start + self.duration
             return self._t_stop
