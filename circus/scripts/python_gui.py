@@ -58,7 +58,7 @@ def main(argv=None):
         data_offset = data_file.data_offset
     else:
         data_offset = 0
-    file_format    = data_file._description
+    file_format    = data_file.description
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if file_format not in supported_by_phy:
