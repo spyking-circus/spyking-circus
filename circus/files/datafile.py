@@ -366,9 +366,9 @@ class DataFile(object):
         if self.is_stream:
             cidx  = numpy.searchsorted(time, numpy.cumsum(self._times))
             time -= numpy.cumsum(self._times)[cidx]
-            return self._sources[cidx].read_block(0, chunk_size=length, padding=(time, time), nodes=nodes)
+            return self._sources[cidx].read_block(0, chunk_size=length, padding=(time, time), nodes=nodes)[0]
         else:
-            return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
+            return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)[0]
 
 
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):

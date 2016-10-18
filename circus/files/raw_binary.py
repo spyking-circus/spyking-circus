@@ -7,7 +7,6 @@ class RawBinaryFile(DataFile):
     extension      = None
     parallel_write = True
     is_writable    = True
-    is_streamable  = True
 
     _required_fields = {'data_dtype'    : str,
                         'sampling_rate' : float,

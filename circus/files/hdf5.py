@@ -51,6 +51,7 @@ class H5File(DataFile):
             self.time_axis = 1
             self._shape = (self.size[1], self.size[0])
 
+        header['nb_channels']  = self._shape[1]
         self.close()
 
         return header

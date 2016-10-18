@@ -278,14 +278,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 remove_artefacts(data_file, art_dict, goffset)
 
         else:
-
             all_files     = params.get_multi_files()
             combined_file = params.get('data', 'data_file')
             data_file     = params.get_data_file(multi=True, force_raw=False)
             comm.Barrier()
 
             times         = io.data_stats(params, show=False, export_times=True)
-            data_out      = params.get_data_file(force_raw=True, is_empty=True, **data_file.get_description())
+            data_out      = params.get_data_file(force_raw=True, is_empty=True, params=data_file.get_description())
 
             data_out.allocate(shape=(times[-1][1], data_out.nb_channels), data_dtype=numpy.float32)
             comm.Barrier()

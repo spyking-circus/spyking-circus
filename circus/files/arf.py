@@ -23,7 +23,7 @@ class ARFFile(H5File):
         return sub_list, idx
 
     def _get_channel_key_(self, i):
-        return self.h5_key + '/' + self.channels[int(i)]
+        return self.h5_key + '/' + self.channels[self.indices[i]]
 
     @property
     def channel_name(self):
@@ -45,23 +45,26 @@ class ARFFile(H5File):
         header = {}
         
         self.__check_valid_key__(self.h5_key)
-        self.open()
-
+        
+        self.my_file            = h5py.File(self.file_name)
         all_keys                = self.my_file.get(self.h5_key).keys()
         channels, idx           = self._get_sorted_channels_(all_keys, self.channel_name)    
         self.channels           = channels
+        self.indices            = idx
         key                     = self.h5_key + '/' + self.channels[0]
-        header['sampling_rate'] = dict(h5py.File(file_name).get(key).attrs.items())['sampling_rate']
+        header['sampling_rate'] = dict(self.my_file.get(key).attrs.items())['sampling_rate']
         header['data_dtype']    = self.my_file.get(self._get_channel_key_(0)).dtype
+        header['nb_channels']   = len(self.channels)
         self.compression        = self.my_file.get(self._get_channel_key_(0)).compression
-
+        self._t_start           = dict(self.my_file.get(self.h5_key).attrs.items())['timestamp'][0]
+        
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
             self._parallel_write = False
         
-        self.size   = self.my_file.get(self._get_channel_key_(0)).shape
-        self._shape = (self.size[0], len(self.channels))
-        self.close()
+        self.size     = self.my_file.get(self._get_channel_key_(0)).shape
+        self._shape   = (self.size[0], header['nb_channels'])
+        self.my_file.close()
 
         return header
 

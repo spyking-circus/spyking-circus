@@ -343,7 +343,7 @@ class CircusParser(object):
         if force_raw == 'auto':
             if self.parser.getboolean('data', 'multi-files'):
                 force_raw = True
-                data      = self._create_data_file(params['data_multi_file'], params, is_empty)
+                data      = self._create_data_file(params['data_multi_file'], is_empty, params)
                 params    = data.get_description()
         
         if force_raw == True:
