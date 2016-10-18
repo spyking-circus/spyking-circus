@@ -231,7 +231,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-                local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+                local_chunk, t_offet = data_file.get_data(gidx, chunk_size, nodes=nodes)
                 local_shape = len(local_chunk)
                 if do_spatial_whitening:
                     if use_gpu:
@@ -282,7 +282,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 all_extremas    = numpy.compress(idx, all_extremas)
 
                 local_peaktimes = numpy.unique(all_peaktimes)
-                local_offset    = gidx*chunk_size
+                local_offset    = gidx*chunk_size + t_offet
 
                 if len(local_peaktimes) > 0:
 

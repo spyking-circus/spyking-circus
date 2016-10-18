@@ -32,16 +32,16 @@ def get_offset(data_dtype, dtype_offset):
 
     return dtype_offset
 
+
+
+
 class DataFile(object):
 
     '''
     A generic class that will represent how the program interacts with the data. Such an abstraction
-    layer should allow people to write their own wrappers, for several file formats. Note that 
-    depending on the complexity of the datastructure, this can slow down the code.
-
-    The method belows are all methods that can be used, at some point, by the different steps of the code. 
-    In order to provide a full compatibility with a given file format, they must all be implemented, but 
-    feel free to reuse as much as possible those from the datafile main class.
+    layer should allow people to write their own wrappers, for several file formats, with or without
+    parallel write, streams, and so on. Note that depending on the complexity of the datastructure, 
+    this extra layer can slow down the code.
     '''
 
     description      = "mydatafile"     # Description of the file format
@@ -60,29 +60,36 @@ class DataFile(object):
     _default_values  = {}
 
     
-    def __init__(self, file_name, params, is_empty=False):
+    def __init__(self, file_name, params, is_empty=False, is_stream=False):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from the header
         of the file. If not found in the header, they are read from the parameter file. If no values are found, the 
         code will trigger an error
 
-        What you need to specify (usually be getting value in the _get_info function)
-            - parallel_write : can the file be safely written in parallel ?
-            - is_writable    : if the file can be written
-            - is_streamable  : if the file format can support streaming data
-            - _shape         : the size of the data, should be a tuple (duration in time bins, nb_channels)
-            - is_empty is a flag to say if the file is created without data. It has no sense if the file is
-             not writable
+        What you need to specify at a generic level (for a given file format)
+            - parallel_write  : can the file be safely written in parallel ?
+            - is_writable     : if the file can be written
+            - is_streamable   : if the file format can support streaming data
             - required_fields : what parameter must be specified for the file format, along with the type
             - default_values  : parameters that may have default values if not provided
+
+        What you need to specify at a low level (maybe by getting specific values with _read_from_header)
+            - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
+
         '''
 
         if not is_empty:
             self._check_filename(file_name)
 
+        if is_stream and not self.is_streamable:
+            if self.is_master:
+                print_and_log(["The file format %s can does not support streams" %self.description], 'error', logger)
+            sys.exit(1)
+
         self._params   = {}
         self.file_name = file_name
         self.is_empty  = is_empty
+        self.is_stream = is_stream
 
         f_next, extension = os.path.splitext(self.file_name)
         
@@ -90,18 +97,24 @@ class DataFile(object):
         self._fill_from_params(params)
 
         if not self.is_empty:
-            #try:
-            self._fill_from_header(self._read_from_header())
-            #except Exception as ex:
-            #    print_and_log(["There is an error in the _read_from_header method of the wrapper\n" + str(ex)], 'error', logger)
+            try:
+                self._fill_from_header(self._read_from_header())
+            except Exception as ex:
+                print_and_log(["There is an error in the _read_from_header method of the wrapper\n" + str(ex)], 'error', logger)
         else:
             self._shape = (0, 0)
 
         if self._shape is None:
             if self.is_master:
                 print_and_log(["Shape of the data is not defined. Are you sure of the wrapper?"], 'error', logger)
+            sys.exit(1)
 
         self._params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
+
+        if self.is_stream:
+            self.sources  = self.set_streams() 
+            for source in self.sources:
+                self._times += [source.duration]
 
 
     ##################################################################################################################
@@ -120,7 +133,7 @@ class DataFile(object):
 
 
     
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         '''
         Assuming the analyze function has been called before, this is the main function
         used by the code, in all steps, to get data chunks. More precisely, assuming your
@@ -136,7 +149,7 @@ class DataFile(object):
         raise NotImplementedError('The get_data method needs to be implemented for file format %s' %self.description)
 
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
         '''
             This function writes data at a given time.
             - time is expressed in timestep
@@ -169,6 +182,12 @@ class DataFile(object):
         '''
         raise NotImplementedError('The allocate method needs to be implemented for file format %s' %self.description)
 
+
+    def set_streams(self):
+        '''
+            This function is only used for file format supporting streams, and need to return a list of datafiles
+        '''
+        raise NotImplementedError('The set_streams method needs to be implemented for file format %s' %self.description)
 
     ################################## Optional, only if internal names are changed ##################################
 
@@ -208,12 +227,14 @@ class DataFile(object):
                 print_and_log(["The file %s can not be found!" %file_name], 'error', logger)
             sys.exit(1)
 
+
     def _check_extension(self, extension):
         if self.extension is not None:
             if not extension in self.extension + [item.upper() for item in self.extension]:
                 if self.is_master:
                     print_and_log(["The extension %s is not valid for a %s file" %(extension, self.description)], 'error', logger)
                 sys.exit(1)
+
 
     def _fill_from_params(self, params):
     
@@ -242,6 +263,7 @@ class DataFile(object):
             self._params[key] = header[key]
             if self.is_master:
                 print_and_log(['%s is read from the header with a value of %s' %(key, self._params[key])], 'debug', logger)
+
 
     def _check_requirements_(self, params):
 
@@ -280,7 +302,6 @@ class DataFile(object):
         '''
             This function will convert data from local data dtype into float32, the default format of the algorithm
         '''
-
         if self.data_dtype != numpy.float32:
             data  = data.astype(numpy.float32)
 
@@ -292,12 +313,11 @@ class DataFile(object):
 
         return numpy.ascontiguousarray(data)
 
+
     def _unscale_data_from_from32(self, data):
         '''
             This function will convert data from float32 back to the original format of the file
         '''
-
-
         if numpy.any(self.gain != 1):
             data /= self.gain
         
@@ -309,26 +329,14 @@ class DataFile(object):
 
         return data
 
-    def get_snippet(self, time, length, nodes=None):
-        '''
-            This function should return a time snippet of size length x nodes
-            - time is in timestep
-            - length is in timestep
-            - nodes is a list of nodes, between 0 and nb_channels
-        '''
-        return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
 
-
-    def analyze(self, chunk_size):
+    def _count_chunks(self, chunk_size, duration):
         '''
-            This function should return two values: 
-            - the number of temporal chunks of temporal size chunk_size that can be found 
-            in the data. Note that even if the last chunk is not complete, it has to be 
-            counted. chunk_size is expressed in time steps
-            - the length of the last uncomplete chunk, in time steps
+            This function will count how many block of size chunk_size can be found within a certain duration
+            This returns the number of blocks, plus the remaining part
         '''
-        nb_chunks      = self.duration // chunk_size
-        last_chunk_len = self.duration - nb_chunks * chunk_size
+        nb_chunks      = duration // chunk_size
+        last_chunk_len = duration - nb_chunks * chunk_size
 
         if self.is_master:
             print_and_log(['There are %d chunks of size %d' %(nb_chunks, chunk_size)], 'debug', logger)
@@ -341,32 +349,106 @@ class DataFile(object):
 
         return nb_chunks, last_chunk_len
 
+
+    def get_snippet(self, time, length, nodes=None):
+        '''
+            This function should return a time snippet of size length x nodes
+            - time is in timestep
+            - length is in timestep
+            - nodes is a list of nodes, between 0 and nb_channels
+        '''
+        return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)
+
+
+    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+        
+        if self.is_stream:
+            if not hasattr(self, '_chunks_in_sources'):
+                print_and_log(['The streams must are not properly initialized'], 'error', logger)
+
+            cidx = numpy.searchsorted(idx, self._chunks_in_sources)
+            return self.sources[cidx].read_chunk(idx - self._chunks_in_sources[cidx], chunk_size, padding, nodes), self.sources[cidx].t_start
+        else:
+            return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start
+
+        
+    #def get_snippet(self, time, length, nodes=None):
+    #    cidx  = numpy.searchsorted(time, numpy.cumsum(self._times))
+    #    time -= numpy.cumsum(self._times)[cidx]
+    #    return self.sources[cidx].read_block(0, chunk_size=length, padding=(time, time), nodes=nodes)
+
+
+    def set_data(self, time, data):
+
+        if self.is_stream:
+            cidx = numpy.searchsorted(time, numpy.cumsum(self._times))
+            return self.sources[cidx].write_chunk(time - numpy.cumsum(self._times)[cidx], data)
+        else:
+            return self.write_chunk(time, data)
+
+
+    def analyze(self, chunk_size):
+        '''
+            This function should return two values: 
+            - the number of temporal chunks of temporal size chunk_size that can be found 
+            in the data. Note that even if the last chunk is not complete, it has to be 
+            counted. chunk_size is expressed in time steps
+            - the length of the last uncomplete chunk, in time steps
+        '''
+        if self.is_stream:
+            nb_chunks               = 0
+            self._chunks_in_sources = [0]
+            for source in self.sources:
+                a, b = self._count_chunks(chunk_size, source.duration)
+                nb_chunks += a
+                if b > 0:
+                    nb_chunks += 1
+                self._chunks_in_sources += [nb_chunks]
+            return nb_chunks, b
+        else:
+            return self._count_chunks(chunk_size, self.duration)
+
+
     def get_description(self):
         result = {}
         for key in ['sampling_rate', 'data_dtype', 'gain', 'nb_channels', 'dtype_offset']:
             result[key] = self._params[key]
         return result
 
+
     @property
     def shape(self):
-        return self._shape  
-             
+        return (self.duration, self.nb_channels)
+        
+
     @property
     def duration(self):
-        return numpy.int64(self._shape[0])
+        if self.is_stream:
+            return numpy.int64(numpy.sum(self._times))
+        else:
+            return numpy.int64(self._shape[0])
+
 
     @property
     def is_master(self):
         return comm.rank == 0
 
+
     @property
     def t_start(self):
-        if self._t_start is None:
-            self._t_start = 0
-        return self._t_start
+        if self.is_stream:
+            return self.sources[0].t_start
+        else:
+            if self._t_start is None:
+                self._t_start = 0
+            return self._t_start
+
 
     @property
     def t_stop(self):
-        if self._t_stop is None:
-            self._t_stop = self.duration
-        return self._t_stop
+        if self.is_stream:
+            return self.sources[-1].t_stop
+        else:
+            if self._t_stop is None:
+                self._t_stop = self.duration
+            return self._t_stop

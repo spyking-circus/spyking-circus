@@ -78,7 +78,7 @@ class ARFFile(H5File):
         self.my_file.close()
         self._read_from_header()
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
@@ -97,7 +97,7 @@ class ARFFile(H5File):
         
         return self._scale_data_to_float32(local_chunk)
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
         
         data  = data.astype(self.data_dtype)
         for i in xrange(self.nb_channels):

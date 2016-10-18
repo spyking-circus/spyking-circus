@@ -197,8 +197,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
-        local_chunk = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
-        len_chunk   = len(local_chunk)
+        local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
+        len_chunk             = len(local_chunk)
 
         if do_spatial_whitening:
             if use_gpu:
@@ -297,7 +297,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             del sub_mat
 
-            local_offset = gidx*chunk_size+padding[0]
+            local_offset = gidx*chunk_size+padding[0] + t_offset
             local_bounds = (temp_2_shift, len_chunk - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
 

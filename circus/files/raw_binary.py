@@ -23,6 +23,21 @@ class RawBinaryFile(DataFile):
         self.close()
         return {}
 
+    def set_streams(self):
+        dirname     = os.path.abspath(os.path.dirname(self.file_name))
+        all_files   = os.listdir(dirname)
+        pattern     = os.path.basename(file_name)
+        to_process  = []
+        count       = 0
+
+        while pattern in all_files:
+            to_process = os.path.join(os.path.abspath(dirname), pattern)
+            pattern    = pattern.replace(str(count), str(count+1))
+            count     += 1
+            streams   += [RawBinaryFile(to_process, self.get_description())]
+
+        return streams
+
     def allocate(self, shape, data_dtype=None):
         if data_dtype is None:
             data_dtype = self.data_dtype
@@ -34,7 +49,7 @@ class RawBinaryFile(DataFile):
         self._read_from_header()
         del self.data
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
     	
         chunk_size  *= self.nb_channels
         padding      = numpy.array(padding) * self.nb_channels
@@ -52,7 +67,7 @@ class RawBinaryFile(DataFile):
         return self._scale_data_to_float32(local_chunk)
 
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
         self.open(mode='r+')
 
         data = self._unscale_data_from_from32(data)

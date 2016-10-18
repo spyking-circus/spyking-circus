@@ -38,7 +38,7 @@ class BRWFile(H5File):
 
         return header
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         chunk_size  *= self.nb_channels
         padding      = numpy.array(padding) * self.nb_channels
@@ -53,7 +53,7 @@ class BRWFile(H5File):
 
         return self._scale_data_to_float32(local_chunk)
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
 
         data = self._unscale_data_from_from32(data)
         data = data.ravel()

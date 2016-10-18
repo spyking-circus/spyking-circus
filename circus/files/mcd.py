@@ -28,7 +28,7 @@ class MCDFile(DataFile):
         return header
 
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         t_start     = numpy.int64(idx*numpy.int64(chunk_size)+padding[0])
         t_stop      = numpy.int64((idx+1)*numpy.int64(chunk_size)+padding[1])

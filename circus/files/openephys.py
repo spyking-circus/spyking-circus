@@ -77,7 +77,7 @@ class OpenEphysFile(DataFile):
         return data_slice 
 
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
@@ -101,7 +101,7 @@ class OpenEphysFile(DataFile):
         return self._scale_data_to_float32(local_chunk)
 
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
 
         t_start     = time
         t_stop      = time + data.shape[0]

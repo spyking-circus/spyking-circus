@@ -97,7 +97,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             for count, gidx in enumerate(to_process):
 
-                local_chunk =  data_file_in.get_data(gidx, chunk_size)
+                local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size)
                 
                 for i in nodes:
                     if perform_filtering:
