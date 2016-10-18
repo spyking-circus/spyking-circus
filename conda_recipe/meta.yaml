@@ -4,6 +4,7 @@ package:
 
 requirements:
   build:
+    - libgcc [linux and x86]
     - python
     - progressbar2
     - mpi4py
@@ -17,6 +18,7 @@ requirements:
     - psutil
     - scikit-learn
   run:
+    - libgcc [linux and x86]
     - python
     - progressbar2
     - mpi4py
