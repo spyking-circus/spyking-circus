@@ -126,7 +126,7 @@ def extract_extra_thresholds(params):
     
     def extract_median(chunk_size, gidx):
         """Extract the medians from a chunk of extracellular traces"""
-        loc_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        loc_chunk, _ = data_file.get_data(gidx, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -137,7 +137,7 @@ def extract_extra_thresholds(params):
     
     def extract_median_absolute_deviation(chunk_size, gidx, median):
         """Extract the median absolute deviations from a chunk of extracellular traces"""
-        loc_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        loc_chunk, _ = data_file.get_data(gidx, chunk_size, nodes=nodes)
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -269,7 +269,7 @@ def extract_extra_spikes_(params):
     def extract_chunk_spikes(gidx, extra_thresh, valley=True):
         """Detect spikes from a chunk of the extracellular traces"""
         
-        loc_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        loc_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
         loc_shape = len(loc_chunk)
         
         # Whiten signal.
@@ -379,7 +379,7 @@ def extract_extra_spikes_(params):
         #     numpy.save("tmp/loc_chunk_{}_{}.npy".format(gidx, int(extra_thresh)), loc_chunk)
         ##### end debug zone
         
-        return loc_peak_times, loc_peak_elecs, loc_peak_values
+        return loc_peak_times + t_offset, loc_peak_elecs, loc_peak_values
     
     # Distribute chunks over CPUs.
     all_chunks = numpy.arange(nb_chunks)
@@ -411,7 +411,7 @@ def extract_extra_spikes_(params):
     # For each chunk attributed to the current CPU.
     for (count, gidx) in enumerate(loc_all_chunks):
         time, channel, value = extract_chunk_spikes(gidx, spike_thresh, valley=extra_valley)
-        times[count] = time + gidx * chunk_size
+        times[count] = time
         channels[count] = channel
         values[count] = value
         if comm.rank == 0:

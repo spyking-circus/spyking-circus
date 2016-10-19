@@ -4,7 +4,7 @@ Release 0.5
 
 * code is now hosted on GitHub
 * various cosmetic changes in the terminal
-* garbage collector mode, to collect also all unfitted spikes, per channel
+* addition of a garbage collector mode, to collect also all unfitted spikes, per channel
 * complete restructuration of the I/O such that the code can now handle multiple file formats
 * internal refactoring to ease interaction with new file formats and readibility
 * because of the file format, slight restructuration of the parameter files
@@ -30,7 +30,10 @@ Release 0.5
 * display the electrode number in the preview/result GUI
 * setting up a continuous integration workflow to test all conda packages with appveyor and travis automatically
 * cuda support is now turned off by default, for smoother install procedures (GPU yet do not bring much)
-
+* file format can be streamed. Over several files (former multi-file mode), but also within the same file
+* several cosmetic changes in the default parameter file
+* clustering:smart_search and merging:correct_lag are now True by default
+* fix a minor bug in the smart search, biasing the estimation of densities
 
 
 =============

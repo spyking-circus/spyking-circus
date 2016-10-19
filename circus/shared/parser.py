@@ -309,6 +309,7 @@ class CircusParser(object):
         data              = __supported_data_files__[file_format](data_file, params, is_empty, stream_mode)
         self.rate         = data.sampling_rate
         self.nb_channels  = data.nb_channels
+        self.gain         = data.gain
         self.data_file    = data
         self._update_rate_values()
 
