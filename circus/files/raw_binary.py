@@ -23,22 +23,6 @@ class RawBinaryFile(DataFile):
         self.close()
         return {}
 
-    def set_streams(self):
-        dirname     = os.path.abspath(os.path.dirname(self.file_name))
-        all_files   = os.listdir(dirname)
-        pattern     = os.path.basename(self.file_name)
-        streams     = []
-        count       = 0
-        params      = self.get_description()
-
-        while pattern in all_files:
-            to_process = os.path.join(os.path.abspath(dirname), pattern)
-            pattern    = pattern.replace(str(count), str(count+1))
-            count     += 1
-            streams   += [RawBinaryFile(to_process, params)]
-
-        return streams
-
     def allocate(self, shape, data_dtype=None):
         if data_dtype is None:
             data_dtype = self.data_dtype

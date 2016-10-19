@@ -48,7 +48,7 @@ class DataFile(object):
     extension        = [".myextension"] # extensions
     parallel_write   = False            # can be written in parallel (using the comm object)
     is_writable      = False            # can be written
-    is_streamable    = False            # If the file formats can support streams of data
+    is_streamable    = ['multi-files']  # If the file format can support streams of data ['multi-files' is a default, but can be something else]
     _shape           = None             # The total shape of the data (nb time steps, nb channels) accross streams if any
     _t_start         = None             # The global t_start of the data
     _t_stop          = None             # The final t_stop of the data, accross all streams if any
@@ -60,7 +60,7 @@ class DataFile(object):
     _default_values  = {}
 
     
-    def __init__(self, file_name, params, is_empty=False, is_stream=False):
+    def __init__(self, file_name, params, is_empty=False, stream_mode=None):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from the header
         of the file. If not found in the header, they are read from the parameter file. If no values are found, the 
@@ -81,20 +81,23 @@ class DataFile(object):
         if not is_empty:
             self._check_filename(file_name)
 
-        if is_stream:
-            if not self.is_streamable:
+        if stream_mode:
+            self.is_stream = True
+            if not stream_mode in self.is_streamable:
                 if self.is_master:
-                    print_and_log(["The file format %s can does not support streams" %self.description], 'error', logger)
+                    print_and_log(["The file format %s can does not support stream mode %s" %(self.description, stream_mode)], 'error', logger)
                 sys.exit(1)
             if is_empty:
                 if self.is_master:
                     print_and_log(["A datafile can not have streams and be empty!" %self.description], 'error', logger)
                 sys.exit(1)
+        else:
+            self.is_stream = False
 
-        self._params   = {}
-        self.file_name = file_name
-        self.is_empty  = is_empty
-        self.is_stream = is_stream
+        self._params     = {}
+        self.file_name   = file_name
+        self.is_empty    = is_empty
+        self.stream_mode = stream_mode
 
         f_next, extension = os.path.splitext(self.file_name)
         
@@ -116,12 +119,13 @@ class DataFile(object):
 
         self._params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
 
-        if self.is_stream:
-            self._sources = self.set_streams() 
-            self._times   = [0]
+        if self.stream_mode:
+            self._sources = self.set_streams(self.stream_mode) 
+            self._times   = []
             for source in self._sources:
                 self._times += [source.t_start]
-            print_and_log(['The file is made of %d streams' %len(self._sources)], 'debug', logger)
+            print_and_log(['The file is composed of %d streams' %len(self._sources),
+                           'Times are between %d and %d' %(self._sources[0].t_start, self._sources[-1].t_stop)], 'debug',logger)
 
     ##################################################################################################################
     ##################################################################################################################
@@ -189,12 +193,34 @@ class DataFile(object):
         raise NotImplementedError('The allocate method needs to be implemented for file format %s' %self.description)
 
 
-    def set_streams(self):
+    def set_streams(self, stream_mode):
         '''
             This function is only used for file format supporting streams, and need to return a list of datafiles, with
             appropriate t_start for each of them. Note that the results will be using the time defined in the streams
         '''
-        raise NotImplementedError('The set_streams method needs to be implemented for file format %s' %self.description)
+
+        if stream_mode == 'multi-files':
+            dirname     = os.path.abspath(os.path.dirname(self.file_name))
+            all_files   = os.listdir(dirname)
+            pattern     = os.path.basename(self.file_name)
+            sources     = []
+            to_write    = []
+            count       = 0
+            global_time = 0
+            params      = self.get_description()
+
+            while pattern in all_files:
+                to_process = os.path.join(os.path.abspath(dirname), pattern)
+                pattern    = pattern.replace(str(count), str(count+1))
+                count     += 1
+                new_data   = type(self)(to_process, params)
+                new_data._t_start = global_time
+                global_time += new_data.duration
+                sources     += [new_data]
+                to_write    += ['We found file %s with t_start %d and duration %d' %(new_data.file_name, new_data.t_start, new_data.duration)]
+
+            print_and_log(to_write, 'debug', logger)
+            return sources
 
     ################################## Optional, only if internal names are changed ##################################
 
@@ -337,7 +363,7 @@ class DataFile(object):
         return data
 
 
-    def _count_chunks(self, chunk_size, duration):
+    def _count_chunks(self, chunk_size, duration, strict=False):
         '''
             This function will count how many block of size chunk_size can be found within a certain duration
             This returns the number of blocks, plus the remaining part
@@ -348,7 +374,7 @@ class DataFile(object):
         if self.is_master:
             print_and_log(['There are %d chunks of size %d' %(nb_chunks, chunk_size)], 'debug', logger)
 
-        if last_chunk_len > 0:
+        if not strict and last_chunk_len > 0:
             nb_chunks += 1
 
         if self.is_master:
@@ -365,9 +391,9 @@ class DataFile(object):
             - nodes is a list of nodes, between 0 and nb_channels
         '''
         if self.is_stream:
-            cidx  = numpy.searchsorted(time, numpy.cumsum(self._times))
-            time -= numpy.cumsum(self._times)[cidx]
-            return self._sources[cidx].read_block(0, chunk_size=length, padding=(time, time), nodes=nodes)[0]
+            cidx  = numpy.searchsorted(self._times, time, 'right') - 1
+            time -= self._times[cidx]
+            return self._sources[cidx].get_snippet(time, length, nodes)
         else:
             return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)[0]
 
@@ -375,10 +401,7 @@ class DataFile(object):
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         if self.is_stream:
-            if not hasattr(self, '_chunks_in_sources'):
-                print_and_log(['The streams must are not properly initialized'], 'error', logger)
-
-            cidx = numpy.searchsorted(idx, self._chunks_in_sources)
+            cidx = numpy.searchsorted(self._chunks_in_sources, idx, 'right') - 1
             return self._sources[cidx].read_chunk(idx - self._chunks_in_sources[cidx], chunk_size, padding, nodes), self._sources[cidx].t_start
         else:
             return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start       
@@ -387,13 +410,14 @@ class DataFile(object):
     def set_data(self, time, data):
 
         if self.is_stream:
-            cidx = numpy.searchsorted(time, numpy.cumsum(self._times))
-            return self._sources[cidx].write_chunk(time - numpy.cumsum(self._times)[cidx], data)
+            cidx  = numpy.searchsorted(self._times, time, 'right') - 1
+            time -= self._times[cidx]
+            return self._sources[cidx].write_chunk(time, data)
         else:
             return self.write_chunk(time, data)
 
 
-    def analyze(self, chunk_size):
+    def analyze(self, chunk_size, strict=False):
         '''
             This function should return two values: 
             - the number of temporal chunks of temporal size chunk_size that can be found 
@@ -404,19 +428,18 @@ class DataFile(object):
         if self.is_stream:
             nb_chunks               = 0
             last_chunk_len          = 0
-            self._chunks_in_sources = [0]
+            self._chunks_in_sources = []
 
             for source in self._sources:
-                a, b            = self._count_chunks(chunk_size, source.duration)
+                a, b            = self._count_chunks(chunk_size, source.duration, strict)
                 nb_chunks      += a
                 last_chunk_len += b
-                if b > 0:
-                    nb_chunks += 1
+
                 self._chunks_in_sources += [nb_chunks]
 
             return nb_chunks, last_chunk_len
         else:
-            return self._count_chunks(chunk_size, self.duration)
+            return self._count_chunks(chunk_size, self.duration, strict)
 
 
     def get_description(self):

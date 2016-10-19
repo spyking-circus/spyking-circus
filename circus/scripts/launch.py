@@ -156,7 +156,7 @@ but a subset x,y can be done. Steps are:
         logger       = init_logging(logfile)
         params       = CircusParser(filename)
         multi_files  = params.getboolean('data', 'multi-files')
-        data_file    = params.get_data_file(multi_files, force_raw=False)
+        data_file    = params.get_data_file(force_raw=False)
         file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file.parallel_write
         is_writable            = data_file.is_writable
@@ -189,7 +189,7 @@ but a subset x,y can be done. Steps are:
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
 
-        data_file_out = new_params.get_data_file(multi_files, is_empty=True)
+        data_file_out = new_params.get_data_file(is_empty=True)
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)

@@ -8,7 +8,7 @@ class ARFFile(H5File):
     extension      = [".arf", ".hdf5", ".h5"]
     parallel_write = h5py.get_config().mpi
     is_writable    = True
-    is_streamable  = True
+    is_streamable  = ['multi-files', 'single-file']
 
     _required_fields = {'h5_key'        : str,
                         'channel_name'  : str}

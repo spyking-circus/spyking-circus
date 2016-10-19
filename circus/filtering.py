@@ -11,7 +11,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.filtering')
     #################################################################
-    multi_files    = params.getboolean('data', 'multi-files')
+    #multi_files    = params.getboolean('data', 'multi-files')
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
@@ -25,9 +25,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(['trig_file or trig_windows file can not be found'], 'error', logger)
             sys.exit(1)
 
-    if do_filter or multi_files or clean_artefact or remove_median:
+    if do_filter or clean_artefact or remove_median:
 
-        def filter_file(data_file_in, data_file_out=None, offset=0, perform_filtering=True, display=True):
+        def filter_file(data_file_in, data_file_out=None, perform_filtering=True, display=True):
 
             try:
                 cut_off    = params.getfloat('filtering', 'cut_off')
@@ -73,9 +73,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 data_file_in.open()
                 data_file_out.open(mode='r+')
 
-            chunk_size     = params.getint('data', 'chunk_size')
-            nb_chunks, last_chunk_len = data_file_in.analyze(chunk_size)
-            
+            chunk_size    = params.getint('data', 'chunk_size')
+            nb_chunks, _  = data_file_in.analyze(chunk_size)
+
             b, a          = signal.butter(3, np.array(cut_off)/(params.rate/2.), 'pass')
             all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
             to_process    = all_chunks[comm.rank::comm.size]
@@ -86,8 +86,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 if perform_filtering:
                     to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
-                elif multi_files:
-                    to_write = ["Concatenating multi files without filtering"]
                 if remove_median:
                     to_write += ["Median over all channels is substracted to each channels"]
                 if display:
@@ -115,7 +113,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     for i in nodes:
                         local_chunk[:, i] -= global_median
 
-                data_file_out.set_data(gidx*chunk_size, local_chunk)
+                data_file_out.set_data(t_offset, local_chunk)
 
                 if comm.rank == 0:
                     pbar.update(count)
@@ -129,7 +127,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if not same_file:           
                 data_file_out.close()
 
-            return goffset + offset
 
         def compute_artefacts(data_file, max_offset):
 
@@ -266,45 +263,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
             data_file.close()
 
-        if not multi_files:  
+        if comm.rank == 0:
+            print_and_log(['Initializing the filtering step...'], 'debug', logger)
 
-            if comm.rank == 0:
-                print_and_log(['Single file mode...'], 'debug', logger)
-            data_file = params.data_file
-            goffset   = filter_file(data_file)
+        data_file = params.data_file
+        
+        filter_file(data_file)
 
-            if clean_artefact:
-                art_dict   = compute_artefacts(data_file, goffset)
-                remove_artefacts(data_file, art_dict, goffset)
-
-        else:
-            all_files     = params.get_multi_files()
-            combined_file = params.get('data', 'data_file')
-            data_file     = params.get_data_file(multi=True, force_raw=False)
-            comm.Barrier()
-
-            times         = io.data_stats(params, show=False, export_times=True)
-            data_out      = params.get_data_file(force_raw=True, is_empty=True, params=data_file.get_description())
-
-            data_out.allocate(shape=(times[-1][1], data_out.nb_channels), data_dtype=numpy.float32)
-            comm.Barrier()
-            
-            if comm.rank == 0:
-                print_and_log(['Output file: %s' %combined_file], 'debug', logger)
-            goffset = 0
-            
-            for data_file in all_files:
-
-                params.set('data', 'data_multi_file', data_file)
-                data_in = params.get_data_file(multi=True, force_raw=False)
-
-                if comm.rank == 0:
-                    print_and_log(['Input file for filtering: %s' %params.get('data', 'data_file') ], 'debug', logger)
-                goffset = filter_file(data_in, data_out, goffset, perform_filtering=do_filter, display=(goffset == 0))
-
-            if clean_artefact:
-                art_dict   = compute_artefacts(data_out, goffset)
-                remove_artefacts(data_out, art_dict, goffset)
+        if clean_artefact:
+            art_dict   = compute_artefacts(data_file, goffset)
+            remove_artefacts(data_file, art_dict, goffset)
 
         if comm.rank == 0 and (do_filter or clean_artefact):
             params.write('noedits', 'filter_done', 'True')

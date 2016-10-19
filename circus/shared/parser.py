@@ -20,7 +20,7 @@ class CircusParser(object):
 		                  ['data', 'global_tmp', 'bool', 'True'],
 		                  ['data', 'chunk_size', 'int', '30'],
 		                  ['data', 'multi-files', 'bool', 'False'],
-                          ['data', 'stream_mode', 'bool', 'False'],
+                          ['data', 'stream_mode', 'string', 'None'],
 		                  ['detection', 'alignment', 'bool', 'True'],
 		                  ['detection', 'matched-filter', 'bool', 'False'],
 		                  ['detection', 'matched_thresh', 'float', '5'],
@@ -309,12 +309,12 @@ class CircusParser(object):
             self.set('fitting', 'refactory', str(int(refactory*self.rate*1e-3)))
 
 
-    def _create_data_file(self, data_file, is_empty, params):
+    def _create_data_file(self, data_file, is_empty, params, stream_mode):
         file_format       = params.pop('file_format').lower()
         if comm.rank == 0:
             print_and_log(['Trying to read file %s as %s' %(data_file, file_format)], 'debug', logger)
 
-        data              = __supported_data_files__[file_format](data_file, params, is_empty)
+        data              = __supported_data_files__[file_format](data_file, params, is_empty, stream_mode)
         self.rate         = data.sampling_rate
         self.nb_channels  = data.nb_channels
         self.data_file    = data
@@ -329,7 +329,43 @@ class CircusParser(object):
         return data 
 
 
-    def get_data_file(self, multi=False, force_raw='auto', is_empty=False, params={}):
+    # def get_data_file(self, multi=False, force_raw='auto', is_empty=False, params={}):
+
+    #     ## A bit tricky because we want to deal with multifiles export
+    #     # If multi is False, we use the default REAL data files
+    #     # If multi is True, we use the combined file of all data files
+
+    #     for key, value in self.parser._sections['data'].items():
+    #         if key not in params:
+    #             params[key] = value
+
+    #     data_file     = params.pop('data_file')
+
+    #     if multi:
+    #         data_file = params['data_multi_file']
+
+    #     if force_raw == 'auto':
+    #         if self.parser.getboolean('data', 'multi-files'):
+    #             force_raw = True
+    #             data      = self._create_data_file(params['data_multi_file'], is_empty, params)
+    #             params    = data.get_description()
+        
+    #     if force_raw == True:
+    #         if comm.rank == 0:
+    #             print_and_log(['Forcing the data file to be of type raw_binary'], 'debug', logger)
+    #         params['file_format']   = 'raw_binary'
+    #         params['data_dtype']    = 'float32'
+    #         params['dtype_offset']  = 'auto'
+    #         params['data_offset']   = 0
+    #         data_file, extension    = os.path.splitext(data_file)
+    #         data_file              += ".dat" 
+    #         params['sampling_rate'] = self.rate
+    #         params['nb_channels']   = self.nb_channels
+
+    #     return self._create_data_file(data_file, is_empty, params)
+
+
+    def get_data_file(self, force_raw='auto', is_empty=False, params={}):
 
         ## A bit tricky because we want to deal with multifiles export
         # If multi is False, we use the default REAL data files
@@ -340,15 +376,13 @@ class CircusParser(object):
                 params[key] = value
 
         data_file     = params.pop('data_file')
+        stream_mode   = self.get('data', 'stream_mode')
 
-        if multi:
-            data_file = params['data_multi_file']
-
-        if force_raw == 'auto':
-            if self.parser.getboolean('data', 'multi-files'):
-                force_raw = True
-                data      = self._create_data_file(params['data_multi_file'], is_empty, params)
-                params    = data.get_description()
+        #if force_raw == 'auto':
+        #    if self.parser.getboolean('data', 'multi-files'):
+        #        force_raw = True
+        #        data      = self._create_data_file(params['data_multi_file'], is_empty, params)
+        #        params    = data.get_description()
         
         if force_raw == True:
             if comm.rank == 0:
@@ -362,7 +396,7 @@ class CircusParser(object):
             params['sampling_rate'] = self.rate
             params['nb_channels']   = self.nb_channels
 
-        return self._create_data_file(data_file, is_empty, params)
+        return self._create_data_file(data_file, is_empty, params, stream_mode)
 
 
     def get_multi_files(self):

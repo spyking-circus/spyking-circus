@@ -4,7 +4,7 @@
 
 [data]
 file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys, brw, npy
-stream_mode    = False                  # If True, all recordings in the datafile are processed as a whole
+stream_mode    = None                   # None by default. But can be multi-files, or anything depending to the file format
 multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
 mapping        = ~/probes/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files

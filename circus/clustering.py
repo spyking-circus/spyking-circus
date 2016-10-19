@@ -142,7 +142,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
     few_elts        = False
-    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+    nb_chunks, _    = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
 
@@ -152,7 +152,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', logger)
 
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
-
+    
     if smart_search is False:
         gpass = 1
     else:
@@ -231,8 +231,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-                local_chunk, t_offet = data_file.get_data(gidx, chunk_size, nodes=nodes)
-                local_shape = len(local_chunk)
+                local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
+                local_shape           = len(local_chunk)
                 if do_spatial_whitening:
                     if use_gpu:
                         local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
@@ -282,7 +282,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 all_extremas    = numpy.compress(idx, all_extremas)
 
                 local_peaktimes = numpy.unique(all_peaktimes)
-                local_offset    = gidx*chunk_size + t_offet
+                local_offset    = t_offset
 
                 if len(local_peaktimes) > 0:
 
@@ -388,8 +388,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             
                                             idx     = elec_positions[elec]
                                             ext_amp = sub_mat[template_shift, idx]
-                                            idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp)
-                                            to_keep = result['hist_%s_' %loc_peak + str(elec)][idx - 1] < numpy.random.rand() 
+                                            idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp, 'right') - 1
+                                            to_keep = result['hist_%s_' %loc_peak + str(elec)][idx] < numpy.random.rand() 
 
                                             if to_keep:
                                                 to_accept = True

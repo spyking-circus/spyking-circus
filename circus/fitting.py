@@ -297,7 +297,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             del sub_mat
 
-            local_offset = gidx*chunk_size+padding[0] + t_offset
+            local_offset = padding[0] + t_offset
             local_bounds = (temp_2_shift, len_chunk - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
 
