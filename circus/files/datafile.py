@@ -191,7 +191,8 @@ class DataFile(object):
 
     def set_streams(self):
         '''
-            This function is only used for file format supporting streams, and need to return a list of datafiles
+            This function is only used for file format supporting streams, and need to return a list of datafiles, with
+            appropriate t_start for each of them. Note that the results will be using the time defined in the streams
         '''
         raise NotImplementedError('The set_streams method needs to be implemented for file format %s' %self.description)
 

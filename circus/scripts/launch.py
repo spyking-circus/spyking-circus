@@ -209,7 +209,7 @@ but a subset x,y can be done. Steps are:
         if preview:
             print Fore.GREEN + "Steps         :", Fore.CYAN + "preview mode"
         elif result:
-            print Fore.GREEN + "Steps         :", Fore.CYAN + "results mode"
+            print Fore.GREEN + "Steps         :", Fore.CYAN + "result mode"
         else:
             print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
         print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)

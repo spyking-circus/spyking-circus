@@ -272,6 +272,10 @@ class CircusParser(object):
 
         if self._N_t is None:
 
+            if comm.rank == 0:
+                print_and_log(['Changing all values in the param depending on the rate'], 'debug', logger)
+    
+
             try:
                 self._N_t = self.getfloat('detection', 'N_t')
             except Exception:

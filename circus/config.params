@@ -5,10 +5,10 @@
 [data]
 file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys, brw, npy
 stream_mode    = False                  # If True, all recordings in the datafile are processed as a whole
+multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
 mapping        = ~/probes/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                        # Suffix to add to generated files
 global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
-multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
 
 [detection]
 radius         = auto                   # Radius [in um] (if auto, read from the prb file)
@@ -25,10 +25,10 @@ filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
 
 [triggers]
-trig_file      =           # If external stimuli need to be considered as putative artefacts (see documentation)
-trig_windows   =           # The time windows of those external stimuli [in ms]
-clean_artefact = False     # If True, external artefacts induced by triggers will be suppressed from data
-make_plots     =           # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
+trig_file      =            # If external stimuli need to be considered as putative artefacts (see documentation)
+trig_windows   =            # The time windows of those external stimuli [in ms]
+clean_artefact = False      # If True, external artefacts induced by triggers will be suppressed from data
+make_plots     =            # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 [whitening]
 chunk_size     = 30         # Size of the data chunks [in s]
@@ -48,7 +48,7 @@ nb_elts        = 0.8        # Fraction of max_elts that should be obtained per e
 nclus_min      = 0.005      # Min number of elements in a cluster (given in percentage)
 max_clusters   = 10         # Maximal number of clusters for every electrodes
 nb_repeats     = 3          # Number of passes used for the clustering
-smart_search   = False      # Parameter to activate the smart search mode
+smart_search   = True       # Parameter to activate the smart search mode
 sim_same_elec  = 3          # Distance within clusters under which they are re-merged
 compress       = True       # Compress templates for large physical radius or number of electrodes
 cc_merge       = 0.975      # If CC between two templates is higher, they are merged
@@ -68,7 +68,7 @@ collect_all    = False     # If True, one garbage template per electrode is crea
 [merging]
 cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2         # Bin size for computing CC [in ms]
-correct_lag    = False     # If spikes are aligned when merging. May be better for phy usage
+correct_lag    = True      # If spikes are aligned when merging. May be better for phy usage
 
 [converting]
 erase_all      = True      # If False, a prompt will ask you to export if export has already been done
