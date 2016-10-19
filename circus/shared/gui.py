@@ -112,11 +112,11 @@ class MergeWindow(QtGui.QMainWindow):
 
         if comm.rank == 0:
             print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', logger)
-        self.app        = app
-        self.params     = params
-        self.ext_in     = extension_in
-        self.ext_out    = extension_out
-        data_file       = params.data_file
+        self.app           = app
+        self.params        = params
+        self.ext_in        = extension_in
+        self.ext_out       = extension_out
+        data_file          = params.data_file
         self.N_e           = params.getint('data', 'N_e')
         self.N_t           = params.getint('detection', 'N_t')
         self.N_total       = params.nb_channels
@@ -1021,7 +1021,7 @@ class MergeWindow(QtGui.QMainWindow):
 
             self.app.restoreOverrideCursor()
         
-        sys.exit(1)
+        sys.exit(0)
 
     def merge_and_finalize(self, event):
 

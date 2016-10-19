@@ -32,13 +32,10 @@ class ARFFile(H5File):
 
     def set_streams(self):
         
-        params  = self.get_description()
-        streams = []
-        for i in source:
-            params['channel_name'] = myname
-            streams += [ARFFile(to_process, params)]
-            
-        return streams
+        if stream_mode == 'single-file':
+            pass
+        elif stream_mode == 'multi-files':
+            return H5File.set_streams(stream_mode)
 
     def _read_from_header(self):
 

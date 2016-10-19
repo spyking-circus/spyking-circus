@@ -18,7 +18,7 @@ def data_stats(params, show=True, export_times=False):
 
     
     data_file   = params.get_data_file()
-    multi_files = params.getboolean('data', 'multi-files')    
+    stream_mode = data_file.is_stream    
     chunk_size  = 60 * data_file.sampling_rate
     nb_chunks   = data_file.duration // chunk_size 
     last_chunk_len = data_file.duration - nb_chunks * chunk_size
@@ -49,8 +49,8 @@ def data_stats(params, show=True, export_times=False):
              "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
              "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
     
-    if multi_files:
-        lines += ["Multi-files activated       : %s files" %len(all_files)]    
+    if stream_mode:
+        lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]    
 
     if show:
         print_and_log(lines, 'info', logger)

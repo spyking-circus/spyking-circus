@@ -3,7 +3,7 @@ from messages import print_and_log
 from circus.shared.probes import read_probe
 from circus.shared.mpi import comm
 from circus.files import __supported_data_files__
-	
+
 import os, sys, copy, numpy, logging
 
 logger = logging.getLogger(__name__)
@@ -15,55 +15,54 @@ class CircusParser(object):
                        'detection', 'validating', 'converting']
 
     __default_values__ = [['fitting', 'amp_auto', 'bool', 'True'], 
-		                  ['fitting', 'refractory', 'float', '0.5'],
-		                  ['fitting', 'collect_all', 'bool', 'False'],
-		                  ['data', 'global_tmp', 'bool', 'True'],
-		                  ['data', 'chunk_size', 'int', '30'],
-		                  ['data', 'multi-files', 'bool', 'False'],
+                          ['fitting', 'refractory', 'float', '0.5'],
+                          ['fitting', 'collect_all', 'bool', 'False'],
+                          ['data', 'global_tmp', 'bool', 'True'],
+                          ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],
-		                  ['detection', 'alignment', 'bool', 'True'],
-		                  ['detection', 'matched-filter', 'bool', 'False'],
-		                  ['detection', 'matched_thresh', 'float', '5'],
-		                  ['detection', 'peaks', 'string', 'negative'],
-		                  ['detection', 'spike_thresh', 'float', '6'],
-		                  ['triggers', 'clean_artefact', 'bool', 'False'],
-		                  ['triggers', 'make_plots', 'string', 'png'],
-		                  ['triggers', 'trig_file', 'string', ''],
-		                  ['triggers', 'trig_windows', 'string', ''],
-		                  ['whitening', 'chunk_size', 'int', '30'],
-		                  ['filtering', 'remove_median', 'bool', 'False'],
-		                  ['clustering', 'max_clusters', 'int', '10'],
-		                  ['clustering', 'nb_repeats', 'int', '3'],
-		                  ['clustering', 'make_plots', 'string', 'png'],
-		                  ['clustering', 'test_clusters', 'bool', 'False'],
-		                  ['clustering', 'sim_same_elec', 'float', '2'],
-		                  ['clustering', 'smart_search', 'bool', 'False'],
-		                  ['clustering', 'safety_space', 'bool', 'True'],
-		                  ['clustering', 'compress', 'bool', 'True'],
-		                  ['clustering', 'noise_thr', 'float', '0.8'],
-		                  ['clustering', 'cc_merge', 'float', '0.975'],
-		                  ['clustering', 'extraction', 'string', 'median-raw'],
-		                  ['clustering', 'remove_mixture', 'bool', 'True'],
-		                  ['clustering', 'dispersion', 'string', '(5, 5)'],
-		                  ['extracting', 'cc_merge', 'float', '0.95'],
-		                  ['extracting', 'noise_thr', 'float', '1.'],
-		                  ['merging', 'cc_overlap', 'float', '0.5'],
-		                  ['merging', 'cc_bin', 'float', '2'],
-		                  ['merging', 'correct_lag', 'bool', 'False'],
-		                  ['converting', 'export_pcs', 'string', 'prompt'],
-		                  ['converting', 'erase_all', 'bool', 'True'],
-		                  ['converting', 'export_all', 'bool', 'False'],
-		                  ['validating', 'nearest_elec', 'string', 'auto'],
-		                  ['validating', 'max_iter', 'int', '200'],
-		                  ['validating', 'learning_rate', 'float', '1.0e-3'],
-		                  ['validating', 'roc_sampling', 'int', '10'],
-		                  ['validating', 'make_plots', 'string', 'png'],
-		                  ['validating', 'test_size', 'float', '0.3'],
-		                  ['validating', 'radius_factor', 'float', '0.5'],
-		                  ['validating', 'juxta_dtype', 'string', 'uint16'],
-		                  ['validating', 'juxta_thresh', 'float', '6.0'],
-		                  ['validating', 'juxta_valley', 'bool', 'False'],
-		                  ['validating', 'matching_jitter', 'float', '2.0']]
+                          ['detection', 'alignment', 'bool', 'True'],
+                          ['detection', 'matched-filter', 'bool', 'False'],
+                          ['detection', 'matched_thresh', 'float', '5'],
+                          ['detection', 'peaks', 'string', 'negative'],
+                          ['detection', 'spike_thresh', 'float', '6'],
+                          ['triggers', 'clean_artefact', 'bool', 'False'],
+                          ['triggers', 'make_plots', 'string', 'png'],
+                          ['triggers', 'trig_file', 'string', ''],
+                          ['triggers', 'trig_windows', 'string', ''],
+                          ['whitening', 'chunk_size', 'int', '30'],
+                          ['filtering', 'remove_median', 'bool', 'False'],
+                          ['clustering', 'max_clusters', 'int', '10'],
+                          ['clustering', 'nb_repeats', 'int', '3'],
+                          ['clustering', 'make_plots', 'string', 'png'],
+                          ['clustering', 'test_clusters', 'bool', 'False'],
+                          ['clustering', 'sim_same_elec', 'float', '2'],
+                          ['clustering', 'smart_search', 'bool', 'False'],
+                          ['clustering', 'safety_space', 'bool', 'True'],
+                          ['clustering', 'compress', 'bool', 'True'],
+                          ['clustering', 'noise_thr', 'float', '0.8'],
+                          ['clustering', 'cc_merge', 'float', '0.975'],
+                          ['clustering', 'extraction', 'string', 'median-raw'],
+                          ['clustering', 'remove_mixture', 'bool', 'True'],
+                          ['clustering', 'dispersion', 'string', '(5, 5)'],
+                          ['extracting', 'cc_merge', 'float', '0.95'],
+                          ['extracting', 'noise_thr', 'float', '1.'],
+                          ['merging', 'cc_overlap', 'float', '0.5'],
+                          ['merging', 'cc_bin', 'float', '2'],
+                          ['merging', 'correct_lag', 'bool', 'False'],
+                          ['converting', 'export_pcs', 'string', 'prompt'],
+                          ['converting', 'erase_all', 'bool', 'True'],
+                          ['converting', 'export_all', 'bool', 'False'],
+                          ['validating', 'nearest_elec', 'string', 'auto'],
+                          ['validating', 'max_iter', 'int', '200'],
+                          ['validating', 'learning_rate', 'float', '1.0e-3'],
+                          ['validating', 'roc_sampling', 'int', '10'],
+                          ['validating', 'make_plots', 'string', 'png'],
+                          ['validating', 'test_size', 'float', '0.3'],
+                          ['validating', 'radius_factor', 'float', '0.5'],
+                          ['validating', 'juxta_dtype', 'string', 'uint16'],
+                          ['validating', 'juxta_thresh', 'float', '6.0'],
+                          ['validating', 'juxta_valley', 'bool', 'False'],
+                          ['validating', 'matching_jitter', 'float', '2.0']]
 
     __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
                         ['fitting', 'nb_chances', 'int', '3'],
@@ -152,15 +151,6 @@ class CircusParser(object):
         except Exception:
             self.parser.set('detection', 'radius', str(int(self.probe['radius'])))	    
 
-        if self.parser.getboolean('data', 'multi-files'):
-            self.parser.set('data', 'data_multi_file', file_name)
-            pattern     = os.path.basename(file_name).replace('0', 'all')
-            multi_file  = os.path.join(file_path, pattern)
-            self.parser.set('data', 'data_file', multi_file)
-            f_next, extension = os.path.splitext(multi_file)
-        else:
-            self.parser.set('data', 'data_file', file_name)
-
         if self.parser.getboolean('triggers', 'clean_artefact'):
             if (self.parser.get('triggers', 'trig_file') == '') or (self.parser.get('triggers', 'trig_windows') == ''):
                 if comm.rank == 0:
@@ -185,6 +175,8 @@ class CircusParser(object):
             os.makedirs(f_next)
         except Exception:
             pass
+
+        self.parser.set('data', 'data_file', file_name)
 
         file_out = os.path.join(f_next, os.path.basename(f_next))
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
@@ -326,50 +318,10 @@ class CircusParser(object):
                 print_and_log(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)], 'error', logger)
             sys.exit(1)
 
-        return data 
+        return data
 
 
-    # def get_data_file(self, multi=False, force_raw='auto', is_empty=False, params={}):
-
-    #     ## A bit tricky because we want to deal with multifiles export
-    #     # If multi is False, we use the default REAL data files
-    #     # If multi is True, we use the combined file of all data files
-
-    #     for key, value in self.parser._sections['data'].items():
-    #         if key not in params:
-    #             params[key] = value
-
-    #     data_file     = params.pop('data_file')
-
-    #     if multi:
-    #         data_file = params['data_multi_file']
-
-    #     if force_raw == 'auto':
-    #         if self.parser.getboolean('data', 'multi-files'):
-    #             force_raw = True
-    #             data      = self._create_data_file(params['data_multi_file'], is_empty, params)
-    #             params    = data.get_description()
-        
-    #     if force_raw == True:
-    #         if comm.rank == 0:
-    #             print_and_log(['Forcing the data file to be of type raw_binary'], 'debug', logger)
-    #         params['file_format']   = 'raw_binary'
-    #         params['data_dtype']    = 'float32'
-    #         params['dtype_offset']  = 'auto'
-    #         params['data_offset']   = 0
-    #         data_file, extension    = os.path.splitext(data_file)
-    #         data_file              += ".dat" 
-    #         params['sampling_rate'] = self.rate
-    #         params['nb_channels']   = self.nb_channels
-
-    #     return self._create_data_file(data_file, is_empty, params)
-
-
-    def get_data_file(self, force_raw='auto', is_empty=False, params={}):
-
-        ## A bit tricky because we want to deal with multifiles export
-        # If multi is False, we use the default REAL data files
-        # If multi is True, we use the combined file of all data files
+    def get_data_file(self, force_raw=False, is_empty=False, params={}):
 
         for key, value in self.parser._sections['data'].items():
             if key not in params:
@@ -377,44 +329,26 @@ class CircusParser(object):
 
         data_file     = params.pop('data_file')
         stream_mode   = self.get('data', 'stream_mode')
-
-        #if force_raw == 'auto':
-        #    if self.parser.getboolean('data', 'multi-files'):
-        #        force_raw = True
-        #        data      = self._create_data_file(params['data_multi_file'], is_empty, params)
-        #        params    = data.get_description()
+        if stream_mode in ['None', 'none']:
+            stream_mode = None
         
         if force_raw == True:
             if comm.rank == 0:
                 print_and_log(['Forcing the data file to be of type raw_binary'], 'debug', logger)
             params['file_format']   = 'raw_binary'
             params['data_dtype']    = 'float32'
-            params['dtype_offset']  = 'auto'
+            params['dtype_offset']  = '0'
             params['data_offset']   = 0
-            data_file, extension    = os.path.splitext(data_file)
-            data_file              += ".dat" 
             params['sampling_rate'] = self.rate
             params['nb_channels']   = self.nb_channels
+            params['gain']          = self.gain
+            
+            data_file, extension    = os.path.splitext(data_file)
+            data_file              += ".dat" 
+            
 
         return self._create_data_file(data_file, is_empty, params, stream_mode)
 
-
-    def get_multi_files(self):
-        file_name   = self.parser.get('data', 'data_multi_file')
-        dirname     = os.path.abspath(os.path.dirname(file_name))
-        all_files   = os.listdir(dirname)
-        pattern     = os.path.basename(file_name)
-        to_process  = []
-        count       = 0
-
-        while pattern in all_files:
-            to_process += [os.path.join(os.path.abspath(dirname), pattern)]
-            pattern     = pattern.replace(str(count), str(count+1))
-            count      += 1
-    
-        if comm.rank == 0:
-            print_and_log(['Multi-files:'] + to_process, 'debug', logger)
-        return to_process
 
     def write(self, section, flag, value):
         if comm.rank == 0:

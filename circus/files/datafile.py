@@ -81,11 +81,11 @@ class DataFile(object):
         if not is_empty:
             self._check_filename(file_name)
 
-        if stream_mode:
+        if stream_mode is not None:
             self.is_stream = True
             if not stream_mode in self.is_streamable:
                 if self.is_master:
-                    print_and_log(["The file format %s can does not support stream mode %s" %(self.description, stream_mode)], 'error', logger)
+                    print_and_log(["The file format %s does not support stream mode %s" %(self.description, stream_mode)], 'error', logger)
                 sys.exit(1)
             if is_empty:
                 if self.is_master:
@@ -185,7 +185,7 @@ class DataFile(object):
 
     def allocate(self, shape, data_dtype):
         '''
-            This function may be used during benchmarking mode, or if multi-files mode is activated
+            This function may be used during benchmarking mode, or if the file format does not have write access
             Starting from an empty file, it will allocates a given size:
                 - shape is a tuple with (time length, nb_channels)
                 - data_dtype is the data type
@@ -196,7 +196,9 @@ class DataFile(object):
     def set_streams(self, stream_mode):
         '''
             This function is only used for file format supporting streams, and need to return a list of datafiles, with
-            appropriate t_start for each of them. Note that the results will be using the time defined in the streams
+            appropriate t_start for each of them. Note that the results will be using the times defined by the streams. 
+            You can do anything regarding the keyword used for the stream mode, but multi-files is immplemented by default
+            This will allow every file format to be streamed from multiple sources, and processed as a single file.
         '''
 
         if stream_mode == 'multi-files':
@@ -402,9 +404,10 @@ class DataFile(object):
         
         if self.is_stream:
             cidx = numpy.searchsorted(self._chunks_in_sources, idx, 'right') - 1
-            return self._sources[cidx].read_chunk(idx - self._chunks_in_sources[cidx], chunk_size, padding, nodes), self._sources[cidx].t_start
+            idx -= self._chunks_in_sources[cidx]
+            return self._sources[cidx].read_chunk(idx, chunk_size, padding, nodes), self._sources[cidx].t_start + idx*chunk_size
         else:
-            return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start       
+            return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start + idx*chunk_size      
 
 
     def set_data(self, time, data):
@@ -444,7 +447,7 @@ class DataFile(object):
 
     def get_description(self):
         result = {}
-        for key in ['sampling_rate', 'data_dtype', 'gain', 'nb_channels', 'dtype_offset']:
+        for key in ['sampling_rate', 'data_dtype', 'gain', 'nb_channels', 'dtype_offset'] + self._default_values.keys() + self._required_fields.keys():
             result[key] = self._params[key]
         return result
 
@@ -485,3 +488,11 @@ class DataFile(object):
             if self._t_stop is None:
                 self._t_stop = self.t_start + self.duration
             return self._t_stop
+
+
+    @property
+    def nb_streams(self):
+        if self.is_stream:
+            return len(self._sources)
+        else:
+            return 1

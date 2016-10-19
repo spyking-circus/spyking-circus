@@ -11,7 +11,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.filtering')
     #################################################################
-    #multi_files    = params.getboolean('data', 'multi-files')
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
@@ -128,7 +127,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 data_file_out.close()
 
 
-        def compute_artefacts(data_file, max_offset):
+        def compute_artefacts(data_file):
 
             chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
@@ -152,7 +151,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             all_labels   = artefacts[:, 0]
             all_times    = artefacts[:, 1]
 
-            mask         = (all_times >= 0) & (all_times + numpy.max(windows[:,1]) < max_offset)
+            mask         = (all_times >= 0) & (all_times + numpy.max(windows[:,1]) < data_file.t_stop)
             all_times    = numpy.compress(mask, all_times)
             all_labels   = numpy.compress(mask, all_labels)
 
@@ -195,7 +194,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             return art_dict
 
 
-        def remove_artefacts(data_file, art_dict, max_offset):
+        def remove_artefacts(data_file, art_dict):
 
             chunk_size     = params.getint('data', 'chunk_size')
             artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
@@ -234,7 +233,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             all_times  = numpy.compress(mask, all_times)
             all_labels = numpy.compress(mask, all_labels)
 
-            mask       = (all_times >= 0) & (all_times < max_offset)
+            mask       = (all_times >= 0) & (all_times < data_file.t_stop)
             all_times  = numpy.compress(mask, all_times)
             all_labels = numpy.compress(mask, all_labels)
 
@@ -242,7 +241,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 tmp      = numpy.where(windows[:, 0] == label)[0]
                 tau      = windows[tmp, 1]
-                if (max_offset - time) < tau:
+                if (data_file.t_stop - time) < tau:
                     tau   = max_offset - time
 
                 local_chunk   = data_file.get_snippet(time, tau)
@@ -263,6 +262,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             comm.Barrier()
             data_file.close()
 
+
         if comm.rank == 0:
             print_and_log(['Initializing the filtering step...'], 'debug', logger)
 
@@ -271,8 +271,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         filter_file(data_file)
 
         if clean_artefact:
-            art_dict   = compute_artefacts(data_file, goffset)
-            remove_artefacts(data_file, art_dict, goffset)
+            art_dict   = compute_artefacts(data_file)
+            remove_artefacts(data_file, art_dict)
 
         if comm.rank == 0 and (do_filter or clean_artefact):
             params.write('noedits', 'filter_done', 'True')

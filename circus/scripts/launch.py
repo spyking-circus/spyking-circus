@@ -126,7 +126,10 @@ but a subset x,y can be done. Steps are:
                     rw = '(read/write)'
             else:
                 rw = '(read only)'    
-            to_write += ['-- ' + file + ' ' + rw]
+
+            streams   = ", ".join(__supported_data_files__[file].is_streamable)
+            to_write += ['-- ' + file.upper() + ' ' + rw + " [streams: " + streams + "]"]
+
         print_and_log(to_write)
         sys.exit(1)
 
@@ -155,7 +158,6 @@ but a subset x,y can be done. Steps are:
             os.remove(logfile)
         logger       = init_logging(logfile)
         params       = CircusParser(filename)
-        multi_files  = params.getboolean('data', 'multi-files')
         data_file    = params.get_data_file(force_raw=False)
         file_format  = params.get('data', 'file_format')
         support_parallel_write = data_file.parallel_write
@@ -173,7 +175,9 @@ but a subset x,y can be done. Steps are:
         steps        = ['filtering', 'whitening']
 
         chunk_size = int(2*params.rate)
+
         data_file.open()
+        nb_chunks, _           = data_file.analyze(chunk_size)
         local_chunk, t_offset  = data_file.get_data(0, chunk_size)
         data_file.close()
 

@@ -3,21 +3,22 @@
 ### file file_format. Otherwise, launch the code and a message will tell you what is needed
 
 [data]
-file_format    =                        # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys, brw, npy
-stream_mode    = None                   # None by default. But can be multi-files, or anything depending to the file format
-multi-files    = False                  # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
-mapping        = ~/probes/mea_252.prb   # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
-suffix         =                        # Suffix to add to generated files
-global_tmp     = True                   # should be False if local /tmp/ has enough space (better for clusters)
+file_format    =                       # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys, brw, npy
+stream_mode    = None                  # None by default. Can be multi-files, or anything depending to the file format
+multi-files    = False                 # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
+mapping        = ~/probes/mea_252.prb  # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+suffix         =                       # Suffix to add to generated files
+global_tmp     = True                  # should be False if local /tmp/ has enough space (better for clusters)
+overwrite      = True                  # If you want to filter or remove artefacts on site. Data are duplicated otherwise
 
 [detection]
-radius         = auto                   # Radius [in um] (if auto, read from the prb file)
-N_t            = 5                      # Width of the templates [in ms]
-spike_thresh   = 6                      # Threshold for spike detection
-peaks          = negative               # Can be negative (default), positive or both
-matched-filter = False                  # If True, we perform spike detection with matched filters
-matched_thresh = 5                      # Threshold for detection if matched filter is True
-alignment      = True                   # Realign the waveforms by oversampling
+radius         = auto       # Radius [in um] (if auto, read from the prb file)
+N_t            = 5          # Width of the templates [in ms]
+spike_thresh   = 6          # Threshold for spike detection
+peaks          = negative   # Can be negative (default), positive or both
+matched-filter = False      # If True, we perform spike detection with matched filters
+matched_thresh = 5          # Threshold for detection if matched filter is True
+alignment      = True       # Realign the waveforms by oversampling
 
 [filtering]
 cut_off        = 500, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
@@ -32,7 +33,7 @@ make_plots     =            # Generate sanity plots of the averaged artefacts [N
 
 [whitening]
 chunk_size     = 30         # Size of the data chunks [in s]
-safety_time    = 1          # Temporal zone around which templates are isolated [in ms]
+safety_time    = 1          # Temporal zone around which templates are isolated [in ms, or auto]
 temporal       = False      # Perform temporal whitening
 spatial        = True       # Perform spatial whitening
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
@@ -42,7 +43,7 @@ output_dim     = 5          # Can be in percent of variance explain, or num of d
 [clustering]
 extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw
 safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
-safety_time    = auto       # Temporal zone around which templates are isolated [in ms]
+safety_time    = auto       # Temporal zone around which templates are isolated [in ms, or auto]
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
 nclus_min      = 0.005      # Min number of elements in a cluster (given in percentage)
@@ -54,45 +55,45 @@ compress       = True       # Compress templates for large physical radius or nu
 cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
-make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
+make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 
 [fitting]
-chunk_size     = 1         # Size of chunks used during fitting [in second]
-gpu_only       = False     # Use GPU for computation of b's AND fitting [not optimized yet]
-amp_limits     = (0.3, 5)  # Amplitudes for the templates during spike detection [if not auto]
-amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
-max_chunk      = inf       # Fit only up to max_chunk   
-collect_all    = False     # If True, one garbage template per electrode is created, to store unfitted spikes
+chunk_size     = 1          # Size of chunks used during fitting [in second]
+gpu_only       = False      # Use GPU for computation of b's AND fitting [not optimized yet]
+amp_limits     = (0.3, 5)   # Amplitudes for the templates during spike detection [if not auto]
+amp_auto       = True       # True if amplitudes are adjusted automatically for every templates
+max_chunk      = inf        # Fit only up to max_chunk   
+collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
 
 [merging]
-cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
-cc_bin         = 2         # Bin size for computing CC [in ms]
-correct_lag    = True      # If spikes are aligned when merging. May be better for phy usage
+cc_overlap     = 0.5        # Only templates with CC higher than cc_overlap may be merged
+cc_bin         = 2          # Bin size for computing CC [in ms]
+correct_lag    = True       # If spikes are aligned when merging. May be better for phy usage
 
 [converting]
-erase_all      = True      # If False, a prompt will ask you to export if export has already been done
-export_pcs     = prompt    # Can be prompt [default] or in none, all, some
-export_all     = False     # If True, unfitted spikes will be exported as the last Ne templates
+erase_all      = True       # If False, a prompt will ask you to export if export has already been done
+export_pcs     = prompt     # Can be prompt [default] or in none, all, some
+export_all     = False      # If True, unfitted spikes will be exported as the last Ne templates
 
 [validating]
-nearest_elec   = auto      # Validation channel (e.g. electrode closest to the ground truth cell)
-max_iter       = 200       # Maximum number of iterations of the stochastic gradient descent (SGD)
-learning_rate  = 1.0e-3    # Initial learning rate which controls the step-size of the SGD
-roc_sampling   = 10        # Number of points to estimate the ROC curve of the BEER estimate
-make_plots     = png       # Generate sanity plots of the validation [Nothing or None if no plots]
-test_size      = 0.3       # Portion of the dataset to include in the test split
-radius_factor  = 0.5       # Radius factor to modulate physical radius during validation
-juxta_dtype    = uint16    # Type of the juxtacellular data
-juxta_thresh   = 6         # Threshold for juxtacellular detection
-juxta_valley   = False     # True if juxta-cellular spikes are negative peaks
+nearest_elec   = auto       # Validation channel (e.g. electrode closest to the ground truth cell)
+max_iter       = 200        # Maximum number of iterations of the stochastic gradient descent (SGD)
+learning_rate  = 1.0e-3     # Initial learning rate which controls the step-size of the SGD
+roc_sampling   = 10         # Number of points to estimate the ROC curve of the BEER estimate
+test_size      = 0.3        # Portion of the dataset to include in the test split
+radius_factor  = 0.5        # Radius factor to modulate physical radius during validation
+juxta_dtype    = uint16     # Type of the juxtacellular data
+juxta_thresh   = 6          # Threshold for juxtacellular detection
+juxta_valley   = False      # True if juxta-cellular spikes are negative peaks
+make_plots     = png        # Generate sanity plots of the validation [Nothing or None if no plots]
 
 [extracting]
-safety_time    = 1         # Temporal zone around which spikes are isolated [in ms]
-max_elts       = 1000      # Max number of collected events per templates
-output_dim     = 5         # Percentage of variance explained while performing PCA
-cc_merge       = 0.975     # If CC between two templates is higher, they are merged
-noise_thr      = 0.8       # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
+safety_time    = 1          # Temporal zone around which spikes are isolated [in ms]
+max_elts       = 1000       # Max number of collected events per templates
+output_dim     = 5          # Percentage of variance explained while performing PCA
+cc_merge       = 0.975      # If CC between two templates is higher, they are merged
+noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
 [noedits]
-filter_done    = False     # Will become True automatically after filtering.
+filter_done    = False      # Will become True automatically after filtering.
