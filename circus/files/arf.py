@@ -141,12 +141,10 @@ class ARFFile(H5File):
         for i in xrange(self.nb_channels):
             self.data[i][time:time+data.shape[0]] = self._unscale_data_from_from32(data[:, i])
 
-    def open(self, mode='r'):
+    def _open(self, mode='r'):
         if mode in ['r+', 'w'] and self._parallel_write:
             self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=comm)
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)
 
         self.data = [self.my_file.get(self._get_channel_key_(i)) for i in xrange(self.nb_channels)]
-
-        print self.data

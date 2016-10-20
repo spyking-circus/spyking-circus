@@ -32,7 +32,7 @@ class H5File(DataFile):
     def _read_from_header(self):
 
         self.__check_valid_key__(self.h5_key)
-        self.open()
+        self._open()
 
         header = {}
         header['data_dtype']   = self.my_file.get(self.h5_key).dtype
@@ -52,7 +52,7 @@ class H5File(DataFile):
             self._shape = (self.size[1], self.size[0])
 
         header['nb_channels']  = self._shape[1]
-        self.close()
+        self._close()
 
         return header
 
@@ -99,7 +99,7 @@ class H5File(DataFile):
         elif self.time_axis == 1:
             self.data[:, time:time+data.shape[0]] = data.T
 
-    def open(self, mode='r'):
+    def _open(self, mode='r'):
         if mode in ['r+', 'w'] and self._parallel_write:
             self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=comm)
         else:
@@ -107,7 +107,7 @@ class H5File(DataFile):
 
         self.data = self.my_file.get(self.h5_key)
         
-    def close(self):
+    def _close(self):
         self.my_file.close()
         del self.data
 

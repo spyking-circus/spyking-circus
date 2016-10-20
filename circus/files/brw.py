@@ -19,7 +19,7 @@ class BRWFile(H5File):
         header['h5_key']        = self.h5_key
 
 
-        self.open() 
+        self._open() 
         f                       = h5py.File(self.file_name)
         header['sampling_rate'] = f.get('3BRecInfo/3BRecVars/SamplingRate').value[0]
         
@@ -43,7 +43,7 @@ class BRWFile(H5File):
         
         self._shape = (n_frames, header['nb_channels'])
         
-        self.close()
+        self._close()
 
         return header
 

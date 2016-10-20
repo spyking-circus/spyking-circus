@@ -52,7 +52,7 @@ class KwdFile(H5File):
 
         self.__check_valid_key__(self.h5_key)
         
-        self.open()
+        self._open()
 
         header                 = {}
         header['data_dtype']   = self.my_file.get(self.h5_key).dtype
@@ -80,6 +80,6 @@ class KwdFile(H5File):
         if self.compression != '':
             self._parallel_write = False
         
-        self.close()
+        self._close()
 
         return header

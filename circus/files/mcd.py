@@ -15,14 +15,14 @@ class MCDFile(DataFile):
         header['data_dtype']   = 'float64'
         header['dtype_offset'] = 0
         
-        self.open()
+        self._open()
         header['nb_channels']   = self.data.entity_count
         header['sampling_rate'] = self.data.entities[0].sample_rate
         header['gain']          = self.data.entities[0].resolution
 
         self.size  = self.data.time_span * header['sampling_rate']
         self._shape = (self.size, header['nb_channels'])
-        self.close()
+        self._close()
 
         return header
 
@@ -47,9 +47,9 @@ class MCDFile(DataFile):
         return self._scale_data_to_float32(local_chunk)
 
 
-    def open(self, mode='r'):
+    def _open(self, mode='r'):
         self.data = ns.File(self.file_name)
         
         
-    def close(self):
+    def _close(self):
         self.data.close()

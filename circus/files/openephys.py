@@ -92,10 +92,10 @@ class OpenEphysFile(DataFile):
         local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
         data_slice  = self._get_slice_(t_start, t_stop) 
 
-        self.open()
+        self._open()
         for count, i in enumerate(nodes):
             local_chunk[:, count] = self.data[i][data_slice]
-        self.close()
+        self._close()
 
         return self._scale_data_to_float32(local_chunk)
 
@@ -112,13 +112,13 @@ class OpenEphysFile(DataFile):
 
         data_slice  = self._get_slice_(t_start, t_stop) 
         
-        self.open(mode='r+')
+        self._open(mode='r+')
         for i in xrange(self.nb_channels):
             self.data[i][data_slice] = self._unscale_data_from_from32(data)[:, i]
-        self.close()
+        self._close()
 
-    def open(self, mode='r'):
+    def _open(self, mode='r'):
         self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode) for i in xrange(self.nb_channels)]
         
-    def close(self):
+    def _close(self):
         self.data = None

@@ -168,7 +168,7 @@ class DataFile(object):
         raise NotImplementedError('The set_data method needs to be implemented for file format %s' %self.description)
 
 
-    def open(self, mode):
+    def _open(self, mode=''):
         ''' 
             This function should open the file
             - mode can be to read only 'r', or to write 'w'
@@ -176,7 +176,7 @@ class DataFile(object):
         raise NotImplementedError('The open method needs to be implemented for file format %s' %self.description)
 
 
-    def close(self):
+    def _close(self):
         '''
             This function closes the file
         '''
@@ -460,7 +460,10 @@ class DataFile(object):
     @property
     def duration(self):
         if self.is_stream:
-            return numpy.int64(numpy.sum(self._times))
+            duration = 0
+            for source in self._sources:
+                duration += source.duration
+            return duration
         else:
             return numpy.int64(self._shape[0])
 
@@ -473,7 +476,7 @@ class DataFile(object):
     @property
     def t_start(self):
         if self.is_stream:
-            return self.sources[0].t_start
+            return self._sources[0].t_start
         else:
             if self._t_start is None:
                 self._t_start = 0
@@ -483,7 +486,7 @@ class DataFile(object):
     @property
     def t_stop(self):
         if self.is_stream:
-            return self.sources[-1].t_stop
+            return self._sources[-1].t_stop
         else:
             if self._t_stop is None:
                 self._t_stop = self.t_start + self.duration
@@ -496,3 +499,18 @@ class DataFile(object):
             return len(self._sources)
         else:
             return 1
+
+    def open(self, mode='r'):
+        if self.is_stream:
+            for source in self._sources:
+                source._open(mode)
+        else:
+            self._open(mode)
+
+
+    def close(self):
+        if self.is_stream:
+            for source in self._sources:
+                source._close()
+        else:
+            self._close()
