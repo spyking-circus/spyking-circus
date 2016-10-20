@@ -5,7 +5,6 @@
 [data]
 file_format    =                       # Can be raw_binary, mcs_raw_binary, hdf5, mcd, arf, kwd, openephys, brw, npy
 stream_mode    = None                  # None by default. Can be multi-files, or anything depending to the file format
-multi-files    = False                 # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
 mapping        = ~/probes/mea_252.prb  # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                       # Suffix to add to generated files
 global_tmp     = True                  # should be False if local /tmp/ has enough space (better for clusters)
@@ -96,4 +95,6 @@ cc_merge       = 0.975      # If CC between two templates is higher, they are me
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
 [noedits]
-filter_done    = False      # Will become True automatically after filtering.
+filter_done    = False      # Will become True automatically after filtering
+artefacts_done = False      # Will become True automatically after removing artefacts
+median_done    = False      # Will become True automatically after removing common median

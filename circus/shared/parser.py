@@ -20,6 +20,7 @@ class CircusParser(object):
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],
+                          ['data', 'overwrite', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'matched-filter', 'bool', 'False'],
                           ['detection', 'matched_thresh', 'float', '5'],
@@ -62,7 +63,9 @@ class CircusParser(object):
                           ['validating', 'juxta_dtype', 'string', 'uint16'],
                           ['validating', 'juxta_thresh', 'float', '6.0'],
                           ['validating', 'juxta_valley', 'bool', 'False'],
-                          ['validating', 'matching_jitter', 'float', '2.0']]
+                          ['validating', 'matching_jitter', 'float', '2.0'],
+                          ['noedits', 'median_done', 'bool', 'False'],
+                          ['noedits', 'artefacts_done', 'bool', 'False']]
 
     __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
                         ['fitting', 'nb_chances', 'int', '3'],
@@ -176,8 +179,8 @@ class CircusParser(object):
         except Exception:
             pass
 
-        self.parser.set('data', 'data_file', file_name)
-
+        self.parser.set('data', 'data_file', file_name)        
+        self.parser.set('data', 'data_file_no_overwrite', os.path.join(file_path, os.path.basename(f_next) + '_all_sc.dat'))
         file_out = os.path.join(f_next, os.path.basename(f_next))
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
         self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
@@ -322,7 +325,7 @@ class CircusParser(object):
         return data
 
 
-    def get_data_file(self, force_raw=False, is_empty=False, params={}):
+    def get_data_file(self, is_empty=False, params={}, source=False):
 
         for key, value in self.parser._sections['data'].items():
             if key not in params:
@@ -330,23 +333,44 @@ class CircusParser(object):
 
         data_file     = params.pop('data_file')
         stream_mode   = self.get('data', 'stream_mode')
+
         if stream_mode in ['None', 'none']:
             stream_mode = None
-        
-        if force_raw == True:
-            if comm.rank == 0:
-                print_and_log(['Forcing the data file to be of type raw_binary'], 'debug', logger)
-            params['file_format']   = 'raw_binary'
-            params['data_dtype']    = 'float32'
-            params['dtype_offset']  = '0'
-            params['data_offset']   = 0
-            params['sampling_rate'] = self.rate
-            params['nb_channels']   = self.nb_channels
-            params['gain']          = self.gain
+
+        if not self.getboolean('data', 'overwrite'):
+            # If we do not want to overwrite, we first read the original data file    
+            # Then, if we do not want to obtain it as a source file, we switch the
+            # format to raw_binary and the output file name
+
+            if not source:
+                
+                # First we read the original data file, that should not be empty                
+                self._create_data_file(data_file, False, params, stream_mode)
+
+                # Then we change the dataa_file name
+                data_file = self.get('data', 'data_file_no_overwrite')
+
+                if comm.rank == 0:
+                    print_and_log(['Forcing the exported data file to be of type raw_binary'], 'debug', logger)
+
+                # And we force the results to be of type float32, without streams
+                params['file_format']   = 'raw_binary'
+                params['data_dtype']    = 'float32'
+                params['dtype_offset']  = 0
+                params['data_offset']   = 0
+                params['sampling_rate'] = self.rate
+                params['nb_channels']   = self.nb_channels
+                params['gain']          = self.gain
+                stream_mode             = None            
+                data_file, extension    = os.path.splitext(data_file)
+                data_file              += ".dat" 
             
-            data_file, extension    = os.path.splitext(data_file)
-            data_file              += ".dat" 
-            
+            else:
+                data_file = self.get('data', 'data_file_no_overwrite')
+                if not os.path.exists(data_file):
+                    if comm.rank== 0:
+                        print_and_log(['The overwrite option is only valid if filtering step is launched before!'], 'error', logger)
+                    sys.exit(1)
 
         return self._create_data_file(data_file, is_empty, params, stream_mode)
 

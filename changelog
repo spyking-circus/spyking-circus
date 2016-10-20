@@ -34,6 +34,7 @@ Release 0.5
 * several cosmetic changes in the default parameter file
 * clustering:smart_search and merging:correct_lag are now True by default
 * fix a minor bug in the smart search, biasing the estimation of densities
+* add an overwrite option, to let the user select if files should be overwritten or not during filtering
 
 
 =============

@@ -89,7 +89,7 @@ class DataFile(object):
                 sys.exit(1)
             if is_empty:
                 if self.is_master:
-                    print_and_log(["A datafile can not have streams and be empty!" %self.description], 'error', logger)
+                    print_and_log(["A datafile can not have streams and be empty!"], 'error', logger)
                 sys.exit(1)
         else:
             self.is_stream = False
@@ -431,7 +431,7 @@ class DataFile(object):
         if self.is_stream:
             nb_chunks               = 0
             last_chunk_len          = 0
-            self._chunks_in_sources = []
+            self._chunks_in_sources = [0]
 
             for source in self._sources:
                 a, b            = self._count_chunks(chunk_size, source.duration, strict)
