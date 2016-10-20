@@ -112,11 +112,11 @@ class MergeWindow(QtGui.QMainWindow):
 
         if comm.rank == 0:
             print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', logger)
-        self.app        = app
-        self.params     = params
-        self.ext_in     = extension_in
-        self.ext_out    = extension_out
-        data_file       = params.data_file
+        self.app           = app
+        self.params        = params
+        self.ext_in        = extension_in
+        self.ext_out       = extension_out
+        data_file          = params.data_file
         self.N_e           = params.getint('data', 'N_e')
         self.N_t           = params.getint('detection', 'N_t')
         self.N_total       = params.nb_channels
@@ -1161,8 +1161,8 @@ class PreviewGUI(QtGui.QMainWindow):
         self.params.write('detection', 'spike_thresh', '%g' %self.get_threshold.value())
 
     def get_data(self):
-        self.chunk_size       = int(self.sampling_rate)
-        self.data = self.data_file.get_snippet(int(self.t_start*self.sampling_rate), self.chunk_size, nodes=self.nodes)
+        self.chunk_size = int(self.sampling_rate)
+        self.data       = self.data_file.get_snippet(int(self.t_start*self.sampling_rate), self.chunk_size, nodes=self.nodes)
 
 
         if self.do_spatial_whitening:

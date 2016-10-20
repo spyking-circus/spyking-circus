@@ -4,30 +4,17 @@ from datafile import get_offset
 
 class ARFFile(H5File):
 
-    _description    = "arf"    
-    _extension      = [".arf", ".hdf5", ".h5"]
-    _parallel_write = h5py.get_config().mpi
-    _is_writable    = True
+    description    = "arf"    
+    extension      = [".arf", ".hdf5", ".h5"]
+    parallel_write = h5py.get_config().mpi
+    is_writable    = True
+    is_streamable  = ['multi-files', 'single-file']
 
-    _requiered_fields = {'h5_key'        : ['string', None], 
-                         'channel_name'  : ['string', None],
-                         'dtype_offset'  : ['string', 'auto'], 
-                         'gain'          : ['float', 1.]
-                         }
-
-    def __init__(self, file_name, is_empty=False, **kwargs):
-
-        if not is_empty:
-            self.__check_valid_key__(file_name, kwargs['h5_key'])
-            all_keys           = h5py.File(file_name).get(kwargs['h5_key']).keys()
-            channels, idx      = self._get_sorted_channels_(all_keys, kwargs['channel_name'])    
-            kwargs['channels']      = channels
-            key                     = kwargs['h5_key'] + '/' + channels[0]
-            kwargs['sampling_rate'] = dict(h5py.File(file_name).get(key).attrs.items())['sampling_rate']
-            kwargs['indices']       = idx.astype(numpy.int32)
-
-
-        H5File.__init__(self, file_name, is_empty, **kwargs)
+    _required_fields = {'h5_key'        : str,
+                        'channel_name'  : str}
+    
+    _default_values  = {'dtype_offset'  : 'auto', 
+                        'gain'          : 1}
 
     def _get_sorted_channels_(self, all_keys, pattern):
         sub_list     = [f for f in all_keys if pattern in f]
@@ -36,23 +23,48 @@ class ARFFile(H5File):
         return sub_list, idx
 
     def _get_channel_key_(self, i):
-        return self.h5_key + '/' + self.channels[int(i)]
+        return self.h5_key + '/' + self.channels[self.indices[i]]
 
-    def _get_info_(self):
+    @property
+    def channel_name(self):
+        return self._params['channel_name']
 
-        self.open()
-        self.data_dtype   = self.my_file.get(self._get_channel_key_(0)).dtype
-        self.dtype_offset = get_offset(self.data_dtype, self.dtype_offset)
-        self.compression  = self.my_file.get(self._get_channel_key_(0)).compression
 
+    def set_streams(self):
+        
+        if stream_mode == 'single-file':
+            pass
+        elif stream_mode == 'multi-files':
+            return H5File.set_streams(stream_mode)
+
+    def _read_from_header(self):
+
+        header = {}
+        
+        self.__check_valid_key__(self.h5_key)
+        
+        self.my_file            = h5py.File(self.file_name)
+        all_keys                = self.my_file.get(self.h5_key).keys()
+        channels, idx           = self._get_sorted_channels_(all_keys, self.channel_name)    
+        self.channels           = channels
+        self.indices            = idx
+        key                     = self.h5_key + '/' + self.channels[0]
+        header['sampling_rate'] = dict(self.my_file.get(key).attrs.items())['sampling_rate']
+        header['data_dtype']    = self.my_file.get(self._get_channel_key_(0)).dtype
+        header['nb_channels']   = len(self.channels)
+        self.compression        = self.my_file.get(self._get_channel_key_(0)).compression
+        self._t_start           = dict(self.my_file.get(self.h5_key).attrs.items())['timestamp'][0]
+        
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
             self._parallel_write = False
         
-        self.size   = self.my_file.get(self._get_channel_key_(0)).shape
-        self._shape = (self.size[0], len(self.channels))
-        
-        self.close()
+        self.size     = self.my_file.get(self._get_channel_key_(0)).shape
+        self._shape   = (self.size[0], header['nb_channels'])
+        self.my_file.close()
+
+        return header
+
 
     def allocate(self, shape, data_dtype=None):
 
@@ -76,9 +88,9 @@ class ARFFile(H5File):
                         self.my_file.create_dataset(self._get_channel_key_(i), dtype=data_dtype, shape=shape, chunks=True)
 
         self.my_file.close()
-        self._get_info_()
+        self._read_from_header()
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
@@ -97,7 +109,7 @@ class ARFFile(H5File):
         
         return self._scale_data_to_float32(local_chunk)
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
         
         data  = data.astype(self.data_dtype)
         for i in xrange(self.nb_channels):

@@ -41,7 +41,7 @@ def main(argv=None):
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
     gain           = data_file.gain
-    file_format    = data_file._description
+    file_format    = data_file.description
 
     if file_format not in supported_by_matlab:
         print_and_log(["File format %s is not supported by MATLAB. Waveforms disabled" %file_format], 'info', logger)
@@ -112,7 +112,7 @@ def main(argv=None):
                               '-r', matlab_command]))
     except Exception:
         print_and_log(["Something wrong with MATLAB. Try circus-gui-python instead?"], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

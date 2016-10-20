@@ -4,6 +4,7 @@ package:
 
 requirements:
   build:
+    - libgcc [linux]
     - python
     - progressbar2
     - mpi4py
@@ -17,6 +18,7 @@ requirements:
     - psutil
     - scikit-learn
   run:
+    - libgcc [linux]
     - python
     - progressbar2
     - mpi4py
@@ -27,9 +29,9 @@ requirements:
     - h5py
     - setuptools >=26
     - colorama
-    - qt
+    - qt >=4,<5
     - psutil
-    - pyqt >=4,<=5
+    - pyqt >=4,<5
     - scikit-learn
 source:
   path: ..

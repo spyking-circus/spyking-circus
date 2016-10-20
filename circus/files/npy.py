@@ -4,37 +4,46 @@ from numpy.lib.format import open_memmap
 
 class NumpyFile(RawBinaryFile):
 
-    _description    = "numpy"
-    _extension      = [".npy"]
-    _parallel_write = True
-    _is_writable    = True
+    description    = "numpy"
+    extension      = [".npy"]
+    parallel_write = True
+    is_writable    = True
 
-    _requiered_fields = {'dtype_offset'  : ['string', 'auto'],
-                         'sampling_rate' : ['float', None],
-                         'gain'          : ['float', 1.]}
+    _required_fields = {'sampling_rate' : float}
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
+    _default_values  = {'dtype_offset'  : 'auto',
+                        'gain'          : 1.}
 
-        if not is_empty:
-            f = open_memmap(file_name)
-            kwargs['nb_channels']  = f.shape[1]
-            kwargs['data_dtype']   = str(f.dtype)
-            f.close()
+    def _read_from_header(self):
+        
+        header = {}
 
-        RawBinaryFile.__init__(self, file_name, is_empty, **kwargs)
-
-    def _get_info_(self):
-        self.dtype_offset  = get_offset(self.data_dtype, self.dtype_offset)
         self.open()
-        self.size          = len(self.data)
-        self._shape        = (self.size, self.nb_channels)
+        self.size = self.data.shape
+
+        if self.size[0] > self.size[1]:
+            self.time_axis = 0
+            self._shape = (self.size[0], self.size[1])
+        else:
+            self.time_axis = 1
+            self._shape = (self.size[1], self.size[0])
+
+        header['nb_channels'] = self._shape[1]
+        header['data_dtype']  = self.data.dtype
+        self.size             = len(self.data)
+        self._shape           = (self.size, self.nb_channels)
         self.close()
 
+        return header
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         self.open()
-        local_chunk  = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], :]
+        if self.time_axis == 0:
+            local_chunk  = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], :]
+        elif self.time_axis == 1:
+            local_chunk  = self.data[:, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
         self.close()
 
         if nodes is not None:
@@ -44,14 +53,19 @@ class NumpyFile(RawBinaryFile):
         return self._scale_data_to_float32(local_chunk)
 
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
         self.open(mode='r+')
         data = self._unscale_data_from_from32(data)
-        self.data[time:time+len(data)] = data
+        if self.time_axis == 0:
+            self.data[time:time+len(data)] = data
+        elif self.time_axis == 1:
+            self.data[:, time:time+len(data)] = data.T
         self.close()
+
 
     def open(self, mode='r'):
         self.data = open_memmap(self.file_name, mode=mode)
+
 
     def allocate(self, shape, data_dtype=None):
         if data_dtype is None:
@@ -61,8 +75,9 @@ class NumpyFile(RawBinaryFile):
             self.data = open_memmap(self.file_name, shape=shape, dtype=data_dtype, mode='w+')
         comm.Barrier()
         
-        self._get_info_()
+        self._read_from_header()
         del self.data
+
 
     def close(self):
         self.data = None

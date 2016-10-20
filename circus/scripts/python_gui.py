@@ -50,7 +50,7 @@ def main(argv=None):
     mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
     if not mytest:
         print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
 
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
@@ -58,7 +58,7 @@ def main(argv=None):
         data_offset = data_file.data_offset
     else:
         data_offset = 0
-    file_format    = data_file._description
+    file_format    = data_file.description
     file_out_suff  = params.get('data', 'file_out_suff')
 
     if file_format not in supported_by_phy:

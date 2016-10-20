@@ -3,21 +3,23 @@ from hdf5 import H5File
 
 class KwdFile(H5File):
 
-    _description = "kwd"    
-    _extension   = [".kwd"]
-    _parallel_write = h5py.get_config().mpi
+    description    = "kwd"    
+    extension      = [".kwd"]
+    parallel_write = h5py.get_config().mpi
 
-    _requiered_fields = {'recording_number'  : ['int', 0],
-                         'dtype_offset'      : ['string', 'auto'], 
-                         'sampling_rate'     : ['float', None], 
-                         'gain'              : ['float', 1.]}
+    _required_fields = {'sampling_rate'    : float}
+    
+    _default_values  = {'recording_number'  : 0, 
+                       'dtype_offset'       : 'auto',
+                       'gain'               : 1.}
 
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
-
-        kwargs['h5_key'] = 'recordings/%s/data' %kwargs['recording_number']
-
-        if not is_empty:
-            kwargs['gain'] = dict(h5py.File(file_name).get('recordings/0/application_data').attrs.items())['channel_bit_volts']
+    def _read_from_header(self):
         
-        H5File.__init__(self, file_name, is_empty, **kwargs)
+        self._params['h5_key'] = 'recordings/%s/data' %self._params['recording_number']
+        
+        header           = H5File._read_from_header(self)
+        header['h5_key'] = self.h5_key
+        header['gain']   = dict(h5py.File(self.file_name).get('recordings/0/application_data').attrs.items())['channel_bit_volts']
+        
+        return header

@@ -13,14 +13,8 @@ matrix:
     - python: "2.7"
       env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86_64"
       os: linux
-    - python: "2.7"
-      env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86"
-      os: linux
     - python: "3.5"
       env: PYTHON="3.5" CONDA_PY="35" ARCHITECTURE="x86_64"
-      os: linux
-    - python: "3.5"
-      env: PYTHON="3.5" CONDA_PY="35" ARCHITECTURE="x86"
       os: linux
     - python: "2.7"
       env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86_64"
@@ -66,7 +60,7 @@ script:
 - python setup.py sdist --formats=zip,gztar,bztar
 - python setup.py bdist_wheel
 # Try installing from the source package (install dependencies via conda first)
-- conda install --yes --quiet -c spyking-circus $OTHER_CHANNELS progressbar2 mpi4py numpy cython scipy matplotlib h5py colorama psutil
+- conda install --yes --quiet -c spyking-circus $OTHER_CHANNELS progressbar2 mpi4py numpy cython scipy matplotlib h5py colorama psutil "qt>=4,<5" libgcc
 - pip install dist/*.tar.gz
 - spyking-circus -h
 - pip uninstall -y -q spyking-circus

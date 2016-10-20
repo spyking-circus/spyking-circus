@@ -14,7 +14,7 @@ try:
 except Exception:
     if comm.rank == 0:
         print "Sklearn is not installed! Install spyking-circus with the beer extension (see documentation)"
-    sys.exit(0)
+    sys.exit(1)
 
 from sklearn.decomposition import PCA
 # TODO: remove following line (i.e. remove warning).
@@ -90,7 +90,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     if len(beer_file.get(key)) == 0:
         if comm.rank == 0:
             print_and_log(['No juxta-cellular spikes have been found!'], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
     beer_file.close()
     
     # Retrieve the spike times of the juxtacellular trace.
@@ -574,7 +574,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     # if comm.rank == 0:
     #     print("Start to sleep...")
     # time.sleep(secs)
-    # sys.exit(0)
+    # sys.exit(1)
     
     ##### end working zone
     

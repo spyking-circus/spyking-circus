@@ -71,7 +71,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     for gidx in [all_chunks[comm.rank]]:
 
         #print "Node", comm.rank, "is analyzing chunk", gidx,  "/", nb_chunks, " ..."
-        local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
         local_shape = len(local_chunk)
 
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
@@ -214,7 +214,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
             local_shape = len(local_chunk)
             
             if do_spatial_whitening:
@@ -315,7 +315,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if ((elt_count_pos + elt_count_neg) < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
             local_shape = len(local_chunk)
 
             if do_spatial_whitening:
@@ -500,7 +500,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
             local_shape = len(local_chunk)
 
             if do_spatial_whitening:

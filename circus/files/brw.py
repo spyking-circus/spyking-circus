@@ -4,48 +4,50 @@ from datafile import get_offset
 
 class BRWFile(H5File):
 
-    _description = "brw"    
-    _extension   = [".brw"]
-    _parallel_write = h5py.get_config().mpi
+    description = "brw"    
+    extension   = [".brw"]
+    parallel_write = h5py.get_config().mpi
 
-    _requiered_fields = {}
+    _required_fields = {}
+    _default_values  = {}
 
+    def _read_from_header(self):
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
+        header = {}
 
-        
-        if not is_empty:
-            f = h5py.File(file_name)
-            kwargs['sampling_rate'] = f.get('3BRecInfo/3BRecVars/SamplingRate').value[0]
-            kwargs['n_frames']      = f.get('3BRecInfo/3BRecVars/NRecFrames').value[0]
-            kwargs['h5_key']        = '3BData/Raw'
+        self._params['h5_key']  = '3BData/Raw'
+        header['h5_key']        = self.h5_key
 
-            max_volt       = f.get('3BRecInfo/3BRecVars/MaxVolt').value[0]
-            min_volt       = f.get('3BRecInfo/3BRecVars/MinVolt').value[0]
-            bit_depth      = f.get('3BRecInfo/3BRecVars/BitDepth').value[0]
-            inversion      = f.get('3BRecInfo/3BRecVars/SignalInversion').value[0]
-            kwargs['gain'] = inversion * ((max_volt - min_volt) / 2**bit_depth)
-            kwargs['dtype_offset'] = inversion*min_volt
-
-        H5File.__init__(self, file_name, is_empty, **kwargs)
-
-
-    def _get_info_(self):
 
         self.open() 
-        self.data_dtype   = self.my_file.get(self.h5_key).dtype
-        self.dtype_offset = get_offset(self.data_dtype, self.dtype_offset)
-        self.compression  = self.my_file.get(self.h5_key).compression
+        f                       = h5py.File(self.file_name)
+        header['sampling_rate'] = f.get('3BRecInfo/3BRecVars/SamplingRate').value[0]
+        
+
+        max_volt       = f.get('3BRecInfo/3BRecVars/MaxVolt').value[0]
+        min_volt       = f.get('3BRecInfo/3BRecVars/MinVolt').value[0]
+        bit_depth      = f.get('3BRecInfo/3BRecVars/BitDepth').value[0]
+        inversion      = f.get('3BRecInfo/3BRecVars/SignalInversion').value[0]
+        header['gain'] = inversion * ((max_volt - min_volt) / 2**bit_depth)
+        header['dtype_offset'] = inversion*min_volt
+        header['data_dtype']   = self.my_file.get(header['h5_key']).dtype
+        self.compression       = self.my_file.get(header['h5_key']).compression
 
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
             self._parallel_write = False
         
-        self.size   = self.my_file.get(self.h5_key).shape[0]
-        self._shape = (self.n_frames, self.size/self.n_frames)
+        n_frames    = f.get('3BRecInfo/3BRecVars/NRecFrames').value[0]
+        self.size   = self.my_file.get(header['h5_key']).shape[0]
+        header['nb_channels']  = self.size/n_frames
+        
+        self._shape = (n_frames, header['nb_channels'])
+        
         self.close()
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+        return header
+
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         chunk_size  *= self.nb_channels
         padding      = numpy.array(padding) * self.nb_channels
@@ -60,7 +62,7 @@ class BRWFile(H5File):
 
         return self._scale_data_to_float32(local_chunk)
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
 
         data = self._unscale_data_from_from32(data)
         data = data.ravel()

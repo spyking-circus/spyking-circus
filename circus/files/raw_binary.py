@@ -1,30 +1,27 @@
-import h5py, numpy, re, sys
+import h5py, numpy, re, sys, os
 from datafile import DataFile, get_offset, comm
 
 class RawBinaryFile(DataFile):
 
-    _description    = "raw_binary"    
-    _extension      = None
-    _parallel_write = True
-    _is_writable    = True
+    description    = "raw_binary"    
+    extension      = None
+    parallel_write = True
+    is_writable    = True
 
-    _requiered_fields = {'data_offset'   : ['int', 0],
-                         'data_dtype'    : ['string', None],
-                         'dtype_offset'  : ['string', 'auto'],
-                         'sampling_rate' : ['float', None],
-                         'gain'          : ['float', 1.],
-                         'nb_channels'   : ['int' , None]}
-
-    def __init__(self, file_name, is_empty=False, **kwargs):
-
-        DataFile.__init__(self, file_name, is_empty, **kwargs)     
+    _required_fields = {'data_dtype'    : str,
+                        'sampling_rate' : float,
+                        'nb_channels'   : int}
     
-    def _get_info_(self):
-        self.dtype_offset  = get_offset(self.data_dtype, self.dtype_offset)
+    _default_values  = {'dtype_offset'  : 'auto', 
+                        'data_offset'   : 0,
+                        'gain'          : 1}
+
+    def _read_from_header(self):
         self.open()
-        self.size          = len(self.data)
-        self._shape        = (self.size//self.nb_channels, self.nb_channels)
+        self.size   = len(self.data)
+        self._shape = (self.size//self.nb_channels, self.nb_channels)
         self.close()
+        return {}
 
     def allocate(self, shape, data_dtype=None):
         if data_dtype is None:
@@ -34,10 +31,10 @@ class RawBinaryFile(DataFile):
             self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=data_dtype, mode='w+', shape=shape)
         comm.Barrier()
         
-        self._get_info_()
+        self._read_from_header()
         del self.data
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
     	
         chunk_size  *= self.nb_channels
         padding      = numpy.array(padding) * self.nb_channels
@@ -55,7 +52,7 @@ class RawBinaryFile(DataFile):
         return self._scale_data_to_float32(local_chunk)
 
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
         self.open(mode='r+')
 
         data = self._unscale_data_from_from32(data)

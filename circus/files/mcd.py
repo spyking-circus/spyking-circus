@@ -4,35 +4,30 @@ import neuroshare as ns
 
 class MCDFile(DataFile):
 
-    _description    = "mcd"    
-    _extension      = [".mcd"]
-    _parallel_write = False
-    _is_writable    = False
+    description    = "mcd"    
+    extension      = [".mcd"]
+    parallel_write = False
+    is_writable    = False        
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
+    def _read_from_header(self):
 
-        kwargs['data_dtype']   = 'float64'
-        kwargs['dtype_offset'] = 0
+        header                 = {}
+        header['data_dtype']   = 'float64'
+        header['dtype_offset'] = 0
         
-        if not is_empty:
-            f = ns.File(file_name)
-            kwargs['nb_channels']   = f.entity_count
-            kwargs['sampling_rate'] = f.entities[0].sample_rate
-            kwargs['gain']          = f.entities[0].resolution
-            f.close()
+        self.open()
+        header['nb_channels']   = self.data.entity_count
+        header['sampling_rate'] = self.data.entities[0].sample_rate
+        header['gain']          = self.data.entities[0].resolution
 
-        DataFile.__init__(self, file_name, is_empty, **kwargs)
-
-
-    def _get_info_(self):
-        self.empty = False
-        self.open()        
-        self.size  = self.data.time_span * self.sampling_rate
-        self._shape = (self.size, self.nb_channels)
+        self.size  = self.data.time_span * header['sampling_rate']
+        self._shape = (self.size, header['nb_channels'])
         self.close()
 
+        return header
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         t_start     = numpy.int64(idx*numpy.int64(chunk_size)+padding[0])
         t_stop      = numpy.int64((idx+1)*numpy.int64(chunk_size)+padding[1])
@@ -54,6 +49,7 @@ class MCDFile(DataFile):
 
     def open(self, mode='r'):
         self.data = ns.File(self.file_name)
+        
         
     def close(self):
         self.data.close()

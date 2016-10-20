@@ -3,10 +3,10 @@ from datafile import DataFile
 
 class OpenEphysFile(DataFile):
 
-    _description    = "openephys"    
-    _extension      = [".openephys"]
-    _parallel_write = True
-    _is_writable    = True
+    description    = "openephys"    
+    extension      = [".openephys"]
+    parallel_write = True
+    is_writable    = True
 
     # constants
     NUM_HEADER_BYTES   = 1024L
@@ -28,31 +28,29 @@ class OpenEphysFile(DataFile):
         f.close()
         return header
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
 
-        kwargs['data_dtype']   = 'int16'
-        kwargs['dtype_offset'] = 0
-        kwargs['data_offset']  = self.NUM_HEADER_BYTES
+    def _read_from_header(self):
 
-        if not is_empty:
-            folder_path     = os.path.dirname(os.path.realpath(file_name))
-            self.all_channels = self._get_sorted_channels_(folder_path)
-            self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
-            self.header     = self._read_header_(self.all_files[0])
-            kwargs['sampling_rate'] = float(self.header['sampleRate'])        
-            kwargs['nb_channels']   = len(self.all_files)
-            kwargs['gain']          = float(self.header['bitVolts'])        
+        folder_path     = os.path.dirname(os.path.realpath(self.file_name))
+        self.all_channels = self._get_sorted_channels_(folder_path)
+        self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
+        self.header     = self._read_header_(self.all_files[0])
+        
+        header                  = {}
+        header['data_dtype']    = 'int16'
+        header['dtype_offset']  = 0
+        header['data_offset']   = self.NUM_HEADER_BYTES
+        header['sampling_rate'] = float(self.header['sampleRate'])        
+        header['nb_channels']   = len(self.all_files)
+        header['gain']          = float(self.header['bitVolts'])        
 
-        DataFile.__init__(self, file_name, is_empty, **kwargs)
-
-
-    def _get_info_(self):
-        self.open()
         g = open(self.all_files[0], 'rb')
         self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
+        self._shape      = (self.size, header['nb_channels'])
         g.close()
-        self._shape      = (self.size, self.nb_channels)
-        self.close()
+        
+        return header
+
 
     def _get_slice_(self, t_start, t_stop):
 
@@ -79,7 +77,7 @@ class OpenEphysFile(DataFile):
         return data_slice 
 
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
@@ -103,7 +101,7 @@ class OpenEphysFile(DataFile):
         return self._scale_data_to_float32(local_chunk)
 
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
 
         t_start     = time
         t_stop      = time + data.shape[0]

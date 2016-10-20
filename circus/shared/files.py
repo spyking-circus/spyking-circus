@@ -15,41 +15,13 @@ from circus.shared.utils import purge
 logger = logging.getLogger(__name__)
 
 def data_stats(params, show=True, export_times=False):
-    multi_files    = params.getboolean('data', 'multi-files')
+
     
-    if not multi_files:
-        data_file      = params.get_data_file()
-        chunk_size     = 60 * params.rate  
-        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
-        if last_chunk_len > 0:
-            nb_chunks -= 1
-    else:
-        all_files      = params.get_multi_files()
-        N              = 0
-        nb_chunks      = 0
-        last_chunk_len = 0
-        t_start        = 0
-        times          = []
-        data_file      = params.get_data_file(multi=True, force_raw=False)
-        chunk_size     = 60 * params.rate 
-        init_file      = params.get('data', 'data_file')
-        for f in all_files:
-            params.set('data', 'data_file', f)
-            new_data_file = params.get_data_file(force_raw=False)
-            loc_nb_chunks, last_chunk_len = new_data_file.analyze(chunk_size)
-            if last_chunk_len > 0:
-                loc_nb_chunks -= 1
-
-            nb_chunks      += loc_nb_chunks
-            last_chunk_len += new_data_file.duration - (loc_nb_chunks*chunk_size)
-
-            times   += [[t_start, t_start + new_data_file.duration]]
-            t_start += new_data_file.duration
-
-        params.set('data', 'data_file', init_file)
-
-    N_t = params.getint('detection', 'N_t')
-    N_t = numpy.round(1000.*N_t/params.rate, 1)
+    data_file   = params.get_data_file(source=True)
+    stream_mode = data_file.is_stream    
+    chunk_size  = 60 * data_file.sampling_rate
+    nb_chunks   = data_file.duration // chunk_size 
+    last_chunk_len = data_file.duration - nb_chunks * chunk_size
 
     nb_seconds      = last_chunk_len//params.rate
     last_chunk_len -= (nb_seconds*params.rate)
@@ -58,6 +30,9 @@ def data_stats(params, show=True, export_times=False):
       nb_chunks  += nb_extra_seconds
       nb_seconds -= 60*nb_extra_seconds
     last_chunk_len  = int(1000*last_chunk_len/params.rate)
+
+    N_t = params.getint('detection', 'N_t')
+    N_t = numpy.round(1000.*N_t/params.rate, 1)
 
     lines = ["Number of recorded channels : %d" %params.nb_channels,
              "Number of analyzed channels : %d" %params.getint('data', 'N_e'),
@@ -74,8 +49,8 @@ def data_stats(params, show=True, export_times=False):
              "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
              "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
     
-    if multi_files:
-        lines += ["Multi-files activated       : %s files" %len(all_files)]    
+    if stream_mode:
+        lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]    
 
     if show:
         print_and_log(lines, 'info', logger)

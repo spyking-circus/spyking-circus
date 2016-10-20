@@ -6,37 +6,37 @@ logger = logging.getLogger(__name__)
 
 class H5File(DataFile):
 
-    _description    = "hdf5"    
-    _extension      = [".h5", ".hdf5"]
-    _parallel_write = h5py.get_config().mpi
-    _is_writable    = True
+    description    = "hdf5"    
+    extension      = [".h5", ".hdf5"]
+    parallel_write = h5py.get_config().mpi
+    is_writable    = True
 
-    _requiered_fields = {'h5_key'        : ['string', None], 
-                         'sampling_rate' : ['float' , None],
-                         'gain'          : ['float', 1.],
-                         'dtype_offset'  : ['string', 'auto']}
+    _required_fields = {'h5_key'        : str,
+                        'sampling_rate' : float,
+                        'nb_channels'   : int}
+    
+    _default_values  = {'dtype_offset'  : 'auto', 
+                        'gain'          : 1}
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
 
-        DataFile.__init__(self, file_name, is_empty, **kwargs)
-
-    def __check_valid_key__(self, file_name, key):
-        file       = h5py.File(file_name)
+    def __check_valid_key__(self, key):
+        file       = h5py.File(self.file_name)
         all_fields = []
         file.visit(all_fields.append)    
         if not key in all_fields:
             print_and_log(['The key %s can not be found in the dataset! Keys found are:' %key, 
                          ", ".join(all_fields)], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
         file.close()
 
-    def _get_info_(self):
+    def _read_from_header(self):
 
-        self.__check_valid_key__(self.file_name, self.h5_key)
+        self.__check_valid_key__(self.h5_key)
         self.open()
-        self.data_dtype   = self.my_file.get(self.h5_key).dtype
-        self.dtype_offset = get_offset(self.data_dtype, self.dtype_offset)
-        self.compression  = self.my_file.get(self.h5_key).compression
+
+        header = {}
+        header['data_dtype']   = self.my_file.get(self.h5_key).dtype
+        self.compression       = self.my_file.get(self.h5_key).compression
 
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
@@ -49,9 +49,12 @@ class H5File(DataFile):
             self._shape = (self.size[0], self.size[1])
         else:
             self.time_axis = 1
-            self._shape = self.size
+            self._shape = (self.size[1], self.size[0])
 
+        header['nb_channels']  = self._shape[1]
         self.close()
+
+        return header
 
     def allocate(self, shape, data_dtype=None):
 
@@ -70,9 +73,9 @@ class H5File(DataFile):
                     self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
 
         self.my_file.close()
-        self._get_info_()
+        self._read_from_header()
 
-    def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
+    def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         if nodes is None:
             if self.time_axis == 0:
@@ -87,7 +90,7 @@ class H5File(DataFile):
 
         return self._scale_data_to_float32(local_chunk)
 
-    def set_data(self, time, data):
+    def write_chunk(self, time, data):
 
         data = self._unscale_data_from_from32(data)
         
@@ -107,3 +110,7 @@ class H5File(DataFile):
     def close(self):
         self.my_file.close()
         del self.data
+
+    @property
+    def h5_key(self):
+        return self._params['h5_key']

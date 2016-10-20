@@ -6,29 +6,12 @@ logger = logging.getLogger(__name__)
 
 class RawMCSFile(RawBinaryFile):
 
-    _description    = "mcs_raw_binary"
-    _extension      = [".raw", ".dat"]
-    _parallel_write = True
-    _is_writable    = True
+    description    = "mcs_raw_binary"
+    extension      = [".raw", ".dat"]
 
-    def __init__(self, file_name, is_empty=False, **kwargs):
+    _required_fields = {'sampling_rate' : float}
 
-        if not is_empty:
-            self.file_name = file_name
-            a, b, c = self._read_header()
-            self.header            = a 
-            kwargs['data_offset']  = b
-            kwargs['nb_channels']  = c
-            kwargs['dtype_offset'] = int(self.header['ADC zero'])
-            kwargs['gain']         = float(re.findall("\d+\.\d+", self.header['El'])[0])
-            if kwargs['dtype_offset'] > 0:
-                kwargs['data_dtype'] = 'uint16'
-            elif kwargs['dtype_offset'] == 0:
-                kwargs['data_dtype'] = 'int16'
-
-        RawBinaryFile.__init__(self, file_name, is_empty, **kwargs)
-
-    def _read_header(self):
+    def _get_header(self):
         try:
             header      = 0
             stop        = False
@@ -46,7 +29,7 @@ class RawMCSFile(RawBinaryFile):
             fid.close()
             if stop is False:
                 print_and_log(['Wrong MCS header: file is not exported with MCRack'], 'error', logger)
-                sys.exit(0) 
+                sys.exit(1) 
             else:
                 header += 2
 
@@ -61,4 +44,26 @@ class RawMCSFile(RawBinaryFile):
             return full_header, header, len(regexp.findall(full_header['Streams']))
         except Exception:
             print_and_log(["Wrong MCS header: file is not exported with MCRack"], 'error', logger)
-            sys.exit(0)
+            sys.exit(1)
+
+
+    def _read_from_header(self):
+
+        a, b, c                = self._get_header()
+        header                 = a 
+        header['data_offset']  = b
+        header['nb_channels']  = c
+        header['dtype_offset'] = int(header['ADC zero'])
+        header['gain']         = float(re.findall("\d+\.\d+", header['El'])[0])
+        
+        if header['dtype_offset'] > 0:
+            header['data_dtype'] = 'uint16'
+        elif header['dtype_offset'] == 0:
+             header['data_dtype'] = 'int16'
+
+        self.data   = numpy.memmap(self.file_name, offset=header['data_offset'], dtype=header['data_dtype'], mode='r')
+        self.size   = len(self.data)
+        self._shape = (self.size//header['nb_channels'], header['nb_channels'])
+        del self.data
+        
+        return header

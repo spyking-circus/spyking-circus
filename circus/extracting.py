@@ -82,7 +82,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if (elt_count < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
             local_shape = len(local_chunk)
 
             if do_spatial_whitening:
@@ -96,7 +96,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             #print "Extracting the peaks..."
             idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
-            local_offset    = gidx*chunk_size
+            local_offset    = t_offset
             local_peaktimes = spiketimes[idx] - local_offset
 
             #print "Removing the useless borders..."

@@ -98,7 +98,7 @@ but a subset x,y can be done. Steps are:
 
     if len(argv) == 0:
         parser.print_help()
-        sys.exit()
+        sys.exit(0)
 
     args = parser.parse_args(argv)
 
@@ -106,7 +106,7 @@ but a subset x,y can be done. Steps are:
     for step in steps:
         if step not in all_steps:
             print_error(['The method "%s" is not recognized' % step])
-            sys.exit(1)
+            sys.exit(0)
 
     # To save some typing later
     (nb_cpu, nb_gpu, hostfile, batch,
@@ -119,20 +119,23 @@ but a subset x,y can be done. Steps are:
     if info:
         to_write = ['The file formats that are supported are:', '']
         for file in __supported_data_files__:
-            if __supported_data_files__[file]._is_writable:
-                if __supported_data_files__[file]._parallel_write:
+            if __supported_data_files__[file].is_writable:
+                if __supported_data_files__[file].parallel_write:
                     rw = '(read/parallel write)'
                 else:
                     rw = '(read/write)'
             else:
                 rw = '(read only)'    
-            to_write += ['-- ' + file + ' ' + rw]
+
+            streams   = ", ".join(__supported_data_files__[file].is_streamable)
+            to_write += ['-- ' + file.upper() + ' ' + rw + " [streams: " + streams + "]"]
+
         print_and_log(to_write)
         sys.exit(0)
 
     if extens == '.params':
         print_error(['You should launch the code on the data file!'])
-        sys.exit(1)
+        sys.exit(0)
 
     file_params = f_next + '.params'
     if not os.path.exists(file_params) and not batch:
@@ -145,7 +148,7 @@ but a subset x,y can be done. Steps are:
             print_info(['Keep in mind that filtering is performed on site, so please',
                         'be sure to keep a copy of your data elsewhere'])
             shutil.copyfile(config_file, file_params)
-        sys.exit()
+        sys.exit(0)
     elif batch:
         tasks_list = filename
 
@@ -155,11 +158,15 @@ but a subset x,y can be done. Steps are:
             os.remove(logfile)
         logger       = init_logging(logfile)
         params       = CircusParser(filename)
-        multi_files  = params.getboolean('data', 'multi-files')
-        data_file    = params.get_data_file(multi_files, force_raw=False)
+        data_file    = params.get_data_file(source=True)
+        overwrite    = params.getboolean('data', 'overwrite')
         file_format  = params.get('data', 'file_format')
-        support_parallel_write = data_file._parallel_write
-        is_writable            = data_file._is_writable
+        if overwrite:
+            support_parallel_write = data_file.parallel_write
+            is_writable            = data_file.is_writable
+        else:
+            support_parallel_write = __supported_data_files__['raw_binary'].parallel_write
+            is_writable            = __supported_data_files__['raw_binary'].is_writable
 
     if preview:
         print_and_log(['Preview mode, showing only first second of the recording'], 'info', logger)
@@ -173,8 +180,10 @@ but a subset x,y can be done. Steps are:
         steps        = ['filtering', 'whitening']
 
         chunk_size = int(2*params.rate)
+
         data_file.open()
-        local_chunk  = data_file.get_data(0, chunk_size)
+        nb_chunks, _           = data_file.analyze(chunk_size)
+        local_chunk, t_offset  = data_file.get_data(0, chunk_size)
         data_file.close()
 
         new_params = CircusParser(filename)
@@ -184,12 +193,16 @@ but a subset x,y can be done. Steps are:
         new_params.write('data', 'data_dtype', 'float32')
         new_params.write('data', 'data_offset', '0')
         new_params.write('data', 'dtype_offset', '0')
+        new_params.write('data', 'stream_mode', 'None')
         new_params.write('data', 'sampling_rate', str(params.rate))
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
 
-        data_file_out = new_params.get_data_file(multi_files, is_empty=True)
+
+        data_file_out          = new_params.get_data_file(is_empty=True)
+        support_parallel_write = data_file_out.parallel_write
+        is_writable            = data_file_out.is_writable
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)
@@ -209,7 +222,7 @@ but a subset x,y can be done. Steps are:
         if preview:
             print Fore.GREEN + "Steps         :", Fore.CYAN + "preview mode"
         elif result:
-            print Fore.GREEN + "Steps         :", Fore.CYAN + "results mode"
+            print Fore.GREEN + "Steps         :", Fore.CYAN + "result mode"
         else:
             print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
         print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
@@ -283,14 +296,15 @@ but a subset x,y can be done. Steps are:
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
 
-                        if subtask in ['filtering', 'benchmarking'] and not is_writable and not multi_files and not preview:
-                            print_and_log(['The file format %s is read only!' %file_format, 
-                                            'One solution to still filter the file is to activate',
-                                            'the multi-files mode, even with only one file,',
-                                            'as this will creates an external raw_binary file'], 'info', logger)
-                            sys.exit(0)
+                        if subtask in ['filtering', 'benchmarking'] and not is_writable:
+                            if not preview and overwrite:
+                                print_and_log(['The file format %s is read only!' %file_format,
+                                               'You should set overwite to False, to create a copy of the data.',
+                                               'However, note that if you have streams, informations on times',
+                                               'will be discarded'], 'info', logger)
+                                sys.exit(0)
                         
-                        if subtask in ['filtering'] and not support_parallel_write and (args.cpu > 1) and not multi_files:
+                        if subtask in ['filtering'] and not support_parallel_write and (args.cpu > 1):
                             print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', logger)
                             nb_tasks = str(1)
 
@@ -332,7 +346,7 @@ but a subset x,y can be done. Steps are:
         from circus.shared import gui
         import pylab
         from matplotlib.backends import qt_compat
-
+        
         use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
         if use_pyside:
             from PySide import QtGui, QtCore, uic

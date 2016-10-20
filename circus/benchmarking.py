@@ -32,12 +32,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     if ext != '.dat':
         if comm.rank == 0:
             print_and_log(['Benchmarking produces raw files: select a .dat extension'], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
 
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
             print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
     # see: http://stackoverflow.com/questions/4530111/python-saving-objects-and-using-pickle-extension-of-filename
@@ -127,7 +127,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
-    data_file        = params.data_file
+    data_file        = params.get_data_file(source=True)
     N_e              = params.getint('data', 'N_e')
     N_total          = params.nb_channels
     nodes, edges     = get_nodes_and_edges(params)
@@ -166,8 +166,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     
     params.set('data', 'data_file', file_name)
 
-    data_file_out = params.get_data_file(is_empty=True, force_raw=True, **data_file.get_description())    
-    data_file_out.allocate(shape=data_file.shape, data_dtype=numpy.float32)
+    data_file_out = params.get_data_file(is_empty=True)
+    data_file_out.allocate(shape=data_file.shape)
 
     # Synchronize all the threads/processes.
     comm.Barrier()
@@ -189,7 +189,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
             if count == len(all_elecs):
                 if comm.rank == 0:
                     print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', logger)
-                sys.exit(0)
+                sys.exit(1)
             else:
                 # Get the next shuffled electrode.
                 n_elec = all_elecs[count]
@@ -372,7 +372,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
                           'templates' : [], 'real_amps' : [],
                           'voltages' : []}
         offset         = gidx * chunk_size
-        local_chunk = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
 
         if benchmark == 'pca-validation':
             # Clear the current data chunk.

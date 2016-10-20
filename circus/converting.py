@@ -29,7 +29,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     if export_all and not params.getboolean('fitting', 'collect_all'):
         if comm.rank == 0:
             print_and_log(['Export unfitted spikes only if [fitting] collect_all is True'], 'error', logger)
-        sys.exit(0)
+        sys.exit(1)
 
     def generate_mapping(probe):
         p         = {}
@@ -114,10 +114,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 data = numpy.sum(numpy.sum(templates[:, t].toarray().reshape(N_e, N_t), 1) != 0) 
                 if data > n_channels_max:
                     n_channels_max = data
-
-            print n_channels_max, N_tm
-            #templates.npy:          (n_templates, n_samples, n_channels_max)
-            #templates_channels.npy: (n_templates, n_channels_max)
             
             to_write_sparse    = numpy.zeros((N_tm, N_t, n_channels_max), dtype=numpy.float32)
             mapping_sparse     = numpy.zeros((N_tm, n_channels_max), dtype=numpy.int32)
