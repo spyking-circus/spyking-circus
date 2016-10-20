@@ -1,6 +1,9 @@
-import h5py, numpy, re, sys
+import h5py, numpy, re, sys, logging
 from hdf5 import H5File
+from circus.shared.messages import print_and_log
 from datafile import get_offset
+
+logger = logging.getLogger(__name__)
 
 class ARFFile(H5File):
 
@@ -30,7 +33,7 @@ class ARFFile(H5File):
         return self._params['channel_name']
 
 
-    def set_streams(self):
+    def set_streams(self, stream_mode):
         
         if stream_mode == 'single-file':
             
@@ -48,8 +51,8 @@ class ARFFile(H5File):
             idx = numpy.argsort(all_streams)
 
             for i in xrange(len(all_streams)):
-                params
-                new_data          = type(self)(to_process, params)
+                params['h5_key']  = my_file.keys()[idx[i]]
+                new_data          = type(self)(self.file_name, params)
                 sources          += [new_data]
                 to_write         += ['We found file %s with t_start %d and duration %d' %(new_data.file_name, new_data.t_start, new_data.duration)]
 
@@ -145,3 +148,5 @@ class ARFFile(H5File):
             self.my_file = h5py.File(self.file_name, mode=mode)
 
         self.data = [self.my_file.get(self._get_channel_key_(i)) for i in xrange(self.nb_channels)]
+
+        print self.data

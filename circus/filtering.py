@@ -260,8 +260,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         print_and_log(to_write, 'debug', logger)
 
-    data_file_in.open()
-    data_file_out.open(mode='r+')
+    if params.getboolean('data', 'overwrite'):
+        data_file_in.open(mode='r+')
+    else:
+        data_file_in.open()
+        data_file_out.open(mode='r+')
 
     if do_filter or remove_median:
         filter_file(data_file_in, data_file_out, do_filter, remove_median)

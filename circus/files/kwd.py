@@ -1,5 +1,8 @@
-import h5py, numpy, re, sys
+import h5py, numpy, re, sys, logging
+from circus.shared.messages import print_and_log
 from hdf5 import H5File
+
+logger = logging.getLogger(__name__)
 
 class KwdFile(H5File):
 
@@ -14,7 +17,7 @@ class KwdFile(H5File):
                        'dtype_offset'       : 'auto',
                        'gain'               : 1.}
 
-    def set_streams(self):
+    def set_streams(self, stream_mode):
         
         if stream_mode == 'single-file':
             
@@ -32,7 +35,7 @@ class KwdFile(H5File):
 
             for count in xrange(len(all_streams)):
                 params['recording_number'] = all_streams[idx[count]]
-                new_data                   = type(self)(to_process, params)
+                new_data   = type(self)(self.file_name, params)
                 sources   += [new_data]
                 to_write  += ['We found file %s with t_start %d and duration %d' %(new_data.file_name, new_data.t_start, new_data.duration)]
 
