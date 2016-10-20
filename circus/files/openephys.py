@@ -37,7 +37,7 @@ class OpenEphysFile(DataFile):
         self.header     = self._read_header_(self.all_files[0])
         
         header                  = {}
-        header['data_dtype']    = 'int16'
+        header['data_dtype']    = '>i2'
         header['dtype_offset']  = 0
         header['data_offset']   = self.NUM_HEADER_BYTES
         header['sampling_rate'] = float(self.header['sampleRate'])        
@@ -45,7 +45,7 @@ class OpenEphysFile(DataFile):
         header['gain']          = float(self.header['bitVolts'])        
 
         g = open(self.all_files[0], 'rb')
-        self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
+        self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE - 1) * self.SAMPLES_PER_RECORD
         self._shape      = (self.size, header['nb_channels'])
         g.close()
         
@@ -60,7 +60,7 @@ class OpenEphysFile(DataFile):
         r_end = numpy.mod(t_stop, self.SAMPLES_PER_RECORD)
 
         data_slice  = []
-        
+
         if x_beg == x_end:
             g_offset = x_beg * self.SAMPLES_PER_RECORD + self.OFFSET_PER_BLOCK[0]*(x_beg + 1) + self.OFFSET_PER_BLOCK[1]*x_beg
             data_slice = numpy.arange(g_offset + r_beg, g_offset + r_end)
@@ -73,7 +73,6 @@ class OpenEphysFile(DataFile):
                     data_slice += numpy.arange(g_offset, g_offset + r_end).tolist()
                 else:
                     data_slice += numpy.arange(g_offset, g_offset + self.SAMPLES_PER_RECORD).tolist()
-
         return data_slice 
 
 

@@ -33,7 +33,30 @@ class ARFFile(H5File):
     def set_streams(self):
         
         if stream_mode == 'single-file':
-            pass
+            
+            sources     = []
+            to_write    = []
+            count       = 0
+            params      = self.get_description()
+            my_file     = h5py.File(self.file_name)
+            all_matches = [re.findall('\d+', u) for u in my_file.keys()]
+            all_streams = []
+            for m in all_matches:
+                if len(m) > 0:
+                    all_streams += [int(m[0])]
+
+            idx = numpy.argsort(all_streams)
+
+            for i in xrange(len(all_streams)):
+                params
+                new_data          = type(self)(to_process, params)
+                sources          += [new_data]
+                to_write         += ['We found file %s with t_start %d and duration %d' %(new_data.file_name, new_data.t_start, new_data.duration)]
+
+            print_and_log(to_write, 'debug', logger)
+
+            return sources
+
         elif stream_mode == 'multi-files':
             return H5File.set_streams(stream_mode)
 
