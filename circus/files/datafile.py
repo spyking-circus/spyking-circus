@@ -263,7 +263,7 @@ class DataFile(object):
 
 
     def _check_extension(self, extension):
-        if self.extension is not []:
+        if len(self.extension) > 0:
             if not extension in self.extension + [item.upper() for item in self.extension]:
                 if self.is_master:
                     print_and_log(["The extension %s is not valid for a %s file" %(extension, self.description)], 'error', logger)
