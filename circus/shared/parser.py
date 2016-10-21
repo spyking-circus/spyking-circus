@@ -332,9 +332,9 @@ class CircusParser(object):
                 params[key] = value
 
         data_file     = params.pop('data_file')
-        stream_mode   = self.get('data', 'stream_mode')
+        stream_mode   = self.get('data', 'stream_mode').lower()
 
-        if stream_mode in ['None', 'none']:
+        if stream_mode in ['none']:
             stream_mode = None
 
         if not self.getboolean('data', 'overwrite'):

@@ -130,6 +130,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     for i in xrange(N_e):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
+        result['all_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
         result['clusters_' + str(i)]  = numpy.zeros(0, dtype=numpy.int32)
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
@@ -191,8 +192,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     result['tmp_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
 
             # If not the first pass, we sync all the detected times among nodes and give all nodes the w/pca
-            result['all_times_' + str(i)] = all_gather_array(result['loc_times_' + str(i)], comm, dtype='int32')
+            result['all_times_' + str(i)] = numpy.concatenate((result['all_times_' + str(i)], all_gather_array(result['loc_times_' + str(i)], comm, dtype='int32')))
             result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
+            
             if gpass == 1:
                 for p in search_peaks:
                     result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
@@ -416,7 +418,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         
                                 if to_accept:
                                     elt_count += 1
-                                    if gpass <= 1:
+                                    if gpass >= 1:
                                         to_add = numpy.array([peak + local_offset], dtype=numpy.int32)
                                         result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
                                     if gpass == 1:

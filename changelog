@@ -25,6 +25,7 @@ Release 0.5
 * fix a bug with the size of the safety time parameter during whitening and clustering
 * all the interactions with the parameters are now done in the circus/shared/parser.py file
 * all the interactions with the probe are now done in the circus/shared/probes.py file
+* all the messages are now handled in circus/shared/messages.py
 * more robust and explicit logging system
 * more robust checking of the parameters
 * display the electrode number in the preview/result GUI
@@ -34,7 +35,9 @@ Release 0.5
 * several cosmetic changes in the default parameter file
 * clustering:smart_search and merging:correct_lag are now True by default
 * fix a minor bug in the smart search, biasing the estimation of densities
+* fix a bug with the masks and the smart-search: improving results
 * add an overwrite option, to let the user select if files should be overwritten or not during filtering
+* if using streams, or internal t_start, output times are on the same time axis than the datafile
 
 
 =============
