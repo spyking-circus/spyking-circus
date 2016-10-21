@@ -26,6 +26,10 @@ except ImportError:
                              QDesktopServices, QFont)
 import sip
 
+from circus.shared.messages import print_error, print_info, print_and_log, get_colored_header, init_logging
+from circus.files import __supported_data_files__, list_all_file_format
+
+
 if sys.platform == 'win32':
     import ctypes
 
@@ -691,13 +695,7 @@ class LaunchGUI(QtGui.QDialog):
         msg.setWindowTitle("File formats")
 
         
-        msg.setInformativeText("SpyKING CIRCUS can use several CPUs "
-                               "either locally or on multiple machines "
-                               "using MPI (see documentation) "
-                               "\n"
-                               "\n"
-                               "You have %d local CPUs available" %psutil.cpu_count()
-            )
+        msg.setInformativeText("\n".join(list_all_file_format()))
         msg.setStandardButtons(QMessageBox.Close)
         msg.setDefaultButton(QMessageBox.Close)
         answer = msg.exec_()

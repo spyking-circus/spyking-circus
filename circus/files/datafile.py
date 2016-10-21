@@ -34,7 +34,6 @@ def get_offset(data_dtype, dtype_offset):
 
 
 
-
 class DataFile(object):
 
     '''

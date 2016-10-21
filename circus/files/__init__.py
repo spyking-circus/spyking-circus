@@ -41,3 +41,20 @@ if HAVE_NEUROSHARE:
     __supported_data_files__[MCDFile.description] = MCDFile
 
 
+def list_all_file_format():
+    to_write = ['The file formats that are supported are:', '']
+    for file in __supported_data_files__:
+        if __supported_data_files__[file].is_writable:
+            if __supported_data_files__[file].parallel_write:
+                rw = '(read/parallel write)'
+            else:
+                rw = '(read/write)'
+        else:
+            rw = '(read only)'    
+
+        streams    = ", ".join(__supported_data_files__[file].is_streamable)
+        extensions = ", ".join(__supported_data_files__[file].extension)
+        to_write += ['-- ' + file.upper() + ' ' + rw]
+        to_write += ['      Extensions       : ' + extensions]
+        to_write += ['      Supported streams: ' + streams]
+    return to_write

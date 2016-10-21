@@ -20,7 +20,7 @@ from circus.shared.mpi import SHARED_MEMORY, comm, gather_mpi_arguments
 from circus.shared.parser import CircusParser
 from circus.shared.utils import query_yes_no
 from circus.shared.probes import get_averaged_n_edges
-from circus.files import __supported_data_files__
+from circus.files import __supported_data_files__, list_all_file_format
 
 
 def main(argv=None):
@@ -116,24 +116,8 @@ but a subset x,y can be done. Steps are:
 
     f_next, extens = os.path.splitext(filename)
 
-    if info:
-        to_write = ['The file formats that are supported are:', '']
-        for file in __supported_data_files__:
-            if __supported_data_files__[file].is_writable:
-                if __supported_data_files__[file].parallel_write:
-                    rw = '(read/parallel write)'
-                else:
-                    rw = '(read/write)'
-            else:
-                rw = '(read only)'    
-
-            streams    = ", ".join(__supported_data_files__[file].is_streamable)
-            extensions = ", ".join(__supported_data_files__[file].extension)
-            to_write += ['-- ' + file.upper() + ' ' + rw]
-            to_write += ['      Extensions       : ' + extensions]
-            to_write += ['      Supported streams: ' + streams]
-            
-        print_and_log(to_write)
+    if info:    
+        print_and_log(list_all_file_format())
         sys.exit(0)
 
     if extens == '.params':
