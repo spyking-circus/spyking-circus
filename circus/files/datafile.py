@@ -264,7 +264,7 @@ class DataFile(object):
 
 
     def _check_extension(self, extension):
-        if self.extension is not None:
+        if self.extension is not []:
             if not extension in self.extension + [item.upper() for item in self.extension]:
                 if self.is_master:
                     print_and_log(["The extension %s is not valid for a %s file" %(extension, self.description)], 'error', logger)
@@ -385,6 +385,43 @@ class DataFile(object):
         return nb_chunks, last_chunk_len
 
 
+    def _get_t_start_t_stop(self, idx, chunk_size, padding=(0,0)):
+
+        t_start     = idx*numpy.int64(chunk_size)+padding[0]
+        t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
+        local_shape = t_stop - t_start
+
+        if t_stop > self.duration:
+            t_stop = self.duration
+
+        if t_start < 0:
+            t_start = 0
+
+        return t_start, t_stop
+
+
+    def is_first_chunk(self, idx, nb_chunks):
+
+        if self.is_stream:
+            cidx = numpy.searchsorted(self._chunks_in_sources, idx, 'right') - 1
+            idx -= self._chunks_in_sources[cidx]
+            if idx == 0:
+                return True
+        else:
+            if idx == 0:
+                return True
+        return False
+
+    def is_last_chunk(self, idx, nb_chunks):
+
+        if self.is_stream:
+            if (idx > 0) and (idx in self._chunks_in_sources - 1):
+                return True
+        else:
+            if idx == nb_chunks:
+                return True
+        return False
+
     def get_snippet(self, time, length, nodes=None):
         '''
             This function should return a time snippet of size length x nodes
@@ -440,6 +477,8 @@ class DataFile(object):
 
                 self._chunks_in_sources += [nb_chunks]
 
+            self._chunks_in_sources = numpy.array(self._chunks_in_sources)
+            
             return nb_chunks, last_chunk_len
         else:
             return self._count_chunks(chunk_size, self.duration, strict)

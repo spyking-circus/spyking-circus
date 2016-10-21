@@ -162,10 +162,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             full_gpu = False
 
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
-    nb_chunks                 = int(min(nb_chunks, max_chunk))
+    processed_chunks          = int(min(nb_chunks, max_chunk))
 
     if comm.rank == 0:
-        pbar = get_progressbar(int(nb_chunks//comm.size))
+        pbar = get_progressbar(int(processed_chunks//comm.size))
 
 
     spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' %comm.rank, 'wb')
@@ -185,12 +185,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     last_chunk_size = 0
 
-    for gcount, gidx in enumerate(xrange(comm.rank, nb_chunks, comm.size)):
+    for gcount, gidx in enumerate(xrange(comm.rank, processed_chunks, comm.size)):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
         ## We need to deal with the borders by taking chunks of size [0, chunck_size+template_shift]
-        if gidx == (nb_chunks - 1):
+
+        is_first = data_file.is_first_chunk(gidx, nb_chunks)
+        is_last  = data_file.is_last_chunk(gidx, nb_chunks)
+
+        if is_last:
             padding = (-2*template_shift, 0)
-        elif gidx == 0:
+        elif is_first:
             padding = (0, 2*template_shift)
         else:
             padding = (-2*template_shift, 2*template_shift)

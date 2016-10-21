@@ -77,16 +77,18 @@ class H5File(DataFile):
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
+        t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
+        
         if nodes is None:
             if self.time_axis == 0:
-                local_chunk = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], :]
+                local_chunk = self.data[t_start:t_stop, :]
             elif self.time_axis == 1:
-                local_chunk = self.data[:, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
+                local_chunk = self.data[:, t_start:t_stop].T
         else:
             if self.time_axis == 0:
-                local_chunk = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], nodes]
+                local_chunk = self.data[t_start:t_stop, nodes]
             elif self.time_axis == 1:
-                local_chunk = self.data[nodes, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
+                local_chunk = self.data[nodes, t_start:t_stop].T
 
         return self._scale_data_to_float32(local_chunk)
 

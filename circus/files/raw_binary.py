@@ -4,7 +4,7 @@ from datafile import DataFile, get_offset, comm
 class RawBinaryFile(DataFile):
 
     description    = "raw_binary"    
-    extension      = None
+    extension      = []
     parallel_write = True
     is_writable    = True
 
@@ -36,12 +36,11 @@ class RawBinaryFile(DataFile):
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
     	
-        chunk_size  *= self.nb_channels
-        padding      = numpy.array(padding) * self.nb_channels
+        t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
+        local_shape     = t_stop - t_start
 
         self._open()
-        local_chunk  = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]]
-        local_shape  = len(local_chunk)//self.nb_channels
+        local_chunk  = self.data[t_start*self.nb_channels:t_stop*self.nb_channels]
         local_chunk  = local_chunk.reshape(local_shape, self.nb_channels)
         self._close()
 

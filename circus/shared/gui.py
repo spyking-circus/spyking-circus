@@ -1038,7 +1038,8 @@ class PreviewGUI(QtGui.QMainWindow):
         self.params           = params
         self.data_file        = params.data_file
         self.data_file.open()
-        self.maxtime          = io.data_stats(self.params, show=False) - 1
+        self.maxtime          = self.data_file.t_stop/self.data_file.sampling_rate
+        self.mintime          = self.data_file.t_start/self.data_file.sampling_rate
         self.init_gui_layout()
         self.probe            = self.params.probe
         self.N_e              = self.params.getint('data', 'N_e')
@@ -1068,15 +1069,15 @@ class PreviewGUI(QtGui.QMainWindow):
             self.temporal_whitening = io.load_data(self.params, 'temporal_whitening')
 
         self.thresholds       = io.load_data(self.params, 'thresholds')
-        self.t_start          = 0
-        self.t_stop           = 1
+        self.t_start          = self.data_file.t_start/self.data_file.sampling_rate
+        self.t_stop           = self.t_start + 1
 
         if self.show_fit:
             try:
                 self.templates = io.load_data(self.params, 'templates')
                 self.result    = io.load_data(self.params, 'results')
             except Exception:
-                pass
+                print_and_log(["No results found!"], 'info', logger)
 
             try:
                 if self.params.getboolean('fitting', 'collect_all'):
@@ -1151,8 +1152,10 @@ class PreviewGUI(QtGui.QMainWindow):
 
     def update_time(self):
         if self.show_fit:
-            self.t_start  = min(self.maxtime, int(self.get_time.value()))
+            self.t_start  = min(self.maxtime, self.get_time.value())
             self.t_stop   = self.t_start + 1
+            if self.t_stop > self.maxtime:
+                self.t_stop = self.maxtime
             self.get_data()
             self.update_data_plot()
 
@@ -1161,8 +1164,9 @@ class PreviewGUI(QtGui.QMainWindow):
         self.params.write('detection', 'spike_thresh', '%g' %self.get_threshold.value())
 
     def get_data(self):
-        self.chunk_size = int(self.sampling_rate)
-        self.data       = self.data_file.get_snippet(int(self.t_start*self.sampling_rate), self.chunk_size, nodes=self.nodes)
+        self.chunk_size = int(self.sampling_rate*(self.t_stop - self.t_start))
+        t_start         = int(self.t_start*self.sampling_rate)
+        self.data       = self.data_file.get_snippet(t_start, self.chunk_size, nodes=self.nodes)
 
 
         if self.do_spatial_whitening:
@@ -1174,7 +1178,7 @@ class PreviewGUI(QtGui.QMainWindow):
 
         if self.show_fit:
             try:
-                self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
+                self.curve     = numpy.zeros((self.N_e, self.chunk_size), dtype=numpy.float32)
                 limit          = self.sampling_rate-self.template_shift+1
                 for key in self.result['spiketimes'].keys():
                     elec  = int(key.split('_')[1])
@@ -1187,7 +1191,7 @@ class PreviewGUI(QtGui.QMainWindow):
                         self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
             except Exception:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
-                print_and_log(["No results found!"], 'info', logger)
+                
 
             if self.has_garbage:
                 self.uncollected = {}
@@ -1218,18 +1222,24 @@ class PreviewGUI(QtGui.QMainWindow):
 
     def increase_time(self, event):
         if self.show_fit:
-            if self.t_start < self.maxtime:
+            if self.t_start < self.maxtime - 1:
                 self.t_start += 1
                 self.t_stop  += 1
+                if self.t_stop > self.maxtime:
+                    self.t_stop = self.maxtime
+
             self.get_data()
             self.get_time.setValue(self.t_start)
             self.update_data_plot()
 
     def decrease_time(self, event):
         if self.show_fit:
-            if self.t_start > 0:
+            if self.t_start > self.mintime + 1:
                 self.t_start -= 1
                 self.t_stop  -= 1
+                if self.t_start < self.mintime:
+                    self.t_start = self.mintime
+                    self.t_stop  = self.t_start + 1
                 self.get_data()
                 self.get_time.setValue(self.t_start)
                 self.update_data_plot()

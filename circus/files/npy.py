@@ -40,10 +40,13 @@ class NumpyFile(RawBinaryFile):
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         self._open()
+
+        t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
+
         if self.time_axis == 0:
-            local_chunk  = self.data[idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1], :]
+            local_chunk  = self.data[t_start:t_stop, :]
         elif self.time_axis == 1:
-            local_chunk  = self.data[:, idx*numpy.int64(chunk_size)+padding[0]:(idx+1)*numpy.int64(chunk_size)+padding[1]].T
+            local_chunk  = self.data[:, t_start:t_stop].T
         self._close()
 
         if nodes is not None:

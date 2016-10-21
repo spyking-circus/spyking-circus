@@ -118,12 +118,8 @@ class ARFFile(H5File):
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
-        t_start     = idx*numpy.int64(chunk_size)+padding[0]
-        t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
-        local_shape = t_stop - t_start
-
-        if (t_start + local_shape) > self.duration:
-            local_shape = self.duration - t_start
+        t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
+        local_shape     = t_stop - t_start
 
         if nodes is None:
             nodes = numpy.arange(self.nb_channels)

@@ -127,9 +127,12 @@ but a subset x,y can be done. Steps are:
             else:
                 rw = '(read only)'    
 
-            streams   = ", ".join(__supported_data_files__[file].is_streamable)
-            to_write += ['-- ' + file.upper() + ' ' + rw + " [streams: " + streams + "]"]
-
+            streams    = ", ".join(__supported_data_files__[file].is_streamable)
+            extensions = ", ".join(__supported_data_files__[file].extension)
+            to_write += ['-- ' + file.upper() + ' ' + rw]
+            to_write += ['      Extensions       : ' + extensions]
+            to_write += ['      Supported streams: ' + streams]
+            
         print_and_log(to_write)
         sys.exit(0)
 
