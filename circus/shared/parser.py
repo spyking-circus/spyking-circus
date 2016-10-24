@@ -325,7 +325,7 @@ class CircusParser(object):
         return data
 
 
-    def get_data_file(self, is_empty=False, params={}, source=False):
+    def get_data_file(self, is_empty=False, params={}, source=False, has_been_created=True):
 
         for key, value in self.parser._sections['data'].items():
             if key not in params:
@@ -366,11 +366,14 @@ class CircusParser(object):
                 data_file              += ".dat" 
             
             else:
-                data_file = self.get('data', 'data_file_no_overwrite')
-                if not os.path.exists(data_file):
-                    if comm.rank== 0:
-                        print_and_log(['The overwrite option is only valid if filtering step is launched before!'], 'error', logger)
-                    sys.exit(1)
+                if has_been_created:
+                  data_file = self.get('data', 'data_file_no_overwrite')
+                  if not os.path.exists(data_file):
+                      if comm.rank== 0:
+                          print_and_log(['The overwrite option is only valid if filtering step is launched before!'], 'error', logger)
+                      sys.exit(1)
+                else:
+                  pass 
 
         return self._create_data_file(data_file, is_empty, params, stream_mode)
 

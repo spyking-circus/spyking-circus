@@ -36,7 +36,6 @@ Release 0.5
 * clustering:smart_search and merging:correct_lag are now True by default
 * fix a minor bug in the smart search, biasing the estimation of densities
 * fix a bug with the masks and the smart-search: improving results
-* add an overwrite option, to let the user select if files should be overwritten or not during filtering
 * if using streams, or internal t_start, output times are on the same time axis than the datafile
 
 

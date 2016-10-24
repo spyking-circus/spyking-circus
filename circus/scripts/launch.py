@@ -145,7 +145,7 @@ but a subset x,y can be done. Steps are:
             os.remove(logfile)
         logger       = init_logging(logfile)
         params       = CircusParser(filename)
-        data_file    = params.get_data_file(source=True)
+        data_file    = params.get_data_file(source=True, has_been_created=False)
         overwrite    = params.getboolean('data', 'overwrite')
         file_format  = params.get('data', 'file_format')
         if overwrite:

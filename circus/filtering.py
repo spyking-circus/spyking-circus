@@ -237,7 +237,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         if comm.rank == 0:
             print_and_log(['Overwrite is set to False, so creating a new datafile...'], 'debug', logger)
-        data_file_in  = params.get_data_file(source=True)
+        data_file_in  = params.get_data_file(source=True, has_been_created=False)
         data_file_out = params.get_data_file(is_empty=True)
         data_file_out.allocate(shape=data_file_in.shape)
 

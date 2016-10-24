@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def data_stats(params, show=True, export_times=False):
 
     
-    data_file   = params.get_data_file(source=True)
+    data_file   = params.get_data_file(source=True, has_been_created=False)
     stream_mode = data_file.is_stream    
     chunk_size  = 60 * data_file.sampling_rate
     nb_chunks   = data_file.duration // chunk_size 
@@ -46,6 +46,7 @@ def data_stats(params, show=True, export_times=False):
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
+             "Overwrite                   : %s" %params.get('data', 'overwrite'),
              "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
              "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
     
