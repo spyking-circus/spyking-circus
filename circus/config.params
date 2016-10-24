@@ -8,6 +8,7 @@ stream_mode    = None                  # None by default. Can be multi-files, or
 mapping        = ~/probes/mea_252.prb  # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                       # Suffix to add to generated files
 global_tmp     = True                  # should be False if local /tmp/ has enough space (better for clusters)
+overwrite      = True                  # If you want to filter or remove artefacts on site. Data are duplicated otherwise
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)

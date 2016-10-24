@@ -56,7 +56,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         loc_nb_chunks = len(to_process)
         N_total       = params.nb_channels
         goffset       = data_file_in.duration
-
+        
         if comm.rank == 0:
             if do_filtering:
                 to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
@@ -83,6 +83,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     global_median = numpy.median(local_chunk, 1)
                 for i in nodes:
                     local_chunk[:, i] -= global_median
+
+            if data_file_in != data_file_out and data_file_in:
+                t_offset -= data_file_in._times[data_file_in._get_streams_index_by_time(t_offset)]        
 
             data_file_out.set_data(t_offset, local_chunk)
 

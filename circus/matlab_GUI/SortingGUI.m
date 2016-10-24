@@ -1262,6 +1262,10 @@ if nargin == 1
     else
         plot(handles.AmpTimeWin,0,0,'.')
     end
+
+    xlim_old = get(handles.AmpTimeWin, 'XLim');
+    set(handles.AmpTimeWin, 'XLim', [handles.t_start handles.t_start+xlim_old(2)]);
+
     hold(handles.AmpTimeWin,'on')
     plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2),'color',[0.5 0.5 0.5],'LineWidth',2)
     plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2)*handles.AmpLim(CellNb,1),'color',[0.5 0.5 0.5],'LineWidth',2)

@@ -399,6 +399,11 @@ class DataFile(object):
         return t_start, t_stop
 
 
+    def _get_streams_index_by_time(self, local_time):
+        if self.is_stream:
+            cidx  = numpy.searchsorted(self._times, local_time, 'right') - 1           
+            return cidx
+
     def is_first_chunk(self, idx, nb_chunks):
 
         if self.is_stream:
@@ -421,7 +426,7 @@ class DataFile(object):
                 return True
         return False
 
-    def get_snippet(self, time, length, nodes=None):
+    def get_snippet(self, global_time, length, nodes=None):
         '''
             This function should return a time snippet of size length x nodes
             - time is in timestep
@@ -429,11 +434,11 @@ class DataFile(object):
             - nodes is a list of nodes, between 0 and nb_channels
         '''
         if self.is_stream:
-            cidx  = numpy.searchsorted(self._times, time, 'right') - 1
-            time -= self._times[cidx]
-            return self._sources[cidx].get_snippet(time, length, nodes)
+            cidx = self._get_streams_index_by_time(global_time)
+            return self._sources[cidx].get_snippet(global_time, length, nodes)
         else:
-            return self.get_data(0, chunk_size=length, padding=(time, time), nodes=nodes)[0]
+            local_time = global_time - self.t_start
+            return self.get_data(0, chunk_size=length, padding=(local_time, local_time), nodes=nodes)[0]
 
 
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
@@ -446,14 +451,14 @@ class DataFile(object):
             return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start + idx*chunk_size      
 
 
-    def set_data(self, time, data):
+    def set_data(self, global_time, data):
 
         if self.is_stream:
-            cidx  = numpy.searchsorted(self._times, time, 'right') - 1
-            time -= self._times[cidx]
-            return self._sources[cidx].write_chunk(time, data)
+            cidx = self._get_streams_index_by_time(global_time)
+            return self._sources[cidx].write_chunk(global_time, data)
         else:
-            return self.write_chunk(time, data)
+            local_time = global_time - self.t_start
+            return self.write_chunk(local_time, data)
 
 
     def analyze(self, chunk_size, strict=False):
