@@ -1,6 +1,6 @@
 function varargout = SortingGUI(varargin)
 
-% SortingGUI(20000,'mydata/mydata','.mat','../mappings.mat',2,'int16',0,0.1)
+% SortingGUI(20000,'mydata/mydata','.mat','../mappings.mat', 2, 0, 'int16', 0, 0.1)
 %SamplingRate, filename, extension, mappingfile, RPVlimit, format,
 %HeaderSize, Gain
 
@@ -100,11 +100,18 @@ handles.H.MaxdiffY  = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
 handles.H.zoom_coef = max(handles.H.MaxdiffX,handles.H.MaxdiffY);
 handles.H.lines     = cell(3,1);
 
-if length(varargin)<=4
+if length(varargin)<=5
     handles.RPVlim = 2;
 else
     handles.RPVlim = varargin{5};
 end
+
+if length(varargin)<=6
+    handles.t_start = 0;
+else
+    handles.t_start = varargin{6};
+end
+
 
 
 

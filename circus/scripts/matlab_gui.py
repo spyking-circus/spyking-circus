@@ -41,6 +41,7 @@ def main(argv=None):
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
     gain           = data_file.gain
+    t_start        = data_file.t_start
     file_format    = data_file.description
 
     if file_format not in supported_by_matlab:
@@ -87,12 +88,12 @@ def main(argv=None):
 
     # Use quotation marks for string arguments
     if file_format not in supported_by_matlab:
-        gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2]
+        gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, t_start]
         is_string = [False, True, True, True, False]
     
     else:
 
-        gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
+        gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, t_start, data_dtype, data_offset, gain, filename]
         is_string = [False, True, True, True, False, True, False, False, True]
     
     arguments = ', '.join(["'%s'" % arg if s else "%s" % arg
