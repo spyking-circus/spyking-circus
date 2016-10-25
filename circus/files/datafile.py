@@ -333,9 +333,9 @@ class DataFile(object):
 
         if self.is_master:
             if nb_params > 0:
-                print_and_log(to_write, 'error', logger)
+                print_and_log(to_write, 'info', logger)
             else:
-                print_and_log(['You do not need to specify anything for file format %s' %self.description.upper()], 'error', logger)
+                print_and_log(['You do not need to specify anything for file format %s' %self.description.upper()], 'info', logger)
 
 
     def _scale_data_to_float32(self, data):
