@@ -318,7 +318,7 @@ class DataFile(object):
         nb_params = 0
 
         for key, value in self._required_fields.items():    
-            mystring  = '-- %s -- of type %s' %(key, str(value))
+            mystring  = '-- %s -- %s' %(key, str(value))
             mystring  += ' [** mandatory **]'
             to_write  += [mystring]
             nb_params += 1
@@ -326,7 +326,7 @@ class DataFile(object):
         to_write += ['']
 
         for key, value in self._default_values.items():            
-            mystring  = '-- %s -- of type %s' %(key, str(type(value)))
+            mystring  = '-- %s -- %s' %(key, str(type(value)))
             mystring  += ' [default is %s]' %value
             to_write  += [mystring]
             nb_params += 1
