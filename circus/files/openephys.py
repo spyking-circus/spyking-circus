@@ -14,6 +14,11 @@ class OpenEphysFile(DataFile):
     RECORD_SIZE        = 8 + 2*2 + SAMPLES_PER_RECORD*2 + 10 # size of each continuous record in bytes
     OFFSET_PER_BLOCK   = ((8 + 2*2)/2, 10/2)
 
+    _params            = {'data_dtype'   : '>i2',
+                          'dtype_offset' : 0,
+                          'data_offset'  : NUM_HEADER_BYTES}
+
+
     def _get_sorted_channels_(self, folderpath):
         return sorted([int(f.split('_CH')[1].split('.')[0]) for f in os.listdir(folderpath) 
                     if '.continuous' in f and '_CH' in f]) 
@@ -37,9 +42,6 @@ class OpenEphysFile(DataFile):
         self.header     = self._read_header_(self.all_files[0])
         
         header                  = {}
-        header['data_dtype']    = '>i2'
-        header['dtype_offset']  = 0
-        header['data_offset']   = self.NUM_HEADER_BYTES
         header['sampling_rate'] = float(self.header['sampleRate'])        
         header['nb_channels']   = len(self.all_files)
         header['gain']          = float(self.header['bitVolts'])        

@@ -51,7 +51,8 @@ class DataFile(object):
     _shape           = None             # The total shape of the data (nb time steps, nb channels) accross streams if any
     _t_start         = None             # The global t_start of the data
     _t_stop          = None             # The final t_stop of the data, accross all streams if any
-    
+    _params          = {}
+
     # This is a dictionary of values that need to be provided to the constructor, with the corresponding type
     _required_fields = {}
 
@@ -93,7 +94,6 @@ class DataFile(object):
         else:
             self.is_stream = False
 
-        self._params     = {}
         self.file_name   = file_name
         self.is_empty    = is_empty
         self.stream_mode = stream_mode
@@ -136,10 +136,25 @@ class DataFile(object):
     def _read_from_header(self):
         '''
             This function is called only if the file is not empty, and should fill the values in the constructor
-            such as _shape
+            such as _shape. It returns a dictionnary, that will be added to self._params based on the constrains given by
+            required_fields and default_values
         '''
         raise NotImplementedError('The _read_from_header method needs to be implemented for file format %s' %self.description)
 
+
+    def _open(self, mode=''):
+        ''' 
+            This function should open the file
+            - mode can be to read only 'r', or to write 'w'
+        '''
+        raise NotImplementedError('The open method needs to be implemented for file format %s' %self.description)
+
+
+    def _close(self):
+        '''
+            This function closes the file
+        '''
+        raise NotImplementedError('The close method needs to be implemented for file format %s' %self.description)
 
     
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
@@ -165,21 +180,6 @@ class DataFile(object):
             - data must be a 2D matrix of size time_length x nb_channels
         '''
         raise NotImplementedError('The set_data method needs to be implemented for file format %s' %self.description)
-
-
-    def _open(self, mode=''):
-        ''' 
-            This function should open the file
-            - mode can be to read only 'r', or to write 'w'
-        '''
-        raise NotImplementedError('The open method needs to be implemented for file format %s' %self.description)
-
-
-    def _close(self):
-        '''
-            This function closes the file
-        '''
-        raise NotImplementedError('The close method needs to be implemented for file format %s' %self.description)
 
 
     def allocate(self, shape, data_dtype):
@@ -306,9 +306,7 @@ class DataFile(object):
         for key, value in self._required_fields.items():
             if key not in params.keys():
                 missing[key] = value
-                if self.is_master:
-                    print_and_log(['%s must be specified as type %s in the [data] section!' %(key, str(value))], 'error', logger)
-        
+                
         if len(missing) > 0:
             self._display_requirements_()
             sys.exit(1)
@@ -316,20 +314,28 @@ class DataFile(object):
 
     def _display_requirements_(self):
 
-        to_write = ['The parameters for %s file format are:' %self.description.upper(), '']
+        to_write  = ['The parameters for %s file format are:' %self.description.upper(), '']
+        nb_params = 0
 
         for key, value in self._required_fields.items():    
-            mystring = '-- %s -- of type %s' %(key, str(value))
-            mystring += ' [** mandatory **]'
-            to_write += [mystring]
+            mystring  = '-- %s -- of type %s' %(key, str(value))
+            mystring  += ' [** mandatory **]'
+            to_write  += [mystring]
+            nb_params += 1
+
+        to_write += ['']
 
         for key, value in self._default_values.items():            
-            mystring = '-- %s -- of type %s' %(key, str(type(value)))
-            mystring += ' [default is %s]' %value
-            to_write += [mystring]
+            mystring  = '-- %s -- of type %s' %(key, str(type(value)))
+            mystring  += ' [default is %s]' %value
+            to_write  += [mystring]
+            nb_params += 1
 
         if self.is_master:
-            print_and_log(to_write, 'error', logger)
+            if nb_params > 0:
+                print_and_log(to_write, 'error', logger)
+            else:
+                print_and_log(['You do not need to specify anything for file format %s' %self.description.upper()], 'error', logger)
 
 
     def _scale_data_to_float32(self, data):

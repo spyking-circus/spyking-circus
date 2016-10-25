@@ -117,7 +117,15 @@ but a subset x,y can be done. Steps are:
     f_next, extens = os.path.splitext(filename)
 
     if info:    
-        print_and_log(list_all_file_format())
+        if args.datafile.lower() in __supported_data_files__:
+            filename = 'tmp'
+            if len(__supported_data_files__[args.datafile].extension) > 0:
+                filename += __supported_data_files__[args.datafile].extension[0]
+
+            __supported_data_files__[args.datafile](filename, {}, is_empty=True)._display_requirements_()
+        else:
+            print_and_log(['', 'To get info on any particular file format, do:', '>> spyking-circus file_format -i', ''], 'default')
+            print_and_log(list_all_file_format())
         sys.exit(0)
 
     if extens == '.params':
