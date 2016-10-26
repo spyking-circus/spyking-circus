@@ -40,6 +40,13 @@ if HAVE_NEUROSHARE:
     from mcd import MCDFile
     __supported_data_files__[MCDFile.description] = MCDFile
 
+    from blackrock import BlackRockFile
+    __supported_data_files__[BlackRockFile.description] = BlackRockFile
+
+    from plexon import PlexonFile
+    __supported_data_files__[PlexonFile.description] = PlexonFile
+
+
 
 def list_all_file_format():
     to_write = ['The file formats that are supported are:', '']
