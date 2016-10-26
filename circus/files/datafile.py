@@ -182,16 +182,6 @@ class DataFile(object):
         raise NotImplementedError('The set_data method needs to be implemented for file format %s' %self.description)
 
 
-    def allocate(self, shape, data_dtype):
-        '''
-            This function may be used during benchmarking mode, or if the file format does not have write access
-            Starting from an empty file, it will allocates a given size:
-                - shape is a tuple with (time length, nb_channels)
-                - data_dtype is the data type
-        '''
-        raise NotImplementedError('The allocate method needs to be implemented for file format %s' %self.description)
-
-
     def set_streams(self, stream_mode):
         '''
             This function is only used for file format supporting streams, and need to return a list of datafiles, with
@@ -254,6 +244,7 @@ class DataFile(object):
     #########           End of methods that need to be overwritten for a given fileformat                      #######
     ##################################################################################################################
     ##################################################################################################################
+
 
     def _check_filename(self, file_name):
         if not os.path.exists(file_name):

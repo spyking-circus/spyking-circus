@@ -70,17 +70,5 @@ class NumpyFile(RawBinaryFile):
         self.data = open_memmap(self.file_name, mode=mode)
 
 
-    def allocate(self, shape, data_dtype=None):
-        if data_dtype is None:
-            data_dtype = self.data_dtype
-        
-        if self.is_master:
-            self.data = open_memmap(self.file_name, shape=shape, dtype=data_dtype, mode='w+')
-        comm.Barrier()
-        
-        self._read_from_header()
-        del self.data
-
-
     def _close(self):
         self.data = None
