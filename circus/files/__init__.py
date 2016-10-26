@@ -7,12 +7,13 @@ from nwb import NWBFile
 from arf import ARFFile
 from brw import BRWFile
 from npy import NumpyFile
+from nix import NixFile
 
-try:
-    import nixio
-    HAVE_NIX_SUPPORT = True
-except ImportError:
-    HAVE_NIX_SUPPORT = False
+# try:
+#     import nixio
+#     HAVE_NIX_SUPPORT = True
+# except ImportError:
+#     HAVE_NIX_SUPPORT = False
 
 try:
     import neuroshare
@@ -27,6 +28,7 @@ __supported_data_files__ = {
     OpenEphysFile.description : OpenEphysFile,
     KwdFile.description : KwdFile,
     NWBFile.description : NWBFile,
+    NixFile.description : NixFile,
     ARFFile.description : ARFFile,
     BRWFile.description : BRWFile,
     NumpyFile.description : NumpyFile
