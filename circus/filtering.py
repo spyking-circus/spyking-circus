@@ -55,7 +55,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_process    = all_chunks[comm.rank::comm.size]
         loc_nb_chunks = len(to_process)
         N_total       = params.nb_channels
-        goffset       = data_file_in.duration
         
         if comm.rank == 0:
             if do_filtering:
@@ -85,8 +84,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk[:, i] -= global_median
 
             if data_file_in != data_file_out and data_file_in:
-                t_offset -= data_file_in._times[data_file_in._get_streams_index_by_time(t_offset)]        
-
+                if data_file_in.is_stream:
+                    t_offset -= data_file_in._times[data_file_in._get_streams_index_by_time(t_offset)]        
+                else:
+                    t_offset -= data_file_in.t_start        
+                
             data_file_out.set_data(t_offset, local_chunk)
 
             if comm.rank == 0:
@@ -240,10 +242,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         if comm.rank == 0:
             print_and_log(['Overwrite is set to False, so creating a new datafile...'], 'debug', logger)
-        data_file_in  = params.get_data_file(source=True, has_been_created=False)
         data_file_out = params.get_data_file(is_empty=True)
-        data_file_out.allocate(shape=data_file_in.shape)
-
+        data_file_in  = params.get_data_file(source=True, has_been_created=False, params={})
+        data_file_out.allocate(shape=data_file_in.shape)        
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):

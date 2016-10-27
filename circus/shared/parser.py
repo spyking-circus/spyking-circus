@@ -345,7 +345,7 @@ class CircusParser(object):
             if not source:
                 
                 # First we read the original data file, that should not be empty                
-                self._create_data_file(data_file, False, params, stream_mode)
+                tmp = self._create_data_file(data_file, False, params, stream_mode)
 
                 # Then we change the dataa_file name
                 data_file = self.get('data', 'data_file_no_overwrite')
@@ -373,7 +373,8 @@ class CircusParser(object):
                           print_and_log(['The overwrite option is only valid if filtering step is launched before!'], 'error', logger)
                       sys.exit(1)
                 else:
-                  pass 
+                    if comm.rank== 0:
+                        print_and_log(['The file has not yet been created!'], 'debug', logger)
 
         return self._create_data_file(data_file, is_empty, params, stream_mode)
 

@@ -355,7 +355,7 @@ class DataFile(object):
         if self.dtype_offset != 0:
             data  += self.dtype_offset
         
-        if data.dtype != self.data_dtype:
+        if (data.dtype != self.data_dtype) and (self.data_dtype != numpy.float32):
             data = data.astype(self.data_dtype)
 
         return data
@@ -385,7 +385,6 @@ class DataFile(object):
 
         t_start     = idx*numpy.int64(chunk_size)+padding[0]
         t_stop      = (idx+1)*numpy.int64(chunk_size)+padding[1]
-        local_shape = t_stop - t_start
 
         if t_stop > self.duration:
             t_stop = self.duration
