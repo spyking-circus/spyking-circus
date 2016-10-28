@@ -9,12 +9,6 @@ from brw import BRWFile
 from npy import NumpyFile
 from nix import NixFile
 
-# try:
-#     import nixio
-#     HAVE_NIX_SUPPORT = True
-# except ImportError:
-#     HAVE_NIX_SUPPORT = False
-
 try:
     import neuroshare
     HAVE_NEUROSHARE = True
@@ -34,9 +28,6 @@ __supported_data_files__ = {
     NumpyFile.description : NumpyFile
 }
 
-#if HAVE_NIX_SUPPORT:
-#	from nixfile import NixFile
-#	__supported_data_files__[NIXFile._description] = NixFile
 
 if HAVE_NEUROSHARE:
     from mcd import MCDFile

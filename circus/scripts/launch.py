@@ -358,6 +358,7 @@ but a subset x,y can be done. Steps are:
             mygui = gui.PreviewGUI(new_params)
             shutil.rmtree(tmp_path_loc)
         elif result:
+            data_file = params.get_data_file()
             print_and_log(['Launching the result GUI...'], 'debug', logger)
             mygui = gui.PreviewGUI(params, show_fit=True)
         sys.exit(app.exec_())

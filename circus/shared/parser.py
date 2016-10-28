@@ -344,7 +344,8 @@ class CircusParser(object):
 
             if not source:
                 
-                # First we read the original data file, that should not be empty                
+                # First we read the original data file, that should not be empty 
+                print_and_log(['Reading first the real data file to get the parameters'], 'debug', logger)               
                 tmp = self._create_data_file(data_file, False, params, stream_mode)
 
                 # Then we change the dataa_file name
@@ -374,7 +375,7 @@ class CircusParser(object):
                       sys.exit(1)
                 else:
                     if comm.rank== 0:
-                        print_and_log(['The file has not yet been created!'], 'debug', logger)
+                        print_and_log(['The copy file has not yet been created! Returns normal file'], 'debug', logger)
 
         return self._create_data_file(data_file, is_empty, params, stream_mode)
 

@@ -1,5 +1,4 @@
 import h5py, numpy, re, sys
-import ConfigParser as configparser
 from hdf5 import H5File
 
 class NWBFile(H5File):

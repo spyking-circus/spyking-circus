@@ -1,6 +1,5 @@
 import h5py, numpy, re, sys
-from neuroshare import NeuroShareFile
-import neuroshare as ns
+from neurofile import NeuroShareFile
 
 class PlexonFile(NeuroShareFile):
 

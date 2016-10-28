@@ -1,5 +1,5 @@
 import h5py, numpy, re, sys, os
-from datafile import DataFile, get_offset, comm
+from datafile import DataFile, comm
 
 class RawBinaryFile(DataFile):
 

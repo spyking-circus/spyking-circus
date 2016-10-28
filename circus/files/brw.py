@@ -1,6 +1,5 @@
 import h5py, numpy, re, sys
 from hdf5 import H5File
-from datafile import get_offset
 
 class BRWFile(H5File):
 

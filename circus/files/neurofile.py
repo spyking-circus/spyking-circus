@@ -19,7 +19,7 @@ class NeuroShareFile(DataFile):
         header['sampling_rate'] = self.data.entities[0].sample_rate
         header['gain']          = self.data.entities[0].resolution
 
-        self.size  = self.data.time_span * header['sampling_rate']
+        self.size   = self.data.time_span * header['sampling_rate']
         self._shape = (self.size, header['nb_channels'])
         self._close()
 
