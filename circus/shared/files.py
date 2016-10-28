@@ -100,17 +100,21 @@ def copy_header(header, file_in, file_out):
 
 
 def get_multi_files(params):
-    file_name   = params.get('data', 'data_multi_file')
-    dirname     = os.path.abspath(os.path.dirname(file_name))
-    all_files   = os.listdir(dirname)
-    pattern     = os.path.basename(file_name)
-    to_process  = []
-    count       = 0
+    file_name       = params.get('data', 'data_multi_file')
+    dirname         = os.path.abspath(os.path.dirname(file_name))
+    all_files       = os.listdir(dirname)
+    fname           = os.path.basename(file_name)
+    fn, ext         = os.path.splitext(fname)
+    head, sep, tail = fn.rpartition('_')
+    mindigits       = len(tail)
+    basefn, fnum    = head, int(tail)
+    to_process      = []
 
-    while pattern in all_files:
-        to_process += [os.path.join(os.path.abspath(dirname), pattern)]
-        pattern     = pattern.replace(str(count), str(count+1))
-        count      += 1
+    while fname in all_files:
+        to_process += [os.path.join(os.path.abspath(dirname), fname)]
+        fnum       += 1
+        fmtstring   = '_%%0%dd%%s' % mindigits
+        fname       = basefn + fmtstring % (fnum, ext)
 
     print_and_log(['Multi-files:'] + to_process, 'debug', params)
     return to_process
@@ -300,8 +304,11 @@ def load_parameters(file_name):
 
     if parser.getboolean('data', 'multi-files'):
         parser.set('data', 'data_multi_file', file_name)
-        pattern     = os.path.basename(file_name).replace('0', 'all')
-        multi_file  = os.path.join(file_path, pattern)
+        fname = os.path.basename(file_name)
+        fn, ext = os.path.splitext(fname)
+        head, sep, tail = fn.rpartition('_')
+        mfname = head + sep + 'all' + ext # replace file number with 'all'
+        multi_file = os.path.join(file_path, mfname)
         parser.set('data', 'data_file', multi_file)
         f_next, extension = os.path.splitext(multi_file)
     else:
