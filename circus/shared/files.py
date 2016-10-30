@@ -108,12 +108,12 @@ def get_multi_files(params):
     head, sep, tail = fn.rpartition('_')
     mindigits       = len(tail)
     basefn, fnum    = head, int(tail)
+    fmtstring       = '_%%0%dd%%s' % mindigits
     to_process      = []
 
     while fname in all_files:
         to_process += [os.path.join(os.path.abspath(dirname), fname)]
         fnum       += 1
-        fmtstring   = '_%%0%dd%%s' % mindigits
         fname       = basefn + fmtstring % (fnum, ext)
 
     print_and_log(['Multi-files:'] + to_process, 'debug', params)
