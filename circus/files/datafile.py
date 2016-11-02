@@ -191,24 +191,28 @@ class DataFile(object):
         '''
 
         if stream_mode == 'multi-files':
-            dirname     = os.path.abspath(os.path.dirname(self.file_name))
-            all_files   = os.listdir(dirname)
-            pattern     = os.path.basename(self.file_name)
-            sources     = []
-            to_write    = []
-            count       = 0
-            global_time = 0
-            params      = self.get_description()
+            dirname         = os.path.abspath(os.path.dirname(self.file_name))
+            all_files       = os.listdir(dirname)
+            fname           = os.path.basename(self.file_name)
+            fn, ext         = os.path.splitext(fname)
+            head, sep, tail = fn.rpartition('_')
+            mindigits       = len(tail)
+            basefn, fnum    = head, int(tail)
+            fmtstring       = '_%%0%dd%%s' % mindigits
+            sources         = []
+            to_write        = []
+            global_time     = 0
+            params          = self.get_description()
 
-            while pattern in all_files:
-                to_process = os.path.join(os.path.abspath(dirname), pattern)
-                pattern    = pattern.replace(str(count), str(count+1))
-                count     += 1
-                new_data   = type(self)(to_process, params)
+            while fname in all_files:
+                new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
                 sources     += [new_data]
-                to_write    += ['We found file %s with t_start %d and duration %d' %(new_data.file_name, new_data.t_start, new_data.duration)]
+                fnum        += 1
+                fmtstring    = '_%%0%dd%%s' % mindigits
+                fname        = basefn + fmtstring % (fnum, ext)
+                to_write    += ['We found the datafile %s with t_start %s, and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
 
             print_and_log(to_write, 'debug', logger)
             return sources
