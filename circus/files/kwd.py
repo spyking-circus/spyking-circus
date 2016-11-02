@@ -37,7 +37,7 @@ class KwdFile(H5File):
                 params['recording_number'] = all_streams[idx[count]]
                 new_data   = type(self)(self.file_name, params)
                 sources   += [new_data]
-                to_write  += ['We found file %s with t_start %d and duration %d' %(new_data.file_name, new_data.t_start, new_data.duration)]
+                to_write  += ['We found the datafile %s with t_start %d and duration %d' %(new_data.file_name, new_data.t_start, new_data.duration)]
 
             print_and_log(to_write, 'debug', logger)
 

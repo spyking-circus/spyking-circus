@@ -212,7 +212,7 @@ class DataFile(object):
                 fnum        += 1
                 fmtstring    = '_%%0%dd%%s' % mindigits
                 fname        = basefn + fmtstring % (fnum, ext)
-                to_write    += ['We found the datafile %s with t_start %s, and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
+                to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
 
             print_and_log(to_write, 'debug', logger)
             return sources
