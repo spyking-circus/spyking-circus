@@ -203,7 +203,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, extension):
             os.makedirs(output_path)
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', params)
         
-            numpy.save(os.path.join(output_path, 'whitening_mat'), load_data(params, 'spatial_whitening').astype(numpy.double))
+            if params.getboolean('whitening', 'spatial'):
+                whitening_mat = io.load_data(params, 'spatial_whitening').astype(numpy.double)
+                numpy.save(os.path.join(output_path, 'whitening_mat'), whitening_mat)
+                numpy.save(os.path.join(output_path, 'whitening_mat_inv'), numpy.linalg.inv(whitening_mat))
+            else:
+                numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.eye(N_e))
+
             numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe).astype(numpy.double))
             nodes, edges   = get_nodes_and_edges(params)
             numpy.save(os.path.join(output_path, 'channel_map'), nodes.astype(numpy.int32))
