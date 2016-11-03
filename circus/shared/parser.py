@@ -157,7 +157,7 @@ class CircusParser(object):
         if self.parser.getboolean('triggers', 'clean_artefact'):
             if (self.parser.get('triggers', 'trig_file') == '') or (self.parser.get('triggers', 'trig_windows') == ''):
                 if comm.rank == 0:
-                    print_and_log(["trig_file and trig_windows must be specified"], 'error', logger)
+                    print_and_log(["trig_file and trig_windows must be specified in [triggers]"], 'error', logger)
                 sys.exit(1)
 	    
         self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
@@ -166,13 +166,13 @@ class CircusParser(object):
         test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
         if not test:
             if comm.rank == 0:
-                print_and_log(["Only 5 extraction modes: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
+                print_and_log(["Only 4 extraction modes in [clustering]: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
             sys.exit(1)
 
         test = (self.parser.get('detection', 'peaks').lower() in ['negative', 'positive', 'both'])
         if not test:
             if comm.rank == 0:
-                print_and_log(["Only 3 detection modes for peaks: negative, positive, both"], 'error', logger)
+                print_and_log(["Only 3 detection modes for peaks in [detection]: negative, positive, both"], 'error', logger)
 
         try:
             os.makedirs(f_next)
@@ -190,46 +190,53 @@ class CircusParser(object):
             test = (self.parser.getfloat(section, 'nb_elts') > 0) and (self.parser.getfloat(section, 'nb_elts') <= 1)
             if not test: 
                 if comm.rank == 0:
-                    print_and_log(["nb_elts in %s should be in [0,1]" %section], 'error', logger)
+                    print_and_log(["nb_elts in [%s] should be in [0,1]" %section], 'error', logger)
                 sys.exit(1)
 
         test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
         if not test:
             if comm.rank == 0:
-                print_and_log(["nclus_min in clustering should be in [0,1["], 'error', logger)
+                print_and_log(["nclus_min in [clustering] should be in [0,1["], 'error', logger)
             sys.exit(1)
 
         test = (self.parser.getfloat('clustering', 'noise_thr') >= 0) and (self.parser.getfloat('clustering', 'noise_thr') <= 1)
         if not test:
             if comm.rank == 0:
-                print_and_log(["noise_thr in clustering should be in [0,1]"], 'error', logger)
+                print_and_log(["noise_thr in [clustering] should be in [0,1]"], 'error', logger)
             sys.exit(1)
 
         test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)
         if not test:
             if comm.rank == 0:
-                print_and_log(["test_size in validating should be in ]0,1["], 'error', logger)
+                print_and_log(["test_size in [validating] should be in ]0,1["], 'error', logger)
+            sys.exit(1)
+
+        test = (self.parser.getfloat('clustering', 'cc_merge') >= 0) and (self.parser.getfloat('clustering', 'cc_merge') <= 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["cc_merge in [validating] should be in [0,1]"], 'error', logger)
+            sys.exit(1)
+
+        test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["nclus_min in [validating] should be in [0,1["], 'error', logger)
             sys.exit(1)
 
         fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
-        test = self.parser.get('clustering', 'make_plots').lower() in fileformats
-        if not test:
-            if comm.rank == 0:
-                print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
-            sys.exit(1)
+        for section in ['clustering', 'validating', 'triggers']:
+          test = self.parser.get('clustering', 'make_plots').lower() in fileformats
+          if not test:
+              if comm.rank == 0:
+                  print_and_log(["make_plots in [%s] should be in %s" %(section, str(fileformats))], 'error', logger)
+              sys.exit(1)
 
-        test = self.parser.get('validating', 'make_plots').lower() in fileformats
-        if not test:
-            if comm.rank == 0:
-                print_and_log(["make_plots in clustering should be in %s" %str(fileformats)], 'error', logger)
-            sys.exit(1)
-	    
         dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
         dispersion     = map(float, dispersion)
         test =  (0 < dispersion[0]) and (0 < dispersion[1])
         if not test:
             if comm.rank == 0:
-                print_and_log(["min and max dispersions should be positive"], 'error', logger)
+                print_and_log(["min and max dispersions in [clustering] should be positive"], 'error', logger)
             sys.exit(1)
 	        
 
@@ -237,7 +244,7 @@ class CircusParser(object):
         test = self.parser.get('converting', 'export_pcs').lower() in pcs_export
         if not test:
             if comm.rank == 0:
-                print_and_log(["export_pcs in converting should be in %s" %str(pcs_export)], 'error', logger)
+                print_and_log(["export_pcs in [converting] should be in %s" %str(pcs_export)], 'error', logger)
             sys.exit(1)
         else:
             if self.parser.get('converting', 'export_pcs').lower() == 'none':
@@ -276,6 +283,7 @@ class CircusParser(object):
             except Exception:
                 if comm.rank == 0:
                     print_and_log(['N_t must now be defined in the [detection] section'], 'error', logger)
+                sys.exit(1)
 
             self._N_t = int(self.rate*self._N_t*1e-3)
             if numpy.mod(self._N_t, 2) == 0:
@@ -371,7 +379,7 @@ class CircusParser(object):
                   data_file = self.get('data', 'data_file_no_overwrite')
                   if not os.path.exists(data_file):
                       if comm.rank== 0:
-                          print_and_log(['The overwrite option is only valid if filtering step is launched before!'], 'error', logger)
+                          print_and_log(['The overwrite option is only valid if the filtering step is launched before!'], 'error', logger)
                       sys.exit(1)
                 else:
                     if comm.rank== 0:
