@@ -15,10 +15,12 @@ Release 0.5
 * can now work natively with MCD data files (.mcd) [using neuroshare]
 * can now work natively with Kwik (KWD) data files (.kwd)
 * can now work natively with NeuroDataWithoutBorders files (.nwb)
+* can now work natively with NiX files (.nix)
 * can now work natively with any HDF5-like structure data files (.h5)
 * can now work natively with Arf data files (.arf)
 * can now work natively with 3Brain data files (.brw)
 * can now work natively with Numpy arrays (.npy)
+* can now work natively with all file format supported by NeuroShare (plexon, blackrock, mcd, ...)
 * can still work natively with raw binary files with/without headers :)
 * faster IO for raw binary files
 * refactoring of the exports during multi-file/preview/benchmark: everything is now handled in raw binary
@@ -38,6 +40,7 @@ Release 0.5
 * fix a bug with the masks and the smart-search: improving results
 * addition of an overwrite parameter. Note that any t_start/t_stop infos are lost
 * if using streams, or internal t_start, output times are on the same time axis than the datafile
+* more robust parameter checking
 
 
 =============
