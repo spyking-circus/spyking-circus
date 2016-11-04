@@ -14,6 +14,7 @@ from circus.shared.utils import purge
 
 logger = logging.getLogger(__name__)
 
+
 def data_stats(params, show=True, export_times=False):
 
     

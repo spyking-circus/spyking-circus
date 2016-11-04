@@ -76,6 +76,7 @@ but a subset x,y can be done. Steps are:
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file (or a list of commands if batch mode)')
+    parser.add_argument('-i', '--info', help='list the file formats supported by SpyKING CIRCUS', action='store_true')
     parser.add_argument('-m', '--method',
                         default='filtering,whitening,clustering,fitting',
                         help=method_help)
@@ -94,8 +95,7 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-o', '--output', help='output file [for generation of synthetic benchmarks]')
     parser.add_argument('-t', '--type', help='benchmark type',
                         choices=['fitting', 'clustering', 'synchrony'])
-    parser.add_argument('-i', '--info', help='List the file formats supported by SpyKING CIRCUS', action='store_true')
-
+    
     if len(argv) == 0:
         parser.print_help()
         sys.exit(0)
