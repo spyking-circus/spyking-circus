@@ -134,16 +134,34 @@ class CircusParser(object):
                 print_and_log(['The number of analyzed channels is higher than the number of recorded channels'], 'error', logger)
             sys.exit(1)
 
+        to_write = ["You must specify explicitly the file format in the config file", 
+                    "Please have a look to the documentation and add a file_format", 
+                    "parameter in the [data] section. Valid files formats can be:", '']
         try:
             self.file_format = self.parser.get('data', 'file_format')
         except Exception:
             if comm.rank == 0:
-                print_and_log(["Now you must specify explicitly the file format in the config file", 
-                       "Please have a look to the documentation and add a file_format", 
-                       "parameter in the [data] section. Valid files formats can be:",
-                       "", 
-                       ", ".join(__supported_data_files__.keys())], 'error', logger)
+                for f in __supported_data_files__.keys():
+                    to_write += ['-- %s -- %s' %(f, __supported_data_files__[f].extension)]
+
+                to_write += ['', "To get more info on a given file format, see", 
+                    ">> spyking-circus file_format -i"]
+
+                print_and_log(to_write, 'error', logger)
             sys.exit(1)	
+
+        test = self.file_format.lower() in __supported_data_files__.keys()
+        if not test:
+            if comm.rank == 0:
+                for f in __supported_data_files__.keys():
+                    to_write += ['-- %s -- %s' %(f, __supported_data_files__[f].extension)]
+
+                to_write += ['', "To get more info on a given file format, see", 
+                    ">> spyking-circus file_format -i"]
+
+                print_and_log(to_write, 'error', logger)
+            sys.exit(1) 
+
 
         try: 
             self.parser.get('detection', 'radius')
