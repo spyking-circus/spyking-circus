@@ -51,6 +51,14 @@ test_script:
   - FOR /R dist %%F in (*.whl) do pip install %%F
   - spyking-circus -h
 
+after_test:
+  - 'if "%APPVEYOR_PULL_REQUEST_NUMBER%" == "" if "%APPVEYOR_REPO_NAME%" == "spyking-circus/spyking-circus" if "%APPVEYOR_REPO_BRANCH%" == "master" if "%APPVEYOR_REPO_TAG%" == "true" (
+      conda install --yes --quiet anaconda-client &&
+      conda install --yes --quiet -c conda-forge twine &&
+      python packaging_tools\conda-server-push.py %APPVEYOR_REPO_TAG_NAME% &&
+      twine upload dist/*
+    )'
+
 artifacts:
   # Archive the generated conda package in the ci.appveyor.com build report.
   - path: '*.tar.bz2'

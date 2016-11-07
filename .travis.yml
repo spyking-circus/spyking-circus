@@ -68,6 +68,15 @@ script:
 - pip install dist/*.whl
 - spyking-circus -h
 
+after_success:
+# Upload to anaconda.org if this is a tagged release in the master branch
+-
+- if [[ $TRAVIS_PULL_REQUEST == 'false' && $TRAVIS_REPO_SLUG == 'spyking-circus/spyking-circus' && $TRAVIS_BRANCH == 'master' && ! -z TRAVIS_TAG ]]; then
+  conda install --yes --quiet anaconda-client;
+  conda install --yes --quiet -c conda-forge twine;
+  python packaging_tools/conda-server-push.py $TRAVIS_TAG;
+  twine upload dist/* ;
+  fi
+
 notifications:
   email: false
-
