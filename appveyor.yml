@@ -21,7 +21,7 @@ environment:
       platform: x64
 
   ANACONDA_TOKEN:
-    secure: zfS6VHtUFj3OxQHnPqTbKX9v8zwgTIeLAB5DVQ6E3cUQ2GtHxqjmDmWdlYXJZ1US
+    secure: 7drSxrQivCMViVHFeeFsfVzN3mELF6vkv4JAcuzdNedzFOvX1HAcGBTe0WolTsUJ
 
   TWINE_PASSWORD:
     secure: 4XvRpVVtji8vNnPGP2FUPQ==
