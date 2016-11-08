@@ -18,6 +18,7 @@ Python
 .. code:: python
 
 	from circus.shared.files import *
+	from pylab import *
 	params    = load_parameters('yourdatafile.dat')
 	N_e       = params.getint('data', 'N_e') # The number of channels
 	N_t       = params.getint('data', 'N_t') # The temporal width of the template
@@ -38,8 +39,8 @@ Matlab
 	temp_y = double(h5read(tmpfile, '/temp_y') + 1); 
 	temp_z = double(h5read(tmpfile, '/temp_data'));
 	templates = sparse(temp_x, temp_y, temp_z, templates_size(1)*templates_size(2), templates_size(3));
-	templates_size = [templates_size(1) templates_size(2) handles.templates_size(3)/2];
-	temp_i = full(reshape(templates(:, tmpnum), ));
+	templates_size = [templates_size(1) templates_size(2) templates_size(3)/2];
+	temp_i = full(reshape(templates(:, tmpnum), templates_size(2), templates_size(1)))';
 	imshow(temp_i)
 
 
@@ -54,9 +55,10 @@ Python
 .. code:: python
 
 	from circus.shared.files import *
+	from pylab import *
 	params    = load_parameters('yourdatafile.dat')
 	results   = load_data(params, 'results')
-	spikes    = r['spiketimes']['temp_i']
+	spikes    = results['spiketimes']['temp_i']
 	isis      = numpy.diff(spikes)
 	hist(isis)
 
@@ -83,10 +85,11 @@ Python
 .. code:: python
 
 	from circus.shared.files import *
+	from pylab import *
 	params    = load_parameters('yourdatafile.dat')
 	results   = load_data(params, 'results')
-	spikes    = r['spiketimes']['temp_i']
-	amps      = r['amplitudes']['temp_i'][:, 0] # The second column are amplitude for orthogonal, not needed
+	spikes    = results['spiketimes']['temp_i']
+	amps      = results['amplitudes']['temp_i'][:, 0] # The second column are amplitude for orthogonal, not needed
 	plot(spikes, amps, '.')
 
 

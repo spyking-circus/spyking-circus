@@ -30,7 +30,6 @@ Code and documentation contributions (ordered by the number of commits):
 * Olivier Marre
 * Cyrille Rossant
 
-
 ===========
 Release 0.5
 ===========

@@ -37,8 +37,6 @@ Then install the software itself::
 
 If you want to get a support for GPU, see the devoted section on CUDA_.
 
-
-
 Using pip
 ~~~~~~~~~
 
@@ -57,7 +55,7 @@ Then you have to relaunch the shell, and you should now have the SpyKING CIRCUS 
 Using sources
 ~~~~~~~~~~~~~
 
-Alternatively, you can download the source package directly and uncompress it, or work directly with the git folder https://bitbucket.org/yger/spyking-circus to be in sync with bug fixes. You can then simply run::
+Alternatively, you can download the source package directly and uncompress it, or work directly with the git folder https://github.com/spyking-circus/spyking-circus to be in sync with bug fixes. You can then simply run::
 
     >> pip install . --user --process-dependency-links
 
