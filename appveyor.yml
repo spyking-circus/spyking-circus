@@ -20,6 +20,12 @@ environment:
       PYTHON_ARCH: "64"
       platform: x64
 
+  ANACONDA_TOKEN:
+    secure: zfS6VHtUFj3OxQHnPqTbKX9v8zwgTIeLAB5DVQ6E3cUQ2GtHxqjmDmWdlYXJZ1US
+
+  TWINE_PASSWORD:
+    secure: 4XvRpVVtji8vNnPGP2FUPQ==
+
 install:
   # Add the paths for anaconda
   - 'set PATH=%PYTHON%;%PYTHON%\Library\bin;%PYTHON%\Scripts;%PATH%'
@@ -56,7 +62,7 @@ after_test:
       conda install --yes --quiet anaconda-client &&
       conda install --yes --quiet -c conda-forge twine &&
       python packaging_tools\conda-server-push.py %APPVEYOR_REPO_TAG_NAME% &&
-      twine upload dist/*
+      twine upload -u pierre.yger dist/*
     )'
 
 artifacts:
@@ -65,3 +71,4 @@ artifacts:
     name: conda package
   - path: dist\*
     name: PyPI binaries
+  
