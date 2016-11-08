@@ -1,5 +1,5 @@
 environment:
-   matrix:
+  matrix:
     - PYTHON: "C:\\Miniconda35"
       PYTHON_VERSION: "3.5"
       PYTHON_ARCH: "32"
