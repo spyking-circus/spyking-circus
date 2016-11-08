@@ -39,7 +39,7 @@ As already said in the GUI section, this function allows you to export your resu
     >> spyking-circus path/mydata.extension -m converting -c N
 
 
-During the process, you have the option to export or not the Principal Components for all the spikes that have been found, and phy will display them. Note that while this is safe to export all of them for small datasets, this will not scale for very large datasets with millions of spikes. 
+During the process, you have the option to export or not the Principal Components for all the spikes that have been found, and phy_ will display them. Note that while this is safe to export all of them for small datasets, this will not scale for very large datasets with millions of spikes. 
 
 .. warning::
 

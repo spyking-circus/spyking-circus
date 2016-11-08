@@ -1,7 +1,7 @@
 Launching the GUIs
 ================== 
 
-You have several options and GUIs to visualize your results, just pick the one you are the most confortable with!
+You have several options and GUIs to visualize your results, just pick the one you are the most comfortable with!
 
 Matlab GUI
 ----------
@@ -32,7 +32,7 @@ Followed by::
 
     >> circus-gui-python path/mydata.extension
 
-As you see, first, you need to export the data to the phy_ format using the ``converting`` option (you can use several CPUs with the ``-c`` flag if you want to export a lof of Principal Components). This is because as long as phy_ is still under development, this is not the default output of the algorithm. Depending on your parameters, a prompt will ask you if you want to compute all/some/no Principal Components for the GUI. While it may be interesting if you are familiar with classical clustering and PCs, you should not consider exploring PCs for large datasets.
+As you see, first, you need to export the data to the phy_ format using the ``converting`` option (you can use several CPUs with the ``-c`` flag if you want to export a lot of Principal Components). This is because as long as phy_ is still under development, this is not the default output of the algorithm. Depending on your parameters, a prompt will ask you if you want to compute all/some/no Principal Components for the GUI. While it may be interesting if you are familiar with classical clustering and PCs, you should not consider exploring PCs for large datasets.
 
 .. note:: 
 	

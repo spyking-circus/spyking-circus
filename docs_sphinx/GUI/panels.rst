@@ -1,7 +1,7 @@
 Panels of the GUIs
 ==================
 
-In the following, we will mostly talk about the MATLAB GUI, because it is still the default one for the algorithm, but all the concepts are similar accross all GUIs. 
+In the following, we will mostly talk about the MATLAB GUI, because it is still the default one for the algorithm, but all the concepts are similar across all GUIs. 
 
 .. warning::
 

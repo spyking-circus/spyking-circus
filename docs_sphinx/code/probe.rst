@@ -4,7 +4,7 @@ Designing your probe file
 What is the probe file?
 -----------------------
 
-In order to launch the code, you must specify a mapping for your electrode, i.e you must tell the code how your recorded data can be mapped onto the pysical space, and what is the spatial position of all your channels. Examples of such probe files (with the extension ``.prb``) can be seen in the ``probes`` folder of the code. They will all look like the following one::
+In order to launch the code, you must specify a mapping for your electrode, i.e you must tell the code how your recorded data can be mapped onto the physical space, and what is the spatial position of all your channels. Examples of such probe files (with the extension ``.prb``) can be seen in the ``probes`` folder of the code. They will all look like the following one::
 
     total_nb_channels = 32
     radius            = 100
@@ -95,7 +95,7 @@ There are two ways to simply handle several shanks:
 
 * in the ``.prb`` file, you can create a single large channel group, where all the shanks are far enough (for example in the x direction), such that templates will not interact (based on the physical ``radius``). If your radius is 200umm, for example, if you set x to 0 for the first shank, 300 for the second one, and so on, templates will be confined per shank.
 
-* in the ``.prb`` file, you can also have several channel groups (see for example adrien.prb in the probes folder). What is done by the code, then, is that during internal computations templates are confined to each channel groups. However, for graphical purpose, when you'll use the GUI, the global x/y coordinates accross all shanks are used. Therefore, if you do not want to have them plotted on top of each other, you still need to add a x/y padding for all of them.
+* in the ``.prb`` file, you can also have several channel groups (see for example adrien.prb in the probes folder). What is done by the code, then, is that during internal computations templates are confined to each channel groups. However, for graphical purpose, when you'll use the GUI, the global x/y coordinates across all shanks are used. Therefore, if you do not want to have them plotted on top of each other, you still need to add a x/y padding for all of them.
 
 
 .. _phy: https://github.com/kwikteam/phy

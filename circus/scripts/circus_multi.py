@@ -8,21 +8,17 @@ import circus
 import tempfile
 import h5py
 import numpy
-from circus.shared.files import print_error, print_and_log, get_header
+import logging
+from circus.shared.messages import print_and_log, get_colored_header, init_logging
 from circus.shared.algorithms import slice_result
-import colorama
-colorama.init(autoreset=True)
-from colorama import Fore, Back, Style
-
+from circus.shared.parser import CircusParser
 
 def main(argv=None):
     
     if argv is None:
         argv = sys.argv[1:]
 
-    gheader = Fore.GREEN + get_header()
-    header  = gheader + Fore.RESET
-
+    header = get_colored_header()
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')
@@ -37,16 +33,23 @@ def main(argv=None):
 
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
-    params         = circus.shared.utils.io.load_parameters(filename)
+    params         = CircusParser(filename)
+    if os.path.exists(params.logfile):
+        os.remove(params.logfile)
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger(__name__)
     file_out_suff  = params.get('data', 'file_out_suff')
 
-    if not params.get('data', 'multi-files'):
-        print_and_log(['Not a multi-file!'], 'error', params)
-        sys.exit(0)
+    if params.get('data', 'stream_mode') in ['None', 'none']:
+        print_and_log(['No streams in the datafile!'], 'error', logger)
+        sys.exit(1)
 
-    to_process  = circus.shared.files.get_multi_files(params)
+    data_file   = params.get_data_file()
     result      = circus.shared.files.get_results(params, extension=extension)
-    times       = circus.shared.files.data_stats(params, show=False, export_times=True)
+    times       = []
+    for source in data_file._sources:
+        times += [[source.t_start, source.t_stop]]
+
     sub_results = slice_result(result, times)
 
     for count, result in enumerate(sub_results):

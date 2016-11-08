@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
-import six, h5py, pkg_resources
+import six, h5py, pkg_resources, logging
 
 import numpy as np
 import matplotlib as mpl
@@ -23,7 +23,11 @@ else:
 
 from utils import *
 from algorithms import slice_templates, slice_clusters
+from mpi import SHARED_MEMORY, comm
+from circus.shared.probes import get_nodes_and_edges
+from circus.shared.messages import print_and_log
 
+logger = logging.getLogger(__name__)
 
 class SymmetricVCursor(widgets.AxesWidget):
     '''Variant of matplotlib.widgets.Cursor, drawing two symmetric vertical
@@ -101,29 +105,23 @@ class SymmetricVCursor(widgets.AxesWidget):
 
 class MergeWindow(QtGui.QMainWindow):
 
-    def __init__(self, comm, params, app, extension_in='', extension_out='-merged'):
+    def __init__(self, params, app, extension_in='', extension_out='-merged'):
 
         if comm.rank == 0:
             super(MergeWindow, self).__init__()
 
-        try:
-            SHARED_MEMORY = True
-            MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-        except NotImplementedError:
-            SHARED_MEMORY = False
-
         if comm.rank == 0:
-            io.print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', params)
-        self.app        = app
-        self.comm       = comm
-        self.params     = params
-        self.ext_in     = extension_in
-        self.ext_out    = extension_out
-        self.N_e        = params.getint('data', 'N_e')
-        self.N_t        = params.getint('data', 'N_t')
-        self.N_total    = params.getint('data', 'N_total')
+            print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', logger)
+        self.app           = app
+        self.params        = params
+        self.ext_in        = extension_in
+        self.ext_out       = extension_out
+        data_file          = params.data_file
+        self.N_e           = params.getint('data', 'N_e')
+        self.N_t           = params.getint('detection', 'N_t')
+        self.N_total       = params.nb_channels
+        self.sampling_rate = params.rate
         self.correct_lag   = params.getboolean('merging', 'correct_lag')
-        self.sampling_rate = params.getint('data', 'sampling_rate')
         self.file_out_suff = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
@@ -141,15 +139,15 @@ class MergeWindow(QtGui.QMainWindow):
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
         
         if SHARED_MEMORY:
-            self.templates  = io.load_data_memshared(params, self.comm, 'templates', extension=self.ext_in)
-            self.clusters   = io.load_data_memshared(params, self.comm, 'clusters-light', extension=self.ext_in)
+            self.templates  = io.load_data_memshared(params, 'templates', extension=self.ext_in)
+            self.clusters   = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
         else:
             self.templates  = io.load_data(params, 'templates', self.ext_in)
             self.clusters   = io.load_data(params, 'clusters-light', self.ext_in)
         
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
-        nodes, edges    = io.get_nodes_and_edges(params)
+        nodes, edges    = get_nodes_and_edges(params)
         self.nodes      = nodes
         self.edges      = edges
         self.inv_nodes  = numpy.zeros(self.N_total, dtype=numpy.int32)
@@ -181,12 +179,12 @@ class MergeWindow(QtGui.QMainWindow):
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
         self.mpi_wait   = numpy.array([0], dtype=numpy.int32)
 
-        if self.comm.rank > 0:
+        if comm.rank > 0:
             self.listen()
 
         self.init_gui_layout()
 
-        self.probe      = io.read_probe(params)
+        self.probe      = self.params.probe
         self.x_position = []
         self.y_position = []
         self.order      = []
@@ -268,15 +266,15 @@ class MergeWindow(QtGui.QMainWindow):
             sys.exit(0)
 
     def closeEvent(self, event):
-        if self.comm.rank == 0:
-            self.mpi_wait = self.comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
+        if comm.rank == 0:
+            self.mpi_wait = comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
             super(MergeWindow, self).closeEvent(event)
 
     def init_gui_layout(self):
         gui_fname = pkg_resources.resource_filename('circus',
                                                     os.path.join('qt_GUI',
                                                                  'qt_merge.ui'))
-        if self.comm.rank == 0:
+        if comm.rank == 0:
             self.ui = uic.loadUi(gui_fname, self)
             # print dir(self.ui)
             self.score_ax1 = self.ui.score_1.axes
@@ -310,17 +308,17 @@ class MergeWindow(QtGui.QMainWindow):
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
         
-        self.mpi_wait    = self.comm.bcast(self.mpi_wait, root=0)
+        self.mpi_wait    = comm.bcast(self.mpi_wait, root=0)
         
         if self.mpi_wait[0] > 0:
             return
         
-        self.indices     = self.comm.bcast(self.indices, root=0)
-        self.to_delete   = self.comm.bcast(self.to_delete, root=0)
+        self.indices     = comm.bcast(self.indices, root=0)
+        self.to_delete   = comm.bcast(self.to_delete, root=0)
 
         to_consider      = set(self.indices) - set(self.to_delete)
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32) 
-        real_indices     = self.to_consider[self.comm.rank::self.comm.size]
+        real_indices     = self.to_consider[comm.rank::comm.size]
         
         n_size           = 2*self.max_delay + 1
 
@@ -329,7 +327,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
         if comm.rank == 0:
-            io.print_and_log(['Updating the data...'], 'default', self.params)
+            print_and_log(['Updating the data...'], 'default', logger)
             pbar = get_progressbar(len(real_indices))
 
         for count, temp_id1 in enumerate(real_indices):
@@ -352,11 +350,11 @@ class MergeWindow(QtGui.QMainWindow):
         if comm.rank == 0:
             pbar.finish()
 
-        self.pairs       = gather_array(self.pairs, self.comm, 0, 1, dtype='int32')
-        self.raw_control = gather_array(self.raw_control, self.comm, 0, 1)
-        self.raw_data    = gather_array(self.raw_data, self.comm, 0, 1)
+        self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
+        self.raw_control = gather_array(self.raw_control, comm, 0, 1)
+        self.raw_data    = gather_array(self.raw_data, comm, 0, 1)
         self.sort_idcs   = numpy.arange(len(self.pairs))
-        self.comm.Barrier()
+        comm.Barrier()
 
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
@@ -876,7 +874,7 @@ class MergeWindow(QtGui.QMainWindow):
             self.lasso_selector.points = self.points[2]
 
     def remove_templates(self, event):
-        io.print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', self.params)
+        print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', logger)
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
         self.to_delete = numpy.concatenate((self.to_delete, self.to_consider[self.inspect_templates]))
@@ -901,7 +899,7 @@ class MergeWindow(QtGui.QMainWindow):
 
     def do_merge(self, event, regenerate=True):
         # This simply removes the data points for now
-        io.print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', self.params)
+        print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', logger)
         
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
@@ -978,16 +976,16 @@ class MergeWindow(QtGui.QMainWindow):
         
         if comm.rank == 0:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
-            self.mpi_wait = self.comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
+            self.mpi_wait = comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
 
         comm.Barrier()
-        self.all_merges = self.comm.bcast(self.all_merges, root=0)
-        self.to_delete  = self.comm.bcast(self.to_delete, root=0)
+        self.all_merges = comm.bcast(self.all_merges, root=0)
+        self.to_delete  = comm.bcast(self.to_delete, root=0)
         
-        slice_templates(self.comm, self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out)
-        slice_clusters(self.comm, self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out, light=True)
+        slice_templates(self.params, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out)
+        slice_clusters(self.params, self.clusters, to_merge=self.all_merges, to_remove=list(self.to_delete), extension=self.ext_out, light=True)
 
-        if self.comm.rank == 0:
+        if comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}} 
             
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
@@ -1000,6 +998,11 @@ class MergeWindow(QtGui.QMainWindow):
                 new_result['amplitudes'][key_after] = self.result['amplitudes'].pop(key_before)
             
             keys = ['spiketimes', 'amplitudes']
+            
+            if self.params.getboolean('fitting', 'collect_all'):
+                keys += ['gspikes']
+                new_result['gspikes'] = io.get_garbage(self.params)['gspikes']
+
             mydata = h5py.File(self.file_out_suff + '.result%s.hdf5' %self.ext_out, 'w', libver='latest')
             for key in keys:
                 mydata.create_group(key)
@@ -1033,45 +1036,57 @@ class PreviewGUI(QtGui.QMainWindow):
 
         self.show_fit         = show_fit
         self.params           = params
-        self.maxtime          = io.data_stats(params, show=False) - 1
+        self.data_file        = params.data_file
+        self.data_file.open()
+        self.maxtime          = self.data_file.t_stop/self.data_file.sampling_rate
+        self.mintime          = self.data_file.t_start/self.data_file.sampling_rate
         self.init_gui_layout()
-        self.probe            = io.read_probe(params)
-        self.N_e              = params.getint('data', 'N_e')
-        self.N_t              = params.getint('data', 'N_t')
-        self.spike_thresh     = params.getfloat('detection', 'spike_thresh')
-        self.peaks_sign       = params.get('detection', 'peaks')  
-        self.N_total          = numpy.int64(params.getint('data', 'N_total'))
-        self.sampling_rate    = params.getint('data', 'sampling_rate')
-        self.template_shift   = params.getint('data', 'template_shift')
-        self.filename         = params.get('data', 'data_file')
+        self.probe            = self.params.probe
+        self.N_e              = self.params.getint('data', 'N_e')
+        self.N_t              = self.params.getint('detection', 'N_t')
+        self.spike_thresh     = self.params.getfloat('detection', 'spike_thresh')
+        self.peaks_sign       = self.params.get('detection', 'peaks')  
+        self.N_total          = self.params.nb_channels
+        self.sampling_rate    = self.params.rate
+        self.template_shift   = self.params.getint('detection', 'template_shift')
+        self.filename         = self.params.get('data', 'data_file')
 
         name = os.path.basename(self.filename)
         r, f = os.path.splitext(name)
         local_path    = os.path.join(r, 'tmp')
         self.filename = self.filename.replace(local_path, '')
         
-        nodes, edges          = io.get_nodes_and_edges(params)
+        nodes, edges          = get_nodes_and_edges(self.params)
         self.nodes            = nodes
         self.edges            = edges
 
-        self.do_temporal_whitening = params.getboolean('whitening', 'temporal')
-        self.do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+        self.do_temporal_whitening = self.params.getboolean('whitening', 'temporal')
+        self.do_spatial_whitening  = self.params.getboolean('whitening', 'spatial')
 
         if self.do_spatial_whitening:
-            self.spatial_whitening  = io.load_data(params, 'spatial_whitening')
+            self.spatial_whitening  = io.load_data(self.params, 'spatial_whitening')
         if self.do_temporal_whitening:
-            self.temporal_whitening = io.load_data(params, 'temporal_whitening')
+            self.temporal_whitening = io.load_data(self.params, 'temporal_whitening')
 
-        self.thresholds       = io.load_data(params, 'thresholds')
-        self.t_start          = 0
-        self.t_stop           = 1
+        self.thresholds       = io.load_data(self.params, 'thresholds')
+        self.t_start          = self.data_file.t_start/self.data_file.sampling_rate
+        self.t_stop           = self.t_start + 1
 
         if self.show_fit:
             try:
                 self.templates = io.load_data(self.params, 'templates')
                 self.result    = io.load_data(self.params, 'results')
             except Exception:
-                pass
+                print_and_log(["No results found!"], 'info', logger)
+
+            try:
+                if self.params.getboolean('fitting', 'collect_all'):
+                    self.has_garbage = True
+                    self.garbage   = io.load_data(self.params, 'garbage')
+                else:
+                    self.has_garbage = False
+            except Exception:
+                self.has_garbage = False
 
         self.get_data()
         self.x_position = []
@@ -1113,10 +1128,12 @@ class PreviewGUI(QtGui.QMainWindow):
         self.get_time.valueChanged.connect(self.update_time)
         self.get_threshold.valueChanged.connect(self.update_threshold)
         self.show_residuals.clicked.connect(self.update_data_plot)
+        self.show_unfitted.clicked.connect(self.update_data_plot)
         self.btn_write_threshold.clicked.connect(self.write_threshold)
         if self.show_fit:
             self.time_box.setEnabled(True)
             self.show_residuals.setEnabled(True)
+            self.show_unfitted.setEnabled(True)
         else:
             self.btn_write_threshold.setEnabled(True)
             self.threshold_box.setEnabled(True)
@@ -1135,20 +1152,22 @@ class PreviewGUI(QtGui.QMainWindow):
 
     def update_time(self):
         if self.show_fit:
-            self.t_start  = min(self.maxtime, int(self.get_time.value()))
+            self.t_start  = min(self.maxtime, self.get_time.value())
             self.t_stop   = self.t_start + 1
+            if self.t_stop > self.maxtime:
+                self.t_stop = self.maxtime
             self.get_data()
             self.update_data_plot()
 
 
     def write_threshold(self):
-        io.change_flag(self.filename, 'spike_thresh', '%g' %self.get_threshold.value())
+        self.params.write('detection', 'spike_thresh', '%g' %self.get_threshold.value())
 
     def get_data(self):
-        self.chunk_size       = self.sampling_rate
-        self.padding          = (self.t_start*self.sampling_rate*self.N_total, self.t_start*self.sampling_rate*self.N_total)
-        self.data, data_shape = io.load_chunk(self.params, 0, self.chunk_size*self.N_total,
-            padding=self.padding, chunk_size=self.chunk_size, nodes=self.nodes)
+        self.chunk_size = int(self.sampling_rate*(self.t_stop - self.t_start))
+        t_start         = int(self.t_start*self.sampling_rate)
+        self.data       = self.data_file.get_snippet(t_start, self.chunk_size, nodes=self.nodes)
+
 
         if self.do_spatial_whitening:
             self.data = numpy.dot(self.data, self.spatial_whitening)
@@ -1156,9 +1175,10 @@ class PreviewGUI(QtGui.QMainWindow):
             self.data = scipy.ndimage.filters.convolve1d(self.data, self.temporal_whitening, axis=0, mode='constant')
 
         self.time    = numpy.linspace(self.t_start, self.t_stop, self.data.shape[0])
+
         if self.show_fit:
             try:
-                self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
+                self.curve     = numpy.zeros((self.N_e, self.chunk_size), dtype=numpy.float32)
                 limit          = self.sampling_rate-self.template_shift+1
                 for key in self.result['spiketimes'].keys():
                     elec  = int(key.split('_')[1])
@@ -1171,7 +1191,16 @@ class PreviewGUI(QtGui.QMainWindow):
                         self.curve[:, spike-self.template_shift:spike+self.template_shift+1] += amp1*tmp1 + amp2*tmp2
             except Exception:
                 self.curve     = numpy.zeros((self.N_e, self.sampling_rate), dtype=numpy.float32)
-                io.print_and_log(["No results found!"], 'info', self.params)
+                
+
+            if self.has_garbage:
+                self.uncollected = {}
+                for key in self.garbage['gspikes'].keys():
+                    elec  = int(key.split('_')[1])
+                    lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
+                    idx   = numpy.where((self.garbage['gspikes'][key] > lims[0]) & (self.garbage['gspikes'][key] < lims[1]))
+                    all_spikes = self.garbage['gspikes'][key][idx]
+                    self.uncollected[elec] = all_spikes/float(self.sampling_rate)
 
     def init_gui_layout(self):
         gui_fname = pkg_resources.resource_filename('circus',
@@ -1193,18 +1222,24 @@ class PreviewGUI(QtGui.QMainWindow):
 
     def increase_time(self, event):
         if self.show_fit:
-            if self.t_start < self.maxtime:
+            if self.t_start < self.maxtime - 1:
                 self.t_start += 1
                 self.t_stop  += 1
+                if self.t_stop > self.maxtime:
+                    self.t_stop = self.maxtime
+
             self.get_data()
             self.get_time.setValue(self.t_start)
             self.update_data_plot()
 
     def decrease_time(self, event):
         if self.show_fit:
-            if self.t_start > 0:
+            if self.t_start > self.mintime + 1:
                 self.t_start -= 1
                 self.t_stop  -= 1
+                if self.t_start < self.mintime:
+                    self.t_start = self.mintime
+                    self.t_stop  = self.t_start + 1
                 self.get_data()
                 self.get_time.setValue(self.t_start)
                 self.update_data_plot()
@@ -1362,7 +1397,9 @@ class PreviewGUI(QtGui.QMainWindow):
                                      color=self.inspect_colors[count], lw=2)
 
         else:
+
             for count, idx in enumerate(indices):
+
                 if self.ui.show_residuals.isChecked():
                     data_line, = self.data_x.plot(self.time,
                                         count * yspacing + (self.data[:,idx] - self.curve[idx, :]), lw=1, color='0.5', alpha=0.5)
@@ -1378,6 +1415,10 @@ class PreviewGUI(QtGui.QMainWindow):
                 if self.peaks_sign in ['positive', 'both']:
                     self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
                                  color=self.inspect_colors[count], lw=2)
+
+                if self.ui.show_unfitted.isChecked() and self.has_garbage:
+                    for i in self.uncollected[idx]:
+                        self.data_x.add_patch(plt.Rectangle((i-0.001, -self.thresholds[idx] + count * yspacing), 0.002, 2*self.thresholds[idx], alpha=0.5, color='k'))
 
         self.data_x.set_yticklabels([])
         self.data_x.set_xlabel('Time [s]')
@@ -1410,7 +1451,7 @@ class PreviewGUI(QtGui.QMainWindow):
                     fit = self.curve[electrode_idx, rel_time_idx]
                     msg += ' (fit: %.2f)' % fit
                 msg += '  t: %.2fs ' % self.time[time_idx]
-                msg += u'(electrode at x: %.0fμm  y: %.0fμm)' % (electrode_x, electrode_y)
+                msg += u'(electrode %d at x: %.0fμm  y: %.0fμm)' % (electrode_idx, electrode_x, electrode_y)
                 status_bar.showMessage(msg)
 
     def zoom(self, event):

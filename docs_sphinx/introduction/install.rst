@@ -14,14 +14,14 @@ How to install
 
 .. note::
     
-    If you are a Windows or a Mac user, we recommand using Anaconda_, and:
+    If you are a Windows or a Mac user, we recommend using Anaconda_, and:
 
     * :doc:`see here for detailed instructions on Windows <../introduction/windows>` 
     * :doc:`see here for detailed instructions on Mac OS X <../introduction/mac>`
 
 
-Installation with CONDA
-~~~~~~~~~~~~~~~~~~~~~~~
+Using with CONDA
+~~~~~~~~~~~~~~~~
 
 Install Anaconda_ or miniconda_, e.g. all on the terminal (but there is also a .exe installer for Windows, etc.):
 
@@ -35,14 +35,10 @@ Then install the software itself::
     >> conda install -c spyking-circus spyking-circus
 
 
-
-
 If you want to get a support for GPU, see the devoted section on CUDA_.
 
-
-
-Installation with pip
-~~~~~~~~~~~~~~~~~~~~~
+Using pip
+~~~~~~~~~
 
 To do so, use the ``pip`` utility::
 
@@ -56,8 +52,8 @@ In principle, the above command also install SpyKING CIRCUS's dependencies, and 
 
 Then you have to relaunch the shell, and you should now have the SpyKING CIRCUS installed!
 
-Installation from source
-~~~~~~~~~~~~~~~~~~~~~~~~
+Using sources
+~~~~~~~~~~~~~
 
 Alternatively, you can download the source package directly and uncompress it, or work directly with the git folder https://github.com/spyking-circus/spyking-circus to be in sync with bug fixes. You can then simply run::
 
@@ -91,10 +87,10 @@ Or to keep the folder in sync with the install in a develop mode::
 
 
 
-Using CUDA
-----------
+Activating CUDA
+---------------
 
-Using CUDA_ can, depending on your hardware, **drastically** increase the speed of algorithm. However, in 0.4, 1 GPU is faster than 1 CPU but not faster than several CPUs. This is something we are working on to improve in 0.5. To use your GPU, you need to have a working CUDA_ environment installed onto the machine. During the pip installation, the code should automatically detect it and install CUDA_ bindings if possible. Otherwise, to get support for the GPU with an Anaconda_ install, just do::
+Using CUDA_ can, depending on your hardware, **drastically** increase the speed of algorithm. However, in 0.5, 1 GPU is faster than 1 CPU but not faster than several CPUs. This is something we are working on to improve in future releases. To use your GPU, you need to have a working CUDA_ environment installed onto the machine. During the pip installation, the code should automatically detect it and install CUDA_ bindings if possible. Otherwise, to get support for the GPU with an Anaconda_ install, just do::
 
     >> pip install https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus
 
@@ -102,8 +98,8 @@ Using CUDA_ can, depending on your hardware, **drastically** increase the speed 
     You must have a valid CUDA installation, and ``nvcc`` installed. If you do not want CUDAMAT to be install automatically, simply do ``python setup.py install --nocuda`` while installing the software
 
 
-Creation of a home Directory
-----------------------------
+Home Directory
+--------------
 
 During the install, the code creates a ``spyking-circus`` folder in ``/home/user`` where it will copy several probe designs, and a copy of the default parameter file. Note that if you are always using the code with a similar setup, you can edit this template, as this is the one that will be used by default.
 

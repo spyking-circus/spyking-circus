@@ -1,7 +1,10 @@
 from .shared.utils import *
 import h5py
+from circus.shared.probes import get_nodes_and_edges
+from circus.shared.parser import CircusParser
+from circus.shared.messages import print_and_log, init_logging
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
+def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     """
     Useful tool to create synthetic datasets for benchmarking.
     
@@ -10,17 +13,31 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     benchmark : {'fitting', 'clustering', 'synchrony', 'pca-validation', 'smart-search', 'drifts'}
         
     """
-    
-    numpy.random.seed(451235)
+    if sim_same_elec is None:
+        sim_same_elec = 0.8
 
-    data_path      = os.path.dirname(os.path.abspath(file_name))
-    data_suff, ext = os.path.splitext(os.path.basename(os.path.abspath(file_name)))
-    file_out, ext  = os.path.splitext(os.path.abspath(file_name))
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.benchmarking')
+
+    numpy.random.seed(265)
+    file_name      = os.path.abspath(file_name)
+    data_path      = os.path.dirname(file_name)
+    data_suff, ext = os.path.splitext(os.path.basename(file_name))
+    file_out, ext  = os.path.splitext(file_name)
+
+    if ext == '':
+        ext = '.dat'
+        file_name += ext
+    
+    if ext != '.dat':
+        if comm.rank == 0:
+            print_and_log(['Benchmarking produces raw files: select a .dat extension'], 'error', logger)
+        sys.exit(1)
 
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
-            io.print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', params)
-        sys.exit(0)
+            print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', logger)
+        sys.exit(1)
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
     # see: http://stackoverflow.com/questions/4530111/python-saving-objects-and-using-pickle-extension-of-filename
@@ -41,7 +58,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # Retrieve some key parameters.
     templates = io.load_data(params, 'templates')
     N_tm = templates.shape[1] / 2
-    sim_same_elec   = 0.8
     trends          = None
 
     # Normalize some variables.
@@ -63,11 +79,6 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         rate            = 10. / corrcoef
         amplitude       = 2
     if benchmark == 'pca-validation':
-##### TODO: remove plot zone
-        if comm.rank == 0:
-            from .shared.plot import view_triggers
-            view_triggers(filename, mode='maximal')
-##### end plot zone
         nb_insert       = 10
         n_cells         = numpy.random.random_integers(0, N_tm - 1, nb_insert)
         rate_min        = 0.5
@@ -116,11 +127,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
-    N_e             = params.getint('data', 'N_e')
-    sampling_rate   = params.getint('data', 'sampling_rate')
-    nodes, edges     = io.get_nodes_and_edges(params)
-    N_t              = params.getint('data', 'N_t')
-    N_total          = params.getint('data', 'N_total')
+    data_file        = params.get_data_file(source=True)
+    import copy
+    tmp_params       = copy.deepcopy(data_file_in._params)
+    N_e              = params.getint('data', 'N_e')
+    N_total          = params.nb_channels
+    nodes, edges     = get_nodes_and_edges(params)
+    N_t              = params.getint('detection', 'N_t')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -139,7 +152,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # Save benchmark parameters in a file to remember them.
     if comm.rank == 0:
         write_benchmark(file_out, benchmark, cells, rate, amplitude,
-                        sampling_rate, params.get('data', 'mapping'), trends)
+                        params.rate, params.get('data', 'mapping'), trends)
 
     # Synchronize all the threads/processes.
     comm.Barrier()
@@ -151,14 +164,13 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
     # Retrieve some additional key parameters.
     chunk_size     = params.getint('data', 'chunk_size')
-    data_offset    = params.getint('data', 'data_offset')
-    dtype_offset   = params.getint('data', 'dtype_offset')
-    data_dtype     = params.get('data', 'data_dtype')
-    myfile         = MPI.File()
     scalings       = []
-    data_mpi       = get_mpi_type('float32')
-    if comm.rank == 0:
-        io.copy_header(data_offset, params.get('data', 'data_file'), file_name)
+    
+    params.set('data', 'data_file', file_name)
+
+    data_file_out = params.get_data_file(is_empty=True)
+    data_file_out.allocate(shape=data_file.shape)
+    data_file_in._params = tmp_params
 
     # Synchronize all the threads/processes.
     comm.Barrier()
@@ -175,12 +187,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         # Initialize the similarity (i.e. default value).
         similarity = 1.0
         # Find the first eligible template for the wanted synthesized cell.
-        while len(new_indices) != len(indices) or (similarity >= sim_same_elec):   
+        while len(new_indices) != len(indices) or (similarity > sim_same_elec): 
             similarity  = 0
             if count == len(all_elecs):
                 if comm.rank == 0:
-                    io.print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', params)
-                sys.exit(0)
+                    print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', logger)
+                sys.exit(1)
             else:
                 # Get the next shuffled electrode.
                 n_elec = all_elecs[count]
@@ -316,17 +328,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         templates = scipy.sparse.csc_matrix((zdata, (xdata, ydata)), shape=(N_e * N_t, 2 * nb_insert))
         
     # Retrieve the information about the organisation of the chunks of data.
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
-    if last_chunk_len > 0:
-        nb_chunks += 1
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     # Display informations about the generated benchmark.
     if comm.rank == 0:
-        io.print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', params)
-        io.purge(file_out, '.data')
+        print_and_log(["Generating benchmark data [%s] with %d cells" %(benchmark, n_cells)], 'info', logger)
+        purge(file_out, '.data')
 
 
-    template_shift = int((N_t-1)//2)
+    template_shift = params.getint('detection', 'template_shift')
     all_chunks     = numpy.arange(nb_chunks)
     to_process     = all_chunks[numpy.arange(comm.rank, nb_chunks, comm.size)]
     loc_nb_chunks  = len(to_process)
@@ -337,8 +347,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         pbar = get_progressbar(loc_nb_chunks)
 
     # Open the file for collective I/O.
-    g = myfile.Open(comm, file_name, MPI.MODE_RDWR)
-    g.Set_view(data_offset, data_mpi, data_mpi)
+    #g = myfile.Open(comm, file_name, MPI.MODE_RDWR)
+    #g.Set_view(data_offset, data_mpi, data_mpi)
+    data_file_out.open(mode='r+')
 
     # Open the thread/process' files to collect the results.
     spiketimes_filename = os.path.join(file_out, data_suff + '.spiketimes-%d.data' %comm.rank)
@@ -356,15 +367,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     # the new chunk of data (i.e. with considering the added synthesized cells).
     for count, gidx in enumerate(to_process):
 
-        if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
-            chunk_len  = last_chunk_len
-            chunk_size = last_chunk_len // N_total
+        #if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
+        #    chunk_len  = last_chunk_len
+        #    chunk_size = last_chunk_len // N_total
 
         result         = {'spiketimes' : [], 'amplitudes' : [], 
                           'templates' : [], 'real_amps' : [],
                           'voltages' : []}
         offset         = gidx * chunk_size
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+        local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
 
         if benchmark == 'pca-validation':
             # Clear the current data chunk.
@@ -383,7 +394,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             # Generate some spike indices (i.e. times) at the given rate for
             # 'synchrony' mode. Each synthesized cell will use a subset of this
             # spike times.
-            mips = numpy.random.rand(chunk_size) < rate[0] / float(sampling_rate)
+            mips = numpy.random.rand(chunk_size) < rate[0] / float(params.rate)
 
         # For each synthesized cell generate its spike indices (i.e.times) and
         # add them to the dataset.
@@ -397,9 +408,9 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                 spikes[sidx[numpy.random.rand(len(sidx)) < corrcoef]] = True
             else:
                 # Generate some spike indices at the given rate.
-                spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(sampling_rate)
+                spikes     = numpy.random.rand(chunk_size) < rate[idx] / float(params.rate)
             if benchmark == 'drifts':
-                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(sampling_rate)))
+                amplitudes = numpy.ones(len(spikes)) + trends[idx]*((spikes + offset)/(5*60*float(params.rate)))
             else:
                 amplitudes = numpy.ones(len(spikes))
             # Padding with `False` to avoid the insertion of partial spikes at
@@ -414,7 +425,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
             norm_flat      = numpy.sum(first_flat ** 2)
             # For each index (i.e. spike sample location) add the spike to the
             # chunk of data.
-            refractory     = int(5 * 1e-3 * sampling_rate)         
+            refractory     = int(5 * 1e-3 * params.rate)         
             t_last         = - refractory
             for scount, spike in enumerate(spikes):
                 if (spike - t_last) > refractory:
@@ -429,7 +440,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
                     t_last                = spike
 
         # Write the results into the thread/process' files.
-        spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.int32)
+        spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
         amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
         templates_to_write  = numpy.array(result['templates'], dtype=numpy.int32)
         real_amps_to_write  = numpy.array(result['real_amps'], dtype=numpy.float32)
@@ -442,22 +453,37 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         voltages_file.write(voltages_to_write.tostring())
 
         #print count, 'spikes inserted...'
-        new_chunk    = numpy.zeros((chunk_size, N_total), dtype=numpy.float32)
-        new_chunk[:, nodes] = local_chunk
+        #new_chunk    = numpy.zeros((chunk_size, N_total), dtype=numpy.float32)
+        #new_chunk[:, nodes] = local_chunk
 
         # Overwrite the new chunk of data using explicit offset. 
-        new_chunk   = new_chunk.flatten()
-        g.Write_at(gidx * chunk_len, new_chunk)
+        #new_chunk   = new_chunk.flatten()
+        #g.Write_at(gidx * chunk_len, new_chunk)
+        data_file_out.set_data(offset, local_chunk)
 
         # Update the progress bar about the generation of the benchmark.
         if comm.rank == 0:
             pbar.update(count)
 
     # Close the thread/process' files.
+    spiketimes_file.flush()
+    os.fsync(spiketimes_file.fileno())
     spiketimes_file.close()
+
+    amplitudes_file.flush()
+    os.fsync(amplitudes_file.fileno())
     amplitudes_file.close()
+
+    templates_file.flush()
+    os.fsync(templates_file.fileno())
     templates_file.close()
+
+    real_amps_file.flush()
+    os.fsync(real_amps_file.fileno())
     real_amps_file.close()
+
+    voltages_file.flush()
+    os.fsync(voltages_file.fileno())
     voltages_file.close()
 
     # Finish the progress bar about the generation of the benchmark.
@@ -465,7 +491,8 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
         pbar.finish()
 
     # Close the file for collective I/O.
-    g.Close()
+    data_file_out.close()
+    data_file.close()
 
     
     # Synchronize all the threads/processes.
@@ -485,11 +512,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
 
         # Copy initial configuration file from `<dataset1>.params` to `<dataset2>.params`.
         shutil.copy2(params.get('data', 'data_file_noext') + '.params', file_params)
+        new_params = CircusParser(file_name)
         # Copy initial basis file from `<dataset1>/<dataset1>.basis.hdf5` to
         # `<dataset2>/injected/<dataset2>.basis.hdf5.
-        print(params.get('data', 'file_out') + '.basis.hdf5')
         shutil.copy2(params.get('data', 'file_out') + '.basis.hdf5',
                      os.path.join(result_path, data_suff + '.basis.hdf5'))
+
 
         # Save templates into `<dataset>/<dataset>.templates.hdf5`.
         mydata = h5py.File(os.path.join(file_out, data_suff + '.templates.hdf5'), 'w')
@@ -511,14 +539,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark):
     comm.Barrier()
     if comm.rank == 0:
         # Gather data from all threads/processes.
-        io.collect_data(comm.size, io.load_parameters(file_name), erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
+        f_next, extension = os.path.splitext(file_name)
+        file_out_bis = os.path.join(f_next, os.path.basename(f_next))
+        #new_params.set('data', 'file_out', file_out_bis) # Output file without suffix
+        #new_params.set('data', 'file_out_suff', file_out_bis  + params.get('data', 'suffix'))
+    
+        new_params.get_data_file()
+        io.collect_data(comm.size, new_params, erase=True, with_real_amps=True, with_voltages=True, benchmark=True)
         # Change some flags in the configuration file.
-        io.change_flag(file_name, 'temporal', 'False') # Disable temporal filtering
-        io.change_flag(file_name, 'spatial', 'False') # Disable spatial filtering
-        io.change_flag(file_name, 'data_dtype', 'float32') # Set type of the data to float32
-        io.change_flag(file_name, 'dtype_offset', 'auto') # Set padding for data to auto
+        new_params.write('whitening', 'temporal', 'False') # Disable temporal filtering
+        new_params.write('whitening', 'spatial', 'False') # Disable spatial filtering
+        new_params.write('data', 'data_dtype', 'float32') # Set type of the data to float32
+        new_params.write('data', 'dtype_offset', 'auto') # Set padding for data to auto
         # Move results from `<dataset>/<dataset>.result.hdf5` to
         # `<dataset>/injected/<dataset>.result.hdf5`.
+        
         shutil.move(os.path.join(file_out, data_suff + '.result.hdf5'), os.path.join(result_path, data_suff + '.result.hdf5'))
                 
         # Save scalings into `<dataset>/injected/<dataset>.scalings.npy`.

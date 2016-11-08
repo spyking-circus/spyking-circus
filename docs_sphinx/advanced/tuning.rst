@@ -1,11 +1,11 @@
 Choosing the parameters
 =======================
 
-Only few parameters are likely to be modifed by the user in the parameter file, depending on the type of data considered. If parameters are not optimal, the code may suggest you to change them. If you want to have a more precise feedback for a given dataset, do not hesitate to ask question to our Google group https://groups.google.com/forum/#!forum/spyking-circus-users, or contact us directly by email.
+Only few parameters are likely to be modified by the user in the parameter file, depending on the type of data considered. If parameters are not optimal, the code may suggest you to change them. If you want to have a more precise feedback for a given dataset, do not hesitate to ask question to our Google group https://groups.google.com/forum/#!forum/spyking-circus-users, or contact us directly by email.
 
 .. note::
 
-    The longer the recording, the better the code will work. If you have several chunks of recordings, you better concatenate everything into a single large data file, and provide it to the algorithm. This can be done automaticaly with the ``multi-file`` mode (see :doc:`here <../code/multifiles>`). HOwever, for long recordings, you should turn on the  ``smart_search`` mode (see below).
+    The longer the recording, the better the code will work. If you have several chunks of recordings, you better concatenate everything into a single large data file, and provide it to the algorithm. This can be done automatically with the ``multi-file`` mode (see :doc:`here <../code/multifiles>`). HOwever, for long recordings, you should turn on the  ``smart_search`` mode (see below).
 
 
 In vitro
@@ -31,7 +31,7 @@ Cortex/Hippocampus/Superior Colliculus
 
 .. note::
 
-	If you see too many templates that seems to be mixtures of two templates, this is likely because the automatic merges performed internally are too aggressives. You can change that by playing with the ``cc_merge`` and ``sim_same_elec`` parameters (see the :doc:`FAQ <../issues/faq>`)
+	If you see too many templates that seems to be mixtures of two templates, this is likely because the automatic merges performed internally are too aggressive. You can change that by playing with the ``cc_merge`` and ``sim_same_elec`` parameters (see the :doc:`FAQ <../issues/faq>`)
 
 
 Low thresholds or long recordings

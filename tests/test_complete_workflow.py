@@ -146,10 +146,10 @@ class TestCompleteWorkflow(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'complete.raw')
+        self.file_name      = os.path.join(self.path, 'complete.dat')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
-            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
+            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering', 1)
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
 
     def test_all_two_CPU(self):

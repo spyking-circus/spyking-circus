@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, name):
 
@@ -18,7 +19,7 @@ def get_performance(file_name, name):
     rate            = data['rates'][::n_point]
     sampling        = data['sampling']
     probe_file      = data['probe']
-    sim_templates   = 0.8
+    sim_templates   = 1
 
     temp_file       = file_out + '.templates.hdf5'
     temp_x          = h5py.File(temp_file).get('temp_x')[:]
@@ -49,16 +50,17 @@ def get_performance(file_name, name):
         for i in xrange(templates.shape[1]//2):
             d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
-            if d > dmax:
+            if d >= dmax:
                 temp_match = i
                 dmax       = d
         res[gcount]  = numpy.max(similarity)
-        res2[gcount] = numpy.sum(numpy.array(similarity) > sim_templates)
+        res2[gcount] = numpy.sum(numpy.array(similarity) >= sim_templates)
         res3[gcount] = temp_match
 
     pylab.figure()
 
-    pylab.subplot(221)
+
+    pylab.subplot(121)
     pylab.imshow(res.reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
     cb = pylab.colorbar()
     cb.set_label('Correlation')
@@ -69,32 +71,10 @@ def get_performance(file_name, name):
     pylab.xlim(-0.5, n_point-0.5)
     pylab.ylim(-0.5, n_point-0.5)
 
-    pylab.subplot(222)
+    pylab.subplot(122)
     pylab.imshow(res2.reshape(n_point, n_point).astype(numpy.int32), aspect='auto', interpolation='nearest', origin='lower')
     cb = pylab.colorbar()
     cb.set_label('Number of templates')
-    pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
-    pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
-    pylab.ylabel('Rate [Hz]')
-    pylab.xlabel('Relative Amplitude')
-    pylab.xlim(-0.5, n_point-0.5)
-    pylab.ylim(-0.5, n_point-0.5)
-
-    pylab.subplot(223)
-    pylab.imshow(amplitudes[-len(n_cells):][:,0].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
-    cb = pylab.colorbar()
-    cb.set_label('Min amplitude')
-    pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
-    pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
-    pylab.ylabel('Rate [Hz]')
-    pylab.xlabel('Relative Amplitude')
-    pylab.xlim(-0.5, n_point-0.5)
-    pylab.ylim(-0.5, n_point-0.5)
-
-    pylab.subplot(224)
-    pylab.imshow(amplitudes[-len(n_cells):][:,1].reshape(n_point, n_point), aspect='auto', interpolation='nearest', origin='lower')
-    cb = pylab.colorbar()
-    cb.set_label('Max amplitude')
     pylab.yticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(rate, 1))
     pylab.xticks(numpy.linspace(0.5, n_point-0.5, 5), numpy.round(amplitude, 1))
     pylab.ylabel('Rate [Hz]')
@@ -123,12 +103,14 @@ class TestClustering(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'clustering.raw')
+        self.file_name      = os.path.join(self.path, 'clustering.dat')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
-            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering')
+            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'clustering', 1)
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'max_elts', '1000', avoid_flag='Fraction')
+
+        self.parser = CircusParser(self.file_name)
+        self.parser.write('clustering', 'max_elts', '1000')
 
     def test_clustering_one_CPU(self):
         mpi_launch('clustering', self.file_name, 1, 0, 'False')
@@ -136,62 +118,56 @@ class TestClustering(unittest.TestCase):
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == res[0])
-        
+
+
     def test_clustering_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
         res = get_performance(self.file_name, 'two_CPU')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == res[0])
 
-    def test_clustering_quadratic(self):
-        io.change_flag(self.file_name, 'extraction', 'quadratic')
+    def test_clustering_pca(self):
+        self.parser.write('clustering', 'extraction', 'median-pca')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'extraction', 'median-raw')
-        res = get_performance(self.file_name, 'quadratic')
+        self.parser.write('clustering', 'extraction', 'median-raw')
+        res = get_performance(self.file_name, 'median-pca')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == res[0])
 
     def test_clustering_nb_passes(self):
-        io.change_flag(self.file_name, 'nb_repeats', '1')
+        self.parser.write('clustering', 'nb_repeats', '1')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'nb_repeats', '3')
+        self.parser.write('clustering', 'nb_repeats', '3')
         res = get_performance(self.file_name, 'nb_passes')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.all(self.all_templates == res[0])
 
     def test_clustering_sim_same_elec(self):
-        io.change_flag(self.file_name, 'sim_same_elec', '5')
+        self.parser.write('clustering', 'sim_same_elec', '5')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'sim_same_elec', '3')
+        self.parser.write('clustering', 'sim_same_elec', '3')
         res = get_performance(self.file_name, 'sim_same_elec')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert numpy.sum(res[1]) <= numpy.sum(self.all_matches)
 
     def test_clustering_cc_merge(self):
-        io.change_flag(self.file_name, 'cc_merge', '0.8')
+        self.parser.write('clustering', 'cc_merge', '0.8')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'cc_merge', '0.95')
+        self.parser.write('clustering', 'cc_merge', '0.95')
         res = get_performance(self.file_name, 'cc_merge')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert res[0].shape[1] <= self.all_templates.shape[1]
 
     def test_remove_mixtures(self):
-        io.change_flag(self.file_name, 'remove_mixtures', 'False')
+        self.parser.write('clustering', 'remove_mixtures', 'False')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'remove_mixtures', 'True')
+        self.parser.write('clustering', 'remove_mixtures', 'True')
         res = get_performance(self.file_name, 'cc_merge')
         if self.all_templates is None:
             self.all_templates = res[0]
             self.all_matches   = res[1]
-        assert res[0].shape[1] >= self.all_templates.shape[1]

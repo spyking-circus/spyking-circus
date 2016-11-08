@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, name):
 
@@ -139,18 +140,19 @@ def get_performance(file_name, name):
     pylab.savefig(output)
 
 
-class TestCompleteWorkflow(unittest.TestCase):
+class TestDrifts(unittest.TestCase):
 
     def setUp(self):
         dirname             = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'drifts.raw')
+        self.file_name      = os.path.join(self.path, 'drifts.dat')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
-            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'drifts')
+            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'drifts', 1)
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
+        self.parser = CircusParser(self.file_name)
 
     def test_all_two_CPU(self):
         mpi_launch('clustering', self.file_name, 2, 0, 'False')

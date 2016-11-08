@@ -7,7 +7,7 @@ Here are some detailed instructions:
     2. Launched Anaconda's command line
     3. Execute ``conda install mpi4py``
     4. You should see the following message:
-        * mpi4py requires that Microsoft MPI 6 be installed on the host system. That is a systemwide installation that is currently not available through conda. In order to successfully use mpi4py you must install Microsoft MPI and then append the bin directory of the MPI installation to your PATH environment variable. To install Microsoft MPI see MPIv6_
+        * mpi4py requires that Microsoft MPI 6 be installed on the host system. That is a system wide installation that is currently not available through conda. In order to successfully use mpi4py you must install Microsoft MPI and then append the bin directory of the MPI installation to your PATH environment variable. To install Microsoft MPI see MPIv6_
 
     5. Install microsoft MPIv6_ as requested with the previous link
     6. Add the mpi installation's bin directory to the path (``C:\program files\microsoft mpi\bin``)

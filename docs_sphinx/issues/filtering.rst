@@ -14,7 +14,7 @@ If you filled the parameter files with incorrect values either for the data type
 Interruption of the filtering
 -----------------------------
 
-The filtering is performed in parallel by several nodes, each of them in charge of a subset of all the temporal chunks. This means that if any of them is failing because of a crash, or if the filtering is interupted by any means, then you have to copy again the entiere raw file and start again. Otherwise, you are likely to filter twice some subparts of the data, leading to wrong results
+The filtering is performed in parallel by several nodes, each of them in charge of a subset of all the temporal chunks. This means that if any of them is failing because of a crash, or if the filtering is interupted by any means, then you have to copy again the entire raw file and start again. Otherwise, you are likely to filter twice some subparts of the data, leading to wrong results
 
 Flag filter_done
 ----------------

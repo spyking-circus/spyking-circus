@@ -3,13 +3,13 @@ Why using it?
 
 .. include:: <isonum.txt>
 
-Why using the SpyKING CIRCUS ?
-------------------------------
+
+SpyKING CIRCUS is a free, open-source, spike sorting software written entirely in python. In a nutshell, this is a fast and efficient way to perform spike sorting using a template-matching based algorithm.
 
 Because you have too many channels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Classical algorithms of spike sorting are not properly scaling up when the number of channels is increasing. Most, if not all of them would have a very hard time dealing with more than 100 channels. However, the new generation of electrodes, either *in vitro* (MEA with 4225 channelsl) or *in vivo* (IMEC probe with 128 channels) are providing more and more channels, such that there is a clear need for a software that would properly scale with the size of the electrodes. 
+Classical algorithms of spike sorting are not properly scaling up when the number of channels is increasing. Most, if not all of them would have a very hard time dealing with more than 100 channels. However, the new generation of electrodes, either *in vitro* (MEA with 4225 channels) or *in vivo* (IMEC probe with 128 channels) are providing more and more channels, such that there is a clear need for a software that would properly scale with the size of the electrodes. 
 
 .. note::
 
@@ -18,7 +18,7 @@ Classical algorithms of spike sorting are not properly scaling up when the numbe
 Because of overlapping spikes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-With classical spike sorting algorithms, overlapping spikes are leading to outliers in your clusters, such that they are discarded. Therefore, each time two neurons have overlapping waveforms, their spikes are ignored. This can be problematic when you are addressing questions relying on fine temporal interactions within neurons. It is even more problematic with large and dense electrodes, with many recording sites close from each others, because those overlapping spikes start to be the rule instead of the exception. Therefore, you need to have a spike sorting algorithm that can distangle those overlapping spikes.
+With classical spike sorting algorithms, overlapping spikes are leading to outliers in your clusters, such that they are discarded. Therefore, each time two neurons have overlapping waveforms, their spikes are ignored. This can be problematic when you are addressing questions relying on fine temporal interactions within neurons. It is even more problematic with large and dense electrodes, with many recording sites close from each others, because those overlapping spikes start to be the rule instead of the exception. Therefore, you need to have a spike sorting algorithm that can disentangle those overlapping spikes.
 
 .. note::
 

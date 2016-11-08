@@ -13,11 +13,12 @@ The SpyKING CIRCUS is a massively parallel code to perform semi automatic spike 
 
 .. note::
 
-   In 0.4.2, we introduce the ``smart_search`` mode in the ``clustering`` section. This is a powerful features that can boost a lot the clustering, so do not hesitate to give it a try. It may become on by default in future releases. In a nutshell, this option, when activated, will make sure that the subset of spikes selected to obtain the templates are not selected randomly, but with a rejection method that will try to ensure that all types of spikes are equally collected, in order not to miss under-represented spikes. This is especially usefull for low thresholds, or long recordings. 
+   In 0.5, smart search is now activated by default, and important changes have been done under the hood to refactor the code in order to read/write virtually any file format, as long as a wrapper is provided. Be in touch if you are interested by writing your own wrapper. A "garbage collector" mode has also been added, to help the user to get a **qualitative** feedback on the performance of the algorithm, estimating the number of missed spikes: spikes left unfitted during the fitting procedure can be collected, grouped by electrode (keep in mind that this is more for a debugging purpose, and those spikes are only an approximation).
+
 
 .. warning::
 
-   The latest version is 0.4.3, stable, but bugs fixes/improvements are made here and there based on feedback from users. So please always be sure to regularly update your installation. If you want to be kept updated with fixes, please register to our Google Group: https://groups.google.com/forum/#!forum/spyking-circus-users
+   The latest version is 0.5, stable, but bugs fixes/improvements are made here and there based on feedback from users. So please always be sure to regularly update your installation. If you want to be kept updated with fixes, please register to our Google Group: https://groups.google.com/forum/#!forum/spyking-circus-users.
 
 
 .. toctree::

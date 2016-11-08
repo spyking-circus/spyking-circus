@@ -1,19 +1,24 @@
 from .shared.utils import *
 import circus.shared.algorithms as algo
 from .shared import plot
+from circus.shared.probes import get_nodes_and_edges
+import h5py
+from circus.shared.messages import print_and_log, init_logging
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
-    import h5py
 
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.whitening')
     #################################################################
-    sampling_rate  = params.getint('data', 'sampling_rate')
+    data_file      = params.data_file
+    data_file.open()
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
-    N_total        = params.getint('data', 'N_total')
-    dist_peaks     = params.getint('data', 'dist_peaks')
-    template_shift = params.getint('data', 'template_shift')
+    N_total        = params.nb_channels
+    N_t            = params.getint('detection', 'N_t')
+    dist_peaks     = params.getint('detection', 'dist_peaks')
+    template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
     file_out       = params.get('data', 'file_out')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -24,17 +29,17 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size       = params.getint('whitening', 'chunk_size')
     plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
-    nodes, edges     = io.get_nodes_and_edges(params)
-    safety_time      = int(params.getfloat('whitening', 'safety_time')*sampling_rate*1e-3)
+    nodes, edges     = get_nodes_and_edges(params)
+    safety_time      = params.getint('whitening', 'safety_time')
     nb_temp_white    = min(max(20, comm.size), N_e)
-    max_silence_1    = int(20*sampling_rate // comm.size)
+    max_silence_1    = int(20*params.rate // comm.size)
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     #################################################################
 
     if comm.rank == 0:
-        io.print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', params)
+        print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', logger)
 
     if use_gpu:
         import cudamat as cmt
@@ -47,25 +52,28 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         cmt.init()
         cmt.cuda_sync_threads()
 
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
 
         res        = io.data_stats(params, show=False)
-        chunk_size = res*sampling_rate//comm.size
+        chunk_size = int(res*params.rate//comm.size)
         if comm.rank == 0:
-            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+            print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', logger)
 
-        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+
 
     # I guess this is more relevant, to take signals from all over the recordings
-    all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
+    all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
     all_electrodes = numpy.random.permutation(N_e)
 
     for gidx in [all_chunks[comm.rank]]:
 
         #print "Node", comm.rank, "is analyzing chunk", gidx,  "/", nb_chunks, " ..."
-        local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+        local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
+        local_shape = len(local_chunk)
+
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
         thresholds = numpy.zeros(N_e, dtype=numpy.float32)
         for i in xrange(N_e):
@@ -158,7 +166,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 nb_silences     = numpy.sum(all_elecs > 0)
                 all_res         = all_res.reshape((nb_silences, N_t**2))
             except Exception:
-                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
+                print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', logger)
             all_res             = numpy.sum(all_res, 0)
             all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
             temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
@@ -170,21 +178,21 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 temporal_whitening = numpy.zeros(N_t, dtype=numpy.float32)
                 temporal_whitening[N_t//2] = 1
                 to_write['temporal']       = temporal_whitening
-                io.print_and_log(["Disabling temporal whitening because of NaNs found"], 'info', params)
+                print_and_log(["Disabling temporal whitening because of NaNs found"], 'info', logger)
 
         if do_spatial_whitening:
-            if len(all_silences)/sampling_rate == 0:
-                io.print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', params)
+            if len(all_silences)/params.rate == 0:
+                print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', logger)
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
-            io.print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/sampling_rate)], 'default', params)
+            print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/params.rate)], 'default', logger)
         
             have_nans = numpy.sum(numpy.isnan(spatial_whitening))
 
             if have_nans > 0:
                 spatial_whitening = numpy.eye(spatial_whitening.shape[0], dtype=numpy.float32)
                 to_write['spatial'] = spatial_whitening
-                io.print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', params)
+                print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', logger)
 
         bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, to_write.keys(), to_write)
@@ -196,20 +204,22 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if do_spatial_whitening or do_temporal_whitening:
 
         if comm.rank == 0:
-            io.print_and_log(["Because of whitening, need to recompute the thresholds..."], 'default', params)
+            print_and_log(["Because of whitening, need to recompute the thresholds..."], 'default', logger)
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')
             if use_gpu:
-                spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+                spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
         if do_temporal_whitening:
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
+            
             if do_spatial_whitening:
                 if use_gpu:
-                    local_chunk = cmt.CUDAMatrix(local_chunk)
+                    local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                     local_chunk = local_chunk.dot(spatial_whitening).asarray()
                 else:
                     local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -230,60 +240,55 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                 bfile.close()
             comm.Barrier()
 
-    if comm.rank == 0:
-        if not os.path.exists(plot_path):
-            os.makedirs(plot_path)
-        n_elec = min(int(numpy.sqrt(N_e)), 5)
-        plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True,
-                      n_elec=n_elec, save=[plot_path, 'electrodes'])
+    #if comm.rank == 0:
+        #if not os.path.exists(plot_path):
+        #    os.makedirs(plot_path)
+        #N_elec = min(int(numpy.sqrt(data_file.N_e)), 5)
+        #plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True,
+        #              n_elec=N_elec, save=[plot_path, 'electrodes'])
 
     # Part 2: Basis
     numpy.random.seed(422)
 
     #################################################################
-    sampling_rate  = params.getint('data', 'sampling_rate')
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
-    N_total        = params.getint('data', 'N_total')
-    dist_peaks     = params.getint('data', 'dist_peaks')
-    template_shift = params.getint('data', 'template_shift')
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    nodes, edges   = io.get_nodes_and_edges(params)
+    nodes, edges   = get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size       = params.getint('data', 'chunk_size')
-    safety_time      = int(params.getfloat('whitening', 'safety_time')*sampling_rate*1e-3)
+    safety_time      = params.getint('whitening', 'safety_time')
     max_elts_elec    = params.getint('whitening', 'max_elts')
     nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    take_all         = False
+    if sign_peaks == 'both':
+       max_elts_elec *= 2
     #################################################################
 
 
     if comm.rank == 0:
-        io.print_and_log(["Searching spikes to construct the PCA basis..."], 'default', params)
+        print_and_log(["Searching spikes to construct the PCA basis..."], 'default', logger)
         
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
 
         res        = io.data_stats(params, show=False)
-        chunk_size = res*sampling_rate//comm.size
+        chunk_size = int(res*params.rate//comm.size)
         if comm.rank == 0:
-            io.print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', params)
+            print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', logger)
 
-        borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
+        nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     groups    = {}
     for i in xrange(N_e):
         groups[i] = 0
 
     # I guess this is more relevant, to take signals from all over the recordings
-    all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks))
+    all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
     
@@ -310,10 +315,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if ((elt_count_pos + elt_count_neg) < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
+
             if do_spatial_whitening:
                 if use_gpu:
-                    local_chunk = cmt.CUDAMatrix(local_chunk)
+                    local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                     local_chunk = local_chunk.dot(spatial_whitening).asarray()
                 else:
                     local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -420,7 +427,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar.finish()
 
-    io.print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', params)
+    print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
     
     if sign_peaks in ['negative', 'both']:
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
@@ -436,7 +443,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['positive', 'both']:
             nb_waveforms += gdata_pos.shape[0]
         
-        io.print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', params)
+        print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
         pca = PCA(output_dim, copy=False)
         res = {}   
         if sign_peaks in ['negative', 'both']:  
@@ -463,11 +470,11 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
         io.write_datasets(bfile, res.keys(), res)
         if sign_peaks == 'positive':
-            io.print_and_log(["A basis with %s dimensions has been built" %res['proj_pos'].shape[1]], 'info', params)
+            print_and_log(["A basis with %s dimensions has been built" %res['proj_pos'].shape[1]], 'info', logger)
         elif sign_peaks == 'negative':
-            io.print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
+            print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
         elif sign_peaks == 'both':
-            io.print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', params)
+            print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
 
         bfile.close()
 
@@ -476,12 +483,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     if matched_filter:
 
         if comm.rank == 0:
-            io.print_and_log(["Because of matched filters, need to recompute the thresholds..."], 'default', params)
+            print_and_log(["Because of matched filters, need to recompute the thresholds..."], 'default', logger)
 
         if do_spatial_whitening:
             spatial_whitening  = io.load_data(params, 'spatial_whitening')
             if use_gpu:
-                spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+                spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
         if do_temporal_whitening:
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
@@ -493,10 +500,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
 
         for gidx in [all_chunks[comm.rank]]:
-            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
+
             if do_spatial_whitening:
                 if use_gpu:
-                    local_chunk = cmt.CUDAMatrix(local_chunk)
+                    local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                     local_chunk = local_chunk.dot(spatial_whitening).asarray()
                 else:
                     local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -532,3 +541,5 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
                     io.write_datasets(bfile, ['matched_thresholds_pos'], {'matched_thresholds_pos' : thresholds})
                     bfile.close()
                 comm.Barrier()
+
+    data_file.close()

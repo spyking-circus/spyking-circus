@@ -11,7 +11,7 @@ First, you will need to create a directory (we call it ``path`` – usually you 
 
 .. warning::
 
-    Your data should not be filtered, and the filtering will be done only once **onto** the data. So you need to keep a copy elsewhere of you raw data.
+    Your data should not be filtered, and by default the filtering will be done only once **onto** the data. So you need to keep a copy elsewhere of you raw data. If you really do not want to filter data on site, you can use the ``overwrite`` parameter (see :doc:`documentation on the code <../code/config>` for more information).
 
 Generate a parameter file
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -65,7 +65,6 @@ It should take around the time of the recording to run – maybe a bit more. The
     | Duration of the recording   : 7 min 12 s
     | Width of the templates      : 5 ms
     | Spatial radius considered   : 250 um
-    | Stationarity                : True
     | Waveform alignment          : True
     | Skip strong artefacts       : False
     | Template Extraction         : median-raw

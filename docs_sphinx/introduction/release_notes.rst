@@ -1,13 +1,12 @@
 Release notes
 =============
 
-Spyking CIRCUS 0.4.2
---------------------
+Spyking CIRCUS 0.5
+------------------
 
-This is the 0.4 release of the SpyKING CIRCUS, a new approach to the
-problem of spike sorting. The code is based on a smart clustering with
-sub sampling, and a greedy template matching approach, such that it can
-resolve the problem of overlapping spikes. The publication about the software is available at http://biorxiv.org/content/early/2016/08/04/067843
+This is the 0.5 release of the SpyKING CIRCUS, a new approach to the problem of spike sorting. The code is based on a smart clustering with
+sub sampling, and a greedy template matching approach, such that it can resolve the problem of overlapping spikes. The publication about the software 
+is available at http://biorxiv.org/content/early/2016/08/04/067843
 
 
 .. figure::  launcher.png
@@ -18,7 +17,7 @@ resolve the problem of overlapping spikes. The publication about the software is
 
 .. warning::
 
-    Because this is a beta version, the code may evolve. Even if results are or should be correct, we can expect some more optimizations in a near future, based on feedbacks obtained on multiple datasets. If you spot some problems with the results, please be in touch with pierre.yger@inserm.fr
+    The code may still evolve. Even if results are or should be correct, we can expect some more optimizations in a near future, based on feedbacks obtained on multiple datasets. If you spot some problems with the results, please be in touch with pierre.yger@inserm.fr
 
 Contributions
 ~~~~~~~~~~~~~
@@ -30,6 +29,57 @@ Code and documentation contributions (ordered by the number of commits):
 * Christophe Gardella
 * Olivier Marre
 * Cyrille Rossant
+
+===========
+Release 0.5
+===========
+
+* code is now hosted on GitHub
+* various cosmetic changes in the terminal
+* addition of a garbage collector mode, to collect also all unfitted spikes, per channel
+* complete restructuration of the I/O such that the code can now handle multiple file formats
+* internal refactoring to ease interaction with new file formats and readibility
+* because of the file format, slight restructuration of the parameter files
+* N_t and radius have been moved to the [detection] section, more consistent
+* addition of an explicit file_format parameter in the [data] section
+* every file format may have its own parameters, see documentation for details (or --info)
+* can now work natively with open ephys data files (.openephys)
+* can now work natively with MCD data files (.mcd) [using neuroshare]
+* can now work natively with Kwik (KWD) data files (.kwd)
+* can now work natively with NeuroDataWithoutBorders files (.nwb)
+* can now work natively with any HDF5-like structure data files (.h5)
+* can now work natively with Arf data files (.arf)
+* can now work natively with 3Brain data files (.brw)
+* can now work natively with Numpy arrays (.npy)
+* can still work natively with raw binary files with/without headers :)
+* faster IO for raw binary files
+* refactoring of the exports during multi-file/preview/benchmark: everything is now handled in raw binary
+* fix a bug with the size of the safety time parameter during whitening and clustering
+* all the interactions with the parameters are now done in the circus/shared/parser.py file
+* all the interactions with the probe are now done in the circus/shared/probes.py file
+* all the messages are now handled in circus/shared/messages.py
+* more robust and explicit logging system
+* more robust checking of the parameters
+* display the electrode number in the preview/result GUI
+* setting up a continuous integration workflow to test all conda packages with appveyor and travis automatically
+* cuda support is now turned off by default, for smoother install procedures (GPU yet do not bring much)
+* file format can be streamed. Over several files (former multi-file mode), but also within the same file
+* several cosmetic changes in the default parameter file
+* clustering:smart_search and merging:correct_lag are now True by default
+* fix a minor bug in the smart search, biasing the estimation of densities
+* fix a bug with the masks and the smart-search: improving results
+* addition of an overwrite parameter. Note that any t_start/t_stop infos are lost
+* if using streams, or internal t_start, output times are on the same time axis than the datafile
+
+
+=============
+Release 0.4.3
+=============
+
+* cosmetic changes in the terminal
+* suggest to reduce chunk sizes for high density probes (N_e > 500) to save memory
+* fix a once-in-a-while bug in the smart-search
+
 
 =============
 Release 0.4.2

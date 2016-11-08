@@ -8,9 +8,9 @@ In this section, you will find all the information you need to be able to launch
 
    quickstart
    parameters
-   data
    probe
    config
+   fileformat
    plots
    multifiles
    artefacts

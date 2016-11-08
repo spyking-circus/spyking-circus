@@ -5,7 +5,7 @@ In this section, we will review the basis of spike sorting, and the key operatio
 
 .. note::
 
-  All operations are similar accross GUIs, so the key concepts here can be transposed to python/phy GUIs.
+  All operations are similar across GUIs, so the key concepts here can be transposed to python/phy GUIs.
 
 Viewing a single template
 -------------------------
@@ -18,7 +18,7 @@ The algorithm outputs different templates. Each corresponds to the average wavef
    A view of the templates
 
 
-The large panel A shows the template on every electrode. You can click on the ``Zoom in`` and ``Zoom out`` buttons to get a closer look or step back. To adjust the view, you can change the scaling factor for the *X* and *Y* axis by changing the values in the ``X scale`` and ``Y scale`` boxes just next to the template view. ``Reset`` will restaure the view to the default view. ``Normalize`` will automatically adapt the scale to see the most of your template.
+The large panel A shows the template on every electrode. You can click on the ``Zoom in`` and ``Zoom out`` buttons to get a closer look or step back. To adjust the view, you can change the scaling factor for the *X* and *Y* axis by changing the values in the ``X scale`` and ``Y scale`` boxes just next to the template view. ``Reset`` will restore the view to the default view. ``Normalize`` will automatically adapt the scale to see the most of your template.
 
 .. figure::  GUI_features.png
    :align:   center
@@ -48,7 +48,7 @@ Cleaning a template
 
    A view of the amplitudes over time
 
-The template is matched all over the data, with a different amplitude each time. Each point of panel C represents a match, the *y*-axis is the amplitude, and *x*-axis the time. When there is a refractory period violation (two spikes too close), the bigger spike appears as a yellow point, and the smaller one in green. The 3 gray lines correspond to the average amplitude, the minimal amplitude and the maximal one.
+The template is matched all over the data, with a different amplitude each time. Each point of panel C represents a match, the *y*-axis is the amplitude, and *x*-axis the time. When there is a refractory period violation (two spikes too close), the bigger spike appears as a yellow point, and the smaller one in green. The 3 grey lines correspond to the average amplitude, the minimal amplitude and the maximal one.
 
 Many templates should have a large number of amplitudes around 1, as a sanity check that the template matching algorithm is working. However, sometimes, some others can have amplitude that may be anormally small or large. These latter points are usually "wrong matches": they don't correspond to real occurrences of the template. Rather, the algorithm just fitted noise here, or the residual that remains after subtracting templates. Of course, you don't want to consider them as real spikes. So these amplitudes need to be separated from the other ones and removed.
 
@@ -58,7 +58,7 @@ Many templates should have a large number of amplitudes around 1, as a sanity ch
 
 For this purpose, you need to define the limits of the area of good spikes. To define the minimal amplitude, click on the button ``Set Min``, and then click on the panel D. The gray line corresponding to the minimal amplitude will be adjusted to pass by the point on which you click. The process holds for ``Set Max``.
 
-In some cases, for long recordings where you have a drift, you would like to have an amplitude threshold varying over time. To do so, you need to define first an average amplitude over time. Click on ``Define Trend`` and see if the gray line follows the average amplitude over time. If not, you can try to modify the number right next to the button: if its value is 10, the whole duration will be divided in 10 intervals, and the median amplitude will be over each of these intervals. Alternatively, you can define this average over time manually by clicking on the ``Define Trend Manually`` button, then click on all the places by which this trend should pass in panel D, and then press enter.
+In some cases, for long recordings where you have a drift, you would like to have an amplitude threshold varying over time. To do so, you need to define first an average amplitude over time. Click on ``Define Trend`` and see if the grey line follows the average amplitude over time. If not, you can try to modify the number right next to the button: if its value is 10, the whole duration will be divided in 10 intervals, and the median amplitude will be over each of these intervals. Alternatively, you can define this average over time manually by clicking on the ``Define Trend Manually`` button, then click on all the places by which this trend should pass in panel D, and then press enter.
 
 Once you have set the amplitude min and max correctly, you can split your template in two by clicking on the ``Split from Lims`` button. The template will be duplicated. One template will only keep the points inside these limits, the other ones will keep the points outside.
 
@@ -75,7 +75,7 @@ At any time, you can ask the GUI to suggest you the closest template to the one 
 Merging two templates
 ~~~~~~~~~~~~~~~~~~~~~
 
-Very often a single cell is splitted by the algorithm into different templates. These templates thus need to be merged. When you are looking at one cell, click on the ``Suggest similar`` button to compare it to templates of similar shape. If the number next to this button, you will compare it to the most similar one, if it is 2, to the second most similar one, etc. You will be automatically switched to the ``View 2`` mode (see above). In the middle left, a number between 0 and 1 indicates a coefficient of similarity between the two templates (1=perfect similarity). By ticking the ``Normalize`` box, the two templates will be normalized to the same maximum.
+Very often a single cell is split by the algorithm into different templates. These templates thus need to be merged. When you are looking at one cell, click on the ``Suggest similar`` button to compare it to templates of similar shape. If the number next to this button, you will compare it to the most similar one, if it is 2, to the second most similar one, and so on. You will be automatically switched to the ``View 2`` mode (see above). In the middle left, a number between 0 and 1 indicates a coefficient of similarity between the two templates (1=perfect similarity). By ticking the ``Normalize`` box, the two templates will be normalized to the same maximum.
 
 There are many ways to decide if two templates should be merged or not, but most frequently people look at the cross-correlogram: if this is the same cell, there should be a clear dip in the middle of the cross-correlogram, indicating that two spikes of the two templates cannot be emitted to too close to each other, and thus respecting the refractory period.
 
@@ -111,7 +111,7 @@ To display a raster, you need a file containing the beginning and end time of ea
     * ``rep_begin_time{i}(j)`` should contain the start time of the j-th repeat for the i-th type of stimulus. 
     * ``rep_end_time{i}(j)`` should contain the end time of the j-th repeat for the i-th type of stimulus.
 
-The times should be specified in sample numbers. These two variables should be stored as a ``mat`` file in a file called ``path/mydata/mydata.stim``, and placed in the same directory than the output files of the algorithm. If available, it will be loaded by the GUI and help you to visualize trial-to-trial responses of a given template.
+The times should be specified in sample numbers. These two variables should be stored as a ``mat`` file in a file called ``path/mydata/mydata.stim.mat``, and placed in the same directory than the output files of the algorithm. If available, it will be loaded by the GUI and help you to visualize trial-to-trial responses of a given template.
 
 
 Give a grade to a cell

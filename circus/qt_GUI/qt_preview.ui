@@ -209,17 +209,17 @@
              <normaloff>.</normaloff>.</iconset>
            </property>
           </widget>
-          <widget class="QSpinBox" name="get_time">
+          <widget class="QDoubleSpinBox" name="get_time">
            <property name="geometry">
             <rect>
              <x>50</x>
              <y>30</y>
-             <width>101</width>
+             <width>111</width>
              <height>27</height>
             </rect>
            </property>
            <property name="maximum">
-            <number>999999998</number>
+            <double>10000000000000000905969664.000000000000000</double>
            </property>
           </widget>
          </widget>
@@ -270,8 +270,6 @@
             <double>0.250000000000000</double>
            </property>
           </widget>
-          <zorder>get_threshold</zorder>
-          <zorder>btn_write_threshold</zorder>
          </widget>
         </item>
         <item>
@@ -295,7 +293,7 @@
           <property name="minimumSize">
            <size>
             <width>150</width>
-            <height>50</height>
+            <height>80</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -333,13 +331,29 @@
            <property name="geometry">
             <rect>
              <x>0</x>
-             <y>60</y>
+             <y>70</y>
              <width>151</width>
              <height>27</height>
             </rect>
            </property>
            <property name="text">
             <string>Write thresh to file</string>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="show_unfitted">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>50</y>
+             <width>131</width>
+             <height>22</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Show Unfitted</string>
            </property>
           </widget>
          </widget>

@@ -1,0 +1,86 @@
+language: c  # We are not using the Python infrastructure
+sudo: false  # Make sure we are using the container-based infrastructure
+
+# Install packages to have 32bit Python run on 64bit
+addons:
+  apt:
+    packages:
+    - gcc-multilib
+    - lib32z1
+env:
+  global:
+    - secure: "Eufbr/Phit5/uGlzUcJmyM/iaH90cJ3Jb7rleORgoxxQmUcZ7b32T9B6hsxiB1b3C05QT2peRM62HCdCJLxHKNxQeLOdFV+ZYPizQefdqQ4ECGmKRmS8Mx5kRmwjJE6S/3UOYpysykNx8VQjoOnvfrb2k2vcUXkYEjSud0pMdF9lVP0hbLMDqrfxaugbwH0A0WU3jZqIRb9gfp+ZYj3XHi7zyYx+fFgYU+6fp/nZMeH839X2dWgdeWWfYXg5hFBE6sSRuXAVqQ5oC2AhlmFOrLl3TI4w6R2P40LM8r4cLE3Dtw063MfDWPqqK74iC8eHtcyE/7Iz2XKYIjk5QodplciAGEYYY9NaD+6GfOMBNgyGynADVtvhsz+lQU7Oi5F4C19eYKzkfCKzpR90gtr7NQefD4IzDA1rtDsAWk7HrCEwq5GR8a6l8qTwgLujBXTRguMdNKsSxUCEhJ+0vFWh4VvYnvySSNKv8UM40FkL/TylC570ceDbqmEfRQu9OAdgZjV2ZB3k1p3RTMuy6D4zOUO6A63gkPuayyvI0wb+oMN7XmP5+xf2cDygMlhHgRbaj//6PV2qO3MPffVykuupTCjDn0Wi51rM8wHrRy1GCNODD+FiYS5bgX/s66TirGj1v2bzsSTs4fn5HGT91cpOhKNyi84evCKQWlnov51XUhs="
+    - secure: "fxbmOyotVG1VB4pCtDJE5XVjc4owEMqCI+VJI3Cg8jdnYRpiGiAugIq7Q6FAovllmt4HilCCLk3r27/maBiugcYPYghOc8W6cu+tMK1SeDhu4kra5+Ue4OgY7DZ9mYom7r0gzTzvFNu8QzydgqfiT1kBTXnB4qfJbMWS1+XRhTbZhNz+BOOnd5kL3KH2uo4I2Gk8WNu5bMsrXyqI2Zgmw9937mFOQvJZ3IEIKj8abYOm5xz9gf/JbbUgo3AhEXLHlkEQEnArzDnLA6GrfDY4eO5OgR6SL/XQ3O8WOqRzqJgH0P6GvfzLU8MS6p+w6bsjOAd6jrqW9I8tVQTIxQyUG4RMmEl4CBQ+Asa70VrOsAE1v3WgFjl9SAEQukn0phf0BFRkVRLYB/uXln3GSBLJtZu4ZMXJcnF+4r5cveVNGQg3704MYwqkN0AULH16TO5c+e1YnyUykWONhJKJ8F8tObZumAnGXZXXYT0LgbftnqPjpv8bQ7BocM97Mi3AWGA3uWROPInaVDbzZgsL/rJCaWowjqwEViYtub2lzZ2yz83CK8Jsyd1xCEaYpqYJRuRVO5ZxRsIoChhKDj72DNsezqIlaUP37HUNMlbvsvn/XxJlO6vHKW0AGz3vR20r9nWB4EoIndC0mOTZM8v1j24JbwBmx4mBnUp8g+1oJ9ZdILU="
+
+matrix:
+  include:
+    - python: "2.7"
+      env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86_64"
+      os: linux
+    - python: "3.5"
+      env: PYTHON="3.5" CONDA_PY="35" ARCHITECTURE="x86_64"
+      os: linux
+    - python: "2.7"
+      env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86_64"
+      os: osx
+    - python: "3.5"
+      env: PYTHON="3.5" CONDA_PY="35" ARCHITECTURE="x86_64"
+      os: osx
+
+# Use miniconda to install binary versions of numpy etc. from continuum
+# analytic's repository. Follows an approach described by Dan Blanchard:
+# https://gist.github.com/dan-blanchard/7045057
+before_install:
+- if [ ${PYTHON:0:1} == "2" ]; then
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-$ARCHITECTURE.sh -O miniconda.sh;
+    else
+    wget http://repo.continuum.io/miniconda/Miniconda-latest-MacOSX-$ARCHITECTURE.sh -O miniconda.sh;
+    fi;
+    else
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-$ARCHITECTURE.sh -O miniconda.sh;
+    else
+    wget http://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-$ARCHITECTURE.sh -O miniconda.sh;
+    fi;
+  fi
+- chmod +x miniconda.sh
+# When we are installing the 32 Bit conda on a 64 Bit system, the miniconda
+# installer will ask for a "yes" despite the -b flag, so we pipe in a yes
+- yes | ./miniconda.sh -b -p ~/miniconda
+- export PATH=~/miniconda/bin:$PATH
+
+# command to install dependencies
+install:
+  - conda install --yes --quiet conda-build setuptools wheel
+
+# command to run tests
+script:
+# Build the conda package
+- if [ "$TRAVIS_OS_NAME" == "osx" ]; then OTHER_CHANNELS="-c mpi4py"; fi
+- conda build -c spyking-circus $OTHER_CHANNELS conda_recipe
+- python packaging_tools/move_conda_package.py
+# Build source and binary packages
+- python setup.py sdist --formats=zip,gztar,bztar
+- python setup.py bdist_wheel
+# Try installing from the source package (install dependencies via conda first)
+- conda install --yes --quiet -c spyking-circus $OTHER_CHANNELS progressbar2 mpi4py numpy cython scipy matplotlib h5py colorama psutil "qt>=4,<5" libgcc
+- pip install dist/*.tar.gz
+- spyking-circus -h
+- pip uninstall -y -q spyking-circus
+# Try installing from the binary wheel
+- pip install dist/*.whl
+- spyking-circus -h
+
+after_success:
+# Upload to anaconda.org if this is a tagged release in the master branch
+-
+- if [[ $TRAVIS_PULL_REQUEST == 'false' && $TRAVIS_REPO_SLUG == 'spyking-circus/spyking-circus' && $TRAVIS_BRANCH == 'master' && ! -z TRAVIS_TAG ]]; then
+  conda install --yes --quiet anaconda-client;
+  conda install --yes --quiet -c conda-forge twine;
+  python packaging_tools/conda-server-push.py $TRAVIS_TAG;
+  twine upload -u pierre.yger dist/* ;
+  fi
+
+notifications:
+  email: false

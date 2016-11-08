@@ -1,7 +1,7 @@
 Parallel HDF5
 =============
 
-The code can make use of parallel HDF5, if this feature is available on your system. This will reduce, during the execution, the size consumed by temporay files on your hard drive, and also speed up the computation in various part of the algorithm. This is especially important for large number of electrodes, leading to a large number of templates (> 2000).
+The code can make use of parallel HDF5, if this feature is available on your system. This will reduce, during the execution, the size consumed by temporary files on your hard drive, and also speed up the computation in various part of the algorithm. This is especially important for large number of electrodes, leading to a large number of templates (> 2000).
 
 To know if your ``hdf5`` implementation is compatible with MPI, you just need to launch python and do::
 

@@ -2,6 +2,7 @@ import numpy, h5py, pylab, cPickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
+from circus.shared.parser import CircusParser
 
 def get_performance(file_name, name):
 
@@ -92,21 +93,22 @@ class TestSmartSearch(unittest.TestCase):
         self.path           = os.path.join(dirname, 'synthetic')
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.file_name      = os.path.join(self.path, 'smart_search.raw')
+        self.file_name      = os.path.join(self.path, 'smart_search.dat')
         self.source_dataset = get_dataset(self)
         if not os.path.exists(self.file_name):
-            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'smart-search')
+            mpi_launch('benchmarking', self.source_dataset, 2, 0, 'False', self.file_name, 'smart-search', 1)
             mpi_launch('whitening', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'max_elts', '2000', avoid_flag='Fraction')
+        self.parser = CircusParser(self.file_name)
+        self.parser.write('clustering', 'max_elts', '2000')
 
     #def tearDown(self):
     #    data_path = '.'.join(self.file_name.split('.')[:-1])
     #    shutil.rmtree(data_path)
 
     def test_smart_search_on(self):
-        io.change_flag(self.file_name, 'smart_search', 'True')
+        self.parser.write('clustering', 'smart_search', 'True')
         mpi_launch('clustering', self.file_name, 2, 0, 'False')
-        io.change_flag(self.file_name, 'smart_search', 'False')
+        self.parser.write('clustering', 'smart_search', 'False')
         res = get_performance(self.file_name, 'smart_search_on')
 
     def test_smart_search_off(self):

@@ -65,8 +65,18 @@
        </property>
        <property name="icon">
         <iconset theme="system-file-manager">
-         <normaloff/>
-        </iconset>
+         <normaloff>.</normaloff>.</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_help_file_format">
+       <property name="text">
+        <string>File formats</string>
+       </property>
+       <property name="icon">
+        <iconset theme="help">
+         <normaloff>.</normaloff>.</iconset>
        </property>
       </widget>
      </item>
@@ -81,7 +91,16 @@
       <enum>QFrame::Raised</enum>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
-      <property name="margin">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
        <number>0</number>
       </property>
       <item>
@@ -199,8 +218,7 @@
                  </property>
                  <property name="icon">
                   <iconset theme="help">
-                   <normaloff/>
-                  </iconset>
+                   <normaloff>.</normaloff>.</iconset>
                  </property>
                 </widget>
                </item>
@@ -234,8 +252,7 @@
                  </property>
                  <property name="icon">
                   <iconset theme="help">
-                   <normaloff/>
-                  </iconset>
+                   <normaloff>.</normaloff>.</iconset>
                  </property>
                 </widget>
                </item>
@@ -267,8 +284,7 @@
                  </property>
                  <property name="icon">
                   <iconset theme="system-file-manager">
-                   <normaloff/>
-                  </iconset>
+                   <normaloff>.</normaloff>.</iconset>
                  </property>
                 </widget>
                </item>
@@ -338,8 +354,7 @@
                     </property>
                     <property name="icon">
                      <iconset theme="system-file-manager">
-                      <normaloff/>
-                     </iconset>
+                      <normaloff>.</normaloff>.</iconset>
                     </property>
                    </widget>
                   </item>
@@ -632,8 +647,7 @@
              </property>
              <property name="icon">
               <iconset theme="help">
-               <normaloff/>
-              </iconset>
+               <normaloff>.</normaloff>.</iconset>
              </property>
             </widget>
             <widget class="QPushButton" name="btn_matlab">
@@ -650,8 +664,7 @@
              </property>
              <property name="icon">
               <iconset theme="help">
-               <normaloff/>
-              </iconset>
+               <normaloff>.</normaloff>.</iconset>
              </property>
             </widget>
            </widget>
@@ -756,8 +769,7 @@
         </property>
         <property name="icon">
          <iconset theme="system-run">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -771,8 +783,7 @@
         </property>
         <property name="icon">
          <iconset theme="document-new">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -786,8 +797,7 @@
         </property>
         <property name="icon">
          <iconset theme="folder">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -810,8 +820,7 @@
         </property>
         <property name="icon">
          <iconset theme="process-stop">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -835,8 +844,7 @@
         </property>
         <property name="icon">
          <iconset theme="help">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -850,8 +858,7 @@
         </property>
         <property name="icon">
          <iconset theme="window-close">
-          <normaloff/>
-         </iconset>
+          <normaloff>.</normaloff>.</iconset>
         </property>
        </widget>
       </item>
@@ -907,8 +914,7 @@
        </property>
        <property name="icon">
         <iconset theme="accessories-text-editor">
-         <normaloff/>
-        </iconset>
+         <normaloff>.</normaloff>.</iconset>
        </property>
       </widget>
      </item>

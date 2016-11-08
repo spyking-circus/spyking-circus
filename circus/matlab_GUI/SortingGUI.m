@@ -1,6 +1,6 @@
 function varargout = SortingGUI(varargin)
 
-% SortingGUI(20000,'mydata/mydata','.mat','../mappings.mat',2,'int16',0,0.1)
+% SortingGUI(20000,'mydata/mydata','.mat','../mappings.mat', 2, 0, 'int16', 0, 0.1)
 %SamplingRate, filename, extension, mappingfile, RPVlimit, format,
 %HeaderSize, Gain
 
@@ -100,11 +100,18 @@ handles.H.MaxdiffY  = max(handles.Positions(:,2)) - min(handles.Positions(:,2));
 handles.H.zoom_coef = max(handles.H.MaxdiffX,handles.H.MaxdiffY);
 handles.H.lines     = cell(3,1);
 
-if length(varargin)<=4
+if length(varargin)<=5
     handles.RPVlim = 2;
 else
     handles.RPVlim = varargin{5};
 end
+
+if length(varargin)<=6
+    handles.t_start = 0;
+else
+    handles.t_start = varargin{6};
+end
+
 
 
 
@@ -238,7 +245,14 @@ if length(varargin)>=6
             end
         end
     end
+else
+    set(handles.ForwardNavigate,'Enable','off');
+    set(handles.BackwardNavigate,'Enable','off'); 
+    set(handles.SelectAmp, 'Enable', 'off');
+    set(handles.EnableWaveforms, 'Enable', 'off');
 end
+
+
 
 %% spiketimes file
 if exist([handles.filename '.spiketimes' handles.suffix],'file')
@@ -1248,6 +1262,10 @@ if nargin == 1
     else
         plot(handles.AmpTimeWin,0,0,'.')
     end
+
+    xlim_old = get(handles.AmpTimeWin, 'XLim');
+    set(handles.AmpTimeWin, 'XLim', [handles.t_start handles.t_start+xlim_old(2)]);
+
     hold(handles.AmpTimeWin,'on')
     plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2),'color',[0.5 0.5 0.5],'LineWidth',2)
     plot(handles.AmpTimeWin,handles.AmpTrend{CellNb}(:,1),handles.AmpTrend{CellNb}(:,2)*handles.AmpLim(CellNb,1),'color',[0.5 0.5 0.5],'LineWidth',2)

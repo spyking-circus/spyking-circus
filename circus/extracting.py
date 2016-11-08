@@ -1,25 +1,29 @@
 from .shared.utils import *
 import circus.shared.algorithms as algo
+from circus.shared.probes import get_nodes_and_edges
+from circus.shared.messages import print_and_log, init_logging
 
-def main(filename, params, nb_cpu, nb_gpu, use_gpu):
+
+def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(426236)
     
     import h5py
     parallel_hdf5 = h5py.get_config().mpi
-
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger('circus.extracting')
     #################################################################
-    sampling_rate  = params.getint('data', 'sampling_rate')
+    data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('data', 'N_t')
-    N_total        = params.getint('data', 'N_total')
-    template_shift = params.getint('data', 'template_shift')
+    N_t            = params.getint('detecton', 'N_t')
+    N_total        = params.nb_channels
+    template_shift = params.getint('detection', 'template_shift')
     chunk_size     = params.getint('data', 'chunk_size')
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    nodes, edges   = io.get_nodes_and_edges(params)
-    safety_time    = int(params.getfloat('extracting', 'safety_time')*sampling_rate*1e-3)
+    nodes, edges   = get_nodes_and_edges(params)
+    safety_time    = params.getint('extracting', 'safety_time')
     max_elts_temp  = params.getint('extracting', 'max_elts')
     output_dim     = params.getfloat('extracting', 'output_dim')
     noise_thr      = params.getfloat('extracting', 'noise_thr')
@@ -31,7 +35,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if comm.rank == 0:
-        io.print_and_log(["Extracting templates from already found clusters..."], 'default', params)
+        print_and_log(["Extracting templates from already found clusters..."], 'default', logger)
 
     thresholds                           = io.load_data(params, 'thresholds')
     basis_proj, basis_rec                = io.load_data(params, 'basis')
@@ -56,15 +60,15 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     if use_gpu and do_spatial_whitening:
-        spatial_whitening = cmt.CUDAMatrix(spatial_whitening)
+        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
     result         = {}
     for i in xrange(N_clusters):
         result['data_tmp_' + str(i)]  = numpy.zeros((0, N_e * basis_proj.shape[1]), dtype=numpy.float32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
 
-    borders, nb_chunks, chunk_len, last_chunk_len = io.analyze_data(params, chunk_size)
-
+    nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+    
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks))
 
@@ -78,11 +82,12 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
         if (elt_count < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-            local_chunk, local_shape = io.load_chunk(params, gidx, chunk_len, chunk_size, nodes=nodes)
+            local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
+            local_shape = len(local_chunk)
 
             if do_spatial_whitening:
                 if use_gpu:
-                    local_chunk = cmt.CUDAMatrix(local_chunk)
+                    local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                     local_chunk = local_chunk.dot(spatial_whitening).asarray()
                 else:
                     local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -91,7 +96,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
             #print "Extracting the peaks..."
             idx             = numpy.where((spiketimes >= gidx*chunk_size) & (spiketimes < (gidx+1)*chunk_size))[0]
-            local_offset    = gidx*chunk_size
+            local_offset    = t_offset
             local_peaktimes = spiketimes[idx] - local_offset
 
             #print "Removing the useless borders..."
@@ -148,7 +153,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     gdata = gather_array(numpy.array([total_nb_elts], dtype=numpy.float32), comm, 0)
     if comm.rank == 0:
-        io.print_and_log(["Found %d spikes over %d requested" %(int(numpy.sum(gdata)), int(nb_elts))], 'default', params)
+        print_and_log(["Found %d spikes over %d requested" %(int(numpy.sum(gdata)), int(nb_elts))], 'default', logger)
 
     #print "Spikes extracted in", time.time() - t_start, "s"
 
@@ -164,7 +169,7 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     if comm.rank == 0:
-        io.print_and_log(["Extracting the templates..."], 'default', params)
+        print_and_log(["Extracting the templates..."], 'default', logger)
     
     total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
     offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
@@ -337,21 +342,23 @@ def main(filename, params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     if comm.rank == 0:
-        io.print_and_log(["Merging similar templates..."], 'default', params)
+        print_and_log(["Merging similar templates..."], 'default', logger)
     
-    merged1 = algo.merging_cc(comm, params, parallel_hdf5)
+    merged1 = algo.merging_cc(params, parallel_hdf5)
 
     comm.Barrier()
     if remove_mixture:
         if comm.rank == 0:
-            io.print_and_log(["Removing mixtures..."], 'default', params)
-        merged2 = algo.delete_mixtures(comm, params, parallel_hdf5)
+            print_and_log(["Removing mixtures..."], 'default', logger)
+        merged2 = algo.delete_mixtures(params, parallel_hdf5)
     else:
         merged2 = [0, 0]
 
     if comm.rank == 0:
-        io.print_and_log(["Number of global merges    : %d" %merged1[1], 
-                       "Number of mixtures removed : %d" %merged2[1]], 'info', params)    
+        print_and_log(["Number of global merges    : %d" %merged1[1], 
+                       "Number of mixtures removed : %d" %merged2[1]], 'info', logger)    
 
     comm.Barrier()
-    io.get_overlaps(comm, params, erase=True, parallel_hdf5=parallel_hdf5)
+    io.get_overlaps(params, erase=True, parallel_hdf5=parallel_hdf5)
+
+    data_file.close()

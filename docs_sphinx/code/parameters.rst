@@ -1,12 +1,23 @@
 Parameters
 ==========
 
-Command line Parameters
------------------------
+Display the helpers
+-------------------
 
 To know what are all the parameters of the software, just do::
     
     >> spyking-circus -h
+
+To know what are all the file formats supported by the software, just do::
+    
+    >> spyking-circus help -i
+
+To know more what are the parameter of a given file format *X*, just do ::
+
+    >> spyking-circus X -i
+
+Command line Parameters
+-----------------------
 
 The parameters to launch the program are:
 
@@ -29,7 +40,7 @@ Note that filtering is performed only once, and if the code is relaunched on the
 
 * ``-c`` or ``--cpu``
 
-The number of CPU that will be used by the code, at least during the first three steps. Note that if CUDA is present, and if the GPU are not turned off (with -g 0), GPUs are always prefered to CPU during the fitting phase. 
+The number of CPU that will be used by the code, at least during the first three steps. Note that if CUDA is present, and if the GPU are not turned off (with -g 0), GPUs are always preferred to CPU during the fitting phase. 
 
 For example, just do::
 
@@ -92,7 +103,7 @@ While generating synthetic datasets, you have to chose from one of those three p
     
 .. note::
 
-    Benchmarks will be better integrated soon into an automatic testsuite, use them at your own risks for now. To know more about the additional extra steps, :doc:`documentation on extra steps <../advanced/extras>`
+    Benchmarks will be better integrated soon into an automatic test suite, use them at your own risks for now. To know more about the additional extra steps, :doc:`documentation on extra steps <../advanced/extras>`
 
 Configuration File
 ------------------

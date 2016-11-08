@@ -4,9 +4,9 @@ Automatic Merging
 Need for an meta merging step
 ----------------------------------
 
-Because for high number of channels, the chance that a cell can be splitted among several templates are high, one need to merge putative templates belonging to the same cells. This is a classical step in most of the spike sorting technique, and tradionnaly, this step was performed by a human operator, reviewing all templates one by one. Problem is that with the new generation of dense probes that the code can handle (4225 channels), the output of the algorithm can lead to more than 1000 templates, and one can not expect a human to go through all pairs iteratively.
+Because for high number of channels, the chance that a cell can be split among several templates are high, one need to merge putative templates belonging to the same cells. This is a classical step in most of the spike sorting technique, and traditionally, this step was performed by a human operator, reviewing all templates one by one. Problem is that with the new generation of dense probes that the code can handle (4225 channels), the output of the algorithm can lead to more than 1000 templates, and one can not expect a human to go through all pairs iteratively.
 
-To automatize the procedure, we developped a so-called meta-merging step that will allow to quickly identify pairs of templates that have to be merged. To do so, first, we consider only pairs that have a similarity between their templates higher than ``cc_overlap``. This allow not to considerate all the possible pairs, but only those that are likely to be the same cells, because their templates are similar. 
+To automatize the procedure, we developed a so-called meta-merging step that will allow to quickly identify pairs of templates that have to be merged. To do so, first, we consider only pairs that have a similarity between their templates higher than ``cc_overlap``. This allow not to considerate all the possible pairs, but only those that are likely to be the same cells, because their templates are similar. 
 
 Comparison of CrossCorrelograms
 -------------------------------
@@ -66,7 +66,7 @@ By default, in the GUI, when a merge between two templates is performed, the spi
 Exploring Templates
 ~~~~~~~~~~~~~~~~~~~
 
-In the middle, top plot, you can see on the x-axis the ratio between the peak of the template, and the detection threshold on its prefered electrode, and on the y-axis the number of spikes for that given templates. If you click on those points, you'll see in the middle bottom plot the template waveform on its prefered electrode. 
+In the middle, top plot, you can see on the x-axis the ratio between the peak of the template, and the detection threshold on its preferred electrode, and on the y-axis the number of spikes for that given templates. If you click on those points, you'll see in the middle bottom plot the template waveform on its preferred electrode. 
 
 .. note::
 
@@ -83,6 +83,6 @@ You can then delete those templates, and the GUI will recompute the scores for a
 Saving the results
 ~~~~~~~~~~~~~~~~~~
 
-When you think all merges have been done, you just need to press the ``Finalize`` Button. This will save everything to file, without overwritting your original results. In fact, it will create new files with the suffix ``-merged``, such that you need to use that suffix after if you want to view results in the GUI. Thus, if you want to convert/view those results after, you need to do::
+When you think all merges have been done, you just need to press the ``Finalize`` Button. This will save everything to file, without overwriting your original results. In fact, it will create new files with the suffix ``-merged``, such that you need to use that suffix after if you want to view results in the GUI. Thus, if you want to convert/view those results after, you need to do::
 
   >> circus-gui-matlab mydata.extension -e merged

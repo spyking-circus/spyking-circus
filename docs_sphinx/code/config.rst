@@ -1,52 +1,47 @@
 Configuration File
 ==================
 
-This is the core of the algorithm, so this file has to be filled properly based on your data. Even if all key parameters of the algorithm ar listed in the file, only few are likely to be modified by a non-advanced user. The configuration file is divided in several sections. For all those sections, we will review the parameters, and tell you what are the most important ones
+This is the core of the algorithm, so this file has to be filled properly based on your data. Even if all key parameters of the algorithm are listed in the file, only few are likely to be modified by a non-advanced user. The configuration file is divided in several sections. For all those sections, we will review the parameters, and tell you what are the most important ones
 
 Data
 ----
 
 The data section is::
 
-    data_offset    = MCS                   # Length of the header ('MCS' is auto for MCS file)
-    mapping        = mappings/mea_252.prb  # Mapping of the electrode (contact Pierre if changes)
+    file_format    =                       # Can be raw_binary, openephys, hdf5, ... See >> spyking-circus help -i for more info
+    stream_mode    = None                  # None by default. Can be multi-files, or anything depending to the file format
+    mapping        = ~/probes/mea_252.prb  # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
     suffix         =                       # Suffix to add to generated files
-    data_dtype     = uint16                # Type of the data
-    dtype_offset   = auto                  # Padding for data
-    sampling_rate  = 20000                 # Sampling rate of the data [Hz]
-    N_t            = 5                     # Width of the templates [in ms]
-    radius         = auto                  # Radius [in um] (if auto, read from the prb file)
     global_tmp     = True                  # should be False if local /tmp/ has enough space (better for clusters)
-    multi-files    = False                 # If several files mydata_0,1,..,n.dat should be processed together (see documentation)
+    overwrite      = True                  # If you want to filter or remove artefacts on site. Data are duplicated otherwise
 
 .. warning::
 
-    This is the most important section, that will allow the code to properly load your data. If not properly filled, then results will be wrong
+    This is the most important section, that will allow the code to properly load your data. If not properly filled, then results will be wrong. Note that depending on your file_format, you may need to add here several parameters, such as ``sampling_rate``, ``data_dtype``, ... They will be requested if they can not be infered from the header of your data structure. To check if data are properly loaded, consider using :doc:`the preview mode <../GUI/python>` before launching the whole algorithm
 
 Parameters that are most likely to be changed:
-    * ``data_offset`` If your file has no header, put 0. Otherwise, if it has been generated with MCRack, there is a header, and let the value to MCS, such that its length will be automatically detected
+    * ``file_format`` You must select a supported file format (see :doc:`How to design a probe file <../code/fileformat>`) or write your own layout (see :doc:`How to design a probe file <../advanced/datafile>`)
     * ``mapping`` This is the path to your probe mapping (see :doc:`How to design a probe file <../code/probe>`)
-    * ``data_dtype`` The type of your data (``uint16``, ``int16``,...)
-    * ``dtype_offset`` If you are using ``uint16`` data, then you must have an offset. If data are ``int16``, this should be 0
-    * ``sampling_rate`` The sampling rate of your recording
-    * ``N_t`` The temporal width of the templates. For *in vitro* data, 5ms seems a good value. For *in vivo* data, you should rather use 3 or even 2ms
-    * ``radius`` The spatial width of the templates. By default, this value is read from the probe file. However, if you want to specify a larger or a smaller value [in um], you can do it here
     * ``global_temp`` If you are using a cluster with NFS, this should be False (local /tmp/ will be used by every nodes)
-    * ``multi-files`` If several files ``mydata_0,1,..,n.dat`` should be processed together (see :doc:`Using multi files <../code/multifiles>`)
-
+    * ``stream_mode`` If streams in you data (could be multi-files, or even in the same file) should be processed together (see :doc:`Using multi files <../code/multifiles>`)
+    * ``overwrite`` If True, data are overwritten during filtering, assuming the file format has write access. Otherwise, an external raw_binary file will be created during the filtering step, if any.
 
 Detection
 ---------
 
 The detection section is::
 
-    spike_thresh   = 6                      # Threshold for spike detection
-    peaks          = negative               # Can be negative (default), positive or both
-    matched-filter = False                  # If True, we perform spike detection with matched filters
-    matched_thresh = 5                      # Threshold for detection if matched filter is True
-    alignment      = True                   # Realign the waveforms by oversampling
+    radius         = auto       # Radius [in um] (if auto, read from the prb file)
+    N_t            = 5          # Width of the templates [in ms]
+    spike_thresh   = 6          # Threshold for spike detection
+    peaks          = negative   # Can be negative (default), positive or both
+    matched-filter = False      # If True, we perform spike detection with matched filters
+    matched_thresh = 5          # Threshold for detection if matched filter is True
+    alignment      = True       # Realign the waveforms by oversampling
 
 Parameters that are most likely to be changed:
+    * ``N_t`` The temporal width of the templates. For *in vitro* data, 5ms seems a good value. For *in vivo* data, you should rather use 3 or even 2ms
+    * ``radius`` The spatial width of the templates. By default, this value is read from the probe file. However, if you want to specify a larger or a smaller value [in um], you can do it here
     * ``spike_thresh`` The threshold for spike detection. 6-7 are good values
     * ``peaks`` By default, the code detects only negative peaks, but you can search for positive peaks, or both
     * ``matched-filter`` If activated, the code will detect smaller spikes by using matched filtering
@@ -60,7 +55,7 @@ The filtering section is::
 
     cut_off        = 500, auto # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
     filter         = True      # If True, then a low-pass filtering is performed
-    remove_median  = False     # If True, median over all channels is substracted to each channels (movement artifacts)
+    remove_median  = False     # If True, median over all channels is substracted to each channels (movement artefacts)
 
 .. warning::
 
@@ -69,7 +64,7 @@ The filtering section is::
 Parameters that are most likely to be changed:
     * ``cut_off`` The default value of 500Hz has been used in various recordings, but you can change it if needed. You can also specify the upper bound of the Butterworth filter
     * ``filter`` If your data are already filtered by a third program, turn that flag to False
-    * ``remove_median`` If you have some movement artifacts in your *in vivo* recording, and want to substract the median activity over all anaylyzed channels from each channel individually
+    * ``remove_median`` If you have some movement artefacts in your *in vivo* recording, and want to substract the median activity over all analysed channels from each channel individually
 
 Triggers
 --------
@@ -79,7 +74,7 @@ The triggers section is::
     trig_file      =           # If external stimuli need to be considered as putative artefacts (see documentation)
     trig_windows   =           # The time windows of those external stimuli [in ms]
     clean_artefact = False     # If True, external artefacts induced by triggers will be suppressed from data 
-    make_plots     = png       # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
+    make_plots     =           # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 Parameters that are most likely to be changed:
     * ``trig_file`` The path to the file where your artefact times and labels. See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
@@ -119,12 +114,11 @@ The clustering section is::
     nclus_min      = 0.01       # Min number of elements in a cluster (given in percentage)
     max_clusters   = 10         # Maximal number of clusters for every electrodes
     nb_repeats     = 3          # Number of passes used for the clustering
-    make_plots     = png        # Generate sanity plots of the clustering
+    make_plots     =            # Generate sanity plots of the clustering
     sim_same_elec  = 3          # Distance within clusters under which they are re-merged
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
-    smart_search   = False      # Parameter to activate the smart search mode
-    test_clusters  = False      # Should be False. Only to plot injection of synthetic clusters
+    smart_search   = True       # Parameter to activate the smart search mode
     noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
     remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
 
@@ -133,7 +127,7 @@ The clustering section is::
     This is the a key section, as bad clustering will implies bad results. However, the code is very robust to parameters changes.
 
 Parameters that are most likely to be changed:
-    * ``extraction`` The method to estimate the templates. ``Raw`` methods are slower, but more accurate, as data are read from the files. ``PCA`` methods are faster, but less accurate, and may lead to some distorded templates. ``Quadratic`` is slower, and should not be used.
+    * ``extraction`` The method to estimate the templates. ``Raw`` methods are slower, but more accurate, as data are read from the files. ``PCA`` methods are faster, but less accurate, and may lead to some distorted templates. ``Quadratic`` is slower, and should not be used.
     * ``max_elts`` The number of elements that every electrode will try to collect, in order to perform the clustering
     * ``nclus_min`` If you have too many clusters with few elements, you can increase this value. This is expressed in percentage of collected spike per electrode. So one electrode collecting *max_elts* spikes will keep clusters with more than *nclus_min.max_elts*. Otherwise, they are discarded
     * ``max_clusters`` This is the maximal number of cluster that you expect to see on a given electrode. For *in vitro* data, 10 seems to be a reasonable value. For *in vivo* data and dense probes, you should set it to 10-15. Increase it only if the code tells you so.
@@ -154,12 +148,14 @@ The fitting section is::
     amp_limits     = (0.3, 30) # Amplitudes for the templates during spike detection
     amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
     max_chunk      = inf       # Fit only up to max_chunk   
+    collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
+
 
 Parameters that are most likely to be changed:
     * ``chunk`` again, to reduce memory usage, you can reduce the size of the temporal chunks during fitting. Note that it has to be one order of magnitude higher than the template width ``N_t``
     * ``gpu_only`` By default, all operations will take place on the GPU. However, if not enough memory is available on the GPU, then you can turn this flag to False. 
     * ``max_chunk`` If you just want to fit the first *N* chunks, otherwise, the whole file is processed
-
+    * ``collect_all`` If you want to also collect all the spike times at which no templates were fitted. This is particularly useful to debug the algorithm, and understand if something is wrong on a given channel
 
 Merging
 -------
@@ -180,10 +176,13 @@ The converting section is::
 
     erase_all      = True      # If False, a prompt will ask you to export if export has already been done
     export_pcs     = prompt    # Can be prompt [default] or in none, all, some
+    export_all     = False     # If True, unfitted spikes will be exported as the last Ne templates
+
 
 Parameters that are most likely to be changed:
-    * ``erase_all`` if you want to always erase former export, and skip the prompt
-    * ``export_pcs`` if you already know that you want to have all, some, or no PC and skip the prompt
+    * ``erase_all`` If you want to always erase former export, and skip the prompt
+    * ``export_pcs`` If you already know that you want to have all, some, or no PC and skip the prompt
+    * ``export_all`` If you used the ``collect_all`` mode in the ``[fitting]`` section, you can export unfitted spike times to phy. In this case, the last `N` templates, if `N` is the number of electrodes, are the garbage collectors.
 
 Extracting
 ----------
@@ -216,4 +215,4 @@ The validating section is::
     juxta_thresh   = 6         # Threshold for juxtacellular detection
     juxta_valley   = False     # True if juxta-cellular spikes are negative peaks
 
-Please get in touch with us if you want to use this section, only for validation purposes. This is an implementaion of the :doc:`BEER metric <../advanced/beer>`
+Please get in touch with us if you want to use this section, only for validation purposes. This is an implementation of the :doc:`BEER metric <../advanced/beer>`

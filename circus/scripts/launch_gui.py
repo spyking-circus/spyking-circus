@@ -26,6 +26,10 @@ except ImportError:
                              QDesktopServices, QFont)
 import sip
 
+from circus.shared.messages import print_error, print_info, print_and_log, get_colored_header, init_logging
+from circus.files import __supported_data_files__, list_all_file_format
+
+
 if sys.platform == 'win32':
     import ctypes
 
@@ -101,6 +105,7 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.btn_matlab.clicked.connect(self.help_matlab)
         self.ui.btn_help_cpus.clicked.connect(self.help_cpus)
         self.ui.btn_help_gpus.clicked.connect(self.help_gpus)
+        self.ui.btn_help_file_format.clicked.connect(self.help_file_format)
         self.ui.tabWidget.currentChanged.connect(self.changing_tab)
         self.ui.btn_stop.clicked.connect(self.stop)
         self.ui.btn_file.clicked.connect(self.update_data_file)
@@ -682,6 +687,19 @@ class LaunchGUI(QtGui.QDialog):
         msg.setStandardButtons(QMessageBox.Close)
         msg.setDefaultButton(QMessageBox.Close)
         answer = msg.exec_()
+
+    def help_file_format(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Question)
+        msg.setText("Supported file formats")
+        msg.setWindowTitle("File formats")
+
+        
+        msg.setInformativeText("\n".join(list_all_file_format()))
+        msg.setStandardButtons(QMessageBox.Close)
+        msg.setDefaultButton(QMessageBox.Close)
+        answer = msg.exec_()
+
 
     def open_plot_folder(self):
         f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))

@@ -4,7 +4,7 @@ Python GUIs
 Preview GUI
 -----------
 
-In order to be sure that the parameters in configuration file are correct, and before launching the algorithm that will filter the data onsite (and thus mess with them if parameters are wrong), one can use the preview GUI. To do so, simply do::
+In order to be sure that the parameters in configuration file are correct, and before launching the algorithm that will filter the data on-site (and thus mess with them if parameters are wrong), one can use the preview GUI. To do so, simply do::
 
     >> spyking-circus path/mydata.extension -p
 
@@ -39,7 +39,7 @@ In order to quickly visualize the results of the algorithm, and get a qualitativ
 
 .. note::
 
-	You can show the residuals, i.e. the differences between the raw data and the reconstruction by ticking the buttong ``Show residuals``
+	You can show the residuals, i.e. the differences between the raw data and the reconstruction by ticking the button ``Show residuals``
 
 
 Meta-Merging GUI

@@ -5,6 +5,7 @@ Advanced Informations
    :maxdepth: 1
 
    tuning
+   datafile
    extras
    algorithm
    files

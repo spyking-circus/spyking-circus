@@ -34,7 +34,7 @@ At the end of that step, several files are produced
         * ``/norms`` : the *2K* norms of all templates
         * ``/limits``: the *K* limits [amin, amax] of the real templates
         * ``/maxoverlap``: a *K* x *K* matrix with only the maximum value of the overlaps accross the temporal dimension
-        * ``/maxlag``: a *K* x *K* matrix with the indices leading to the ``maxoverlap`` values obtained. In a nuthsell, for all pairs of templates, those are the temporal shifts leading to the maximum of the cross-correlation between templates 
+        * ``/maxlag``: a *K* x *K* matrix with the indices leading to the ``maxoverlap`` values obtained. In a nutshell, for all pairs of templates, those are the temporal shifts leading to the maximum of the cross-correlation between templates 
 
     * ``mydata.overlap.hdf5`` A HDF5_ file used internally during the fitting procedure. This file can be pretty big, and is also saved using a sparse structure. To be more precise, the file has the following fields
 
@@ -50,6 +50,7 @@ At the end of that step, a single HDF5_ file ``mydata.result.hdf5`` is produced,
 
     * ``/spiketimes/temp_i`` for a template *i*, the times at which this particular template has been fitted.
     * ``/amplitudes/temp_i`` for a template *i*, the amplitudes used at the given spike times. Note that those amplitudes has two component, but only the first one is relevant. The second one is the one used for the orthogonal template, and does not need to be analyzed.
+    * ``/gspikes/elec_i`` if the ``collect_all`` mode was activated, then for electrode *i*, the times at which spikes peaking there have not been fitted.
 
 .. note:: Spike times are saved in time steps
 
@@ -57,7 +58,7 @@ At the end of that step, a single HDF5_ file ``mydata.result.hdf5`` is produced,
 Converting
 ----------
 
-At the end of that step, several numpy files are produced in a path ``path/mydata.GUI``. They are all related to phy_, so see the devoted documentation
+At the end of that step, several numpy_ files are produced in a path ``path/mydata.GUI``. They are all related to phy_, so see the devoted documentation
 
 
 .. _MATLAB: http://fr.mathworks.com/products/matlab/

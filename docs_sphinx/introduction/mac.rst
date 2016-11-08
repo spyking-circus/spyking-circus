@@ -4,11 +4,9 @@ Installation for Mac OS 10.10.5
 Here are some detailed instructions:
 
     1. Install Anaconda_ (Python 2.7 or 3.5)
-    2. Install Brew_ by simply enter ``ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"``
-    3. With Brew_, install ``openmpi`` and ``hdf5``::
-    
-        >> brew install open-mpi
-        >> brew install hdf5
+    2. Install mpi4py::
+
+        >> conda install -c mpi4py mpi4py
 
     4. Install spiking-circus by executing::
 

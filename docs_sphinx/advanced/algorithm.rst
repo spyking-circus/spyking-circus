@@ -68,7 +68,7 @@ The fitting procedure is a greedy template matching algorithm, inspired by the f
 .. figure::  fitting.png
    :align:   center
 
-   Raw trace on a given electrode and superimposed templates in red. Each time the detection threshold (in dash dotted line) is crossed, the code lookup in the dictionnary of template if a match can be found. 
+   Raw trace on a given electrode and superimposed templates in red. Each time the detection threshold (in dash dotted line) is crossed, the code lookup in the dictionary of template if a match can be found. 
 
 
 .. _MATLAB: http://fr.mathworks.com/products/matlab/

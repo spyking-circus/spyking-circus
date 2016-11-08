@@ -6,20 +6,19 @@ import argparse
 import pkg_resources
 import circus
 import tempfile
-import numpy, h5py
-from circus.shared.files import print_error, write_datasets, read_probe, print_and_log, get_header
-import colorama
-colorama.init(autoreset=True)
-from colorama import Fore, Back, Style
+import numpy, h5py, logging
+from circus.shared.messages import print_and_log, get_colored_header, init_logging
+from circus.shared.files import write_datasets
+from circus.shared.parser import CircusParser
+
+supported_by_matlab = ['raw_binary', 'mcs_raw_binary']
 
 def main(argv=None):
 
     if argv is None:
         argv = sys.argv[1:]
 
-    gheader = Fore.GREEN + get_header()
-    header  = gheader + Fore.RESET
-
+    header = get_colored_header()
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')
@@ -34,13 +33,30 @@ def main(argv=None):
 
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
-    params         = circus.shared.utils.io.load_parameters(filename)
-    sampling_rate  = params.getint('data', 'sampling_rate')
-    data_dtype     = params.get('data', 'data_dtype')
-    gain           = 1
+    params         = CircusParser(filename)
+    if os.path.exists(params.logfile):
+        os.remove(params.logfile)
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger(__name__)
+    data_file      = params.get_data_file()
+    data_dtype     = data_file.data_dtype
+    gain           = data_file.gain
+    t_start        = data_file.t_start
+    file_format    = data_file.description
+
+    if file_format not in supported_by_matlab:
+        print_and_log(["File format %s is not supported by MATLAB. Waveforms disabled" %file_format], 'info', logger)
+
+    if numpy.iterable(gain):
+        print_and_log(['Multiple gains are not supported, using a default value of 1'], 'info', logger)
+        gain = 1
+
     file_out_suff  = params.get('data', 'file_out_suff')
-    data_offset    = params.getint('data', 'data_offset')
-    probe          = read_probe(params)
+    if hasattr(data_file, 'data_offset'):
+        data_offset = data_file.data_offset
+    else:
+        data_offset = 0
+    probe          = params.probe
     if extension != '':
         extension = '-' + extension
 
@@ -65,19 +81,30 @@ def main(argv=None):
     mapping    = generate_matlab_mapping(probe)
     filename   = params.get('data', 'data_file')
 
-    gui_params = [sampling_rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, data_dtype, data_offset, gain, filename]
-
+    
     gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
     # Change to the directory of the matlab file
     os.chdir(os.path.abspath(os.path.dirname(gui_file)))
 
     # Use quotation marks for string arguments
-    is_string = [False, True, True, True, False, True, False, False, True]
+    if file_format not in supported_by_matlab:
+        gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, t_start]
+        is_string = [False, True, True, True, False]
+    
+    else:
+
+        gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, t_start, data_dtype, data_offset, gain, filename]
+        is_string = [False, True, True, True, False, True, False, False, True]
+    
     arguments = ', '.join(["'%s'" % arg if s else "%s" % arg
-                           for arg, s in zip(gui_params, is_string)])
+                               for arg, s in zip(gui_params, is_string)])
     matlab_command = 'SortingGUI(%s)' % arguments
 
-    print_and_log(["Launching the MATLAB GUI..."], 'info', params)
+    print_and_log(["Launching the MATLAB GUI..."], 'info', logger)
+
+    if params.getboolean('fitting', 'collect_all'):
+        print_and_log(['You can not view the unfitted spikes with the MATLAB GUI',
+                       'Please consider using phy if you really would like to see them'], 'info', logger)
 
     try:
         sys.exit(subprocess.call(['matlab',
@@ -85,7 +112,8 @@ def main(argv=None):
                               '-nosplash',
                               '-r', matlab_command]))
     except Exception:
-        print_error(["Something wrong with MATLAB. Try circus-gui-python instead?"])
+        print_and_log(["Something wrong with MATLAB. Try circus-gui-python instead?"], 'error', logger)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
