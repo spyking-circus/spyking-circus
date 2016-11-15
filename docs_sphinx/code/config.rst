@@ -20,7 +20,7 @@ The data section is::
     This is the most important section, that will allow the code to properly load your data. If not properly filled, then results will be wrong. Note that depending on your file_format, you may need to add here several parameters, such as ``sampling_rate``, ``data_dtype``, ... They will be requested if they can not be infered from the header of your data structure. To check if data are properly loaded, consider using :doc:`the preview mode <../GUI/python>` before launching the whole algorithm
 
 Parameters that are most likely to be changed:
-    * ``file_format`` You must select a supported file format (see :doc:`How to design a probe file <../code/fileformat>`) or write your own layout (see :doc:`How to design a probe file <../advanced/datafile>`)
+    * ``file_format`` You must select a supported file format (see :doc:`What are the supported formats <../code/fileformat>`) or write your own wrapper (see :doc:`Write your own data format  <../advanced/datafile>`)
     * ``mapping`` This is the path to your probe mapping (see :doc:`How to design a probe file <../code/probe>`)
     * ``global_temp`` If you are using a cluster with NFS, this should be False (local /tmp/ will be used by every nodes)
     * ``stream_mode`` If streams in you data (could be multi-files, or even in the same file) should be processed together (see :doc:`Using multi files <../code/multifiles>`)
