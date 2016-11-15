@@ -18,7 +18,7 @@ The SpyKING CIRCUS is a massively parallel code to perform semi automatic spike 
 
 .. warning::
 
-   The latest version is 0.5, stable, but bugs fixes/improvements are made here and there based on feedback from users. So please always be sure to regularly update your installation. If you want to be kept updated with fixes, please register to our Google Group: https://groups.google.com/forum/#!forum/spyking-circus-users.
+   The latest version is 0.5, but still in beta. (Latest stable release is 0.4.3) Fixes/improvements can be made here and there based on feedback from users, especially regarding the API to handle various file formats. So please always be sure to regularly update your installation. If you want to be kept updated with fixes, please register to our Google Group: https://groups.google.com/forum/#!forum/spyking-circus-users.
 
 
 .. toctree::

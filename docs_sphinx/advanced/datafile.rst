@@ -4,7 +4,7 @@ Writing your custom file wrapper
 Since 0.5, SpyKING CIRCUS can natively read/write several file formats, in order to ease your sorting workflow. By default, some generic
 file formats are already implemented (see :doc:`the documentation on the file formats <../code/fileformat>`), but you can also write your own wrapper in order to read/write your own custom datafile.
 
-Note that we did not used neo_, and we recommend not to do so, because your wrapper should have some functionalities not allowed yet by neo_::
+Note that we did not used neo_, and we recommend not to do so, because your wrapper should have some functionalities not allowed yet by neo_:
     * it should allow memory mapping, i.e. to read only chunks of your data at a time, slicing either by time or by channels. 
     * it should read data in their native format, as they will internally be turned into ``float32``
     * it could allow streaming, if data are internally stored in several chunks
@@ -146,7 +146,7 @@ Streams
 -------
 
 Depending on the complexity of your file format, you can allow several ways of streaming into your data. The way to define streams is rather simple, and by default, all files format can be streamed
-with a mode called ``multi-files``. This is the former ``multi-files`` mode that we used to have in 0.4 versions (see MULTI)::
+with a mode called ``multi-files``. This is the former ``multi-files`` mode that we used to have in 0.4 versions (see :doc:`multi files <../code/multifiles>`)::
 
     def set_streams(self, stream_mode):
         '''
@@ -183,6 +183,10 @@ with a mode called ``multi-files``. This is the former ``multi-files`` mode that
             print_and_log(to_write, 'debug', logger)
             return sources
 
+
+.. note::
+
+    When working with streams, you must always defined attributes (such as ``t_start``, ``duration``, ...) that are local, and defined only for each streams.
 
 As you can see, set_streams is a function that given a ``stream_mode``, will read the parameters and return a list of DataFiles, created by slightly changing those parameters. In the case of ``multi-files``, this is just a change in the file names, but for some file formats, streams are embedded within the same data structure, and not spread over several files. For example, if you have a look to the file ``circus/files/kwd.py`` you can see that there is also a mode for streams call ``single-file``. If this mode is enabled, the code will process all chunks of data in the HDF5 file, sorted by their keys, as a single giant data file. This is a common situation in experiment. Chunks of data are recorded at several times, but in the same data file. Because they are originating from the same experiment, they better be processed as a whole.
 

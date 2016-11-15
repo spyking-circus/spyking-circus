@@ -32,7 +32,7 @@ As an example for linux, just type::
 
 Then install the software itself::
 
-    >> conda install -c spyking-circus spyking-circus
+    >> conda install -c spyking-circus/label/dev spyking-circus
 
 
 If you want to get a support for GPU, see the devoted section on CUDA_.
@@ -42,7 +42,7 @@ Using pip
 
 To do so, use the ``pip`` utility::
 
-    >> pip install spyking-circus --process-dependency-links
+    >> pip install spyking-circus --process-dependency-links --pre
 
 You might want to add the ``--user`` flag, to install SpyKING CIRCUS for the local user only, which means that you don't need administrator privileges for the installation.
 
