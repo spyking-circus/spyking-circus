@@ -191,11 +191,11 @@ handles.local_template2 = [];
 %% Raw data file if it is there
 
 if length(varargin)>=6
-    data_file = varargin{9};
+    data_file = varargin{10};
     if (exist(data_file,'file'))
-        handles.DataFormat = varargin{6};
-        handles.HeaderSize = varargin{7};
-        handles.Gain       = varargin{8};
+        handles.DataFormat = varargin{7};
+        handles.HeaderSize = varargin{8};
+        handles.Gain       = varargin{9};
         handles.DataFid    = fopen(data_file,'r');
         
         if handles.HeaderSize<0%Read the MCS header automatically

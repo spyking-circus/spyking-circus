@@ -94,7 +94,7 @@ def main(argv=None):
     else:
 
         gui_params = [params.rate, os.path.abspath(file_out_suff), '%s.mat' %extension, mapping, 2, t_start, data_dtype, data_offset, gain, filename]
-        is_string = [False, True, True, True, False, True, False, False, True]
+        is_string = [False, True, True, True, False, False, True, False, False, True]
     
     arguments = ', '.join(["'%s'" % arg if s else "%s" % arg
                                for arg, s in zip(gui_params, is_string)])
