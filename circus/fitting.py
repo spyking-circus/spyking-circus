@@ -164,10 +164,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     processed_chunks          = int(min(nb_chunks, max_chunk))
 
-    if comm.rank == 0:
-        pbar = get_progressbar(int(processed_chunks//comm.size))
-
-
     spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' %comm.rank, 'wb')
     amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' %comm.rank, 'wb')
     templates_file  = open(file_out_suff + '.templates-%d.data' %comm.rank, 'wb')
@@ -185,7 +181,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     last_chunk_size = 0
 
-    for gcount, gidx in enumerate(xrange(comm.rank, processed_chunks, comm.size)):
+    to_explore = xrange(comm.rank, processed_chunks, comm.size)
+
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(to_explore)
+
+    for gcount, gidx in enumerate(to_explore):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
         ## We need to deal with the borders by taking chunks of size [0, chunck_size+template_shift]
 
@@ -499,9 +500,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if full_gpu:
                 del gpu_mask, b, data
 
-        if comm.rank == 0:
-            pbar.update(gcount)
-
     spiketimes_file.flush()
     os.fsync(spiketimes_file.fileno())
     spiketimes_file.close()
@@ -527,11 +525,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     
-
-
-    if comm.rank == 0:
-        pbar.finish()
-
     if comm.rank == 0:
         io.collect_data(comm.size, params, erase=True)
 

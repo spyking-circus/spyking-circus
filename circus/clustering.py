@@ -216,20 +216,29 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if sign_peaks == 'both':
                 loop_max_elts_elec *= 2
             loop_nb_elts       = numpy.int64(params.getfloat('clustering', 'nb_elts') * nb_elecs * loop_max_elts_elec)
+            to_explore         = xrange(nb_chunks)
+
         else:
             chunks_to_load     = all_chunks[comm.rank::comm.size]
             loop_max_elts_elec = max_elts_elec
             loop_nb_elts       = nb_elts
+            to_explore         = xrange(comm.rank, nb_chunks, comm.size)
 
         loop_max_elts_elec /= len(search_peaks)
 
+        #if comm.rank == 0:
+        #    pbar = get_progressbar(loop_nb_elts)
+
+
         if comm.rank == 0:
-            pbar = get_progressbar(loop_nb_elts)
+            to_explore = get_tqdm_progressbar(to_explore)
 
         comm.Barrier()
         ## Random selection of spikes
 
         for gcount, gidx in enumerate(chunks_to_load):
+
+            gidx = all_chunks[gidx]
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -428,21 +437,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     else:
                                         all_times[elec, min_times[midx]:max_times[midx]] = True
 
-                if comm.rank == 0:
-                    pbar.update(elt_count)
-
                 if gpass == 0:
                     for i in xrange(comm.rank, N_e, comm.size):
                         for p in search_peaks:
                             if len(result['tmp_%s_' %p + str(i)]) < loop_max_elts_elec:
                                 result['nb_chunks_%s_' %p + str(i)] += 1
-
-            if comm.rank == 0:
-                if (elt_count < (gcount+1)*loop_nb_elts//len(chunks_to_load)):
-                    pbar.update((gcount+1)*loop_nb_elts//len(chunks_to_load))
-
-        if comm.rank == 0:
-            pbar.finish()
 
         comm.Barrier()
 

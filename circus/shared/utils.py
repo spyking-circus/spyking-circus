@@ -1,7 +1,7 @@
     # -*- coding: utf-8 -*-
 import warnings, logging
 warnings.filterwarnings("ignore")
-import os, sys, time, types
+import os, sys, time, types, tqdm
 import numpy as np
 import scipy.sparse as sp
 from math import log, sqrt
@@ -66,6 +66,9 @@ def finish_and_flush(pbar, *args, **kwds):
     return_value = progressbar.ProgressBar.finish(pbar, *args, **kwds)
     sys.stderr.flush()
     return return_value
+
+def get_tqdm_progressbar(iterator):
+    return tqdm.tqdm(iterator, ncols=80)
 
 def get_progressbar(size):
 

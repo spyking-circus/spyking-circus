@@ -326,12 +326,16 @@ class MergeWindow(QtGui.QMainWindow):
         self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
+        to_explore       = xrange(comm.rank, len(self.to_consider), comm.size)
+
         if comm.rank == 0:
             print_and_log(['Updating the data...'], 'default', logger)
-            pbar = get_progressbar(len(real_indices))
+            to_explore = get_tqdm_progressbar(to_explore)
 
-        for count, temp_id1 in enumerate(real_indices):
+        for count, temp_id1 in enumerate(to_explore):
         
+            temp_id1     = self.to_consider[temp_id1]
+
             best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1][:10]
 
             for temp_id2 in self.to_consider[best_matches]:
@@ -344,12 +348,7 @@ class MergeWindow(QtGui.QMainWindow):
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.vstack((self.raw_control, b))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
-            if comm.rank == 0:
-                pbar.update(count)
-
-        if comm.rank == 0:
-            pbar.finish()
-
+            
         self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, comm, 0, 1)
         self.raw_data    = gather_array(self.raw_data, comm, 0, 1)

@@ -75,8 +75,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_templates = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_clusters), comm.size))
     nb_elts      = max_elts_temp * nb_templates 
 
+    to_explore = all_chunks
+
     if comm.rank == 0:
-        pbar = get_progressbar(nb_elts)
+        to_explore = get_tqdm_progressbar(to_explore)
+
 
     for gidx in all_chunks:
 
@@ -141,12 +144,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 result['times_' + str(temp)]    = numpy.concatenate((result['times_' + str(temp)], to_add))
                             all_times[indices, min_times[idx]:max_times[idx]] = True
 
-            if comm.rank == 0:
-                pbar.update(elt_count)
-
-    if comm.rank == 0:
-        pbar.finish()
-
     total_nb_elts = 0
     for temp in xrange(N_clusters):
         total_nb_elts += len(result['data_tmp_' + str(temp)])
@@ -200,10 +197,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     temp_y     = numpy.zeros(0, dtype=numpy.int32)
     temp_data  = numpy.zeros(0, dtype=numpy.float32)
 
-    if comm.rank == 0:
-        pbar = get_progressbar(local_nb_clusters)
+    to_explore = xrange(comm.rank, N_clusters, comm.size)
 
-    for temp in xrange(comm.rank, N_clusters, comm.size):
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(to_explore)
+
+    for temp in to_explore:
         n_data           = len(result['data_tmp_' + str(temp)])
         if n_data > 0:
             data                = result['data_tmp_' + str(temp)].reshape(n_data, basis_proj.shape[1], N_e)
@@ -272,12 +271,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             g_count         += 1
 
         io.write_datasets(cfile, to_write, result, ielec)
-
-        if comm.rank == 0:
-            pbar.update(count_templates)
-
-    if comm.rank == 0:
-        pbar.finish()
 
     #At the end we should have a templates variable to store.
     cfile.close()

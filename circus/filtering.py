@@ -64,9 +64,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 
             print_and_log(to_write, 'default', logger)
 
-            pbar = get_progressbar(loc_nb_chunks)
+        to_explore = xrange(comm.rank, nb_chunks, comm.size)
 
-        for count, gidx in enumerate(to_process):
+        if comm.rank == 0:
+            to_explore = get_tqdm_progressbar(to_explore)
+
+        for count, gidx in enumerate(to_explore):
 
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size)
                 
@@ -91,11 +94,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 
             data_file_out.set_data(t_offset, local_chunk)
 
-            if comm.rank == 0:
-                pbar.update(count)
 
-        if comm.rank == 0:
-            pbar.finish()
 
         comm.Barrier()
 
@@ -133,9 +132,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             to_write = ["Computing averaged artefacts from %d stimuli" %(nb_stimuli)]
             print_and_log(to_write, 'default', logger)
-            pbar = get_progressbar(len(local_labels))
             if not os.path.exists(plot_path):
                 os.makedirs(plot_path)
+            local_labels = get_tqdm_progressbar(local_labels)
 
         comm.Barrier()
         # First we need to get the average artefacts
@@ -155,11 +154,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                 plot.view_artefact(art_dict[artefact], save=save)
 
-            if comm.rank == 0:
-                pbar.update(count)
-
-        if comm.rank == 0:
-            pbar.finish()
 
         return art_dict
 
@@ -192,7 +186,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
             print_and_log(to_write, 'default', logger)
-            pbar = get_progressbar(len(all_times))
+            all_times = get_tqdm_progressbar(all_times)
 
         comm.Barrier()
             
@@ -221,12 +215,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             data_file.set_data(time, local_chunk)
 
             count        += 1
-
-            if comm.rank == 0:
-                pbar.update(count)
-
-        if comm.rank == 0:
-            pbar.finish()
 
         comm.Barrier()
 

@@ -6,7 +6,6 @@ requirements:
   build:
     - libgcc [linux]
     - python
-    - progressbar2
     - mpi4py
     - numpy
     - cython
@@ -17,10 +16,10 @@ requirements:
     - colorama
     - psutil
     - scikit-learn
+    - tqdm
   run:
     - libgcc [linux]
     - python
-    - progressbar2
     - mpi4py
     - numpy
     - cython
@@ -31,6 +30,7 @@ requirements:
     - colorama
     - qt >=4,<5
     - psutil
+    - tqdm
     - pyqt >=4,<5
     - scikit-learn
 source:

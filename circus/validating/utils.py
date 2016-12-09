@@ -157,16 +157,17 @@ def extract_extra_thresholds(params):
         print_and_log(["Computing extracellular medians..."],
                          level='default', logger=logger)
     
+    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+
     if comm.rank == 0:
-        pbar = get_progressbar(loc_nb_chunks)
+        to_explore = get_tqdm_progressbar(to_explore)
     
     medians = numpy.zeros((N_elec, loc_nb_chunks), dtype=numpy.float32)
     
     # For each chunk attributed to the current CPU.
-    for count, gidx in enumerate(loc_all_chunks):
+    for count, gidx in enumerate(to_explore):
+        gidx = all_chunks[gidx]
         medians[:, count] = extract_median(chunk_size, gidx)
-        if comm.rank == 0:
-            pbar.update(count)
     median = numpy.mean(medians, axis=1)
     
     comm.Barrier()
@@ -175,10 +176,7 @@ def extract_extra_thresholds(params):
     
     if comm.rank == 0:
         median = weighted_mean(loc_nbs_chunks, medians)
-    
-    if comm.rank == 0:
-        pbar.finish()
-    
+        
     # Broadcast medians to each CPU.
     median = comm.bcast(median, root=0)
     
@@ -188,16 +186,17 @@ def extract_extra_thresholds(params):
         print_and_log(["Computing extracellular thresholds..."],
                          level='default', logger=logger)
     
+    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+
     if comm.rank == 0:
-        pbar = get_progressbar(loc_nb_chunks)
+        to_explore = get_tqdm_progressbar(to_explore)
     
     mads = numpy.zeros((N_elec, loc_nb_chunks), dtype=numpy.float32)
     
     # For each chunk attributed to the current CPU.
-    for count, gidx in enumerate(loc_all_chunks):
+    for count, gidx in enumerate(to_explore):
+        gidx = all_chunks[gidx]
         mads[:, count] = extract_median_absolute_deviation(chunk_size, gidx, median)
-        if comm.rank == 0:
-            pbar.update(count)
     mad = numpy.mean(mads, axis=1)
     
     comm.Barrier()
@@ -206,10 +205,7 @@ def extract_extra_thresholds(params):
     
     if comm.rank == 0:
         mad = weighted_mean(loc_nbs_chunks, mads)
-    
-    if comm.rank == 0:
-        pbar.finish()
-    
+        
     # Broadcast median absolute deviation to each CPU.
     mad = comm.bcast(mad, root=0)
     
@@ -389,8 +385,10 @@ def extract_extra_spikes_(params):
     if comm.rank == 0:
         print_and_log(["Collecting extracellular spikes..."], level='default', logger=logger)
     
+    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+
     if comm.rank == 0:
-        pbar = get_progressbar(loc_nb_chunks)
+        to_explore = get_tqdm_progressbar(to_explore)
     
     extra_valley = True
     
@@ -409,22 +407,18 @@ def extract_extra_spikes_(params):
     
     data_file.open()
     # For each chunk attributed to the current CPU.
-    for (count, gidx) in enumerate(loc_all_chunks):
+    for (count, gidx) in enumerate(to_explore):
+        gidx = all_chunks[gidx]
         time, channel, value = extract_chunk_spikes(gidx, spike_thresh, valley=extra_valley)
         times[count] = time
         channels[count] = channel
         values[count] = value
-        if comm.rank == 0:
-            pbar.update(count)
     
     # Concatenate times, channels and values.
     times = numpy.hstack(times)
     channels = numpy.hstack(channels)
     values = numpy.hstack(values)
-    
-    if comm.rank == 0:
-        pbar.finish()
-    
+        
     data_file.close()
     comm.Barrier()
     
