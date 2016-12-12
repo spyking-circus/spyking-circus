@@ -210,7 +210,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         ## This is not easy to read, but during the smart search pass, we need to loop over all chunks, and every nodes should
         ## search spikes for a subset of electrodes, to avoid too many communications.
         if gpass <= 1:
-            chunks_to_load     = all_chunks
             nb_elecs           = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_e), comm.size))
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
             if sign_peaks == 'both':
@@ -219,7 +218,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             to_explore         = xrange(nb_chunks)
 
         else:
-            chunks_to_load     = all_chunks[comm.rank::comm.size]
             loop_max_elts_elec = max_elts_elec
             loop_nb_elts       = nb_elts
             to_explore         = xrange(comm.rank, nb_chunks, comm.size)
@@ -236,7 +234,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         ## Random selection of spikes
 
-        for gcount, gidx in enumerate(chunks_to_load):
+        for gcount, gidx in enumerate(to_explore):
 
             gidx = all_chunks[gidx]
 
@@ -721,13 +719,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         data_file.close()
         
-        if (comm.rank == 0):
-            if local_nb_clusters > 0:
-                pbar = get_progressbar(local_nb_clusters)
-            else:
-                pbar = get_progressbar(1)
+        to_explore = xrange(comm.rank, N_e, comm.size)
 
-        for ielec in range(comm.rank, N_e, comm.size):
+        if (comm.rank == 0):
+            to_explore = get_tqdm_progressbar(to_explore)
+
+        for ielec in to_explore:
         
             for p in search_peaks:
 
@@ -890,11 +887,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             io.write_datasets(cfile, to_write, result, ielec)
 
-            if comm.rank == 0:
-                pbar.update(count_templates)
-
-        if comm.rank == 0:
-            pbar.finish()
 
         #At the end we should have a templates variable to store.
         cfile.close()

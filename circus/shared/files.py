@@ -2,7 +2,7 @@ from __future__ import division
 import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
-from circus.shared.utils import get_progressbar
+from circus.shared.utils import get_tqdm_progressbar
 import numpy, h5py, os, platform, re, sys, scipy, logging
 import sys
 from colorama import Fore

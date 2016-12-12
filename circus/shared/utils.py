@@ -57,30 +57,9 @@ def purge(file, pattern):
     if comm.rank == 0:
         print_and_log(['Removing %s for directory %s' %(pattern, dir)], 'debug', logger)
 
-def update_and_flush(pbar, *args, **kwds):
-    return_value = progressbar.ProgressBar.update(pbar, *args, **kwds)
-    sys.stderr.flush()
-    return return_value
-
-def finish_and_flush(pbar, *args, **kwds):
-    return_value = progressbar.ProgressBar.finish(pbar, *args, **kwds)
-    sys.stderr.flush()
-    return return_value
-
 def get_tqdm_progressbar(iterator):
+    sys.stderr.flush()
     return tqdm.tqdm(iterator, ncols=80)
-
-def get_progressbar(size):
-
-    pbar = progressbar.ProgressBar(widgets=[progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()],
-                                   maxval=size, term_width=66).start()
-    if sys.version_info[0] == 3:
-        # Quick monkey patch to make progressbars appear correctly with buffered
-        # stderr in Python 3
-        pbar.update = types.MethodType(update_and_flush, pbar)
-        pbar.finish = types.MethodType(finish_and_flush, pbar)
-    return pbar
-
 
 def get_whitening_matrix(X, fudge=1E-18):
    from numpy.linalg import eigh
