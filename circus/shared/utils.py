@@ -59,7 +59,7 @@ def purge(file, pattern):
 
 def get_tqdm_progressbar(iterator):
     sys.stderr.flush()
-    return tqdm.tqdm(iterator, ncols=80)
+    return tqdm.tqdm(iterator, ncols=66)
 
 def get_whitening_matrix(X, fudge=1E-18):
    from numpy.linalg import eigh
