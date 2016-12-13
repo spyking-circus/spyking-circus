@@ -1,6 +1,12 @@
-===========
-Release 0.5
-===========
+=============
+Release 0.5b6
+=============
+
+* fix a bug while launching the MATLAB GUI
+
+=============
+Release 0.5b3
+=============
 
 * code is now hosted on GitHub
 * various cosmetic changes in the terminal

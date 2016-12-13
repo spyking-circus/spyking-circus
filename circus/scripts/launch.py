@@ -179,6 +179,8 @@ but a subset x,y can be done. Steps are:
         data_file.open()
         nb_chunks, _           = data_file.analyze(chunk_size)
         local_chunk, t_offset  = data_file.get_data(0, chunk_size)
+        description            = data_file.get_description()
+        print "Description", description
         data_file.close()
 
         new_params = CircusParser(filename)
@@ -189,17 +191,23 @@ but a subset x,y can be done. Steps are:
         new_params.write('data', 'data_offset', '0')
         new_params.write('data', 'dtype_offset', '0')
         new_params.write('data', 'stream_mode', 'None')
+        new_params.write('data', 'overwrite', 'True')
         new_params.write('data', 'sampling_rate', str(params.rate))
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
 
-
-        data_file_out          = new_params.get_data_file(is_empty=True)
+        description['data_dtype']   = 'float32'
+        description['dtype_offset'] = 0
+        description['data_offset']  = 0
+        new_params    = CircusParser(filename)
+        data_file_out = new_params.get_data_file(is_empty=True, params=description)
+        
         support_parallel_write = data_file_out.parallel_write
         is_writable            = data_file_out.is_writable
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
+
         data_file_out.set_data(0, local_chunk)
         data_file_out.close()
 

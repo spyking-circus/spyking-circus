@@ -57,8 +57,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         N_total       = params.nb_channels
         
         if comm.rank == 0:
+            to_write = []
             if do_filtering:
-                to_write = ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
+                to_write += ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
             if do_remove_median:
                 to_write += ["Median over all channels is substracted to each channels"]
                 
@@ -255,7 +256,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             print_and_log(['Reading the output file and allocating ressources...'], 'debug', logger)
 
-        data_file_out = params.get_data_file(is_empty=True, params=data_file_in.get_description())
+        description                 = data_file_in.get_description()
+        description['data_dtype']   = 'float32'
+        description['dtype_offset'] = 0
+        description['data_offset']  = 0
+
+        data_file_out = params.get_data_file(is_empty=True, params=description)
 
         data_file_out.allocate(shape=data_file_in.shape)        
         data_file_in._params = tmp_params
