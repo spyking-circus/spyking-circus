@@ -200,7 +200,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
                     result['data_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
                     result['data_'  + str(i)]      = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
-
         # I guess this is more relevant, to take signals from all over the recordings
         numpy.random.seed(gpass)
         all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int64))

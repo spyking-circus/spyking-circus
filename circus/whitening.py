@@ -260,12 +260,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     chunk_size       = params.getint('data', 'chunk_size')
     safety_time      = params.getint('whitening', 'safety_time')
     max_elts_elec    = params.getint('whitening', 'max_elts')
-    nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     if sign_peaks == 'both':
        max_elts_elec *= 2
+    nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
     #################################################################
 
 
@@ -420,9 +420,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 pbar.update(elt_count_pos + elt_count_neg)
 
-        if comm.rank == 0:
-            if (elt_count_pos + elt_count_neg < (gcount+1)*max_elts_elec//len(chunks_to_load)):
-               pbar.update((gcount+1)*max_elts_elec//len(chunks_to_load))
+        #if comm.rank == 0:
+        #    if (elt_count_pos + elt_count_neg < (gcount+1)*max_elts_elec//len(chunks_to_load)):
+        #       pbar.update((gcount+1)*max_elts_elec//len(chunks_to_load))
 
     if comm.rank == 0:
         pbar.finish()
@@ -448,10 +448,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         res = {}   
         if sign_peaks in ['negative', 'both']:  
             if len(gdata_neg) > 0:
-                res_pca         = pca.fit_transform(gdata_neg.astype(numpy.double)).astype(numpy.float32)
-                res['proj'] = pca.components_.T.astype(numpy.float32)
+                res_pca      = pca.fit_transform(gdata_neg.astype(numpy.double)).astype(numpy.float32)
+                res['proj']  = pca.components_.T.astype(numpy.float32)
             else:
-                res['proj'] = numpy.identity(N_t, dtype=numpy.float32)
+                res['proj']  = numpy.identity(output_dim, dtype=numpy.float32)
             res['rec']       = res['proj'].T
             res['waveform']  = numpy.median(gdata_neg, 0)
             idx              = numpy.random.permutation(numpy.arange(gdata_neg.shape[0]))[:1000]
@@ -461,7 +461,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 res_pca         = pca.fit_transform(gdata_pos.astype(numpy.double)).astype(numpy.float32)
                 res['proj_pos'] = pca.components_.T.astype(numpy.float32)
             else:
-                res['proj_pos'] = numpy.identity(N_t, dtype=numpy.float32)
+                res['proj_pos'] = numpy.identity(output_dim, dtype=numpy.float32)
             res['rec_pos']       = res['proj_pos'].T
             res['waveform_pos']  = numpy.median(gdata_pos, 0)
             idx                  = numpy.random.permutation(numpy.arange(gdata_pos.shape[0]))[:1000]
