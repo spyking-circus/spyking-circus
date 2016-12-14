@@ -336,8 +336,8 @@ class MergeWindow(QtGui.QMainWindow):
 
             for temp_id2 in self.to_consider[best_matches]:
                 if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
-                    spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)]
-                    spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy()
+                    spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
+                    spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
                     if self.correct_lag:
                         spikes2 -= self.lag[temp_id1, temp_id2]
                     a, b    = reversed_corr(spikes1, spikes2, self.max_delay)
