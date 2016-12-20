@@ -1,6 +1,6 @@
 import h5py, numpy, re, sys, re, logging
 from circus.shared.messages import print_and_log
-from raw_binary import RawBinaryFile
+from .raw_binary import RawBinaryFile
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +10,16 @@ class RawMCSFile(RawBinaryFile):
     extension      = [".raw", ".dat"]
 
     _required_fields = {'sampling_rate' : float}
+
+    def to_str(self, b, encoding='ascii'):
+        """
+        Helper function to convert a byte string (or a QByteArray) to a string --
+        for Python 3, this specifies an encoding to not end up with "b'...'".
+        """
+        if sys.version_info[0] == 3:
+            return str(b, encoding=encoding)
+        else:
+            return str(b)
 
     def _get_header(self):
         try:
@@ -35,14 +45,20 @@ class RawMCSFile(RawBinaryFile):
 
             full_header = {}
             f = open(self.file_name, 'rb')
-            h = f.read(header).replace('\r','')
+            g = self.to_str(f.read(header), encoding='Windows-1252')
+            h = g.replace('\r','')
             for i,item in enumerate(h.split('\n')):
                 if '=' in item:
-                    full_header[item.split(' = ')[0]] = item.split(' = ')[1]
+                    if item.split(' = ')[0] == 'Di' and len(item.split('=')) == 3:
+                        # In case two gains are defined on the same line (digital gain & electrode gain)
+                        full_header['Di'] = item.split(' = ')[1].split(';')[0]
+                        full_header['El'] = item.split(' = ')[2]
+                    else:
+                        full_header[item.split(' = ')[0]] = item.split(' = ')[1]
             f.close()
 
             return full_header, header, len(regexp.findall(full_header['Streams']))
-        except Exception:
+        except Exception as error:
             print_and_log(["Wrong MCS header: file is not exported with MCRack"], 'error', logger)
             sys.exit(1)
 
