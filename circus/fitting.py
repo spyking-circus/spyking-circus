@@ -167,6 +167,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         pbar = get_progressbar(int(processed_chunks//comm.size))
 
+    comm.Barrier()
+
+    if use_gpu and do_spatial_whitening:
+        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
+
+
+    last_chunk_size = 0
 
     spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' %comm.rank, 'wb')
     amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' %comm.rank, 'wb')
@@ -176,14 +183,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         garbage_times_file = open(file_out_suff + '.gspiketimes-%d.data' %comm.rank, 'wb')
         garbage_temp_file  = open(file_out_suff + '.gtemplates-%d.data' %comm.rank, 'wb')
 
-
-    comm.Barrier()
-
-    if use_gpu and do_spatial_whitening:
-        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
-
-
-    last_chunk_size = 0
 
     for gcount, gidx in enumerate(xrange(comm.rank, processed_chunks, comm.size)):
         #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
