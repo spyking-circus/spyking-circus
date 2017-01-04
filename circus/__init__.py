@@ -1,7 +1,7 @@
 import importlib
 import logging
 
-__version__ = '0.5b6'
+__version__ = '0.5b8'
 
 def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None, extension='', sim_same_elec=None):
 
@@ -10,7 +10,7 @@ def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None,
     
     if task not in ['filtering', 'benchmarking']:
         params.get_data_file()
-    
+
     module = importlib.import_module('circus.' + task)
 
     if task == 'benchmarking':

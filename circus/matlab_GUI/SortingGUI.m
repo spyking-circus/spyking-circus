@@ -1700,7 +1700,7 @@ end
 output_file = [handles.filename '.clusters' suffix '.hdf5'];
 delete(output_file);
 h5create(output_file, '/electrodes', size(transpose(handles.BestElec)));
-h5write(output_file, '/electrodes', transpose(handles.BestElec));
+h5write(output_file, '/electrodes', transpose(handles.BestElec)) - 1;
 for id=1:nb_templates
     key = ['/clusters/temp_' int2str(id - 1)];
     to_write = transpose(handles.clusters{id});

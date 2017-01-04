@@ -1,6 +1,29 @@
-===========
-Release 0.5
-===========
+=============
+Release 0.5b8
+=============
+
+* fix a bug in the MATLAB GUI in the BestElec while saving
+
+
+=============
+Release 0.5b7
+=============
+
+* fix a bug while converting data to phy with a non unitary gain
+* fix a bug in the merging gui with some version of numpy, forcing ucast
+* fix a bug if no spikes are detected while constructing the basis
+* Optimization if both positive and negative peaks are detected
+* fix a bug with the preview mode, while displaying non float32 data
+
+=============
+Release 0.5b6
+=============
+
+* fix a bug while launching the MATLAB GUI
+
+=============
+Release 0.5b3
+=============
 
 * code is now hosted on GitHub
 * various cosmetic changes in the terminal

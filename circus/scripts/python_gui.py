@@ -58,6 +58,7 @@ def main(argv=None):
         data_offset = data_file.data_offset
     else:
         data_offset = 0
+
     file_format    = data_file.description
     file_out_suff  = params.get('data', 'file_out_suff')
 
@@ -69,9 +70,8 @@ def main(argv=None):
         gain = 1
     else:
         if data_file.gain != 1:
-            print_and_log(["Gain of %g is not supported by phy. Expecting a scaling mismatch" %gain], 'info', logger)
+            print_and_log(["Gain of %g is not supported by phy. Expecting a scaling mismatch" %data_file.gain], 'info', logger)
             gain = data_file.gain
-
 
     probe          = params.probe
     if extension != '':
