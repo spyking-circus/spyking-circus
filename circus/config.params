@@ -50,7 +50,6 @@ max_clusters   = 10         # Maximal number of clusters for every electrodes
 nb_repeats     = 3          # Number of passes used for the clustering
 smart_search   = True       # Parameter to activate the smart search mode
 sim_same_elec  = 3          # Distance within clusters under which they are re-merged
-compress       = True       # Compress templates for large physical radius or number of electrodes
 cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]

@@ -1,4 +1,11 @@
 =============
+Release 0.5b8
+=============
+
+* fix a bug in the MATLAB GUI in the BestElec while saving
+
+
+=============
 Release 0.5b7
 =============
 
