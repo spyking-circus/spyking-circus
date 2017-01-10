@@ -17,9 +17,11 @@ from phy.gui import create_app, run_app
 from phycontrib.template import TemplateController
 import numpy as np
 
-
 supported_by_phy = ['raw_binary', 'mcs_raw_binary']
 
+#------------------------------------------------------------------------------
+# Set up logging with the CLI tool
+#------------------------------------------------------------------------------
 
 def main(argv=None):
 
@@ -94,6 +96,7 @@ def main(argv=None):
         gui_params['dtype']          = data_dtype
         gui_params['offset']         = data_offset
         gui_params['sample_rate']    = params.rate
+        gui_params['dir_path']       = output_path
         gui_params['hp_filtered']    = True
 
         os.chdir(output_path)

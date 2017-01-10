@@ -53,6 +53,7 @@ class CircusParser(object):
                           ['converting', 'export_pcs', 'string', 'prompt'],
                           ['converting', 'erase_all', 'bool', 'True'],
                           ['converting', 'export_all', 'bool', 'False'],
+                          ['converting', 'sparse_export', 'bool', 'False'],
                           ['validating', 'nearest_elec', 'string', 'auto'],
                           ['validating', 'max_iter', 'int', '200'],
                           ['validating', 'learning_rate', 'float', '1.0e-3'],

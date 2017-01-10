@@ -3,7 +3,10 @@ Release 0.5b8
 =============
 
 * fix a bug in the MATLAB GUI in the BestElec while saving
-
+* more consistency with "both" peak detection mode. Twice more waveforms are always collect during whitening/clustering
+* sparse export for phy is now available
+* addition of a dir_path parameter to be compatible with new phy
+* fix a bug in the meta merging GUI when only one template left
 
 =============
 Release 0.5b7
