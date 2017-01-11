@@ -29,7 +29,8 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    
+    os.environ['OPENBLAS_NUM_THREADS'] = str(1)
+
     parallel_hdf5 = h5py.get_config().mpi
     user_path     = pjoin(os.path.expanduser('~'), 'spyking-circus')
     tasks_list    = None

@@ -30,9 +30,36 @@ Code and documentation contributions (ordered by the number of commits):
 * Olivier Marre
 * Cyrille Rossant
 
-===========
-Release 0.5
-===========
+
+=============
+Release 0.5b8
+=============
+
+* fix a bug in the MATLAB GUI in the BestElec while saving
+* more consistency with "both" peak detection mode. Twice more waveforms are always collect during whitening/clustering
+* sparse export for phy is now available
+* addition of a dir_path parameter to be compatible with new phy
+* fix a bug in the meta merging GUI when only one template left
+
+=============
+Release 0.5b7
+=============
+
+* fix a bug while converting data to phy with a non unitary gain
+* fix a bug in the merging gui with some version of numpy, forcing ucast
+* fix a bug if no spikes are detected while constructing the basis
+* Optimization if both positive and negative peaks are detected
+* fix a bug with the preview mode, while displaying non float32 data
+
+=============
+Release 0.5b6
+=============
+
+* fix a bug while launching the MATLAB GUI
+
+=============
+Release 0.5b3
+=============
 
 * code is now hosted on GitHub
 * various cosmetic changes in the terminal
@@ -47,10 +74,12 @@ Release 0.5
 * can now work natively with MCD data files (.mcd) [using neuroshare]
 * can now work natively with Kwik (KWD) data files (.kwd)
 * can now work natively with NeuroDataWithoutBorders files (.nwb)
+* can now work natively with NiX files (.nix)
 * can now work natively with any HDF5-like structure data files (.h5)
 * can now work natively with Arf data files (.arf)
 * can now work natively with 3Brain data files (.brw)
 * can now work natively with Numpy arrays (.npy)
+* can now work natively with all file format supported by NeuroShare (plexon, blackrock, mcd, ...)
 * can still work natively with raw binary files with/without headers :)
 * faster IO for raw binary files
 * refactoring of the exports during multi-file/preview/benchmark: everything is now handled in raw binary
@@ -70,6 +99,7 @@ Release 0.5
 * fix a bug with the masks and the smart-search: improving results
 * addition of an overwrite parameter. Note that any t_start/t_stop infos are lost
 * if using streams, or internal t_start, output times are on the same time axis than the datafile
+* more robust parameter checking
 
 
 =============

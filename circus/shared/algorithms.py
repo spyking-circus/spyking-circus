@@ -1,7 +1,7 @@
 import os, logging
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 from circus.shared.files import load_data, write_datasets, get_overlaps
-from circus.shared.utils import get_progressbar
+from circus.shared.utils import get_tqdm_progressbar
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm
@@ -440,15 +440,20 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
     overlap_0 = overlap[:, N_t].toarray().reshape(nb_temp, nb_temp)
-    if comm.rank == 0:
-        pbar = get_progressbar(size=len(all_temp)).start()
+
 
     sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
     M              = numpy.zeros((2, 2), dtype=numpy.float32)
     V              = numpy.zeros((2, 1), dtype=numpy.float32)
 
-    for count, k in enumerate(sorted_temp):
+    to_explore = xrange(comm.rank, len(sorted_temp), comm.size)
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(to_explore)
 
+
+    for count, k in enumerate(to_explore):
+
+        k             = sorted_temp[k]
         electrodes    = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
         overlap_k     = overlap[k*nb_temp:(k+1)*nb_temp].tolil()
         is_in_area    = numpy.in1d(best_elec, electrodes)
@@ -482,12 +487,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                                 been_found = True 
                                 break
                                 #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
-
-        if comm.rank == 0:
-            pbar.update(count)
-
-    if comm.rank == 0:
-        pbar.finish()
     
     #print mixtures
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    

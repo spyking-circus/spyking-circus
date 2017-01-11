@@ -2,7 +2,7 @@ from __future__ import division
 import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
-from circus.shared.utils import get_progressbar
+from circus.shared.utils import get_tqdm_progressbar
 import numpy, h5py, os, platform, re, sys, scipy, logging
 import sys
 from colorama import Fore
@@ -977,10 +977,13 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         for i in xrange(N_e):
             result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0, dtype=numpy.uint32)
 
-    pbar = get_progressbar(size=nb_threads)
+    to_explore = xrange(nb_threads)
+
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(to_explore)
 
     # For each thread/process collect data.
-    for count, node in enumerate(xrange(nb_threads)):
+    for count, node in enumerate(to_explore):
         spiketimes_file = file_out_suff + '.spiketimes-%d.data' %node
         amplitudes_file = file_out_suff + '.amplitudes-%d.data' %node
         templates_file  = file_out_suff + '.templates-%d.data' %node
@@ -1028,10 +1031,6 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                 for j in xrange(N_e):
                     idx = numpy.where(gtemps == j)[0]
                     result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx])) 
-
-        pbar.update(count)
-
-    pbar.finish()
 
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
@@ -1205,18 +1204,21 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         nb_total     = 2*len(local_templates)
         upper_bounds = N_tm//2
 
+    to_explore = xrange(comm.rank, N_e, comm.size)
+
     if comm.rank == 0:
         if verbose:
             print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', logger)
         N_0  = len(range(comm.rank, N_e, comm.size))
-        pbar = get_progressbar(size=N_0)
+        to_explore = get_tqdm_progressbar(to_explore)
+
 
     over_x    = numpy.zeros(0, dtype=numpy.int32)
     over_y    = numpy.zeros(0, dtype=numpy.int32)
     over_data = numpy.zeros(0, dtype=numpy.float32)
     rows      = numpy.arange(N_e*N_t)
                 
-    for count, ielec in enumerate(range(comm.rank, N_e, comm.size)):
+    for count, ielec in enumerate(to_explore):
         
         local_idx = numpy.where(best_elec == ielec)[0]
         len_local = len(local_idx)
@@ -1262,11 +1264,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                     over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                     over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
-        if comm.rank == 0:
-            pbar.update(count)
-
     if comm.rank == 0:
-        pbar.finish()
         print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)
 
     comm.Barrier()

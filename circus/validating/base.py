@@ -1155,11 +1155,13 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     y_decfs = loc_nb_class_weights * [None]
     y_preds = loc_nb_class_weights * [None]
     
+    to_explore = loc_class_weights
+
     if comm.rank == 0:
-        pbar = get_progressbar(loc_nb_class_weights)
+        to_explore = get_tqdm_progressbar(to_explore)
     
     if model == 'sgd':
-        for (count, class_weight) in enumerate(loc_class_weights):
+        for (count, class_weight) in enumerate(to_explore):
             # Declare classifier.
             wclf = SGDClassifier(loss='log',
                                  # penalty='l2',
@@ -1207,15 +1209,10 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             y_decfs[count] = y_decf
             confusion_matrices[count] = confusion_matrix
             
-            if comm.rank == 0:
-                pbar.update(count)
             
     else:
         raise Exception("Unsupported classifier: model={}".format(model))
-    
-    if comm.rank == 0:
-        pbar.finish()
-    
+        
     comm.Barrier()
     
     

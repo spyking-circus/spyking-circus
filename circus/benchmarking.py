@@ -342,9 +342,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     loc_nb_chunks  = len(to_process)
     numpy.random.seed(comm.rank)
 
+    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+
     # Initialize the progress bar about the generation of the benchmark.
     if comm.rank == 0:
-        pbar = get_progressbar(loc_nb_chunks)
+        to_explore = get_tqdm_progressbar(to_explore)
 
     # Open the file for collective I/O.
     #g = myfile.Open(comm, file_name, MPI.MODE_RDWR)
@@ -365,7 +367,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
 
     # For each chunk of data associate to the current thread/process generate
     # the new chunk of data (i.e. with considering the added synthesized cells).
-    for count, gidx in enumerate(to_process):
+    for count, gidx in enumerate(to_explore):
 
         #if (last_chunk_len > 0) and (gidx == (nb_chunks - 1)):
         #    chunk_len  = last_chunk_len
@@ -462,9 +464,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
         data_file_out.set_data(offset, local_chunk)
 
         # Update the progress bar about the generation of the benchmark.
-        if comm.rank == 0:
-            pbar.update(count)
-
+        
     # Close the thread/process' files.
     spiketimes_file.flush()
     os.fsync(spiketimes_file.fileno())
@@ -486,9 +486,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     os.fsync(voltages_file.fileno())
     voltages_file.close()
 
-    # Finish the progress bar about the generation of the benchmark.
-    if comm.rank == 0:
-        pbar.finish()
 
     # Close the file for collective I/O.
     data_file_out.close()

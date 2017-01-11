@@ -304,14 +304,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     thresholds = io.load_data(params, 'thresholds')
 
-    if comm.rank == 0:
-        pbar = get_progressbar(nb_elts)
-
     if alignment:
         cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
         xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
 
-    for gcount, gidx in enumerate(chunks_to_load):
+    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(to_explore)
+
+    for gcount, gidx in enumerate(to_explore):
+
+        gidx = all_chunks[gidx]
 
         if ((elt_count_pos + elt_count_neg) < nb_elts):
             #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -416,16 +420,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         groups[elec] += 1
                         all_times[indices, min_times[midx]:max_times[midx]] = True
-
-            if comm.rank == 0:
-                pbar.update(elt_count_pos + elt_count_neg)
-
-        #if comm.rank == 0:
-        #    if (elt_count_pos + elt_count_neg < (gcount+1)*max_elts_elec//len(chunks_to_load)):
-        #       pbar.update((gcount+1)*max_elts_elec//len(chunks_to_load))
-
-    if comm.rank == 0:
-        pbar.finish()
 
     print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
     

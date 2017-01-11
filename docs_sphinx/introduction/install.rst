@@ -32,7 +32,7 @@ As an example for linux, just type::
 
 Then install the software itself::
 
-    >> conda install -c spyking-circus progressbar2
+    >> conda install -c conda-forge tqdm
     >> conda install -c mpi4py mpi4py
     >> conda install -c spyking-circus/label/dev spyking-circus
 

@@ -179,11 +179,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         if mode == 1:
             pc_ids = open_memmap(pc_file_ids, mode='r+')
 
+        to_explore = xrange(comm.rank, nb_templates, comm.size)
+
         if comm.rank == 0:
-          pbar    = get_progressbar(len(to_process))
+          to_explore = get_tqdm_progressbar(to_explore)
 
         all_idx = numpy.zeros(0, dtype=numpy.int32)
-        for gcount, target in enumerate(to_process):
+        for gcount, target in enumerate(to_explore):
 
             count    = all_paddings[target]
             
@@ -205,12 +207,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 pc_features[idx, :, :len(indices)] = pcs                    
             elif mode == 1:
                 pc_features[count:count+len(idx), :, :len(indices)] = pcs
-
-            if comm.rank == 0:
-              pbar.update(gcount)
-
-        if comm.rank == 0:
-          pbar.finish()
 
         comm.Barrier()
 

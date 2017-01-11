@@ -13,7 +13,7 @@ Here are some detailed instructions:
     6. Add the mpi installation's bin directory to the path (``C:\program files\microsoft mpi\bin``)
     7. Install spiking-circus by executing::
 
-        >> conda install -c spyking-circus progressbar2
+        >> conda install -c conda-forge tqdm
         >> conda install -c mpi4py mpi4py
         >> conda install -c spyking-circus/label/dev spyking-circus
     
