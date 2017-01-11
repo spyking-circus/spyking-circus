@@ -397,10 +397,17 @@ class MergeWindow(QtGui.QMainWindow):
         for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
                                      (self.score_ax2, self.rates[self.to_consider], self.norms[self.to_consider]),
                                      (self.score_ax3, self.score_y, self.score_z)]:
-            ymin, ymax = min(score_y), max(score_y)
+            if len(score_y) > 0:
+                ymin, ymax = min(score_y), max(score_y)
+            else:
+                ymin, ymax = 0, 1
             yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
             ax.set_ylim((ymax + ymin)*0.5 - yrange, (ymax + ymin)*0.5 + yrange)
-            xmin, xmax = min(score_x), max(score_x)
+            
+            if len(score_x) > 0:
+                xmin, xmax = min(score_x), max(score_x)
+            else:
+                xmin, xmax = 0, 1
             xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
             ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
 
@@ -628,9 +635,13 @@ class MergeWindow(QtGui.QMainWindow):
         self.data_ax.set_ylim(0, len(self.sort_idcs))
         all_raw_data  = self.raw_data
         all_raw_data /= (1 + self.raw_data.mean(1)[:, np.newaxis])
-        cmax          = 0.5*all_raw_data.max()
-        cmin          = 0.5*all_raw_data.min()
-        all_raw_data  = all_raw_data[self.sort_idcs, :]
+        if len(all_raw_data) > 0:
+            cmax          = 0.5*all_raw_data.max()
+            cmin          = 0.5*all_raw_data.min()
+            all_raw_data  = all_raw_data[self.sort_idcs, :]  
+        else:
+            cmin = 0
+            cmax = 1  
         self.data_image.set_data(all_raw_data)
         self.data_image.set_clim(cmin, cmax)
         self.data_selection.set_y(len(self.sort_idcs)-len(self.selected_points))
@@ -931,13 +942,13 @@ class MergeWindow(QtGui.QMainWindow):
             if to_keep != to_remove:
                 key        = 'temp_' + str(to_keep)
                 key2       = 'temp_' + str(to_remove)
-                spikes     = self.result['spiketimes'][key2]
+                spikes     = self.result['spiketimes'][key2].astype('int64')
                 if self.correct_lag:
                     spikes += self.lag[to_keep, to_remove]
                 amplitudes = self.result['amplitudes'][key2]
                 n1, n2     = len(self.result['amplitudes'][key2]), len(self.result['amplitudes'][key])
                 self.result['amplitudes'][key] = numpy.vstack((self.result['amplitudes'][key].reshape(n2, 2), amplitudes.reshape(n1, 2)))
-                self.result['spiketimes'][key] = numpy.concatenate((self.result['spiketimes'][key], spikes))
+                self.result['spiketimes'][key] = numpy.concatenate((self.result['spiketimes'][key], spikes.astype(numpy.uint32)))
                 idx                            = numpy.argsort(self.result['spiketimes'][key])
                 self.result['spiketimes'][key] = self.result['spiketimes'][key][idx]
                 self.result['amplitudes'][key] = self.result['amplitudes'][key][idx]

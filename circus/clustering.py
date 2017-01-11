@@ -221,12 +221,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             loop_nb_elts       = nb_elts
             to_explore         = xrange(comm.rank, nb_chunks, comm.size)
 
-        loop_max_elts_elec /= len(search_peaks)
-
-        #if comm.rank == 0:
-        #    pbar = get_progressbar(loop_nb_elts)
-
-
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(to_explore)
 
@@ -448,7 +442,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_elements = numpy.int64(numpy.sum(gdata))
         nb_rejected = numpy.int64(numpy.sum(gdata2))
         nb_total    = numpy.int64(nb_elts*comm.size)
-
 
         if ((smart_search and (gpass == 0)) or (not smart_search and (gpass == 1))) and nb_elements == 0:
             if comm.rank == 0:

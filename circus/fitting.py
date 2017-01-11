@@ -178,7 +178,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
-
     last_chunk_size = 0
 
     to_explore = xrange(comm.rank, processed_chunks, comm.size)

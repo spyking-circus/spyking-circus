@@ -11,8 +11,6 @@ from colorama import Fore
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import query_yes_no
 
-SPARSE_TEMPLATES = False
-
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     logger         = init_logging(params.logfile)
@@ -26,6 +24,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
     export_all     = params.getboolean('converting', 'export_all')
+    sparse_export  = params.getboolean('converting', 'sparse_export')
     if export_all and not params.getboolean('fitting', 'collect_all'):
         if comm.rank == 0:
             print_and_log(['Export unfitted spikes only if [fitting] collect_all is True'], 'error', logger)
@@ -86,52 +85,41 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         max_loc_channel = get_max_loc_channel(params)
         templates       = io.load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
-        if export_all:
-            to_write    = numpy.zeros((N_tm + N_e, N_t, N_e), dtype=numpy.float32)
-            mapping     = numpy.zeros((N_tm + N_e, max_loc_channel), dtype=numpy.int32)            
-        else:
-            to_write    = numpy.zeros((N_tm, N_t, N_e), dtype=numpy.float32)
-            mapping     = numpy.zeros((N_tm, max_loc_channel), dtype=numpy.int32)
 
-        for t in xrange(N_tm):
-            tmp  = templates[:, t].toarray().reshape(N_e, N_t).T
-            x, y = tmp.nonzero()
-            to_write[t, x, y]                = tmp[x, y] 
-            nb_loc                           = len(numpy.unique(y))
-            mapping[t, numpy.arange(nb_loc)] = numpy.unique(y)
-
-        if export_all:
-            for t in xrange(N_tm, N_tm + N_e):
-                mapping[t, 0] = N_e
-
-        numpy.save(os.path.join(output_path, 'templates'), to_write.astype(numpy.single))
-        numpy.save(os.path.join(output_path, 'templates_ind'), mapping.astype(numpy.double))
-
-        if SPARSE_TEMPLATES:
-
+        if sparse_export:
             n_channels_max = 0
             for t in xrange(N_tm):
                 data = numpy.sum(numpy.sum(templates[:, t].toarray().reshape(N_e, N_t), 1) != 0) 
                 if data > n_channels_max:
                     n_channels_max = data
+        else:
+            n_channels_max = N_e
+
+        if export_all:
+            to_write_sparse = numpy.zeros((N_tm + N_e, N_t, n_channels_max), dtype=numpy.float32)
+            mapping_sparse  = -1 * numpy.ones((N_tm + N_e, n_channels_max), dtype=numpy.int32)            
+        else:
+            to_write_sparse = numpy.zeros((N_tm, N_t, n_channels_max), dtype=numpy.float32)
+            mapping_sparse  = -1 * numpy.ones((N_tm, n_channels_max), dtype=numpy.int32)
             
-            to_write_sparse    = numpy.zeros((N_tm, N_t, n_channels_max), dtype=numpy.float32)
-            mapping_sparse     = numpy.zeros((N_tm, n_channels_max), dtype=numpy.int32)
-            for t in xrange(N_tm):
-                tmp                              = templates[:, t].toarray().reshape(N_e, N_t).T
-                x, y                             = tmp.nonzero()
-                nb_loc                           = len(numpy.unique(y))
-                all_positions                    = numpy.zeros(len(y), dtype=numpy.int32)
-                all_positions[numpy.unique(y)]   = numpy.arange(nb_loc, dtype=numpy.int32)
-                pos                              = all_positions[y]
-                to_write_sparse[t, x, pos]       = tmp[x, y] 
-                mapping_sparse[t, numpy.arange(nb_loc)] = numpy.unique(y)
+        for t in xrange(N_tm):
+            tmp                              = templates[:, t].toarray().reshape(N_e, N_t).T
+            x, y                             = tmp.nonzero()
+            nb_loc                           = len(numpy.unique(y))
+            all_positions                    = numpy.zeros(len(y), dtype=numpy.int32)
+            all_positions[numpy.unique(y)]   = numpy.arange(nb_loc, dtype=numpy.int32)
+            pos                              = all_positions[y]
+            to_write_sparse[t, x, pos]       = tmp[x, y] 
+            mapping_sparse[t, numpy.arange(nb_loc)] = numpy.unique(y)
 
+        if export_all:
+            for t in xrange(N_tm, N_tm + N_e):
+                mapping_sparse[t, 0] = N_e
 
-            numpy.save(os.path.join(output_path, 'sparse_templates'), to_write_sparse.astype(numpy.single))
-            numpy.save(os.path.join(output_path, 'sparse_templates_channels'), mapping_sparse.astype(numpy.uint32))
+        numpy.save(os.path.join(output_path, 'templates'), to_write_sparse)
 
-
+        if sparse_export:
+            numpy.save(os.path.join(output_path, 'template_ind'), mapping_sparse)
 
         return N_tm
 
