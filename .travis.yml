@@ -58,13 +58,13 @@ install:
 script:
 # Build the conda package
 - if [ "$TRAVIS_OS_NAME" == "osx" ]; then OTHER_CHANNELS="-c mpi4py"; fi
-- conda build -c spyking-circus $OTHER_CHANNELS conda_recipe
+- conda build -c spyking-circus $OTHER_CHANNELS -c conda-forge conda_recipe
 - python packaging_tools/move_conda_package.py
 # Build source and binary packages
 - python setup.py sdist --formats=zip,gztar,bztar
 - python setup.py bdist_wheel
 # Try installing from the source package (install dependencies via conda first)
-- conda install --yes --quiet -c spyking-circus $OTHER_CHANNELS progressbar2 mpi4py numpy cython scipy matplotlib h5py colorama psutil "qt>=4,<5" libgcc
+- conda install --yes --quiet -c spyking-circus $OTHER_CHANNELS -c conda-forge tqdm mpi4py numpy cython scipy matplotlib h5py colorama psutil "qt>=4,<5" libgcc
 - pip install dist/*.tar.gz
 - spyking-circus -h
 - pip uninstall -y -q spyking-circus
