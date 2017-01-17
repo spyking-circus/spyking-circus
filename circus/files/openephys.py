@@ -1,5 +1,6 @@
 import h5py, numpy, re, sys, os
 from datafile import DataFile
+import xml.etree.ElementTree as ET
 
 class OpenEphysFile(DataFile):
 
@@ -19,9 +20,14 @@ class OpenEphysFile(DataFile):
                           'data_offset'  : NUM_HEADER_BYTES}
 
 
-    def _get_sorted_channels_(self, folderpath):
-        return sorted([int(f.split('_CH')[1].split('.')[0]) for f in os.listdir(folderpath) 
-                    if '.continuous' in f and '_CH' in f]) 
+    def _get_sorted_channels_(self):
+        tree = ET.parse(self.file_name)
+        root = tree.getroot()
+        # find all channels with gain matching intan's non-aux channel gain
+        chans = root.findall("./RECORDING/PROCESSOR/CHANNEL[@bitVolts]")
+        lfp_chans = [x for x in chans if x.attrib['bitVolts'].startswith('0.1949')]
+        # return list of channel file names
+        return sorted([x.attrib['filename'] for x in lfp_chans])
 
     def _read_header_(self, file):
         header = { }
@@ -37,8 +43,8 @@ class OpenEphysFile(DataFile):
     def _read_from_header(self):
 
         folder_path     = os.path.dirname(os.path.realpath(self.file_name))
-        self.all_channels = self._get_sorted_channels_(folder_path)
-        self.all_files  = [os.path.join(folder_path, '100_CH' + x + '.continuous') for x in map(str,self.all_channels)]
+        self.all_channels = self._get_sorted_channels_()
+        self.all_files  = [os.path.join(folder_path, x) for x in self.all_channels]
         self.header     = self._read_header_(self.all_files[0])
         
         header                  = {}
