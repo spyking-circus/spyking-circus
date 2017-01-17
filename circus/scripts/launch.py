@@ -206,6 +206,7 @@ but a subset x,y can be done. Steps are:
         
         support_parallel_write = data_file_out.parallel_write
         is_writable            = data_file_out.is_writable
+
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
         data_file_out.set_data(0, local_chunk)

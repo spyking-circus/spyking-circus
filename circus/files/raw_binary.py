@@ -14,7 +14,7 @@ class RawBinaryFile(DataFile):
     
     _default_values  = {'dtype_offset'  : 'auto', 
                         'data_offset'   : 0,
-                        'gain'          : 1}
+                        'gain'          : 1.}
 
     def _read_from_header(self):
         self._open()

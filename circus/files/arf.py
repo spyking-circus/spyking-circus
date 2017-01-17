@@ -16,7 +16,7 @@ class ARFFile(H5File):
                         'channel_name'  : str}
     
     _default_values  = {'dtype_offset'  : 'auto', 
-                        'gain'          : 1}
+                        'gain'          : 1.}
 
     def _get_sorted_channels_(self, all_keys, pattern):
         sub_list     = [f for f in all_keys if pattern in f]

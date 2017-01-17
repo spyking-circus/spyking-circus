@@ -352,7 +352,10 @@ class CircusParser(object):
         return data
 
 
-    def get_data_file(self, is_empty=False, params={}, source=False, has_been_created=True):
+    def get_data_file(self, is_empty=False, params=None, source=False, has_been_created=True):
+
+        if params is None:
+            params = {}
 
         for key, value in self.parser._sections['data'].items():
             if key not in params:

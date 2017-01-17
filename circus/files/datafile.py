@@ -353,6 +353,7 @@ class DataFile(object):
         '''
             This function will convert data from float32 back to the original format of the file
         '''
+        
         if numpy.any(self.gain != 1):
             data /= self.gain
         

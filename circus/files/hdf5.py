@@ -16,7 +16,7 @@ class H5File(DataFile):
                         'nb_channels'   : int}
     
     _default_values  = {'dtype_offset'  : 'auto', 
-                        'gain'          : 1}
+                        'gain'          : 1.}
 
 
     def __check_valid_key__(self, key):
