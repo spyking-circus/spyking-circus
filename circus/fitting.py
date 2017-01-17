@@ -164,16 +164,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     processed_chunks          = int(min(nb_chunks, max_chunk))
 
+    comm.Barrier()
     spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' %comm.rank, 'wb')
+    comm.Barrier()
     amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' %comm.rank, 'wb')
+    comm.Barrier()
     templates_file  = open(file_out_suff + '.templates-%d.data' %comm.rank, 'wb')
+    comm.Barrier()
 
     if collect_all:
         garbage_times_file = open(file_out_suff + '.gspiketimes-%d.data' %comm.rank, 'wb')
+        comm.Barrier()
         garbage_temp_file  = open(file_out_suff + '.gtemplates-%d.data' %comm.rank, 'wb')
+        comm.Barrier()
 
-
-    comm.Barrier()
 
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
