@@ -27,7 +27,7 @@ class OpenEphysFile(DataFile):
         chans = root.findall("./RECORDING/PROCESSOR/CHANNEL[@bitVolts]")
         lfp_chans = [x for x in chans if x.attrib['bitVolts'].startswith('0.1949')]
         # return list of channel file names
-        return [x.attrib['filename'] for x in lfp_chans]
+        return sorted([x.attrib['filename'] for x in lfp_chans])
 
     def _read_header_(self, file):
         header = { }
