@@ -57,7 +57,7 @@ install:
 # command to run tests
 script:
 # Build the conda package
-- if [ "$TRAVIS_OS_NAME" == "osx" ]; then OTHER_CHANNELS="-c mpi4py"; fi
+#- if [ "$TRAVIS_OS_NAME" == "osx" ]; then OTHER_CHANNELS="-c mpi4py"; fi
 - conda build -c spyking-circus $OTHER_CHANNELS -c conda-forge conda_recipe
 - python packaging_tools/move_conda_package.py
 # Build source and binary packages
