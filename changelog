@@ -4,6 +4,10 @@ Release 0.5b9
 
 * switch from progressbar2 to tqdm, for speed and practical issues
 * optimization of the ressources by preventing numpy to use multithreading with BLAS
+* fix MPI issues appearing sometimes during the fitting procedure
+* fix a bug in the preview mode for OpenEphys files
+* slightly more robust handling of openephys files, thanks to Ben Acland
+* remove the dependency to mpi4py channel on osx, as it was crashing
 
 =============
 Release 0.5b8
