@@ -75,8 +75,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size)
                 
             if do_filtering:
-                for i in nodes:            
-                    local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                for i in nodes:    
+                    try:           
+                        local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                    except Exception:
+                        pass
                 local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
 
             if do_remove_median:
