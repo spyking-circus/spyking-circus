@@ -33,6 +33,8 @@ def main(argv=None):
 
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
+    if extension != '':
+        extension = '-' + extension
     params         = CircusParser(filename)
     if os.path.exists(params.logfile):
         os.remove(params.logfile)
