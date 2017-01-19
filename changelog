@@ -8,6 +8,7 @@ Release 0.5b9
 * fix a bug in the preview mode for OpenEphys files
 * slightly more robust handling of openephys files, thanks to Ben Acland
 * remove the dependency to mpi4py channel on osx, as it was crashing
+* fix a bug in circus-multi when using extensions
 
 =============
 Release 0.5b8
