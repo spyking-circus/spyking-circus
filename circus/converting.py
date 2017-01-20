@@ -106,15 +106,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             tmp                              = templates[:, t].toarray().reshape(N_e, N_t).T
             x, y                             = tmp.nonzero()
             nb_loc                           = len(numpy.unique(y))
-            all_positions                    = numpy.zeros(len(y), dtype=numpy.int32)
-            all_positions[numpy.unique(y)]   = numpy.arange(nb_loc, dtype=numpy.int32)
-            pos                              = all_positions[y]
-            to_write_sparse[t, x, pos]       = tmp[x, y] 
-            mapping_sparse[t, numpy.arange(nb_loc)] = numpy.unique(y)
+                
+            if sparse_export:
+                all_positions                    = numpy.zeros(len(y), dtype=numpy.int32)
+                all_positions[numpy.unique(y)]   = numpy.arange(nb_loc, dtype=numpy.int32)
+                pos                              = all_positions[y]
+                to_write_sparse[t, x, pos]       = tmp[x, y] 
+                mapping_sparse[t, numpy.arange(nb_loc)] = numpy.unique(y)
+            else:
+                pos                              = y
+                to_write_sparse[t, x, pos]       = tmp[x, y] 
 
         if export_all:
             for t in xrange(N_tm, N_tm + N_e):
-                mapping_sparse[t, 0] = N_e
+                mapping_sparse[t, 0] = t - N_tm
 
         numpy.save(os.path.join(output_path, 'templates'), to_write_sparse)
 
