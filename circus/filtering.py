@@ -187,15 +187,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         all_times    = artefacts[:, 1]
         local_labels = numpy.unique(all_labels)[comm.rank::comm.size]
 
-        if comm.rank == 0:
-            to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
-            print_and_log(to_write, 'default', logger)
-            all_times = get_tqdm_progressbar(all_times)
-
-        comm.Barrier()
-            
-        count    = 0
-    
         mask       = numpy.in1d(all_labels, local_labels)
         all_times  = numpy.compress(mask, all_times)
         all_labels = numpy.compress(mask, all_labels)
@@ -204,10 +195,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         all_times  = numpy.compress(mask, all_times)
         all_labels = numpy.compress(mask, all_labels)
 
-        for label, time in zip(all_labels, all_times):
+        if comm.rank == 0:
+            to_write = ["Removing artefacts from %d stimuli" %(nb_stimuli)]
+            print_and_log(to_write, 'default', logger)
+            all_times = get_tqdm_progressbar(all_times)
 
-            tmp      = numpy.where(windows[:, 0] == label)[0]
-            tau      = windows[tmp, 1]
+        comm.Barrier()
+                
+        for count, time in enumerate(all_times):
+            label = all_labels[count]:
+            tmp   = numpy.where(windows[:, 0] == label)[0]
+            tau   = windows[tmp, 1]
             if (data_file.t_stop - time) < tau:
                 tau   = max_offset - time
 
@@ -217,8 +215,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk[:, i] -= art_dict[label][idx, :tau]
                        
             data_file.set_data(time, local_chunk)
-
-            count        += 1
 
         comm.Barrier()
 
