@@ -203,7 +203,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
                 
         for count, time in enumerate(all_times):
-            label = all_labels[count]:
+            label = all_labels[count]
             tmp   = numpy.where(windows[:, 0] == label)[0]
             tau   = windows[tmp, 1]
             if (data_file.t_stop - time) < tau:
