@@ -3,7 +3,7 @@ from .shared import plot
 from .shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
-
+from circus.shared.files import get_artefact
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
@@ -14,7 +14,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     do_filter      = params.getboolean('filtering', 'filter')
     filter_done    = params.getboolean('noedits', 'filter_done')
     artefacts_done = params.getboolean('noedits', 'artefacts_done')
-    median_done    = params.getboolean('noedits', 'median_done') 
+    median_done    = params.getboolean('noedits', 'median_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median  = params.getboolean('filtering', 'remove_median')
     nodes, edges   = get_nodes_and_edges(params)
@@ -35,7 +35,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     print_and_log(['First value of cut off must be a valid number'], 'error', logger)
                 sys.exit(1)
-                
+
             cut_off[1] = cut_off[1].replace(' ', '')
             if cut_off[1] == 'auto':
                 cut_off[1] = 0.95*(params.rate/2.)
@@ -55,14 +55,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_process    = all_chunks[comm.rank::comm.size]
         loc_nb_chunks = len(to_process)
         N_total       = params.nb_channels
-        
+
         if comm.rank == 0:
             to_write = []
             if do_filtering:
                 to_write += ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
             if do_remove_median:
                 to_write += ["Median over all channels is substracted to each channels"]
-                
+
             print_and_log(to_write, 'default', logger)
 
         to_explore = xrange(comm.rank, nb_chunks, comm.size)
@@ -73,7 +73,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         for count, gidx in enumerate(to_explore):
 
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size)
-                
+
             if do_filtering:
                 for i in nodes:    
                     try:           
@@ -92,10 +92,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if data_file_in != data_file_out and data_file_in:
                 if data_file_in.is_stream:
-                    t_offset -= data_file_in._times[data_file_in._get_streams_index_by_time(t_offset)]        
+                    t_offset -= data_file_in._times[data_file_in._get_streams_index_by_time(t_offset)]
                 else:
-                    t_offset -= data_file_in.t_start        
-                
+                    t_offset -= data_file_in.t_start
+
             data_file_out.set_data(t_offset, local_chunk)
 
 
@@ -114,8 +114,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
 
-        artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
-        windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
+        artefacts[:, 1] *= numpy.int64(data_file.sampling_rate*1e-3)
+        windows[:, 1]   *= numpy.int64(data_file.sampling_rate*1e-3)
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
         mytest           = nb_stimuli == len(windows)
 
@@ -146,7 +146,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         for count, artefact in enumerate(local_labels):
             indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
             tmp      = numpy.where(windows[:, 0] == artefact)[0]
-            tau      = windows[tmp, 1]
+            tau      = numpy.int64(windows[tmp, 1])
             pspikes  = all_times[indices]
             times    = numpy.sort(numpy.random.permutation(pspikes)[:500])
             if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
@@ -173,8 +173,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
 
-        artefacts[:, 1] *= numpy.int64(data_file.rate*1e-3)
-        windows[:, 1]   *= numpy.int64(data_file.rate*1e-3)
+        artefacts[:, 1] *= numpy.int64(data_file.sampling_rate*1e-3)
+        windows[:, 1]   *= numpy.int64(data_file.sampling_rate*1e-3)
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
         mytest           = nb_stimuli == len(windows)
 
@@ -201,11 +201,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             all_times = get_tqdm_progressbar(all_times)
 
         comm.Barrier()
-                
+
         for count, time in enumerate(all_times):
+
             label = all_labels[count]
             tmp   = numpy.where(windows[:, 0] == label)[0]
-            tau   = windows[tmp, 1]
+            tau   = numpy.int64(windows[tmp, 1])
+
             if (data_file.t_stop - time) < tau:
                 tau   = max_offset - time
 
@@ -213,7 +215,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             for idx, i in enumerate(nodes):
                 local_chunk[:, i] -= art_dict[label][idx, :tau]
-                       
             data_file.set_data(time, local_chunk)
 
         comm.Barrier()
@@ -221,7 +222,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         print_and_log(['Initializing the filtering step...'], 'debug', logger)
-    
+
     if params.getboolean('data', 'overwrite'):
         if comm.rank == 0:
             print_and_log(['Reading the input file...'], 'debug', logger)
@@ -231,7 +232,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         if comm.rank == 0:
             print_and_log(['Overwrite is set to False, so creating a new datafile...'], 'debug', logger)
-        
+
         if comm.rank == 0:
             print_and_log(['Reading the input file...'], 'debug', logger)
 
@@ -250,7 +251,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         data_file_out = params.get_data_file(is_empty=True, params=description)
 
-        data_file_out.allocate(shape=data_file_in.shape)        
+        data_file_out.allocate(shape=data_file_in.shape)
         data_file_in._params = tmp_params
 
     if clean_artefact:
@@ -267,7 +268,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if remove_median and median_done:
         remove_median = False
         to_write += ["Median over all channels has already been substracted to each channels"]
-                
+
     if comm.rank == 0:
         print_and_log(to_write, 'debug', logger)
 
@@ -280,7 +281,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if do_filter or remove_median:
         filter_file(data_file_in, data_file_out, do_filter, remove_median)
 
-    if comm.rank == 0: 
+    if comm.rank == 0:
         if do_filter:
             params.write('noedits', 'filter_done', 'True')
         if remove_median:

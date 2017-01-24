@@ -1,5 +1,9 @@
 import matplotlib
-matplotlib.use('Qt4Agg', warn=False)
+import os
+if 'DISPLAY' in os.environ:
+    matplotlib.use('Qt4Agg', warn=False)
+else:
+    matplotlib.use('Agg', warn=False)
 
 import files
 import parser

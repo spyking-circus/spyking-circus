@@ -3,7 +3,7 @@ from datafile import DataFile, comm
 
 class RawBinaryFile(DataFile):
 
-    description    = "raw_binary"    
+    description    = "raw_binary"
     extension      = []
     parallel_write = True
     is_writable    = True
@@ -11,8 +11,8 @@ class RawBinaryFile(DataFile):
     _required_fields = {'data_dtype'    : str,
                         'sampling_rate' : float,
                         'nb_channels'   : int}
-    
-    _default_values  = {'dtype_offset'  : 'auto', 
+
+    _default_values  = {'dtype_offset'  : 'auto',
                         'data_offset'   : 0,
                         'gain'          : 1.}
 
@@ -26,17 +26,18 @@ class RawBinaryFile(DataFile):
     def allocate(self, shape, data_dtype=None):
         if data_dtype is None:
             data_dtype = self.data_dtype
-        
+
         if self.is_master:
             self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=data_dtype, mode='w+', shape=shape)
         comm.Barrier()
-        
+
         self._read_from_header()
         del self.data
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
-    	
+
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
+        t_start, t_stop = int(t_start), int(t_stop)
         local_shape     = t_stop - t_start
 
         self._open()
