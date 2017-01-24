@@ -5,6 +5,7 @@ Release 0.5rc
 * fix a bug when exporting for phy in dense mode
 * compatibility with numpy 1.12
 * fix a regression with artefact removal
+* fix a display bug in the thresholds while previewing with a non unitary gain
 
 
 =============
