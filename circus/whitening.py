@@ -88,7 +88,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             bfile.close()
         comm.Barrier()
         thresholds  = io.load_data(params, 'thresholds')
-        
+
         #print "Extracting the peaks..."
         local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
         for i in xrange(N_e):
@@ -118,7 +118,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 all_times[indices, min_times[idx]:max_times[idx]] = True
         else:
             all_times   = numpy.zeros((N_e, len(local_chunk)), dtype=numpy.bool)
-    
+
     all_times_Ne   = numpy.any(all_times, 0)
     subset         = numpy.where(all_times_Ne == False)[0]
     all_silences   = []
@@ -126,7 +126,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if do_spatial_whitening:
         local_silences = numpy.take(local_chunk, subset, axis=0)[:max_silence_1]
         all_silences   = gather_array(local_silences, comm, 0, 1)
-    
+
     local_res      = []
 
     if do_temporal_whitening:
@@ -158,7 +158,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         all_elecs = gather_array(nb_elecs, comm, 0, 1)
 
     if comm.rank == 0:
-        
+
         to_write = {}
 
         if do_temporal_whitening:
@@ -186,7 +186,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
             to_write['spatial'] = spatial_whitening
             print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/params.rate)], 'default', logger)
-        
+
             have_nans = numpy.sum(numpy.isnan(spatial_whitening))
 
             if have_nans > 0:
@@ -216,7 +216,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         for gidx in [all_chunks[comm.rank]]:
             local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
             local_shape = len(local_chunk)
-            
+
             if do_spatial_whitening:
                 if use_gpu:
                     local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
@@ -271,7 +271,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         print_and_log(["Searching spikes to construct the PCA basis..."], 'default', logger)
-        
+
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     if nb_chunks < comm.size:
@@ -291,7 +291,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
     max_elts_elec //= comm.size
     nb_elts       //= comm.size
-    
+
     elt_count_pos = 0
     elt_count_neg = 0
 
@@ -299,7 +299,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elts_pos      = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
     if sign_peaks in ['negative', 'both']:
         elts_neg      = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
-    
+
     chunks_to_load = all_chunks[comm.rank::comm.size]
 
     thresholds = io.load_data(params, 'thresholds')
@@ -372,7 +372,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 for midx, peak in zip(argmax_peak, all_idx):
                     if (elt_count_neg + elt_count_pos) == nb_elts:
                         break
-                    
+
                     if sign_peaks == 'negative':
                         elec = numpy.argmin(local_chunk[peak])
                         negative_peak = True
@@ -407,7 +407,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 else:
                                     rmin = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                
+
                                 if negative_peak:
                                     elts_neg[:, elt_count_neg] = f(ddata).astype(numpy.float32)
                                 else:
@@ -422,7 +422,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         all_times[indices, min_times[midx]:max_times[midx]] = True
 
     print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
-    
+
     if sign_peaks in ['negative', 'both']:
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
     if sign_peaks in ['positive', 'both']:
@@ -436,21 +436,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             nb_waveforms += gdata_neg.shape[0]
         if sign_peaks in ['positive', 'both']:
             nb_waveforms += gdata_pos.shape[0]
-        
+
         print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
         pca = PCA(output_dim, copy=False)
-        res = {}   
-        if sign_peaks in ['negative', 'both']:  
+        res = {}
+        if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
                 res_pca      = pca.fit_transform(gdata_neg.astype(numpy.double)).astype(numpy.float32)
                 res['proj']  = pca.components_.T.astype(numpy.float32)
             else:
-                res['proj']  = numpy.identity(output_dim, dtype=numpy.float32)
+                res['proj']  = numpy.identity(int(output_dim), dtype=numpy.float32)
             res['rec']       = res['proj'].T
             res['waveform']  = numpy.median(gdata_neg, 0)
             idx              = numpy.random.permutation(numpy.arange(gdata_neg.shape[0]))[:1000]
             res['waveforms'] = gdata_neg[idx, :]
-        if sign_peaks in ['positive', 'both']:  
+        if sign_peaks in ['positive', 'both']:
             if len(gdata_pos) > 0:
                 res_pca         = pca.fit_transform(gdata_pos.astype(numpy.double)).astype(numpy.float32)
                 res['proj_pos'] = pca.components_.T.astype(numpy.float32)

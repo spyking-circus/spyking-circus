@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 
 def data_stats(params, show=True, export_times=False):
 
-    
+
     data_file   = params.get_data_file(source=True, has_been_created=False)
-    stream_mode = data_file.is_stream    
+    stream_mode = data_file.is_stream
     chunk_size  = 60 * data_file.sampling_rate
-    nb_chunks   = data_file.duration // chunk_size 
+    nb_chunks   = data_file.duration // chunk_size
     last_chunk_len = data_file.duration - nb_chunks * chunk_size
 
     nb_seconds      = last_chunk_len//params.rate
@@ -50,9 +50,9 @@ def data_stats(params, show=True, export_times=False):
              "Overwrite                   : %s" %params.get('data', 'overwrite'),
              "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
              "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
-    
+
     if stream_mode:
-        lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]    
+        lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]
 
     if show:
         print_and_log(lines, 'info', logger)
@@ -86,7 +86,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
-    if do_temporal_whitening:     
+    if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
@@ -99,7 +99,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             local_chunk = data_file.get_snippet(time - 2*template_shift, 2*N_t - 1, nodes=nodes)
         else:
             local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
-        
+
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
@@ -144,14 +144,14 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
 def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
                        mean_mode=False, all_labels=False, auto_align=True):
-    
+
     # First we need to identify machines in the MPI ring.
     from uuid import getnode as get_mac
     myip = numpy.int64(get_mac()) % 100000
     ##### TODO: remove quarantine zone
     # intsize = MPI.INT.Get_size()
     ##### end quarantine zone
-    float_size = MPI.FLOAT.Get_size() 
+    float_size = MPI.FLOAT.Get_size()
     sub_comm = comm.Split(myip, 0)
 
     # Load parameters.
@@ -163,7 +163,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
     template_shift = params.getint('detection', 'template_shift')
-    
+
     # Calculate the sizes of the data structures to share.
     nb_triggers = 0
     nb_neighs = 0
@@ -184,14 +184,14 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
             nb_triggers = len(numpy.unique(labels_i))
         nb_neighs = len(neighs)
         nb_ts = N_t
-    
+
     sub_comm.Barrier()
-    
+
     # Broadcast the sizes of the data structures to share.
     triggers_size = numpy.int64(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.int32), root=0)[0])
     neighs_size = numpy.int64(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.int32), root=0)[0])
     ts_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.int32), root=0)[0])
-    
+
     # Declare the data structures to share.
     if sub_comm.Get_rank() == 0:
         stas_bytes = triggers_size * neighs_size * ts_size * float_size
@@ -201,14 +201,14 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
         stas_shape = (neighs_size, ts_size)
     else:
         stas_shape = (triggers_size, neighs_size, ts_size)
-    
+
     win_stas = MPI.Win.Allocate_shared(stas_bytes, float_size, comm=sub_comm)
     buf_stas, _ = win_stas.Shared_query(0)
     buf_stas = numpy.array(buf_stas, dtype='B', copy=False)
     stas = numpy.ndarray(buffer=buf_stas, dtype=numpy.float32, shape=stas_shape)
-    
+
     sub_comm.Barrier()
-    
+
     # Let master node initialize the data structures to share.
     if sub_comm.Get_rank() == 0:
         if do_spatial_whitening:
@@ -220,19 +220,19 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
             xdata = numpy.arange(- 2 * template_shift, 2 * template_shift + 1)
         count = 0
         for lb, time in zip(labels_i, times_i):
-            
+
             if alignment:
                 local_chunk = data_file.get_snippet(time - 2*template_shift, 2*N_t - 1, nodes=nodes)
             else:
                 local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
-            
+
             if do_spatial_whitening:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
-            
+
             local_chunk = numpy.take(local_chunk, neighs, axis=1)
-            
+
             if alignment:
                 idx = numpy.where(neighs == src)[0]
                 ydata = numpy.arange(len(neighs))
@@ -259,26 +259,26 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
             else:
                 lc = numpy.where(nb_triggers == lb)[0]
                 stas[lc] += local_chunk.T
-    
+
     sub_comm.Barrier()
-    
+
     # # Let each node wrap the data structures to share.
     # if not all_labels and mean_mode:
     #     stas_shape = (nb_neighs, nb_ts)
     # else:
     #     stas_shape = (nb_triggers, nb_neighs, nb_ts)
     # stas = numpy.reshape(stas, stas_shape)
-    
+
     sub_comm.Free()
     data_file.close()
-    
+
     return stas
 
 ##### end working zone
 
 
 def get_artefact(params, times_i, tau, nodes, normalize=True):
-    
+
     data_file    = params.data_file
     data_file.open()
 
@@ -306,13 +306,13 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
     myip = numpy.int64(get_mac()) % 100000
 
     intsize   = MPI.INT.Get_size()
-    floatsize = MPI.FLOAT.Get_size() 
+    floatsize = MPI.FLOAT.Get_size()
     sub_comm  = comm.Split(myip, 0)
 
     data_file = params.data_file
     N_e       = params.getint('data', 'N_e')
     N_t       = params.getint('detection', 'N_t')
-    
+
     if data == 'templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             nb_data = 0
@@ -322,7 +322,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             if sub_comm.rank == 0:
                 temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
                 temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
-                temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]    
+                temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]
                 sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
                 if normalize:
                     norm_templates = load_data(params, 'norm-templates')
@@ -335,7 +335,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 nb_data = len(sparse_mat.data)
                 nb_ptr  = len(sparse_mat.indptr)
 
-            sub_comm.Barrier()   
+            sub_comm.Barrier()
             long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
             short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
 
@@ -355,11 +355,11 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             buf_data, _    = win_data.Shared_query(0)
             buf_indices, _ = win_indices.Shared_query(0)
             buf_indptr, _  = win_indptr.Shared_query(0)
-                
+
             buf_data    = numpy.array(buf_data, dtype='B', copy=False)
             buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
             buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
-                                
+
             data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
             indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
             indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
@@ -387,13 +387,13 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == "overlaps":
-        
+
         c_overlap  = get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
         N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
         c_overs    = {}
-            
+
         if sub_comm.rank == 0:
             over_x     = c_overlap.get('over_x')[:]
             over_y     = c_overlap.get('over_y')[:]
@@ -404,13 +404,13 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
             del over_x, over_y, over_data
 
-        sub_comm.Barrier()                
-        
+        sub_comm.Barrier()
+
         nb_data = 0
         nb_ptr  = 0
 
         for i in xrange(N_over):
-            
+
             if sub_comm.rank == 0:
                 sparse_mat = overlaps[i*N_over:(i+1)*N_over]
                 nb_data    = len(sparse_mat.data)
@@ -435,11 +435,11 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             buf_data, _    = win_data.Shared_query(0)
             buf_indices, _ = win_indices.Shared_query(0)
             buf_indptr, _  = win_indptr.Shared_query(0)
-                
+
             buf_data    = numpy.array(buf_data, dtype='B', copy=False)
             buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
             buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
-                                
+
             data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
             indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
             indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
@@ -458,7 +458,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             c_overs[i].indptr  = indptr
 
             sub_comm.Barrier()
-                    
+
         if sub_comm.rank == 0:
             del overlaps
 
@@ -475,7 +475,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             nb_data = 0
 
             for key in myfile.keys():
-            
+
                 if ('clusters_' in key) or (key == 'electrodes'):
                     if sub_comm.rank == 0:
                         locdata = myfile.get(key)[:]
@@ -497,7 +497,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
                     win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
                     buf_data, _ = win_data.Shared_query(0)
-                        
+
                     buf_data    = numpy.array(buf_data, dtype='B', copy=False)
 
                     if type_size == 0:
@@ -517,19 +517,19 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             myfile.close()
             return result
 
-    
+
 
 def load_data(params, data, extension=''):
     """
     Load data from a dataset.
-    
+
     Parameters
     ----------
     data : {'thresholds', 'spatial_whitening', 'temporal_whitening', 'basis',
             'templates', 'norm-templates', 'spike-cluster', 'spikedetekt',
             'clusters', 'electrodes', 'results', 'overlaps', 'limits',
             'injected_spikes', 'triggers'}
-    
+
     """
 
     file_out_suff   = params.get('data', 'file_out_suff')
@@ -541,21 +541,21 @@ def load_data(params, data, extension=''):
             myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
-            return spike_thresh * thresholds 
+            return spike_thresh * thresholds
     elif data == 'matched-thresholds':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(file_out_suff + '.basis.hdf5'):
             myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds')[:]
             myfile.close()
-            return matched_thresh * thresholds 
+            return matched_thresh * thresholds
     elif data == 'matched-thresholds-pos':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(file_out_suff + '.basis.hdf5'):
             myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             thresholds = myfile.get('matched_thresholds_pos')[:]
             myfile.close()
-            return matched_thresh * thresholds 
+            return matched_thresh * thresholds
     elif data == 'spatial_whitening':
         if os.path.exists(file_out_suff + '.basis.hdf5'):
             myfile  = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
@@ -568,7 +568,7 @@ def load_data(params, data, extension=''):
         if os.path.exists(file_out_suff + '.basis.hdf5'):
             myfile   = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
             temporal = myfile.get('temporal')[:]
-            myfile.close() 
+            myfile.close()
             return temporal
         else:
             raise Exception('Whitening matrix has to be computed first!')
@@ -706,7 +706,7 @@ def load_data(params, data, extension=''):
 
             N_total = params.nb_channels
             N_t     = params.getint('detection', 'N_t')
-            
+
             template_shift = params.getint('detection', 'template_shift')
 
             spikes = numpy.zeros((N_t, N_total, N_tr))
@@ -960,7 +960,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if with_real_amps:
         result['real_amps'] = {}
     if with_voltages:
-        result['voltages'] = {}    
+        result['voltages'] = {}
     if collect_all:
         result['gspikes'] = {}
         result['gtemps']  = {}
@@ -972,7 +972,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             result['real_amps']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
         if with_voltages:
             result['voltages']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
-    
+
     if collect_all:
         for i in xrange(N_e):
             result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0, dtype=numpy.uint32)
@@ -993,7 +993,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         if with_voltages:
             voltages_file  = file_out_suff + '.voltages-%d.data' %node
             voltages       = numpy.fromfile(voltages_file, dtype=numpy.float32)
-        
+
         if collect_all:
             gspikes_file = file_out_suff + '.gspiketimes-%d.data' %node
             gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.uint32)
@@ -1021,16 +1021,16 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             for j in local_temp:
                 idx = numpy.where(templates == j)[0]
                 result['amplitudes']['temp_' + str(j)] = numpy.concatenate((amplitudes[idx], result['amplitudes']['temp_' + str(j)]))
-                result['spiketimes']['temp_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx])) 
+                result['spiketimes']['temp_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx]))
                 if with_real_amps:
                     result['real_amps']['temp_' + str(j)] = numpy.concatenate((result['real_amps']['temp_' + str(j)], real_amps[idx]))
                 if with_voltages:
-                    result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx])) 
+                    result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx]))
 
             if collect_all:
                 for j in xrange(N_e):
                     idx = numpy.where(gtemps == j)[0]
-                    result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx])) 
+                    result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx]))
 
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
@@ -1074,7 +1074,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         for temp in result[key].keys():
             tmp_path = '%s/%s' %(key, temp)
             mydata.create_dataset(tmp_path, data=result[key][temp])
-    mydata.close()        
+    mydata.close()
 
     # Count and print the number of spikes.
     count = 0
@@ -1132,7 +1132,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detection', 'N_t')
     N_total        = params.nb_channels
-    file_out_suff  = params.get('data', 'file_out_suff')   
+    file_out_suff  = params.get('data', 'file_out_suff')
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     filename       = file_out_suff + '.overlap%s.hdf5' %extension
 
@@ -1168,13 +1168,13 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     if half:
         N_tm //= 2
-    
+
     comm.Barrier()
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
 
     cuda_string = 'using %d CPU...' %comm.size
-    
+
     if use_gpu:
         import cudamat as cmt
         if parallel_hdf5:
@@ -1189,7 +1189,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         cmt.cuda_sync_threads()
 
     if use_gpu:
-        cuda_string = 'using %d GPU...' %comm.size    
+        cuda_string = 'using %d GPU...' %comm.size
 
     all_delays      = numpy.arange(1, N_t+1)
 
@@ -1217,9 +1217,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     over_y    = numpy.zeros(0, dtype=numpy.int32)
     over_data = numpy.zeros(0, dtype=numpy.float32)
     rows      = numpy.arange(N_e*N_t)
-                
+
     for count, ielec in enumerate(to_explore):
-        
+
         local_idx = numpy.where(best_elec == ielec)[0]
         len_local = len(local_idx)
 
@@ -1231,10 +1231,10 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             to_consider   = numpy.arange(upper_bounds)
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
-            
+
             loc_templates  = templates[:, local_idx].tocsr()
             loc_templates2 = templates[:, to_consider].tocsr()
-            
+
             for idelay in all_delays:
 
                 srows = numpy.where(rows % N_t < idelay)[0]
@@ -1242,7 +1242,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
                 srows = numpy.where(rows % N_t >= (N_t - idelay))[0]
                 tmp_2 = loc_templates2[srows]
-                
+
                 if use_gpu:
                     tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr(), copy_on_host=False)
                     tmp_2 = cmt.CUDAMatrix(tmp_2.toarray(), copy_on_host=False)
@@ -1270,7 +1270,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     comm.Barrier()
 
     #We need to gather the sparse arrays
-    over_x    = gather_array(over_x, comm, dtype='int32')            
+    over_x    = gather_array(over_x, comm, dtype='int32')
     over_y    = gather_array(over_y, comm, dtype='int32')
     over_data = gather_array(over_data, comm)
 
@@ -1304,7 +1304,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 maxlag[i+1:, i]     = maxlag[i, i+1:]
                 maxoverlap[i, i+1:] = numpy.max(data, 1)
                 maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
-            myfile.close()  
+            myfile.close()
             myfile2.close()
 
     comm.Barrier()
