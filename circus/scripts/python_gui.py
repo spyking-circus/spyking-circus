@@ -48,7 +48,7 @@ def main(argv=None):
         os.remove(params.logfile)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger(__name__)
-    
+
     mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
     if not mytest:
         print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
@@ -88,7 +88,10 @@ def main(argv=None):
 
         gui_params                   = {}
         if file_format in supported_by_phy:
-            gui_params['dat_path']   = params.get('data', 'data_file')
+            if not params.getboolean('data', 'overwrite'):
+                gui_params['dat_path']   = params.get('data', 'data_file_no_overwrite')
+            else:
+                gui_params['dat_path']   = params.get('data', 'data_file')
         else:
             gui_params['dat_path']   = ''
         gui_params['n_channels_dat'] = params.nb_channels
@@ -104,6 +107,7 @@ def main(argv=None):
         controller = TemplateController(**gui_params)
         gui = controller.create_gui()
 
+
         gui.show()
         run_app()
         gui.close()
@@ -111,10 +115,3 @@ def main(argv=None):
 
 if __name__ == '__main__':
     main()
-
-    
-
-
-
-    
-
