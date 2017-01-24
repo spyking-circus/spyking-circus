@@ -201,6 +201,7 @@ but a subset x,y can be done. Steps are:
         description['data_dtype']   = 'float32'
         description['dtype_offset'] = 0
         description['data_offset']  = 0
+        description['gain']         = 1.
         new_params    = CircusParser(filename)
         data_file_out = new_params.get_data_file(is_empty=True, params=description)
         
