@@ -175,12 +175,14 @@ Converting
 The converting section is::
 
     erase_all      = True      # If False, a prompt will ask you to export if export has already been done
+    sparse_export  = False     # If True, data for phy are exported in a sparse format. Need recent version of phy
     export_pcs     = prompt    # Can be prompt [default] or in none, all, some
     export_all     = False     # If True, unfitted spikes will be exported as the last Ne templates
 
 
 Parameters that are most likely to be changed:
     * ``erase_all`` If you want to always erase former export, and skip the prompt
+    * ``sparse_export`` If you have a large number of templates or a very high density probe, you should use the sparse format for phy
     * ``export_pcs`` If you already know that you want to have all, some, or no PC and skip the prompt
     * ``export_all`` If you used the ``collect_all`` mode in the ``[fitting]`` section, you can export unfitted spike times to phy. In this case, the last `N` templates, if `N` is the number of electrodes, are the garbage collectors.
 
