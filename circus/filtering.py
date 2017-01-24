@@ -75,9 +75,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size)
 
             if do_filtering:
-                for i in nodes:
-                    local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
-                local_chunk[:, i] -= numpy.median(local_chunk[:, i])
+                for i in nodes:    
+                    try:           
+                        local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                    except Exception:
+                        pass
+                local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
 
             if do_remove_median:
                 if not numpy.all(nodes == numpy.arange(N_total)):
@@ -204,6 +207,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             label = all_labels[count]
             tmp   = numpy.where(windows[:, 0] == label)[0]
             tau   = numpy.int64(windows[tmp, 1])
+
             if (data_file.t_stop - time) < tau:
                 tau   = max_offset - time
 
@@ -211,7 +215,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             for idx, i in enumerate(nodes):
                 local_chunk[:, i] -= art_dict[label][idx, :tau]
-
             data_file.set_data(time, local_chunk)
 
         comm.Barrier()

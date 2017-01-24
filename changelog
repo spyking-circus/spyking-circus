@@ -1,4 +1,10 @@
 =============
+Release 0.5rc
+=============
+
+* fix a bug when exporting for phy in dense mode
+
+=============
 Release 0.5b9
 =============
 
