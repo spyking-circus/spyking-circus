@@ -108,7 +108,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_loc                           = len(numpy.unique(y))
                 
             if sparse_export:
-                all_positions                    = numpy.zeros(len(y), dtype=numpy.int32)
+                all_positions                    = numpy.zeros(y.max()+1, dtype=numpy.int32)
                 all_positions[numpy.unique(y)]   = numpy.arange(nb_loc, dtype=numpy.int32)
                 pos                              = all_positions[y]
                 to_write_sparse[t, x, pos]       = tmp[x, y] 
@@ -254,7 +254,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             nodes, edges   = get_nodes_and_edges(params)
             numpy.save(os.path.join(output_path, 'channel_map'), nodes.astype(numpy.int32))
 
-            write_results(output_path, params, extension)    
+            write_results(output_path, params, extension) 
+ 
             N_tm = write_templates(output_path, params, extension)
             similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
             norm = N_e*N_t
