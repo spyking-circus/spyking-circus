@@ -10,11 +10,11 @@ Structure of the hostfile
 
 Such a hostfile may depend on the fork of MPI you are using. For OpenMPI_, this will typically look like::
 
-    192.168.0.1
-    192.168.0.2
-    192.168.0.3
-    192.168.0.4
-    192.168.0.5
+    192.168.0.1 max-slots=4
+    192.168.0.2 max-slots=4
+    192.168.0.3 max-slots=4
+    192.168.0.4 max-slots=4
+    192.168.0.5 max-slots=4
 
 If this is your parameter file, and if you launch the code with 20 CPUs::
 

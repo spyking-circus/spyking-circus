@@ -42,7 +42,7 @@ Using pip
 
 To do so, use the ``pip`` utility::
 
-    >> pip install spyking-circus --process-dependency-links --pre
+    >> pip install spyking-circus --pre
 
 You might want to add the ``--user`` flag, to install SpyKING CIRCUS for the local user only, which means that you don't need administrator privileges for the installation.
 
@@ -57,11 +57,11 @@ Using sources
 
 Alternatively, you can download the source package directly and uncompress it, or work directly with the git folder https://github.com/spyking-circus/spyking-circus to be in sync with bug fixes. You can then simply run::
 
-    >> pip install . --user --process-dependency-links
+    >> pip install . --user
 
 Or even better, you can install it with the develop mode::
 
-    >> pip install . -e --user --process-dependency-links
+    >> pip install . -e --user
 
 
 Such that if you do a git pull in the software directory, you do not need to reinstall it.
@@ -121,7 +121,7 @@ Dependencies
 ------------
 
 For information, here is the list of all the dependencies required by the SpyKING CIRCUS:
-    1. ``progressbar2`` 
+    1. ``tqdm`` 
     2. ``mpi4py`` 
     3. ``numpy`` 
     4. ``cython`` 

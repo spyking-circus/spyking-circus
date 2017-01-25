@@ -17,7 +17,7 @@ Here are some detailed instructions:
     
     8. If you prefer, you can use pip (this is equivalent to step 7)::
     
-        >> pip install spyking-circus --process-dependency-links --pre
+        >> pip install spyking-circus --pre
 
     9. [**optional**] Install CUDA_ for windows to activate GPU only
     10. [**optional**] If you want to enable CUDA_, you must have a valid ``nvcc`` install and do::
