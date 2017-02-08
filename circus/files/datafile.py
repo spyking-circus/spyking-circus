@@ -456,7 +456,8 @@ class DataFile(object):
 
         if self.is_stream:
             cidx = self._get_streams_index_by_time(global_time)
-            return self._sources[cidx].write_chunk(global_time, data)
+            local_time = global_time - self.t_start
+            return self._sources[cidx].write_chunk(local_time, data)
         else:
             local_time = global_time - self.t_start
             return self.write_chunk(local_time, data)
