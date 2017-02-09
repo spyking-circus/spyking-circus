@@ -6,8 +6,8 @@ Release 0.5rc
 * compatibility with numpy 1.12
 * fix a regression with artefact removal
 * fix a display bug in the thresholds while previewing with a non unitary gain
-* fix a bug when filtering in multi-files mode
-
+* fix a bug when filtering in multi-files mode (overwrite False, various t_starts)
+* fix a bug when filtering in multi-files mode (overwrite True)
 
 =============
 Release 0.5b9

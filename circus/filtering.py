@@ -90,13 +90,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 for i in nodes:
                     local_chunk[:, i] -= global_median
 
-            if data_file_in != data_file_out and data_file_in:
+            if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
                 if data_file_in.is_stream:
-                    t_offset -= data_file_in._times[data_file_in._get_streams_index_by_time(t_offset)]
+                    g_offset = t_offset - numpy.sum(data_file_in._times[:data_file_in._get_streams_index_by_time(t_offset)+1])
                 else:
-                    t_offset -= data_file_in.t_start
+                    g_offset = t_offset - data_file_in.t_start
+            else:
+                g_offset = t_offset
 
-            data_file_out.set_data(t_offset, local_chunk)
+            data_file_out.set_data(g_offset, local_chunk)
 
 
 
@@ -253,6 +255,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         data_file_out.allocate(shape=data_file_in.shape)
         data_file_in._params = tmp_params
+        if data_file_in.is_stream:
+            for source in data_file_in._sources:
+                source._params = tmp_params   
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
