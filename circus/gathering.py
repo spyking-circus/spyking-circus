@@ -1,4 +1,5 @@
 from .shared.utils import *
+from circus.shared.messages import init_logging
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
