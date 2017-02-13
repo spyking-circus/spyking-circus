@@ -551,9 +551,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
-                        rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
+                        rho, dist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)] = rho
-                        result['norm_%s_' %p + str(ielec)] = int(m_ratio*(len(result['data_%s_' %p + str(ielec)]) - 1))
+                        result['norm_%s_' %p + str(ielec)] = nb_selec
                         tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True)
                         del dist, rho
                     else:
@@ -563,13 +563,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['pca_%s_' %p + str(ielec)] = numpy.identity(dimension, dtype=numpy.float32)
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
                         result['norm_%s_' %p + str(ielec)] = 1
-                        result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
+                        result['sub_%s_' %p + str(ielec)]  = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 else:
-                    if len(result['sub_%s_' %p + str(ielec)]) > 1:
-                        data  = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                        rho, dist = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=data, mratio=m_ratio)
+                    if len(result['data_%s_' %p + str(ielec)]) > 1:
+                        data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
+                        rho, dist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=data, mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)] += rho
-                        result['norm_%s_' %p + str(ielec)] += int(m_ratio*len(result['tmp_%s_' %p + str(ielec)]))
+                        result['norm_%s_' %p + str(ielec)] += nb_selec
                         del dist, rho
 
                 if gpass == nb_repeats:
@@ -586,7 +586,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if (n_data > 1):
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max() 
-                        result['rho_%s_' %p + str(ielec)] /= max(1, result['norm_%s_' %p + str(ielec)])
+                        result['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       m_ratio,
                                                                                       n_min=n_min,

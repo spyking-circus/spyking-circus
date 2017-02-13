@@ -36,7 +36,7 @@ def fit_rho_delta(xdata, ydata, display=False, threshold=0, max_clusters=10, sav
     return subidx
 
 
-def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
+def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
     N    = len(data)
     rho  = numpy.zeros(N, dtype=numpy.float32)
@@ -44,21 +44,22 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.1):
     if update is None:
         dist = distancematrix(data)
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
+        nb_selec = max(1, int(mratio*N))
 
         if compute_rho:
             for i in xrange(N):
                 indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
-                tmp     = numpy.argsort(numpy.take(dist, indices))[:max(1, int(mratio*N))]
+                tmp     = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
                 rho[i]  = numpy.sum(numpy.take(dist, numpy.take(indices, tmp)))  
 
     else:
-        M = len(update)
-
+        M        = len(update)
+        nb_selec = max(1, int(mratio*M))
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update).ravel()
-            tmp      = numpy.argsort(dist)[:max(1, int(mratio*M))]
+            tmp      = numpy.argsort(dist)[:nb_selec]
             rho[i]   = numpy.sum(numpy.take(dist, tmp))
-    return rho, dist
+    return rho, dist, nb_selec
 
 
 def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10, save=False):
@@ -67,7 +68,7 @@ def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10,
     maxd              = numpy.max(dist)
     didx              = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
     ordrho            = numpy.argsort(rho)[::-1]
-    delta, nneigh     = numpy.zeros(N, dtype=numpy.float64), numpy.zeros(N, dtype=numpy.int32)
+    delta, nneigh     = numpy.zeros(N, dtype=numpy.float32), numpy.zeros(N, dtype=numpy.int32)
     delta[ordrho[0]]  = -1
     for ii in xrange(N):
         delta[ordrho[ii]] = maxd
