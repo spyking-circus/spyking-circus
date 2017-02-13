@@ -26,15 +26,14 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
         xmin, xmax   = xdata.min(), xdata.max()
 
         def myfunc(x, a, b):
-            return numpy.log(1. + a*((xmax - x)**b))
+            return a*numpy.log(1. + ((xmax - x)**b))
 
         try:
-            x_data       = xdata + xmin
-            result, pcov = scipy.optimize.curve_fit(myfunc, x_data, ydata, [1., 1.])
+            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, [1., 1.])
         except Exception:
             result       = [1., 1.]
 
-        prediction = myfunc(x_data, result[0], result[1])
+        prediction = myfunc(xdata, result[0], result[1])
         mask       = ydata >= prediction
         value      = ydata - prediction
         value     *= mask

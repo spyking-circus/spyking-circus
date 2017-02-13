@@ -181,11 +181,10 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
         xmin, xmax   = rho.min(), rho.max()
 
         def myfunc(x, a, b):
-            return numpy.log(1. + a*((xmax - x)**b))
+            return a*numpy.log(1. + ((xmax - x)**b))
 
         try:
-            x_data       = rho + xmin
-            result, pcov = scipy.optimize.curve_fit(myfunc, x_data, delta, [1., 1.])
+            result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, [1., 1.])
         except Exception:
             result       = [1., 1.]
 
