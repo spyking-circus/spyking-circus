@@ -53,6 +53,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
     smart_search   = params.getboolean('clustering', 'smart_search')
+    smart_select   = params.getboolean('clustering', 'smart_select')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
@@ -589,6 +590,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       m_ratio,
+                                                                                      smart_select=smart_select,
                                                                                       n_min=n_min,
                                                                                       max_clusters=max_clusters)
 
@@ -617,7 +619,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                             plot.view_clusters(data, r, d, c[:max_clusters],
                                                    cluster_results[p][ielec]['groups'], injected=injected,
-                                                   save=save)
+                                                   save=save, smart_select=smart_select)
 
                         keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec), 'norm_%s_' %p + str(ielec)]
                         for key in keys:

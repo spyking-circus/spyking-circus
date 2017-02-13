@@ -18,13 +18,29 @@ def distancematrix(data, ydata=None):
 
     return distances.astype(numpy.float32)
 
-def fit_rho_delta(xdata, ydata, display=False, threshold=0, max_clusters=10, save=False):
 
-    #threshold = xdata[numpy.argsort(xdata)][int(len(xdata)*threshold/100.)]
-    gidx   = numpy.where(xdata >= threshold)[0]
-    ymdata = ydata[gidx]  
-    xmdata = xdata[gidx]
-    subidx = numpy.take(gidx, numpy.argsort(xmdata*numpy.log(1 + ymdata))[::-1])
+
+def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=10, save=False):
+
+    if smart_select:
+        xmin, xmax   = xdata.min(), xdata.max()
+
+        def myfunc(x, a, b):
+            return numpy.log(1. + a*((xmax - x)**b))
+
+        try:
+            x_data       = xdata + xmin
+            result, pcov = scipy.optimize.curve_fit(myfunc, x_data, ydata, [1., 1.])
+        except Exception:
+            result       = [1., 1.]
+
+        prediction = myfunc(x_data, result[0], result[1])
+        mask       = ydata >= prediction
+        value      = ydata - prediction
+        value     *= mask
+        subidx     = numpy.argsort(value)[::-1]
+    else:
+        subidx     = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1]
 
     if display:
         ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
@@ -62,7 +78,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
     return rho, dist, nb_selec
 
 
-def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10, save=False):
+def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=None, max_clusters=10, save=False):
 
     N                 = len(rho)
     maxd              = numpy.max(dist)
@@ -83,7 +99,7 @@ def clustering(rho, dist, mratio=0.1, display=None, n_min=None, max_clusters=10,
                 nneigh[ordrho[ii]] = ordrho[jj]
 
     delta[ordrho[0]] = delta.max()
-    clust_idx        = fit_rho_delta(rho, delta, max_clusters=max_clusters)
+    clust_idx        = fit_rho_delta(rho, delta, smart_select=smart_select, max_clusters=max_clusters)
 
     def assign_halo(idx):
         cl      = numpy.empty(N, dtype=numpy.int32)

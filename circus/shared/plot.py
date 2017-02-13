@@ -113,7 +113,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.show()
 
 
-def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
+def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=None, save=False):
 
     fig = pylab.figure(figsize=(15, 10))
     ax  = fig.add_subplot(231)
@@ -159,7 +159,6 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
 
         import matplotlib.colors as colors
         my_cmap   = pylab.get_cmap('winter')
-
         ax = fig.add_subplot(236)
         idx = numpy.argsort(rho)
         ax.scatter(visu_data[idx,0], visu_data[idx,1], c=rho[idx], cmap=my_cmap)
@@ -175,7 +174,25 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
     ax.set_xlabel(r'$\rho$')
     ax.set_ylabel(r'$\delta$')
     ax.set_title('Putative Cluster Centers')
+
     ax.plot(rho, delta, 'o', color='black')
+
+    if smart_select:
+        xmin, xmax   = rho.min(), rho.max()
+
+        def myfunc(x, a, b):
+            return numpy.log(1. + a*((xmax - x)**b))
+
+        try:
+            x_data       = rho + xmin
+            result, pcov = scipy.optimize.curve_fit(myfunc, x_data, delta, [1., 1.])
+        except Exception:
+            result       = [1., 1.]
+
+        prediction = myfunc(rho, result[0], result[1])
+        ax.plot(rho[idx], prediction[idx], 'r')
+    
+    idx = numpy.argsort(rho)
     ax.plot(rho[centers], delta[centers], 'o', color='r')
     ax.set_yscale('log')
     pylab.tight_layout()
