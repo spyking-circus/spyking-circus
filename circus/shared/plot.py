@@ -179,12 +179,14 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
 
     if smart_select:
         xmax = rho.max()
+        off  = delta.min()
+        idx  = numpy.argmin(rho)
+        a_0  = (delta[idx] - off)/numpy.log(1 + (xmax - rho[idx]))
+
 
         def myfunc(x, a, b, c):
-            return a*numpy.log(1. + c*((xmax - x)**b))
+            return a*numpy.log(1. + c*((xmax - x)**b)) + off
 
-        idx = numpy.argmin(rho)
-        a_0 = delta[idx]/numpy.log(1 + (xmax - rho[idx]))
 
         try:
             result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, p0=[a_0, 1., 1.])

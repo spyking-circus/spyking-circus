@@ -553,7 +553,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
                         rho, dist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
-                        
 
                         result['rho_%s_' %p  + str(ielec)] = rho
                         result['norm_%s_' %p + str(ielec)] = nb_selec

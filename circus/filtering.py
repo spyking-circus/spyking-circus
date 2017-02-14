@@ -126,8 +126,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(['Error in the trigger files'], 'error', logger)
             sys.exit(1)
 
-        all_labels   = artefacts[:, 0]
-        all_times    = artefacts[:, 1]
+        all_labels   = artefacts[:, 0].astype(numpy.int32)
+        all_times    = artefacts[:, 1].astype(numpy.int32)
 
         mask         = (all_times >= 0) & (all_times + numpy.max(windows[:,1]) < data_file.t_stop)
         all_times    = numpy.compress(mask, all_times)
@@ -155,6 +155,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', logger)
                 sys.exit(1)
+
             art_dict[artefact] = get_artefact(params, times, tau, nodes)
             if make_plots not in ['None', '']:
                 save     = [plot_path, '%d.%s' %(artefact, make_plots)]
@@ -185,8 +186,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(['Error in the trigger files'], 'error', logger)
             sys.exit(1)
 
-        all_labels   = artefacts[:, 0]
-        all_times    = artefacts[:, 1]
+        all_labels   = artefacts[:, 0].astype(numpy.int32)
+        all_times    = artefacts[:, 1].astype(numpy.int32)
         local_labels = numpy.unique(all_labels)[comm.rank::comm.size]
 
         mask       = numpy.in1d(all_labels, local_labels)

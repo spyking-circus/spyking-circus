@@ -24,12 +24,12 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
 
     if smart_select:
         xmax = xdata.max()
-        
-        def myfunc(x, a, b, c):
-            return a*numpy.log(1. + c*((xmax - x)**b))
+        off  = ydata.min()
+        idx  = numpy.argmin(xdata)
+        a_0  = (ydata[idx] - off)/numpy.log(1 + (xmax - xdata[idx]))
 
-        idx = numpy.argmin(xdata)
-        a_0 = ydata[idx]/numpy.log(1 + (xmax - xdata[idx]))
+        def myfunc(x, a, b, c):
+            return a*numpy.log(1. + c*((xmax - x)**b)) + off
 
         try:
             result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1.])
@@ -37,13 +37,20 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
             result       = [1., 1., 1.]
 
         prediction = myfunc(xdata, result[0], result[1], result[2])
-        value      = numpy.maximum(0, ydata - prediction)
-        subidx     = numpy.argsort(value)[::-1]
+        value      = prediction/ydata
+        subidx     = numpy.argsort(value)
     else:
         subidx     = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1]
 
     if display:
+        fig = pylab.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(xdata, ydata, 'ko')
         ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
+        if smart_select:
+            idx = numpy.argsort(xdata)
+            ax.plot(xdata[idx], prediction[idx], 'r')
+            ax.set_yscale('log')
         if save:
             pylab.savefig(os.path.join(save[0], 'rho_delta_%s.png' %(save[1])))
             pylab.close()
