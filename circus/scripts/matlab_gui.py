@@ -79,7 +79,11 @@ def main(argv=None):
         return t
 
     mapping    = generate_matlab_mapping(probe)
-    filename   = params.get('data', 'data_file')
+
+    if not params.getboolean('data', 'overwrite'):
+        filename = params.get('data', 'data_file_no_overwrite')
+    else:
+        filename = params.get('data', 'data_file')
 
     
     gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
