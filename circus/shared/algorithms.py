@@ -23,20 +23,21 @@ def distancematrix(data, ydata=None):
 def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=10, save=False):
 
     if smart_select:
-        xmin, xmax   = xdata.min(), xdata.max()
+        xmax = xdata.max()
         
         def myfunc(x, a, b, c):
             return a*numpy.log(1. + c*((xmax - x)**b))
 
+        idx = numpy.argmin(xdata)
+        a_0 = ydata[idx]/numpy.log(1 + (xmax - xdata[idx]))
+
         try:
-            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[1, 1., 1.])
+            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1.])
         except Exception:
             result       = [1., 1., 1.]
 
         prediction = myfunc(xdata, result[0], result[1], result[2])
-        mask       = ydata >= prediction
-        value      = ydata - prediction
-        value     *= mask
+        value      = numpy.maximum(0, ydata - prediction)
         subidx     = numpy.argsort(value)[::-1]
     else:
         subidx     = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1]
