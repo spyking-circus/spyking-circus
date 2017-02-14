@@ -30,6 +30,7 @@ The SpyKING CIRCUS is a massively parallel code to perform semi automatic spike 
    GUI/index
    advanced/index
    issues/index
+   bib/index
 
 .. figure::  GUI/standalone.png
    :align:   center

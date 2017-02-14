@@ -9,6 +9,8 @@ Release 0.5rc
 * fix a bug when filtering in multi-files mode (overwrite False, various t_starts)
 * fix a bug when filtering in multi-files mode (overwrite True)
 * fix the gathering method, not working anymore
+* smarter selection of the centroids, leading to more clusters with the smart-select option
+* addition of a How to cite section, with listed publications
 
 =============
 Release 0.5b9
