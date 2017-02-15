@@ -23,6 +23,7 @@ def distancematrix(data, ydata=None):
 def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=10, save=False):
 
     if smart_select:
+
         xmax = xdata.max()
         off  = ydata.min()
         idx  = numpy.argmin(xdata)
@@ -33,20 +34,25 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
 
         try:
             result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1.])
+            prediction   = myfunc(xdata, result[0], result[1], result[2])
+            if max_clusters > 0:
+                value      = prediction/ydata
+                subidx     = numpy.argsort(value)[:max_clusters]
+            else:
+                difference = ydata - prediction
+                sigma      = numpy.std(difference)
+                subidx     = numpy.where(difference >= 2*sigma)[0]
         except Exception:
-            result       = [1., 1., 1.]
-
-        prediction = myfunc(xdata, result[0], result[1], result[2])
-        value      = prediction/ydata
-        subidx     = numpy.argsort(value)
+            subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
+        
     else:
-        subidx     = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1]
+        subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
 
     if display:
         fig = pylab.figure()
         ax = fig.add_subplot(111)
         ax.plot(xdata, ydata, 'ko')
-        ax.plot(xdata[subidx[:max_clusters]], ydata[subidx[:max_clusters]], 'ro')
+        ax.plot(xdata[subidx[:len(subidx)]], ydata[subidx[:len(subidx)]], 'ro')
         if smart_select:
             idx = numpy.argsort(xdata)
             ax.plot(xdata[idx], prediction[idx], 'r')
@@ -56,7 +62,7 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
             pylab.close()
         else:
             pylab.show()
-    return subidx
+    return subidx, len(subidx)
 
 
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
@@ -105,8 +111,8 @@ def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=No
                 delta[ordrho[ii]]  = xdist
                 nneigh[ordrho[ii]] = ordrho[jj]
 
-    delta[ordrho[0]] = delta.max()
-    clust_idx        = fit_rho_delta(rho, delta, smart_select=smart_select, max_clusters=max_clusters)
+    delta[ordrho[0]]        = delta.max()
+    clust_idx, max_clusters = fit_rho_delta(rho, delta, smart_select=smart_select, max_clusters=max_clusters)
 
     def assign_halo(idx):
         cl      = numpy.empty(N, dtype=numpy.int32)
@@ -132,7 +138,7 @@ def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=No
 
     halo, NCLUST = assign_halo(clust_idx[:max_clusters+1])
 
-    return halo, rho, delta, clust_idx
+    return halo, rho, delta, clust_idx[:max_clusters]
 
 
 def merging(groups, sim_same_elec, data):

@@ -618,7 +618,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             mask = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
                             sel  = numpy.unique(cluster_results[p][ielec]['groups'][mask])
                             data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                            plot.view_clusters(data, r, d, c[:max_clusters],
+                            plot.view_clusters(data, r, d, c,
                                                    cluster_results[p][ielec]['groups'], injected=injected,
                                                    save=save, smart_select=smart_select)
 

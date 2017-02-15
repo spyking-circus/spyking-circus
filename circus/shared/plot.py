@@ -183,19 +183,16 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
         idx  = numpy.argmin(rho)
         a_0  = (delta[idx] - off)/numpy.log(1 + (xmax - rho[idx]))
 
-
         def myfunc(x, a, b, c):
             return a*numpy.log(1. + c*((xmax - x)**b)) + off
 
-
         try:
             result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, p0=[a_0, 1., 1.])
+            idx          = numpy.argsort(rho)
+            prediction   = myfunc(rho, result[0], result[1], result[2])
+            ax.plot(rho[idx], prediction[idx], 'r')
         except Exception:
-            result       = [1., 1., 1.]
-
-        idx        = numpy.argsort(rho)
-        prediction = myfunc(rho, result[0], result[1], result[2])
-        ax.plot(rho[idx], prediction[idx], 'r')
+            pass
     
     ax.plot(rho[centers], delta[centers], 'o', color='r')
     ax.set_yscale('log')
