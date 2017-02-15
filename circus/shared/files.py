@@ -49,7 +49,8 @@ def data_stats(params, show=True, export_times=False):
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
              "Overwrite                   : %s" %params.get('data', 'overwrite'),
              "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
-             "Smart Search                : %s" %params.getboolean('clustering', 'smart_search')]
+             "Smart Search                : %s" %params.getboolean('clustering', 'smart_search'),
+             "Smart Selection             : %s" %params.getboolean('clustering', 'smart_select')]
 
     if stream_mode:
         lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]
