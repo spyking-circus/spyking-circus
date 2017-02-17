@@ -105,6 +105,7 @@ def main(argv=None):
     matlab_command = 'SortingGUI(%s)' % arguments
 
     print_and_log(["Launching the MATLAB GUI..."], 'info', logger)
+    print_and_log([matlab_command], 'debug', logger)
 
     if params.getboolean('fitting', 'collect_all'):
         print_and_log(['You can not view the unfitted spikes with the MATLAB GUI',
