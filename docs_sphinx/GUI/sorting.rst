@@ -124,7 +124,7 @@ Saving your results
 
 To save the results of your post-processing, click on the ``Save`` button. A number of files will be saved, with the suffix written in the box right next to the save button. To reload a given spike sorting session, just enter this suffix after the file name when using the ``circus-gui-matlab`` command (see :doc:`documentation on configuration file  <../GUI/launching>`)::
 
-  >> circus-gui-matlab mydata.extension suffix
+  >> circus-gui-matlab mydata.extension -e suffix
 
 .. _phy: https://github.com/kwikteam/phy
 .. _MATLAB: http://fr.mathworks.com/products/matlab/

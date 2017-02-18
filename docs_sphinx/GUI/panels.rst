@@ -32,7 +32,7 @@ To know more about what to look in those views, see :doc:`Basis of Spike Sorting
 
     To reload a particular dataset, that have been saved with a special ``suffix``, you just need to do::
 
-        >> circus-gui path/mydata.extension suffix
+        >> circus-gui path/mydata.extension -e suffix
 
 
 Python GUI
