@@ -1,6 +1,6 @@
 import matplotlib
 import os
-if 'DISPLAY' in os.environ:
+if 'DISPLAY' in os.environ and os.environ['DISPLAY'] == ":0":
     matplotlib.use('Qt4Agg', warn=False)
 else:
     matplotlib.use('Agg', warn=False)
