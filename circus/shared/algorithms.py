@@ -37,7 +37,8 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
             prediction   = myfunc(xdata, result[0], result[1], result[2])
             difference   = ydata - prediction
             z_score      = (difference - difference.mean())/difference.std()
-            subidx       = numpy.where(z_score >= 2)[0]
+            factor       = (xdata - xdata.min())/(xdata.max() - xdata.min())
+            subidx       = numpy.where(z_score*factor >= 2.)[0]
         except Exception:
             subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
         

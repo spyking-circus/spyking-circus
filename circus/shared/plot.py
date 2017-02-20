@@ -119,7 +119,8 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
     ax  = fig.add_subplot(231)
     ax.set_xlabel(r'$\rho$')
     ax.set_ylabel(r'$\delta$')
-    ax.plot(rho, delta, 'o', color='black')
+    def_size  = 10
+    ax.scatter(rho, delta, color='k', s=def_size, linewidth=0)
     ax.set_yscale('log')
 
     import matplotlib.colors as colors
@@ -139,17 +140,17 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
         assigned  = numpy.where(halo > -1)[0]
 
         ax = fig.add_subplot(232)
-        ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0)
+        ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 0')
         ax.set_ylabel('Dim 1')
 
         ax = fig.add_subplot(233)
-        ax.scatter(visu_data[assigned,0], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0)
+        ax.scatter(visu_data[assigned,0], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 0')
         ax.set_ylabel('Dim 2')
                 
         ax = fig.add_subplot(235)
-        ax.scatter(visu_data[assigned,1], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0)
+        ax.scatter(visu_data[assigned,1], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 1')
         ax.set_ylabel('Dim 2')
     except Exception:
@@ -161,10 +162,10 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
         my_cmap   = pylab.get_cmap('winter')
         ax = fig.add_subplot(236)
         idx = numpy.argsort(rho)
-        ax.scatter(visu_data[idx,0], visu_data[idx,1], c=rho[idx], cmap=my_cmap)
-        ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
+        ax.scatter(visu_data[idx,0], visu_data[idx,1], c=rho[idx], cmap=my_cmap, s=def_size)
+        ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r', s=def_size)
         if injected is not None:
-            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
+            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b', s=def_size)
         ax.set_xlabel('Dim 0')
         ax.set_ylabel('Dim 1')
     except Exception:
@@ -175,7 +176,7 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
     ax.set_ylabel(r'$\delta$')
     ax.set_title('Putative Cluster Centers')
 
-    ax.plot(rho, delta, 'o', color='black')
+    ax.scatter(rho, delta, c='k', s=def_size, linewidth=0)
 
     if smart_select:
         xmax = rho.max()
@@ -190,12 +191,12 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
             result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, p0=[a_0, 1., 1.])
             idx          = numpy.argsort(rho)
             prediction   = myfunc(rho, result[0], result[1], result[2])
-            ax.plot(rho[idx], prediction[idx], 'r')
+            ax.plot(rho[idx], prediction[idx], c='r')
         except Exception:
             pass
     
-    ax.plot(rho[centers], delta[centers], 'o', color='r')
-    ax.set_yscale('log')
+    ax.scatter(rho[centers], delta[centers], c='r', s=def_size, linewidth=0)
+    #ax.set_yscale('log')
     pylab.tight_layout()
     if save:
         pylab.savefig(os.path.join(save[0], 'cluster_%s' %save[1]))
