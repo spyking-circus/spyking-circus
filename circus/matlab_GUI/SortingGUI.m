@@ -975,6 +975,14 @@ if CellNb2<CellNb
     set(handles.TemplateNb,'String',int2str(CellNb-1));
 end
 
+if CellNb > length(handles.SpikeTimes)
+    set(handles.TemplateNb,'String',int2str(CellNb-1));
+end
+
+if CellNb2 > length(handles.SpikeTimes)
+    set(handles.Template2Nb,'String',int2str(CellNb2-1));
+end
+
 guidata(hObject, handles);
 
 PlotData(handles)
@@ -2055,7 +2063,16 @@ xp = xp / max(X);
 
 X = X / max(X);
 
+try
 d = (X - xp).^2 + (Y - yp).^2;
+catch
+    size(X)
+    size(Y)
+    size(xp)
+    size(yp)
+    error('size mismatch')
+end
+
 
 [m,idp] = min(d);
 
