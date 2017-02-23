@@ -96,7 +96,7 @@ def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=No
     ordrho            = numpy.argsort(rho)[::-1]
     delta, nneigh     = numpy.zeros(N, dtype=numpy.float32), numpy.zeros(N, dtype=numpy.int32)
     delta[ordrho[0]]  = -1
-    for ii in xrange(N):
+    for ii in xrange(1, N):
         delta[ordrho[ii]] = maxd
         for jj in xrange(ii):
             if ordrho[jj] > ordrho[ii]:
