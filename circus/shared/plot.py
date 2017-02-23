@@ -115,41 +115,44 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
 
 def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=None, save=False):
 
-    fig = pylab.figure(figsize=(15, 10))
-    ax  = fig.add_subplot(231)
-    ax.set_xlabel(r'$\rho$')
-    ax.set_ylabel(r'$\delta$')
-    def_size  = 10
-    ax.scatter(rho, delta, color='k', s=def_size, linewidth=0)
-    ax.set_yscale('log')
-
     import matplotlib.colors as colors
+
+    fig = pylab.figure(figsize=(15, 10))
+    def_size  = 10
     my_cmap   = pylab.get_cmap('jet')
     cNorm     = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
     scalarMap = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
+    assigned  = numpy.where(halo > -1)[0]
 
+    ax  = fig.add_subplot(241)
+    ax.set_xlabel(r'$\rho$')
+    ax.set_ylabel(r'$\delta$')
+    ax.scatter(rho, delta, color='k', s=def_size, linewidth=0)
+    ax.set_yscale('log')
+    ax.set_title('Centroids')
+    rmin, rmax = ax.get_xlim()
     for i in centers:
         if halo[i] > -1:
             colorVal = scalarMap.to_rgba(halo[i])
             ax.plot(rho[i], delta[i], 'o', color=colorVal)
+    ax.set_xlim(0.98*rmin, 1.02*rmax)
 
     try:
 
         pca = PCA(3)
         visu_data = pca.fit_transform(data.astype(numpy.double))
-        assigned  = numpy.where(halo > -1)[0]
-
-        ax = fig.add_subplot(232)
+        
+        ax = fig.add_subplot(242)
         ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 0')
         ax.set_ylabel('Dim 1')
 
-        ax = fig.add_subplot(233)
+        ax = fig.add_subplot(243)
         ax.scatter(visu_data[assigned,0], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 0')
         ax.set_ylabel('Dim 2')
                 
-        ax = fig.add_subplot(235)
+        ax = fig.add_subplot(244)
         ax.scatter(visu_data[assigned,1], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 1')
         ax.set_ylabel('Dim 2')
@@ -160,21 +163,34 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
 
         import matplotlib.colors as colors
         my_cmap   = pylab.get_cmap('winter')
-        ax = fig.add_subplot(236)
-        idx = numpy.argsort(rho)
-        ax.scatter(visu_data[idx,0], visu_data[idx,1], c=rho[idx], cmap=my_cmap, s=def_size)
-        ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r', s=def_size)
+        
+        ax  = fig.add_subplot(246)
+        idx = numpy.argsort(rho[assigned])
+        ax.scatter(visu_data[assigned[idx],0], visu_data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap)
+        ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
         if injected is not None:
-            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b', s=def_size)
+            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
         ax.set_xlabel('Dim 0')
         ax.set_ylabel('Dim 1')
+        ax.set_title(r'$\rho$')
+
+        ax  = fig.add_subplot(247)
+        idx = numpy.argsort(delta[assigned])
+        ax.scatter(visu_data[assigned[idx],0], visu_data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap)
+        #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
+        if injected is not None:
+            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
+        ax.set_xlabel('Dim 0')
+        ax.set_ylabel('Dim 1')
+        ax.set_title(r'$\delta$')
+
     except Exception:
         pass
 
-    ax = fig.add_subplot(234)
+    ax = fig.add_subplot(245)
     ax.set_xlabel(r'$\rho$')
     ax.set_ylabel(r'$\delta$')
-    ax.set_title('Putative Cluster Centers')
+    ax.set_title('Putative Centroids')
 
     ax.scatter(rho, delta, c='k', s=def_size, linewidth=0)
 
@@ -196,7 +212,8 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
             pass
     
     ax.scatter(rho[centers], delta[centers], c='r', s=def_size, linewidth=0)
-    #ax.set_yscale('log')
+    ax.set_yscale('log')
+    ax.set_xlim(0.98*rmin, 1.02*rmax)
     pylab.tight_layout()
     if save:
         pylab.savefig(os.path.join(save[0], 'cluster_%s' %save[1]))

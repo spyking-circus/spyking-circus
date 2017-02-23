@@ -126,6 +126,7 @@ def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=No
         halo = cl.copy()
         
         if n_min is not None:
+
             for cluster in xrange(NCLUST):
                 idx = numpy.where(halo == cluster)[0]
                 if len(idx) < n_min:

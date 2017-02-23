@@ -1,4 +1,14 @@
 =============
+Release 0.5
+=============
+
+* fix for the MATLAB GUI
+* smart_select can now be used [experimental]
+* fix for non 0: DISPLAY
+* cosmetic changes in the clustering plots
+
+
+=============
 Release 0.5rc
 =============
 
