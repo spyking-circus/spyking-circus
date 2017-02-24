@@ -71,7 +71,7 @@ class CircusParser(object):
 
     __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
                         ['fitting', 'nb_chances', 'int', '3'],
-                        ['clustering', 'm_ratio', 'float', '0.01'],
+                        ['clustering', 'm_ratio', 'float', '0.05'],
                         ['clustering', 'sub_dim', 'int', '5']]
 
     def __init__(self, file_name, **kwargs):

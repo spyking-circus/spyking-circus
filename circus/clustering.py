@@ -552,10 +552,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
-                        rho, dist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
+                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
 
-                        result['rho_%s_' %p  + str(ielec)] = rho
-                        result['norm_%s_' %p + str(ielec)] = nb_selec
+                        result['rho_%s_' %p  + str(ielec)]  = rho
+                        result['sdist_%s_' %p + str(ielec)] = sdist
+                        result['norm_%s_' %p + str(ielec)]  = nb_selec
                         tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True)
                         del dist, rho
                     else:
@@ -567,11 +568,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['norm_%s_' %p + str(ielec)] = 1
                         result['sub_%s_' %p + str(ielec)]  = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 else:
-                    if len(result['data_%s_' %p + str(ielec)]) > 1:
+                    if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                        rho, dist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=data, mratio=m_ratio)
-                        result['rho_%s_' %p  + str(ielec)] += rho
-                        result['norm_%s_' %p + str(ielec)] += nb_selec
+                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
+                        result['rho_%s_' %p  + str(ielec)]  = rho
+                        result['sdist_%s_' %p + str(ielec)] = sdist
+                        #result['norm_%s_' %p + str(ielec)] += nb_selec
                         del dist, rho
 
                 if gpass == nb_repeats:
