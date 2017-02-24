@@ -6,6 +6,8 @@ Release 0.5
 * smart_select can now be used [experimental]
 * fix for non 0: DISPLAY
 * cosmetic changes in the clustering plots
+* ordering of the channels in the openephys wrapper
+* fix for rates in the MATLAB GUI
 
 
 =============
