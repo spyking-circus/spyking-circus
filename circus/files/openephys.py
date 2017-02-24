@@ -2,6 +2,17 @@ import h5py, numpy, re, sys, os
 from datafile import DataFile
 import xml.etree.ElementTree as ET
 
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    '''
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    '''
+    return [atoi(c) for c in re.split('(\d+)', text) ]
+
 class OpenEphysFile(DataFile):
 
     description    = "openephys"    
@@ -27,7 +38,9 @@ class OpenEphysFile(DataFile):
         chans = root.findall("./RECORDING/PROCESSOR/CHANNEL[@bitVolts]")
         lfp_chans = [x for x in chans if x.attrib['bitVolts'].startswith('0.1949')]
         # return list of channel file names
-        return sorted([x.attrib['filename'] for x in lfp_chans])
+        alist = [x.attrib['filename'] for x in lfp_chans]
+        alist.sort(key=natural_keys)
+        return alist
 
     def _read_header_(self, file):
         header = { }
