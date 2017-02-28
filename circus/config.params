@@ -25,8 +25,9 @@ filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
 
 [triggers]
-trig_file      =            # If external stimuli need to be considered as putative artefacts (see documentation)
-trig_windows   =            # The time windows of those external stimuli [in ms]
+trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation) 
+trig_windows   =            # The time windows of those external stimuli [in trig units]
+trig_unit      = ms         # The unit in which times are expressed: can be either ms or timestep
 clean_artefact = False      # If True, external artefacts induced by triggers will be suppressed from data
 make_plots     =            # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 

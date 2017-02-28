@@ -30,6 +30,7 @@ class CircusParser(object):
                           ['triggers', 'make_plots', 'string', 'png'],
                           ['triggers', 'trig_file', 'string', ''],
                           ['triggers', 'trig_windows', 'string', ''],
+                          ['triggers', 'trig_unit', 'string', 'ms'],
                           ['whitening', 'chunk_size', 'int', '30'],
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['clustering', 'max_clusters', 'int', '10'],
@@ -179,7 +180,16 @@ class CircusParser(object):
                 if comm.rank == 0:
                     print_and_log(["trig_file and trig_windows must be specified in [triggers]"], 'error', logger)
                 sys.exit(1)
-	    
+
+        units = ['ms', 'timestep']
+        test = self.parser.get('triggers', 'trig_unit').lower() in units
+        if not test:
+          if comm.rank == 0:
+              print_and_log(["trig_unit in [%triggers] should be in %s" %str(units)], 'error', logger)
+          sys.exit(1)
+        else:
+          self.parser.set('triggers', 'trig_in_ms', str(self.parser.get('triggers', 'trig_unit').lower() == 'ms'))
+    
         self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
         self.parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_windows'))))
 
@@ -258,7 +268,7 @@ class CircusParser(object):
             if comm.rank == 0:
                 print_and_log(["min and max dispersions in [clustering] should be positive"], 'error', logger)
             sys.exit(1)
-	        
+        
 
         pcs_export = ['prompt', 'none', 'all', 'some']
         test = self.parser.get('converting', 'export_pcs').lower() in pcs_export

@@ -108,6 +108,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     def compute_artefacts(data_file):
 
         chunk_size     = params.getint('data', 'chunk_size')
+        trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
         make_plots     = params.get('triggers', 'make_plots')
@@ -116,8 +117,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
 
-        artefacts[:, 1] *= numpy.int64(data_file.sampling_rate*1e-3)
-        windows[:, 1]   *= numpy.int64(data_file.sampling_rate*1e-3)
+        if trig_in_ms:
+            artefacts[:, 1] *= numpy.int64(data_file.sampling_rate*1e-3)
+            windows[:, 1]   *= numpy.int64(data_file.sampling_rate*1e-3)
+        else:
+            artefacts        = artefact.astype(numpy.int64)
+            windows          = windows.astype(numpy.int64)
+
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
         mytest           = nb_stimuli == len(windows)
 
@@ -168,6 +174,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     def remove_artefacts(data_file, art_dict):
 
         chunk_size     = params.getint('data', 'chunk_size')
+        trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
         make_plots     = params.get('triggers', 'make_plots')
@@ -176,8 +183,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
 
-        artefacts[:, 1] *= numpy.int64(data_file.sampling_rate*1e-3)
-        windows[:, 1]   *= numpy.int64(data_file.sampling_rate*1e-3)
+        if trig_in_ms:
+            artefacts[:, 1] *= numpy.int64(data_file.sampling_rate*1e-3)
+            windows[:, 1]   *= numpy.int64(data_file.sampling_rate*1e-3)
+        else:
+            artefacts        = artefact.astype(numpy.int64)
+            windows          = windows.astype(numpy.int64)
+ 
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
         mytest           = nb_stimuli == len(windows)
 
