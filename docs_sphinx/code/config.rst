@@ -74,6 +74,7 @@ The triggers section is::
     trig_file      =           # If external stimuli need to be considered as putative artefacts (see documentation)
     trig_windows   =           # The time windows of those external stimuli [in ms]
     clean_artefact = False     # If True, external artefacts induced by triggers will be suppressed from data 
+    trig_unit      = ms        # The unit in which times are expressed: can be either ms or timestep
     make_plots     =           # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 Parameters that are most likely to be changed:
@@ -81,7 +82,7 @@ Parameters that are most likely to be changed:
     * ``trig_windows`` The path to file where your artefact temporal windows. See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
     * ``clean_artefact`` If you want to remove any stimulation artefacts, defined in the previous file. See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
     * ``make_plots`` The default format to save the plots of the artefacts, one per artefact, showing all channels. You can set it to None if you do not want any
-
+    * ``trig_unit`` If you want times/duration in the ``trig_file`` and ``trig_windows`` to be in timestep or ms
 
 Whitening
 ---------

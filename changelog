@@ -8,6 +8,7 @@ Release 0.5
 * cosmetic changes in the clustering plots
 * ordering of the channels in the openephys wrapper
 * fix for rates in the MATLAB GUI
+* artefacts can now be given in ms or in timesteps with the trig_unit parameter
 
 
 =============
