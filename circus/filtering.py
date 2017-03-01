@@ -118,10 +118,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             windows = windows.reshape(1, 2)
 
         if trig_in_ms:
+            if comm.rank == 0:
+                print_and_log(['Artefact times are read in ms'], 'debug', logger)
             artefacts[:, 1] *= numpy.int64(data_file.sampling_rate*1e-3)
             windows[:, 1]   *= numpy.int64(data_file.sampling_rate*1e-3)
         else:
-            artefacts        = artefact.astype(numpy.int64)
+            if comm.rank == 0:
+                print_and_log(['Artefact times are read in timesteps'], 'debug', logger)
+            artefacts        = artefacts.astype(numpy.int64)
             windows          = windows.astype(numpy.int64)
 
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
@@ -184,10 +188,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             windows = windows.reshape(1, 2)
 
         if trig_in_ms:
+            if comm.rank == 0:
+                print_and_log(['Artefact times are read in ms'], 'debug', logger)
             artefacts[:, 1] *= numpy.int64(data_file.sampling_rate*1e-3)
             windows[:, 1]   *= numpy.int64(data_file.sampling_rate*1e-3)
         else:
-            artefacts        = artefact.astype(numpy.int64)
+            if comm.rank == 0:
+                print_and_log(['Artefact times are read in timesteps'], 'debug', logger)
+            artefacts        = artefacts.astype(numpy.int64)
             windows          = windows.astype(numpy.int64)
  
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))

@@ -185,7 +185,7 @@ class CircusParser(object):
         test = self.parser.get('triggers', 'trig_unit').lower() in units
         if not test:
           if comm.rank == 0:
-              print_and_log(["trig_unit in [%triggers] should be in %s" %str(units)], 'error', logger)
+              print_and_log(["trig_unit in [triggers] should be in %s" %str(units)], 'error', logger)
           sys.exit(1)
         else:
           self.parser.set('triggers', 'trig_in_ms', str(self.parser.get('triggers', 'trig_unit').lower() == 'ms'))
