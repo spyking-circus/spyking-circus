@@ -1,23 +1,33 @@
 environment:
+  # For new releases, only one job will upload the source code to Pypi, and only
+  # one job each for Python 2 and 3 will upload a wheel.
   matrix:
     - PYTHON: "C:\\Miniconda35"
       PYTHON_VERSION: "3.5"
       PYTHON_ARCH: "32"
+      PYPI_UPLOAD_SOURCE: yes
+      PYPI_UPLOAD_WHEEL: yes
       platform: x86
 
     - PYTHON: "C:\\Miniconda35-x64"
       PYTHON_VERSION: "3.5"
       PYTHON_ARCH: "64"
+      PYPI_UPLOAD_SOURCE: no
+      PYPI_UPLOAD_WHEEL: no
       platform: x64
 
     - PYTHON: "C:\\Miniconda"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "32"
+      PYPI_UPLOAD_SOURCE: no
+      PYPI_UPLOAD_WHEEL: yes
       platform: x86
 
     - PYTHON: "C:\\Miniconda-x64"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "64"
+      PYPI_UPLOAD_SOURCE: no
+      PYPI_UPLOAD_WHEEL: no
       platform: x64
 
   ANACONDA_TOKEN:
@@ -62,7 +72,8 @@ after_test:
       conda install --yes --quiet anaconda-client &&
       conda install --yes --quiet -c conda-forge twine &&
       python packaging_tools\conda-server-push.py %APPVEYOR_REPO_TAG_NAME% &&
-      twine upload -u pierre.yger --skip-existing dist/*
+      if "%PYPI_UPLOAD_SOURCE%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.tar.bz2) &&
+      if "%PYPI_UPLOAD_WHEEL%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.whl)
     )'
 
 artifacts:
