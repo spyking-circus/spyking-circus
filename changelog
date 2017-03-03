@@ -10,7 +10,6 @@ Release 0.5
 * fix for rates in the MATLAB GUI
 * artefacts can now be given in ms or in timesteps with the trig_unit parameter
 
-
 =============
 Release 0.5rc
 =============
@@ -25,7 +24,6 @@ Release 0.5rc
 * fix the gathering method, not working anymore
 * smarter selection of the centroids, leading to more clusters with the smart_select option
 * addition of a How to cite section, with listed publications
-
 
 =============
 Release 0.5b9

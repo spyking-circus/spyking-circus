@@ -13,11 +13,11 @@ Here are some detailed instructions:
     6. Add the mpi installation's bin directory to the path (``C:\program files\microsoft mpi\bin``)
     7. Install spiking-circus by executing::
 
-        >> conda install -c conda-forge -c spyking-circus/label/dev spyking-circus
+        >> conda install -c conda-forge -c spyking-circus spyking-circus
     
     8. If you prefer, you can use pip (this is equivalent to step 7)::
     
-        >> pip install spyking-circus --pre
+        >> pip install spyking-circus
 
     9. [**optional**] Install CUDA_ for windows to activate GPU only
     10. [**optional**] If you want to enable CUDA_, you must have a valid ``nvcc`` install and do::

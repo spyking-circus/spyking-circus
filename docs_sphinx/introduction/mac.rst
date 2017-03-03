@@ -10,11 +10,11 @@ Here are some detailed instructions:
 
     4. Install spiking-circus by executing::
 
-        >> conda install -c conda-forge -c spyking-circus/label/dev spyking-circus
+        >> conda install -c conda-forge -c spyking-circus spyking-circus
     
     5. If you prefer, you can use pip (this is equivalent to step 4)::
     
-        >> pip install spyking-circus --pre
+        >> pip install spyking-circus
     
     6. [**optional**] Download CUDA_ through the link provided (only for GPU)
     7. [**optional**] If you want to enable CUDA_, you must have a valid ``nvcc`` install and do::
