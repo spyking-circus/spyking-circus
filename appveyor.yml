@@ -71,10 +71,10 @@ after_test:
   - 'if "%APPVEYOR_PULL_REQUEST_NUMBER%" == "" if "%APPVEYOR_REPO_NAME%" == "spyking-circus/spyking-circus" if "%APPVEYOR_REPO_TAG%" == "true" (
       conda install --yes --quiet anaconda-client &&
       conda install --yes --quiet -c conda-forge twine &&
-      python packaging_tools\conda-server-push.py %APPVEYOR_REPO_TAG_NAME% &&
-      if "%PYPI_UPLOAD_SOURCE%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.tar.bz2) &&
-      if "%PYPI_UPLOAD_WHEEL%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.whl)
-    )'
+      python packaging_tools\conda-server-push.py %APPVEYOR_REPO_TAG_NAME%
+     )'
+  - 'if "%APPVEYOR_PULL_REQUEST_NUMBER%" == "" if "%APPVEYOR_REPO_NAME%" == "spyking-circus/spyking-circus" if "%APPVEYOR_REPO_TAG%" == "true" if "%PYPI_UPLOAD_SOURCE%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.tar.bz2)'
+  - 'if "%APPVEYOR_PULL_REQUEST_NUMBER%" == "" if "%APPVEYOR_REPO_NAME%" == "spyking-circus/spyking-circus" if "%APPVEYOR_REPO_TAG%" == "true" if "%PYPI_UPLOAD_WHEEL%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.whl)'
 
 artifacts:
   # Archive the generated conda package in the ci.appveyor.com build report.
