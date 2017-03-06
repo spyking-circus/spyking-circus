@@ -54,6 +54,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     extraction     = params.get('clustering', 'extraction')
     smart_search   = params.getboolean('clustering', 'smart_search')
     smart_select   = params.getboolean('clustering', 'smart_select')
+    if smart_select:
+        m_ratio    = nclus_min
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
