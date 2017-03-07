@@ -63,28 +63,36 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
 
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
-    N    = len(data)
-    rho  = numpy.zeros(N, dtype=numpy.float32)
+    N     = len(data)
+    rho   = numpy.zeros(N, dtype=numpy.float32)
         
     if update is None:
         dist = distancematrix(data)
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
         nb_selec = max(1, int(mratio*N))
-
+        sdist    = numpy.zeros((N, nb_selec), dtype=numpy.float32)  
+    
         if compute_rho:
             for i in xrange(N):
-                indices = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
-                tmp     = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
-                rho[i]  = numpy.sum(numpy.take(dist, numpy.take(indices, tmp)))  
+                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
+                tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
+                sdist[i] = numpy.take(dist, numpy.take(indices, tmp))
+                rho[i]   = numpy.sum(sdist[i])  
 
     else:
-        M        = len(update)
+        M        = len(update[0])
         nb_selec = max(1, int(mratio*M))
+        sdist    = numpy.zeros((N, nb_selec), dtype=numpy.float32)  
+
         for i in xrange(N):
-            dist     = distancematrix(data[i].reshape(1, len(data[i])), update).ravel()
+            dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
             tmp      = numpy.argsort(dist)[:nb_selec]
-            rho[i]   = numpy.sum(numpy.take(dist, tmp))
-    return rho, dist, nb_selec
+            sdist[i] = numpy.take(dist, tmp)
+            all_dist = numpy.concatenate((sdist[i], update[1][i]))
+            idx      = numpy.argsort(all_dist)[:nb_selec]
+            sdist[i] = all_dist[idx]
+            rho[i]   = numpy.sum(sdist[i])
+    return rho, dist, sdist, nb_selec
 
 
 def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=None, max_clusters=10, save=False):
