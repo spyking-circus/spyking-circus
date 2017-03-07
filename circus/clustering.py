@@ -46,7 +46,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     max_clusters   = params.getint('clustering', 'max_clusters')
-    m_ratio        = params.getfloat('clustering', 'm_ratio')
     make_plots     = params.get('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
@@ -552,7 +551,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
-                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
+                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=nclus_min)
 
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
@@ -570,7 +569,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
+                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=nclus_min)
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
                         #result['norm_%s_' %p + str(ielec)] += nb_selec
@@ -592,7 +591,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max() 
                         result['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
-                                                                                      m_ratio,
+                                                                                      nclus_min,
                                                                                       smart_select=smart_select,
                                                                                       n_min=n_min,
                                                                                       max_clusters=max_clusters)
