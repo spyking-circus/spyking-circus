@@ -32,6 +32,33 @@ Code and documentation contributions (ordered by the number of commits):
 
 
 =============
+Release 0.5
+=============
+
+* fix for the MATLAB GUI
+* smart_select can now be used [experimental]
+* fix for non 0: DISPLAY
+* cosmetic changes in the clustering plots
+* ordering of the channels in the openephys wrapper
+* fix for rates in the MATLAB GUI
+* artefacts can now be given in ms or in timesteps with the trig_unit parameter
+
+=============
+Release 0.5rc
+=============
+
+* fix a bug when exporting for phy in dense mode
+* compatibility with numpy 1.12
+* fix a regression with artefact removal
+* fix a display bug in the thresholds while previewing with a non unitary gain
+* fix a bug when filtering in multi-files mode (overwrite False, various t_starts)
+* fix a bug when filtering in multi-files mode (overwrite True)
+* fix a bug if matlab gui (overwrite False)
+* fix the gathering method, not working anymore
+* smarter selection of the centroids, leading to more clusters with the smart_select option
+* addition of a How to cite section, with listed publications
+
+=============
 Release 0.5b9
 =============
 

@@ -1,6 +1,6 @@
 package:
   name: spyking-circus
-  version: "0.5rc"
+  version: "0.5.2"
 
 requirements:
   build:

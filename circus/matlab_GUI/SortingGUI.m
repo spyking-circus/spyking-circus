@@ -1617,7 +1617,7 @@ if exist(tmp_templates,'file')
     delete(tmp_templates);
 end
 
-mysize = int32([handles.templates_size(1) handles.templates_size(2) 2*nb_templates])
+mysize = int32([handles.templates_size(1) handles.templates_size(2) 2*nb_templates]);
 h5create(tmp_templates, '/temp_shape', size(mysize))
 h5write(tmp_templates, '/temp_shape', mysize)
 new_templates = sparse(handles.templates_size(1)*handles.templates_size(2), 2*nb_templates);
@@ -1702,6 +1702,9 @@ for id=1:nb_templates
     h5create(output_file, key, size(to_write));
     h5write(output_file, key, to_write);
 end
+h5create(output_file, '/info/duration', size(handles.duration));
+h5write(output_file, '/info/duration', handles.duration);
+
 
 
 %% Clusters file
