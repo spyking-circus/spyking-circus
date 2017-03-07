@@ -86,9 +86,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
-            tmp      = numpy.argsort(dist)[:nb_selec]
-            sdist[i] = numpy.take(dist, tmp)
-            all_dist = numpy.concatenate((sdist[i], update[1][i]))
+            all_dist = numpy.concatenate((dist, update[1][i]))
             idx      = numpy.argsort(all_dist)[:nb_selec]
             sdist[i] = all_dist[idx]
             rho[i]   = numpy.sum(sdist[i])
