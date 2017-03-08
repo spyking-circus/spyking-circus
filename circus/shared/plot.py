@@ -219,8 +219,8 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
             ax2.set_xlabel(r'$\rho$')
             ax2.set_ylabel(r'$\epsilon$')
             ax2.plot(rho, difference, 'k.')
-            ax2.plot([rho.min(), rho.max()], [z_score, z_score], 'r--')
-            ax2.plot([rho.min(), rho.max()], [-z_score, -z_score], 'r--')
+            limit = difference.mean() + 3*difference.std()
+            ax2.plot([rho.min(), rho.max()], [limit, limit], 'r--')
             ax2.set_xlim(0.98*rmin, 1.02*rmax)
 
         except Exception:
