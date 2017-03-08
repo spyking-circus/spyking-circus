@@ -32,7 +32,7 @@ Code and documentation contributions (ordered by the number of commits):
 
 
 =============
-Release 0.5
+Release 0.5.2
 =============
 
 * fix for the MATLAB GUI
