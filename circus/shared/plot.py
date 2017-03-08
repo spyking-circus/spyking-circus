@@ -164,7 +164,7 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
         import matplotlib.colors as colors
         my_cmap   = pylab.get_cmap('winter')
         
-        ax  = fig.add_subplot(246)
+        ax  = fig.add_subplot(247)
         idx = numpy.argsort(rho[assigned])
         ax.scatter(visu_data[assigned[idx],0], visu_data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap)
         ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
@@ -174,7 +174,7 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
         ax.set_ylabel('Dim 1')
         ax.set_title(r'$\rho$')
 
-        ax  = fig.add_subplot(247)
+        ax  = fig.add_subplot(248)
         idx = numpy.argsort(delta[assigned])
         ax.scatter(visu_data[assigned[idx],0], visu_data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap)
         #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
@@ -203,11 +203,26 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
         def myfunc(x, a, b, c, d):
             return a*numpy.log(1. + c*((xmax - x)**b)) + d
 
+        def imyfunc(x, a, b, c, d):
+            return numpy.exp(d)*((1. + c*(xmax - x)**b)**a)
+
         try:
             result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, p0=[a_0, 1., 1., off])
+            prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
+            difference   = (delta - prediction)/imyfunc(rho, result[0], result[1], result[2], result[3])
             idx          = numpy.argsort(rho)
             prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
+            z_score      = (difference - difference.mean())/difference.std()
             ax.plot(rho[idx], prediction[idx], c='r')
+            
+            ax2 = fig.add_subplot(246)
+            ax2.set_xlabel(r'$\rho$')
+            ax2.set_ylabel(r'$\epsilon$')
+            ax2.plot(rho, difference, 'k.')
+            ax2.plot([rho.min(), rho.max()], [z_score, z_score], 'r--')
+            ax2.plot([rho.min(), rho.max()], [-z_score, -z_score], 'r--')
+            ax2.set_xlim(0.98*rmin, 1.02*rmax)
+
         except Exception:
             pass
     
