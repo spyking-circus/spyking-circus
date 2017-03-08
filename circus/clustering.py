@@ -677,7 +677,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):
                 lines += ["                            -decrease smart_search?"]
-        if total_hits > 0:
+        if total_hits > 0 and not smart_select:
             lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
             lines += ["                              -increase sim_same_elec?"]
         print_and_log(lines, 'info', logger)
