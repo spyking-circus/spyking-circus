@@ -29,15 +29,18 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
         idx  = numpy.argmin(xdata)
         a_0  = (ydata[idx] - off)/numpy.log(1 + (xmax - xdata[idx]))
 
-        def myfunc(x, a, b, c):
-            return a*numpy.log(1. + c*((xmax - x)**b)) + off
+        def myfunc(x, a, b, c, d):
+            return a*numpy.log(1. + c*((xmax - x)**b)) + d
+
+        def imyfunc(x, a, b, c, d):
+            return numpy.exp(d)*((1. + c*(xmax - x)**b)**a)
 
         try:
-            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1.])
-            prediction   = myfunc(xdata, result[0], result[1], result[2])
-            difference   = rho*(ydata - prediction)
+            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1., off])
+            prediction   = myfunc(xdata, result[0], result[1], result[2], result[3])
+            difference   = xdata*(ydata - prediction)
             z_score      = (difference - difference.mean())/difference.std()
-            subidx       = numpy.where(z_score >= 1.)[0]
+            subidx       = numpy.where(z_score >= 3.)[0]
         except Exception:
             subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
         
@@ -86,9 +89,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
-            tmp      = numpy.argsort(dist)[:nb_selec]
-            sdist[i] = numpy.take(dist, tmp)
-            all_dist = numpy.concatenate((sdist[i], update[1][i]))
+            all_dist = numpy.concatenate((dist, update[1][i]))
             idx      = numpy.argsort(all_dist)[:nb_selec]
             sdist[i] = all_dist[idx]
             rho[i]   = numpy.sum(sdist[i])
