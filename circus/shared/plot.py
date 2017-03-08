@@ -209,7 +209,7 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
         try:
             result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, p0=[a_0, 1., 1., off])
             prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
-            difference   = (delta - prediction)/imyfunc(rho, result[0], result[1], result[2], result[3])
+            difference   = rho*(delta - prediction)
             idx          = numpy.argsort(rho)
             prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
             z_score      = (difference - difference.mean())/difference.std()
