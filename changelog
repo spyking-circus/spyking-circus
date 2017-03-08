@@ -1,5 +1,11 @@
 =============
-Release 0.5
+Release 0.5.3
+=============
+
+* Improvement in the smart_select option given various datasets
+
+=============
+Release 0.5.2
 =============
 
 * fix for the MATLAB GUI
