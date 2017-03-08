@@ -29,12 +29,12 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
         idx  = numpy.argmin(xdata)
         a_0  = (ydata[idx] - off)/numpy.log(1 + (xmax - xdata[idx]))
 
-        def myfunc(x, a, b, c):
-            return a*numpy.log(1. + c*((xmax - x)**b)) + off
+        def myfunc(x, a, b, c, d):
+            return a*numpy.log(1. + c*((xmax - x)**b)) + d
 
         try:
-            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1.])
-            prediction   = myfunc(xdata, result[0], result[1], result[2])
+            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1., off])
+            prediction   = myfunc(xdata, result[0], result[1], result[2], result[3])
             difference   = rho*(ydata - prediction)
             z_score      = (difference - difference.mean())/difference.std()
             subidx       = numpy.where(z_score >= 1.)[0]
