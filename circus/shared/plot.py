@@ -213,14 +213,18 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
             idx          = numpy.argsort(rho)
             prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
             z_score      = (difference - difference.mean())/difference.std()
+            
+            #subidx       = numpy.where(z_score >= 3.)[0]
+
             ax.plot(rho[idx], prediction[idx], c='r')
             
             ax2 = fig.add_subplot(246)
             ax2.set_xlabel(r'$\rho$')
             ax2.set_ylabel(r'$\epsilon$')
-            ax2.plot(rho, difference, 'k.')
+            ax2.scatter(rho, difference, c='k', s=def_size, linewidth=0)
             limit = difference.mean() + 3*difference.std()
             ax2.plot([rho.min(), rho.max()], [limit, limit], 'r--')
+            ax2.scatter(rho[centers], difference[centers], c='r', s=def_size, linewidth=0)
             ax2.set_xlim(0.98*rmin, 1.02*rmax)
 
         except Exception:
