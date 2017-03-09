@@ -52,7 +52,7 @@ install:
 build: false  # not a C# project
 
 test_script:
-  - conda install --yes --quiet conda-build
+  - conda install --yes --quiet -c conda-forge conda-build
   - conda build -c spyking-circus -c conda-forge conda_recipe
   - python packaging_tools/move_conda_package.py
   - conda install --yes --quiet wheel
