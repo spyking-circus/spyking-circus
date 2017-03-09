@@ -30,6 +30,12 @@ Code and documentation contributions (ordered by the number of commits):
 * Olivier Marre
 * Cyrille Rossant
 
+=============
+Release 0.5.3
+=============
+
+* Improvement in the smart_select option given various datasets
+* Fix a regression for the clustering introduced in 0.5.2
 
 =============
 Release 0.5.2
