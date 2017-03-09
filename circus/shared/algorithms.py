@@ -72,7 +72,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
     if update is None:
         dist = distancematrix(data)
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
-        nb_selec = max(1, int(mratio*N))
+        nb_selec = max(5, int(mratio*N))
         sdist    = numpy.zeros((N, nb_selec), dtype=numpy.float32)  
     
         if compute_rho:
@@ -84,14 +84,14 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
     else:
         M        = len(update[0])
-        nb_selec = max(1, int(mratio*M))
+        nb_selec = max(5, int(mratio*M))
         sdist    = numpy.zeros((N, nb_selec), dtype=numpy.float32)  
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
             all_dist = numpy.concatenate((dist, update[1][i]))
             idx      = numpy.argsort(all_dist)[:nb_selec]
-            sdist[i] = all_dist[idx]
+            sdist[i] = numpy.take(all_dist, idx)
             rho[i]   = numpy.sum(sdist[i])
     return rho, dist, sdist, nb_selec
 

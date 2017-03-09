@@ -112,7 +112,7 @@ The clustering section is::
     safety_time    = 1          # Temporal zone around which templates are isolated [in ms]
     max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
-    nclus_min      = 0.01       # Min number of elements in a cluster (given in percentage)
+    nclus_min      = 0.002      # Min number of elements in a cluster (given in percentage)
     max_clusters   = 10         # Maximal number of clusters for every electrodes
     nb_repeats     = 3          # Number of passes used for the clustering
     make_plots     =            # Generate sanity plots of the clustering
@@ -120,7 +120,7 @@ The clustering section is::
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
     smart_search   = True       # Parameter to activate the smart search mode
-    smart_select   = False      # Parameter to activate the smart selection of centroids (beta)
+    smart_select   = False      # Experimental: activate the smart selection of centroids (max_clusters is ignored)
     noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
     remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
 
