@@ -55,6 +55,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     smart_select   = params.getboolean('clustering', 'smart_select')
     if smart_select:
         m_ratio    = nclus_min
+    else:
+        m_ratio    = params.getfloat('clustering', 'm_ratio')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
@@ -517,13 +519,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = thresholds[ielec]
                             bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, 50).tolist() + [numpy.inf]
+
                         elif p == 'neg':
                             if matched_filter:
                                 bound = -matched_tresholds_neg[ielec]
                             else:
                                 bound = -thresholds[ielec]
                             bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 50).tolist() + [numpy.inf]
-
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
                         a     = a/float(numpy.sum(a))
                         
