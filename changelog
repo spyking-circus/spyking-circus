@@ -3,7 +3,7 @@ Release 0.5.6
 =============
 
 * Fix in the smart_search when only few spikes are found
-
+* Fix a bug in density estimation when only few spikes are found
 
 =============
 Release 0.5.5

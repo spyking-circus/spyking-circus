@@ -518,14 +518,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 bound = matched_tresholds_pos[ielec]
                             else:
                                 bound = thresholds[ielec]
-                            bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, 50).tolist() + [numpy.inf]
+                            if bound < ampmax:
+                                bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, 50).tolist() + [numpy.inf]
+                            else:
+                                bins =  [-numpy.inf] + numpy.linspace(bound, bound*5, 50).tolist() + [numpy.inf]
 
                         elif p == 'neg':
                             if matched_filter:
                                 bound = -matched_tresholds_neg[ielec]
                             else:
                                 bound = -thresholds[ielec]
-                            bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 50).tolist() + [numpy.inf]
+                            if ampmin < bound:
+                                bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 50).tolist() + [numpy.inf]
+                            else:
+                                bins  = [-numpy.inf] + numpy.linspace(5*bound, bound, 50).tolist() + [numpy.inf]
 
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
                         a     = a/float(numpy.sum(a))
