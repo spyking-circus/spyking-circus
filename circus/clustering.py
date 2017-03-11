@@ -526,6 +526,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = -thresholds[ielec]
                             bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 50).tolist() + [numpy.inf]
+
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
                         a     = a/float(numpy.sum(a))
                         
@@ -593,7 +594,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if (n_data > 1):
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max() 
-                        result['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
+                        #fresult['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       m_ratio,
                                                                                       smart_select=smart_select,

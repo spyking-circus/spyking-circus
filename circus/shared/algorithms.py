@@ -73,26 +73,26 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
         dist = distancematrix(data)
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
         nb_selec = max(5, int(mratio*N))
-        sdist    = numpy.zeros((N, nb_selec), dtype=numpy.float32)  
-    
+        sdist    = {}
+
         if compute_rho:
             for i in xrange(N):
                 indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
                 tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
                 sdist[i] = numpy.take(dist, numpy.take(indices, tmp))
-                rho[i]   = numpy.sum(sdist[i])  
+                rho[i]   = numpy.mean(sdist[i])
 
     else:
         M        = len(update[0])
         nb_selec = max(5, int(mratio*M))
-        sdist    = numpy.zeros((N, nb_selec), dtype=numpy.float32)  
+        sdist    = {}  
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
             all_dist = numpy.concatenate((dist, update[1][i]))
             idx      = numpy.argsort(all_dist)[:nb_selec]
             sdist[i] = numpy.take(all_dist, idx)
-            rho[i]   = numpy.sum(sdist[i])
+            rho[i]   = numpy.mean(sdist[i])
     return rho, dist, sdist, nb_selec
 
 

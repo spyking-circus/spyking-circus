@@ -128,7 +128,10 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
     ax.set_xlabel(r'$\rho$')
     ax.set_ylabel(r'$\delta$')
     ax.scatter(rho, delta, color='k', s=def_size, linewidth=0)
-    ax.set_yscale('log')
+    try:
+        ax.set_yscale('log')
+    except Exception:
+        pass
     ax.set_title('Centroids')
     rmin, rmax = ax.get_xlim()
     for i in centers:
@@ -231,12 +234,21 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
             pass
     
     ax.scatter(rho[centers], delta[centers], c='r', s=def_size, linewidth=0)
-    ax.set_yscale('log')
+    try:
+        ax.set_yscale('log')
+    except Exception:
+        pass
     ax.set_xlim(0.98*rmin, 1.02*rmax)
-    pylab.tight_layout()
+    try:
+        pylab.tight_layout()
+    except Exception:
+        pass
     if save:
-        pylab.savefig(os.path.join(save[0], 'cluster_%s' %save[1]))
-        pylab.close()
+        try:
+            pylab.savefig(os.path.join(save[0], 'cluster_%s' %save[1]))
+            pylab.close()
+        except Exception:
+            pass
     else:
         pylab.show()
     del fig
