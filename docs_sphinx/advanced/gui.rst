@@ -74,6 +74,7 @@ After the ``converting`` step, you must have a folder ``mydata/mydata.GUI``. You
     
     gui_params                   = {}
     gui_params['dat_path']       = DATAPATH
+    gui_params['dir_path']       = DATAPATH/DATAPATH.GUI #If data are left in the directory created by SpyKING CIRCUS (where are the .npy)
     gui_params['n_channels_dat'] = TOTAL_NB_CHANNELS
     gui_params['n_features_per_channel'] = 5
     gui_params['dtype']          = DATATYPE
@@ -92,9 +93,27 @@ After the ``converting`` step, you must have a folder ``mydata/mydata.GUI``. You
 
 
 
-You need to edit the appropriate values in capital letters, and then simply copy it into the ``mydata.GUI`` folder. Now you can do, once in the ``mydata.GUI`` folder::
+You need to edit the appropriate values in capital letters, and then simply copy it into the folder where the raw data are. Now you can do::
 
     >> python phy_launcher.py
+
+
+One other option is to simply create a ``params.py`` file
+
+.. code:: python
+
+    dat_path       = DATAPATH
+    dir_path       = DATAPATH/DATAPATH.GUI #If data are left in the directory created by SpyKING CIRCUS (where are the .npy)
+    n_channels_dat = TOTAL_NB_CHANNELS
+    n_features_per_channel = 5
+    dtype          = DATATYPE
+    offset         = DATA_OFFSET
+    sample_rate    = SAMPLE_RATE
+    hp_filtered    = True
+
+Then copy this file into the folder where the raw data are and launch::
+    
+    >> phy template-gui params.py
 
 
 If the raw data are not found, the Traceview will not be displayed. If you really want to see that view, remember that you need to get the raw data **filtered**, so  you must also copy them back from your sorting machine.
