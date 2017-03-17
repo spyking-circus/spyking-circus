@@ -13,8 +13,11 @@ The SpyKING CIRCUS is a massively parallel code to perform semi automatic spike 
 
 .. note::
 
-   In 0.5, smart search is now activated by default, and important changes have been done under the hood to refactor the code in order to read/write virtually any file format, as long as a wrapper is provided. Be in touch if you are interested by writing your own wrapper. A "garbage collector" mode has also been added, to help the user to get a **qualitative** feedback on the performance of the algorithm, estimating the number of missed spikes: spikes left unfitted during the fitting procedure can be collected, grouped by electrode (keep in mind that this is more for a debugging purpose, and those spikes are only an approximation).
+   In 0.5, smart search is now activated by default, and important changes have been done under the hood to refactor the code in order to read/write virtually any file format, as long as a wrapper is provided. 
 
+   * Be in touch if you are interested by writing your own file wrapper to read/write a custom file format. 
+   * A "garbage collector" mode has also been added, to help the user to get a **qualitative** feedback on the performance of the algorithm, estimating the number of missed spikes: if ``collect_all`` in the ``[fitting]`` section is activated, spikes left unfitted during the fitting procedure can be collected, grouped by electrode (keep in mind that this is more for a debugging purpose, and those spikes are only an approximation).
+   * A ``smart_select`` option is now available in the ``[clustering]`` section, that should considerably enhance the clustering for datasets with very low or very high firing rates. If feedback and some more quantitative benchmarks are positive, it may become the new default mode for clustering. You are welcome to give it a try
 
 .. toctree::
    :maxdepth: 2
