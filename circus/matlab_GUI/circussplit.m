@@ -1,5 +1,5 @@
-function splittedstring = strsplit(inpstr,delimiter)
-%FUNCTION strsplit
+function splittedstring = circussplit(inpstr,delimiter)
+%FUNCTION circussplit
 %
 %-USE:
 %
@@ -9,7 +9,7 @@ function splittedstring = strsplit(inpstr,delimiter)
 %returned.  You can check this with the iscell() function.
 %
 %-SYNTAX
-%output = strsplit(inpstr[,delimiter])
+%output = circussplit(inpstr[,delimiter])
 %
 %inpstr:    string containing delimiter separatede numerical values, eg
 %           3498,48869,23908,34.67

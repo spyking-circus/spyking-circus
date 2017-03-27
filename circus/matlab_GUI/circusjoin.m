@@ -1,7 +1,7 @@
-function s = strjoin(strs, delim)
+function s = circusjoin(strs, delim)
 % Join multiple strings with a specified delimiter
 %
-%   s = strjoin(strs, delim);
+%   s = circusjoin(strs, delim);
 %       joins multiple strings in strs, which is a cell array, into 
 %       a string, using delim as the delimiter.
 %
@@ -17,14 +17,14 @@ function s = strjoin(strs, delim)
 %% verify input
 
 if ~iscellstr(strs)
-    error('strjoin:invalidarg', 'strs should be a cell array of strings.');
+    error('circusjoin:invalidarg', 'strs should be a cell array of strings.');
 end
 
 if nargin < 2
     delim = '';
 else
     if ~ischar(delim)
-        error('strjoin:invalidarg', 'delim should be a string.');
+        error('circusjoin:invalidarg', 'delim should be a string.');
     end
 end
 

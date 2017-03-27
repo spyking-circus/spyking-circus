@@ -68,7 +68,7 @@ if iscell(handles.suffix)
 end
 
 if ~strcmp(handles.suffix, '.mat')
-    result = strsplit(handles.suffix, '.mat');
+    result = circussplit(handles.suffix, '.mat');
     result = result{1};
     result = result(2:end);
     set(handles.VersionNb, 'String', result);
