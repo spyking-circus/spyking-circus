@@ -3,6 +3,7 @@ Release 0.5.7
 =============
 
 * Change the strsplit name in the MATLAB GUI
+* Fix a bug in the numpy wrapper
 
 
 =============
