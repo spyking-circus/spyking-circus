@@ -321,9 +321,12 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms').shape[0]
 
             if sub_comm.rank == 0:
-                temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
-                temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
-                temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]
+                temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
+                                         'r', libver='latest').get('temp_x')[:].ravel()
+                temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
+                                         'r', libver='latest').get('temp_y')[:].ravel()
+                temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
+                                         'r', libver='latest').get('temp_data')[:].ravel()
                 sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
                 if normalize:
                     norm_templates = load_data(params, 'norm-templates')
@@ -607,10 +610,14 @@ def load_data(params, data, extension=''):
         return waveforms
     elif data == 'templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            temp_x = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_x')[:]
-            temp_y = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_y')[:]
-            temp_data = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_data')[:]
-            N_e, N_t, nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('temp_shape')[:]
+            temp_x = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
+                               'r', libver='latest').get('temp_x')[:].ravel()
+            temp_y = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
+                               'r', libver='latest').get('temp_y')[:].ravel()
+            temp_data = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
+                                  'r', libver='latest').get('temp_data')[:].ravel()
+            N_e, N_t, nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
+                                               'r', libver='latest').get('temp_shape')[:].ravel()
             return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
         else:
             raise Exception('No templates found! Check suffix?')
@@ -1292,6 +1299,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
             if 'maxoverlap' in myfile2.keys():
                 maxoverlap = myfile2.get('maxoverlap')
+                if len(maxoverlap) != N_tm:
+                    myfile2.__delitem__('maxoverlap')  # for refitting dataset with changed N_tm
+                    maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
             else:
                 maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
             if 'maxlag' in myfile2.keys():
