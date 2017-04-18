@@ -134,6 +134,7 @@ else
     info     = h5info(tmpfile);
     handles.has_hdf5  = true;
     handles.is_dense  = true;
+    handles.has_norms = false;
     has_tagged        = false;
     for id=1:size(info.Datasets, 1)
         if strcmp(info.Datasets(id).Name, 'temp_x')
@@ -141,6 +142,9 @@ else
         end
         if strcmp(info.Datasets(id).Name, 'tagged')
             has_tagged = true;
+        end
+        if strcmp(info.Datasets(id).Name, 'norms')
+            handles.has_norms = true;
         end
     end
     if handles.is_dense
@@ -163,6 +167,12 @@ else
     if has_tagged
         handles.Tagged = h5read(tmpfile, '/tagged');
     end
+    
+    if handles.has_norms
+        norms = double(h5read(tmpfile, '/norms'));
+        handles.norms = reshape(norms, [], 2);
+    end
+    
     has_amptrend = false;
     for id=1:size(info.Groups, 1)
         if strcmp(info.Groups(id).Name, 'amptrend')
@@ -963,6 +973,10 @@ handles.overlap(:,CellNb2)   = [];
 handles.amp_time_list(CellNb2) = [];
 handles.amp_meanamp_list(CellNb2) = [];
 
+if handles.has_norms
+    handles.norms(CellNb2, :) = [];
+end
+
 if length(handles.SpikeTimes{CellNb})>=handles.amp_minNspk
     [handles.amp_time_list{CellNb}, handles.amp_meanamp_list{CellNb}] = ...
         get_mean_template_amplitude(handles.amp_Nbin, handles.SpikeTimes{CellNb}, handles.Amplitudes{CellNb});
@@ -1634,8 +1648,10 @@ h5write(tmp_templates, '/temp_x', int32(x) - 1);
 h5write(tmp_templates, '/temp_y', int32(y) - 1);
 h5write(tmp_templates, '/temp_data', single(z));
 
-
-
+if handles.has_norms
+    h5create(tmp_templates, '/norms', numel(handles.norms));
+    h5write(tmp_templates, '/norms', reshape(handles.norms, [], 1));
+end
 
 %h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
 %nb_to_write = 100;
