@@ -4,7 +4,8 @@ Release 0.5.7
 
 * Change the strsplit name in the MATLAB GUI
 * Fix a bug in the numpy wrapper
-* Fix a bug in the artefact removal (numpy 1.12)
+* Fix a bug in the artefact removal (numpy 1.12), thanks to Chris Wilson
+* Fixes in the matlab GUI to ease a refitting procedure, thanks to Chris Wilson
 
 =============
 Release 0.5.6
