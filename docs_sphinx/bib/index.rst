@@ -20,6 +20,8 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2017
 ~~~~
 
+* Wilson C.D., Serrano G. O., Koulakov A. A., Rinberg D., *Concentration invariant odor coding*, bioRxiv, 125039, 2017
+
 * Ferrari U., Gardella C., Marre O., Mora T., *Closed-loop estimation of retinal network sensitivity reveals signature of efficient coding*, bioRxiv, 096313, 2017
 
 
