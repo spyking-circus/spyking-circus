@@ -1571,6 +1571,10 @@ handles.overlap(:,CellNb)   = [];
 handles.amp_time_list(CellNb) = [];
 handles.amp_meanamp_list(CellNb) = [];
 
+if handles.has_norms
+    handles.norms(CellNb, :) = [];
+end
+
 nb_actions = length(handles.all_actions);
 handles.all_actions{nb_actions + 1} = struct('action', 'remove', 'source', CellNb);
 
