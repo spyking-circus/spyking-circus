@@ -1308,7 +1308,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 maxlag = myfile2.get('maxlag')
                 if len(maxlag) != N_tm:
                     myfile2.__delitem__('maxlag')  # for refitting dataset with changed N_tm
-                    maxoverlap = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
+                    maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
             else:
                 maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
 
