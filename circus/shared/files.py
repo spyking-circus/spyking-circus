@@ -1299,13 +1299,16 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
             if 'maxoverlap' in myfile2.keys():
                 maxoverlap = myfile2.get('maxoverlap')
-                #if len(maxoverlap) != N_tm:
-                #    myfile2.__delitem__('maxoverlap')  # for refitting dataset with changed N_tm
-                #    maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
+                if len(maxoverlap) != N_tm:
+                    myfile2.__delitem__('maxoverlap')  # for refitting dataset with changed N_tm
+                    maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
             else:
                 maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
             if 'maxlag' in myfile2.keys():
                 maxlag = myfile2.get('maxlag')
+                if len(maxlag) != N_tm:
+                    myfile2.__delitem__('maxlag')  # for refitting dataset with changed N_tm
+                    maxoverlap = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
             else:
                 maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
 
