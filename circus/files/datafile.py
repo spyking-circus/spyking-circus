@@ -250,6 +250,13 @@ class DataFile(object):
     ##################################################################################################################
 
 
+    def get_file_names(self):
+        res = []
+        if self.stream_mode == 'multi-files':
+            for source in self._sources:
+                res += [source.file_name]
+        return res
+
     def _check_filename(self, file_name):
         if not os.path.exists(file_name):
             if self.is_master:

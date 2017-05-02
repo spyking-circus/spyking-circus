@@ -8,6 +8,8 @@ Release 0.5.7
 * Fixes in the matlab GUI to ease a refitting procedure, thanks to Chris Wilson
 * Overlaps are recomputed if size of templates has changed (for refitting)
 * Addition of a "second" argument for a better control of the preview mode
+* Fix when using the phy GUI and the multi-file mode.
+
 
 =============
 Release 0.5.6

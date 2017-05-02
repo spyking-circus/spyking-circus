@@ -91,9 +91,13 @@ def main(argv=None):
             if not params.getboolean('data', 'overwrite'):
                 gui_params['dat_path']   = params.get('data', 'data_file_no_overwrite')
             else:
-                gui_params['dat_path']   = params.get('data', 'data_file')
+                if params.get('data', 'stream_mode') == 'multi-files':
+                    data_file = params.get_data_file(source=True, has_been_created=False)
+                    gui_params['dat_path'] = ' '.join(data_file.get_file_names())
+                else:
+                    gui_params['dat_path'] = params.get('data', 'data_file')
         else:
-            gui_params['dat_path']   = ''
+            gui_params['dat_path']   = 'giverandomname.dat'
         gui_params['n_channels_dat'] = params.nb_channels
         gui_params['n_features_per_channel'] = 5
         gui_params['dtype']          = data_dtype
