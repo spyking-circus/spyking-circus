@@ -9,7 +9,7 @@ Release 0.5.7
 * Overlaps are recomputed if size of templates has changed (for refitting)
 * Addition of a "second" argument for a better control of the preview mode
 * Fix when using the phy GUI and the multi-file mode.
-
+* Add a file wrapper for INTAN (RHD) file format
 
 =============
 Release 0.5.6

@@ -25,6 +25,9 @@ To get the list of supported file format, you need to do::
 	| -- NWB (read/write)
 	|       Extensions       : .nwb, .h5, .hdf5
 	|       Supported streams: multi-files
+	| -- RHD (read/write)
+	|       Extensions       : .rhd
+	|       Supported streams: multi-files
 	| -- OPENEPHYS (read/parallel write)
 	|       Extensions       : .openephys
 	|       Supported streams: multi-files
