@@ -8,6 +8,7 @@ from arf import ARFFile
 from brw import BRWFile
 from npy import NumpyFile
 from nix import NixFile
+from rhd import RHDFile
 
 try:
     import neuroshare
@@ -25,7 +26,8 @@ __supported_data_files__ = {
     NixFile.description : NixFile,
     ARFFile.description : ARFFile,
     BRWFile.description : BRWFile,
-    NumpyFile.description : NumpyFile
+    NumpyFile.description : NumpyFile,
+    RHDFile.description : RHDFile
 }
 
 
