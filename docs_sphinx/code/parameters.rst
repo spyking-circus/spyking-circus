@@ -93,6 +93,10 @@ To be sure that data are properly loaded before filtering everything on site, th
 
 Launch an interactive GUI to show you, superimposed, the activity on your electrodes and the reconstruction provided by the software. This has to be used as a sanity check. Please see the :doc:`documentation on Python GUI <../GUI/python>`
 
+* ``-s`` or ``--second``
+
+If the preview mode is activated, by default, it will show the first 2 seconds of the data. But you can specify an offset, in second, with this extra parameter such that the preview mode will display the signal in [second, second+2]
+
 * ``-o`` or ``--output``
 
 If you want to generate synthetic benchmarks from a dataset that you have already sorted, this allows you, using the ``benchmarking`` mode, to produce a new file ``output`` based on what type of benchmarks you want to do (see ``type``)

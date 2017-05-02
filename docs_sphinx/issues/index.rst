@@ -10,8 +10,6 @@ In this section, you will find all information you need about possible bugs/comm
    faq
    filtering
    whitening
-   dense
-   alignement
 
 
 

@@ -33,7 +33,7 @@ The GUI is still an ongoing work, so any feedbacks are welcome, but the idea is 
 .. figure::  merging.png
    :align:   center
 
-    Meta-merging GUI
+   Meta-merging GUI
 
 
 Selecting pairs
@@ -44,7 +44,7 @@ Each time you click on a given pairs (or select a group of them with the rectang
 .. figure::  merging2.png
    :align:   center
 
-    Meta-merging GUI with several pairs that are selected
+   Meta-merging GUI with several pairs that are selected
 
 If you think that all those pairs should be merged, you just need to click on the ``Select`` Button, and then on ``Merge``. Once the merge is done, the GUI will recompute values and you can iterate the process
 
@@ -76,7 +76,7 @@ In the middle, top plot, you can see on the x-axis the ratio between the peak of
 .. figure::  merging3.png
    :align:   center
 
-    Meta-merging GUI with several templates that are selected
+   Meta-merging GUI with several templates that are selected
 
 You can then delete those templates, and the GUI will recompute the scores for all pairs. 
 

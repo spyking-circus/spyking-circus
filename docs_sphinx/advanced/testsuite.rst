@@ -31,4 +31,4 @@ At the end of every tests, some particular datasets generated using the ``benchm
 .. figure::  complete.png
    :align:   center
 
-    Plots of the tests for the complete workflow. 25 templates at various rates/amplitudes are injected into the source datasets, and performance are shown here.
+   Plots of the tests for the complete workflow. 25 templates at various rates/amplitudes are injected into the source datasets, and performance are shown here.
