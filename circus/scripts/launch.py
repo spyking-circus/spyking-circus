@@ -92,6 +92,7 @@ but a subset x,y can be done. Steps are:
                         action='store_true')
     parser.add_argument('-r', '--result', help='GUI to display the results on top of raw data',
                         action='store_true')
+    parser.add_argument('-s', '--second', type=int, default=0, help='If preview mode, begining of the preview [in s]')
     parser.add_argument('-e', '--extension', help='extension to consider for merging and converting',
                         default='None')
     parser.add_argument('-o', '--output', help='output file [for generation of synthetic benchmarks]')
@@ -112,8 +113,8 @@ but a subset x,y can be done. Steps are:
 
     # To save some typing later
     (nb_cpu, nb_gpu, hostfile, batch,
-     preview, result, extension, output, benchmark, info) = (args.cpu, args.gpu, args.hostfile, args.batch,
-                                                       args.preview, args.result, args.extension, args.output, args.type, args.info)
+     preview, result, extension, output, benchmark, info, second) = (args.cpu, args.gpu, args.hostfile, args.batch,
+                                                       args.preview, args.result, args.extension, args.output, args.type, args.info, args.second)
     filename = os.path.abspath(args.datafile)
 
     f_next, extens = os.path.splitext(filename)
@@ -166,7 +167,7 @@ but a subset x,y can be done. Steps are:
             is_writable            = __supported_data_files__['raw_binary'].is_writable
 
     if preview:
-        print_and_log(['Preview mode, showing only first second of the recording'], 'info', logger)
+        print_and_log(['Preview mode, showing only seconds [%d-%d] of the recording' %(second, second+2)], 'info', logger)
 
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
         if not os.path.exists(tmp_path_loc):
@@ -176,11 +177,14 @@ but a subset x,y can be done. Steps are:
         shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']
 
-        chunk_size = int(2*params.rate)
+        chunk_size   = int(2*params.rate)
 
         data_file.open()
         nb_chunks, _           = data_file.analyze(chunk_size)
-        local_chunk, t_offset  = data_file.get_data(0, chunk_size)
+        if nb_chunks < (second + 2):
+            print_and_log(['Recording is too short to display seconds [%d-%d]' %(second, second+2)])
+            sys.exit(0)
+        local_chunk, t_offset  = data_file.get_data(second, second+chunk_size)
         description            = data_file.get_description()
         data_file.close()
 

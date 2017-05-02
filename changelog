@@ -6,6 +6,7 @@ Release 0.5.7
 * Fix a bug in the numpy wrapper
 * Fix a bug in the artefact removal (numpy 1.12), thanks to Chris Wilson
 * Fixes in the matlab GUI to ease a refitting procedure, thanks to Chris Wilson
+* Addition of a "second" argument for a better control of the preview mode
 
 =============
 Release 0.5.6
