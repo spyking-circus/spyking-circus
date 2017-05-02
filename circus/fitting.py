@@ -110,21 +110,27 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    
-    if SHARED_MEMORY:
-        c_overs    = io.load_data_memshared(params, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)        
-        c_overlap  = io.get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    c_overlap  = io.get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    over_shape = c_overlap.get('over_shape')[:]
+    N_over     = int(numpy.sqrt(over_shape[0]))
+    S_over     = over_shape[1]
+    ## If the number of overlaps is different from templates, we need to recompute them
+    if N_over != N_tm:
+        if comm.rank == 0:
+            print_and_log(['Templates have been modified, recomputing the overlaps...'], 'default', logger)
+        c_overlap  = io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
         N_over     = int(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
+
+    if SHARED_MEMORY:
+        c_overs    = io.load_data_memshared(params, 'overlaps', nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     else:
         c_overlap  = io.get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_x     = c_overlap.get('over_x')[:]
         over_y     = c_overlap.get('over_y')[:]
         over_data  = c_overlap.get('over_data')[:]
         over_shape = c_overlap.get('over_shape')[:]
-        N_over     = int(numpy.sqrt(over_shape[0]))
-        S_over     = over_shape[1]
         c_overlap.close()
 
         # To be faster, we rearrange the overlaps into a dictionnary. This has a cost: twice the memory usage for 

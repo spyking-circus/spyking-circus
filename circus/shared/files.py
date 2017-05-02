@@ -1132,6 +1132,7 @@ def get_garbage(params, extension=''):
     myfile.close()
     return result
 
+
 def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0):
 
     import h5py
@@ -1295,20 +1296,19 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         if maxoverlap:
 
             overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_tm**2, 2*N_t - 1))
-            myfile     = h5py.File(filename, 'r+', libver='latest')
+
+            if not half:
+                N_tm //= 2
+
             myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
+
             if 'maxoverlap' in myfile2.keys():
-                maxoverlap = myfile2.get('maxoverlap')
-                if len(maxoverlap) != N_tm:
-                    myfile2.__delitem__('maxoverlap')  # for refitting dataset with changed N_tm
-                    maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
+                maxoverlap = myfile2['maxoverlap']
             else:
                 maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
+
             if 'maxlag' in myfile2.keys():
-                maxlag = myfile2.get('maxlag')
-                if len(maxlag) != N_tm:
-                    myfile2.__delitem__('maxlag')  # for refitting dataset with changed N_tm
-                    maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
+                maxlag = myfile2['maxlag']
             else:
                 maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
 
@@ -1318,7 +1318,6 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 maxlag[i+1:, i]     = maxlag[i, i+1:]
                 maxoverlap[i, i+1:] = numpy.max(data, 1)
                 maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
-            myfile.close()
             myfile2.close()
 
     comm.Barrier()
