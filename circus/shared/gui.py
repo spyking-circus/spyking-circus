@@ -1171,7 +1171,7 @@ class PreviewGUI(QtGui.QMainWindow):
 
 
     def write_threshold(self):
-        self.params.write('detection', 'spike_thresh', '%g' %self.get_threshold.value())
+        self.params.write('detection', 'spike_thresh', '%g' %self.get_threshold.value(), preview_path=True)
 
     def get_data(self):
         self.chunk_size = int(self.sampling_rate*(self.t_stop - self.t_start))

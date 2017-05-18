@@ -201,6 +201,8 @@ but a subset x,y can be done. Steps are:
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
+        preview_params =os.path.abspath(params.get('data', 'data_file_noext')) + '.params'
+        new_params.write('data', 'preview_path', preview_params)
 
         description['data_dtype']   = 'float32'
         description['dtype_offset'] = 0

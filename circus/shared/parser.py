@@ -421,11 +421,14 @@ class CircusParser(object):
         return self._create_data_file(data_file, is_empty, params, stream_mode)
 
 
-    def write(self, section, flag, value):
+    def write(self, section, flag, value, preview_path=False):
         if comm.rank == 0:
             print_and_log(['Writing value %s for %s:%s' %(value, section, flag)], 'debug', logger)
         self.parser.set(section, flag, value)
-        f     = open(self.file_params, 'r')
+        if preview_path:
+            f     = open(self.get('data', 'preview_path'), 'r')
+        else:
+            f     = open(self.file_params, 'r')
         lines = f.readlines()
         f.close()
         spaces = ''.join([' ']*(max(0, 15 - len(flag))))
@@ -456,7 +459,10 @@ class CircusParser(object):
         if not has_been_changed:
             lines.insert(section_area[1]-1, to_write)
 
-        f     = open(self.file_params, 'w')
+        if preview_path:
+            f     = open(self.get('data', 'preview_path'), 'w')
+        else:
+            f     = open(self.file_params, 'w')
         for line in lines:
             f.write(line)
         f.close()
