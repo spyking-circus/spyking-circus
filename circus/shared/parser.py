@@ -209,7 +209,7 @@ class CircusParser(object):
         except Exception:
             pass
 
-        self.parser.set('data', 'data_file', file_name)        
+        self.parser.set('data', 'data_file', self.file_name)
         self.parser.set('data', 'data_file_no_overwrite', os.path.join(file_path, os.path.basename(f_next) + '_all_sc.dat'))
         file_out = os.path.join(f_next, os.path.basename(f_next))
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
