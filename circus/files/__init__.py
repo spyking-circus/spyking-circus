@@ -9,6 +9,7 @@ from brw import BRWFile
 from npy import NumpyFile
 from nix import NixFile
 from rhd import RHDFile
+from neuralynx import NeuraLynxFile
 
 try:
     import neuroshare
@@ -27,7 +28,8 @@ __supported_data_files__ = {
     ARFFile.description : ARFFile,
     BRWFile.description : BRWFile,
     NumpyFile.description : NumpyFile,
-    RHDFile.description : RHDFile
+    RHDFile.description : RHDFile,
+    NeuraLynxFile.description : NeuraLynxFile
 }
 
 
