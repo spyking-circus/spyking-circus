@@ -386,7 +386,6 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             templates.indptr  = indptr
 
             sub_comm.Free()
-
             return templates
         else:
             raise Exception('No templates found! Check suffix?')

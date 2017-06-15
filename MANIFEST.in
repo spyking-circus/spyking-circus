@@ -1,7 +1,7 @@
 # Include Matlab files (but not all of them)
 recursive-include circus/matlab_GUI SortingGUI.*
-recursive-include circus/matlab_GUI str*.m
 recursive-include circus/matlab_GUI circus*.m
+recursive-include circus/matlab_GUI DATA*.m
 
 #Include GUI files
 recursive-include circus/qt_GUI *.ui
