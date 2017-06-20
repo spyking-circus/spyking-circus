@@ -1533,12 +1533,24 @@ x_surround = handles.H.elecMx*str2double(get(handles.XYratio, 'String')) + handl
 x_limits =  (handles.H.fullX+ handles.H.marginX)*str2double(get(handles.XYratio, 'String'));
 x_surround = max(x_surround, x_limits(1));
 x_surround = min(x_surround, x_limits(2));
+
+if x_surround(1) == x_surround(2)
+    x_surround(1) = x_surround(1) - 0.5;
+    x_surround(2) = x_surround(2) + 0.5;
+end
+
 set(handles.TemplateWin, 'XLim', x_surround);
 y_surround = handles.H.elecMy + handles.H.zoom_coef*[-1, 1];
 
 y_limits =  handles.H.fullY + handles.H.marginY;
 y_surround = max(y_surround, y_limits(1));
 y_surround = min(y_surround, y_limits(2));
+
+if y_surround(1) == y_surround(2)
+    y_surround(1) = y_surround(1) - 0.5;
+    y_surround(2) = y_surround(2) + 0.5;
+end
+
 set(handles.TemplateWin, 'YLim', y_surround);
 
 is_changes = (~isequal(xlim_old, x_surround)) || (~isequal(ylim_old, y_surround));
