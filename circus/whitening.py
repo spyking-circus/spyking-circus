@@ -455,7 +455,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 res_pca         = pca.fit_transform(gdata_pos.astype(numpy.double)).astype(numpy.float32)
                 res['proj_pos'] = pca.components_.T.astype(numpy.float32)
             else:
-                res['proj_pos'] = numpy.identity(output_dim, dtype=numpy.float32)
+                res['proj_pos'] = numpy.identity(int(output_dim), dtype=numpy.float32)
             res['rec_pos']       = res['proj_pos'].T
             res['waveform_pos']  = numpy.median(gdata_pos, 0)
             idx                  = numpy.random.permutation(numpy.arange(gdata_pos.shape[0]))[:1000]

@@ -134,6 +134,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         labels          = numpy.load(os.path.join(output_path, 'spike_templates.npy'))
         max_loc_channel = get_max_loc_channel(params)
         nb_features     = params.getint('whitening', 'output_dim')
+        sign_peaks      = params.get('detection', 'peaks')
         nodes, edges    = get_nodes_and_edges(params)
         N_total         = params.getint('data', 'N_total')
         templates       = io.load_data(params, 'templates', extension)
@@ -155,7 +156,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_loc                = len(edges[nodes[elec]])
             pc_features_ind[count, numpy.arange(nb_loc)] = inv_nodes[edges[nodes[elec]]]
 
-        basis_proj, basis_rec = io.load_data(params, 'basis')
+        if sign_peaks in ['negative', 'both']:
+            basis_proj, basis_rec = io.load_data(params, 'basis')
+        elif sign_peaks in ['positive']:
+            basis_proj, basis_rec = io.load_data(params, 'basis-pos')
 
         to_process = numpy.arange(comm.rank, nb_templates, comm.size)
 
