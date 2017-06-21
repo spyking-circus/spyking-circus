@@ -7,6 +7,7 @@ Release 0.5.8
 * add a wrapper for NeuraLynx (.ncs) file format
 * fix a bug in the installation of the MATLAB GUI
 * fix a bug to see results in MATLAB GUI with only 1 channel
+* fix a bug to convert data to phy with only positive peaks
 
 =============
 Release 0.5.7
