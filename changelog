@@ -8,6 +8,7 @@ Release 0.5.8
 * fix a bug in the installation of the MATLAB GUI
 * fix a bug to see results in MATLAB GUI with only 1 channel
 * fix a bug to convert data to phy with only positive peaks
+* add builds for python 3.6
 
 =============
 Release 0.5.7
