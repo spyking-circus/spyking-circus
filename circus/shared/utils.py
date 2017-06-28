@@ -9,6 +9,7 @@ from scipy import linalg
 import scipy.interpolate
 import numpy, pylab, os, mpi4py, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
+import h5py
 from mpi import *
 import files as io
 from messages import print_and_log
@@ -48,6 +49,24 @@ def query_yes_no(question, default="yes"):
         else:
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
+
+def get_parallel_hdf5_flag(params):
+    ''' Get parallel HDF5 flag.
+
+    Argument
+    --------
+    params: dict
+        Dictionnary of parameters.
+
+    Return
+    ------
+    flag: bool
+        True if parallel HDF5 is available and the user want to use it.
+    '''
+
+    flag = h5py.get_config().mpi is not None and params.getboolean('data', 'parallel_hdf5')
+
+    return flag
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))

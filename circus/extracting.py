@@ -2,13 +2,13 @@ from .shared.utils import *
 import circus.shared.algorithms as algo
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.utils import get_parallel_hdf5_flag
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(426236)
-    
-    import h5py
-    parallel_hdf5 = h5py.get_config().mpi
+
+    parallel_hdf5  = get_parallel_hdf5_flag(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.extracting')
     #################################################################
@@ -68,12 +68,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
 
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
-    
+
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks))
 
     nb_templates = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_clusters), comm.size))
-    nb_elts      = max_elts_temp * nb_templates 
+    nb_elts      = max_elts_temp * nb_templates
 
     to_explore = all_chunks
 
@@ -117,10 +117,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
                 clusters_id     = local_clusters[argmax_peak]
                 local_peaktimes = local_peaktimes[argmax_peak]
-                
+
                 #print "Selection of the peaks with spatio-temporal masks..."
                 for idx in xrange(len(local_peaktimes)):
-                    
+
                     if elt_count == nb_elts:
                         break
 
@@ -167,14 +167,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
     if comm.rank == 0:
         print_and_log(["Extracting the templates..."], 'default', logger)
-    
+
     total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
     offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
     for i in xrange(comm.size-1):
         offsets[i+1] = comm.bcast(numpy.array([local_nb_clusters], dtype=numpy.int32), root=i)
 
     if parallel_hdf5:
-        node_pad   = numpy.sum(offsets[:comm.rank+1])        
+        node_pad   = numpy.sum(offsets[:comm.rank+1])
         hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
         norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
         electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
@@ -189,7 +189,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
         g_count    = 0
         g_offset   = local_nb_clusters
-    
+
     cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
     count_templates = node_pad
 
@@ -247,7 +247,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
             else:
                 second_component = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
-            
+
             tmp_templates = numpy.dot(second_component.T, basis_rec)
             offset        = total_nb_clusters + count_templates
             sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
@@ -278,10 +278,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     #We need to gather the sparse arrays
-    temp_x    = gather_array(temp_x, comm, dtype='int32')        
+    temp_x    = gather_array(temp_x, comm, dtype='int32')
     temp_y    = gather_array(temp_y, comm, dtype='int32')
     temp_data = gather_array(temp_data, comm)
-    
+
     if parallel_hdf5:
         if comm.rank == 0:
             rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
@@ -336,7 +336,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         print_and_log(["Merging similar templates..."], 'default', logger)
-    
+
     merged1 = algo.merging_cc(params, parallel_hdf5)
 
     comm.Barrier()
@@ -348,8 +348,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         merged2 = [0, 0]
 
     if comm.rank == 0:
-        print_and_log(["Number of global merges    : %d" %merged1[1], 
-                       "Number of mixtures removed : %d" %merged2[1]], 'info', logger)    
+        print_and_log(["Number of global merges    : %d" %merged1[1],
+                       "Number of mixtures removed : %d" %merged2[1]], 'info', logger)
 
     comm.Barrier()
     io.get_overlaps(params, erase=True, parallel_hdf5=parallel_hdf5)

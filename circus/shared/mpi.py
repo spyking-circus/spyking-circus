@@ -68,7 +68,7 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     elif dtype is 'int64':
         gdata = numpy.empty(int(sum(sizes)), dtype=numpy.int64)
         mpi_comm.Gatherv([data.flatten(), size, MPI.LONG], [gdata, (sizes, displacements), MPI.LONG], root=root)
-    
+
     if len(data.shape) == 1:
         return gdata
     else:
@@ -76,7 +76,7 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
             num_lines = data.shape[0]
             if num_lines > 0:
                 return gdata.reshape((num_lines, gdata.size//num_lines))
-            else: 
+            else:
                 return gdata.reshape((0, gdata.shape[1]))
         if shape == 1:
             num_columns = data.shape[1]
@@ -99,7 +99,7 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32'):
         mpi_comm.Allgatherv([data.flatten(), size, MPI.FLOAT], [gdata, (sizes, displacements), MPI.FLOAT])
     elif dtype is 'int32':
         gdata         = numpy.empty(int(sum(sizes)), dtype=numpy.int32)
-        mpi_comm.Allgatherv([data.flatten(), size, MPI.INT], [gdata, (sizes, displacements), MPI.INT])        
+        mpi_comm.Allgatherv([data.flatten(), size, MPI.INT], [gdata, (sizes, displacements), MPI.INT])
     if len(data.shape) == 1:
         return gdata
     else:
@@ -107,7 +107,7 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32'):
             num_lines = data.shape[0]
             if num_lines > 0:
                 return gdata.reshape((num_lines, gdata.size//num_lines))
-            else: 
+            else:
                 return gdata.reshape((0, gdata.shape[1]))
         if shape == 1:
             num_columns = data.shape[1]
