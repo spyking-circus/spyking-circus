@@ -694,9 +694,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
 
-    if comm.rank == 0:
-        print("##### Breakpoint 654345354354")
-
     if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
 
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
@@ -705,38 +702,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             offsets[i+1] = comm.bcast(numpy.array([local_nb_clusters], dtype=numpy.int32), root=i)
         node_pad   = numpy.sum(offsets[:comm.rank+1])
 
-        if comm.rank == 0:
-            print("##### Breakpoint 34676846464")
-
         if parallel_hdf5:
-            if comm.rank == 0:
-                print("##### Breakpoint 943431353743851")
-                print("file_out_suff: {}".format(file_out_suff))
-                print("comm: {}".format(comm))
             hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
-            if comm.rank == 0:
-                print("##### Breakpoint 634544543138784")
-                print("total_nb_clusters: {}".format(total_nb_clusters))
-            # TODO remove try-except wrapping.
-            try:
-                norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
-                if comm.rank == 0:
-                    print("##### Breakpoint 548734135")
-                electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
-                if comm.rank == 0:
-                    print("##### Breakpoint 75435173215")
-                amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
-            except Exception as exception:
-                if comm.rank == 0:
-                    print(exception)
-                raise exception
-            if comm.rank == 0:
-                print("##### Breakpoint 32135484351344")
+            norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
+            electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
+            amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             g_count    = node_pad
             g_offset   = total_nb_clusters
         else:
-            if comm.rank == 0:
-                print("##### Breakpoint 43135435345435")
             hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
@@ -744,15 +717,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             g_count    = 0
             g_offset   = local_nb_clusters
 
-        if comm.rank == 0:
-            print("##### Breakpoint 74154315435153")
-
         temp_x     = numpy.zeros(0, dtype=numpy.int32)
         temp_y     = numpy.zeros(0, dtype=numpy.int32)
         temp_data  = numpy.zeros(0, dtype=numpy.float32)
-
-        if comm.rank == 0:
-            print("##### Breakpoint 6678841113548")
 
         comm.Barrier()
         cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
@@ -933,9 +900,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cfile.close()
         del result, amps_lims
 
-        if comm.rank == 0:
-            print("##### Breakpoint 37841583687")
-
         comm.Barrier()
 
         if local_nb_clusters > 0:
@@ -1004,9 +968,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             hfile.create_dataset('temp_data', data=temp_data)
             hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2*total_nb_clusters], dtype=numpy.int32))
             hfile.close()
-
-    if comm.rank == 0:
-        print("##### Breakpoint 35473413175")
 
     comm.Barrier()
 
