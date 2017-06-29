@@ -9,7 +9,7 @@ mapping        = ~/probes/mea_252.prb  # Mapping of the electrode (see http://sp
 suffix         =                       # Suffix to add to generated files
 global_tmp     = True                  # should be False if local /tmp/ has enough space (better for clusters)
 overwrite      = True                  # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
-parallel_hdf5  = True                  # Use the parallel HDF5 feature
+parallel_hdf5  = True                  # Use the parallel HDF5 feature (if available)
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)

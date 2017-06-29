@@ -11,6 +11,7 @@ Release 0.5.8
 * add builds for python 3.6
 * optimizations in file wrappers
 * fix a bug for MCS headers in multifiles, if not all with same sizes
+* add the possibility (with a flag) to turn off parallel HDF5 if needed
 
 =============
 Release 0.5.7
