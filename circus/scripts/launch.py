@@ -6,7 +6,6 @@ import shutil
 import subprocess
 import psutil
 import h5py
-import copy
 import pkg_resources
 import circus
 import logging
@@ -270,14 +269,11 @@ but a subset x,y can be done. Steps are:
         else:
             use_gpu = 'False'
 
-        if preview:
-            tmp_params = copy.deepcopy(new_params.data_file._params)
 
         time = data_stats(params)/60.
 
         if preview:
             params = new_params
-            params.data_file._params = tmp_params
 
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:

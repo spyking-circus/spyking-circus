@@ -261,8 +261,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         data_file_in = params.get_data_file(source=True, has_been_created=False)
 
-        import copy
-        tmp_params   = copy.deepcopy(data_file_in._params)
+        # import copy
+        # tmp_params   = copy.deepcopy(data_file_in._params)
 
         if comm.rank == 0:
             print_and_log(['Reading the output file and allocating ressources...'], 'debug', logger)
@@ -275,10 +275,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         data_file_out = params.get_data_file(is_empty=True, params=description)
 
         data_file_out.allocate(shape=data_file_in.shape)
-        data_file_in._params = tmp_params
-        if data_file_in.is_stream:
-            for source in data_file_in._sources:
-                source._params = tmp_params   
+        # data_file_in._params = tmp_params
+        # if data_file_in.is_stream:
+        #     for source in data_file_in._sources:
+        #         source._params = tmp_params   
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
