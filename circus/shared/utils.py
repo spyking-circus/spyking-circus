@@ -64,7 +64,8 @@ def get_parallel_hdf5_flag(params):
         True if parallel HDF5 is available and the user want to use it.
     '''
 
-    flag = h5py.get_config().mpi is not None and params.getboolean('data', 'parallel_hdf5')
+
+    flag = h5py.get_config().mpi and params.getboolean('data', 'parallel_hdf5')
 
     return flag
 
