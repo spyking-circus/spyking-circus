@@ -128,8 +128,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
 
     # Retrieve some additional key parameters.
     data_file        = params.get_data_file(source=True)
-    # import copy
-    # tmp_params       = copy.deepcopy(data_file_in._params)
     N_e              = params.getint('data', 'N_e')
     N_total          = params.nb_channels
     nodes, edges     = get_nodes_and_edges(params)
@@ -170,7 +168,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
 
     data_file_out = params.get_data_file(is_empty=True)
     data_file_out.allocate(shape=data_file.shape)
-    # data_file_in._params = tmp_params
 
     # Synchronize all the threads/processes.
     comm.Barrier()

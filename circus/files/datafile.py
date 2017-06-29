@@ -79,7 +79,6 @@ class DataFile(object):
         '''
 
         self.params = {}
-        
         self.params.update(self._params)
 
         if not is_empty:

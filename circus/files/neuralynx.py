@@ -176,10 +176,11 @@ class NeuraLynxFile(DataFile):
             t_stop  = self.duration
 
         data_slice  = self._get_slice_(t_start, t_stop) 
+        data        = self._unscale_data_from_from32(data)
         
         self._open(mode='r+')
         for i in xrange(self.nb_channels):
-            self.data[i][data_slice] = self._unscale_data_from_from32(data)[:, i]
+            self.data[i][data_slice] = data[:, i]
         self._close()
 
     def _open(self, mode='r'):

@@ -107,9 +107,10 @@ class ARFFile(H5File):
 
     def write_chunk(self, time, data):
         
-        data  = data.astype(self.data_dtype)
+        data  = self._unscale_data_from_from32(data)
+
         for i in xrange(self.nb_channels):
-            self.data[i][time:time+data.shape[0]] = self._unscale_data_from_from32(data[:, i])
+            self.data[i][time:time+data.shape[0]] = data[:, i]
 
     def _open(self, mode='r'):
         if mode in ['r+', 'w'] and self._parallel_write:
