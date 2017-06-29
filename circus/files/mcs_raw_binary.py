@@ -11,7 +11,7 @@ class RawMCSFile(RawBinaryFile):
 
     _required_fields = {
         'sampling_rate' : float,
-        'data_dtype': str,
+        'data_dtype'    : str,
     }
 
     def to_str(self, b, encoding='ascii'):
@@ -72,17 +72,9 @@ class RawMCSFile(RawBinaryFile):
         header                 = a
         header['data_offset']  = b
         header['nb_channels']  = c
-        header['dtype_offset'] = int(header['ADC zero'])
+        #header['dtype_offset'] = int(header['ADC zero'])
         header['gain']         = float(re.findall("\d+\.\d+", header['El'])[0])
-
-        if 'data_dtype' in self._params:
-            header['data_dtype'] = self._params['data_dtype']
-        else:
-            # TODO check the following lines (unreliable MCS raw binary file format to infer the data dtype).
-            if header['dtype_offset'] > 0:
-                header['data_dtype'] = 'uint16'
-            elif header['dtype_offset'] == 0:
-                header['data_dtype'] = 'int16'
+        header['data_dtype']   = self.params['data_dtype']
 
         self.data   = numpy.memmap(self.file_name, offset=header['data_offset'], dtype=header['data_dtype'], mode='r')
         self.size   = len(self.data)

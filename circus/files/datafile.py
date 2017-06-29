@@ -58,6 +58,7 @@ class DataFile(object):
     # This is a dictionary of values that may have a default value, if not provided to the constructor
     _default_values  = {}
 
+    _params          = {}
 
     def __init__(self, file_name, params, is_empty=False, stream_mode=None):
         '''
@@ -77,7 +78,9 @@ class DataFile(object):
             - _t_start        : the time (in time steps) of the recording (0 by default)
         '''
 
-        self._params = {}
+        self.params = {}
+        
+        self.params.update(self._params)
 
         if not is_empty:
             self._check_filename(file_name)
@@ -117,7 +120,7 @@ class DataFile(object):
                 print_and_log(["Shape of the data is not defined. Are you sure of the wrapper?"], 'error', logger)
             sys.exit(1)
 
-        self._params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
+        self.params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
 
         if self.stream_mode:
             self._sources = self.set_streams(self.stream_mode)
@@ -222,27 +225,27 @@ class DataFile(object):
 
     @property
     def sampling_rate(self):
-        return self._params['sampling_rate']
+        return self.params['sampling_rate']
 
     @property
     def data_dtype(self):
-        return self._params['data_dtype']
+        return self.params['data_dtype']
 
     @property
     def dtype_offset(self):
-        return self._params['dtype_offset']
+        return self.params['dtype_offset']
 
     @property
     def data_offset(self):
-        return self._params['data_offset']
+        return self.params['data_offset']
 
     @property
     def nb_channels(self):
-        return self._params['nb_channels']
+        return self.params['nb_channels']
 
     @property
     def gain(self):
-        return self._params['gain']
+        return self.params['gain']
 
     ##################################################################################################################
     ##################################################################################################################
@@ -279,27 +282,27 @@ class DataFile(object):
             if not params.has_key(key):
                 self._check_requirements_(params)
             else:
-                self._params[key] = self._required_fields[key](params[key])
+                self.params[key] = self._required_fields[key](params[key])
                 if self.is_master:
-                    print_and_log(['%s is read from the params with a value of %s' %(key, self._params[key])], 'debug', logger)
+                    print_and_log(['%s is read from the params with a value of %s' %(key, self.params[key])], 'debug', logger)
 
         for key in self._default_values:
             if not params.has_key(key):
-                self._params[key] = self._default_values[key]
+                self.params[key] = self._default_values[key]
                 if self.is_master:
-                    print_and_log(['%s is not set and has the default value of %s' %(key, self._params[key])], 'debug', logger)
+                    print_and_log(['%s is not set and has the default value of %s' %(key, self.params[key])], 'debug', logger)
             else:
-                self._params[key] = type(self._default_values[key])(params[key])
+                self.params[key] = type(self._default_values[key])(params[key])
                 if self.is_master:
-                    print_and_log(['%s is read from the params with a value of %s' %(key, self._params[key])], 'debug', logger)
+                    print_and_log(['%s is read from the params with a value of %s' %(key, self.params[key])], 'debug', logger)
 
 
     def _fill_from_header(self, header):
 
         for key in header.keys():
-            self._params[key] = header[key]
+            self.params[key] = header[key]
             if self.is_master:
-                print_and_log(['%s is read from the header with a value of %s' %(key, self._params[key])], 'debug', logger)
+                print_and_log(['%s is read from the header with a value of %s' %(key, self.params[key])], 'debug', logger)
 
 
     def _check_requirements_(self, params):
@@ -501,7 +504,7 @@ class DataFile(object):
     def get_description(self):
         result = {}
         for key in ['sampling_rate', 'data_dtype', 'gain', 'nb_channels', 'dtype_offset'] + self._default_values.keys() + self._required_fields.keys():
-            result[key] = self._params[key]
+            result[key] = self.params[key]
         return result
 
 

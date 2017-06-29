@@ -29,7 +29,7 @@ class ARFFile(H5File):
 
     @property
     def channel_name(self):
-        return self._params['channel_name']
+        return self.params['channel_name']
 
 
     def set_streams(self, stream_mode):
