@@ -957,6 +957,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     rs[i].close()
                     os.remove(file_out_suff + '.templates-%d.hdf5' %i)
                     os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
+                hfile.flush() # we need to flush otherwise electrodes[:] refers to zeros and not the real values
                 io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
                 hfile.close()
                 cfile.close()
