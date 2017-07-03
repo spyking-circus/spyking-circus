@@ -12,6 +12,7 @@ Release 0.5.8
 * optimizations in file wrappers
 * fix a bug for MCS headers in multifiles, if not all with same sizes
 * add the possibility (with a flag) to turn off parallel HDF5 if needed
+* fix a bug with latest version of HDF5, related to flush issues during clustering
 
 =============
 Release 0.5.7
