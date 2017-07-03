@@ -10,7 +10,7 @@ import scipy.linalg, scipy.sparse
 logger = logging.getLogger(__name__)
 
 def distancematrix(data, ydata=None):
-    
+
     if ydata is None:
         distances = scipy.spatial.distance.pdist(data, 'euclidean')
     else:
@@ -43,7 +43,7 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
             subidx       = numpy.where(z_score >= 3.)[0]
         except Exception:
             subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
-        
+
     else:
         subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
 
@@ -68,7 +68,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
     N     = len(data)
     rho   = numpy.zeros(N, dtype=numpy.float32)
-        
+
     if update is None:
         dist = distancematrix(data)
         didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
@@ -85,7 +85,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
     else:
         M        = len(update[0])
         nb_selec = max(5, int(mratio*M))
-        sdist    = {}  
+        sdist    = {}
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
@@ -124,15 +124,15 @@ def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=No
         cl[:]   = -1
         NCLUST  = len(idx)
         cl[idx] = numpy.arange(NCLUST)
-        
+
         # assignation
         for i in xrange(N):
             if cl[ordrho[i]] == -1:
                 cl[ordrho[i]] = cl[nneigh[ordrho[i]]]
-        
+
         # halo (ignoring outliers ?)
         halo = cl.copy()
-        
+
         if n_min is not None:
 
             for cluster in xrange(NCLUST):
@@ -154,7 +154,7 @@ def merging(groups, sim_same_elec, data):
         clusters  = numpy.unique(groups[mask])
         dmin      = numpy.inf
         to_merge  = [None, None]
-        
+
         for ic1 in xrange(len(clusters)):
             idx1 = numpy.where(groups == clusters[ic1])[0]
             sd1  = numpy.take(data, idx1, axis=0)
@@ -163,13 +163,13 @@ def merging(groups, sim_same_elec, data):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
                 sd2  = numpy.take(data, idx2, axis=0)
                 m2   = numpy.median(sd2, 0)
-                v_n  = m1 - m2      
+                v_n  = m1 - m2
                 pr_1 = numpy.dot(sd1, v_n)
                 pr_2 = numpy.dot(sd2, v_n)
 
                 norm = numpy.median(numpy.abs(pr_1 - numpy.median(pr_1)))**2 + numpy.median(numpy.abs(pr_2 - numpy.median(pr_2)))**2
                 dist = numpy.abs(numpy.median(pr_1) - numpy.median(pr_2))/numpy.sqrt(norm)
-                    
+
                 if dist < dmin:
                     dmin     = dist
                     to_merge = [ic1, ic2]
@@ -177,7 +177,7 @@ def merging(groups, sim_same_elec, data):
         if dmin < sim_same_elec:
             groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, groups
-        
+
         return False, groups
 
     has_been_merged = True
@@ -216,7 +216,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
 
         all_templates = set(numpy.arange(N_tm//2))
         to_keep       = numpy.array(list(all_templates.difference(to_remove)))
-    
+
         positions  = numpy.arange(len(to_keep))
 
         local_keep = to_keep[positions]
@@ -241,7 +241,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
                 else:
                     new_limits = old_limits[keep]
             limits[count]  = new_limits
-        
+
 
         templates = templates.tocoo()
         hfile.create_dataset('temp_x', data=templates.row)
@@ -256,10 +256,10 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
 
     comm.Barrier()
 
-    
+
 
 def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', light=False):
-    
+
     import h5py, shutil
     file_out_suff  = params.get('data', 'file_out_suff')
     data_file      = params.data_file
@@ -284,19 +284,19 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
             mask     = result['clusters_' + str(elec)] > -1
             tmp      = numpy.unique(result['clusters_' + str(elec)][mask])
             all_elements[elec] += list(numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0])
-                    
+
         for elec in xrange(N_e):
             if not light:
                 result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], all_elements[elec], axis=0)
-                result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec]) 
+                result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
                 result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], all_elements[elec])
                 result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], all_elements[elec])
             else:
-                
-                result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec]) 
+
+                result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
                 myfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='latest')
                 data   = myfile.get('data_' + str(elec))[:]
-                result['data_' + str(elec)]  = numpy.delete(data, all_elements[elec], axis=0)                
+                result['data_' + str(elec)]  = numpy.delete(data, all_elements[elec], axis=0)
                 data   = myfile.get('times_' + str(elec))[:]
                 result['times_' + str(elec)] = numpy.delete(data, all_elements[elec])
                 data   = myfile.get('peaks_' + str(elec))[:]
@@ -306,10 +306,10 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
         result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_remove))
 
         cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='latest')
-        to_write = ['data_', 'clusters_', 'times_', 'peaks_'] 
+        to_write = ['data_', 'clusters_', 'times_', 'peaks_']
         for ielec in xrange(N_e):
             write_datasets(cfile, to_write, result, ielec)
-       
+
         write_datasets(cfile, ['electrodes'], result)
         cfile.close()
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
@@ -329,7 +329,7 @@ def slice_result(result, times):
         for key in result['spiketimes'].keys():
             idx = numpy.where((result['spiketimes'][key] >= t[0]) & (result['spiketimes'][key] <= t[1]))[0]
             sub_result['spiketimes'][key] = result['spiketimes'][key][idx] - t[0]
-            sub_result['amplitudes'][key] = result['amplitudes'][key][idx]                
+            sub_result['amplitudes'][key] = result['amplitudes'][key][idx]
         sub_results += [sub_result]
 
     return sub_results
@@ -372,7 +372,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                     elements  = elements1
 
                 result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], elements, axis=0)
-                result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements) 
+                result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements)
                 result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], elements)
                 result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], elements)
                 result['electrodes']            = numpy.delete(result['electrodes'], to_remove)
@@ -382,7 +382,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 g_idx.pop(to_remove)
 
         return to_merge, result
-         
+
     data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
@@ -394,7 +394,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     nb_temp        = N_tm//2
     to_merge       = []
     cc_merge       = params.getfloat('clustering', 'cc_merge')
-        
+
     result   = []
     overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
@@ -416,11 +416,11 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
-        to_merge, result = remove(result, distances, cc_merge)       
+        to_merge, result = remove(result, distances, cc_merge)
 
     to_merge = numpy.array(to_merge)
     to_merge = comm.bcast(to_merge, root=0)
-    
+
     if len(to_merge) > 0:
         slice_templates(params, to_merge=to_merge)
         slice_clusters(params, result)
@@ -432,9 +432,9 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
 
 def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
-        
+
     templates      = load_data(params, 'templates')
-    
+
     data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
@@ -450,7 +450,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     overlap  = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     result   = []
-    
+
     norm_templates   = load_data(params, 'norm-templates')
     templates        = load_data(params, 'templates')
     result           = load_data(params, 'clusters')
@@ -520,14 +520,14 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         if similarity > cc_merge:
                             if k not in mixtures:
                                 mixtures  += [k]
-                                been_found = True 
+                                been_found = True
                                 break
                                 #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
-    
+
     #print mixtures
-    to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))    
+    to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
-    
+
     if len(to_remove) > 0:
         slice_templates(params, to_remove)
         slice_clusters(params, result, to_remove=to_remove)
