@@ -15,11 +15,11 @@ def get_offset(data_dtype, dtype_offset):
         elif data_dtype in ['float32', numpy.float32]:
             dtype_offset = 0
         elif data_dtype in ['int8', numpy.int8]:
-            dtype_offset = 0        
+            dtype_offset = 0
         elif data_dtype in ['uint8', numpy.uint8]:
             dtype_offset = 127
         elif data_dtype in ['float64', numpy.float64]:
-            dtype_offset = 0    
+            dtype_offset = 0
         if comm.rank == 0:
             print_and_log(['data type offset for %s is automatically set to %d' %(data_dtype, dtype_offset)], 'debug', logger)
     else:
@@ -39,7 +39,7 @@ class DataFile(object):
     '''
     A generic class that will represent how the program interacts with the data. Such an abstraction
     layer should allow people to write their own wrappers, for several file formats, with or without
-    parallel write, streams, and so on. Note that depending on the complexity of the datastructure, 
+    parallel write, streams, and so on. Note that depending on the complexity of the datastructure,
     this extra layer can slow down the code.
     '''
 
@@ -51,7 +51,6 @@ class DataFile(object):
     _shape           = None             # The total shape of the data (nb time steps, nb channels) accross streams if any
     _t_start         = None             # The global t_start of the data
     _t_stop          = None             # The final t_stop of the data, accross all streams if any
-    _params          = {}
 
     # This is a dictionary of values that need to be provided to the constructor, with the corresponding type
     _required_fields = {}
@@ -59,11 +58,12 @@ class DataFile(object):
     # This is a dictionary of values that may have a default value, if not provided to the constructor
     _default_values  = {}
 
-    
+    _params          = {}
+
     def __init__(self, file_name, params, is_empty=False, stream_mode=None):
         '''
         The constructor that will create the DataFile object. Note that by default, values are read from the header
-        of the file. If not found in the header, they are read from the parameter file. If no values are found, the 
+        of the file. If not found in the header, they are read from the parameter file. If no values are found, the
         code will trigger an error
 
         What you need to specify at a generic level (for a given file format)
@@ -77,6 +77,9 @@ class DataFile(object):
             - _shape          : the size of the data, should be a tuple (duration in time bins, nb_channels)
             - _t_start        : the time (in time steps) of the recording (0 by default)
         '''
+
+        self.params = {}
+        self.params.update(self._params)
 
         if not is_empty:
             self._check_filename(file_name)
@@ -99,7 +102,7 @@ class DataFile(object):
         self.stream_mode = stream_mode
 
         f_next, extension = os.path.splitext(self.file_name)
-        
+
         self._check_extension(extension)
         self._fill_from_params(params)
 
@@ -116,10 +119,10 @@ class DataFile(object):
                 print_and_log(["Shape of the data is not defined. Are you sure of the wrapper?"], 'error', logger)
             sys.exit(1)
 
-        self._params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
+        self.params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
 
         if self.stream_mode:
-            self._sources = self.set_streams(self.stream_mode) 
+            self._sources = self.set_streams(self.stream_mode)
             self._times   = []
             for source in self._sources:
                 self._times += [source.t_start]
@@ -143,7 +146,7 @@ class DataFile(object):
 
 
     def _open(self, mode=''):
-        ''' 
+        '''
             This function should open the file
             - mode can be to read only 'r', or to write 'w'
         '''
@@ -156,18 +159,18 @@ class DataFile(object):
         '''
         raise NotImplementedError('The close method needs to be implemented for file format %s' %self.description)
 
-    
+
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         '''
         Assuming the analyze function has been called before, this is the main function
         used by the code, in all steps, to get data chunks. More precisely, assuming your
-        dataset can be divided in nb_chunks (see analyze) of temporal size (chunk_size), 
+        dataset can be divided in nb_chunks (see analyze) of temporal size (chunk_size),
 
             - idx is the index of the chunk you want to load
             - chunk_size is the time of those chunks, in time steps
-            - if the data loaded are data[idx:idx+1], padding should add some offsets, 
+            - if the data loaded are data[idx:idx+1], padding should add some offsets,
                 in time steps, such that we can load data[idx+padding[0]:idx+padding[1]]
-            - nodes is a list of nodes, between 0 and nb_channels            
+            - nodes is a list of nodes, between 0 and nb_channels
         '''
 
         raise NotImplementedError('The get_data method needs to be implemented for file format %s' %self.description)
@@ -185,7 +188,7 @@ class DataFile(object):
     def set_streams(self, stream_mode):
         '''
             This function is only used for file format supporting streams, and need to return a list of datafiles, with
-            appropriate t_start for each of them. Note that the results will be using the times defined by the streams. 
+            appropriate t_start for each of them. Note that the results will be using the times defined by the streams.
             You can do anything regarding the keyword used for the stream mode, but multi-files is immplemented by default
             This will allow every file format to be streamed from multiple sources, and processed as a single file.
         '''
@@ -221,27 +224,27 @@ class DataFile(object):
 
     @property
     def sampling_rate(self):
-        return self._params['sampling_rate']
+        return self.params['sampling_rate']
 
     @property
     def data_dtype(self):
-        return self._params['data_dtype']
+        return self.params['data_dtype']
 
     @property
     def dtype_offset(self):
-        return self._params['dtype_offset']
+        return self.params['dtype_offset']
 
     @property
     def data_offset(self):
-        return self._params['data_offset']
-    
+        return self.params['data_offset']
+
     @property
     def nb_channels(self):
-        return self._params['nb_channels']
+        return self.params['nb_channels']
 
     @property
     def gain(self):
-        return self._params['gain']
+        return self.params['gain']
 
     ##################################################################################################################
     ##################################################################################################################
@@ -273,32 +276,32 @@ class DataFile(object):
 
 
     def _fill_from_params(self, params):
-    
+
         for key in self._required_fields:
             if not params.has_key(key):
                 self._check_requirements_(params)
             else:
-                self._params[key] = self._required_fields[key](params[key])
+                self.params[key] = self._required_fields[key](params[key])
                 if self.is_master:
-                    print_and_log(['%s is read from the params with a value of %s' %(key, self._params[key])], 'debug', logger)
+                    print_and_log(['%s is read from the params with a value of %s' %(key, self.params[key])], 'debug', logger)
 
         for key in self._default_values:
             if not params.has_key(key):
-                self._params[key] = self._default_values[key]
+                self.params[key] = self._default_values[key]
                 if self.is_master:
-                    print_and_log(['%s is not set and has the default value of %s' %(key, self._params[key])], 'debug', logger)
+                    print_and_log(['%s is not set and has the default value of %s' %(key, self.params[key])], 'debug', logger)
             else:
-                self._params[key] = type(self._default_values[key])(params[key])
+                self.params[key] = type(self._default_values[key])(params[key])
                 if self.is_master:
-                    print_and_log(['%s is read from the params with a value of %s' %(key, self._params[key])], 'debug', logger)
+                    print_and_log(['%s is read from the params with a value of %s' %(key, self.params[key])], 'debug', logger)
 
 
     def _fill_from_header(self, header):
-       
+
         for key in header.keys():
-            self._params[key] = header[key]
+            self.params[key] = header[key]
             if self.is_master:
-                print_and_log(['%s is read from the header with a value of %s' %(key, self._params[key])], 'debug', logger)
+                print_and_log(['%s is read from the header with a value of %s' %(key, self.params[key])], 'debug', logger)
 
 
     def _check_requirements_(self, params):
@@ -308,7 +311,7 @@ class DataFile(object):
         for key, value in self._required_fields.items():
             if key not in params.keys():
                 missing[key] = value
-                
+
         if len(missing) > 0:
             self._display_requirements_()
             sys.exit(1)
@@ -319,7 +322,7 @@ class DataFile(object):
         to_write  = ['The parameters for %s file format are:' %self.description.upper(), '']
         nb_params = 0
 
-        for key, value in self._required_fields.items():    
+        for key, value in self._required_fields.items():
             mystring  = '-- %s -- %s' %(key, str(value))
             mystring  += ' [** mandatory **]'
             to_write  += [mystring]
@@ -327,7 +330,7 @@ class DataFile(object):
 
         to_write += ['']
 
-        for key, value in self._default_values.items():            
+        for key, value in self._default_values.items():
             mystring  = '-- %s -- %s' %(key, str(type(value)))
             mystring  += ' [default is %s]' %value
             to_write  += [mystring]
@@ -360,13 +363,13 @@ class DataFile(object):
         '''
             This function will convert data from float32 back to the original format of the file
         '''
-        
+
         if numpy.any(self.gain != 1):
             data /= self.gain
-        
+
         if self.dtype_offset != 0:
             data  += self.dtype_offset
-        
+
         if (data.dtype != self.data_dtype) and (self.data_dtype != numpy.float32):
             data = data.astype(self.data_dtype)
 
@@ -409,7 +412,7 @@ class DataFile(object):
 
     def _get_streams_index_by_time(self, local_time):
         if self.is_stream:
-            cidx  = numpy.searchsorted(self._times, local_time, 'right') - 1           
+            cidx  = numpy.searchsorted(self._times, local_time, 'right') - 1
             return cidx
 
     def is_first_chunk(self, idx, nb_chunks):
@@ -450,13 +453,13 @@ class DataFile(object):
 
 
     def get_data(self, idx, chunk_size, padding=(0, 0), nodes=None):
-        
+
         if self.is_stream:
             cidx = numpy.searchsorted(self._chunks_in_sources, idx, 'right') - 1
             idx -= self._chunks_in_sources[cidx]
             return self._sources[cidx].read_chunk(idx, chunk_size, padding, nodes), self._sources[cidx].t_start + idx*chunk_size
         else:
-            return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start + idx*chunk_size      
+            return self.read_chunk(idx, chunk_size, padding, nodes), self.t_start + idx*chunk_size
 
 
     def set_data(self, global_time, data):
@@ -472,9 +475,9 @@ class DataFile(object):
 
     def analyze(self, chunk_size, strict=False):
         '''
-            This function should return two values: 
-            - the number of temporal chunks of temporal size chunk_size that can be found 
-            in the data. Note that even if the last chunk is not complete, it has to be 
+            This function should return two values:
+            - the number of temporal chunks of temporal size chunk_size that can be found
+            in the data. Note that even if the last chunk is not complete, it has to be
             counted. chunk_size is expressed in time steps
             - the length of the last uncomplete chunk, in time steps
         '''
@@ -491,7 +494,7 @@ class DataFile(object):
                 self._chunks_in_sources += [nb_chunks]
 
             self._chunks_in_sources = numpy.array(self._chunks_in_sources)
-            
+
             return nb_chunks, last_chunk_len
         else:
             return self._count_chunks(chunk_size, self.duration, strict)
@@ -500,14 +503,14 @@ class DataFile(object):
     def get_description(self):
         result = {}
         for key in ['sampling_rate', 'data_dtype', 'gain', 'nb_channels', 'dtype_offset'] + self._default_values.keys() + self._required_fields.keys():
-            result[key] = self._params[key]
+            result[key] = self.params[key]
         return result
 
 
     @property
     def shape(self):
         return (self.duration, self.nb_channels)
-        
+
 
     @property
     def duration(self):

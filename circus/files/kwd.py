@@ -48,7 +48,7 @@ class KwdFile(H5File):
 
     def _read_from_header(self):
        
-        self._params['h5_key']  = 'recordings/%s/data' %self._params['recording_number']
+        self.params['h5_key']  = 'recordings/%s/data' %self.params['recording_number']
 
         self.__check_valid_key__(self.h5_key)
         
@@ -72,7 +72,7 @@ class KwdFile(H5File):
             self._shape = (self.size[1], self.size[0])
 
         header['nb_channels']  = self._shape[1]
-        mykey                  = 'recordings/%s/application_data' %self._params['recording_number']
+        mykey                  = 'recordings/%s/application_data' %self.params['recording_number']
         header['gain']         = dict(self.my_file.get(mykey).attrs.items())['channel_bit_volts']
         self._t_start          = dict(self.my_file.get(mykey).attrs.items())['start_time']
         

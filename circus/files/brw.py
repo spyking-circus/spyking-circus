@@ -14,7 +14,7 @@ class BRWFile(H5File):
 
         header = {}
 
-        self._params['h5_key']  = '3BData/Raw'
+        self.params['h5_key']  = '3BData/Raw'
         header['h5_key']        = self.h5_key
 
 
