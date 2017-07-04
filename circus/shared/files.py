@@ -10,7 +10,7 @@ from mpi import all_gather_array, gather_array, SHARED_MEMORY, comm
 from mpi4py import MPI
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
-from circus.shared.utils import purge
+from circus.shared.utils import purge, get_parallel_hdf5_flag
 
 logger = logging.getLogger(__name__)
 
@@ -1134,8 +1134,7 @@ def get_garbage(params, extension=''):
 
 def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0):
 
-    import h5py
-    parallel_hdf5  = h5py.get_config().mpi
+    parallel_hdf5  = get_parallel_hdf5_flag(params)
     data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detection', 'N_t')

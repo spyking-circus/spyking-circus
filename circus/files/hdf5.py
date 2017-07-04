@@ -115,4 +115,4 @@ class H5File(DataFile):
 
     @property
     def h5_key(self):
-        return self._params['h5_key']
+        return self.params['h5_key']
