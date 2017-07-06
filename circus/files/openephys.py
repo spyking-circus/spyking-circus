@@ -44,14 +44,12 @@ class OpenEphysFile(DataFile):
 
     def _read_header_(self, file):
         header = { }
-        f = open(file, 'rb')
-        h = f.read(self.NUM_HEADER_BYTES).replace('\n','').replace('header.','')
-        for i,item in enumerate(h.split(';')):
-            if '=' in item:
-                header[item.split(' = ')[0]] = item.split(' = ')[1]
-        f.close()
+        with open(file, 'r', encoding='latin-1') as f:
+            h = f.read(self.NUM_HEADER_BYTES-1).replace('\n','').replace('header.','')
+            for i,item in enumerate(h.split(';')):
+                if '=' in item:
+                    header[item.split(' = ')[0]] = item.split(' = ')[1]
         return header
-
 
     def _read_from_header(self):
 
