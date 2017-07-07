@@ -2,6 +2,7 @@
 Release 0.5.8
 =============
 
+* fix a bug for int indices in some file wrappers (python 3.xx) (thanks to Ben Acland)
 * fix a bug in the preview gui to write threshold
 * fix a bug for some paths in Windows (thanks to Albert Miklos)
 * add a wrapper for NeuraLynx (.ncs) file format

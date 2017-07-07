@@ -255,16 +255,16 @@ class RHDFile(DataFile):
 
         if x_beg == x_end:
             g_offset = x_beg * self.bytes_per_block_div + self.block_offset_div
-            data_slice = [numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + r_end * self.nb_channels)]
+            data_slice = [numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + r_end * self.nb_channels, dtype=numpy.int64)]
         else:
-            for count, nb_blocks in enumerate(numpy.arange(x_beg, x_end + 1)):
+            for count, nb_blocks in enumerate(numpy.arange(x_beg, x_end + 1, dtype=numpy.int64)):
                 g_offset = nb_blocks * self.bytes_per_block_div + self.block_offset_div
                 if count == 0:
-                    data_slice += [numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + self.block_size_div).tolist()]
+                    data_slice += [numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + self.block_size_div, dtype=numpy.int64).tolist()]
                 elif (count == (x_end - x_beg)):
-                    data_slice += [numpy.arange(g_offset, g_offset + r_end * self.nb_channels).tolist()]
+                    data_slice += [numpy.arange(g_offset, g_offset + r_end * self.nb_channels, dtype=numpy.int64).tolist()]
                 else:
-                    data_slice += [numpy.arange(g_offset, g_offset + self.block_size_div).tolist()]
+                    data_slice += [numpy.arange(g_offset, g_offset + self.block_size_div, dtype=numpy.int64).tolist()]
 
         return data_slice 
 

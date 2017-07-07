@@ -136,16 +136,16 @@ class NeuraLynxFile(DataFile):
 
         if x_beg == x_end:
             g_offset = x_beg * self.SAMPLES_PER_RECORD + self.OFFSET_PER_BLOCK[0]*(x_beg + 1) + self.OFFSET_PER_BLOCK[1]*x_beg
-            data_slice = numpy.arange(g_offset + r_beg, g_offset + r_end)
+            data_slice = numpy.arange(g_offset + r_beg, g_offset + r_end, dtype=numpy.int64)
         else:
-            for count, nb_blocks in enumerate(numpy.arange(x_beg, x_end + 1)):
+            for count, nb_blocks in enumerate(numpy.arange(x_beg, x_end + 1), dtype=numpy.int64):
                 g_offset = nb_blocks * self.SAMPLES_PER_RECORD + self.OFFSET_PER_BLOCK[0]*(nb_blocks + 1) + self.OFFSET_PER_BLOCK[1]*nb_blocks
                 if count == 0:
-                    data_slice += numpy.arange(g_offset + r_beg, g_offset + self.SAMPLES_PER_RECORD).tolist()
+                    data_slice += numpy.arange(g_offset + r_beg, g_offset + self.SAMPLES_PER_RECORD, dtype=numpy.int64).tolist()
                 elif (count == (x_end - x_beg)):
-                    data_slice += numpy.arange(g_offset, g_offset + r_end).tolist()
+                    data_slice += numpy.arange(g_offset, g_offset + r_end, dtype=numpy.int64).tolist()
                 else:
-                    data_slice += numpy.arange(g_offset, g_offset + self.SAMPLES_PER_RECORD).tolist()
+                    data_slice += numpy.arange(g_offset, g_offset + self.SAMPLES_PER_RECORD, dtype=numpy.int64).tolist()
         return data_slice
 
 
