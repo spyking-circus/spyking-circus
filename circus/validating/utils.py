@@ -46,7 +46,9 @@ def get_juxta_stas(params, times_i, labels_i):
     juxta_data = numpy.ascontiguousarray(juxta_data)
     
     # Filter juxtacellular trace.
-    juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
+    if params.getboolean('validating', 'filter'):
+        juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
+
     juxta_data -= numpy.median(juxta_data)
 
     # Extract STAs.
@@ -510,45 +512,52 @@ def extract_juxta_spikes_(params):
     juxta_dtype    = params.get('validating', 'juxta_dtype')
     juxta_thresh   = params.getfloat('validating', 'juxta_thresh')
     juxta_valley   = params.getboolean('validating', 'juxta_valley')
-    
+    juxta_spikes   = params.get('validating', 'juxta_spikes')
+
     juxta_filename = "{}.juxta.dat".format(file_out_suff)
     beer_path = "{}.beer.hdf5".format(file_out_suff)
-    
-    # Read juxtacellular trace.
-    juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
-    #juxta_data = juxta_data.astype(numpy.float32)
-    # juxta_data = juxta_data - dtype_offset
-    juxta_data = numpy.ascontiguousarray(juxta_data)
-    
-    # Filter juxtacellular trace.
-    juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
-    juxta_data -= numpy.median(juxta_data)
 
-    # Compute median and median absolute deviation.
-    juxta_median = numpy.median(juxta_data)
-    juxta_ad     = numpy.abs(juxta_data - juxta_median)
-    juxta_mad    = numpy.median(juxta_ad, axis=0)
-    
-    # Save medians and median absolute deviations to BEER file.
-    beer_file = h5py.File(beer_path, 'a', libver='latest')
-    if "juxta_median" in beer_file.keys():
-        beer_file.pop("juxta_median")
-    beer_file.create_dataset("juxta_median", data=juxta_median)
-    if "juxta_mad" in beer_file.keys():
-        beer_file.pop("juxta_mad")
-    beer_file.create_dataset("juxta_mad", data=juxta_mad)
-    beer_file.close()
 
-    if comm.rank == 0:
-        print_and_log(["Extract juxtacellular spikes"], level='debug', logger=logger)
-    
-    # Detect juxta spike times.
-    threshold = juxta_thresh * juxta_mad
-    juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=juxta_valley, mpd=dist_peaks)
+    if juxta_spikes == '':
+            
+        # Read juxtacellular trace.
+        juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
+        #juxta_data = juxta_data.astype(numpy.float32)
+        # juxta_data = juxta_data - dtype_offset
+        juxta_data = numpy.ascontiguousarray(juxta_data)
+        
+        # Filter juxtacellular trace.
+        juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
+        juxta_data -= numpy.median(juxta_data)
 
-    # Remove juxta spike times in the borders.
-    juxta_spike_times = juxta_spike_times[template_shift <= juxta_spike_times]
-    juxta_spike_times = juxta_spike_times[juxta_spike_times < juxta_data.size - template_shift]
+        # Compute median and median absolute deviation.
+        juxta_median = numpy.median(juxta_data)
+        juxta_ad     = numpy.abs(juxta_data - juxta_median)
+        juxta_mad    = numpy.median(juxta_ad, axis=0)
+        
+        # Save medians and median absolute deviations to BEER file.
+        beer_file = h5py.File(beer_path, 'a', libver='latest')
+        if "juxta_median" in beer_file.keys():
+            beer_file.pop("juxta_median")
+        beer_file.create_dataset("juxta_median", data=juxta_median)
+        if "juxta_mad" in beer_file.keys():
+            beer_file.pop("juxta_mad")
+        beer_file.create_dataset("juxta_mad", data=juxta_mad)
+        beer_file.close()
+
+        if comm.rank == 0:
+            print_and_log(["Extract juxtacellular spikes"], level='debug', logger=logger)
+        
+        # Detect juxta spike times.
+        threshold = juxta_thresh * juxta_mad
+        juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=juxta_valley, mpd=dist_peaks)
+
+        # Remove juxta spike times in the borders.
+        juxta_spike_times = juxta_spike_times[template_shift <= juxta_spike_times]
+        juxta_spike_times = juxta_spike_times[juxta_spike_times < juxta_data.size - template_shift]
+
+    else:
+        juxta_spike_times = numpy.load(juxta_spikes)
     
     # Save juxta spike times to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='latest')
@@ -560,23 +569,31 @@ def extract_juxta_spikes_(params):
     beer_file.create_dataset(key, data=juxta_spike_times)
     beer_file.close()
     
-    # Find juxta spike values of juxta spike times.
-    juxta_spike_values = numpy.zeros_like(juxta_spike_times, dtype='float')
-    for i, t in enumerate(juxta_spike_times):
-        if juxta_valley:
-            juxta_spike_values[i] = - juxta_data[t]
-        else:
-            juxta_spike_values[i] = + juxta_data[t]
     
-    # Save juxta spike values to BEER file.
-    beer_file = h5py.File(beer_path, 'a', libver='latest')
-    group_name = "juxta_spike_values"
-    if group_name in beer_file.keys():
-        beer_file.pop(group_name)
-    beer_file.create_group(group_name)
-    key = "{}/elec_0".format(group_name)
-    beer_file.create_dataset(key, data=juxta_spike_values)
-    beer_file.close()
+
+    # juxta_spike_values = numpy.zeros_like(juxta_spike_times, dtype='float')
+    # for i, t in enumerate(juxta_spike_times):
+    #     if juxta_valley:
+    #         juxta_spike_values[i] = - juxta_data[t]
+    #     else:
+    #         juxta_spike_values[i] = + juxta_data[t]
+    
+    if juxta_spikes == '':
+
+        # Find juxta spike values of juxta spike times.
+        juxta_spike_values = juxta_data[juxta_spike_times]
+        if juxta_valley:
+            juxta_spike_values *= -1
+
+        # Save juxta spike values to BEER file.
+        beer_file = h5py.File(beer_path, 'a', libver='latest')
+        group_name = "juxta_spike_values"
+        if group_name in beer_file.keys():
+            beer_file.pop(group_name)
+        beer_file.create_group(group_name)
+        key = "{}/elec_0".format(group_name)
+        beer_file.create_dataset(key, data=juxta_spike_values)
+        beer_file.close()
 
     return
 

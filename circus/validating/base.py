@@ -84,57 +84,59 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
 
     beer_path  = "{}.beer.hdf5".format(file_out_suff)
     beer_file  = h5py.File(beer_path, 'a', libver='latest')
-    group_name = "juxta_spike_values"
+    group_name = "juxta_spiketimes"
     key = "{}/elec_0".format(group_name)
 
     if len(beer_file.get(key)) == 0:
         if comm.rank == 0:
             print_and_log(['No juxta-cellular spikes have been found!'], 'error', logger)
         sys.exit(1)
-    beer_file.close()
+    beer_file.close()  
     
     # Retrieve the spike times of the juxtacellular trace.
     spike_times_juxta = io.load_data(params, 'juxta-triggers')
     
-    
-    
     ##### PLOT INFLUENCE OF JUXTACELLULAR THRESHOLD ############################
     
-    # Compute the cumulative distribution of juxta spike times according to the threshold value.
-    spike_values_juxta = io.load_data(params, 'juxta-values')
-    juxta_thresh = params.getfloat('validating', 'juxta_thresh')
-    juxta_mad = io.load_data(params, 'juxta-mad')
-    
-    spike_values_juxta = numpy.sort(spike_values_juxta) / juxta_mad
-    threshs = numpy.concatenate((numpy.array([juxta_thresh]), spike_values_juxta))
-    counts = numpy.arange(spike_values_juxta.size, -1, -1)
-    unknown_zone = Rectangle((0.0, 0), juxta_thresh, spike_values_juxta.size,
-                             hatch='/', facecolor='white', zorder=3)
-    
-    if comm.rank == 0:
+    custom_juxta_spikes = params.get('validating', 'juxta_spikes') != ''
 
-        if not os.path.exists(plot_path):
-            os.makedirs(plot_path)
+    if not custom_juxta_spikes:
         
-        if make_plots not in ['None', '']:
-            plot_filename = "beer-juxta-distribution.{}".format(make_plots)
-            path = os.path.join(plot_path, plot_filename)
-            import pylab
-            fig = pylab.figure()
-            ax = fig.add_subplot(1, 1, 1)
-            ax.set_position((0.1, 0.15, 0.8, 0.75))
-            ax.step(threshs, counts, 'k', where='post')
-            ax.add_patch(unknown_zone)
-            ax.grid(True)
-            if len(spike_values_juxta) > 0:
-                ax.set_xlim(0.0, numpy.amax(spike_values_juxta))
-            ax.set_ylim(0, spike_values_juxta.size)
-            ax.set_title("Juxtacellular threshold detection")
-            ax.set_xlabel("threshold")
-            ax.set_ylabel("number of spikes")
-            fig.text(0.02, 0.02, "median absolute deviation: {:.2f}".format(juxta_mad))
-            pylab.savefig(path)
-            pylab.close()
+        # Compute the cumulative distribution of juxta spike times according to the threshold value.
+        spike_values_juxta = io.load_data(params, 'juxta-values')
+        juxta_thresh = params.getfloat('validating', 'juxta_thresh')
+        juxta_mad = io.load_data(params, 'juxta-mad')
+        
+        spike_values_juxta = numpy.sort(spike_values_juxta) / juxta_mad
+        threshs = numpy.concatenate((numpy.array([juxta_thresh]), spike_values_juxta))
+        counts = numpy.arange(spike_values_juxta.size, -1, -1)
+        unknown_zone = Rectangle((0.0, 0), juxta_thresh, spike_values_juxta.size,
+                                 hatch='/', facecolor='white', zorder=3)
+        
+        if comm.rank == 0:
+
+            if not os.path.exists(plot_path):
+                os.makedirs(plot_path)
+            
+            if make_plots not in ['None', '']:
+                plot_filename = "beer-juxta-distribution.{}".format(make_plots)
+                path = os.path.join(plot_path, plot_filename)
+                import pylab
+                fig = pylab.figure()
+                ax = fig.add_subplot(1, 1, 1)
+                ax.set_position((0.1, 0.15, 0.8, 0.75))
+                ax.step(threshs, counts, 'k', where='post')
+                ax.add_patch(unknown_zone)
+                ax.grid(True)
+                if len(spike_values_juxta) > 0:
+                    ax.set_xlim(0.0, numpy.amax(spike_values_juxta))
+                ax.set_ylim(0, spike_values_juxta.size)
+                ax.set_title("Juxtacellular threshold detection")
+                ax.set_xlabel("threshold")
+                ax.set_ylabel("number of spikes")
+                fig.text(0.02, 0.02, "median absolute deviation: {:.2f}".format(juxta_mad))
+                pylab.savefig(path)
+                pylab.close()
     
     
     
@@ -167,15 +169,15 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 median = numpy.median(juxta_spikes[:, elec, :])
                 tmp_juxta_spikes = numpy.abs(juxta_spikes - median)
                 mad_juxta_spikes = numpy.median(tmp_juxta_spikes)
-                for spike_time_index in xrange(0, juxta_spikes.shape[2]):
-                    # Since extra_valley is always true.
-                    min_juxta_spikes = numpy.amin(juxta_spikes[:, elec, spike_time_index])
-                    if min_juxta_spikes <= - 20.0 * juxta_thresh * mad_juxta_spikes:
-                        # There is an artifact.
-                        juxta_spike_times_selection[spike_time_index] = False
-                        ##### TODO: remove debug zone
-                        # print("##### Remove artifact (spike time index: {})".format(spike_time_index))
-                        ##### end debug zone
+                # for spike_time_index in xrange(0, juxta_spikes.shape[2]):
+                #     # Since extra_valley is always true.
+                #     min_juxta_spikes = numpy.amin(juxta_spikes[:, elec, spike_time_index])
+                #     if min_juxta_spikes <= - 20.0 * juxta_thresh * mad_juxta_spikes:
+                #         # There is an artifact.
+                #         juxta_spike_times_selection[spike_time_index] = False
+                #         ##### TODO: remove debug zone
+                #         # print("##### Remove artifact (spike time index: {})".format(spike_time_index))
+                #         ##### end debug zone
             tmp_juxta_spikes = juxta_spikes[:, :, juxta_spike_times_selection]
             tmp_juxta_spikes_ = juxta_spikes_[:, juxta_spike_times_selection]
         mean_juxta_spikes = numpy.mean(tmp_juxta_spikes, axis=2) # average over spike times
@@ -208,7 +210,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
 
     if comm.rank == 0:
         
-        if make_plots not in ['None', '']:
+        if make_plots not in ['None', ''] and not custom_juxta_spikes:
             plot_filename = "beer-trigger-times.{}".format(make_plots)
             path = os.path.join(plot_path, plot_filename)
             plot.view_trigger_times(params, spike_times_juxta, tmp_juxta_spikes[:, chan, :], tmp_juxta_spikes_, save=path)
@@ -313,13 +315,16 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     # Compute the proportion of juxtacellular spikes present in the extracelllar
     # spikes according to the threshold value.
-    spike_values_juxta = io.load_data(params, 'juxta-values')
-    juxta_thresh = params.getfloat('validating', 'juxta_thresh')
-    juxta_mad = io.load_data(params, 'juxta-mad')
-    juxta_thresh = max(5.0, juxta_thresh)
-    mask = juxta_thresh * juxta_mad <= spike_values_juxta
-    spike_times_juxta = spike_times_juxta[mask]
-    spike_values_juxta = spike_values_juxta[mask]
+    if not custom_juxta_spikes:
+        spike_values_juxta = io.load_data(params, 'juxta-values')
+        mask = juxta_thresh * juxta_mad <= spike_values_juxta
+        spike_times_juxta = spike_times_juxta[mask]
+        spike_values_juxta = spike_values_juxta[mask]
+        juxta_thresh = params.getfloat('validating', 'juxta_thresh')
+        juxta_mad = io.load_data(params, 'juxta-mad')
+        juxta_thresh = max(5.0, juxta_thresh)
+    else:
+        spike_times_juxta = io.load_data(params, 'juxta-triggers')
     
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
@@ -365,7 +370,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         beer_file.create_dataset(beer_key, data=proportion)
         beer_file.close()
         
-        if make_plots not in ['None', ''] and len(counts) > 0:
+        if make_plots not in ['None', ''] and len(counts) > 0 and not custom_juxta_spikes:
             plot_filename = "beer-proportion.{}".format(make_plots)
             path = os.path.join(plot_path, plot_filename)
             import pylab

@@ -14,6 +14,8 @@ Release 0.5.8
 * fix a bug for MCS headers in multifiles, if not all with same sizes
 * add the possibility (with a flag) to turn off parallel HDF5 if needed
 * fix a bug with latest version of HDF5, related to flush issues during clustering
+* The validating step can now accept custom spikes as inputs
+* Change the default frequency for filtering to 300Hz instead of 500Hz
 
 =============
 Release 0.5.7

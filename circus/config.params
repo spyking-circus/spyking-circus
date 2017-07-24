@@ -21,7 +21,7 @@ matched_thresh = 5          # Threshold for detection if matched filter is True
 alignment      = True       # Realign the waveforms by oversampling
 
 [filtering]
-cut_off        = 500, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
+cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
 filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
 
@@ -88,6 +88,8 @@ radius_factor  = 0.5        # Radius factor to modulate physical radius during v
 juxta_dtype    = uint16     # Type of the juxtacellular data
 juxta_thresh   = 6          # Threshold for juxtacellular detection
 juxta_valley   = False      # True if juxta-cellular spikes are negative peaks
+juxta_spikes   =            # If none, spikes are automatically detected based on juxta_thresh
+filter         = True       # If the juxta channel need to be filtered or not
 make_plots     = png        # Generate sanity plots of the validation [Nothing or None if no plots]
 
 [extracting]
