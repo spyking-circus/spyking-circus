@@ -47,11 +47,12 @@ class NeuraLynxFile(DataFile):
 
     def _get_sorted_channels_(self):
         
-        all_files = os.listdir(os.path.dirname(self.file_name))
+        directory = os.path.dirname(self.file_name)
+        all_files = os.listdir(directory)
         alist     = []
         for f in all_files:
             if f.find('.ncs') > 0:
-                alist += [f]
+                alist += [os.path.join(directory, f)]
         alist.sort(key=natural_keys)
         
         return alist
@@ -98,7 +99,7 @@ class NeuraLynxFile(DataFile):
 
     def _read_from_header(self):
 
-        folder_path       = os.path.dirname(os.path.realpath(self.file_name))
+        folder_path       = os.path.dirname(os.path.abspath(self.file_name))
         self.all_files    = self._get_sorted_channels_()
 
         regexpr           = re.compile('\d+')
