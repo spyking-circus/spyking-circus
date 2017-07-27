@@ -395,12 +395,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if groups[elec] < upper_bounds:
 
-                            if negative_peak:
-                                elts_neg[:, elt_count_neg] = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
-                            else:
-                                elts_pos[:, elt_count_pos] = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
-                            if alignment:
-                                ydata    = local_chunk[peak-2*template_shift:peak+2*template_shift+1, elec]
+                            if not alignment:
+                                if negative_peak:
+                                    elts_neg[:, elt_count_neg] = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+                                else:
+                                    elts_pos[:, elt_count_pos] = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+
+                            elif alignment:
+                                ydata    = local_chunk[peak - 2*template_shift:peak + 2*template_shift + 1, elec]
                                 f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
