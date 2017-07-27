@@ -94,7 +94,7 @@ class H5File(DataFile):
 
     def write_chunk(self, time, data):
 
-        data = self._unscale_data_from_from32(data)
+        data = self._unscale_data_from_float32(data)
         
         if self.time_axis == 0:
             self.data[time:time+data.shape[0], :] = data

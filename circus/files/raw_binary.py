@@ -55,7 +55,7 @@ class RawBinaryFile(DataFile):
     def write_chunk(self, time, data):
         self._open(mode='r+')
 
-        data = self._unscale_data_from_from32(data)
+        data = self._unscale_data_from_float32(data)
         data = data.ravel()
         self.data[self.nb_channels*time:self.nb_channels*time+len(data)] = data
         self._close()

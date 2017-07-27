@@ -122,7 +122,7 @@ class OpenEphysFile(DataFile):
             t_stop  = self.duration
 
         data_slice  = self._get_slice_(t_start, t_stop) 
-        data        = self._unscale_data_from_from32(data)
+        data        = self._unscale_data_from_float32(data)
 
         self._open(mode='r+')
         for i in xrange(self.nb_channels):

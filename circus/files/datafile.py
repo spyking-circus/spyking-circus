@@ -359,7 +359,7 @@ class DataFile(object):
         return numpy.ascontiguousarray(data)
 
 
-    def _unscale_data_from_from32(self, data):
+    def _unscale_data_from_float32(self, data):
         '''
             This function will convert data from float32 back to the original format of the file
         '''

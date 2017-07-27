@@ -57,7 +57,7 @@ class NumpyFile(RawBinaryFile):
 
     def write_chunk(self, time, data):
         self._open(mode='r+')
-        data = self._unscale_data_from_from32(data)
+        data = self._unscale_data_from_float32(data)
         if self.time_axis == 0:
             self.data[time:time+len(data)] = data
         elif self.time_axis == 1:

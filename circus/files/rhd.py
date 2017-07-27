@@ -302,7 +302,7 @@ class RHDFile(DataFile):
             t_stop  = self.duration
 
 
-        data = self._unscale_data_from_from32(data)
+        data = self._unscale_data_from_float32(data)
 
         data_slice  = self._get_slice_(t_start, t_stop) 
         

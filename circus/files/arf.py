@@ -107,7 +107,7 @@ class ARFFile(H5File):
 
     def write_chunk(self, time, data):
         
-        data  = self._unscale_data_from_from32(data)
+        data  = self._unscale_data_from_float32(data)
 
         for i in xrange(self.nb_channels):
             self.data[i][time:time+data.shape[0]] = data[:, i]
