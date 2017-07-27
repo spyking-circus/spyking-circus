@@ -63,9 +63,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
     sub_output_dim = params.getint('clustering', 'sub_dim')
-    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
-    to_write         = ['clusters_', 'times_', 'data_', 'peaks_']
+    inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes]  = numpy.argsort(nodes)
+    to_write          = ['clusters_', 'times_', 'data_', 'peaks_']
+    ignore_dead_times = params.getboolean('triggers', 'ignore_times')
+
     #################################################################
 
     if sign_peaks == 'negative':
@@ -101,6 +103,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             waveform_pos  = io.load_data(params, 'waveform-pos')
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
+
+    if ignore_dead_times:
+        dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
+        dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
+        if dead_in_ms:
+            dead_times *= numpy.int64(data_file.sampling_rate*1e-3)
+        dead_times = dead_times.astype(numpy.int64)
+        all_dead_times = []
+        for i in xrange(len(dead_times)):
+            all_dead_times += range(dead_times[i, 0], dead_times[i, 1])
 
     result   = {}
 
@@ -290,6 +302,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 local_peaktimes = numpy.unique(all_peaktimes)
                 local_offset    = t_offset
+
+                if ignore_dead_times:
+                    local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
+                    local_peaktimes = numpy.sort(local_peaktimes)
 
                 if len(local_peaktimes) > 0:
 

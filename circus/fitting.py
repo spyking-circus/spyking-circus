@@ -33,8 +33,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     collect_all    = params.getboolean('fitting', 'collect_all')
-    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    ignore_dead_times = params.getboolean('triggers', 'ignore_times')
+    inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes]  = numpy.argsort(nodes)
     #################################################################
 
     if use_gpu:
@@ -86,6 +87,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             waveform_pos  = io.load_data(params, 'waveform-pos')
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
+
+    if ignore_dead_times:
+        dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
+        dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
+        if dead_in_ms:
+            dead_times *= numpy.int64(data_file.sampling_rate*1e-3)
+        dead_times = dead_times.astype(numpy.int64)
+        all_dead_times = []
+        for i in xrange(len(dead_times)):
+            all_dead_times += range(dead_times[i, 0], dead_times[i, 1])
 
     thresholds = io.load_data(params, 'thresholds')
 
@@ -262,7 +273,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             
         local_peaktimes = numpy.unique(local_peaktimes)
-        
+
+        if ignore_dead_times:
+            local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
+            local_peaktimes = numpy.sort(local_peaktimes)
+
         #print "Removing the useless borders..."
         local_borders   = (template_shift, len_chunk - template_shift)
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])

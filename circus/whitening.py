@@ -266,6 +266,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if sign_peaks == 'both':
        max_elts_elec *= 2
     nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
+
+    ignore_dead_times = params.getboolean('triggers', 'ignore_times')
+    if ignore_dead_times:
+        dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
+        dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
+        if dead_in_ms:
+            dead_times *= numpy.int64(data_file.sampling_rate*1e-3)
+        dead_times = dead_times.astype(numpy.int64)
+        all_dead_times = []
+        for i in xrange(len(dead_times)):
+            all_dead_times += range(dead_times[i, 0], dead_times[i, 1])
     #################################################################
 
 
@@ -356,6 +367,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             all_extremas    = numpy.compress(idx, all_extremas)
 
             local_peaktimes = numpy.unique(all_peaktimes)
+
+            if ignore_dead_times:
+                 local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
+                 local_peaktimes = numpy.sort(local_peaktimes)
 
             if len(local_peaktimes) > 0:
 

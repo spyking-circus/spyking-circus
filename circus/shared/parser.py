@@ -32,6 +32,9 @@ class CircusParser(object):
                           ['triggers', 'trig_file', 'string', ''],
                           ['triggers', 'trig_windows', 'string', ''],
                           ['triggers', 'trig_unit', 'string', 'ms'],
+                          ['triggers', 'dead_unit', 'string', 'ms'],
+                          ['triggers', 'dead_file', 'string', ''],
+                          ['triggers', 'ignore_times', 'bool', 'False'],
                           ['whitening', 'chunk_size', 'int', '30'],
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['clustering', 'max_clusters', 'int', '10'],
@@ -195,6 +198,17 @@ class CircusParser(object):
 
         self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
         self.parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_windows'))))
+
+        units = ['ms', 'timestep']
+        test = self.parser.get('triggers', 'dead_unit').lower() in units
+        if not test:
+          if comm.rank == 0:
+              print_and_log(["dead_unit in [triggers] should be in %s" %str(units)], 'error', logger)
+          sys.exit(1)
+        else:
+          self.parser.set('triggers', 'dead_in_ms', str(self.parser.get('triggers', 'dead_unit').lower() == 'ms'))
+
+        self.parser.set('triggers', 'dead_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'dead_file'))))
 
         test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
         if not test:

@@ -28,8 +28,11 @@ remove_median  = False      # If True, median over all channels is substracted t
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
 trig_windows   =            # The time windows of those external stimuli [in trig units]
-trig_unit      = ms         # The unit in which times are expressed: can be either ms or timestep
+trig_unit      = ms         # The unit in which times are expressed: can be ms or timestep
 clean_artefact = False      # If True, external artefacts induced by triggers will be suppressed from data
+dead_file      =            # Portion of the signals that should be excluded from the analysis [in dead units]
+dead_unit      = ms         # The unit in which times for dead regions are expressed: can be ms or timestep
+ignore_times   = False      # If True, any spike in the dead regions will be ignored by the analysis
 make_plots     =            # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 [whitening]

@@ -2,6 +2,8 @@
 Release 0.6.0
 =============
 
+* improvements in the neuralynx wrapper
+* add the possibility to exclude some portions of the recordings from the analysis (see documentation)
 
 =============
 Release 0.5.9
