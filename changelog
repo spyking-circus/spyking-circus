@@ -1,10 +1,14 @@
 =============
+Release 0.6.0
+=============
+
+
+=============
 Release 0.5.9
 =============
 
 * The validating step can now accept custom spikes as inputs
 * Change the default frequency for filtering to 300Hz instead of 500Hz
-
 
 =============
 Release 0.5.8
