@@ -111,7 +111,7 @@ To display a raster, you need a file containing the beginning and end time of ea
     * ``rep_begin_time{i}(j)`` should contain the start time of the j-th repeat for the i-th type of stimulus. 
     * ``rep_end_time{i}(j)`` should contain the end time of the j-th repeat for the i-th type of stimulus.
 
-The times should be specified in sample numbers. These two variables should be stored as a ``mat`` file in a file called ``path/mydata/mydata.stim.mat``, and placed in the same directory than the output files of the algorithm. If available, it will be loaded by the GUI and help you to visualize trial-to-trial responses of a given template.
+The times should be specified in sample numbers. These two variables should be stored as a ``mat`` file in a file called ``path/mydata/mydata.stim``, and placed in the same directory than the output files of the algorithm. If available, it will be loaded by the GUI and help you to visualize trial-to-trial responses of a given template.
 
 
 Give a grade to a cell
