@@ -71,18 +71,24 @@ Triggers
 
 The triggers section is::
 
-    trig_file      =           # If external stimuli need to be considered as putative artefacts (see documentation)
-    trig_windows   =           # The time windows of those external stimuli [in ms]
-    clean_artefact = False     # If True, external artefacts induced by triggers will be suppressed from data 
-    trig_unit      = ms        # The unit in which times are expressed: can be either ms or timestep
-    make_plots     =           # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
+    trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
+    trig_windows   =            # The time windows of those external stimuli [in trig units]
+    trig_unit      = ms         # The unit in which times are expressed: can be ms or timestep
+    clean_artefact = False      # If True, external artefacts induced by triggers will be suppressed from data
+    dead_file      =            # Portion of the signals that should be excluded from the analysis [in dead units]
+    dead_unit      = ms         # The unit in which times for dead regions are expressed: can be ms or timestep
+    ignore_times   = False      # If True, any spike in the dead regions will be ignored by the analysis
+    make_plots     =            # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 Parameters that are most likely to be changed:
     * ``trig_file`` The path to the file where your artefact times and labels. See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
     * ``trig_windows`` The path to file where your artefact temporal windows. See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
-    * ``clean_artefact`` If you want to remove any stimulation artefacts, defined in the previous file. See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
+    * ``clean_artefact`` If you want to remove any stimulation artefacts, defined in the previous files. See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
     * ``make_plots`` The default format to save the plots of the artefacts, one per artefact, showing all channels. You can set it to None if you do not want any
     * ``trig_unit`` If you want times/duration in the ``trig_file`` and ``trig_windows`` to be in timestep or ms
+    * ``dead_file`` The path to the file where the dead portions of the recording, that should be excluded from the analysis, are specified. . See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
+    * ``dead_unit`` If you want times/duration in the ``dead_file`` to be in timestep or ms
+    * ``ignore_times`` If you want to remove any dead portions of the recording, defined in ``dead_file``. See :doc:`how to deal with stimulation artefacts <../code/artefacts>`
 
 Whitening
 ---------

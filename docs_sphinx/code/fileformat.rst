@@ -19,6 +19,9 @@ To get the list of supported file format, you need to do::
 	| -- MCD (read only)
 	|       Extensions       : .mcd
 	|       Supported streams: multi-files
+	| -- NEURALYNX (read/parallel write)
+	|       Extensions       : .ncs
+	|       Supported streams: multi-files
 	| -- MCS_RAW_BINARY (read/parallel write)
 	|       Extensions       : .raw, .dat
 	|       Supported streams: multi-files
@@ -79,7 +82,7 @@ This list will tell you what are the wrappers available, and you need to specify
 Neuroshare support
 ------------------
 
-Some of the file formats (plexon, blackrock, multi-channel systems, ..) can be accessed only if you have the neuroshare_ library installed. Note that despite a great simplicity of use, this library provides only slow read access and no write access to the file formats. Therefore, this is not an efficient wrapper, and it may slow down considerably the code. Feel free to contribute if you have better ideas about what to do!
+Some of the file formats (plexon, blackrock, multi-channel systems, ..) can be accessed only if you have the neuroshare_ library installed. Note that despite a great simplicity of use, this library provides only very slow read access and no write access to the file formats. Therefore, this is not an efficient wrapper, and it may slow down considerably the code. Feel free to contribute if you have better ideas about what to do!
 
 
 HDF5-like file
