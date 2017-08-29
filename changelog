@@ -4,6 +4,7 @@ Release 0.6.0
 
 * improvements in the neuralynx wrapper
 * add the possibility to exclude some portions of the recordings from the analysis (see documentation)
+* fix a small bug in MS-MPI (Windows only) when shared memory is activated and emtpy arrays are present
 
 =============
 Release 0.5.9
