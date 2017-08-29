@@ -498,18 +498,24 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
                     type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
 
-                    win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
-                    buf_data, _ = win_data.Shared_query(0)
+                    empty      = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.int32), root=0)[0])
+                    if empty > 0:
+                        win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
+                        buf_data, _ = win_data.Shared_query(0)
 
-                    buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+                        buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+                        if type_size == 0:
+                            data = numpy.ndarray(buffer=buf_data, dtype=numpy.int32, shape=(data_size,))
+                        elif type_size == 1:
+                            data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(data_size,))
 
-                    if type_size == 0:
-                        data = numpy.ndarray(buffer=buf_data, dtype=numpy.int32, shape=(data_size,))
-                    elif type_size == 1:
-                        data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(data_size,))
-
-                    if sub_comm.rank == 0:
-                        data[:]    = locdata
+                        if sub_comm.rank == 0:
+                            data[:]    = locdata
+                    else:
+                        if type_size == 0:
+                            data = numpy.zeros(0, dtype=numpy.int32)
+                        elif type_size == 1:
+                            data = numpy.zeros(0, dtype=numpy.float32)
 
                     sub_comm.Barrier()
 
