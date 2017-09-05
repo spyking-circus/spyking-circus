@@ -2,6 +2,7 @@
 Release 0.6.0
 =============
 
+* fix an IMPORTANT BUG in the similarities exported for phy/MATLAB, affect the suggestions in the GUI
 * improvements in the neuralynx wrapper
 * add the possibility to exclude some portions of the recordings from the analysis (see documentation)
 * fix a small bug in MS-MPI (Windows only) when shared memory is activated and emtpy arrays are present

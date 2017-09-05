@@ -1292,25 +1292,24 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
         if maxoverlap:
 
-            overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_tm**2, 2*N_t - 1))
+            assert (half == False), "Error"
 
-            if not half:
-                N_tm //= 2
+            overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_tm**2, 2*N_t - 1))
 
             myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
 
             if 'maxoverlap' in myfile2.keys():
                 maxoverlap = myfile2['maxoverlap']
             else:
-                maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm, N_tm), dtype=numpy.float32)
+                maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm//2, N_tm//2), dtype=numpy.float32)
 
             if 'maxlag' in myfile2.keys():
                 maxlag = myfile2['maxlag']
             else:
-                maxlag = myfile2.create_dataset('maxlag', shape=(N_tm, N_tm), dtype=numpy.int32)
+                maxlag = myfile2.create_dataset('maxlag', shape=(N_tm//2, N_tm//2), dtype=numpy.int32)
 
-            for i in xrange(N_tm-1):
-                data                = overlap[i*N_tm+i+1:(i+1)*N_tm].toarray()
+            for i in xrange(N_tm//2 - 1):
+                data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()
                 maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
                 maxlag[i+1:, i]     = maxlag[i, i+1:]
                 maxoverlap[i, i+1:] = numpy.max(data, 1)
