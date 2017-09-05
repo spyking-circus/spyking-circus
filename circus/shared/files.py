@@ -1206,15 +1206,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     all_delays      = numpy.arange(1, N_t+1)
 
-    local_templates = numpy.zeros(0, dtype=numpy.int32)
-    for ielec in range(comm.rank, N_e, comm.size):
-        local_templates = numpy.concatenate((local_templates, numpy.where(best_elec == ielec)[0]))
-
     if half:
-        nb_total     = len(local_templates)
         upper_bounds = N_tm
     else:
-        nb_total     = 2*len(local_templates)
         upper_bounds = N_tm//2
 
     to_explore = xrange(comm.rank, N_e, comm.size)
@@ -1222,7 +1216,6 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     if comm.rank == 0:
         if verbose:
             print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', logger)
-        N_0  = len(range(comm.rank, N_e, comm.size))
         to_explore = get_tqdm_progressbar(to_explore)
 
 
@@ -1231,7 +1224,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     over_data = numpy.zeros(0, dtype=numpy.float32)
     rows      = numpy.arange(N_e*N_t)
 
-    for count, ielec in enumerate(to_explore):
+    for ielec in to_explore:
 
         local_idx = numpy.where(best_elec == ielec)[0]
         len_local = len(local_idx)
