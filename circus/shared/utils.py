@@ -13,8 +13,75 @@ import h5py
 from mpi import *
 import files as io
 from messages import print_and_log
-
 logger = logging.getLogger(__name__)
+import circus
+
+def test_patch_for_similarities(params, extension):
+    
+    file_out_suff  = params.get('data', 'file_out_suff')
+    template_file  = file_out_suff + '.templates%s.hdf5' %extension
+    if os.path.exists(template_file):
+        try:
+            version = h5py.File(template_file, 'r', libver='latest').get('version')[0]
+        except Exception:
+            version = None
+    else:
+        raise Exception('No templates found! Check suffix?')
+    
+    if (version is not None) and (version >= '0.6.0'):
+        return True
+    else:
+        print_and_log(["Version is %g" %version], 'debug', logger)
+        return False
+
+
+def apply_patch_for_similarities(params, extension):
+
+    if not test_patch_for_similarities(params, extension):
+
+        file_out_suff  = params.get('data', 'file_out_suff')
+
+        if comm.rank == 0:
+
+            print_and_log(["Recomputing the overlaps"], 'debug', logger)
+
+            over_file = file_out_suff + '.overlap%s.hdf5' %extension
+            if os.path.exists(over_file):
+                over_x = h5py.File(over_file, 'r', libver='latest').get('over_x')[:].ravel()
+                over_y = h5py.File(over_file,  'r', libver='latest').get('over_y')[:].ravel()
+                over_data = h5py.File(over_file, 'r', libver='latest').get('over_data')[:].ravel()
+                over_shape = h5py.File(over_file, 'r', libver='latest').get('over_shape')[:].ravel()
+                overlap = scipy.sparse.csc_matrix((over_data, (over_x, over_y)), shape=over_shape)
+            else:
+                raise Exception('No overlaps found! Check suffix?')
+
+            
+            myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
+            N_tm    = int(numpy.sqrt(overlap.shape[0]))
+            N_t     = params.getint('detection', 'N_t')
+
+            if 'maxoverlap' in myfile2.keys():
+                maxoverlap = myfile2['maxoverlap']
+            else:
+                maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm//2, N_tm//2), dtype=numpy.float32)
+
+            if 'maxlag' in myfile2.keys():
+                maxlag = myfile2['maxlag']
+            else:
+                maxlag = myfile2.create_dataset('maxlag', shape=(N_tm//2, N_tm//2), dtype=numpy.int32)
+
+            if 'version' in myfile2.keys():
+                version = myfile2['version']
+            else:
+                version = myfile2.create_dataset('version', data=numpy.array([circus.__version__]))
+
+            for i in xrange(N_tm//2 - 1):
+                data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()
+                maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
+                maxlag[i+1:, i]     = maxlag[i, i+1:]
+                maxoverlap[i, i+1:] = numpy.max(data, 1)
+                maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
+            myfile2.close()
 
 
 def query_yes_no(question, default="yes"):

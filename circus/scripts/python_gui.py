@@ -16,6 +16,7 @@ from phy.utils._misc import _read_python
 from phy.gui import create_app, run_app
 from phycontrib.template import TemplateController
 import numpy as np
+from circus.shared.utils import query_yes_no, test_patch_for_similarities
 
 supported_by_phy = ['raw_binary', 'mcs_raw_binary']
 
@@ -53,6 +54,12 @@ def main(argv=None):
     if not mytest:
         print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
         sys.exit(1)
+
+    if not test_patch_for_similarities(params, extension):
+        print_and_log(['You should re-export the data with the converting step because of a fix in 0.6'], 'error', logger)
+        continue_anyway = query_yes_no(Fore.WHITE + "Continue anyway (results may not be fully correct)?", default=None)
+        if not continue_anyway:
+            sys.exit(1)
 
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype

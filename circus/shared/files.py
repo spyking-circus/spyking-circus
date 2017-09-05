@@ -626,6 +626,29 @@ def load_data(params, data, extension=''):
             return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
         else:
             raise Exception('No templates found! Check suffix?')
+    elif data == 'overlaps':
+        if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension):
+            over_x = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension,
+                               'r', libver='latest').get('over_x')[:].ravel()
+            over_y = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension,
+                               'r', libver='latest').get('over_y')[:].ravel()
+            over_data = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension,
+                                  'r', libver='latest').get('over_data')[:].ravel()
+            over_shape = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension,
+                                               'r', libver='latest').get('over_shape')[:].ravel()
+            return scipy.sparse.csc_matrix((over_data, (over_x, over_y)), shape=over_shape)
+        else:
+            raise Exception('No overlaps found! Check suffix?')
+    elif data == 'version':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+            try:
+                version = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
+                                   'r', libver='latest').get('version')[:]
+            except Exception:
+                version = None
+            return version
+        else:
+            raise Exception('No templates found! Check suffix?')
     elif data == 'norm-templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms')[:]
@@ -1307,6 +1330,11 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 maxlag = myfile2['maxlag']
             else:
                 maxlag = myfile2.create_dataset('maxlag', shape=(N_tm//2, N_tm//2), dtype=numpy.int32)
+
+            if 'version' in myfile2.keys():
+                version = myfile2['version']
+            else:
+                version = myfile2.create_dataset('version', data=numpy.array([circus.__version__]))
 
             for i in xrange(N_tm//2 - 1):
                 data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()

@@ -9,7 +9,7 @@ import h5py
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
 from circus.shared.messages import print_and_log, init_logging
-from circus.shared.utils import query_yes_no
+from circus.shared.utils import query_yes_no, apply_patch_for_similarities
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
@@ -261,6 +261,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             write_results(output_path, params, extension) 
  
             N_tm = write_templates(output_path, params, extension)
+
+            apply_patch_for_similarities(params, extension)
+
             similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
             norm = N_e*N_t
 

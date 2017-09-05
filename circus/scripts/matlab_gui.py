@@ -10,6 +10,7 @@ import numpy, h5py, logging
 from circus.shared.messages import print_and_log, get_colored_header, init_logging
 from circus.shared.files import write_datasets
 from circus.shared.parser import CircusParser
+from circus.shared.utils import apply_patch_for_similarities
 
 supported_by_matlab = ['raw_binary', 'mcs_raw_binary']
 
@@ -85,7 +86,8 @@ def main(argv=None):
     else:
         filename = params.get('data', 'data_file')
 
-    
+    apply_patch_for_similarities(params, extension)
+
     gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
     # Change to the directory of the matlab file
     os.chdir(os.path.abspath(os.path.dirname(gui_file)))
