@@ -11,7 +11,7 @@ from mpi4py import MPI
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
 from circus.shared.utils import purge, get_parallel_hdf5_flag
-
+import circus
 logger = logging.getLogger(__name__)
 
 
