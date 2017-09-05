@@ -31,7 +31,7 @@ def test_patch_for_similarities(params, extension):
     if (version is not None) and (version >= '0.6.0'):
         return True
     else:
-        print_and_log(["Version is %g" %version], 'debug', logger)
+        print_and_log(["Version is below 0.6.0"], 'debug', logger)
         return False
 
 
