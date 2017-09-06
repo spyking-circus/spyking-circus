@@ -47,7 +47,7 @@ def apply_patch_for_similarities(params, extension):
 
             print_and_log(["Recomputing the overlaps"], 'debug', logger)
 
-            over_file = file_out_suff + '.overlap%s.hdf5' %extension
+            over_file = file_out_suff + '.overlap.hdf5'
             if os.path.exists(over_file):
                 over_x = h5py.File(over_file, 'r', libver='latest').get('over_x')[:].ravel()
                 over_y = h5py.File(over_file,  'r', libver='latest').get('over_y')[:].ravel()
