@@ -15,6 +15,7 @@ import files as io
 from messages import print_and_log
 logger = logging.getLogger(__name__)
 import circus
+from distutils.version import StrictVersion
 
 def test_patch_for_similarities(params, extension):
     
@@ -28,8 +29,9 @@ def test_patch_for_similarities(params, extension):
     else:
         raise Exception('No templates found! Check suffix?')
     
-    if (version is not None) and (version >= '0.6.0'):
-        return True
+    if version is not None:
+        if (StrictVersion(version) >= StrictVersion('0.6.0')):
+            return True
     else:
         print_and_log(["Version is below 0.6.0"], 'debug', logger)
         return False

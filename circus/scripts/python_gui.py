@@ -10,6 +10,7 @@ import numpy, h5py, logging
 from distutils.version import LooseVersion, StrictVersion
 from circus.shared.messages import print_and_log, get_header, get_colored_header, init_logging
 from circus.shared.parser import CircusParser
+from colorama import Fore
 
 from phy import add_default_handler
 from phy.utils._misc import _read_python
@@ -56,7 +57,7 @@ def main(argv=None):
         sys.exit(1)
 
     if not test_patch_for_similarities(params, extension):
-        print_and_log(['You should re-export the data with the converting step because of a fix in 0.6'], 'error', logger)
+        print_and_log(['You should re-export the data because of a fix in 0.6'], 'error', logger)
         continue_anyway = query_yes_no(Fore.WHITE + "Continue anyway (results may not be fully correct)?", default=None)
         if not continue_anyway:
             sys.exit(1)
