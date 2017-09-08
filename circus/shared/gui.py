@@ -1022,7 +1022,7 @@ class MergeWindow(QtGui.QMainWindow):
             mydata.close()
 
             mydata  = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_out, 'r+', libver='latest')
-            version     = mydata.create_dataset('version', data=numpy.array([circus.__version__]))
+            version     = mydata.create_dataset('version', data=numpy.array([circus.__version__.encode('ascii', 'ignore')]))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
             maxlag      = mydata.create_dataset('maxlag', shape=(len(to_keep), len(to_keep)), dtype=numpy.int32)
             for c, i in enumerate(to_keep):

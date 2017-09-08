@@ -1334,7 +1334,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             if 'version' in myfile2.keys():
                 version = myfile2['version']
             else:
-                version = myfile2.create_dataset('version', data=numpy.array([circus.__version__]))
+                version = myfile2.create_dataset('version', data=numpy.array([circus.__version__.encode('ascii', 'ignore')]))
 
             for i in xrange(N_tm//2 - 1):
                 data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()
