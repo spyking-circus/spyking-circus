@@ -3,6 +3,9 @@ Release 0.6.1
 =============
 
 * fix for similarities and merged output from the GUIs
+* fix for Python 3 and HDF5
+* fix for maxlag in the merging GUI
+* optimization in the merging GUI for pairs suggestion
 
 
 =============
