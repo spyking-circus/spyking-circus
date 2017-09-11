@@ -918,7 +918,7 @@ class MergeWindow(QtGui.QMainWindow):
 
     def do_merge(self, event, regenerate=True):
         # This simply removes the data points for now
-        print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', logger)
+        print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'debug', logger)
 
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
