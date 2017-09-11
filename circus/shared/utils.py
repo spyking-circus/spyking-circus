@@ -23,7 +23,7 @@ def test_patch_for_similarities(params, extension):
     template_file  = file_out_suff + '.templates%s.hdf5' %extension
     if os.path.exists(template_file):
         try:
-            version = h5py.File(template_file, 'r', libver='latest').get('version')[0]
+            version = h5py.File(template_file, 'r', libver='latest').get('version')[0].decode('ascii')
         except Exception:
             version = None
     else:
