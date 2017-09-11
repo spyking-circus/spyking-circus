@@ -47,8 +47,8 @@ def main(argv=None):
 
     all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging', 'validating']
 
-    if os.path.exists(user_path + 'config.params'):
-        config_file = os.path.abspath(user_path + 'config.params')
+    if os.path.exists(pjoin(user_path, 'config.params')):
+        config_file = os.path.abspath(pjoin(user_path, 'config.params'))
     else:
         config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
