@@ -125,6 +125,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.file_out_suff = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
+        self.auto_mode  = params.getfloat('merging', 'auto_mode')
 
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
@@ -258,6 +259,26 @@ class MergeWindow(QtGui.QMainWindow):
         # Select the best point at start
         idx = np.argmax(self.score_y)
         self.update_inspect({idx})
+
+        if self.auto_mode > 0:
+            print_and_log(['Automatic merging with a threshold of %g' %self.auto_mode], 'info', logger)
+            self.suggest_value = self.auto_mode
+            perform_merges = True
+
+            while perform_merges:
+                self.inspect_points = set()
+                indices  = numpy.where(self.score_y >= self.score_z - self.suggest_value)[0]
+                self.update_inspect(indices, add_or_remove='add')
+
+                if len(indices) == 0:
+                    perform_merges = False
+                else:
+                    to_add = set(self.inspect_points)
+                    self.inspect_points = set()
+                    self.update_selection(to_add, add_or_remove='add')
+                    self.do_merge(None)
+
+            self.finalize(None)
 
     def listen(self):
 

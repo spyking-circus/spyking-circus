@@ -57,7 +57,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
 
     # Retrieve some key parameters.
     templates = io.load_data(params, 'templates')
-    N_tm = templates.shape[1] / 2
+    N_tm = templates.shape[1] // 2
     trends          = None
 
     # Normalize some variables.
@@ -243,7 +243,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
         ## Insert the selected template.
         
         # Retrieve the number of existing templates in the dataset.
-        N_tm           = templates.shape[1] / 2
+        N_tm           = templates.shape[1]//2
 
         # Generate the template of the synthesized cell from the selected
         # template, the target amplitude and the rescaling (i.e. threshold of
