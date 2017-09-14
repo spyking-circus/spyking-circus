@@ -869,8 +869,8 @@ def load_data(params, data, extension=''):
     elif data in ['false-positive-rates', 'true-positive-rates',
                   'false-positive-error-rates', 'false-negative-error-rates']:
         # Retrieve saved data.
-        confusion_matrices = load_data(params, 'confusion-matrices')
-        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        confusion_matrices = load_data(params, 'confusion-matrices', extension)
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives', extension)
         # Correct counts of false negatives.
         for confusion_matrix in confusion_matrices:
             confusion_matrix[0, 1] += threshold_false_negatives
@@ -910,8 +910,8 @@ def load_data(params, data, extension=''):
             raise Exception('No contingency matrices found! Check suffix or check if file `{}` exists?'.format(filename))
     elif data in ['sc-false-positive-error-rates', 'sc-false-negative-error-rates']:
         # Retrieve saved data.
-        sc_contingency_matrices = load_data(params, 'sc-contingency-matrices')
-        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        sc_contingency_matrices = load_data(params, 'sc-contingency-matrices', extension)
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives', extension)
         # Correct counts of false negatives.
         for sc_contingency_matrix in sc_contingency_matrices:
             sc_contingency_matrix[0, 1] += threshold_false_negatives
@@ -938,8 +938,8 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No contingency matrix found! Check suffix or check if file `{}` exists?'.format(filename))
     elif data in ['sc-best-false-positive-error-rate', 'sc-best-false-negative-error-rate']:
-        sc_contingency_matrix = load_data(params, 'sc-contingency-matrix')
-        threshold_false_negatives = load_data(params, 'threshold-false-negatives')
+        sc_contingency_matrix = load_data(params, 'sc-contingency-matrix', extension)
+        threshold_false_negatives = load_data(params, 'threshold-false-negatives', extension)
         # Correct count of false negatives.
         sc_contingency_matrix[0, 1] += threshold_false_negatives
         # Compute the wanted statistics.

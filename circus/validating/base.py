@@ -52,7 +52,12 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
     matching_jitter = params.getfloat('validating', 'matching_jitter')
+    greedy_mode = params.getboolean('validating', 'greedy_mode')
     
+    if comm.rank == 0 and (not greedy_mode):
+        print_and_log(['GREEDY MODE IS OFF'], 'info', logger)
+    extension = params.get('validating', 'extension')
+
     verbose   = False
     skip_demo = False
     make_plots_snippets = False
@@ -1308,6 +1313,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         
         MODE = 'custom'
         # MODE = 'harris'
+
         
         if MODE == 'custom':
             
@@ -1315,11 +1321,12 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             thresh = int(float(params.rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
-            result = io.load_data(params, "results")
+            result = io.load_data(params, "results", extension)
             data   = result['spiketimes']
             
             # Retrieve the templates.
-            templates = io.load_data(params, 'templates')
+            if extension != '-kilosort':
+                templates = io.load_data(params, 'templates', extension)
             
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
@@ -1368,16 +1375,24 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             error = res[idx]
             sc_contingency_matrix = sc_contingency_matrices[idx, :, :]
             find_next = True
-            source_temp = templates[:, idx].toarray().flatten()
-            temp_match = []
-            dmax = 0.1
-            for i in xrange(templates.shape[1]/2):
-                d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
-                if d > dmax and i not in selection:
-                    temp_match += [i]
+            if extension != '-kilosort':
+                source_temp = templates[:, idx].toarray().flatten()
+                temp_match = []
+                dmax = 0.1
+                for i in xrange(templates.shape[1]/2):
+                    d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
+                    if d > dmax and i not in selection:
+                        temp_match += [i]
+            else:
+                nb_templates = len(result['spiketimes'])
+                temp_match = []
+                for key in result['spiketimes'].keys():
+                    i = int(key.split('_')[1])
+                    if i not in selection:
+                        temp_match += [i]
             
             ## Second pass to reach the best score with greedy aggregations
-            if 0 < len(temp_match):
+            if 0 < len(temp_match) and greedy_mode:
                 
                 while (find_next == True):
                     
@@ -1458,11 +1473,11 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             thresh = int(float(params.rate) * matching_jitter * 1.0e-3)
             
             # Retrieve the SpyKING CIRCUS spiketimes.
-            result = io.load_data(params, "results")
+            result = io.load_data(params, "results", extension)
             data   = result['spiketimes']
             
             # Retrieve the templates.
-            templates = io.load_data(params, 'templates')
+            templates = io.load_data(params, 'templates', extension)
             
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
