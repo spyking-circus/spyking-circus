@@ -80,7 +80,7 @@ def apply_patch_for_similarities(params, extension):
             for i in xrange(N_tm//2 - 1):
                 data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()
                 maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
-                maxlag[i+1:, i]     = maxlag[i, i+1:]
+                maxlag[i+1:, i]     = -maxlag[i, i+1:]
                 maxoverlap[i, i+1:] = numpy.max(data, 1)
                 maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
             myfile2.close()

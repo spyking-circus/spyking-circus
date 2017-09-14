@@ -125,6 +125,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.file_out_suff = params.get('data', 'file_out_suff')
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
+        self.auto_mode  = params.getfloat('merging', 'auto_mode')
 
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
@@ -217,6 +218,9 @@ class MergeWindow(QtGui.QMainWindow):
                                               color='black')
         self.line_lag2 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
                                               color='black')
+
+        self.suggest_value = self.get_suggest_value.value()
+
         self.update_lag(5)
         self.plot_data()
         self.plot_scores()
@@ -234,8 +238,9 @@ class MergeWindow(QtGui.QMainWindow):
         self.ui.btn_select.clicked.connect(self.add_to_selection)
         self.ui.btn_unselect.clicked.connect(self.remove_selection)
         self.ui.btn_delete.clicked.connect(self.remove_templates)
-        self.ui.btn_suggest_templates.clicked.connect(self.suggest_pairs)
-        self.ui.btn_suggest_pairs.clicked.connect(self.suggest_templates)
+        self.ui.btn_suggest_templates.clicked.connect(self.suggest_templates)
+        self.ui.btn_suggest_pairs.clicked.connect(self.suggest_pairs)
+        self.ui.get_suggest_value.valueChanged.connect(self.update_suggest_value)
         self.ui.btn_unselect_template.clicked.connect(self.remove_selection_templates)
 
         self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
@@ -255,6 +260,26 @@ class MergeWindow(QtGui.QMainWindow):
         idx = np.argmax(self.score_y)
         self.update_inspect({idx})
 
+        if self.auto_mode > 0:
+            print_and_log(['Automatic merging with a threshold of %g' %self.auto_mode], 'info', logger)
+            self.suggest_value = self.auto_mode
+            perform_merges = True
+
+            while perform_merges:
+                self.inspect_points = set()
+                indices  = numpy.where(self.score_y >= self.score_z - self.suggest_value)[0]
+                self.update_inspect(indices, add_or_remove='add')
+
+                if len(indices) == 0:
+                    perform_merges = False
+                else:
+                    to_add = set(self.inspect_points)
+                    self.inspect_points = set()
+                    self.update_selection(to_add, add_or_remove='add')
+                    self.do_merge(None)
+
+            self.finalize(None)
+
     def listen(self):
 
         while self.mpi_wait[0] == 0:
@@ -264,6 +289,12 @@ class MergeWindow(QtGui.QMainWindow):
             self.finalize(None)
         elif self.mpi_wait[0] == 2:
             sys.exit(0)
+
+    def update_suggest_value(self):
+        self.suggest_value = self.get_suggest_value.value()
+    #     self.plot_scores()
+    #     print self.suggest_value
+    #     #self.update_data_plot()
 
     def closeEvent(self, event):
         if comm.rank == 0:
@@ -376,6 +407,7 @@ class MergeWindow(QtGui.QMainWindow):
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
             self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
+            #self.score_ax3.plot([0, 1], [0-self.suggest_value, 1-self.suggest_value], 'r--', alpha=0.5)
             self.score_ax1.set_ylabel('Normalized CC metric')
             self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
@@ -783,14 +815,12 @@ class MergeWindow(QtGui.QMainWindow):
         self.inspect_templates = set()
         self.update_inspect_template(self.inspect_templates, add_or_remove='remove')
 
-    def suggest_templates(self, event):
-        self.inspect_points = set()
-        indices  = numpy.where(self.score_x >= 0.9)[0]
-        mad      = numpy.median(numpy.abs(self.score_y[indices] - numpy.median(self.score_y[indices])))
-        nindices = numpy.where(self.score_y[indices] >= 2*mad)[0]
-        self.update_inspect(indices[nindices], add_or_remove='add')
-
     def suggest_pairs(self, event):
+        self.inspect_points = set()
+        indices  = numpy.where(self.score_y >= self.score_z - self.suggest_value)[0]
+        self.update_inspect(indices, add_or_remove='add')
+
+    def suggest_templates(self, event):
         self.inspect_templates = set()
         indices = numpy.where(self.norms[self.to_consider] <= 1)[0]
         self.update_inspect_template(indices, add_or_remove='add')
@@ -909,7 +939,7 @@ class MergeWindow(QtGui.QMainWindow):
 
     def do_merge(self, event, regenerate=True):
         # This simply removes the data points for now
-        print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'default', logger)
+        print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'debug', logger)
 
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
