@@ -45,7 +45,7 @@ Parameters that are most likely to be changed:
     * ``spike_thresh`` The threshold for spike detection. 6-7 are good values
     * ``peaks`` By default, the code detects only negative peaks, but you can search for positive peaks, or both
     * ``matched-filter`` If activated, the code will detect smaller spikes by using matched filtering
-    * ``matched_threhs`` During matched filtering, the detection threshold
+    * ``matched_thresh`` During matched filtering, the detection threshold
     * ``alignment`` By default, during clustering, the waveforms are realigned by oversampling at 5 times the sampling rate and using bicubic spline interpolation
     
 Filtering
@@ -53,7 +53,7 @@ Filtering
 
 The filtering section is::
 
-    cut_off        = 500, auto # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
+    cut_off        = 300, auto # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
     filter         = True      # If True, then a low-pass filtering is performed
     remove_median  = False     # If True, median over all channels is substracted to each channels (movement artefacts)
 
@@ -174,9 +174,11 @@ The merging section is::
     cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
     cc_bin         = 2         # Bin size for computing CC [in ms]
     correct_lag    = False     # If spikes are aligned when merging. May be better for phy usage
+    auto_mode      = 0         # If >0, merging will be automatic (see doc, 0.15 is a good value) [0-1]
 
 To know more about how those merges are performed and how to use this option, see :doc:`Automatic Merging <../code/merging>`. Parameters that are most likely to be changed:
     * ``correct_lag`` By default, in the meta-merging GUI, when two templates are merged, the spike times of the one removed are simply added to the one kept, without modification. However, it is more accurate to shift those spike, in times, by the temporal shift that may exist between those two templates. This will lead to a better visualization in phy, with more aligned spikes
+    * ``auto_mode`` If your recording is stationary, you can try to perform a fully automated merging. By setting a value between 0 and 1, you control the level of merging performed by the software. Values such as 0.15 should be a good start, but see see :doc:`Automatic Merging <../code/merging>` for more details. 
 
 Converting
 ----------
@@ -219,11 +221,13 @@ The validating section is::
     max_iter       = 200       # Maximum number of iterations of the stochastic gradient descent (SGD)
     learning_rate  = 1.0e-3    # Initial learning rate which controls the step-size of the SGD
     roc_sampling   = 10        # Number of points to estimate the ROC curve of the BEER estimate
-    make_plots     = png       # Generate sanity plots of the validation [Nothing or None if no plots]
     test_size      = 0.3       # Portion of the dataset to include in the test split
     radius_factor  = 0.5       # Radius factor to modulate physical radius during validation
     juxta_dtype    = uint16    # Type of the juxtacellular data
     juxta_thresh   = 6         # Threshold for juxtacellular detection
     juxta_valley   = False     # True if juxta-cellular spikes are negative peaks
+    juxta_spikes   =           # If none, spikes are automatically detected based on juxta_thresh
+    filter         = True      # If the juxta channel need to be filtered or not
+    make_plots     = png       # Generate sanity plots of the validation [Nothing or None if no plots]
 
 Please get in touch with us if you want to use this section, only for validation purposes. This is an implementation of the :doc:`BEER metric <../advanced/beer>`

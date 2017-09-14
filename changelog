@@ -6,6 +6,8 @@ Release 0.6.1
 * fix for Python 3 and HDF5
 * fix for maxlag in the merging GUI
 * optimization in the merging GUI for pairs suggestion
+* addition of an auto_mode for meta merging, to suppress manual curation
+* various fixes in the docs
 
 =============
 Release 0.6.0

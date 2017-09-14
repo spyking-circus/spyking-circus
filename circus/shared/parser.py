@@ -273,6 +273,12 @@ class CircusParser(object):
                 print_and_log(["nclus_min in [validating] should be in [0,1["], 'error', logger)
             sys.exit(1)
 
+        test = (self.parser.getfloat('merging', 'auto_mode') >= 0) and (self.parser.getfloat('merging', 'auto_mode') < 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["auto_mode in [merging] should be in [0,1["], 'error', logger)
+            sys.exit(1)
+
         fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
         for section in ['clustering', 'validating', 'triggers']:
           test = self.parser.get('clustering', 'make_plots').lower() in fileformats
