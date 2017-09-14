@@ -292,9 +292,9 @@ class MergeWindow(QtGui.QMainWindow):
 
     def update_suggest_value(self):
         self.suggest_value = self.get_suggest_value.value()
-    #     self.plot_scores()
-    #     print self.suggest_value
-    #     #self.update_data_plot()
+        self.decision_boundary.set_xdata([0, 1])
+        self.decision_boundary.set_ydata([-self.suggest_value, 1-self.suggest_value])
+        self.ui.score_3.draw_idle()
 
     def closeEvent(self, event):
         if comm.rank == 0:
@@ -407,7 +407,7 @@ class MergeWindow(QtGui.QMainWindow):
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
             self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
-            #self.score_ax3.plot([0, 1], [0-self.suggest_value, 1-self.suggest_value], 'r--', alpha=0.5)
+            self.decision_boundary = self.score_ax3.plot([0, 1], [0-self.suggest_value, 1-self.suggest_value], 'r--', alpha=0.5)[0]
             self.score_ax1.set_ylabel('Normalized CC metric')
             self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
