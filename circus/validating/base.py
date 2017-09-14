@@ -1325,7 +1325,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             data   = result['spiketimes']
             
             # Retrieve the templates.
-            if extension != '-kilosort':
+            if extension in ['', '-merged']:
                 templates = io.load_data(params, 'templates', extension)
             
             n_temp = len(data)
@@ -1375,7 +1375,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             error = res[idx]
             sc_contingency_matrix = sc_contingency_matrices[idx, :, :]
             find_next = True
-            if extension != '-kilosort':
+            if extension in ['', '-merged']:
                 source_temp = templates[:, idx].toarray().flatten()
                 temp_match = []
                 dmax = 0.1
