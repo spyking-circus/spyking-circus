@@ -54,7 +54,7 @@ def to_str(b):
     for Python 3, this specifies an encoding to not end up with "b'...'".
     """
     if sys.version_info[0] == 3:
-        return str(b, encoding='ascii')
+        return str(b, encoding='ascii', errors='ignore')
     else:
         return str(b)
 
