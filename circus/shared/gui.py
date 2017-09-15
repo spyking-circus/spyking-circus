@@ -26,6 +26,7 @@ from algorithms import slice_templates, slice_clusters
 from mpi import SHARED_MEMORY, comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
+from circus.shared.utils import apply_patch_for_similarities
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,9 @@ class MergeWindow(QtGui.QMainWindow):
 
         if comm.rank == 0:
             print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', logger)
+
+        apply_patch_for_similarities(params, extension_in)
+
         self.app           = app
         self.params        = params
         self.ext_in        = extension_in
@@ -266,16 +270,13 @@ class MergeWindow(QtGui.QMainWindow):
             perform_merges = True
 
             while perform_merges:
-                self.inspect_points = set()
-                indices  = numpy.where(self.score_y >= self.score_z - self.suggest_value)[0]
-                self.update_inspect(indices, add_or_remove='add')
 
-                if len(indices) == 0:
+                self.suggest_pairs(None)
+                self.add_to_selection(None)
+
+                if len(self.selected_points) == 0:
                     perform_merges = False
                 else:
-                    to_add = set(self.inspect_points)
-                    self.inspect_points = set()
-                    self.update_selection(to_add, add_or_remove='add')
                     self.do_merge(None)
 
             self.finalize(None)
@@ -374,7 +375,7 @@ class MergeWindow(QtGui.QMainWindow):
                     spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
                     spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
                     if self.correct_lag:
-                        spikes2 -= self.lag[temp_id1, temp_id2]
+                        spikes2 += self.lag[temp_id1, temp_id2]
                     a, b    = reversed_corr(spikes1, spikes2, self.max_delay)
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.vstack((self.raw_control, b))

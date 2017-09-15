@@ -4,6 +4,7 @@ Release 0.6.1
 
 * fix for similarities and merged output from the GUIs
 * fix for Python 3 and HDF5
+* fix for Python 3 and launcher GUI
 * fix for maxlag in the merging GUI
 * optimization in the merging GUI for pairs suggestion
 * addition of an auto_mode for meta merging, to suppress manual curation
@@ -178,7 +179,6 @@ Release 0.5b3
 * if using streams, or internal t_start, output times are on the same time axis than the datafile
 * more robust parameter checking
 
-
 =============
 Release 0.4.3
 =============
@@ -186,7 +186,6 @@ Release 0.4.3
 * cosmetic changes in the terminal
 * suggest to reduce chunk sizes for high density probes (N_e > 500) to save memory
 * fix a once-in-a-while bug in the smart-search
-
 
 =============
 Release 0.4.2
@@ -213,7 +212,6 @@ Release 0.4.2
 * various cosmetic changes
 * add a conda app for anaconda navigator
 
-
 =============
 Release 0.4.1
 =============
@@ -222,7 +220,6 @@ Release 0.4.1
 * fix bugs with install on Windows 10, forcing int64 while default is int32 even on 64bits platforms
 * improved errors messages if wrong MCS headers are used
 * Various cosmetic changes
-
 
 ===========
 Release 0.4

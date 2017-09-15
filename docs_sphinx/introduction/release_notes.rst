@@ -1,10 +1,10 @@
 Release notes
 =============
 
-Spyking CIRCUS 0.5
+Spyking CIRCUS 0.6
 ------------------
 
-This is the 0.5 release of the SpyKING CIRCUS, a new approach to the problem of spike sorting. The code is based on a smart clustering with
+This is the 0.6 release of the SpyKING CIRCUS, a new approach to the problem of spike sorting. The code is based on a smart clustering with
 sub sampling, and a greedy template matching approach, such that it can resolve the problem of overlapping spikes. The publication about the software 
 is available at http://biorxiv.org/content/early/2016/08/04/067843
 
@@ -31,11 +31,25 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
+Release 0.6.1
+=============
+
+* fix for similarities and merged output from the GUIs
+* fix for Python 3 and HDF5
+* fix for Python 3 and launcher GUI
+* fix for maxlag in the merging GUI
+* optimization in the merging GUI for pairs suggestion
+* addition of an auto_mode for meta merging, to suppress manual curation
+* various fixes in the docs
+
+=============
 Release 0.6.0
 =============
 
+* fix an IMPORTANT BUG in the similarities exported for phy/MATLAB, affect the suggestions in the GUI
 * improvements in the neuralynx wrapper
 * add the possibility to exclude some portions of the recordings from the analysis (see documentation)
+* fix a small bug in MS-MPI (Windows only) when shared memory is activated and emtpy arrays are present
 
 =============
 Release 0.5.9

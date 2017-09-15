@@ -28,7 +28,7 @@ def test_patch_for_similarities(params, extension):
             version = None
     else:
         raise Exception('No templates found! Check suffix?')
-    
+
     if version is not None:
         if (StrictVersion(version) >= StrictVersion('0.6.0')):
             return True
@@ -45,7 +45,7 @@ def apply_patch_for_similarities(params, extension):
 
         if comm.rank == 0:
 
-            print_and_log(["Recomputing the overlaps"], 'debug', logger)
+            print_and_log(["Fixing overlaps from 0.5.XX"], 'info', logger)
 
             over_file = file_out_suff + '.overlap.hdf5'
             if os.path.exists(over_file):
