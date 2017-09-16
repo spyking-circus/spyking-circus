@@ -9,6 +9,9 @@ Release 0.6.1
 * optimization in the merging GUI for pairs suggestion
 * addition of an auto_mode for meta merging, to suppress manual curation
 * various fixes in the docs
+* fix a bug when closing temporary files on windows
+* allow spaces in names of probe files
+
 
 =============
 Release 0.6.0
