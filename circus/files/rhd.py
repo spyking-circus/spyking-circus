@@ -202,7 +202,9 @@ class RHDFile(DataFile):
     _required_fields = {}
     _default_values  = {}
 
-    _params          = {'dtype_offset' : 'auto'}
+    _params          = {'dtype_offset' : 'auto',
+                        'data_dtype'   : 'uint16',
+                        'gain'         : 0.195}
 
     SAMPLES_PER_RECORD = 60
 
@@ -214,8 +216,6 @@ class RHDFile(DataFile):
         full_header = read_header(self.file)
         header['nb_channels']   = full_header['num_amplifier_channels']  
         header['sampling_rate'] = full_header['sample_rate']
-        header['data_dtype']    = 'uint16'
-        header['gain']          = 0.195
         header['data_offset']   = self.file.tell()
 
         data_present         = False
