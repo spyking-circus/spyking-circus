@@ -186,7 +186,6 @@ def read_qstring(fid):
     return a
   
 
-
 class RHDFile(DataFile):
 
     description    = "rhd"    

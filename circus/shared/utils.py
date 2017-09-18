@@ -45,7 +45,7 @@ def apply_patch_for_similarities(params, extension):
 
         if comm.rank == 0:
 
-            print_and_log(["Fixing overlaps from 0.5.XX"], 'info', logger)
+            print_and_log(["Fixing overlaps from 0.5.XX..."], 'default', logger)
 
             over_file = file_out_suff + '.overlap.hdf5'
             if os.path.exists(over_file):
@@ -77,7 +77,7 @@ def apply_patch_for_similarities(params, extension):
             else:
                 version = myfile2.create_dataset('version', data=numpy.array([circus.__version__.encode('ascii', 'ignore')]))
 
-            for i in xrange(N_tm//2 - 1):
+            for i in get_tqdm_progressbar(xrange(N_tm//2 - 1)):
                 data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()
                 maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
                 maxlag[i+1:, i]     = -maxlag[i, i+1:]
