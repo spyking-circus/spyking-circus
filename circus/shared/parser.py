@@ -106,7 +106,7 @@ class CircusParser(object):
         for section in self.__all_sections__:
             if self.parser.has_section(section):
                 for (key, value) in self.parser.items(section):
-                    self.parser.set(section, key, value.split('#')[0].replace(' ', '').replace('\t', ''))
+                    self.parser.set(section, key, value.split('#')[0].rstrip())
             else:
                 self.parser.add_section(section)
 

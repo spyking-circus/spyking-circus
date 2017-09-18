@@ -400,7 +400,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
     if comm.rank > 0:
-        overlap.file.close()
+        overlap.close()
     else:
         over_x     = overlap.get('over_x')[:]
         over_y     = overlap.get('over_y')[:]
@@ -424,6 +424,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     if len(to_merge) > 0:
         slice_templates(params, to_merge=to_merge)
         slice_clusters(params, result)
+
+    comm.Barrier()
 
     if comm.rank == 0:
         os.remove(filename)
@@ -531,6 +533,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     if len(to_remove) > 0:
         slice_templates(params, to_remove)
         slice_clusters(params, result, to_remove=to_remove)
+
+    comm.Barrier()
 
     if comm.rank == 0:
         os.remove(filename)
