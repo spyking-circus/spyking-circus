@@ -198,7 +198,7 @@ class RHDFile(DataFile):
 
     description    = "rhd"    
     extension      = [".rhd"]
-    parallel_write = h5py.get_config().mpi
+    parallel_write = True
     is_writable    = True
     is_streamable  = ['multi-files']
 
