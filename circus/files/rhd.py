@@ -185,10 +185,6 @@ def read_qstring(fid):
     
     return a
   
-if __name__ == '__main__':
-    a=read_qstring(open(sys.argv[1], 'rb'))
-    print(a)
-
 
 
 class RHDFile(DataFile):
