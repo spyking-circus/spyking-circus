@@ -76,6 +76,9 @@ def read_header(fid):
 
     # Read signal summary from data file header.
 
+    if (header['version']['major'] > 1):
+        header['reference_channel'] = read_qstring(fid)
+
     number_of_signal_groups, = struct.unpack('<h', fid.read(2))
 
     for signal_group in range(0, number_of_signal_groups):
@@ -125,26 +128,31 @@ def read_header(fid):
 def get_bytes_per_data_block(header):
     """Calculates the number of bytes in each 60-sample datablock."""
 
+    if (header['version']['major'] == 1):
+        num_samples_per_data_block = 60
+    else:
+        num_samples_per_data_block = 128
+
     # Each data block contains 60 amplifier samples.
-    bytes_per_block = 60 * 4  # timestamp data
-    bytes_per_block = bytes_per_block + 60 * 2 * header['num_amplifier_channels']
+    bytes_per_block = num_samples_per_data_block * 4  # timestamp data
+    bytes_per_block = bytes_per_block + num_samples_per_data_block * 2 * header['num_amplifier_channels']
 
     # Auxiliary inputs are sampled 4x slower than amplifiers
-    bytes_per_block = bytes_per_block + 15 * 2 * header['num_aux_input_channels']
+    bytes_per_block = bytes_per_block + (num_samples_per_data_block / 4) * 2 * header['num_aux_input_channels']
 
     # Supply voltage is sampled 60x slower than amplifiers
     bytes_per_block = bytes_per_block + 1 * 2 * header['num_supply_voltage_channels']
 
     # Board analog inputs are sampled at same rate as amplifiers
-    bytes_per_block = bytes_per_block + 60 * 2 * header['num_board_adc_channels']
+    bytes_per_block = bytes_per_block + num_samples_per_data_block * 2 * header['num_board_adc_channels']
 
     # Board digital inputs are sampled at same rate as amplifiers
     if header['num_board_dig_in_channels'] > 0:
-        bytes_per_block = bytes_per_block + 60 * 2
+        bytes_per_block = bytes_per_block + num_samples_per_data_block * 2
 
     # Board digital outputs are sampled at same rate as amplifiers
     if header['num_board_dig_out_channels'] > 0:
-        bytes_per_block = bytes_per_block + 60 * 2
+        bytes_per_block = bytes_per_block + num_samples_per_data_block * 2
 
     # Temp sensor is sampled 60x slower than amplifiers
     if header['num_temp_sensor_channels'] > 0:
@@ -201,7 +209,7 @@ class RHDFile(DataFile):
                         'data_dtype'   : 'uint16',
                         'gain'         : 0.195}
 
-    SAMPLES_PER_RECORD = 60
+    
 
     def _read_from_header(self):
 
@@ -211,8 +219,13 @@ class RHDFile(DataFile):
         full_header = read_header(self.file)
         header['nb_channels']   = full_header['num_amplifier_channels']  
         header['sampling_rate'] = full_header['sample_rate']
-        header['data_offset']   = self.file.tell()
+        
+        if full_header['version']['major'] == 1:
+            self.SAMPLES_PER_RECORD = 60
+        else:
+            self.SAMPLES_PER_RECORD = 128
 
+        header['data_offset']   = self.file.tell()
         data_present         = False
         filesize             = os.path.getsize(self.file_name)
         self.bytes_per_block = get_bytes_per_data_block(full_header)
