@@ -11,7 +11,7 @@ Release 0.6.1
 * various fixes in the docs
 * fix a bug when closing temporary files on windows
 * allow spaces in names of probe files
-
+* collect_all should take dead times into account
 
 =============
 Release 0.6.0

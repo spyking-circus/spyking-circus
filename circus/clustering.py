@@ -106,6 +106,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if ignore_dead_times:
         dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
+        if len(dead_times.shape) == 1:
+            dead_times = dead_times.reshape(1, 2)
         dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
         if dead_in_ms:
             dead_times *= numpy.int64(data_file.sampling_rate*1e-3)

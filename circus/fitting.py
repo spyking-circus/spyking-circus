@@ -90,6 +90,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if ignore_dead_times:
         dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
+        if len(dead_times.shape) == 1:
+            dead_times = dead_times.reshape(1, 2)
         dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
         if dead_in_ms:
             dead_times *= numpy.int64(data_file.sampling_rate*1e-3)
@@ -286,6 +288,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if collect_all:
             for i in xrange(N_e):
                 all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.int32)
+
+                if ignore_dead_times:
+                    all_found_spikes[i] = numpy.array(list(set(all_found_spikes[i] + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
+                    all_found_spikes[i] = numpy.sort(all_found_spikes[i])
+
                 idx                 = (all_found_spikes[i] >= local_borders[0]) & (all_found_spikes[i] < local_borders[1])
                 all_found_spikes[i] = numpy.compress(idx, all_found_spikes[i])
 

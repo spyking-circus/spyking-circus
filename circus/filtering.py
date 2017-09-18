@@ -117,6 +117,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
 
+        if len(artefacts.shape) == 1:
+            artefacts = artefacts.reshape(1, 2)
+
         if trig_in_ms:
             if comm.rank == 0:
                 print_and_log(['Artefact times are read in ms'], 'debug', logger)
@@ -186,6 +189,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
+
+        if len(artefacts.shape) == 1:
+            artefacts = artefacts.reshape(1, 2)
 
         if trig_in_ms:
             if comm.rank == 0:
