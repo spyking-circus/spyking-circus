@@ -1120,6 +1120,7 @@ class PreviewGUI(QtGui.QMainWindow):
                 self.result    = io.load_data(self.params, 'results')
             except Exception:
                 print_and_log(["No results found!"], 'info', logger)
+                self.show_fit = False
 
             try:
                 if self.params.getboolean('fitting', 'collect_all'):

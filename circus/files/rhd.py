@@ -259,22 +259,21 @@ class RHDFile(DataFile):
         x_end = numpy.int64(t_stop // self.SAMPLES_PER_RECORD)
         r_end = numpy.mod(t_stop, self.SAMPLES_PER_RECORD)
 
-        data_slice  = [[]]
-
         if x_beg == x_end:
             g_offset = x_beg * self.bytes_per_block_div + self.block_offset_div
-            data_slice = [numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + r_end * self.nb_channels, dtype=numpy.int64)]
+            data_slice = numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + r_end * self.nb_channels, dtype=numpy.int64)
+            yield data_slice
         else:
             for count, nb_blocks in enumerate(numpy.arange(x_beg, x_end + 1, dtype=numpy.int64)):
                 g_offset = nb_blocks * self.bytes_per_block_div + self.block_offset_div
                 if count == 0:
-                    data_slice += [numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + self.block_size_div, dtype=numpy.int64).tolist()]
+                    data_slice = numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + self.block_size_div, dtype=numpy.int64)
                 elif (count == (x_end - x_beg)):
-                    data_slice += [numpy.arange(g_offset, g_offset + r_end * self.nb_channels, dtype=numpy.int64).tolist()]
+                    data_slice = numpy.arange(g_offset, g_offset + r_end * self.nb_channels, dtype=numpy.int64)
                 else:
-                    data_slice += [numpy.arange(g_offset, g_offset + self.block_size_div, dtype=numpy.int64).tolist()]
+                    data_slice = numpy.arange(g_offset, g_offset + self.block_size_div, dtype=numpy.int64)
 
-        return data_slice 
+                yield data_slice
 
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
@@ -287,6 +286,7 @@ class RHDFile(DataFile):
 
         self._open()
         count = 0
+
         for s in data_slice:
             t_slice = len(s)/self.nb_channels
             local_chunk[:, count:count + t_slice] = self.data[s].reshape(self.nb_channels, len(s)/self.nb_channels)
@@ -309,9 +309,7 @@ class RHDFile(DataFile):
         if t_stop > self.duration:
             t_stop  = self.duration
 
-
         data = self._unscale_data_from_float32(data)
-
         data_slice  = self._get_slice_(t_start, t_stop) 
         
         self._open(mode='r+')
@@ -327,4 +325,4 @@ class RHDFile(DataFile):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)
 
     def _close(self):
-        self.file.close()
+        self.data = None
