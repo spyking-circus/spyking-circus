@@ -13,6 +13,8 @@ Release 0.6.1
 * allow spaces in names of probe files
 * collect_all should take dead times into account
 * patch to read INTAN 2.0 files
+* fix in the MATLAB GUI when splitting neurons
+* fix in the MATLAB GUI when selecting individual amplitudes
 
 =============
 Release 0.6.0

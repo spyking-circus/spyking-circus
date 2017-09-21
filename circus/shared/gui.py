@@ -328,6 +328,7 @@ class MergeWindow(QtGui.QMainWindow):
 
             size    = 2*max_delay+1
             x_cc    = numpy.zeros(size, dtype=numpy.float32)
+            control = 0
 
             if (len(spike_1) > 0) and (len(spike_2) > 0):
                 nb_bins = numpy.ceil(max(spike_1.max(), spike_2.max())/(self.cc_bin*self.sampling_rate*1e-3))
@@ -338,8 +339,9 @@ class MergeWindow(QtGui.QMainWindow):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
 
                 x_cc /= nb_bins
+                control = len(spike_1)*len(spike_2)/float((nb_bins**2))
 
-            return x_cc, len(spike_1)*len(spike_2)/float((nb_bins**2))
+            return x_cc, control
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
 
