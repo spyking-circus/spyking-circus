@@ -327,10 +327,10 @@ class MergeWindow(QtGui.QMainWindow):
         def reversed_corr(spike_1, spike_2, max_delay):
 
             size    = 2*max_delay+1
-            nb_bins = numpy.ceil(max(spike_1.max(), spike_2.max())/(self.cc_bin*self.sampling_rate*1e-3))
             x_cc    = numpy.zeros(size, dtype=numpy.float32)
 
             if (len(spike_1) > 0) and (len(spike_2) > 0):
+                nb_bins = numpy.ceil(max(spike_1.max(), spike_2.max())/(self.cc_bin*self.sampling_rate*1e-3))
                 t1b     = numpy.unique(numpy.round(spike_1/self.bin_size))
                 t2b     = numpy.unique(numpy.round(spike_2/self.bin_size))
 
