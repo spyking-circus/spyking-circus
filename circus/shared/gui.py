@@ -293,8 +293,8 @@ class MergeWindow(QtGui.QMainWindow):
 
     def update_suggest_value(self):
         self.suggest_value = self.get_suggest_value.value()
-        self.decision_boundary.set_xdata([0, 1])
-        self.decision_boundary.set_ydata([-self.suggest_value, 1-self.suggest_value])
+        self.decision_boundary.set_xdata([0, self.score_z.max()])
+        self.decision_boundary.set_ydata([0, self.suggest_value*self.score_z.max()])
         self.ui.score_3.draw_idle()
 
     def closeEvent(self, event):
@@ -327,16 +327,19 @@ class MergeWindow(QtGui.QMainWindow):
         def reversed_corr(spike_1, spike_2, max_delay):
 
             size    = 2*max_delay+1
+            nb_bins = numpy.ceil(max(spike_1.max(), spike_2.max())/(self.cc_bin*self.sampling_rate*1e-3))
             x_cc    = numpy.zeros(size, dtype=numpy.float32)
-            y_cc    = numpy.copy(x_cc)
+
             if (len(spike_1) > 0) and (len(spike_2) > 0):
                 t1b     = numpy.unique(numpy.round(spike_1/self.bin_size))
                 t2b     = numpy.unique(numpy.round(spike_2/self.bin_size))
-                t2b_inv = t2b[-1] + t2b[0] - t2b
+
                 for d in xrange(size):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
-                    y_cc[d] += len(numpy.intersect1d(t1b, t2b_inv + d - max_delay, assume_unique=True))
-            return x_cc, y_cc
+
+                x_cc /= nb_bins
+
+            return x_cc, len(spike_1)*len(spike_2)/float((nb_bins**2))
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
 
@@ -355,7 +358,7 @@ class MergeWindow(QtGui.QMainWindow):
         n_size           = 2*self.max_delay + 1
 
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
-        self.raw_control = numpy.zeros((0, n_size), dtype=numpy.float32)
+        self.raw_control = numpy.zeros(0, dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
 
         to_explore       = xrange(comm.rank, len(self.to_consider), comm.size)
@@ -378,22 +381,21 @@ class MergeWindow(QtGui.QMainWindow):
                         spikes2 += self.lag[temp_id1, temp_id2]
                     a, b    = reversed_corr(spikes1, spikes2, self.max_delay)
                     self.raw_data    = numpy.vstack((self.raw_data, a))
-                    self.raw_control = numpy.vstack((self.raw_control, b))
+                    self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
 
         self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
-        self.raw_control = gather_array(self.raw_control, comm, 0, 1)
+        self.raw_control = gather_array(self.raw_control, comm)
         self.raw_data    = gather_array(self.raw_data, comm, 0, 1)
         self.sort_idcs   = numpy.arange(len(self.pairs))
         comm.Barrier()
 
     def calc_scores(self, lag):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
-        control = self.raw_control[:, abs(self.raw_lags) <= lag]
-        norm_factor = (control.mean(1) + data.mean(1) + 1.)[:, np.newaxis]
+        control = self.raw_control
         score  = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
-        score2 = ((control - data)/norm_factor).mean(axis=1)
-        score3 = (control/(1. + control.mean(1))[:, np.newaxis]).mean(axis=1)
+        score2 = control - data.mean(axis=1)
+        score3 = control
         return score, score2, score3
 
     def plot_scores(self):
@@ -408,7 +410,7 @@ class MergeWindow(QtGui.QMainWindow):
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
             self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
-            self.decision_boundary = self.score_ax3.plot([0, 1], [0-self.suggest_value, 1-self.suggest_value], 'r--', alpha=0.5)[0]
+            self.decision_boundary = self.score_ax3.plot([0, self.score_z.max()], [0, self.suggest_value*self.score_z.max()], 'r--', alpha=0.5)[0]
             self.score_ax1.set_ylabel('Normalized CC metric')
             self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
@@ -449,7 +451,7 @@ class MergeWindow(QtGui.QMainWindow):
 
     def plot_data(self):
         # Right: raw data
-        all_raw_data = self.raw_data/(1 + self.raw_data.mean(1)[:, np.newaxis])
+        all_raw_data = self.raw_data
         cmax         = 0.5*all_raw_data.max()
         cmin         = 0.5*all_raw_data.min()
         self.update_sort_idcs()
@@ -479,7 +481,7 @@ class MergeWindow(QtGui.QMainWindow):
     def data_tooltip(self, x, y):
         row = int(y)
         if row >= 0 and row < len(self.raw_data):
-            all_raw_data = self.raw_data/(1 + self.raw_data.mean(axis=1)[:, np.newaxis])
+            all_raw_data = self.raw_data
             data_idx     = self.sort_idcs[row]
             lag_diff     = np.abs(x - self.raw_lags)
             nearest_lag_idx = np.argmin(lag_diff)
@@ -615,15 +617,15 @@ class MergeWindow(QtGui.QMainWindow):
     def update_detail_plot(self):
         self.detail_ax.clear()
         indices = self.inspect_points
-        all_raw_data    = self.raw_data/(1 + self.raw_data.mean(1)[:, np.newaxis])
-        all_raw_control = self.raw_control/(1 + self.raw_control.mean(1)[:, np.newaxis])
+        all_raw_data    = self.raw_data
+        all_raw_control = self.raw_control.ravel()
 
         for count, idx in enumerate(indices):
             data_line, = self.detail_ax.plot(self.raw_lags,
                                              all_raw_data[idx, :].T, lw=2, color=self.inspect_colors[count])
-            self.detail_ax.plot(self.raw_lags, all_raw_control[idx, :].T, ':',
+            self.detail_ax.plot(self.raw_lags, all_raw_control[idx]*numpy.ones(all_raw_data.shape[1]), ':',
                                 color=self.inspect_colors[count], lw=2)
-        self.detail_ax.set_ylim(0, 3)
+        #self.detail_ax.set_ylim(0, 3)
         self.detail_ax.set_xticks(self.data_ax.get_xticks())
         self.detail_ax.set_xticklabels([])
         self.ui.detail.draw_idle()
@@ -818,7 +820,7 @@ class MergeWindow(QtGui.QMainWindow):
 
     def suggest_pairs(self, event):
         self.inspect_points = set()
-        indices  = numpy.where(self.score_y >= self.score_z - self.suggest_value)[0]
+        indices  = numpy.where(self.score_y >= self.score_z*self.suggest_value)[0]
         self.update_inspect(indices, add_or_remove='add')
 
     def suggest_templates(self, event):

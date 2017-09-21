@@ -1782,6 +1782,8 @@ handles.clusters    = handles.clusters(myslice);
 handles.BestElec    = handles.BestElec(myslice);
 handles.overlap     = handles.overlap(myslice,:);
 handles.overlap     = handles.overlap(:,myslice);
+handles.overlap(CellNb, CellNb+1) = 1;
+handles.overlap(CellNb+1, CellNb) = 1;
 handles.to_keep     = handles.to_keep(myslice);
 
 handles.amp_time_list = handles.amp_time_list(myslice);
@@ -2090,9 +2092,9 @@ if duration/2 == round(duration/2)
     duration = duration + 1;
 end
 
-Y = handles.Amplitudes{CellNb};
+Y = handles.Amplitudes{CellNb}(:);
 
-X = double(handles.SpikeTimes{CellNb});
+X = double(handles.SpikeTimes{CellNb}(:));
 
 xp = xp / max(X);
 

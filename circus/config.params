@@ -74,7 +74,7 @@ collect_all    = False      # If True, one garbage template per electrode is cre
 cc_overlap     = 0.5        # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2          # Bin size for computing CC [in ms]
 correct_lag    = True       # If spikes are aligned when merging. May be better for phy usage
-auto_mode      = 0          # If >0, merging will be automatic (see doc, 0.15 is a good value) [0-1]
+auto_mode      = 0          # If >0, merging will be automatic (see doc, 0.8 is a good value) [0-1]
 
 [converting]
 erase_all      = True       # If False, a prompt will ask you to export if export has already been done
