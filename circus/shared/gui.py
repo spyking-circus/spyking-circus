@@ -135,6 +135,14 @@ class MergeWindow(QtGui.QMainWindow):
         self.max_delay  = 50
 
         self.result     = io.load_data(params, 'results', self.ext_in)
+
+        self.last_spike = 0
+        for spikes in self.result['spiketimes'].values():
+            if len(spikes) > 0:
+                self.last_spike = max(self.last_spike, spikes.max())
+
+        self.nb_bins    = int(self.last_spike/(self.cc_bin*self.sampling_rate*1e-3))
+
         self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxoverlap')[:]
         try:
             self.lag    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxlag')[:]
@@ -331,15 +339,15 @@ class MergeWindow(QtGui.QMainWindow):
             control = 0
 
             if (len(spike_1) > 0) and (len(spike_2) > 0):
-                nb_bins = numpy.ceil(max(spike_1.max(), spike_2.max())/(self.cc_bin*self.sampling_rate*1e-3))
+
                 t1b     = numpy.unique(numpy.round(spike_1/self.bin_size))
                 t2b     = numpy.unique(numpy.round(spike_2/self.bin_size))
 
                 for d in xrange(size):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
 
-                x_cc /= nb_bins
-                control = len(spike_1)*len(spike_2)/float((nb_bins**2))
+                x_cc /= self.nb_bins
+                control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
 
             return x_cc, control
 
