@@ -368,6 +368,8 @@ class MergeWindow(QtGui.QMainWindow):
         if comm.rank == 0:
             print_and_log(['Updating the data...'], 'default', logger)
             to_explore = get_tqdm_progressbar(to_explore)
+            self.ui.label_nb_templates.setText("# templates: %d" %len(self.to_consider))
+
 
         for count, temp_id1 in enumerate(to_explore):
 
