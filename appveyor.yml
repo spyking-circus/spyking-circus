@@ -73,7 +73,7 @@ test_script:
   - python setup.py sdist --formats=zip,gztar,bztar
   - python setup.py bdist_wheel
   # Try installing from the source package (install dependencies via conda first)
-  - conda install --yes --quiet -c spyking-circus -c conda-forge tqdm mpi4py numpy cython scipy matplotlib h5py colorama psutil "qt>=4,<5"
+  - conda install --yes --quiet -c spyking-circus -c conda-forge "tqdm=4.14" mpi4py numpy cython scipy matplotlib h5py colorama psutil "qt>=4,<5"
   - FOR /R dist %%F in (*.tar.gz) do pip install %%F
   - spyking-circus -h
   - pip uninstall -y -q spyking-circus
