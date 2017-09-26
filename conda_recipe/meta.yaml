@@ -4,19 +4,8 @@ package:
 
 requirements:
   build:
-    - libgcc [linux]
     - python
-    - mpi4py
-    - numpy
-    - cython
-    - scipy
-    - matplotlib
-    - h5py
     - setuptools >=26
-    - colorama
-    - psutil
-    - scikit-learn
-    - tqdm
   run:
     - libgcc [linux]
     - python
@@ -30,7 +19,7 @@ requirements:
     - colorama
     - qt >=4,<5
     - psutil
-    - tqdm
+    - tqdm !=4.15
     - pyqt >=4,<5
     - scikit-learn
 source:
