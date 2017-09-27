@@ -1,5 +1,5 @@
 import h5py, numpy, re, sys, logging
-from hdf5 import H5File
+from .hdf5 import H5File
 from circus.shared.messages import print_and_log
 
 logger = logging.getLogger(__name__)

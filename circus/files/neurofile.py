@@ -1,5 +1,5 @@
 import h5py, numpy, re, sys
-from datafile import DataFile
+from .datafile import DataFile
 import neuroshare as ns
 
 class NeuroShareFile(DataFile):

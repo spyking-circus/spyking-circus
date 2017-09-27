@@ -1,6 +1,6 @@
 import h5py, numpy, re, sys, logging
 from circus.shared.messages import print_and_log
-from datafile import DataFile, comm
+from .datafile import DataFile, comm
 
 logger = logging.getLogger(__name__)
 

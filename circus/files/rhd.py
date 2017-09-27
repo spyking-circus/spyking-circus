@@ -1,5 +1,5 @@
 import h5py, numpy, re, sys, logging
-from datafile import DataFile
+from .datafile import DataFile
 from circus.shared.messages import print_and_log
 import sys, struct, os
 
@@ -215,7 +215,7 @@ class RHDFile(DataFile):
 
         header = {}
 
-        self.file  = open(self.file_name)
+        self.file  = open(self.file_name, 'rb')
         full_header = read_header(self.file)
         header['nb_channels']   = full_header['num_amplifier_channels']  
         header['sampling_rate'] = full_header['sample_rate']
@@ -288,8 +288,8 @@ class RHDFile(DataFile):
         count = 0
 
         for s in data_slice:
-            t_slice = len(s)/self.nb_channels
-            local_chunk[:, count:count + t_slice] = self.data[s].reshape(self.nb_channels, len(s)/self.nb_channels)
+            t_slice = len(s)//self.nb_channels
+            local_chunk[:, count:count + t_slice] = self.data[s].reshape(self.nb_channels, len(s)//self.nb_channels)
             count += t_slice
 
         local_chunk = local_chunk.T
@@ -315,7 +315,7 @@ class RHDFile(DataFile):
         self._open(mode='r+')
         count = 0
         for s in data_slice:
-            t_slice      = len(s)/self.nb_channels
+            t_slice      = len(s)//self.nb_channels
             self.data[s] = data[count:count + t_slice, :].T.ravel()
             count += t_slice
 

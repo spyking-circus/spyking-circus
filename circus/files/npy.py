@@ -1,5 +1,5 @@
 import h5py, numpy, re, sys
-from raw_binary import RawBinaryFile
+from .raw_binary import RawBinaryFile
 from numpy.lib.format import open_memmap
 
 class NumpyFile(RawBinaryFile):
