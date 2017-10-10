@@ -476,7 +476,7 @@ class CircusParser(object):
         has_been_changed = False
 
         for count in xrange(section_area[0]+1, section_area[1]):
-            if '=' in line:
+            if '=' in lines[count]:
                 key  = lines[count].split('=')[0].replace(' ', '')
                 if key == flag:
                     lines[count] = to_write
