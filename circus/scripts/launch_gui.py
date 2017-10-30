@@ -278,6 +278,9 @@ class LaunchGUI(QDialog):
             title = 'Select data file'
         fname = QFileDialog.getOpenFileName(self, title,
                                             self.ui.edit_file.text())
+        # With PyQt API 2, the return value will be a tuple (filename and filter)
+        if isinstance(fname, tuple):
+            fname, _ = fname
         if fname:
             self.ui.edit_file.setText(fname)
 
@@ -301,12 +304,18 @@ class LaunchGUI(QDialog):
     def update_host_file(self):
         fname = QFileDialog.getOpenFileName(self, 'Select MPI host file',
                                             self.ui.edit_hostfile.text())
+        # With PyQt API 2, the return value will be a tuple (filename and filter)
+        if isinstance(fname, tuple):
+            fname, _ = fname
         if fname:
                 self.ui.edit_hostfile.setText(fname)
 
     def update_output_file(self):
         fname = QFileDialog.getSaveFileName(self, 'Output file name',
                                             self.ui.edit_output.text())
+        # With PyQt API 2, the return value will be a tuple (filename and filter)
+        if isinstance(fname, tuple):
+            fname, _ = fname
         if fname:
             self.ui.edit_output.setText(fname)
 
