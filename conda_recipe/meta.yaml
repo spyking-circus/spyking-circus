@@ -17,10 +17,10 @@ requirements:
     - h5py
     - setuptools >=26
     - colorama
-    - qt >=4,<5
+    - qt >=4
     - psutil
     - tqdm !=4.15
-    - pyqt >=4,<5
+    - pyqt >=4
     - scikit-learn
 source:
   path: ..
