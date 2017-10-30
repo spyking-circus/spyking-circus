@@ -11,20 +11,26 @@ import circus
 import pkg_resources
 
 try:
-    from PySide import QtGui, QtCore, uic
-    from PySide.QtCore import Qt, QUrl, QProcess
-    from PySide.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
-                              QPushButton, QLineEdit, QPixmap,
-                              QWidget, QTextCursor, QMessageBox, QPalette, QBrush,
-                              QDesktopServices, QFont)
+    from PyQt5 import uic
+    from PyQt5.QtCore import Qt, QUrl, QProcess
+    from PyQt5.QtWidgets import (QApplication, QFileDialog, QCheckBox, QDialog,
+                                 QPushButton, QLineEdit, QWidget, QMessageBox)
+    from PyQt5.QtGui import QTextCursor, QDesktopServices, QFont, QIcon
 except ImportError:
-    from PyQt4 import QtGui, QtCore, uic
-    from PyQt4.QtCore import Qt, QUrl, QProcess
-    from PyQt4.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
-                             QPushButton, QLineEdit, QPalette, QBrush,
-                             QWidget, QTextCursor, QMessageBox, QPixmap,
-                             QDesktopServices, QFont)
-import sip
+    try:
+        from PySide import uic
+        from PySide.QtCore import Qt, QUrl, QProcess
+        from PySide.QtGui import (QApplication, QFileDialog, QCheckBox,
+                                  QPushButton, QLineEdit, QDialog,
+                                  QWidget, QTextCursor, QMessageBox,
+                                  QDesktopServices, QFont, QIcon)
+    except ImportError:
+        from PyQt4 import uic
+        from PyQt4.QtCore import Qt, QUrl, QProcess
+        from PyQt4.QtGui import (QApplication, QFileDialog, QCheckBox,
+                                 QPushButton, QLineEdit,
+                                 QWidget, QTextCursor, QMessageBox,
+                                 QDesktopServices, QFont, QDialog, QIcon)
 
 from circus.shared.messages import print_error, print_info, print_and_log, get_colored_header, init_logging
 from circus.files import __supported_data_files__, list_all_file_format
@@ -74,7 +80,7 @@ def overwrite_text(cursor, text):
     cursor.insertText(text)
 
 
-class LaunchGUI(QtGui.QDialog):
+class LaunchGUI(QDialog):
     def __init__(self, app):
         super(LaunchGUI, self).__init__()
         self.app = app
@@ -89,7 +95,7 @@ class LaunchGUI(QtGui.QDialog):
                                 if isinstance(cb, QCheckBox)]
 
         logo = pkg_resources.resource_filename('circus', os.path.join('icons','icon.png'))
-        self.ui.setWindowIcon(QtGui.QIcon(logo)) 
+        self.ui.setWindowIcon(QIcon(logo))
 
         try:
             import cudamat as cmt
@@ -139,7 +145,7 @@ class LaunchGUI(QtGui.QDialog):
         self.process = None
         self.ui.closeEvent = self.closeEvent
         self.last_log_file = None
-        try: 
+        try:
             import sklearn
         except ImportError:
             self.ui.cb_validating.setEnabled(False)
@@ -220,7 +226,7 @@ class LaunchGUI(QtGui.QDialog):
     def update_result_tab(self):
         if str(self.ui.edit_file.text()) != '':
             f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
-            ft        = os.path.basename(os.path.normpath(f_next))        
+            ft        = os.path.basename(os.path.normpath(f_next))
             f_results = os.path.join(f_next, ft + '.result.hdf5')
             if os.path.exists(f_results):
                 self.ui.selection_gui.setEnabled(True)
@@ -274,10 +280,10 @@ class LaunchGUI(QtGui.QDialog):
                                             self.ui.edit_file.text())
         if fname:
             self.ui.edit_file.setText(fname)
-        
+
         if str(self.ui.edit_file.text()) != '':
             self.ui.btn_run.setEnabled(True)
-            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))        
+            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
             f_params = f_next + '.params'
             if os.path.exists(f_params):
                 self.ui.btn_param.setEnabled(True)
@@ -384,26 +390,26 @@ class LaunchGUI(QtGui.QDialog):
         if self.ui.cb_batch.isChecked():
             self.last_log_file = None
         else:
-            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))        
+            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
             f_params = f_next + '.params'
             if not os.path.exists(f_params):
                 self.create_params_file(f_params)
                 self.ui.btn_param.setEnabled(True)
                 return
             self.last_log_file = f_next + '.log'
-        
+
         if self.ui.tabWidget.currentIndex() == 0:
             args = self.command_line_args()
         elif self.ui.tabWidget.currentIndex() == 1:
             args = self.gui_command_line_args()
-        
+
         self.update_result_tab()
 
         # # Start process
         self.ui.edit_stdout.clear()
         format = self.ui.edit_stdout.currentCharFormat()
         format.setFontWeight(QFont.Normal)
-        format.setForeground(QtCore.Qt.blue)
+        format.setForeground(Qt.blue)
         self.ui.edit_stdout.setCurrentCharFormat(format)
         time_str = datetime.datetime.now().ctime()
         start_msg = '''\
@@ -413,7 +419,7 @@ class LaunchGUI(QtGui.QDialog):
                        {call}
                     '''.format(time_str=time_str, call=' '.join(args))
         self.ui.edit_stdout.appendPlainText(textwrap.dedent(start_msg))
-        format.setForeground(QtCore.Qt.black)
+        format.setForeground(Qt.black)
         self.ui.edit_stdout.setCurrentCharFormat(format)
         self.ui.edit_stdout.appendPlainText('\n')
 
@@ -449,13 +455,13 @@ class LaunchGUI(QtGui.QDialog):
         format.setFontWeight(QFont.Bold)
         if exit_code == 0:
             if self._interrupted:
-                color = QtCore.Qt.red
+                color = Qt.red
                 msg = ('Process interrupted by user')
             else:
-                color = QtCore.Qt.green
+                color = Qt.green
                 msg = ('Process exited normally')
         else:
-            color = QtCore.Qt.red
+            color = Qt.red
             msg = ('Process exited with exit code %d' % exit_code)
         format.setForeground(color)
         self.ui.edit_stdout.setCurrentCharFormat(format)
@@ -471,7 +477,7 @@ class LaunchGUI(QtGui.QDialog):
         exit_code = self.process.exitCode()
         format = self.ui.edit_stdout.currentCharFormat()
         format.setFontWeight(QFont.Bold)
-        format.setForeground(QtCore.Qt.red)
+        format.setForeground(Qt.red)
         self.ui.edit_stdout.setCurrentCharFormat(format)
         self.ui.edit_stdout.appendPlainText('Process exited with exit code' % exit_code)
         self.restore_gui()
@@ -581,7 +587,7 @@ class LaunchGUI(QtGui.QDialog):
                 # The returned value is not a PID but a pointer
                 lp = ctypes.cast(pid, LPWinProcInfo)
                 pid = lp.contents.dwProcessID
-            
+
             if pid != 0:
                 process = psutil.Process(pid)
                 children = process.children(recursive=True)
@@ -593,7 +599,7 @@ class LaunchGUI(QtGui.QDialog):
 
                 self.process.terminate()
                 self.process = None
-                        
+
 
     def create_params_file(self, fname):
         msg = QMessageBox()
@@ -619,7 +625,7 @@ class LaunchGUI(QtGui.QDialog):
             QDesktopServices.openUrl(QUrl(fname))
 
     def view_param(self):
-        f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))        
+        f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
         f_params = f_next + '.params'
         QDesktopServices.openUrl(QUrl(f_params))
 
@@ -690,7 +696,7 @@ class LaunchGUI(QtGui.QDialog):
         msg.setText("Supported file formats")
         msg.setWindowTitle("File formats")
 
-        
+
         msg.setInformativeText("\n".join(list_all_file_format()))
         msg.setStandardButtons(QMessageBox.Close)
         msg.setDefaultButton(QMessageBox.Close)
@@ -730,7 +736,7 @@ class LaunchGUI(QtGui.QDialog):
 
 
 def main():
-    app = QtGui.QApplication([])
+    app = QApplication([])
     gui = LaunchGUI(app)
     sys.exit(app.exec_())
 
