@@ -359,14 +359,16 @@ but a subset x,y can be done. Steps are:
     if preview or result:
         from circus.shared import gui
         import pylab
-        from matplotlib.backends import qt_compat
-
-        use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
-        if use_pyside:
-            from PySide import QtGui, QtCore, uic
-        else:
-            from PyQt4 import QtGui, QtCore, uic
-        app = QtGui.QApplication([])
+        try:
+            from PyQt5.QtWidgets import QApplication
+        except ImportError:
+            from matplotlib.backends import qt_compat
+            use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
+            if use_pyside:
+                from PySide.QtGui import QApplication
+            else:
+                from PyQt4.QtGui import QApplication
+        app = QApplication([])
         try:
             pylab.style.use('ggplot')
         except Exception:

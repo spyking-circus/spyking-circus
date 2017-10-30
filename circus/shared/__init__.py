@@ -1,7 +1,11 @@
 import matplotlib
 import os
 if 'DISPLAY' in os.environ and os.environ['DISPLAY'] == ":0":
-    matplotlib.use('Qt4Agg', warn=False)
+    try:
+        import PyQt5
+        matplotlib.use('Qt5Agg', warn=False)
+    except ImportError:
+        matplotlib.use('Qt4Agg', warn=False)
 else:
     matplotlib.use('Agg', warn=False)
 

@@ -7,7 +7,7 @@ import scipy.sparse as sp
 from math import log, sqrt
 from scipy import linalg
 import scipy.interpolate
-import numpy, pylab, os, mpi4py, tempfile
+import numpy, os, mpi4py, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
 import h5py
 from mpi import *

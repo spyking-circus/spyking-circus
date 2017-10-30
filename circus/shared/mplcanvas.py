@@ -1,5 +1,10 @@
-from PyQt4 import QtGui, uic, QtCore
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+try:
+    from PyQt5 import QtGui, uic, QtCore
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+except ImportError:
+    from PyQt4 import QtGui, uic, QtCore
+    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
 from matplotlib import rcParams
