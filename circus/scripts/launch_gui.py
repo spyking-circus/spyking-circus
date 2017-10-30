@@ -12,14 +12,14 @@ import pkg_resources
 
 try:
     from PySide import QtGui, QtCore, uic
-    from PySide.QtCore import Qt, QUrl, QProcess, SIGNAL
+    from PySide.QtCore import Qt, QUrl, QProcess
     from PySide.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
                               QPushButton, QLineEdit, QPixmap,
                               QWidget, QTextCursor, QMessageBox, QPalette, QBrush,
                               QDesktopServices, QFont)
 except ImportError:
     from PyQt4 import QtGui, QtCore, uic
-    from PyQt4.QtCore import Qt, QUrl, QProcess, SIGNAL
+    from PyQt4.QtCore import Qt, QUrl, QProcess
     from PyQt4.QtGui import (QApplication, QCursor, QFileDialog, QCheckBox,
                              QPushButton, QLineEdit, QPalette, QBrush,
                              QWidget, QTextCursor, QMessageBox, QPixmap,
@@ -418,15 +418,11 @@ class LaunchGUI(QtGui.QDialog):
         self.ui.edit_stdout.appendPlainText('\n')
 
         self.process = QProcess(self)
-        self.connect(self.process, SIGNAL('readyReadStandardOutput()'), self.append_output)
-        self.connect(self.process, SIGNAL('readyReadStandardError()'),
-                     self.append_error)
-        self.connect(self.process, SIGNAL('started()'),
-                     self.process_started)
-        self.connect(self.process, SIGNAL('finished(int)'),
-                     self.process_finished)
-        self.connect(self.process, SIGNAL('error()'),
-                     self.process_errored)
+        self.process.readyReadStandardOutput.connect(self.append_output)
+        self.process.readyReadStandardError.connect(self.append_error)
+        self.process.started.connect(self.process_started)
+        self.process.finished.connect(self.process_finished)
+        self.process.error.connect(self.process_errored)
         self._interrupted = False
         self.process.start(args[0], args[1:])
 
