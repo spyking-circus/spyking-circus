@@ -4,6 +4,7 @@ Release 0.6.2
 
 * fix for openephys and new python syntax
 * fix in the handling of parameters 
+* support for qt5 (and backward compatibility with qt4)
 
 =============
 Release 0.6.1
