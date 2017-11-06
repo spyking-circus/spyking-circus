@@ -3,23 +3,30 @@ from __future__ import division
 import six, h5py, pkg_resources, logging
 
 import numpy as np
+
+try:
+    from PyQt5 import uic
+    from PyQt5.QtCore import Qt
+    from PyQt5.QtGui import QCursor
+    from PyQt5.QtWidgets import QMainWindow
+    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+except ImportError:
+    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+    from matplotlib.backends import qt_compat
+    use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
+    if use_pyside:
+        from PySide import uic
+        from PySide.QtCore import Qt
+        from PySide.QtGui import QCursor, QMainWindow
+    else:
+        from PyQt4 import uic
+        from PyQt4.QtCore import Qt
+        from PyQt4.QtGui import QCursor, QMainWindow
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
 from matplotlib.colors import colorConverter
-import matplotlib.gridspec as gridspec
-import matplotlib.colors as colors
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.backends import qt_compat
-use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
-if use_pyside:
-    from PySide import QtGui, QtCore, uic
-    from PySide.QtCore import Qt
-    from PySide.QtGui import QApplication, QCursor
-else:
-    from PyQt4 import QtGui, QtCore, uic
-    from PyQt4.QtCore import Qt
-    from PyQt4.QtGui import QApplication, QCursor
 
 from utils import *
 from algorithms import slice_templates, slice_clusters
@@ -104,7 +111,7 @@ class SymmetricVCursor(widgets.AxesWidget):
         return False
 
 
-class MergeWindow(QtGui.QMainWindow):
+class MergeWindow(QMainWindow):
 
     def __init__(self, params, app, extension_in='', extension_out='-merged'):
 
@@ -1085,7 +1092,7 @@ class MergeWindow(QtGui.QMainWindow):
         self.finalize(event)
 
 
-class PreviewGUI(QtGui.QMainWindow):
+class PreviewGUI(QMainWindow):
 
     def __init__(self, params, show_fit=False):
         super(PreviewGUI, self).__init__()
