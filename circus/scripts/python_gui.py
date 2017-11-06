@@ -114,6 +114,13 @@ def main(argv=None):
         gui_params['dir_path']       = output_path
         gui_params['hp_filtered']    = True
 
+        f = open(os.path.join(output_path, 'params.py'), 'w')
+        for key, value in gui_params.items():
+            if key in ['dir_path', 'dat_path', 'dtype']:
+                f.write('%s = "%s"\n' %(key, value))
+            else:
+                f.write("%s = %s\n" %(key, value))
+        f.close()
         os.chdir(output_path)
         create_app()
         controller = TemplateController(**gui_params)
