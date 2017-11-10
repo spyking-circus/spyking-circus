@@ -353,13 +353,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 mask     = numpy.ones((n_tm, n_t), dtype=numpy.float32)
                 sub_b    = b[:n_tm, :]
 
-            min_time     = local_peaktimes.min()
-            max_time     = local_peaktimes.max()
-            local_len    = max_time - min_time + 1
-            min_times    = numpy.maximum(local_peaktimes - min_time - temp_2_shift, 0)
-            max_times    = numpy.minimum(local_peaktimes - min_time + temp_2_shift + 1, max_time - min_time)
-            max_n_t      = int(space_explo*(max_time-min_time+1)//(2*temp_2_shift + 1))
-
             if collect_all:
                 c_all_times = numpy.zeros((len_chunk, N_e), dtype=numpy.bool)
                 c_min_times = numpy.maximum(numpy.arange(len_chunk) - template_shift, 0)
@@ -401,6 +394,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     # Verify amplitude constraint.
                     a_min = amp_limits[best_template_index, 0]
                     a_max = amp_limits[best_template_index, 1]
+                
                     if (a_min <= best_amp_n) & (best_amp_n <= a_max):
                         # Keep the matching.
                         peak_time_step = local_peaktimes[peak_index]
@@ -412,11 +406,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         indices = np.zeros((S_over, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
 
-                        tmp1 = c_overs[best_template_index].multiply(-best_amp_n).dot(indices)
+                        tmp1 = c_overs[best_template_index].multiply(-best_amp).dot(indices)
                         tmp2 = c_overs[best_template_index + n_tm].multiply(-best_amp2).dot(indices)
                         b[:, is_neighbor[0, :]] += tmp1 + tmp2
                         # Add matching to the result.
-                        t_spike               = peak_time_step + local_offset
+                        t_spike               = all_spikes[peak_index]
                         result['spiketimes'] += [t_spike]
                         result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                         result['templates']  += [best_template_index]
