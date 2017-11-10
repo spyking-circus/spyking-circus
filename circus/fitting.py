@@ -406,9 +406,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         indices = np.zeros((S_over, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
 
-                        tmp1 = c_overs[best_template_index].multiply(-best_amp).dot(indices)
-                        tmp2 = c_overs[best_template_index + n_tm].multiply(-best_amp2).dot(indices)
-                        b[:, is_neighbor[0, :]] += tmp1 + tmp2
+                        if full_gpu: 
+                            indices  = cmt.CUDAMatrix(indices, copy_on_host=False)
+                            if patch_gpu:
+                                 b_lines  = b.get_col_slice(0, b.shape[0])
+                            else:
+                                 b_lines  = b.get_col_slice(idx_b[0], idx_b[-1]+1)
+ 
+                            tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp[keep])
+                            tmp2 = cmt.sparse_dot(c_overs[best_template_index + n_tm], indices, mult=-best_amp2[keep])
+                            b_lines.add(tmp1.add(tmp2))
+                            del tmp1, tmp2
+                        else:
+                            tmp1 = c_overs[best_template_index].multiply(-best_amp).dot(indices)
+                            tmp2 = c_overs[best_template_index + n_tm].multiply(-best_amp2).dot(indices)
+                            b[:, is_neighbor[0, :]] += tmp1 + tmp2
                         # Add matching to the result.
                         t_spike               = all_spikes[peak_index]
                         result['spiketimes'] += [t_spike]
