@@ -62,6 +62,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     n_scalar       = N_e*N_t
     last_spikes    = numpy.zeros((n_tm, 1), dtype=numpy.int32)
     temp_window    = numpy.arange(-template_shift, template_shift+1)
+    size_window    = N_e*(2*template_shift+1)
 
     if not amp_auto:
         amp_limits       = numpy.zeros((n_tm, 2))
@@ -216,11 +217,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         is_last  = data_file.is_last_chunk(gidx, nb_chunks)
 
         if is_last:
-            padding = (-2*template_shift, 0)
+            padding = (-temp_2_shift, 0)
         elif is_first:
-            padding = (0, 2*template_shift)
+            padding = (0, temp_2_shift)
         else:
-            padding = (-2*template_shift, 2*template_shift)
+            padding = (-temp_2_shift, temp_2_shift)
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
@@ -272,8 +273,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if collect_all:
                     all_found_spikes[i] += peaktimes.tolist()
 
-
-            
         local_peaktimes = numpy.unique(local_peaktimes)
 
         if ignore_dead_times:
@@ -297,8 +296,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 all_found_spikes[i] = numpy.compress(idx, all_found_spikes[i])
 
         n_t             = len(local_peaktimes)
-        all_indices     = numpy.arange(n_t)
-                            
 
         if full_gpu:
         #   all_indices = cmt.CUDAMatrix(all_indices)
@@ -312,7 +309,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_local_chunk = local_chunk.copy()
 
             local_chunk = local_chunk.T.ravel()
-            sub_mat     = numpy.zeros((N_e*(2*template_shift+1), n_t), dtype=numpy.float32)
+            sub_mat     = numpy.zeros((size_window, n_t), dtype=numpy.float32)
 
             if len_chunk != last_chunk_size:
                 slice_indices = numpy.zeros(0, dtype=numpy.int32)
@@ -380,16 +377,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     peak_scalar_products = np.take(sub_b, peak_index, axis=1)
                     best_template_index  = np.argmax(peak_scalar_products, axis=0)
+                    best_template2_index = best_template_index + n_tm
 
                     if full_gpu:
                         best_amp  = sub_b[best_template_index, peak_index]/n_scalar
                         best_amp2 = b_array[best_template_index, peak_index]/n_scalar
                     else:
                         best_amp  = sub_b[best_template_index, peak_index]/n_scalar
-                        best_amp2 = b[best_template_index + n_tm, peak_index]/n_scalar
+                        best_amp2 = b[best_template2_index, peak_index]/n_scalar
 
-                    best_amp_n   = best_amp/numpy.take(norm_templates, best_template_index)
-                    best_amp2_n  = best_amp2/numpy.take(norm_templates, best_template_index + n_tm)
+                    best_amp_n   = best_amp/norm_templates[best_template_index]
+                    best_amp2_n  = best_amp2/norm_templates[best_template2_index]
 
                     # Verify amplitude constraint.
                     a_min = amp_limits[best_template_index, 0]
@@ -414,13 +412,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                  b_lines  = b.get_col_slice(is_neighbor[0], is_neighbor[-1]+1)
  
                             tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp[keep])
-                            tmp2 = cmt.sparse_dot(c_overs[best_template_index + n_tm], indices, mult=-best_amp2[keep])
+                            tmp2 = cmt.sparse_dot(c_overs[best_template2_index], indices, mult=-best_amp2[keep])
                             b_lines.add(tmp1.add(tmp2))
                             del tmp1, tmp2
                         else:
-                            tmp1 = c_overs[best_template_index].multiply(-best_amp).dot(indices)
-                            tmp2 = c_overs[best_template_index + n_tm].multiply(-best_amp2).dot(indices)
-                            b[:, is_neighbor] += tmp1 + tmp2
+                            tmp1 = c_overs[best_template_index].multiply(-best_amp)
+                            tmp2 = c_overs[best_template2_index].multiply(-best_amp2)
+                            b[:, is_neighbor] += (tmp1 + tmp2).dot(indices)
                         # Add matching to the result.
                         t_spike               = all_spikes[peak_index]
                         result['spiketimes'] += [t_spike]
