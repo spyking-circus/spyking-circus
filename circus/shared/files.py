@@ -566,16 +566,18 @@ def load_data(params, data, extension=''):
             myfile.close()
             return matched_thresh * thresholds
     elif data == 'spatial_whitening':
-        if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile  = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile  = h5py.File(filename, 'r', libver='latest')
             spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
             myfile.close()
             return spatial
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'temporal_whitening':
-        if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile   = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile   = h5py.File(filename, 'r', libver='latest')
             temporal = myfile.get('temporal')[:]
             myfile.close()
             return temporal
@@ -614,36 +616,36 @@ def load_data(params, data, extension=''):
         myfile.close()
         return waveforms
     elif data == 'templates':
-        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            temp_x = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                               'r', libver='latest').get('temp_x')[:].ravel()
-            temp_y = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                               'r', libver='latest').get('temp_y')[:].ravel()
-            temp_data = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                  'r', libver='latest').get('temp_data')[:].ravel()
-            N_e, N_t, nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                               'r', libver='latest').get('temp_shape')[:].ravel()
+        filename = file_out_suff + '.templates%s.hdf5' %extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='latest')
+            temp_x = myfile.get('temp_x')[:].ravel()
+            temp_y = myfile.get('temp_y')[:].ravel()
+            temp_data = myfile.get('temp_data')[:].ravel()
+            N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
+            myfile.close()
             return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'overlaps':
-        if os.path.exists(file_out_suff + '.overlap%s.hdf5' %extension):
-            over_x = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension,
-                               'r', libver='latest').get('over_x')[:].ravel()
-            over_y = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension,
-                               'r', libver='latest').get('over_y')[:].ravel()
-            over_data = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension,
-                                  'r', libver='latest').get('over_data')[:].ravel()
-            over_shape = h5py.File(file_out_suff + '.overlap%s.hdf5' %extension,
-                                               'r', libver='latest').get('over_shape')[:].ravel()
+        filename = file_out_suff + '.overlap%s.hdf5' %extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='latest')
+            over_x = myfile.get('over_x')[:].ravel()
+            over_y = myfile.get('over_y')[:].ravel()
+            over_data = myfile.get('over_data')[:].ravel()
+            over_shape = myfile.get('over_shape')[:].ravel()
+            myfile.close()
             return scipy.sparse.csc_matrix((over_data, (over_x, over_y)), shape=over_shape)
         else:
             raise Exception('No overlaps found! Check suffix?')
     elif data == 'version':
-        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+        filename = file_out_suff + '.templates%s.hdf5' %extension
+        if os.path.exists(filename):
             try:
-                version = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                   'r', libver='latest').get('version')[:]
+                myfile  = h5py.File(filename, 'r', libver='latest')
+                version = myfile.get('version')[:]
+                myfile.close()
             except Exception:
                 version = None
             return version
@@ -655,18 +657,20 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'spike-cluster':
-        file_name = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
-        if os.path.exists(file_name):
-            data       = h5py.File(file_name, 'r')
-            clusters   = data.get('clusters').ravel()
+        filename = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='latest')
+            clusters   = myfile.get('clusters')[:].ravel()
             N_clusters = len(numpy.unique(clusters))
-            spiketimes = data.get('spikes').ravel()
+            spiketimes = myfile.get('spikes')[:].ravel()
+            myfile.close()
             return clusters, spiketimes, N_clusters
         else:
             raise Exception('Need to provide a spike-cluster file!')
     elif data == 'clusters':
-        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
+        filename = file_out_suff + '.clusters%s.hdf5' %extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='latest')
             result = {}
             for key in myfile.keys():
                 result[str(key)] = myfile.get(key)[:]
@@ -675,8 +679,9 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'clusters-light':
-        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
+        filename = file_out_suff + '.clusters%s.hdf5' %extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='latest')
             result = {}
             for key in myfile.keys():
                 if ('clusters_' in key) or (key == 'electrodes'):
@@ -686,8 +691,9 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'electrodes':
-        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile     = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
+        filename = file_out_suff + '.clusters%s.hdf5' %extension
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='latest')
             electrodes = myfile.get('electrodes')[:]
             myfile.close()
             return electrodes
@@ -709,8 +715,9 @@ def load_data(params, data, extension=''):
         except Exception:
             raise Exception('No overlaps found! Check suffix or run the fitting?')
     elif data == 'limits':
-        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
+        myfile = file_out_suff + '.templates%s.hdf5' %extension
+        if os.path.exists(myfile):
+            myfile = h5py.File(myfile, 'r', libver='latest')
             limits = myfile.get('limits')[:]
             myfile.close()
             return limits
