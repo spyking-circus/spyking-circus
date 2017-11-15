@@ -653,7 +653,10 @@ def load_data(params, data, extension=''):
             raise Exception('No templates found! Check suffix?')
     elif data == 'norm-templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            return h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms')[:]
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
+            norms  = myfile.get('norms')[:]
+            myfile.close()
+            return norms
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'spike-cluster':

@@ -23,7 +23,9 @@ def test_patch_for_similarities(params, extension):
     template_file  = file_out_suff + '.templates%s.hdf5' %extension
     if os.path.exists(template_file):
         try:
-            version = h5py.File(template_file, 'r', libver='latest').get('version')[0].decode('ascii')
+            myfile = h5py.File(template_file, 'r', libver='latest')
+            version = myfile.get('version')[0].decode('ascii')
+            myfile.close()
         except Exception:
             version = None
     else:
@@ -49,10 +51,12 @@ def apply_patch_for_similarities(params, extension):
 
             over_file = file_out_suff + '.overlap.hdf5'
             if os.path.exists(over_file):
-                over_x = h5py.File(over_file, 'r', libver='latest').get('over_x')[:].ravel()
-                over_y = h5py.File(over_file,  'r', libver='latest').get('over_y')[:].ravel()
-                over_data = h5py.File(over_file, 'r', libver='latest').get('over_data')[:].ravel()
-                over_shape = h5py.File(over_file, 'r', libver='latest').get('over_shape')[:].ravel()
+                myfile = h5py.File(over_file, 'r', libver='latest')
+                over_x = myfile.get('over_x')[:].ravel()
+                over_y = myfile.get('over_y')[:].ravel()
+                over_data = myfile.get('over_data')[:].ravel()
+                over_shape = myfile.get('over_shape')[:].ravel()
+                myfile.close()
                 overlap = scipy.sparse.csc_matrix((over_data, (over_x, over_y)), shape=over_shape)
             else:
                 raise Exception('No overlaps found! Check suffix?')

@@ -264,7 +264,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
             apply_patch_for_similarities(params, extension)
 
-            template_file =  h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
+            template_file = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
             similarities  = template_file.get('maxoverlap')[:]
             template_file.close()
             norm = N_e*N_t
