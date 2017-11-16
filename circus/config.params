@@ -40,7 +40,7 @@ chunk_size     = 30         # Size of the data chunks [in s]
 safety_time    = 1          # Temporal zone around which templates are isolated [in ms, or auto]
 temporal       = False      # Perform temporal whitening
 spatial        = True       # Perform spatial whitening
-max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
+max_elts       = 1000       # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
 output_dim     = 5          # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 

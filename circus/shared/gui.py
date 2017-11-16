@@ -240,7 +240,7 @@ class MergeWindow(QMainWindow):
 
         self.suggest_value = self.get_suggest_value.value()
 
-        self.update_lag(5)
+        self.update_lag(2)
         self.plot_data()
         self.plot_scores()
         #
