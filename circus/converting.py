@@ -28,7 +28,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     if export_all and not params.getboolean('fitting', 'collect_all'):
         if comm.rank == 0:
             print_and_log(['Export unfitted spikes only if [fitting] collect_all is True'], 'error', logger)
-        sys.exit(1)
+        sys.exit(0)
 
     def generate_mapping(probe):
         p         = {}
@@ -264,7 +264,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
             apply_patch_for_similarities(params, extension)
 
-            similarities = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest').get('maxoverlap')
+            template_file = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
+            similarities  = template_file.get('maxoverlap')[:]
+            template_file.close()
             norm = N_e*N_t
 
             if export_all:

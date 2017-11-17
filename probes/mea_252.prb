@@ -2,7 +2,6 @@ total_nb_channels = 252
 radius            = 250
 channel_groups    = {1 : {}}
 
-
 channel_groups[1]["channels"] = list(range(252))
 channel_groups[1]["graph"]    = []
 channel_groups[1]["geometry"] = {0: [900.0, 660.0],
