@@ -840,7 +840,9 @@ class MergeWindow(QMainWindow):
     def suggest_pairs(self, event):
         self.inspect_points = set()
         indices  = numpy.where(self.score_y > numpy.maximum(0, self.score_z-self.suggest_value))[0]
+        self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
         self.update_inspect(indices, add_or_remove='add')
+        self.app.restoreOverrideCursor()
 
     def suggest_templates(self, event):
         self.inspect_templates = set()
@@ -939,23 +941,23 @@ class MergeWindow(QMainWindow):
         print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', logger)
         self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
-        self.to_delete = numpy.concatenate((self.to_delete, self.to_consider[self.inspect_templates]))
-
-        self.generate_data()
-        self.collections        = None
-        self.selected_points    = set()
-        self.selected_templates = set()
-        self.inspect_points     = set()
-        self.inspect_templates  = set()
-        self.score_ax1.clear()
-        self.score_ax2.clear()
-        self.score_ax3.clear()
-        self.update_lag(self.use_lag)
-        self.update_data_sort_order()
-        self.update_detail_plot()
-        self.update_waveforms()
-        self.plot_scores()
-        # do lengthy process
+        if len(self.inspect_templates) > 0:
+            self.to_delete = numpy.concatenate((self.to_delete, self.to_consider[self.inspect_templates]))
+            self.generate_data()
+            self.collections        = None
+            self.selected_points    = set()
+            self.selected_templates = set()
+            self.inspect_points     = set()
+            self.inspect_templates  = set()
+            self.score_ax1.clear()
+            self.score_ax2.clear()
+            self.score_ax3.clear()
+            self.update_lag(self.use_lag)
+            self.update_data_sort_order()
+            self.update_detail_plot()
+            self.update_waveforms()
+            self.plot_scores()
+            # do lengthy process
         self.app.restoreOverrideCursor()
 
 
