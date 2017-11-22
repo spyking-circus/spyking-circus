@@ -17,7 +17,7 @@ requirements:
     - h5py
     - setuptools >=26
     - colorama
-    - qt >=4
+    - qt >=4,<5
     - psutil
     - tqdm !=4.15
     - pyqt >=4
