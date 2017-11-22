@@ -8,10 +8,15 @@ recursive-include circus/qt_GUI *.ui
 
 # Include some probe files
 include probes/mea_64.prb
-include probes/mea_252.prb
+include probes/mea_32.prb
 include probes/small_mea_252.prb
+include probes/small_mea_256.prb
 include probes/wide_mea_252.prb
+include probes/wide_mea_256.prb
 include probes/mea_4225.prb
 include probes/imec.prb
 include probes/kampff_32.prb
 include probes/kampff_128.prb
+include probes/emilie.prb
+include probes/adrien.prb
+include probes/dan.prb
