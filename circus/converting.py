@@ -128,7 +128,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         return N_tm
 
-    def write_pcs(path, params, extension, mode=0):
+    def write_pcs(path, params, extension, N_tm, mode=0):
 
         spikes          = numpy.load(os.path.join(output_path, 'spike_times.npy'))
         labels          = numpy.load(os.path.join(output_path, 'spike_templates.npy'))
@@ -137,8 +137,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         sign_peaks      = params.get('detection', 'peaks')
         nodes, edges    = get_nodes_and_edges(params)
         N_total         = params.getint('data', 'N_total')
-        templates       = io.load_data(params, 'templates', extension)
-        N_tm            = templates.shape[1]//2
+
         if export_all:
             nb_templates = N_tm + N_e
         else:
@@ -276,6 +275,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 to_write = (similarities[:N_tm, :N_tm]/norm).astype(numpy.single)
             numpy.save(os.path.join(output_path, 'similar_templates'), to_write)
         
+            comm.bcast(numpy.array([N_tm], dtype=numpy.int32), root=0)
+
+        else:
+            N_tm = int(comm.bcast(numpy.array([0], dtype=numpy.int32), root=0))
+
         comm.Barrier()
 
         make_pcs = 2
@@ -307,4 +311,4 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         comm.Barrier()
         if make_pcs < 2:
-            write_pcs(output_path, params, extension, make_pcs)
+            write_pcs(output_path, params, extension, N_tm, make_pcs)
