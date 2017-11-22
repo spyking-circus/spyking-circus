@@ -31,6 +31,17 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
+Release 0.6.2
+=============
+
+* fix for openephys and new python syntax
+* fix in the handling of parameters 
+* fix a bug on windows with unclosed hdf5 files
+* fix a bug during converting with multi CPU on windows
+* minor optimization in the fitting procedure
+* support for qt5 (and backward compatibility with qt4 as long as phy is using Qt4)
+
+=============
 Release 0.6.1
 =============
 
@@ -41,6 +52,12 @@ Release 0.6.1
 * optimization in the merging GUI for pairs suggestion
 * addition of an auto_mode for meta merging, to suppress manual curation
 * various fixes in the docs
+* fix a bug when closing temporary files on windows
+* allow spaces in names of probe files
+* collect_all should take dead times into account
+* patch to read INTAN 2.0 files
+* fix in the MATLAB GUI when splitting neurons
+* fix in the MATLAB GUI when selecting individual amplitudes
 
 =============
 Release 0.6.0
