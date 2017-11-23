@@ -1,4 +1,4 @@
-import ConfigParser as configparser
+import configparser
 from messages import print_and_log
 from circus.shared.probes import read_probe
 from circus.shared.mpi import comm
@@ -91,7 +91,18 @@ class CircusParser(object):
         file_path         = os.path.dirname(self.file_name)
         self.file_params  = f_next + '.params'
         self.logfile      = f_next + '.log'
-        self.parser       = configparser.ConfigParser()
+        self.parser       = configparser.ConfigParser(inline_comment_prefixes='#')
+
+        ## First, we remove all tabulations from the parameter file, in order
+        ## to secure the parser
+        myfile            = open(self.file_params, 'r')
+        lines             = myfile.readlines()
+        myfile.close()
+        myfile            = open(self.file_params, 'w')
+        for l in lines:
+          myfile.write(l.replace('\t', ''))
+        myfile.close()
+
         self._N_t         = None
 
         if not os.path.exists(self.file_params):
@@ -102,13 +113,6 @@ class CircusParser(object):
         if comm.rank == 0:
             print_and_log(['Creating a Circus Parser for datafile %s' %self.file_name], 'debug', logger)
         self.parser.read(self.file_params)
-
-        for section in self.__all_sections__:
-            if self.parser.has_section(section):
-                for (key, value) in self.parser.items(section):
-                    self.parser.set(section, key, value.split('#')[0].rstrip())
-            else:
-                self.parser.add_section(section)
 
         for item in self.__default_values__ + self.__extra_values__:
             section, name, val_type, value = item

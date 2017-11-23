@@ -13,7 +13,7 @@ The SpyKING CIRCUS is a massively parallel code to perform semi automatic spike 
 
 .. warning::
    
-   We strongly recommend to upgrade to 0.6, as a rare but annoying bug has been found in 0.5.xx while exporting value for post-processing GUIs (MATLAB, phy). The bug is not systematic, depending on the numbers of templates/cores, but it is worth upgrading. A patch will be automatically applied to already sorted results while launching the GUIs, but for phy users, you will need to relaunch the ``converting`` step
+   We strongly recommend to upgrade to 0.6.xx, as a rare but annoying bug has been found in 0.5.xx while exporting value for post-processing GUIs (MATLAB, phy). The bug is not systematic, depending on the numbers of templates/cores, but it is worth upgrading. A patch will be automatically applied to already sorted results while launching the GUIs, but for phy users, you will need to relaunch the ``converting`` step
 
 
 .. toctree::

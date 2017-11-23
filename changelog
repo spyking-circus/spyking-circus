@@ -1,4 +1,10 @@
 =============
+Release 0.6.3
+=============
+
+* fix a bug if the parameter files have tabulations characters
+
+=============
 Release 0.6.2
 =============
 
