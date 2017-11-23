@@ -119,6 +119,21 @@
           <property name="currentIndex">
            <number>0</number>
           </property>
+          <widget class="QWidget" name="tab_3">
+           <attribute name="title">
+            <string>Parameters</string>
+           </attribute>
+           <widget class="QPlainTextEdit" name="param_editor">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>9</y>
+              <width>771</width>
+              <height>311</height>
+             </rect>
+            </property>
+           </widget>
+          </widget>
           <widget class="QWidget" name="tab">
            <attribute name="title">
             <string>Main Algorithm</string>
@@ -774,34 +789,6 @@
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="btn_param">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Edit Params</string>
-        </property>
-        <property name="icon">
-         <iconset theme="document-new">
-          <normaloff>.</normaloff>.</iconset>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="btn_plots">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Plot folder</string>
-        </property>
-        <property name="icon">
-         <iconset theme="folder">
-          <normaloff>.</normaloff>.</iconset>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QPushButton" name="btn_stop">
         <property name="enabled">
          <bool>false</bool>
@@ -836,6 +823,20 @@
          </size>
         </property>
        </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btn_plots">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Plot folder</string>
+        </property>
+        <property name="icon">
+         <iconset theme="folder">
+          <normaloff>.</normaloff>.</iconset>
+        </property>
+       </widget>
       </item>
       <item>
        <widget class="QPushButton" name="btn_about">
