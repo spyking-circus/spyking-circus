@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
+    <width>1042</width>
     <height>863</height>
    </rect>
   </property>
@@ -116,6 +116,9 @@
             <height>350</height>
            </size>
           </property>
+          <property name="tabShape">
+           <enum>QTabWidget::Triangular</enum>
+          </property>
           <property name="currentIndex">
            <number>0</number>
           </property>
@@ -126,11 +129,20 @@
            <widget class="QPlainTextEdit" name="param_editor">
             <property name="geometry">
              <rect>
-              <x>-10</x>
+              <x>0</x>
               <y>-10</y>
-              <width>791</width>
+              <width>1021</width>
               <height>331</height>
              </rect>
+            </property>
+            <property name="font">
+             <font>
+              <family>Monospace</family>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
+            <property name="tabChangesFocus">
+             <bool>false</bool>
             </property>
            </widget>
           </widget>
@@ -146,7 +158,7 @@
              <rect>
               <x>160</x>
               <y>0</y>
-              <width>618</width>
+              <width>861</width>
               <height>316</height>
              </rect>
             </property>
@@ -157,12 +169,12 @@
              <item>
               <layout class="QHBoxLayout" name="horizontalLayout_10">
                <item>
-                <widget class="QCheckBox" name="cb_batch">
+                <widget class="QCheckBox" name="cb_preview">
                  <property name="toolTip">
-                  <string>Run a set of commands from a file</string>
+                  <string>Open a GUI showing the first second filtered with thresholds</string>
                  </property>
                  <property name="text">
-                  <string>Batch mode</string>
+                  <string>Preview mode</string>
                  </property>
                  <property name="autoExclusive">
                   <bool>false</bool>
@@ -170,12 +182,12 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="cb_preview">
+                <widget class="QCheckBox" name="cb_batch">
                  <property name="toolTip">
-                  <string>Open a GUI showing the first second filtered with thresholds</string>
+                  <string>Run a set of commands from a file</string>
                  </property>
                  <property name="text">
-                  <string>Preview mode</string>
+                  <string>Batch mode</string>
                  </property>
                  <property name="autoExclusive">
                   <bool>false</bool>
@@ -612,7 +624,7 @@
              <rect>
               <x>10</x>
               <y>10</y>
-              <width>741</width>
+              <width>1011</width>
               <height>101</height>
              </rect>
             </property>
@@ -657,7 +669,7 @@
             <widget class="QPushButton" name="btn_phy">
              <property name="geometry">
               <rect>
-               <x>548</x>
+               <x>690</x>
                <y>20</y>
                <width>171</width>
                <height>27</height>
@@ -674,7 +686,7 @@
             <widget class="QPushButton" name="btn_matlab">
              <property name="geometry">
               <rect>
-               <x>548</x>
+               <x>690</x>
                <y>50</y>
                <width>171</width>
                <height>27</height>
@@ -697,7 +709,7 @@
              <rect>
               <x>10</x>
               <y>110</y>
-              <width>751</width>
+              <width>1011</width>
               <height>65</height>
              </rect>
             </property>

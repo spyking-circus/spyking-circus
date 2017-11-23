@@ -500,7 +500,10 @@ class LaunchGUI(QDialog):
                                    os.path.isfile(self.last_log_file))
 
     def process_errored(self):
-        exit_code = self.process.exitCode()
+        try:
+            exit_code = self.process.exitCode()
+        except Exception:
+            exit_code = 0
         format = self.ui.edit_stdout.currentCharFormat()
         format.setFontWeight(QFont.Bold)
         format.setForeground(Qt.red)
