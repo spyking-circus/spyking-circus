@@ -194,9 +194,9 @@ class LaunchGUI(QDialog):
 
 
     def changing_tab(self):
-        if self.ui.tabWidget.currentIndex() == 0:
+        if self.ui.tabWidget.currentIndex() == 1:
             self.update_command()
-        elif self.ui.tabWidget.currentIndex() == 1:
+        elif self.ui.tabWidget.currentIndex() == 2:
             self.update_gui_command()
 
     def update_preview_mode(self):
@@ -289,14 +289,16 @@ class LaunchGUI(QDialog):
             self.ui.btn_run.setEnabled(True)
             f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
             self.params = f_next + '.params'
+            self.last_log_file = f_next + '.log'
             if os.path.exists(self.params):
                 self.ui.btn_plots.setEnabled(True)
+                self.update_params()
         else:
             self.ui.btn_run.setEnabled(False)
 
-        if self.ui.tabWidget.currentIndex() == 0:
+        if self.ui.tabWidget.currentIndex() == 1:
             self.update_command()
-        elif self.ui.tabWidget.currentIndex() == 1:
+        elif self.ui.tabWidget.currentIndex() == 2:
             self.update_gui_command()
 
         self.update_result_tab()
@@ -421,11 +423,10 @@ class LaunchGUI(QDialog):
             elif not os.path.exists(self.params):
                 self.create_params_file(self.params)
                 return
-            self.last_log_file = f_next + '.log'
 
-        if self.ui.tabWidget.currentIndex() == 0:
+        if self.ui.tabWidget.currentIndex() == 1:
             args = self.command_line_args()
-        elif self.ui.tabWidget.currentIndex() == 1:
+        elif self.ui.tabWidget.currentIndex() == 2:
             args = self.gui_command_line_args()
 
         self.update_result_tab()
@@ -648,6 +649,7 @@ class LaunchGUI(QDialog):
                     pkg_resources.resource_filename('circus', 'config.params'))
             shutil.copyfile(config_file, fname)
             self.params = fname
+            self.last_log_file = fname.replace('.params', '.log')
             self.update_params()
 
     def show_about(self):

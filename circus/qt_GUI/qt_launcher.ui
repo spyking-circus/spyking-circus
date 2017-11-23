@@ -126,15 +126,18 @@
            <widget class="QPlainTextEdit" name="param_editor">
             <property name="geometry">
              <rect>
-              <x>0</x>
-              <y>9</y>
-              <width>771</width>
-              <height>311</height>
+              <x>-10</x>
+              <y>-10</y>
+              <width>791</width>
+              <height>331</height>
              </rect>
             </property>
            </widget>
           </widget>
           <widget class="QWidget" name="tab">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
            <attribute name="title">
             <string>Main Algorithm</string>
            </attribute>
@@ -595,6 +598,9 @@
            </widget>
           </widget>
           <widget class="QWidget" name="tab_2">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
            <attribute name="title">
             <string>View Results</string>
            </attribute>
