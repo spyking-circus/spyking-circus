@@ -300,22 +300,19 @@ class LaunchGUI(QDialog):
             self.update_gui_command()
 
         self.update_result_tab()
-        if self.params is not None:
-            self.update_params()
+        if not os.path.exists(self.params):
+            self.create_params_file(self.params)
 
     def update_params(self):
-        print self.params
         f = open(self.params, 'r')
         lines = f.readlines()
         f.close()
-
         text  = ''.join(lines)
-        print text
         self.ui.param_editor.setPlainText(text)
 
     def save_params(self):
 
-        all_text = self.ui.param_editor.plainText()
+        all_text = self.ui.param_editor.toPlainText()
         myfile = open(self.params, 'w')
         myfile.write(all_text)
         myfile.close()
@@ -418,10 +415,11 @@ class LaunchGUI(QDialog):
         if self.ui.cb_batch.isChecked():
             self.last_log_file = None
         else:
-            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
-            f_params = f_next + '.params'
-            if not os.path.exists(f_params):
-                self.create_params_file(f_params)
+            if self.params is None:
+                self.create_params_file(self.params)
+                return
+            elif not os.path.exists(self.params):
+                self.create_params_file(self.params)
                 return
             self.last_log_file = f_next + '.log'
 
@@ -650,7 +648,7 @@ class LaunchGUI(QDialog):
                     pkg_resources.resource_filename('circus', 'config.params'))
             shutil.copyfile(config_file, fname)
             self.params = fname
-        self.update_params()
+            self.update_params()
 
     def show_about(self):
         msg = QMessageBox()
