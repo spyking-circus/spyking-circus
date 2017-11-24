@@ -117,35 +117,11 @@
            </size>
           </property>
           <property name="tabShape">
-           <enum>QTabWidget::Triangular</enum>
+           <enum>QTabWidget::Rounded</enum>
           </property>
           <property name="currentIndex">
            <number>0</number>
           </property>
-          <widget class="QWidget" name="tab_3">
-           <attribute name="title">
-            <string>Parameters</string>
-           </attribute>
-           <widget class="QPlainTextEdit" name="param_editor">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>-10</y>
-              <width>1021</width>
-              <height>331</height>
-             </rect>
-            </property>
-            <property name="font">
-             <font>
-              <family>Monospace</family>
-              <pointsize>9</pointsize>
-             </font>
-            </property>
-            <property name="tabChangesFocus">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </widget>
           <widget class="QWidget" name="tab">
            <property name="enabled">
             <bool>true</bool>
@@ -177,6 +153,9 @@
                   <string>Preview mode</string>
                  </property>
                  <property name="autoExclusive">
+                  <bool>false</bool>
+                 </property>
+                 <property name="tristate">
                   <bool>false</bool>
                  </property>
                 </widget>
@@ -606,6 +585,30 @@
             </property>
             <property name="orientation">
              <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
+          </widget>
+          <widget class="QWidget" name="tab_3">
+           <attribute name="title">
+            <string>Parameters</string>
+           </attribute>
+           <widget class="QPlainTextEdit" name="param_editor">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>-10</y>
+              <width>1021</width>
+              <height>331</height>
+             </rect>
+            </property>
+            <property name="font">
+             <font>
+              <family>Monospace</family>
+              <pointsize>9</pointsize>
+             </font>
+            </property>
+            <property name="tabChangesFocus">
+             <bool>false</bool>
             </property>
            </widget>
           </widget>

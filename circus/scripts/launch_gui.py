@@ -194,7 +194,7 @@ class LaunchGUI(QDialog):
 
 
     def changing_tab(self):
-        if self.ui.tabWidget.currentIndex() == 1:
+        if self.ui.tabWidget.currentIndex() == 0:
             self.update_command()
         elif self.ui.tabWidget.currentIndex() == 2:
             self.update_gui_command()
@@ -296,7 +296,7 @@ class LaunchGUI(QDialog):
         else:
             self.ui.btn_run.setEnabled(False)
 
-        if self.ui.tabWidget.currentIndex() == 1:
+        if self.ui.tabWidget.currentIndex() == 0:
             self.update_command()
         elif self.ui.tabWidget.currentIndex() == 2:
             self.update_gui_command()
@@ -424,7 +424,7 @@ class LaunchGUI(QDialog):
                 self.create_params_file(self.params)
                 return
 
-        if self.ui.tabWidget.currentIndex() == 1:
+        if self.ui.tabWidget.currentIndex() == 0:
             args = self.command_line_args()
         elif self.ui.tabWidget.currentIndex() == 2:
             args = self.gui_command_line_args()
