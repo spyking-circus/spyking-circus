@@ -104,9 +104,9 @@ class LaunchGUI(QDialog):
         except Exception:
             self.HAVE_CUDA = False
 
+        self.params = None
         self.ui.btn_run.clicked.connect(self.run)
         self.ui.btn_plots.clicked.connect(self.open_plot_folder)
-        self.ui.btn_param.clicked.connect(self.view_param)
         self.ui.btn_phy.clicked.connect(self.help_phy)
         self.ui.btn_matlab.clicked.connect(self.help_matlab)
         self.ui.btn_help_cpus.clicked.connect(self.help_cpus)
@@ -137,6 +137,7 @@ class LaunchGUI(QDialog):
         self.ui.edit_hostfile.textChanged.connect(self.update_command)
         self.ui.edit_extension.textChanged.connect(self.update_command)
         self.ui.gui_extension.textChanged.connect(self.update_gui_command)
+        self.ui.param_editor.textChanged.connect(self.save_params)
         self.ui.spin_cpus.valueChanged.connect(self.update_command)
         if not self.HAVE_CUDA:
             self.ui.spin_gpus.setEnabled(False)
@@ -195,7 +196,7 @@ class LaunchGUI(QDialog):
     def changing_tab(self):
         if self.ui.tabWidget.currentIndex() == 0:
             self.update_command()
-        elif self.ui.tabWidget.currentIndex() == 1:
+        elif self.ui.tabWidget.currentIndex() == 2:
             self.update_gui_command()
 
     def update_preview_mode(self):
@@ -287,19 +288,36 @@ class LaunchGUI(QDialog):
         if str(self.ui.edit_file.text()) != '':
             self.ui.btn_run.setEnabled(True)
             f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
-            f_params = f_next + '.params'
-            if os.path.exists(f_params):
-                self.ui.btn_param.setEnabled(True)
+            self.params = f_next + '.params'
+            self.last_log_file = f_next + '.log'
+            if os.path.exists(self.params):
                 self.ui.btn_plots.setEnabled(True)
+                self.update_params()
         else:
             self.ui.btn_run.setEnabled(False)
 
         if self.ui.tabWidget.currentIndex() == 0:
             self.update_command()
-        elif self.ui.tabWidget.currentIndex() == 1:
+        elif self.ui.tabWidget.currentIndex() == 2:
             self.update_gui_command()
 
         self.update_result_tab()
+        if not os.path.exists(self.params):
+            self.create_params_file(self.params)
+
+    def update_params(self):
+        f = open(self.params, 'r')
+        lines = f.readlines()
+        f.close()
+        text  = ''.join(lines)
+        self.ui.param_editor.setPlainText(text)
+
+    def save_params(self):
+
+        all_text = self.ui.param_editor.toPlainText()
+        myfile = open(self.params, 'w')
+        myfile.write(all_text)
+        myfile.close()
 
     def update_host_file(self):
         fname = QFileDialog.getOpenFileName(self, 'Select MPI host file',
@@ -308,7 +326,7 @@ class LaunchGUI(QDialog):
         if isinstance(fname, tuple):
             fname, _ = fname
         if fname:
-                self.ui.edit_hostfile.setText(fname)
+            self.ui.edit_hostfile.setText(fname)
 
     def update_output_file(self):
         fname = QFileDialog.getSaveFileName(self, 'Output file name',
@@ -399,17 +417,16 @@ class LaunchGUI(QDialog):
         if self.ui.cb_batch.isChecked():
             self.last_log_file = None
         else:
-            f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
-            f_params = f_next + '.params'
-            if not os.path.exists(f_params):
-                self.create_params_file(f_params)
-                self.ui.btn_param.setEnabled(True)
+            if self.params is None:
+                self.create_params_file(self.params)
                 return
-            self.last_log_file = f_next + '.log'
+            elif not os.path.exists(self.params):
+                self.create_params_file(self.params)
+                return
 
         if self.ui.tabWidget.currentIndex() == 0:
             args = self.command_line_args()
-        elif self.ui.tabWidget.currentIndex() == 1:
+        elif self.ui.tabWidget.currentIndex() == 2:
             args = self.gui_command_line_args()
 
         self.update_result_tab()
@@ -483,7 +500,10 @@ class LaunchGUI(QDialog):
                                    os.path.isfile(self.last_log_file))
 
     def process_errored(self):
-        exit_code = self.process.exitCode()
+        try:
+            exit_code = self.process.exitCode()
+        except Exception:
+            exit_code = 0
         format = self.ui.edit_stdout.currentCharFormat()
         format.setFontWeight(QFont.Bold)
         format.setForeground(Qt.red)
@@ -631,12 +651,9 @@ class LaunchGUI(QDialog):
                 config_file = os.path.abspath(
                     pkg_resources.resource_filename('circus', 'config.params'))
             shutil.copyfile(config_file, fname)
-            QDesktopServices.openUrl(QUrl(fname))
-
-    def view_param(self):
-        f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
-        f_params = f_next + '.params'
-        QDesktopServices.openUrl(QUrl(f_params))
+            self.params = fname
+            self.last_log_file = fname.replace('.params', '.log')
+            self.update_params()
 
     def show_about(self):
         msg = QMessageBox()
