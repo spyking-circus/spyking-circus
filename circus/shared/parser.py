@@ -95,13 +95,16 @@ class CircusParser(object):
 
         ## First, we remove all tabulations from the parameter file, in order
         ## to secure the parser
-        myfile            = open(self.file_params, 'r')
-        lines             = myfile.readlines()
-        myfile.close()
-        myfile            = open(self.file_params, 'w')
-        for l in lines:
-          myfile.write(l.replace('\t', ''))
-        myfile.close()
+        if comm.rank == 0:
+            myfile            = open(self.file_params, 'r')
+            lines             = myfile.readlines()
+            myfile.close()
+            myfile            = open(self.file_params, 'w')
+            for l in lines:
+              myfile.write(l.replace('\t', ''))
+            myfile.close()
+
+        comm.Barrier()
 
         self._N_t         = None
 
