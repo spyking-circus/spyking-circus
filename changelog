@@ -2,8 +2,8 @@
 Release 0.6.3
 =============
 
-* fix a bug if the parameter files have tabulations characters
-* add a tab to edit parameters irectly in the launcher GUI
+* fix a bug if the parameter file have tabulations characters
+* add a tab to edit parameters directly in the launcher GUI
 
 =============
 Release 0.6.2
