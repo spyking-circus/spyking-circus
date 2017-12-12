@@ -12,6 +12,10 @@ def get_offset(data_dtype, dtype_offset):
             dtype_offset = 32768
         elif data_dtype in ['int16', numpy.int16]:
             dtype_offset = 0
+        elif data_dtype in ['int32', numpy.int32]:
+            dtype_offset = 0
+        elif data_dtype in ['int64', numpy.int64]:
+            dtype_offset = 0
         elif data_dtype in ['float32', numpy.float32]:
             dtype_offset = 0
         elif data_dtype in ['int8', numpy.int8]:
