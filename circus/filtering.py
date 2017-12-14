@@ -296,7 +296,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_write += ["Median over all channels has already been substracted to each channels"]
 
     if comm.rank == 0:
-        print_and_log(to_write, 'debug', logger)
+        print_and_log(to_write, 'info', logger)
 
     if params.getboolean('data', 'overwrite'):
         data_file_in.open(mode='r+')

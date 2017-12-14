@@ -1288,20 +1288,19 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                     data  = cmt.sparse_dot(tmp_1, tmp_2).asarray()
                 else:
                     data  = tmp_1.T.dot(tmp_2)
-                    data  = data.toarray()
 
                 dx, dy     = data.nonzero()
                 ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
                 ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
-                data       = data.ravel()
-                dd         = data.nonzero()[0].astype(numpy.int32)
+                data       = data.data
+                ones       = numpy.ones(len(dx), dtype=numpy.int32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
-                over_y     = numpy.concatenate((over_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
+                over_y     = numpy.concatenate((over_y, (idelay-1)*ones))
+                over_data  = numpy.concatenate((over_data, data))
                 if idelay < N_t:
                     over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
-                    over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                    over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
+                    over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*ones))
+                    over_data  = numpy.concatenate((over_data, data))
 
     if comm.rank == 0:
         print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)

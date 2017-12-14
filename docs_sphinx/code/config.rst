@@ -171,14 +171,14 @@ Merging
 
 The merging section is::
 
-    cc_overlap     = 0.5       # Only templates with CC higher than cc_overlap may be merged
-    cc_bin         = 2         # Bin size for computing CC [in ms]
+    cc_overlap     = 0.75      # Only templates with CC higher than cc_overlap may be merged
+    cc_bin         = 1         # Bin size for computing CC [in ms]
     correct_lag    = False     # If spikes are aligned when merging. May be better for phy usage
-    auto_mode      = 0         # If >0, merging will be automatic (see doc, 0.15 is a good value) [0-1]
+    auto_mode      = 0         # If >0, merging will be automatic (see doc, 1e-05 is a good value) [0-1]
 
 To know more about how those merges are performed and how to use this option, see :doc:`Automatic Merging <../code/merging>`. Parameters that are most likely to be changed:
     * ``correct_lag`` By default, in the meta-merging GUI, when two templates are merged, the spike times of the one removed are simply added to the one kept, without modification. However, it is more accurate to shift those spike, in times, by the temporal shift that may exist between those two templates. This will lead to a better visualization in phy, with more aligned spikes
-    * ``auto_mode`` If your recording is stationary, you can try to perform a fully automated merging. By setting a value between 0 and 1, you control the level of merging performed by the software. Values such as 0.15 should be a good start, but see see :doc:`Automatic Merging <../code/merging>` for more details. 
+    * ``auto_mode`` If your recording is stationary, you can try to perform a fully automated merging. By setting a value between 0 and 1, you control the level of merging performed by the software. Values such as 1e-05 should be a good start, but see see :doc:`Automatic Merging <../code/merging>` for more details. 
 
 Converting
 ----------
