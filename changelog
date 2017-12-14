@@ -5,6 +5,8 @@ Release 0.6.3
 * fix a bug if the parameter file have tabulations characters
 * add a tab to edit parameters directly in the launcher GUI
 * fix dtype offset for int32 and int64
+* minor optimizations for computations of overlaps
+* explicit message displayed on screen if filtering has already been performed
 
 =============
 Release 0.6.2
