@@ -1289,10 +1289,13 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 else:
                     data  = tmp_1.T.dot(tmp_2)
 
+                data       = data.toarray()
                 dx, dy     = data.nonzero()
+                data       = data.ravel()
+                dd         = data.nonzero()[0].astype(numpy.int32)
                 ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
                 ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
-                data       = data.data
+                data       = numpy.take(data, dd)
                 ones       = numpy.ones(len(dx), dtype=numpy.int32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
                 over_y     = numpy.concatenate((over_y, (idelay-1)*ones))
