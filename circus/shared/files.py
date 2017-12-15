@@ -1256,6 +1256,11 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     over_y    = numpy.zeros(0, dtype=numpy.int32)
     over_data = numpy.zeros(0, dtype=numpy.float32)
     rows      = numpy.arange(N_e*N_t)
+    _srows    = {'left' : {}, 'right' : {}}
+
+    for idelay in all_delays:
+        _srows['left'][idelay]  = numpy.where(rows % N_t < idelay)[0]
+        _srows['right'][idelay] = numpy.where(rows % N_t >= (N_t - idelay))[0]
 
     for ielec in to_explore:
 
@@ -1276,11 +1281,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
             for idelay in all_delays:
 
-                srows = numpy.where(rows % N_t < idelay)[0]
-                tmp_1 = loc_templates[srows]
-
-                srows = numpy.where(rows % N_t >= (N_t - idelay))[0]
-                tmp_2 = loc_templates2[srows]
+                tmp_1 = loc_templates[_srows['left'][idelay]]
+                tmp_2 = loc_templates2[_srows['right'][idelay]]
 
                 if use_gpu:
                     tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr(), copy_on_host=False)
@@ -1289,9 +1291,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 else:
                     data  = tmp_1.T.dot(tmp_2)
 
-                data       = data.toarray()
                 dx, dy     = data.nonzero()
-                data       = data.ravel()
+                data       = data.toarray().ravel()
                 dd         = data.nonzero()[0].astype(numpy.int32)
                 ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
                 ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
