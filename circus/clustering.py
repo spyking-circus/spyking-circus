@@ -67,6 +67,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes[nodes]  = numpy.argsort(nodes)
     to_write          = ['clusters_', 'times_', 'data_', 'peaks_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
+    template_shift_2  = 2*template_shift
 
     #################################################################
 
@@ -138,7 +139,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if alignment:
         cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
-        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
+        xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
+        xoff  = len(cdata)/2.
 
     comm.Barrier()
 
@@ -295,7 +297,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 #print "Removing the useless borders..."
                 if alignment:
-                    local_borders = (2*template_shift, local_shape - 2*template_shift)
+                    local_borders = (template_shift_2, local_shape - template_shift_2)
                 else:
                     local_borders = (template_shift, local_shape - template_shift)
                 idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
@@ -381,22 +383,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     if alignment:
                                         idx   = elec_positions[elec]
-                                        zdata = numpy.take(local_chunk[peak-2*template_shift:peak+2*template_shift+1], indices, axis=1)
+                                        zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
                                             f        = scipy.interpolate.UnivariateSpline(xdata, zdata, s=0)
                                             if negative_peak:
-                                                rmin = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                                                rmin = (numpy.argmin(f(cdata)) - xoff)/5.
                                             else:
-                                                rmin = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
+                                                rmin = (numpy.argmax(f(cdata)) - xoff)/5.
                                             ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
                                             f        = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
                                             if negative_peak:
-                                                rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                                                rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/5.
                                             else:
-                                                rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - len(cdata)/2.)/5.
+                                                rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/5.
                                             ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                             sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:

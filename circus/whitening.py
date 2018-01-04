@@ -36,6 +36,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
+    template_shift_2 = 2*template_shift
     #################################################################
 
     if comm.rank == 0:
@@ -319,7 +320,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if alignment:
         cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
-        xdata = numpy.arange(-2*template_shift, 2*template_shift+1)
+        xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
+        xoff  = len(cdata)/2.
 
     to_explore = xrange(comm.rank, nb_chunks, comm.size)
 
@@ -361,7 +363,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             #print "Removing the useless borders..."
             if alignment:
-                local_borders = (2*template_shift, local_shape - 2*template_shift)
+                local_borders = (template_shift_2, local_shape - template_shift_2)
             else:
                 local_borders = (template_shift, local_shape - template_shift)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
@@ -419,12 +421,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     elts_pos[:, elt_count_pos] = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
 
                             elif alignment:
-                                ydata    = local_chunk[peak - 2*template_shift:peak + 2*template_shift + 1, elec]
+                                ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
                                 f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
                                 if negative_peak:
-                                    rmin = (numpy.argmin(f(cdata)) - len(cdata)/2.)/5.
+                                    rmin = (numpy.argmin(f(cdata)) - xoff)/5.
                                 else:
-                                    rmin = (numpy.argmax(f(cdata)) - len(cdata)/2.)/5.
+                                    rmin = (numpy.argmax(f(cdata)) - xoff)/5.
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
 
                                 if negative_peak:
