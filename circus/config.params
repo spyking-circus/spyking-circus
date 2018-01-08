@@ -10,6 +10,7 @@ suffix         =                       # Suffix to add to generated files
 global_tmp     = True                  # should be False if local /tmp/ has enough space (better for clusters)
 overwrite      = True                  # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
 parallel_hdf5  = True                  # Use the parallel HDF5 feature (if available)
+output_dir     =                       # By default, generated data are in the same folder as the data.
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)

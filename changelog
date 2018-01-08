@@ -7,6 +7,7 @@ Release 0.6.3
 * fix dtype offset for int32 and int64
 * minor optimizations for computations of overlaps
 * explicit message displayed on screen if filtering has already been performed
+* can specify a distinct folder for output results with output_dir parameter
 
 =============
 Release 0.6.2
