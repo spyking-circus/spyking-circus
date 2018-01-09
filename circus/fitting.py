@@ -97,9 +97,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if dead_in_ms:
             dead_times *= numpy.int64(data_file.sampling_rate*1e-3)
         dead_times = dead_times.astype(numpy.int64)
-        all_dead_times = []
-        for i in xrange(len(dead_times)):
-            all_dead_times += range(dead_times[i, 0], dead_times[i, 1])
+        all_dead_times = indices_for_dead_times(dead_times[:, 0], dead_times[:, 1])
 
     thresholds = io.load_data(params, 'thresholds')
 

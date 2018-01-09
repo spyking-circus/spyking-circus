@@ -39,6 +39,16 @@ def test_patch_for_similarities(params, extension):
         return False
 
 
+def indices_for_dead_times(start, end):
+    lens = end - start
+    np.cumsum(lens, out=lens)
+    i = np.ones(lens[-1], dtype=int)
+    i[0] = start[0]
+    i[lens[:-1]] += start[1:]
+    i[lens[:-1]] -= end[:-1]
+    np.cumsum(i, out=i)
+    return i
+
 def apply_patch_for_similarities(params, extension):
 
     if not test_patch_for_similarities(params, extension):
