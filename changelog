@@ -8,6 +8,7 @@ Release 0.6.3
 * minor optimizations for computations of overlaps
 * explicit message displayed on screen if filtering has already been performed
 * can specify a distinct folder for output results with output_dir parameter
+* fix a bug when launching phy GUI for datafiles without data_offset parameter (HDF5)
 
 =============
 Release 0.6.2
