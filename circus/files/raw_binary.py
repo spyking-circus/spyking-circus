@@ -19,7 +19,7 @@ class RawBinaryFile(DataFile):
     def _read_from_header(self):
         self._open()
         self.size   = len(self.data)
-        self._shape = (self.size//self.nb_channels, self.nb_channels)
+        self._shape = (self.size//self.nb_channels, int(self.nb_channels))
         self._close()
         return {}
 

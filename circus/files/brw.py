@@ -38,7 +38,7 @@ class BRWFile(H5File):
         
         n_frames    = f.get('3BRecInfo/3BRecVars/NRecFrames').value[0]
         self.size   = self.my_file.get(header['h5_key']).shape[0]
-        header['nb_channels']  = self.size/n_frames
+        header['nb_channels']  = int(self.size/n_frames)
         
         self._shape = (n_frames, header['nb_channels'])
         

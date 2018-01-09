@@ -244,7 +244,7 @@ class DataFile(object):
 
     @property
     def nb_channels(self):
-        return self.params['nb_channels']
+        return int(self.params['nb_channels'])
 
     @property
     def gain(self):
@@ -513,7 +513,7 @@ class DataFile(object):
 
     @property
     def shape(self):
-        return (self.duration, self.nb_channels)
+        return (self.duration, int(self.nb_channels))
 
 
     @property

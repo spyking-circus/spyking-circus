@@ -10,6 +10,8 @@ Release 0.6.3
 * can specify a distinct folder for output results with output_dir parameter
 * fix a bug when launching phy GUI for datafiles without data_offset parameter (HDF5)
 * fix a memory leak when using dead_times
+* fix a bug for BRW and python3
+
 =============
 Release 0.6.2
 =============
