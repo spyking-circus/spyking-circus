@@ -66,7 +66,9 @@ install:
 build: false  # not a C# project
 
 test_script:
-  - conda update --yes --quiet conda
+  # Pin conda version
+  - conda install --yes --quiet "conda==4.3.27"
+  - echo conda ==4.3.27 >> %PYTHON%\conda-meta\pinned
   - conda config --remove channels defaults
   - conda config --add channels defaults
   - conda config --add channels conda-forge
