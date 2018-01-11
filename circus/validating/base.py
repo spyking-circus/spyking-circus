@@ -85,10 +85,9 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     # Detect the spikes times of the juxtacellular trace.
     if comm.rank == 0:
         extract_juxta_spikes(params)
-    comm.Barrier()
 
     beer_path  = "{}.beer.hdf5".format(file_out_suff)
-    beer_file  = h5py.File(beer_path, 'a', libver='latest')
+    beer_file  = h5py.File(beer_path, 'r', libver='latest')
     group_name = "juxta_spiketimes"
     key = "{}/elec_0".format(group_name)
 
@@ -542,6 +541,15 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     ##### TODO: clean working zone
     
     labels_ngt = numpy.zeros(spike_times_ngt.size)
+
+    ## Add a patch to be sure that all spikes in spike_times_ngt lead to correct STAs (exclude borders) ##
+    min_time = int(sampling_rate * N_t * 1e-3)
+    max_time = params.data_file.duration - min_time
+
+    idx = numpy.where((spike_times_ngt > min_time) & (spike_times_ngt < max_time))
+    spike_times_ngt = spike_times_ngt[idx]
+    labels_ngt      = labels_ngt[idx]
+
     ##### TODO: clean temporary zone
     if SHARED_MEMORY:
         spikes_ngt = get_stas_memshared(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
