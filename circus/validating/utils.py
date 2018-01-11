@@ -55,8 +55,8 @@ def get_juxta_stas(params, times_i, labels_i):
     stas_shape = (len(times_i), N_t)
     stas = numpy.zeros(stas_shape)
     for i, time in enumerate(times_i):
-        imin = time - (N_t - 1) / 2
-        imax = time + (N_t - 1) / 2 + 1
+        imin = time - (N_t - 1) // 2
+        imax = time + (N_t - 1) // 2 + 1
         # TODO: check if imin < 0  or juxta_data.size < imax.
         stas[i] = juxta_data[imin:imax]
     
