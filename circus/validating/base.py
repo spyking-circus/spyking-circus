@@ -86,6 +86,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     if comm.rank == 0:
         extract_juxta_spikes(params)
 
+    comm.Barrier()
+
     beer_path  = "{}.beer.hdf5".format(file_out_suff)
     beer_file  = h5py.File(beer_path, 'r', libver='latest')
     group_name = "juxta_spiketimes"
