@@ -21,6 +21,7 @@ requirements:
     - psutil
     - tqdm !=4.15
     - pyqt >=4
+    - hdf5=1.8.18
     - scikit-learn
 source:
   path: ..
