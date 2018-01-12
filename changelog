@@ -12,6 +12,7 @@ Release 0.6.3
 * fix a memory leak when using dead_times
 * fix a bug for BRW and python3
 * fix a bug in the BEER
+* pin HDF5 to 1.8.18 versions, as MATLAB is not working well with 1.10
 
 =============
 Release 0.6.2
