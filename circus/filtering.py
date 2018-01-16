@@ -265,7 +265,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             print_and_log(['Reading the input file...'], 'debug', logger)
 
-        data_file_in = params.get_data_file(source=True, has_been_created=False)
+        if os.path.exists(params.get('data', 'data_file_no_overwrite')):
+            has_been_created = True
+        else:
+            has_been_created = False
+
+        if not has_been_created and (filter_done or median_done or artefacts_done):
+            if comm.rank == 0:
+                print_and_log(['The filtering is done but file not present. See no_edits section'], 'error', logger)
+            sys.exit(1)
+
+        data_file_in = params.get_data_file(source=True, has_been_created=has_been_created)
 
         if comm.rank == 0:
             print_and_log(['Reading the output file and allocating ressources...'], 'debug', logger)
@@ -275,10 +285,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         description['dtype_offset'] = 0
         description['data_offset']  = 0
 
-        data_file_out = params.get_data_file(is_empty=True, params=description)
+        data_file_out = params.get_data_file(is_empty=not has_been_created, params=description)
 
-        data_file_out.allocate(shape=data_file_in.shape)
-
+        if not has_been_created:
+            data_file_out.allocate(shape=data_file_in.shape)
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
