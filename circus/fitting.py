@@ -274,7 +274,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.unique(local_peaktimes)
 
         if ignore_dead_times:
-            local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
+            mask            = numpy.in1d(local_peaktimes + t_offset, all_dead_times, assume_unique=True, invert=True)
+            local_peaktimes = local_peaktimes[mask]
             local_peaktimes = numpy.sort(local_peaktimes)
 
         #print "Removing the useless borders..."
@@ -287,7 +288,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.int32)
 
                 if ignore_dead_times:
-                    all_found_spikes[i] = numpy.array(list(set(all_found_spikes[i] + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
+                    mask                = numpy.in1d(all_found_spikes[i] + t_offset, all_dead_times, assume_unique=True, invert=True)
+                    all_found_spikes[i] = all_found_spikes[i][mask]
                     all_found_spikes[i] = numpy.sort(all_found_spikes[i])
 
                 idx                 = (all_found_spikes[i] >= local_borders[0]) & (all_found_spikes[i] < local_borders[1])
