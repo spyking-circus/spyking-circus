@@ -167,8 +167,8 @@ but a subset x,y can be done. Steps are:
 
     if preview:
         print_and_log(['Preview mode, showing only seconds [%d-%d] of the recording' %(second, second+2)], 'info', logger)
+        tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out')), 'tmp')
 
-        tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
         filename     = os.path.join(tmp_path_loc, os.path.basename(filename))

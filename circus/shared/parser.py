@@ -245,7 +245,6 @@ class CircusParser(object):
             pass
 
         self.parser.set('data', 'data_file', self.file_name)
-        self.parser.set('data', 'data_file_no_overwrite', os.path.join(file_path, os.path.basename(f_next) + '_all_sc.dat'))
 
         if self.parser.get('data', 'output_dir') != '':
           path = os.path.abspath(os.path.expanduser(self.parser.get('data', 'output_dir')))
@@ -256,6 +255,7 @@ class CircusParser(object):
         else:
           file_out = os.path.join(f_next, os.path.basename(f_next))
 
+        self.parser.set('data', 'data_file_no_overwrite', file_out + '_all_sc.dat')
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
         self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
         self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
