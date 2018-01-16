@@ -10,7 +10,7 @@ from mpi import all_gather_array, gather_array, SHARED_MEMORY, comm
 from mpi4py import MPI
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
-from circus.shared.utils import purge, get_parallel_hdf5_flag
+from circus.shared.utils import purge, get_parallel_hdf5_flag, indices_for_dead_times
 import circus
 logger = logging.getLogger(__name__)
 
@@ -144,6 +144,63 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     data_file.close()
 
     return stas
+
+
+def get_dead_times(params, SHARED_MEMORY):
+
+    def _get_dead_times(params):
+        dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
+        data_file  = params.data_file
+        if len(dead_times.shape) == 1:
+            dead_times = dead_times.reshape(1, 2)
+        dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
+        if dead_in_ms:
+            dead_times *= numpy.int64(data_file.sampling_rate*1e-3)
+        dead_times = dead_times.astype(numpy.int64)
+        all_dead_times = indices_for_dead_times(dead_times[:, 0], dead_times[:, 1])
+        return all_dead_times
+
+    if not SHARED_MEMORY:
+        return _get_dead_times(params)
+    else:
+        # First we need to identify machines in the MPI ring.
+        from uuid import getnode as get_mac
+        myip = numpy.int64(get_mac()) % 100000
+        ##### TODO: remove quarantine zone
+        # intsize = MPI.INT.Get_size()
+        ##### end quarantine zone
+        intsize  = MPI.LONG_LONG.Get_size()
+        sub_comm = comm.Split(myip, 0)
+        nb_dead_times = 0
+
+        if sub_comm.rank == 0:
+            dead_times     = _get_dead_times(params)
+            nb_dead_times = len(dead_times)
+
+        sub_comm.Barrier()
+        long_size  = numpy.int32(sub_comm.bcast(numpy.array([nb_dead_times], dtype=numpy.int32), root=0)[0])
+
+        if sub_comm.rank == 0:
+            data_bytes    = long_size * intsize
+        else:
+            indptr_bytes  = 0
+            indices_bytes = 0
+            data_bytes    = 0
+
+        win_data    = MPI.Win.Allocate_shared(data_bytes, intsize, comm=sub_comm)
+        buf_data, _ = win_data.Shared_query(0)
+        buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+        data        = numpy.ndarray(buffer=buf_data, dtype=numpy.int64, shape=(long_size,))
+        sub_comm.Barrier()
+
+        if sub_comm.rank == 0:
+            data[:]= dead_times
+
+        sub_comm.Barrier()
+        sub_comm.Free()
+        return data
+
+
 
 
 def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,

@@ -2,6 +2,8 @@ from .shared.utils import *
 import circus.shared.algorithms as algo
 from .shared import plot
 from circus.shared.probes import get_nodes_and_edges
+from .shared.files import get_dead_times
+from .shared.mpi import SHARED_MEMORY
 import h5py
 from circus.shared.messages import print_and_log, init_logging
 
@@ -270,14 +272,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     if ignore_dead_times:
-        dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
-        if len(dead_times.shape) == 1:
-            dead_times = dead_times.reshape(1, 2)
-        dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
-        if dead_in_ms:
-            dead_times *= numpy.int64(data_file.sampling_rate*1e-3)
-        dead_times = dead_times.astype(numpy.int64)
-        all_dead_times = indices_for_dead_times(dead_times[:, 0], dead_times[:, 1])
+        all_dead_times = get_dead_times(params, SHARED_MEMORY)
     #################################################################
 
 
@@ -373,7 +368,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if ignore_dead_times:
                 mask            = numpy.in1d(local_peaktimes + t_offset, all_dead_times, assume_unique=True, invert=True)
                 local_peaktimes = local_peaktimes[mask]
-                local_peaktimes = numpy.sort(local_peaktimes)
 
             if len(local_peaktimes) > 0:
 
