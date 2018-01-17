@@ -14,6 +14,7 @@ Release 0.6.3
 * fix a bug in the BEER
 * pin HDF5 to 1.8.18 versions, as MATLAB is not working well with 1.10
 * fix a bug when relaunching code and overwrite is False
+* make the multi-files more robust, also reading all files in a directory
 
 =============
 Release 0.6.2

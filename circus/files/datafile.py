@@ -4,6 +4,24 @@ from circus.shared.mpi import comm
 
 logger = logging.getLogger(__name__)
 
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    '''
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    '''
+    return [atoi(c) for c in re.split('(\d+)', text) ]
+
+def filter_per_extension(files, extension):
+    results = []
+    for file in files:
+        fn, ext = os.path.splitext(file)
+        if ext == extension:
+            results += [file]
+    return results
 
 def get_offset(data_dtype, dtype_offset):
 
@@ -35,7 +53,6 @@ def get_offset(data_dtype, dtype_offset):
             sys.exit(1)
 
     return dtype_offset
-
 
 
 class DataFile(object):
@@ -199,26 +216,22 @@ class DataFile(object):
 
         if stream_mode == 'multi-files':
             dirname         = os.path.abspath(os.path.dirname(self.file_name))
-            all_files       = os.listdir(dirname)
             fname           = os.path.basename(self.file_name)
             fn, ext         = os.path.splitext(fname)
-            head, sep, tail = fn.rpartition('_')
-            mindigits       = len(tail)
-            basefn, fnum    = head, int(tail)
-            fmtstring       = '_%%0%dd%%s' % mindigits
+            all_files       = os.listdir(dirname)
+            all_files       = filter_per_extension(all_files, ext)
+            all_files.sort(key=natural_keys)
+
             sources         = []
             to_write        = []
             global_time     = 0
             params          = self.get_description()
 
-            while fname in all_files:
+            for fname in all_files:
                 new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
                 sources     += [new_data]
-                fnum        += 1
-                fmtstring    = '_%%0%dd%%s' % mindigits
-                fname        = basefn + fmtstring % (fnum, ext)
                 to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
 
             print_and_log(to_write, 'debug', logger)
