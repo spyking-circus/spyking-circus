@@ -168,7 +168,7 @@ def merging(groups, sim_same_elec, data):
                 pr_2 = numpy.dot(sd2, v_n)
 
                 norm = numpy.median(numpy.abs(pr_1 - numpy.median(pr_1)))**2 + numpy.median(numpy.abs(pr_2 - numpy.median(pr_2)))**2
-                dist = numpy.abs(numpy.dot(m1 - m2, v_n))/numpy.sqrt(norm)
+                dist = numpy.sum(v_n**2)/numpy.sqrt(norm)
 
                 if dist < dmin:
                     dmin     = dist

@@ -1364,7 +1364,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 data       = numpy.take(data, dd)
                 ones       = numpy.ones(len(dx), dtype=numpy.int32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
-                over_y     = numpy.concatenate((over_y, (idelay-1)*ones))
+                over_y     = numpy.concatenate((over_y, (idelay - 1)*ones))
                 over_data  = numpy.concatenate((over_data, data))
                 if idelay < N_t:
                     over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
@@ -1388,14 +1388,14 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         hfile.create_dataset('over_x', data=over_x)
         hfile.create_dataset('over_y', data=over_y)
         hfile.create_dataset('over_data', data=over_data)
-        hfile.create_dataset('over_shape', data=numpy.array([N_tm**2, 2*N_t - 1], dtype=numpy.int32))
+        hfile.create_dataset('over_shape', data=numpy.array([N_tm**2, duration], dtype=numpy.int32))
         hfile.close()
 
         if maxoverlap:
 
             assert (half == False), "Error"
 
-            overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_tm**2, 2*N_t - 1))
+            overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_tm**2, duration))
 
             myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
 
