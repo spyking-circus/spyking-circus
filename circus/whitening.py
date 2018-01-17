@@ -459,10 +459,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             nb_waveforms += gdata_pos.shape[0]
 
         print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
-        pca = PCA(output_dim, copy=False)
         res = {}
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
+                pca          = PCA(output_dim, copy=False)
                 res_pca      = pca.fit_transform(gdata_neg.astype(numpy.double)).astype(numpy.float32)
                 res['proj']  = pca.components_.T.astype(numpy.float32)
             else:
@@ -473,6 +473,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             res['waveforms'] = gdata_neg[idx, :]
         if sign_peaks in ['positive', 'both']:
             if len(gdata_pos) > 0:
+                pca             = PCA(output_dim, copy=False)
                 res_pca         = pca.fit_transform(gdata_pos.astype(numpy.double)).astype(numpy.float32)
                 res['proj_pos'] = pca.components_.T.astype(numpy.float32)
             else:
