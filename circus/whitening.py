@@ -366,8 +366,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_peaktimes = numpy.unique(all_peaktimes)
 
             if ignore_dead_times:
-                mask            = numpy.in1d(local_peaktimes + t_offset, all_dead_times, assume_unique=True, invert=True)
-                local_peaktimes = local_peaktimes[mask]
+                local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
 
             if len(local_peaktimes) > 0:
 
