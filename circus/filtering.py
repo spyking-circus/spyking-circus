@@ -275,7 +275,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(['The filtering is done but file not present. See no_edits section'], 'error', logger)
             sys.exit(1)
 
-        data_file_in = params.get_data_file(source=True, has_been_created=has_been_created)
+        if not has_been_created:
+            data_file_in = params.get_data_file(source=True, has_been_created=has_been_created)
+        else:
+            data_file_in = params.get_data_file(source=False, has_been_created=has_been_created)
 
         if comm.rank == 0:
             print_and_log(['Reading the output file and allocating ressources...'], 'debug', logger)
@@ -289,6 +292,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if not has_been_created:
             data_file_out.allocate(shape=data_file_in.shape)
+
+        comm.Barrier()
 
     if clean_artefact:
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
