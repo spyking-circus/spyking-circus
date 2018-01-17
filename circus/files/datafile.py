@@ -51,7 +51,7 @@ class DataFile(object):
     extension        = [".myextension"] # extensions
     parallel_write   = False            # can be written in parallel (using the comm object)
     is_writable      = False            # can be written
-    is_streamable    = ['multi-files']  # If the file format can support streams of data ['multi-files' is a default, but can be something else]
+    is_streamable    = ['multi-files', 'all-files']  # If the file format can support streams of data ['multi-files' is a default, but can be something else]
     _shape           = None             # The total shape of the data (nb time steps, nb channels) accross streams if any
     _t_start         = None             # The global t_start of the data
     _t_stop          = None             # The final t_stop of the data, accross all streams if any
@@ -223,6 +223,30 @@ class DataFile(object):
 
             print_and_log(to_write, 'debug', logger)
             return sources
+            
+        elif stream_mode == 'all-files':
+            dirname         = os.path.abspath(os.path.dirname(self.file_name))
+            all_files       = os.listdir(dirname)
+            fname           = os.path.basename(self.file_name)
+            fn, ext         = os.path.splitext(fname)
+            head, sep, tail = fn.rpartition('_')
+            fnum    = 0
+            sources         = []
+            to_write        = []
+            global_time     = 0
+            params          = self.get_description()
+            fnum        += 1
+
+            for file in all_files:
+                if os.path.splitext(file)[1] == ext:
+                    new_data   = type(self)(os.path.join(os.path.abspath(dirname), file), params)
+                    new_data._t_start = global_time
+                    global_time += new_data.duration
+                    sources     += [new_data]
+                    to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
+            
+            print_and_log(to_write, 'debug', logger)
+            return sources
 
     ################################## Optional, only if internal names are changed ##################################
 
@@ -259,7 +283,7 @@ class DataFile(object):
 
     def get_file_names(self):
         res = []
-        if self.stream_mode == 'multi-files':
+        if self.stream_mode == 'multi-files' or self.stream_mode == 'all-files':
             for source in self._sources:
                 res += [source.file_name]
         return res
