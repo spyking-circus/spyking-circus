@@ -392,12 +392,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         elec = numpy.argmax(local_chunk[peak])
                         negative_peak = False
                     elif sign_peaks == 'both':
-                        if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
-                            elec = numpy.argmax(local_chunk[peak])
-                            negative_peak = False
+                        if N_e == 1:
+                            if local_chunk[peak] < 0:
+                                negative_peak = True
+                            elif local_chunk[peak] > 0:
+                                negative_peak = False
+                            elec = 0
                         else:
-                            elec = numpy.argmin(local_chunk[peak])
-                            negative_peak = True
+                            if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
+                                elec = numpy.argmax(local_chunk[peak])
+                                negative_peak = False
+                            else:
+                                elec = numpy.argmin(local_chunk[peak])
+                                negative_peak = True
 
                     indices = numpy.take(inv_nodes, edges[nodes[elec]])
                     myslice = all_times[indices, min_times[midx]:max_times[midx]]

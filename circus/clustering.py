@@ -343,14 +343,23 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             negative_peak = False
                             loc_peak      = 'pos'
                         elif sign_peaks == 'both':
-                            if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
-                                elec = numpy.argmax(local_chunk[peak])
-                                negative_peak = False
-                                loc_peak      = 'pos'
+                            if N_e == 1:
+                                if local_chunk[peak] < 0:
+                                    negative_peak = True
+                                    loc_peak      = 'neg'
+                                elif local_chunk[peak] > 0:
+                                    negative_peak = False
+                                    loc_peak      = 'pos'
+                                elec = 0
                             else:
-                                elec = numpy.argmin(local_chunk[peak])
-                                negative_peak = True
-                                loc_peak      = 'neg'
+                                if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
+                                    elec = numpy.argmax(local_chunk[peak])
+                                    negative_peak = False
+                                    loc_peak      = 'pos'
+                                else:
+                                    elec = numpy.argmin(local_chunk[peak])
+                                    negative_peak = True
+                                    loc_peak      = 'neg'
 
                         if ((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank)):
 
