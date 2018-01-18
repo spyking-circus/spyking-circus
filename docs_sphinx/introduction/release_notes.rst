@@ -31,6 +31,24 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
+Release 0.6.3
+=============
+
+* fix a bug if the parameter file have tabulations characters
+* add a tab to edit parameters directly in the launcher GUI
+* fix dtype offset for int32 and int64
+* minor optimizations for computations of overlaps
+* explicit message displayed on screen if filtering has already been performed
+* can specify a distinct folder for output results with output_dir parameter
+* fix a bug when launching phy GUI for datafiles without data_offset parameter (HDF5)
+* fix a memory leak when using dead_times
+* fix a bug for BRW and python3
+* fix a bug in the BEER
+* pin HDF5 to 1.8.18 versions, as MATLAB is not working well with 1.10
+* fix a bug when relaunching code and overwrite is False
+* fix a bug when peak detection is set on both with only one channel
+
+=============
 Release 0.6.2
 =============
 
