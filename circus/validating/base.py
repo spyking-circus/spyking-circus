@@ -332,6 +332,14 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     else:
         spike_times_juxta = io.load_data(params, 'juxta-triggers')
     
+
+    ## Add a patch to be sure that all spikes in spike_times_ngt lead to correct STAs (exclude borders) ##
+    min_time = int(sampling_rate * N_t * 1e-3)
+    max_time = params.data_file.duration - min_time
+    idx = numpy.where((spike_times_juxta > min_time) & (spike_times_juxta < max_time))
+    spike_times_juxta = spike_times_juxta[idx]
+    
+
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
     extra_thresh = params.getfloat('detection', 'spike_thresh')
@@ -543,14 +551,6 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     ##### TODO: clean working zone
     
     labels_ngt = numpy.zeros(spike_times_ngt.size)
-
-    ## Add a patch to be sure that all spikes in spike_times_ngt lead to correct STAs (exclude borders) ##
-    min_time = int(sampling_rate * N_t * 1e-3)
-    max_time = params.data_file.duration - min_time
-
-    idx = numpy.where((spike_times_ngt > min_time) & (spike_times_ngt < max_time))
-    spike_times_ngt = spike_times_ngt[idx]
-    labels_ngt      = labels_ngt[idx]
 
     ##### TODO: clean temporary zone
     if SHARED_MEMORY:
