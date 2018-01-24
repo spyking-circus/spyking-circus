@@ -55,19 +55,13 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     size  = data.size
     sizes = mpi_comm.gather(size, root=root) or []
     # now we pass the data
-    displacements = [int(sum(sizes[:i])) for i in range(len(sizes))]
-    if dtype is 'float32':
-        gdata         = numpy.empty(int(sum(sizes)), dtype=numpy.float32)
-        mpi_comm.Gatherv([data.flatten(), size, MPI.FLOAT], [gdata, (sizes, displacements), MPI.FLOAT], root=root)
-    elif dtype is 'float64':
-        gdata         = numpy.empty(int(sum(sizes)), dtype=numpy.float64)
-        mpi_comm.Gatherv([data.flatten(), size, MPI.DOUBLE], [gdata, (sizes, displacements), MPI.DOUBLE], root=root)
-    elif dtype is 'int32':
-        gdata         = numpy.empty(int(sum(sizes)), dtype=numpy.int32)
-        mpi_comm.Gatherv([data.flatten(), size, MPI.INT], [gdata, (sizes, displacements), MPI.INT], root=root)
-    elif dtype is 'int64':
-        gdata = numpy.empty(int(sum(sizes)), dtype=numpy.int64)
-        mpi_comm.Gatherv([data.flatten(), size, MPI.LONG], [gdata, (sizes, displacements), MPI.LONG], root=root)
+    displacements = [numpy.int64(sum(sizes[:i])) for i in range(len(sizes))]
+
+    np_type       = get_np_dtype(dtype)
+    mpi_type      = get_mpi_type(dtype)
+
+    gdata         = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
+    mpi_comm.Gatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type], root=root)
 
     if len(data.shape) == 1:
         return gdata
@@ -93,13 +87,14 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32'):
     size  = data.size
     sizes = mpi_comm.allgather(size) or []
     # now we pass the data
-    displacements = [int(sum(sizes[:i])) for i in range(len(sizes))]
-    if dtype is 'float32':
-        gdata         = numpy.empty(int(sum(sizes)), dtype=numpy.float32)
-        mpi_comm.Allgatherv([data.flatten(), size, MPI.FLOAT], [gdata, (sizes, displacements), MPI.FLOAT])
-    elif dtype is 'int32':
-        gdata         = numpy.empty(int(sum(sizes)), dtype=numpy.int32)
-        mpi_comm.Allgatherv([data.flatten(), size, MPI.INT], [gdata, (sizes, displacements), MPI.INT])
+    displacements = [numpy.int64(sum(sizes[:i])) for i in range(len(sizes))]
+
+    np_type       = get_np_dtype(dtype)
+    mpi_type      = get_mpi_type(dtype)
+
+    gdata         = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
+    mpi_comm.Allgatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type])
+
     if len(data.shape) == 1:
         return gdata
     else:
@@ -116,12 +111,9 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32'):
             else:
                 return gdata.reshape((gdata.shape[0], 0))
 
+
+def get_np_dtype(data_type):
+    return numpy.dtype(data_type)
+
 def get_mpi_type(data_type):
-    if data_type == 'int16':
-        return MPI.SHORT
-    elif data_type == 'uint16':
-        return MPI.UNSIGNED_SHORT
-    elif data_type == 'float32':
-        return MPI.FLOAT
-    elif data_type == 'int32':
-        return MPI.INT
+    return MPI._typedict[get_np_dtype(data_type).char]
