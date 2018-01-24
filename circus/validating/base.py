@@ -725,7 +725,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     Mhlnb = numpy.unique(Mhlnb)
     Mhlnb = numpy.sort(Mhlnb)
     indices = numpy.linspace(0, Mhlnb.size - 1, num=num)
-    indices = indices.astype('int')
+    indices = indices.astype('int64')
     cutoffs = numpy.zeros(num)
     fprs = numpy.zeros(num)
     tprs = numpy.zeros(num)

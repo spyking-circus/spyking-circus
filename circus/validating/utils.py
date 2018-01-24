@@ -291,7 +291,7 @@ def extract_extra_spikes_(params):
             # Extract the peaks of the current chunk.
             threshold = extra_thresh * extra_mads[e]
             peak_times[e] = algo.detect_peaks(loc_chunk[:, e], threshold, valley=valley, mpd=dist_peaks)
-            peak_channels[e] = e * numpy.ones(peak_times[e].size, dtype='int')
+            peak_channels[e] = e * numpy.ones(peak_times[e].size, dtype='int64')
             
             peak_values = loc_chunk[peak_times[e], e]
             if valley:
@@ -319,8 +319,9 @@ def extract_extra_spikes_(params):
         ##### end debug zone
         n_times = len(loc_peak_times)
         loc_peak_flags = numpy.zeros(n_times, dtype='bool')
-        loc_peak_elecs = numpy.zeros(n_times, dtype='int')
-        loc_peak_values = numpy.zeros(n_times, dtype='float')
+        loc_peak_elecs = numpy.zeros(n_times, dtype='int64')
+        loc_peak_values = numpy.zeros(n_times, dtype='float32')
+
         if 0 < len(loc_peak_times):
             diff_times = loc_peak_times[-1] - loc_peak_times[0]
             all_times = numpy.zeros((N_elec, diff_times + 1), dtype='bool')
@@ -379,6 +380,8 @@ def extract_extra_spikes_(params):
         
         return loc_peak_times + t_offset, loc_peak_elecs, loc_peak_values
     
+    comm.Barrier()
+
     # Distribute chunks over CPUs.
     all_chunks = numpy.arange(nb_chunks)
     loc_all_chunks = all_chunks[comm.rank::comm.size]
@@ -427,8 +430,8 @@ def extract_extra_spikes_(params):
     # Gather times, channels and values.
     times    = gather_array(times.astype(numpy.int64), comm, 0, dtype='int64')
     channels = gather_array(channels.astype(numpy.int64), comm, 0, dtype='int64')
-    values   = gather_array(values.astype(numpy.float64), comm, 0, dtype='float64')
-    
+    values   = gather_array(values.astype(numpy.float32), comm, 0, dtype='float32')
+
     if comm.rank == 0:
         # Sort times, channels and values according to time.
         idx = numpy.argsort(times)
@@ -440,7 +443,7 @@ def extract_extra_spikes_(params):
             "Total number of extracellular spikes extracted: {}".format(channels.size),
         ] 
         msg2 = [
-            "Number of extracellular spikes extracted on channel {}: {}".format(i, channels[channels == i].size) for i in numpy.unique(channels)
+            "Number of extracellular spikes extracted on channel {}: {}".format(i, channels[channels == i].size) for i in numpy.arange(N_elec)
         ]
         print_and_log(msg, level='info', logger=logger)
         print_and_log(msg2, level='debug', logger=logger)

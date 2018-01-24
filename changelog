@@ -2,7 +2,7 @@
 Release 0.6.4
 =============
 
-* fix a bug in the BEER for juxta spikes at the border
+* fix a bug in the BEER for windows platforms, enhancing robustness to mpi data types
 
 =============
 Release 0.6.3
