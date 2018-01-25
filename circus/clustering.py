@@ -301,7 +301,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_offset    = t_offset
 
                 if ignore_dead_times:
-                    indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + len_chunk])
+                    indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
                     if indices[0] != indices[1]:
                         local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.int32) - t_offset
                         local_peaktimes = numpy.sort(local_peaktimes)
