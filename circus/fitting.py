@@ -268,9 +268,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.unique(local_peaktimes)
 
         if ignore_dead_times:
-            indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + len_chunk])
-            if indices[0] != indices[1]:
-                local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.int32) - t_offset
+            dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + len_chunk])
+            if dead_indices[0] != dead_indices[1]:
+                local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.int32) - t_offset
                 local_peaktimes = numpy.sort(local_peaktimes)
 
         #print "Removing the useless borders..."
@@ -283,7 +283,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.int32)
 
                 if ignore_dead_times:
-                    all_found_spikes[i] = numpy.array(list(set(all_found_spikes[i] + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
+                    if dead_indices[0] != dead_indices[1]:
+                        all_found_spikes[i] = numpy.array(list(set(all_found_spikes[i] + t_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.int32) - t_offset
+                        all_found_spikes[i] = numpy.sort(all_found_spikes[i])
 
                 idx                 = (all_found_spikes[i] >= local_borders[0]) & (all_found_spikes[i] < local_borders[1])
                 all_found_spikes[i] = numpy.compress(idx, all_found_spikes[i])
