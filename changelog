@@ -3,6 +3,7 @@ Release 0.6.4
 =============
 
 * fix a bug in the BEER for windows platforms, enhancing robustness to mpi data types
+* speed up the software when using ignore_dead_times
 
 =============
 Release 0.6.3

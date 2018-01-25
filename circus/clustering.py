@@ -301,8 +301,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_offset    = t_offset
 
                 if ignore_dead_times:
-                    local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times)), dtype=numpy.int32) - t_offset
-                    local_peaktimes = numpy.sort(local_peaktimes)
+                    indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + len_chunk])
+                    if indices[0] != indices[1]:
+                        local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.int32) - t_offset
+                        local_peaktimes = numpy.sort(local_peaktimes)
 
                 if len(local_peaktimes) > 0:
 
@@ -393,7 +395,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 rmin = (numpy.argmin(f(cdata)) - xoff)/5.
                                             else:
                                                 rmin = (numpy.argmax(f(cdata)) - xoff)/5.
-                                            ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                            ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
                                             f        = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
@@ -401,10 +403,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/5.
                                             else:
                                                 rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/5.
-                                            ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                            ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
-                                        sub_mat = numpy.take(local_chunk[peak-template_shift:peak+template_shift+1], indices, axis=1)
+                                        sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
 
                                     if gpass == 0:
                                         to_accept  = True
