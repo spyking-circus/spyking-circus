@@ -464,8 +464,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         res = {}
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
-                pca          = PCA(output_dim, copy=False)
-                res_pca      = pca.fit_transform(gdata_neg.astype(numpy.double)).astype(numpy.float32)
+                pca          = PCA(output_dim)
+                pca.fit(gdata_neg)
                 res['proj']  = pca.components_.T.astype(numpy.float32)
             else:
                 res['proj']  = numpy.identity(int(output_dim), dtype=numpy.float32)
@@ -475,8 +475,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             res['waveforms'] = gdata_neg[idx, :]
         if sign_peaks in ['positive', 'both']:
             if len(gdata_pos) > 0:
-                pca             = PCA(output_dim, copy=False)
-                res_pca         = pca.fit_transform(gdata_pos.astype(numpy.double)).astype(numpy.float32)
+                pca             = PCA(output_dim)
+                pca.fit(gdata_pos)
                 res['proj_pos'] = pca.components_.T.astype(numpy.float32)
             else:
                 res['proj_pos'] = numpy.identity(int(output_dim), dtype=numpy.float32)

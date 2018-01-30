@@ -582,7 +582,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if result['pca_%s_' %p + str(ielec)] is None:
                             pca                               = PCA(sub_output_dim)
-                            data                              = pca.fit_transform(result['data_%s_' %p + str(ielec)].astype(numpy.double)).astype(numpy.float32)
+                            pca.fit(result['data_%s_' %p + str(ielec)])
                             result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
@@ -848,7 +848,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if len(sub_data_flat) > 1:
                         pca              = PCA(1)
-                        res_pca          = pca.fit_transform(sub_data_flat.astype(numpy.double)).astype(numpy.float32)
+                        pca.fit(sub_data_flat)
                         second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
                     else:
                         second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
