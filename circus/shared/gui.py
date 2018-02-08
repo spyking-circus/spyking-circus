@@ -150,12 +150,12 @@ class MergeWindow(QMainWindow):
 
         self.nb_bins    = int(self.last_spike/(self.cc_bin*self.sampling_rate*1e-3))
 
-        self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxoverlap')[:]
+        self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('maxoverlap')[:]
         try:
-            self.lag    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('maxlag')[:]
+            self.lag    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('maxlag')[:]
         except Exception:
             self.lag    = numpy.zeros(self.overlap.shape, dtype=numpy.int32)
-        self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='latest').get('temp_shape')[:]
+        self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
 
         if SHARED_MEMORY:
@@ -1067,7 +1067,7 @@ class MergeWindow(QMainWindow):
                 keys += ['gspikes']
                 new_result['gspikes'] = io.get_garbage(self.params)['gspikes']
 
-            mydata = h5py.File(self.file_out_suff + '.result%s.hdf5' %self.ext_out, 'w', libver='latest')
+            mydata = h5py.File(self.file_out_suff + '.result%s.hdf5' %self.ext_out, 'w', libver='earliest')
             for key in keys:
                 mydata.create_group(key)
                 for temp in new_result[key].keys():
@@ -1075,8 +1075,8 @@ class MergeWindow(QMainWindow):
                     mydata.create_dataset(tmp_path, data=new_result[key][temp])
             mydata.close()
 
-            mydata  = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_out, 'r+', libver='latest')
-            version     = mydata.create_dataset('version', data=numpy.array([circus.__version__.encode('ascii', 'ignore')]))
+            mydata  = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_out, 'r+', libver='earliest')
+            version     = mydata.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)
             maxlag      = mydata.create_dataset('maxlag', shape=(len(to_keep), len(to_keep)), dtype=numpy.int32)
             for c, i in enumerate(to_keep):

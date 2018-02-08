@@ -175,7 +175,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if parallel_hdf5:
         node_pad   = numpy.sum(offsets[:comm.rank+1])
-        hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='latest')
+        hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='earliest')
         norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
         electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
         amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
@@ -183,14 +183,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         g_offset   = total_nb_clusters
     else:
         node_pad   = 0
-        hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='latest')
+        hfile      = h5py.File(file_out_suff + '.templates-%d.hdf5' %comm.rank, 'w', libver='earliest')
         electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
         norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
         amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
         g_count    = 0
         g_offset   = local_nb_clusters
 
-    cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='latest')
+    cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='earliest')
     count_templates = node_pad
 
     temp_x     = numpy.zeros(0, dtype=numpy.int32)
@@ -284,8 +284,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if parallel_hdf5:
         if comm.rank == 0:
-            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
-            cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='latest')
+            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='earliest') for i in xrange(comm.size)]
+            cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='earliest')
             io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
             for i in xrange(comm.size):
                 for j in range(i, N_e, comm.size):
@@ -297,11 +297,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         hfile.close()
         if comm.rank == 0:
-            ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
-            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='latest') for i in xrange(comm.size)]
+            ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='earliest') for i in xrange(comm.size)]
+            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='earliest') for i in xrange(comm.size)]
             result     = {}
-            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='latest')
-            cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='latest')
+            hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='earliest')
+            cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='earliest')
             electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amplitudes = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
@@ -325,7 +325,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             cfile.close()
 
     if comm.rank == 0:
-        hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'r+', libver='latest')
+        hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'r+', libver='earliest')
         hfile.create_dataset('temp_x', data=temp_x)
         hfile.create_dataset('temp_y', data=temp_y)
         hfile.create_dataset('temp_data', data=temp_data)

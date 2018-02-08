@@ -89,7 +89,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     comm.Barrier()
 
     beer_path  = "{}.beer.hdf5".format(file_out_suff)
-    beer_file  = h5py.File(beer_path, 'r', libver='latest')
+    beer_file  = h5py.File(beer_path, 'r', libver='earliest')
     group_name = "juxta_spiketimes"
     key = "{}/elec_0".format(group_name)
 
@@ -377,7 +377,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         else:
             proportion = 0
         beer_path = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(beer_path, 'a', libver='latest')
+        beer_file = h5py.File(beer_path, 'a', libver='earliest')
         beer_key = 'proportion'
         if beer_key in beer_file.keys():
             beer_file.pop(beer_key)
@@ -443,7 +443,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         
         # Save number of false negatives due to threshold in BEER file.
         beer_path = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(beer_path, 'a', libver='latest')
+        beer_file = h5py.File(beer_path, 'a', libver='earliest')
         beer_key = 'thresh_fn'
         if beer_key in beer_file.keys():
             beer_file.pop(beer_key)
@@ -1246,7 +1246,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     if comm.rank == 0:
         
         beer_filename = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(beer_filename, 'a', libver='latest')
+        beer_file = h5py.File(beer_filename, 'a', libver='earliest')
         group_name = "beer_spiketimes"
         if group_name in beer_file.keys():
             beer_file.pop(group_name)
@@ -1295,7 +1295,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 confusion_matrices[loc_index] = loc_confusion_matrix
         # Save confusion matrices to BEER file.
         filename = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(filename, 'a', libver='latest')
+        beer_file = h5py.File(filename, 'a', libver='earliest')
         ## Save class weights.
         class_weights_ = numpy.array([[cw[0], cw[1]] for cw in class_weights])
         class_weights_key = "class_weights"
@@ -1586,7 +1586,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         sc_contingency_matrix = scerror['contingency_matrix']
         # Save data to BEER file.
         filename = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(filename, 'a', libver='latest')
+        beer_file = h5py.File(filename, 'a', libver='earliest')
         ## Save selection.
         beer_key = 'selection'
         if beer_key in beer_file.keys():
@@ -1629,7 +1629,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             error = plot.view_roc_curve_(params, save=path)
             ##### end swap zone
             filename = "{}.beer.hdf5".format(file_out_suff)
-            beer_file = h5py.File(filename, 'r+', libver='latest')
+            beer_file = h5py.File(filename, 'r+', libver='earliest')
             if 'circus_error' in beer_file.keys():
                 beer_file.pop('circus_error')
             beer_file.create_dataset('circus_error', data=numpy.array(error, dtype=numpy.float32))

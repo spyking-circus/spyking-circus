@@ -56,7 +56,7 @@ def main(argv=None):
 
     for count, result in enumerate(sub_results):
         keys   = ['spiketimes', 'amplitudes']
-        mydata = h5py.File(file_out_suff + '.result%s_%d.hdf5' %(extension, count), 'w', libver='latest')
+        mydata = h5py.File(file_out_suff + '.result%s_%d.hdf5' %(extension, count), 'w', libver='earliest')
         for key in keys:
             mydata.create_group(key)
             for temp in result[key].keys():

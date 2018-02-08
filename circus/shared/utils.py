@@ -22,12 +22,7 @@ def test_patch_for_similarities(params, extension):
     file_out_suff  = params.get('data', 'file_out_suff')
     template_file  = file_out_suff + '.templates%s.hdf5' %extension
     if os.path.exists(template_file):
-        try:
-            myfile = h5py.File(template_file, 'r', libver='latest')
-            version = myfile.get('version')[0].decode('ascii')
-            myfile.close()
-        except Exception:
-            version = None
+        version = io.load_data(params, 'version', extension)
     else:
         raise Exception('No templates found! Check suffix?')
 
@@ -61,7 +56,7 @@ def apply_patch_for_similarities(params, extension):
 
             over_file = file_out_suff + '.overlap.hdf5'
             if os.path.exists(over_file):
-                myfile = h5py.File(over_file, 'r', libver='latest')
+                myfile = h5py.File(over_file, 'r', libver='earliest')
                 over_x = myfile.get('over_x')[:].ravel()
                 over_y = myfile.get('over_y')[:].ravel()
                 over_data = myfile.get('over_data')[:].ravel()
@@ -72,7 +67,7 @@ def apply_patch_for_similarities(params, extension):
                 raise Exception('No overlaps found! Check suffix?')
 
             
-            myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
+            myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
             N_tm    = int(numpy.sqrt(overlap.shape[0]))
             N_t     = params.getint('detection', 'N_t')
 
@@ -89,7 +84,7 @@ def apply_patch_for_similarities(params, extension):
             if 'version' in myfile2.keys():
                 version = myfile2['version']
             else:
-                version = myfile2.create_dataset('version', data=numpy.array([circus.__version__.encode('ascii', 'ignore')]))
+                version = myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
 
             for i in get_tqdm_progressbar(xrange(N_tm//2 - 1)):
                 data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()

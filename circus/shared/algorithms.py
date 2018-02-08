@@ -221,7 +221,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
 
         local_keep = to_keep[positions]
         templates  = scipy.sparse.lil_matrix((N_e*N_t, 2*len(to_keep)), dtype=numpy.float32)
-        hfile      = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', libver='latest')
+        hfile      = h5py.File(file_out_suff + '.templates-new.hdf5', 'w', libver='earliest')
         norms      = hfile.create_dataset('norms', shape=(2*len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         for count, keep in zip(positions, local_keep):
@@ -294,7 +294,7 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
             else:
 
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
-                myfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='latest')
+                myfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='earliest')
                 data   = myfile.get('data_' + str(elec))[:]
                 result['data_' + str(elec)]  = numpy.delete(data, all_elements[elec], axis=0)
                 data   = myfile.get('times_' + str(elec))[:]
@@ -305,7 +305,7 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
 
         result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_remove))
 
-        cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='latest')
+        cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='earliest')
         to_write = ['data_', 'clusters_', 'times_', 'peaks_']
         for ielec in xrange(N_e):
             write_datasets(cfile, to_write, result, ielec)

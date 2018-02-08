@@ -251,7 +251,7 @@ def extract_extra_spikes_(params):
     if comm.rank == 0:
         # Save medians and median absolute deviations to BEER file.
         path = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(path, 'a', libver='latest')
+        beer_file = h5py.File(path, 'a', libver='earliest')
         ## Save medians.
         extra_medians_key = "extra_medians"
         if extra_medians_key in beer_file.keys():
@@ -449,7 +449,7 @@ def extract_extra_spikes_(params):
         print_and_log(msg2, level='debug', logger=logger)
     
         path = "{}.beer.hdf5".format(file_out_suff)
-        beer_file = h5py.File(path, 'a', libver='latest')
+        beer_file = h5py.File(path, 'a', libver='earliest')
         group_name = "extra_spiketimes"
         if group_name in beer_file.keys():
             beer_file.pop(group_name)
@@ -539,7 +539,7 @@ def extract_juxta_spikes_(params):
         juxta_mad    = numpy.median(juxta_ad, axis=0)
         
         # Save medians and median absolute deviations to BEER file.
-        beer_file = h5py.File(beer_path, 'a', libver='latest')
+        beer_file = h5py.File(beer_path, 'a', libver='earliest')
         if "juxta_median" in beer_file.keys():
             beer_file.pop("juxta_median")
         beer_file.create_dataset("juxta_median", data=juxta_median)
@@ -563,7 +563,7 @@ def extract_juxta_spikes_(params):
         juxta_spike_times = numpy.load(juxta_spikes)
     
     # Save juxta spike times to BEER file.
-    beer_file = h5py.File(beer_path, 'a', libver='latest')
+    beer_file = h5py.File(beer_path, 'a', libver='earliest')
     group_name = "juxta_spiketimes"
     if group_name in beer_file.keys():
         beer_file.pop(group_name)
@@ -589,7 +589,7 @@ def extract_juxta_spikes_(params):
             juxta_spike_values *= -1
 
         # Save juxta spike values to BEER file.
-        beer_file = h5py.File(beer_path, 'a', libver='latest')
+        beer_file = h5py.File(beer_path, 'a', libver='earliest')
         group_name = "juxta_spike_values"
         if group_name in beer_file.keys():
             beer_file.pop(group_name)

@@ -382,15 +382,15 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             nb_data = 0
             nb_ptr  = 0
-            nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest').get('norms').shape[0]
+            nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest').get('norms').shape[0]
 
             if sub_comm.rank == 0:
                 temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                         'r', libver='latest').get('temp_x')[:].ravel()
+                                         'r', libver='earliest').get('temp_x')[:].ravel()
                 temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                         'r', libver='latest').get('temp_y')[:].ravel()
+                                         'r', libver='earliest').get('temp_y')[:].ravel()
                 temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                         'r', libver='latest').get('temp_data')[:].ravel()
+                                         'r', libver='earliest').get('temp_data')[:].ravel()
                 sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
                 if normalize:
                     norm_templates = load_data(params, 'norm-templates')
@@ -536,7 +536,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
     elif data == 'clusters-light':
 
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='latest')
+            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='earliest')
             result = {}
 
             nb_data = 0
@@ -611,28 +611,28 @@ def load_data(params, data, extension=''):
     if data == 'thresholds':
         spike_thresh = params.getfloat('detection', 'spike_thresh')
         if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds
     elif data == 'matched-thresholds':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
             thresholds = myfile.get('matched_thresholds')[:]
             myfile.close()
             return matched_thresh * thresholds
     elif data == 'matched-thresholds-pos':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
             thresholds = myfile.get('matched_thresholds_pos')[:]
             myfile.close()
             return matched_thresh * thresholds
     elif data == 'spatial_whitening':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile  = h5py.File(filename, 'r', libver='latest')
+            myfile  = h5py.File(filename, 'r', libver='earliest')
             spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
             myfile.close()
             return spatial
@@ -641,48 +641,48 @@ def load_data(params, data, extension=''):
     elif data == 'temporal_whitening':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile   = h5py.File(filename, 'r', libver='latest')
+            myfile   = h5py.File(filename, 'r', libver='earliest')
             temporal = myfile.get('temporal')[:]
             myfile.close()
             return temporal
         else:
             raise Exception('Whitening matrix has to be computed first!')
     elif data == 'basis':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
         basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'basis-pos':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
         basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
         basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
         myfile.close()
         return basis_proj, basis_rec
     elif data == 'waveform':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
         waveforms  = myfile.get('waveform')[:]
         myfile.close()
         return waveforms
     elif data == 'waveforms':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
         waveforms  = myfile.get('waveforms')[:]
         myfile.close()
         return waveforms
     elif data == 'waveform-pos':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
         waveforms  = myfile.get('waveform_pos')[:]
         myfile.close()
         return waveforms
     elif data == 'waveforms-pos':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='latest')
+        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
         waveforms  = myfile.get('waveforms_pos')[:]
         myfile.close()
         return waveforms
     elif data == 'templates':
         filename = file_out_suff + '.templates%s.hdf5' %extension
         if os.path.exists(filename):
-            myfile = h5py.File(filename, 'r', libver='latest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             temp_x = myfile.get('temp_x')[:].ravel()
             temp_y = myfile.get('temp_y')[:].ravel()
             temp_data = myfile.get('temp_data')[:].ravel()
@@ -694,7 +694,7 @@ def load_data(params, data, extension=''):
     elif data == 'overlaps':
         filename = file_out_suff + '.overlap%s.hdf5' %extension
         if os.path.exists(filename):
-            myfile = h5py.File(filename, 'r', libver='latest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             over_x = myfile.get('over_x')[:].ravel()
             over_y = myfile.get('over_y')[:].ravel()
             over_data = myfile.get('over_data')[:].ravel()
@@ -707,8 +707,11 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.templates%s.hdf5' %extension
         if os.path.exists(filename):
             try:
-                myfile  = h5py.File(filename, 'r', libver='latest')
-                version = myfile.get('version')[:]
+                myfile = h5py.File(filename, 'r', libver='earliest')
+                if myfile.get('version').dtype == numpy.dtype('S5'):
+                    version = myfile.get('version')[0].decode('ascii')
+                elif myfile.get('version').dtype == numpy.int32:
+                    version = ".".join([str(i) for i in myfile.get('version')[:]])
                 myfile.close()
             except Exception:
                 version = None
@@ -717,7 +720,7 @@ def load_data(params, data, extension=''):
             raise Exception('No templates found! Check suffix?')
     elif data == 'norm-templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='latest')
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
             norms  = myfile.get('norms')[:]
             myfile.close()
             return norms
@@ -726,7 +729,7 @@ def load_data(params, data, extension=''):
     elif data == 'spike-cluster':
         filename = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='latest')
+            myfile     = h5py.File(filename, 'r', libver='earliest')
             clusters   = myfile.get('clusters')[:].ravel()
             N_clusters = len(numpy.unique(clusters))
             spiketimes = myfile.get('spikes')[:].ravel()
@@ -737,7 +740,7 @@ def load_data(params, data, extension=''):
     elif data == 'clusters':
         filename = file_out_suff + '.clusters%s.hdf5' %extension
         if os.path.exists(filename):
-            myfile = h5py.File(filename, 'r', libver='latest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
             for key in myfile.keys():
                 result[str(key)] = myfile.get(key)[:]
@@ -748,7 +751,7 @@ def load_data(params, data, extension=''):
     elif data == 'clusters-light':
         filename = file_out_suff + '.clusters%s.hdf5' %extension
         if os.path.exists(filename):
-            myfile = h5py.File(filename, 'r', libver='latest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
             for key in myfile.keys():
                 if ('clusters_' in key) or (key == 'electrodes'):
@@ -760,7 +763,7 @@ def load_data(params, data, extension=''):
     elif data == 'electrodes':
         filename = file_out_suff + '.clusters%s.hdf5' %extension
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='latest')
+            myfile     = h5py.File(filename, 'r', libver='earliest')
             electrodes = myfile.get('electrodes')[:]
             myfile.close()
             return electrodes
@@ -784,7 +787,7 @@ def load_data(params, data, extension=''):
     elif data == 'limits':
         myfile = file_out_suff + '.templates%s.hdf5' %extension
         if os.path.exists(myfile):
-            myfile = h5py.File(myfile, 'r', libver='latest')
+            myfile = h5py.File(myfile, 'r', libver='earliest')
             limits = myfile.get('limits')[:]
             myfile.close()
             return limits
@@ -829,7 +832,7 @@ def load_data(params, data, extension=''):
     elif data == 'juxta-mad':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 juxta_mad = beer_file.get('juxta_mad').value
             finally:
@@ -840,7 +843,7 @@ def load_data(params, data, extension=''):
     elif data == 'juxta-triggers':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 juxta_spike_times = beer_file.get('juxta_spiketimes/elec_0')[:]
             finally:
@@ -851,7 +854,7 @@ def load_data(params, data, extension=''):
     elif data == 'juxta-values':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 juxta_spike_values = beer_file.get('juxta_spike_values/elec_0')[:]
             finally:
@@ -862,7 +865,7 @@ def load_data(params, data, extension=''):
     elif data == 'extra-mads':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 extra_mads = beer_file.get('extra_mads')[:]
             finally:
@@ -873,7 +876,7 @@ def load_data(params, data, extension=''):
     elif data == 'extra-triggers':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             N_e = params.getint('data', 'N_e')
             extra_spike_times = N_e * [None]
             try:
@@ -888,7 +891,7 @@ def load_data(params, data, extension=''):
     elif data == 'extra-values':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             N_e = params.getint('data', 'N_e')
             extra_spike_values = N_e * [None]
             try:
@@ -903,7 +906,7 @@ def load_data(params, data, extension=''):
     elif data == 'class-weights':
         filename = file_out_suff + '.beer.hdf5'
         if os.path.exists(filename):
-            bfile = h5py.File(filename, 'r', libver='latest')
+            bfile = h5py.File(filename, 'r', libver='earliest')
             class_weights = bfile.get('class-weights')[:]
             bfile.close()
             return class_weights
@@ -912,7 +915,7 @@ def load_data(params, data, extension=''):
     elif data == 'confusion-matrices':
         filename = file_out_suff + '.beer.hdf5'
         if os.path.exists(filename):
-            bfile = h5py.File(filename, 'r', libver='latest')
+            bfile = h5py.File(filename, 'r', libver='earliest')
             confusion_matrices = bfile.get('confusion_matrices')[:]
             bfile.close()
             return confusion_matrices
@@ -921,7 +924,7 @@ def load_data(params, data, extension=''):
     elif data == 'proportion':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 proportion = beer_file.get('proportion').value
             finally:
@@ -932,7 +935,7 @@ def load_data(params, data, extension=''):
     elif data == 'threshold-false-negatives':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 threshold_false_negatives = beer_file.get('thresh_fn').value
             finally:
@@ -974,7 +977,7 @@ def load_data(params, data, extension=''):
     elif data == 'sc-contingency-matrices':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 sc_contingency_matrices = beer_file.get('sc_contingency_matrices')[:]
             finally:
@@ -1003,7 +1006,7 @@ def load_data(params, data, extension=''):
     elif data == 'sc-contingency-matrix':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 sc_contingency_matrix = beer_file.get('sc_contingency_matrix')[:]
             finally:
@@ -1029,7 +1032,7 @@ def load_data(params, data, extension=''):
     elif data == 'selection':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
-            beer_file = h5py.File(filename, 'r', libver='latest')
+            beer_file = h5py.File(filename, 'r', libver='earliest')
             try:
                 selection = beer_file.get('selection')[:]
             finally:
@@ -1178,7 +1181,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         keys += ['gspikes']
 
     # Save results into `<dataset>/<dataset>.result.hdf5`.
-    mydata = h5py.File(file_out_suff + '.result.hdf5', 'w', libver='latest')
+    mydata = h5py.File(file_out_suff + '.result.hdf5', 'w', libver='earliest')
     for key in keys:
         mydata.create_group(key)
         for temp in result[key].keys():
@@ -1215,7 +1218,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 def get_results(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
     result               = {}
-    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='latest')
+    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='earliest')
     for key in ['spiketimes', 'amplitudes']:
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
@@ -1226,7 +1229,7 @@ def get_results(params, extension=''):
 def get_garbage(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
     result               = {}
-    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='latest')
+    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='earliest')
     for key in ['gspikes']:
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
@@ -1384,7 +1387,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     #We need to add the transpose matrices
 
     if comm.rank == 0:
-        hfile      = h5py.File(filename, 'w', libver='latest')
+        hfile      = h5py.File(filename, 'w', libver='earliest')
         hfile.create_dataset('over_x', data=over_x)
         hfile.create_dataset('over_y', data=over_y)
         hfile.create_dataset('over_data', data=over_data)
@@ -1397,7 +1400,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
             overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_tm**2, duration))
 
-            myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='latest')
+            myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
 
             if 'maxoverlap' in myfile2.keys():
                 maxoverlap = myfile2['maxoverlap']
@@ -1412,7 +1415,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             if 'version' in myfile2.keys():
                 version = myfile2['version']
             else:
-                version = myfile2.create_dataset('version', data=numpy.array([circus.__version__.encode('ascii', 'ignore')]))
+                version = myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
 
             for i in xrange(N_tm//2 - 1):
                 data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()

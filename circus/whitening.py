@@ -86,7 +86,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             gdata      = gdata.reshape((comm.size, N_e))
             thresholds = numpy.mean(gdata, 0)
-            bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'w', libver='latest')
+            bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'w', libver='earliest')
             io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
             bfile.close()
         comm.Barrier()
@@ -197,7 +197,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 to_write['spatial'] = spatial_whitening
                 print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', logger)
 
-        bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
+        bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
         io.write_datasets(bfile, to_write.keys(), to_write)
         bfile.close()
 
@@ -237,7 +237,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 gdata      = gdata.reshape((comm.size, N_e))
                 thresholds = numpy.mean(gdata, 0)
-                bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
+                bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
                 bfile.pop('thresholds')
                 io.write_datasets(bfile, ['thresholds'], {'thresholds' : thresholds})
                 bfile.close()
@@ -485,7 +485,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             idx                  = numpy.random.permutation(numpy.arange(gdata_pos.shape[0]))[:1000]
             res['waveforms_pos'] = gdata_pos[idx, :]
 
-        bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='latest')
+        bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
         io.write_datasets(bfile, res.keys(), res)
         if sign_peaks == 'positive':
             print_and_log(["A basis with %s dimensions has been built" %res['proj_pos'].shape[1]], 'info', logger)
@@ -540,7 +540,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     gdata      = gdata.reshape((comm.size, N_e))
                     thresholds = numpy.mean(gdata, 0)
-                    bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+                    bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='earliest')
                     io.write_datasets(bfile, ['matched_thresholds'], {'matched_thresholds' : thresholds})
                     bfile.close()
                 comm.Barrier()
@@ -555,7 +555,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     gdata      = gdata.reshape((comm.size, N_e))
                     thresholds = numpy.mean(gdata, 0)
-                    bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='latest')
+                    bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='earliest')
                     io.write_datasets(bfile, ['matched_thresholds_pos'], {'matched_thresholds_pos' : thresholds})
                     bfile.close()
                 comm.Barrier()
