@@ -602,6 +602,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
                         result['norm_%s_' %p + str(ielec)] = 1
                         result['sub_%s_' %p + str(ielec)]  = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
+                        result['sdist_%s_' %p + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
                 else:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
