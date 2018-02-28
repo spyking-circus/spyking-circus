@@ -6,6 +6,7 @@ Release 0.6.4
 * speed up the software when using ignore_dead_times
 * ensure backward compatibility with hdf5 version for MATLAB
 * fix a rare bug in clustering, when no spikes are found on electrodes
+* fix a bug in the MATLAB GUI when reloading saved results, skipping overlap fixes
 
 =============
 Release 0.6.3

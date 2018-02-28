@@ -24,7 +24,8 @@ def test_patch_for_similarities(params, extension):
     if os.path.exists(template_file):
         version = io.load_data(params, 'version', extension)
     else:
-        raise Exception('No templates found! Check suffix?')
+        print_and_log(['No templates found! Check suffix?'], 'error', logger)
+        sys.exit(0)
 
     if version is not None:
         if (StrictVersion(version) >= StrictVersion('0.6.0')):
@@ -64,7 +65,8 @@ def apply_patch_for_similarities(params, extension):
                 myfile.close()
                 overlap = scipy.sparse.csc_matrix((over_data, (over_x, over_y)), shape=over_shape)
             else:
-                raise Exception('No overlaps found! Check suffix?')
+                print_and_log(['No overlaps found! Check suffix?'], 'error', logger)
+                sys.exit(0)
 
             
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')

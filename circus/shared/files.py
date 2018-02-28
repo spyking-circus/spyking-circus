@@ -711,7 +711,11 @@ def load_data(params, data, extension=''):
                 if myfile.get('version').dtype == numpy.dtype('S5'):
                     version = myfile.get('version')[0].decode('ascii')
                 elif myfile.get('version').dtype == numpy.int32:
-                    version = ".".join([str(i) for i in myfile.get('version')[:]])
+                    data = myfile.get('version')[:]
+                    if len(data) == 3:
+                        version = ".".join([str(i) for i in data])
+                    elif len(data) == 1:
+                        version = ".".join([str(i) for i in data[0]])
                 myfile.close()
             except Exception:
                 version = None

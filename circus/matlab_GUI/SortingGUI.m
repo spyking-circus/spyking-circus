@@ -136,6 +136,18 @@ else
     handles.is_dense  = true;
     handles.has_norms = false;
     has_tagged        = false;
+    handles.has_version = false;
+    for id=1:size(info.Datasets, 1)
+        if strcmp(info.Datasets(id).Name, 'version')
+            handles.has_version = true;
+        end
+    end
+    if handles.has_version
+        handles.version = h5read(tmpfile, '/version');
+        if iscell(handles.version)
+            handles.version = int32(circussplit(handles.version{1}))
+        end
+    end
     for id=1:size(info.Datasets, 1)
         if strcmp(info.Datasets(id).Name, 'temp_x')
             handles.is_dense = false;
@@ -1657,12 +1669,17 @@ for count=1:nb_templates
 end
 
 [x, y, z] = find(new_templates);
-h5create(tmp_templates, '/temp_x', size(x));
-h5create(tmp_templates, '/temp_y', size(y));
-h5create(tmp_templates, '/temp_data', size(z));
+h5create(tmp_templates, '/temp_x', size(x), 'Datatype', 'int32');
+h5create(tmp_templates, '/temp_y', size(y), 'Datatype', 'int32');
+h5create(tmp_templates, '/temp_data', size(z), 'Datatype', 'single');
 h5write(tmp_templates, '/temp_x', int32(x) - 1);
 h5write(tmp_templates, '/temp_y', int32(y) - 1);
 h5write(tmp_templates, '/temp_data', single(z));
+
+if handles.has_version
+    h5create(tmp_templates, '/version', size(handles.version), 'Datatype', 'int32');
+    h5write(tmp_templates, '/version', int32(handles.version));
+end
 
 if handles.has_norms
     h5create(tmp_templates, '/norms', numel(handles.norms));
@@ -1731,7 +1748,7 @@ for id=1:nb_templates
     else
         to_write = transpose([handles.Amplitudes{id} handles.Amplitudes2{id}]);
     end
-    h5create(output_file, key, size(to_write));
+    h5create(output_file, key, size(to_write), 'Datatype', 'single');
     h5write(output_file, key, to_write);
 end
 h5create(output_file, '/info/duration', size(handles.duration));
