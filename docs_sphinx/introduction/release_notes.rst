@@ -30,6 +30,17 @@ Code and documentation contributions (ordered by the number of commits):
 * Olivier Marre
 * Cyrille Rossant
 
+
+=============
+Release 0.6.4
+=============
+
+* fix a bug in the BEER for windows platforms, enhancing robustness to mpi data types
+* speed up the software when using ignore_dead_times
+* ensure backward compatibility with hdf5 version for MATLAB
+* fix a rare bug in clustering, when no spikes are found on electrodes
+* fix a bug in the MATLAB GUI when reloading saved results, skipping overlap fixes
+
 =============
 Release 0.6.3
 =============
