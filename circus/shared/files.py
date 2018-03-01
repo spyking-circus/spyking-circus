@@ -713,9 +713,9 @@ def load_data(params, data, extension=''):
                 elif myfile.get('version').dtype == numpy.int32:
                     data = myfile.get('version')[:]
                     if len(data) == 3:
-                        version = ".".join([str(i) for i in data])
+                        version = ".".join([str(int(i)) for i in data])
                     elif len(data) == 1:
-                        version = ".".join([str(i) for i in data[0]])
+                        version = ".".join([str(int(i)) for i in data[0]])
                 myfile.close()
             except Exception:
                 version = None
