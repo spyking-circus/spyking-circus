@@ -455,7 +455,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             raise Exception('No templates found! Check suffix?')
     elif data == "overlaps":
 
-        c_overlap  = get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        c_overlap  = get_overlaps(params, extension, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
         N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
         S_over     = over_shape[1]
@@ -519,7 +519,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 indptr[:]  = sparse_mat.indptr
                 del sparse_mat
 
-            c_overs[i]         = scipy.sparse.csr_matrix((N_over, over_shape[1]), dtype=numpy.float32)
+            c_overs[i]         = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
             c_overs[i].data    = data
             c_overs[i].indices = indices
             c_overs[i].indptr  = indptr
@@ -533,6 +533,79 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
         return c_overs
 
+    elif data == "overlaps-raw":
+
+        c_overlap  = get_overlaps(params, extension, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        over_shape = c_overlap.get('over_shape')[:]
+        N_over     = over_shape[0]
+        S_over     = over_shape[1]
+        c_overs    = {}
+
+        if sub_comm.rank == 0:
+            over_x     = c_overlap.get('over_x')[:]
+            over_y     = c_overlap.get('over_y')[:]
+            over_data  = c_overlap.get('over_data')[:]
+            c_overlap.close()
+
+            # To be faster, we rearrange the overlaps into a dictionnary
+            overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
+            del over_x, over_y, over_data
+
+        sub_comm.Barrier()
+
+        nb_data = 0
+        nb_ptr  = 0
+
+        if sub_comm.rank == 0:
+            nb_data    = len(overlaps.data)
+            nb_ptr     = len(overlaps.indptr)
+
+        long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+        short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+
+        if sub_comm.rank == 0:
+            indptr_bytes  = short_size * intsize
+            indices_bytes = long_size * intsize
+            data_bytes    = long_size * floatsize
+        else:
+            indptr_bytes  = 0
+            indices_bytes = 0
+            data_bytes    = 0
+
+        win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
+        win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+        win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
+
+        buf_data, _    = win_data.Shared_query(0)
+        buf_indices, _ = win_indices.Shared_query(0)
+        buf_indptr, _  = win_indptr.Shared_query(0)
+
+        buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+        buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
+        buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
+
+        data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
+        indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
+        indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+
+        sub_comm.Barrier()
+
+        if sub_comm.rank == 0:
+            data[:]    = overlaps.data
+            indices[:] = overlaps.indices
+            indptr[:]  = overlaps.indptr
+            del overlaps
+
+        overlaps         = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
+        overlaps.data    = data
+        overlaps.indices = indices
+        overlaps.indptr  = indptr
+
+        sub_comm.Barrier()
+        sub_comm.Free()
+
+        return overlaps
+    
     elif data == 'clusters-light':
 
         if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):

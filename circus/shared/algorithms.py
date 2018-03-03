@@ -1,6 +1,6 @@
 import os, logging
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
-from circus.shared.files import load_data, write_datasets, get_overlaps
+from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
 from circus.shared.utils import get_tqdm_progressbar
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
@@ -442,7 +442,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
-    cc_merge       = params.getfloat('clustering', 'cc_merge')
+    cc_merge       = params.getfloat('clustering', 'cc_mixtures')
     x,        N_tm = templates.shape
     nb_temp        = N_tm//2
     merged         = [nb_temp, 0]
@@ -464,13 +464,15 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
 
-    over_x     = overlap.get('over_x')[:]
-    over_y     = overlap.get('over_y')[:]
-    over_data  = overlap.get('over_data')[:]
-    over_shape = overlap.get('over_shape')[:]
-    overlap.close()
-
-    overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
+    if SHARED_MEMORY:
+        overlap    = load_data_memshared(params, 'overlaps-raw', extension='-mixtures', normalize=False, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    else:
+        over_x     = overlap.get('over_x')[:]
+        over_y     = overlap.get('over_y')[:]
+        over_data  = overlap.get('over_data')[:]
+        over_shape = overlap.get('over_shape')[:]
+        overlap.close()
+        overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
 
     for i in xrange(nb_temp-1):
         distances[i, i+1:] = numpy.argmax(overlap[i*nb_temp+i+1:(i+1)*nb_temp].toarray(), 1)
@@ -479,10 +481,9 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
     overlap_0 = overlap[:, N_t].toarray().reshape(nb_temp, nb_temp)
 
-
-    sorted_temp    = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
-    M              = numpy.zeros((2, 2), dtype=numpy.float32)
-    V              = numpy.zeros((2, 1), dtype=numpy.float32)
+    sorted_temp = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
+    M           = numpy.zeros((2, 2), dtype=numpy.float32)
+    V           = numpy.zeros((2, 1), dtype=numpy.float32)
 
     to_explore = xrange(comm.rank, len(sorted_temp), comm.size)
     if comm.rank == 0:
@@ -497,9 +498,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         is_in_area    = numpy.in1d(best_elec, electrodes)
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
         been_found    = False
+        t_k           = templates[:, k].toarray().ravel()
 
         for i in all_idx:
             if not been_found:
+                t_i       = templates[:, i].toarray().ravel()
                 overlap_i = overlap[i*nb_temp:(i+1)*nb_temp].tolil()
                 M[0, 0]   = overlap_0[i, i]
                 V[0, 0]   = overlap_k[i, distances[k, i]]
@@ -517,14 +520,16 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                     is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
                     is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
-                        new_template = (a1*templates[:, i].toarray() + a2*templates[:, j].toarray()).ravel()
-                        similarity   = numpy.corrcoef(templates[:, k].toarray().ravel(), new_template)[0, 1]
-                        if similarity > cc_merge:
+                        t_j      = templates[:, j].toarray().ravel()
+                        new_template = (a1*t_i + a2*t_j)
+                        similarity   = numpy.corrcoef(t_k, new_template)[0, 1]
+                        local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
+                        if similarity > cc_merge and local_overlap < cc_merge:
                             if k not in mixtures:
                                 mixtures  += [k]
                                 been_found = True
-                                break
                                 #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
+                                break
 
     #print mixtures
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))
