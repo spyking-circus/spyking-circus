@@ -145,7 +145,7 @@ else
     if handles.has_version
         handles.version = h5read(tmpfile, '/version');
         if iscell(handles.version)
-            handles.version = int32(circussplit(handles.version{1}), '.');
+            handles.version = int32(circussplit(handles.version{1}, '.'));
         end
     end
     for id=1:size(info.Datasets, 1)
