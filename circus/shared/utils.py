@@ -69,7 +69,7 @@ def apply_patch_for_similarities(params, extension):
 
             
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
-            N_tm    = int(numpy.sqrt(overlap.shape[0]))
+            N_tm    = int(numpy.sqrt(over_shape[0]))
             N_half  = N_tm // 2
             N_t     = params.getint('detection', 'N_t')
 
@@ -91,7 +91,7 @@ def apply_patch_for_similarities(params, extension):
             for i in get_tqdm_progressbar(xrange(N_half - 1)):
                 idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
                 local_x = over_x[idx] - (i*N_tm+i+1)
-                data = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_half - (i + 1), duration))
+                data = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_half - (i + 1), over_shape[1]))
                 data = data.toarray()
                 maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
                 maxlag[i+1:, i]     = -maxlag[i, i+1:]
