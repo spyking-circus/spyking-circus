@@ -1462,7 +1462,6 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     over_data = gather_array(over_data, comm)
 
     #We need to add the transpose matrices
-
     if comm.rank == 0:
         hfile      = h5py.File(filename, 'w', libver='earliest')
         hfile.create_dataset('over_x', data=over_x)
@@ -1474,28 +1473,30 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         if maxoverlap:
 
             assert (half == False), "Error"
-
-            overlap    = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(N_tm**2, duration))
-
-            myfile2    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
+            N_half = N_tm // 2
+            myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
 
             if 'maxoverlap' in myfile2.keys():
                 maxoverlap = myfile2['maxoverlap']
             else:
-                maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm//2, N_tm//2), dtype=numpy.float32)
+                maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_half, N_half), dtype=numpy.float32)
 
             if 'maxlag' in myfile2.keys():
                 maxlag = myfile2['maxlag']
             else:
-                maxlag = myfile2.create_dataset('maxlag', shape=(N_tm//2, N_tm//2), dtype=numpy.int32)
+                maxlag = myfile2.create_dataset('maxlag', shape=(N_half, N_half), dtype=numpy.int32)
 
             if 'version' in myfile2.keys():
                 version = myfile2['version']
             else:
                 version = myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
 
-            for i in xrange(N_tm//2 - 1):
-                data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()
+            for i in xrange(N_half - 1):
+
+                idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
+                local_x = over_x[idx] - (i*N_tm+i+1)
+                data = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_half - (i + 1), duration))
+                data = data.toarray()
                 maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
                 maxlag[i+1:, i]     = -maxlag[i, i+1:]
                 maxoverlap[i, i+1:] = numpy.max(data, 1)
