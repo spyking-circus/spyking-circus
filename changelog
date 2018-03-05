@@ -2,6 +2,8 @@
 Release 0.6.5
 =============
 
+* reduce memory consumption for mixture removal with shared memory
+* made an explicit parameter cc_mixtures for mixture removal in the [clustering] section
 
 =============
 Release 0.6.4
