@@ -498,15 +498,16 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         is_in_area    = numpy.in1d(best_elec, electrodes)
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
         been_found    = False
-        t_k           = templates[:, k].toarray().ravel()
+        t_k           = None
 
         for i in all_idx:
+            t_i = None
             if not been_found:
-                t_i       = templates[:, i].toarray().ravel()
                 overlap_i = overlap[i*nb_temp:(i+1)*nb_temp].tolil()
                 M[0, 0]   = overlap_0[i, i]
                 V[0, 0]   = overlap_k[i, distances[k, i]]
                 for j in all_idx[i+1:]:
+                    t_j = None
                     M[1, 1]  = overlap_0[j, j]
                     M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
                     M[0, 1]  = M[1, 0]
@@ -520,7 +521,12 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                     is_a1    = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
                     is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
-                        t_j      = templates[:, j].toarray().ravel()
+                        if t_k is None:
+                            t_k = templates[:, k].toarray().ravel()
+                        if t_i is None:
+                            t_i = templates[:, i].toarray().ravel()
+                        if t_j is None:
+                            t_j = templates[:, j].toarray().ravel()
                         new_template = (a1*t_i + a2*t_j)
                         similarity   = numpy.corrcoef(t_k, new_template)[0, 1]
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
