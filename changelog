@@ -2,6 +2,8 @@
 Release 0.6.5
 =============
 
+* fix in the exact times shown during preview if second is specified
+* prevent errors if filter is False and overwrite is False
 
 =============
 Release 0.6.4

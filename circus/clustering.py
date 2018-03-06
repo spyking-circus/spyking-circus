@@ -26,6 +26,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
     alignment      = params.getboolean('detection', 'alignment')
+    over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     if params.get('data', 'global_tmp'):
@@ -56,6 +57,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     extraction     = params.get('clustering', 'extraction')
     smart_search   = params.getboolean('clustering', 'smart_search')
     smart_select   = params.getboolean('clustering', 'smart_select')
+    n_abs_min      = params.getint('clustering', 'n_abs_min')
     if smart_select:
         m_ratio    = nclus_min
     else:
@@ -131,7 +133,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(tmp_path_loc)
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
+        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
@@ -392,17 +394,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         if len(ydata) == 1:
                                             f        = scipy.interpolate.UnivariateSpline(xdata, zdata, s=0)
                                             if negative_peak:
-                                                rmin = (numpy.argmin(f(cdata)) - xoff)/5.
+                                                rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                             else:
-                                                rmin = (numpy.argmax(f(cdata)) - xoff)/5.
+                                                rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
                                             ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
                                             f        = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
                                             if negative_peak:
-                                                rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/5.
+                                                rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                             else:
-                                                rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/5.
+                                                rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                             ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
@@ -475,7 +477,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if ((smart_search and (gpass == 0)) or (not smart_search and (gpass == 1))) and nb_elements == 0:
             if comm.rank == 0:
                 print_and_log(['No waveforms found! Are the data properly loaded??'], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         if nb_elements == 0:
             gpass = nb_repeats
@@ -616,7 +618,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     result.pop('tmp_%s_' %p + str(ielec))
                     n_data  = len(result['data_%s_' %p + str(ielec)])
-                    n_min   = numpy.maximum(20, int(nclus_min*n_data))
+                    n_min   = numpy.maximum(n_abs_min, int(nclus_min*n_data))
 
                     if p == 'pos':
                         flag = 'positive'

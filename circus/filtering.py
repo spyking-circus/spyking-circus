@@ -34,7 +34,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             except Exception:
                 if comm.rank == 0:
                     print_and_log(['First value of cut off must be a valid number'], 'error', logger)
-                sys.exit(1)
+                sys.exit(0)
 
             cut_off[1] = cut_off[1].replace(' ', '')
             if cut_off[1] == 'auto':
@@ -45,7 +45,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 except Exception:
                     if comm.rank == 0:
                         print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', logger)
-                    sys.exit(1)
+                    sys.exit(0)
 
         chunk_size    = params.getint('data', 'chunk_size')
         nb_chunks, _  = data_file_in.analyze(chunk_size)
@@ -137,7 +137,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if not mytest:
             if comm.rank == 0:
                 print_and_log(['Error in the trigger files'], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         all_labels   = artefacts[:, 0].astype(numpy.int32)
         all_times    = artefacts[:, 1].astype(numpy.int32)
@@ -167,7 +167,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if len(numpy.where(numpy.diff(times) < tau)[0]) > 0:
                 if comm.rank == 0:
                     print_and_log(['Stimulation times for artefact %d are too close!' %artefact], 'error', logger)
-                sys.exit(1)
+                sys.exit(0)
 
             art_dict[artefact] = get_artefact(params, times, tau, nodes)
             if make_plots not in ['None', '']:
@@ -210,7 +210,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if not mytest:
             if comm.rank == 0:
                 print_and_log(['Error in the trigger files'], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         all_labels   = artefacts[:, 0].astype(numpy.int32)
         all_times    = artefacts[:, 1].astype(numpy.int32)
@@ -273,7 +273,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if not has_been_created and (filter_done or median_done or artefacts_done):
             if comm.rank == 0:
                 print_and_log(['The filtering is done but file not present. See no_edits section'], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         if not has_been_created:
             data_file_in = params.get_data_file(source=True, has_been_created=has_been_created)
@@ -299,7 +299,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if not (os.path.exists(params.get('triggers', 'trig_file')) and os.path.exists(params.get('triggers', 'trig_windows'))):
             if comm.rank == 0:
                 print_and_log(['trig_file or trig_windows file can not be found'], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
     to_write = []
 
@@ -310,7 +310,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         remove_median = False
         to_write += ["Median over all channels has already been substracted to each channels"]
 
-    if comm.rank == 0:
+    if comm.rank == 0 and len(to_write) > 0:
         print_and_log(to_write, 'info', logger)
 
     if params.getboolean('data', 'overwrite'):
