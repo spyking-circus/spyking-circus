@@ -408,11 +408,15 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         over_shape = overlap.get('over_shape')[:]
         overlap.close()
 
-        overlap   = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=over_shape)
         result    = load_data(params, 'clusters')
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+
         for i in xrange(nb_temp-1):
-            distances[i, i+1:] = numpy.max(overlap[i*nb_temp+i+1:(i+1)*nb_temp].toarray(), 1)
+            idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
+            local_x = over_x[idx] - (i*nb_temp+i+1)
+            data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
+            data[local_x, over_y[idx]] = over_data[idx]
+            distances[i, i+1:] = numpy.max(data, 1)
             distances[i+1:, i] = distances[i, i+1:]
 
         distances /= (N_e*N_t)
@@ -449,7 +453,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     mixtures       = []
     to_remove      = []
 
-    overlap  = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     result   = []
 
@@ -467,6 +470,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     if SHARED_MEMORY:
         overlap    = load_data_memshared(params, 'overlaps-raw', extension='-mixtures', normalize=False, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     else:
+        overlap    = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
         over_x     = overlap.get('over_x')[:]
         over_y     = overlap.get('over_y')[:]
         over_data  = overlap.get('over_data')[:]

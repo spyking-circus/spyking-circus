@@ -1022,6 +1022,5 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         print_and_log(["Number of global merges    : %d" %merged1[1],
                           "Number of mixtures removed : %d" %merged2[1]], 'info', logger)
 
-
     comm.Barrier()
     io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)

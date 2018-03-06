@@ -91,8 +91,8 @@ def apply_patch_for_similarities(params, extension):
             for i in get_tqdm_progressbar(xrange(N_half - 1)):
                 idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
                 local_x = over_x[idx] - (i*N_tm+i+1)
-                data = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_half - (i + 1), over_shape[1]))
-                data = data.toarray()
+                data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
+                data[local_x, over_y[idx]] = over_data[idx]
                 maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
                 maxlag[i+1:, i]     = -maxlag[i, i+1:]
                 maxoverlap[i, i+1:] = numpy.max(data, 1)
