@@ -12,7 +12,7 @@ def read_probe(parser):
     if not os.path.exists(filename):
         if comm.rank == 0:
             print_and_log(["The probe file %s can not be found" %filename], 'error', logger)
-        sys.exit(1)
+        sys.exit(0)
     try:
         with open(filename, 'r') as f:
             probetext = f.read()
@@ -20,14 +20,14 @@ def read_probe(parser):
     except Exception as ex:
         if comm.rank == 0:
             print_and_log(["Something wrong with the syntax of the probe file:\n" + str(ex)], 'error', logger)
-        sys.exit(1)
+        sys.exit(0)
 
     key_flags = ['total_nb_channels', 'radius', 'channel_groups']
     for key in key_flags:
         if not probe.has_key(key):
             if comm.rank == 0:
                 print_and_log(["%s is missing in the probe file" %key], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
     return probe
 
 
