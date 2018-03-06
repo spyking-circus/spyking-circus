@@ -17,9 +17,10 @@ Python
 
 .. code:: python
 
-	from circus.shared.files import *
+	from circus.shared.parser import CircusParser
+	from circus.shared.files import load_data
 	from pylab import *
-	params    = load_parameters('yourdatafile.dat')
+	params    = CircusParser('yourdatafile.dat')
 	N_e       = params.getint('data', 'N_e') # The number of channels
 	N_t       = params.getint('data', 'N_t') # The temporal width of the template
 	templates = load_data(params, 'templates') # To load the templates
@@ -54,9 +55,10 @@ Python
 
 .. code:: python
 
-	from circus.shared.files import *
+	from circus.shared.parser import CircusParser
+	from circus.shared.files import load_data
 	from pylab import *
-	params    = load_parameters('yourdatafile.dat')
+	params    = CircusParser('yourdatafile.dat')
 	results   = load_data(params, 'results')
 	spikes    = results['spiketimes']['temp_i']
 	isis      = numpy.diff(spikes)
@@ -84,9 +86,10 @@ Python
 
 .. code:: python
 
-	from circus.shared.files import *
+	from circus.shared.parser import CircusParser
+	from circus.shared.files import load_data
 	from pylab import *
-	params    = load_parameters('yourdatafile.dat')
+	params    = CircusParser('yourdatafile.dat')
 	results   = load_data(params, 'results')
 	spikes    = results['spiketimes']['temp_i']
 	amps      = results['amplitudes']['temp_i'][:, 0] # The second column are amplitude for orthogonal, not needed
