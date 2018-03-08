@@ -466,11 +466,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes[nodes] = numpy.argsort(nodes)
 
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    overlap    = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
 
     if SHARED_MEMORY:
         overlap    = load_data_memshared(params, 'overlaps-raw', extension='-mixtures', normalize=False, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     else:
-        overlap    = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
         over_x     = overlap.get('over_x')[:]
         over_y     = overlap.get('over_y')[:]
         over_data  = overlap.get('over_data')[:]
