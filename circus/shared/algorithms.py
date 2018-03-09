@@ -477,6 +477,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         over_shape = overlap.get('over_shape')[:]
         overlap.close()
         overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
+        del over_x, over_y, over_data
 
     for i in xrange(nb_temp-1):
         distances[i, i+1:] = numpy.argmax(overlap[i*nb_temp+i+1:(i+1)*nb_temp].toarray(), 1)
