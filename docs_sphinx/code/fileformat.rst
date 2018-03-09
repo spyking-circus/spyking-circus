@@ -82,8 +82,12 @@ This list will tell you what are the wrappers available, and you need to specify
 Neuroshare support
 ------------------
 
-Some of the file formats (plexon, blackrock, multi-channel systems, ..) can be accessed only if you have the neuroshare_ library installed. Note that despite a great simplicity of use, this library provides only very slow read access and no write access to the file formats. Therefore, this is not an efficient wrapper, and it may slow down considerably the code. Feel free to contribute if you have better ideas about what to do!
+Some of the file formats (plexon, blackrock, ) can be accessed only if you have the neuroshare_ library installed. Note that despite a great simplicity of use, this library provides only very slow read access and no write access to the file formats. Therefore, this is not an efficient wrapper, and it may slow down considerably the code. Feel free to contribute if you have better ideas about what to do!
 
+Multi-Channel support
+---------------------
+
+To be able to read efficiently native mcd files, you must have the pymcstream_ python package installed. This is a cross-platform packages (Windows/Mac/Linux) and the installation procedure can be found on the webwsite.
 
 HDF5-like file
 --------------
@@ -148,3 +152,4 @@ There are some extra and required parameters for the raw_binary file format. For
 		* this is currently the **only** file format properly supported by phy and MATLAB GUIs, if you want to see the raw data
 
 .. _neuroshare: https://pythonhosted.org/neuroshare/
+.. _pymcstream: https://bitbucket.org/pymcstream/src
