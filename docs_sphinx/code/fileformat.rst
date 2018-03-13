@@ -152,4 +152,4 @@ There are some extra and required parameters for the raw_binary file format. For
 		* this is currently the **only** file format properly supported by phy and MATLAB GUIs, if you want to see the raw data
 
 .. _neuroshare: https://pythonhosted.org/neuroshare/
-.. _pymcstream: https://bitbucket.org/pymcstream/src
+.. _pymcstream: https://bitbucket.org/galenea/pymcstream/src
