@@ -465,26 +465,35 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
 
-    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
     overlap    = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
 
     if SHARED_MEMORY:
-        overlap    = load_data_memshared(params, 'overlaps-raw', extension='-mixtures', normalize=False, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        c_overs    = load_data_memshared(params, 'overlaps', extension='-mixtures', normalize=False, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     else:
         over_x     = overlap.get('over_x')[:]
         over_y     = overlap.get('over_y')[:]
         over_data  = overlap.get('over_data')[:]
         over_shape = overlap.get('over_shape')[:]
         overlap.close()
+        c_overs   = {}
         overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
+        del over_x, over_y, over_data
+        
+        for i in xrange(N_over):
+            c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
+
+        del overlaps
+
+    overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
 
     for i in xrange(nb_temp-1):
-        distances[i, i+1:] = numpy.argmax(overlap[i*nb_temp+i+1:(i+1)*nb_temp].toarray(), 1)
+        data = c_overs[i].toarray()
+        distances[i, i+1:] = numpy.argmax(data[i+1:, :], 1)
         distances[i+1:, i] = distances[i, i+1:]
+        overlap_0[i] = data[i, N_t]
 
-    all_temp  = numpy.arange(comm.rank, nb_temp, comm.size)
-    overlap_0 = overlap[:, N_t].toarray().reshape(nb_temp, nb_temp)
-
+    all_temp    = numpy.arange(comm.rank, nb_temp, comm.size)
     sorted_temp = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
     M           = numpy.zeros((2, 2), dtype=numpy.float32)
     V           = numpy.zeros((2, 1), dtype=numpy.float32)
@@ -493,12 +502,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
 
-
     for count, k in enumerate(to_explore):
 
         k             = sorted_temp[k]
         electrodes    = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
-        overlap_k     = overlap[k*nb_temp:(k+1)*nb_temp].tolil()
+        overlap_k     = c_overs[k].toarray()
         is_in_area    = numpy.in1d(best_elec, electrodes)
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
         been_found    = False
@@ -507,12 +515,12 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         for i in all_idx:
             t_i = None
             if not been_found:
-                overlap_i = overlap[i*nb_temp:(i+1)*nb_temp].tolil()
-                M[0, 0]   = overlap_0[i, i]
+                overlap_i = c_overs[i].toarray()
+                M[0, 0]   = overlap_0[i]
                 V[0, 0]   = overlap_k[i, distances[k, i]]
                 for j in all_idx[i+1:]:
                     t_j = None
-                    M[1, 1]  = overlap_0[j, j]
+                    M[1, 1]  = overlap_0[j]
                     M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
                     M[0, 1]  = M[1, 0]
                     V[1, 0]  = overlap_k[j, distances[k, j]]
