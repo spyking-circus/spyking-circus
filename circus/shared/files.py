@@ -467,10 +467,6 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             over_data  = c_overlap.get('over_data')[:]
             c_overlap.close()
 
-            # To be faster, we rearrange the overlaps into a dictionnary
-            overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
-            del over_x, over_y, over_data
-
         sub_comm.Barrier()
 
         nb_data = 0
@@ -479,7 +475,10 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
         for i in xrange(N_over):
 
             if sub_comm.rank == 0:
-                sparse_mat = overlaps[i*N_over:(i+1)*N_over]
+                idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
+                local_x = over_x[idx] - i*N_over
+
+                sparse_mat = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
                 nb_data    = len(sparse_mat.data)
                 nb_ptr     = len(sparse_mat.indptr)
 
@@ -527,7 +526,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             sub_comm.Barrier()
 
         if sub_comm.rank == 0:
-            del overlaps
+            del over_x, over_y, over_data
 
         sub_comm.Free()
 
