@@ -142,12 +142,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # To be faster, we rearrange the overlaps into a dictionnary. This has a cost: twice the memory usage for 
         # a short period of time
         c_overs   = {}
-        overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
-        del over_x, over_y, over_data
         
         for i in xrange(N_over):
-            c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
-        del overlaps
+            idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
+            local_x = over_x[idx] - i*N_over
+            c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
+            
+        del over_x, over_y, over_data, over_shape
 
     comm.Barrier()
 

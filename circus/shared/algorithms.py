@@ -477,13 +477,13 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         over_shape = overlap.get('over_shape')[:]
         overlap.close()
         c_overs   = {}
-        overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
-        del over_x, over_y, over_data
         
         for i in xrange(N_over):
-            c_overs[i] = overlaps[i*N_over:(i+1)*N_over]
+            idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
+            local_x = over_x[idx] - i*N_over
+            c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
 
-        del overlaps
+        del over_x, over_y, over_data, over_shape
 
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
 
