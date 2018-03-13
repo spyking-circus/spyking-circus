@@ -32,12 +32,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     if ext != '.dat':
         if comm.rank == 0:
             print_and_log(['Benchmarking produces raw files: select a .dat extension'], 'error', logger)
-        sys.exit(1)
+        sys.exit(0)
 
     if benchmark not in ['fitting', 'clustering', 'synchrony', 'smart-search', 'drifts']:
         if comm.rank == 0:
             print_and_log(['Benchmark need to be in [fitting, clustering, synchrony, smart-search, drifts]'], 'error', logger)
-        sys.exit(1)
+        sys.exit(0)
 
     # The extension `.p` or `.pkl` or `.pickle` seems more appropriate than `.pic`.
     # see: http://stackoverflow.com/questions/4530111/python-saving-objects-and-using-pickle-extension-of-filename
@@ -189,7 +189,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
             if count == len(all_elecs):
                 if comm.rank == 0:
                     print_and_log(["No electrode to move template %d (max similarity is %g)" %(cell_id, similarity)], 'error', logger)
-                sys.exit(1)
+                sys.exit(0)
             else:
                 # Get the next shuffled electrode.
                 n_elec = all_elecs[count]

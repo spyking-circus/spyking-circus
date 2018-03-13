@@ -1722,7 +1722,7 @@ movefile(tmp_templates, output_file_temp)
 h5create(output_file_temp, '/limits', size(transpose(handles.AmpLim)));
 h5write(output_file_temp, '/limits', transpose(handles.AmpLim));
 h5create(output_file_temp, '/maxoverlap', size(transpose(overlap)));
-h5write(output_file_temp, '/maxoverlap', transpose(overlap)*handles.templates_size(1) * handles.templates_size(2));
+h5write(output_file_temp, '/maxoverlap', transpose(overlap));
 h5create(output_file_temp, '/tagged', size(transpose(handles.Tagged)));
 h5write(output_file_temp, '/tagged', transpose(handles.Tagged));
 for id=1:nb_templates
@@ -1801,6 +1801,7 @@ handles.overlap     = handles.overlap(myslice,:);
 handles.overlap     = handles.overlap(:,myslice);
 handles.overlap(CellNb, CellNb+1) = 1;
 handles.overlap(CellNb+1, CellNb) = 1;
+handles.norms       = handles.norms(myslice, :)
 handles.to_keep     = handles.to_keep(myslice);
 
 handles.amp_time_list = handles.amp_time_list(myslice);

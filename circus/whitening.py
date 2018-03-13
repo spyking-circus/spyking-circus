@@ -10,7 +10,6 @@ from circus.shared.messages import print_and_log, init_logging
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
-
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.whitening')
     #################################################################
@@ -256,6 +255,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
+    over_factor    = float(params.getint('detection', 'oversampling_factor'))
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     nodes, edges   = get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -312,7 +312,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     thresholds = io.load_data(params, 'thresholds')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
+        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
@@ -426,9 +426,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
                                 f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
                                 if negative_peak:
-                                    rmin = (numpy.argmin(f(cdata)) - xoff)/5.
+                                    rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:
-                                    rmin = (numpy.argmax(f(cdata)) - xoff)/5.
+                                    rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
 
                                 if negative_peak:

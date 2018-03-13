@@ -24,6 +24,7 @@ class CircusParser(object):
                           ['data', 'parallel_hdf5', 'bool', 'True'],
                           ['data', 'output_dir', 'string', ''],
                           ['detection', 'alignment', 'bool', 'True'],
+                          ['detection', 'oversampling_factor', 'int', '5'],
                           ['detection', 'matched-filter', 'bool', 'False'],
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
@@ -50,6 +51,7 @@ class CircusParser(object):
                           ['clustering', 'noise_thr', 'float', '0.8'],
                           ['clustering', 'cc_merge', 'float', '0.975'],
                           ['clustering', 'cc_mixtures', 'float', '0.75'],
+                          ['clustering', 'n_abs_min', 'int', '20'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
@@ -113,7 +115,7 @@ class CircusParser(object):
         if not os.path.exists(self.file_params):
             if comm.rank == 0:
                 print_and_log(["%s does not exist" %self.file_params], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         if comm.rank == 0:
             print_and_log(['Creating a Circus Parser for datafile %s' %self.file_name], 'debug', logger)
@@ -160,7 +162,7 @@ class CircusParser(object):
         if N_e > self.nb_channels:
             if comm.rank == 0:
                 print_and_log(['The number of analyzed channels is higher than the number of recorded channels'], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         to_write = ["You must specify explicitly the file format in the config file",
                     "Please have a look to the documentation and add a file_format",
@@ -176,7 +178,7 @@ class CircusParser(object):
                     ">> spyking-circus file_format -i"]
 
                 print_and_log(to_write, 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         test = self.file_format.lower() in __supported_data_files__.keys()
         if not test:
@@ -188,7 +190,7 @@ class CircusParser(object):
                     ">> spyking-circus file_format -i"]
 
                 print_and_log(to_write, 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
 
         try:
@@ -204,14 +206,14 @@ class CircusParser(object):
             if (self.parser.get('triggers', 'trig_file') == '') or (self.parser.get('triggers', 'trig_windows') == ''):
                 if comm.rank == 0:
                     print_and_log(["trig_file and trig_windows must be specified in [triggers]"], 'error', logger)
-                sys.exit(1)
+                sys.exit(0)
 
         units = ['ms', 'timestep']
         test = self.parser.get('triggers', 'trig_unit').lower() in units
         if not test:
           if comm.rank == 0:
               print_and_log(["trig_unit in [triggers] should be in %s" %str(units)], 'error', logger)
-          sys.exit(1)
+          sys.exit(0)
         else:
           self.parser.set('triggers', 'trig_in_ms', str(self.parser.get('triggers', 'trig_unit').lower() == 'ms'))
 
@@ -223,7 +225,7 @@ class CircusParser(object):
         if not test:
           if comm.rank == 0:
               print_and_log(["dead_unit in [triggers] should be in %s" %str(units)], 'error', logger)
-          sys.exit(1)
+          sys.exit(0)
         else:
           self.parser.set('triggers', 'dead_in_ms', str(self.parser.get('triggers', 'dead_unit').lower() == 'ms'))
 
@@ -233,7 +235,7 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["Only 4 extraction modes in [clustering]: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         test = (self.parser.get('detection', 'peaks').lower() in ['negative', 'positive', 'both'])
         if not test:
@@ -266,43 +268,56 @@ class CircusParser(object):
             if not test:
                 if comm.rank == 0:
                     print_and_log(["nb_elts in [%s] should be in [0,1]" %section], 'error', logger)
-                sys.exit(1)
+                sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["nclus_min in [clustering] should be in [0,1["], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'noise_thr') >= 0) and (self.parser.getfloat('clustering', 'noise_thr') <= 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["noise_thr in [clustering] should be in [0,1]"], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["test_size in [validating] should be in ]0,1["], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'cc_merge') >= 0) and (self.parser.getfloat('clustering', 'cc_merge') <= 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["cc_merge in [validating] should be in [0,1]"], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["nclus_min in [validating] should be in [0,1["], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         test = (self.parser.getfloat('merging', 'auto_mode') >= 0) and (self.parser.getfloat('merging', 'auto_mode') < 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["auto_mode in [merging] should be in [0,1["], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
+
+        test = (self.parser.getint('detection', 'oversampling_factor') >= 0)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["oversampling_factor in [detection] should be postiive["], 'error', logger)
+            sys.exit(0)
+
+
+        test = (not self.parser.getboolean('data', 'overwrite') and not self.parser.getboolean('filtering', 'filter'))
+        if test:
+            if comm.rank == 0:
+                print_and_log(["If no filtering, then overwrite should be True"], 'error', logger)
+            sys.exit(0)
 
         fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
         for section in ['clustering', 'validating', 'triggers']:
@@ -310,7 +325,7 @@ class CircusParser(object):
           if not test:
               if comm.rank == 0:
                   print_and_log(["make_plots in [%s] should be in %s" %(section, str(fileformats))], 'error', logger)
-              sys.exit(1)
+              sys.exit(0)
 
         dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
         dispersion     = map(float, dispersion)
@@ -318,7 +333,7 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["min and max dispersions in [clustering] should be positive"], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
 
         pcs_export = ['prompt', 'none', 'all', 'some']
@@ -326,7 +341,7 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["export_pcs in [converting] should be in %s" %str(pcs_export)], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
         else:
             if self.parser.get('converting', 'export_pcs').lower() == 'none':
                 self.parser.set('converting', 'export_pcs', 'n')
@@ -364,7 +379,7 @@ class CircusParser(object):
             except Exception:
                 if comm.rank == 0:
                     print_and_log(['N_t must now be defined in the [detection] section'], 'error', logger)
-                sys.exit(1)
+                sys.exit(0)
 
             self._N_t = int(self.rate*self._N_t*1e-3)
             if numpy.mod(self._N_t, 2) == 0:
@@ -409,7 +424,7 @@ class CircusParser(object):
         if N_e > self.nb_channels:
             if comm.rank == 0:
                 print_and_log(['Analyzed %d channels but only %d are recorded' %(N_e, self.nb_channels)], 'error', logger)
-            sys.exit(1)
+            sys.exit(0)
 
         return data
 
@@ -464,7 +479,7 @@ class CircusParser(object):
                   if not os.path.exists(data_file):
                       if comm.rank== 0:
                           print_and_log(['The overwrite option is only valid if the filtering step is launched before!'], 'error', logger)
-                      sys.exit(1)
+                      sys.exit(0)
                 else:
                     if comm.rank== 0:
                         print_and_log(['The copy file has not yet been created! Returns normal file'], 'debug', logger)

@@ -80,6 +80,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
     alignment     = params.getboolean('detection', 'alignment') and auto_align
+    over_factor   = float(params.getint('detection', 'oversampling_factor'))
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -93,7 +94,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
+        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
 
@@ -117,17 +118,17 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             if len(ydata) == 1:
                 f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
                 if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata)) - xoff)/5.
+                    rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
-                    rmin    = (numpy.argmax(f(cdata)) - xoff)/5.
+                    rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
                 if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/5.
+                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 elif pos == 'pos':
-                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/5.
+                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
@@ -221,6 +222,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     N_t          = params.getint('detection', 'N_t')
     N_total      = params.nb_channels
     alignment    = params.getboolean('detection', 'alignment') and auto_align
+    over_factor  = float(params.getint('detection', 'oversampling_factor'))
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
     template_shift   = params.getint('detection', 'template_shift')
@@ -279,7 +281,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
         if do_temporal_whitening:
             temporal_whitening = load_data(params, 'temporal_whitening')
         if alignment:
-            cdata = numpy.linspace(-template_shift, template_shift, 5 * N_t)
+            cdata = numpy.linspace(-template_shift, template_shift, int(over_factor* N_t))
             xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
             xoff  = len(cdata) / 2.
 
@@ -303,12 +305,12 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
                 ydata = numpy.arange(len(neighs))
                 if len(ydata) == 1:
                     f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                    rmin = (numpy.argmin(f(cdata)) - xoff) / 5.0
+                    rmin = (numpy.argmin(f(cdata)) - xoff) / over_factor
                     ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                     local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                 else:
                     f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata) - 1, 3))
-                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff) / 5.0
+                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff) / over_factor
                     ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                     local_chunk = f(ddata, ydata).astype(numpy.float32)
             if not all_labels:

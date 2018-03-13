@@ -166,7 +166,7 @@ but a subset x,y can be done. Steps are:
             is_writable            = __supported_data_files__['raw_binary'].is_writable
 
     if preview:
-        print_and_log(['Preview mode, showing only seconds [%d-%d] of the recording' %(second, second+2)], 'info', logger)
+        print_and_log(['Preview mode, showing only seconds [%d-%d] of the recording' %(second, second+1)], 'info', logger)
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out')), 'tmp')
 
         if not os.path.exists(tmp_path_loc):
@@ -176,14 +176,15 @@ but a subset x,y can be done. Steps are:
         shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']
 
-        chunk_size   = int(2*params.rate)
+        chunk_size   = int(params.rate)
 
         data_file.open()
         nb_chunks, _           = data_file.analyze(chunk_size)
-        if nb_chunks < (second + 2):
-            print_and_log(['Recording is too short to display seconds [%d-%d]' %(second, second+2)])
+
+        if nb_chunks <= (second + 1):
+            print_and_log(['Recording is too short to display seconds [%d-%d]' %(second, second+1)])
             sys.exit(0)
-        local_chunk, t_offset  = data_file.get_data(second, second+chunk_size)
+        local_chunk = data_file.get_snippet(int(second*params.rate), chunk_size)
         description            = data_file.get_description()
         data_file.close()
 
