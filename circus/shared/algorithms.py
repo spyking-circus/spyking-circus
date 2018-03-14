@@ -427,6 +427,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank > 0:
         overlap.close()
     else:
+        result = load_data(params, 'clusters')
         to_merge, result = remove(result, distances, cc_merge)
 
     to_merge = numpy.array(to_merge)
