@@ -765,6 +765,15 @@ def load_data(params, data, extension=''):
             return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
         else:
             raise Exception('No templates found! Check suffix?')
+    elif data == 'nb_templates':
+        filename = file_out_suff + '.templates%s.hdf5' %extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
+            myfile.close()
+            return nb_templates
+        else:
+            raise Exception('No templates found! Check suffix?')
     elif data == 'overlaps':
         filename = file_out_suff + '.overlap%s.hdf5' %extension
         if os.path.exists(filename):

@@ -385,8 +385,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
 
-    templates      = load_data(params, 'templates')
-    x,        N_tm = templates.shape
+    N_tm           = load_data(params, 'nb_templates')
     nb_temp        = N_tm//2
     to_merge       = []
     cc_merge       = params.getfloat('clustering', 'cc_merge')
