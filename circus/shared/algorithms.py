@@ -4,7 +4,7 @@ from circus.shared.files import load_data, write_datasets, get_overlaps, load_da
 from circus.shared.utils import get_tqdm_progressbar
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm
+from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm, gather_array
 import scipy.linalg, scipy.sparse
 
 logger = logging.getLogger(__name__)
@@ -403,8 +403,9 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         over_shape = overlap.get('over_shape')[:]
         overlap.close()
         overlaps = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
+        del over_x, over_y, over_data
     else:
-        overlaps = load_data_memshared(params, 'overlaps-raw', extension=extension)
+        overlaps = load_data_memshared(params, 'overlaps-raw', extension='-merging')
     
     to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
         
@@ -416,7 +417,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     #Now we need to sync everything across nodes
     distances = gather_array(distances, comm, 0, 1, 'float32')
     if comm.rank == 0:
-        distances = maxlag.reshape(comm.size, N_half, N_half)
+        distances = distances.reshape(comm.size, nb_temp, nb_temp)
         distances = numpy.sum(distances, 0)
 
     distances /= (N_e * N_t)
