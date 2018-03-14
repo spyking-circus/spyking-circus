@@ -61,6 +61,7 @@ cc_merge       = 0.975      # If CC between two templates is higher, they are me
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
+cc_mixtures    = 0.75       # If CC between a sum of two templates and a template is higher, it is removed
 make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 
 [fitting]

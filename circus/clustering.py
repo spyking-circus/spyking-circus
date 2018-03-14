@@ -996,6 +996,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             hfile.create_dataset('temp_data', data=temp_data)
             hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2*total_nb_clusters], dtype=numpy.int32))
             hfile.close()
+            del temp_x, temp_y, temp_data
 
     comm.Barrier()
 
@@ -1023,7 +1024,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         print_and_log(["Number of global merges    : %d" %merged1[1],
                           "Number of mixtures removed : %d" %merged2[1]], 'info', logger)
-
 
     comm.Barrier()
     io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)

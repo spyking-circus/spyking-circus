@@ -63,33 +63,36 @@ def apply_patch_for_similarities(params, extension):
                 over_data = myfile.get('over_data')[:].ravel()
                 over_shape = myfile.get('over_shape')[:].ravel()
                 myfile.close()
-                overlap = scipy.sparse.csc_matrix((over_data, (over_x, over_y)), shape=over_shape)
             else:
                 print_and_log(['No overlaps found! Check suffix?'], 'error', logger)
                 sys.exit(0)
 
             
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
-            N_tm    = int(numpy.sqrt(overlap.shape[0]))
+            N_tm    = int(numpy.sqrt(over_shape[0]))
+            N_half  = N_tm // 2
             N_t     = params.getint('detection', 'N_t')
 
             if 'maxoverlap' in myfile2.keys():
                 maxoverlap = myfile2['maxoverlap']
             else:
-                maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_tm//2, N_tm//2), dtype=numpy.float32)
+                maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_half, N_half), dtype=numpy.float32)
 
             if 'maxlag' in myfile2.keys():
                 maxlag = myfile2['maxlag']
             else:
-                maxlag = myfile2.create_dataset('maxlag', shape=(N_tm//2, N_tm//2), dtype=numpy.int32)
+                maxlag = myfile2.create_dataset('maxlag', shape=(N_half, N_half), dtype=numpy.int32)
 
             if 'version' in myfile2.keys():
                 version = myfile2['version']
             else:
                 version = myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
 
-            for i in get_tqdm_progressbar(xrange(N_tm//2 - 1)):
-                data                = overlap[i*N_tm+i+1:i*N_tm+N_tm//2].toarray()
+            for i in get_tqdm_progressbar(xrange(N_half - 1)):
+                idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
+                local_x = over_x[idx] - (i*N_tm+i+1)
+                data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
+                data[local_x, over_y[idx]] = over_data[idx]
                 maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
                 maxlag[i+1:, i]     = -maxlag[i, i+1:]
                 maxoverlap[i, i+1:] = numpy.max(data, 1)

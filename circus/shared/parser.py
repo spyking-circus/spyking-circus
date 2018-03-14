@@ -50,6 +50,7 @@ class CircusParser(object):
                           ['clustering', 'compress', 'bool', 'True'],
                           ['clustering', 'noise_thr', 'float', '0.8'],
                           ['clustering', 'cc_merge', 'float', '0.975'],
+                          ['clustering', 'cc_mixtures', 'float', '0.75'],
                           ['clustering', 'n_abs_min', 'int', '20'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
