@@ -1528,6 +1528,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
                 maxoverlap = numpy.sum(maxoverlap, 0)
 
+        print maxoverlap
+
         if comm.rank == 0:
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
 
@@ -1535,9 +1537,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 if key in myfile2.keys():
                     myfile2.pop(key)
 
-            version = myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
-            maxlag = myfile2.create_dataset('maxlag', shape=(N_half, N_half), dtype=numpy.int32)
-            maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_half, N_half), dtype=numpy.float32)
+            myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
+            myfile2.create_dataset('maxlag',  data=maxlag, dtype=numpy.int32)
+            myfile2.create_dataset('maxoverlap', data=maxoverlap, dtype=numpy.float32)
             myfile2.close()
 
     comm.Barrier()
