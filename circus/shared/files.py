@@ -1528,6 +1528,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
                 maxoverlap = numpy.sum(maxoverlap, 0)
 
+        print maxoverlap
+
         if comm.rank == 0:
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
 
