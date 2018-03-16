@@ -59,8 +59,8 @@ before_install:
 # command to install dependencies
 install:
   - conda update --yes --quiet conda
-  - conda config --remove channels defaults
-  - conda config --add channels defaults
+  # Stay with the conda version to avoid a downgrade to 4.3 from conda-forge
+  - conda config --set auto_update_conda False
   - conda config --add channels conda-forge
   - conda install --yes --quiet conda-build setuptools wheel
 
