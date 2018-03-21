@@ -66,13 +66,11 @@ install:
 build: false  # not a C# project
 
 test_script:
-  # Pin conda version
-  - conda install --yes --quiet "conda==4.3.27"
-  - echo conda ==4.3.27 >> %PYTHON%\conda-meta\pinned
-  - conda config --remove channels defaults
-  - conda config --add channels defaults
+  - conda update --yes --quiet conda
+  # Stay with the conda version to avoid a downgrade to 4.3 from conda-forge
+  - conda config --set auto_update_conda False
   - conda config --add channels conda-forge
-  - conda install --yes --quiet conda-build
+  - conda install --yes --quiet conda-build setuptools wheel
   - conda build -c spyking-circus conda_recipe
   - python packaging_tools/move_conda_package.py
   - conda install --yes --quiet wheel

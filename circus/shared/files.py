@@ -80,6 +80,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
     alignment     = params.getboolean('detection', 'alignment') and auto_align
+    over_factor   = float(params.getint('detection', 'oversampling_factor'))
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
@@ -93,7 +94,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, 5*N_t)
+        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
 
@@ -117,17 +118,17 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             if len(ydata) == 1:
                 f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
                 if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata)) - xoff)/5.
+                    rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
-                    rmin    = (numpy.argmax(f(cdata)) - xoff)/5.
+                    rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
                 if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/5.
+                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 elif pos == 'pos':
-                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/5.
+                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
@@ -221,6 +222,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     N_t          = params.getint('detection', 'N_t')
     N_total      = params.nb_channels
     alignment    = params.getboolean('detection', 'alignment') and auto_align
+    over_factor  = float(params.getint('detection', 'oversampling_factor'))
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
     template_shift   = params.getint('detection', 'template_shift')
@@ -279,7 +281,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
         if do_temporal_whitening:
             temporal_whitening = load_data(params, 'temporal_whitening')
         if alignment:
-            cdata = numpy.linspace(-template_shift, template_shift, 5 * N_t)
+            cdata = numpy.linspace(-template_shift, template_shift, int(over_factor* N_t))
             xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
             xoff  = len(cdata) / 2.
 
@@ -303,12 +305,12 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
                 ydata = numpy.arange(len(neighs))
                 if len(ydata) == 1:
                     f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
-                    rmin = (numpy.argmin(f(cdata)) - xoff) / 5.0
+                    rmin = (numpy.argmin(f(cdata)) - xoff) / over_factor
                     ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                     local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                 else:
                     f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata) - 1, 3))
-                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff) / 5.0
+                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff) / over_factor
                     ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                     local_chunk = f(ddata, ydata).astype(numpy.float32)
             if not all_labels:
@@ -467,10 +469,6 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             over_data  = c_overlap.get('over_data')[:]
             c_overlap.close()
 
-            # To be faster, we rearrange the overlaps into a dictionnary
-            overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
-            del over_x, over_y, over_data
-
         sub_comm.Barrier()
 
         nb_data = 0
@@ -479,7 +477,10 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
         for i in xrange(N_over):
 
             if sub_comm.rank == 0:
-                sparse_mat = overlaps[i*N_over:(i+1)*N_over]
+                idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
+                local_x = over_x[idx] - i*N_over
+
+                sparse_mat = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
                 nb_data    = len(sparse_mat.data)
                 nb_ptr     = len(sparse_mat.indptr)
 
@@ -527,7 +528,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             sub_comm.Barrier()
 
         if sub_comm.rank == 0:
-            del overlaps
+            del over_x, over_y, over_data
 
         sub_comm.Free()
 
@@ -762,6 +763,15 @@ def load_data(params, data, extension=''):
             N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
             myfile.close()
             return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
+        else:
+            raise Exception('No templates found! Check suffix?')
+    elif data == 'nb_templates':
+        filename = file_out_suff + '.templates%s.hdf5' %extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
+            myfile.close()
+            return nb_templates
         else:
             raise Exception('No templates found! Check suffix?')
     elif data == 'overlaps':
@@ -1517,7 +1527,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             if comm.rank == 0:
                 maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
                 maxoverlap = numpy.sum(maxoverlap, 0)
-
+                
         if comm.rank == 0:
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
 
@@ -1525,9 +1535,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 if key in myfile2.keys():
                     myfile2.pop(key)
 
-            version = myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
-            maxlag = myfile2.create_dataset('maxlag', shape=(N_half, N_half), dtype=numpy.int32)
-            maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_half, N_half), dtype=numpy.float32)
+            myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
+            myfile2.create_dataset('maxlag',  data=maxlag, dtype=numpy.int32)
+            myfile2.create_dataset('maxoverlap', data=maxoverlap, dtype=numpy.float32)
             myfile2.close()
 
     comm.Barrier()
