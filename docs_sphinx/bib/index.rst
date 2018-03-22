@@ -8,17 +8,26 @@ How to cite SpyKING CIRCUS
 
     If you are using SpyKING CIRCUS for your project, please cite us
 
-    * Yger P., Spampinato, G.L.B, Esposito E., Lefebvre B., Deny S., Gardella C., Stimberg M., Jetter F., Zeck G. Picaud S., Duebel J., Marre O., *Fast and accurate spike sorting in vitro and in vivo for up to thousands of electrodes*, bioRxiv, 67843, 2016
+    * Yger P., Spampinato, G.L.B, Esposito E., Lefebvre B., Deny S., Gardella C., Stimberg M., Jetter F., Zeck G. Picaud S., Duebel J., Marre O., *A spike sorting toolbox for up to thousands of electrodes validated with ground truth recordings in vitro and in vivo*, eLife 2018;7:e34518
 
 
-Selected publications using SpyKING CIRCUS
-------------------------------------------
+Selected publications refering to SpyKING CIRCUS
+------------------------------------------------
 
 Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to send us a mail in order to add a paper
+
+2018
+~~~~
+
+* Steinmetz N. A., Koch C., Harris K.D., Carandini M., *Challenges and opportunities for large-scale electrophysiology with Neuropixels probes*, Current Opinion in Neurobiology, Volume 50, 92-100
 
 
 2017
 ~~~~
+
+* Shan K. Q., Lubenov E. V., Siapas A. G., *Model-based spike sorting with a mixture of drifting t-distributions*, Journal of Neuroscience Methods, 288, 82-98
+
+* Deny S., Ferrari U., Mace E., Yger P., Caplette R., Picaud S., Tkacik G., Marre O., *Multiplexed computations in retinal ganglion cells of a single type*, Nature Communications 10.1038/s41467-017-02159-y
 
 * Chung, J. E., Magland, J. F., Barnett, A. H., Tolosa, V. M., Tooker, A. C., Lee, K. Y., ... & Greengard, L. F. *A Fully Automated Approach to Spike Sorting*, Neuron, 95(6), 1381-1394 
 
