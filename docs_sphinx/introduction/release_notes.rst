@@ -6,7 +6,7 @@ Spyking CIRCUS 0.6
 
 This is the 0.6 release of the SpyKING CIRCUS, a new approach to the problem of spike sorting. The code is based on a smart clustering with
 sub sampling, and a greedy template matching approach, such that it can resolve the problem of overlapping spikes. The publication about the software 
-is available at http://biorxiv.org/content/early/2016/08/04/067843
+is available at https://elifesciences.org/articles/34518
 
 
 .. figure::  launcher.png
@@ -30,6 +30,16 @@ Code and documentation contributions (ordered by the number of commits):
 * Olivier Marre
 * Cyrille Rossant
 
+
+=============
+Release 0.6.5
+=============
+
+* reduce memory consumption for mixture removal with shared memory
+* made an explicit parameter cc_mixtures for mixture removal in the [clustering] section
+* Minor fixes in the MATLAB GUI
+* fix in the exact times shown during preview if second is specified
+* prevent errors if filter is False and overwrite is False
 
 =============
 Release 0.6.4

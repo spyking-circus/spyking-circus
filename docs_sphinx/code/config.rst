@@ -131,6 +131,7 @@ The clustering section is::
     smart_select   = False      # Experimental: activate the smart selection of centroids (max_clusters is ignored)
     noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
     remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
+    cc_mixtures    = 0.75       # If CC between a sum of two templates and a template is higher, it is removed
 
 .. note::
 
@@ -147,6 +148,7 @@ Parameters that are most likely to be changed:
     * ``cc_merge`` After local merging per electrode, this step will make sure that you do not have duplicates in your templates, that may have been spread on several electrodes. All templates with a correlation coefficient higher than that parameter are merged. Remember that the more you merge, the faster is the fit
     * ``dispersion`` The spread of the amplitudes allowed, for every templates, around the centroid.
     * ``remove_mixture`` By default, any template that can be explained as sum of two others is deleted. 
+    * ``cc_mixtures`` The CC threshold above which mixtures are considered to be valid, and thus removed
     * ``make_plots`` By default, the code generates sanity plots of the clustering, one per electrode.
 
 Fitting
