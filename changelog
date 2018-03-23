@@ -3,6 +3,7 @@ Release 0.6.6
 =============
 
 * fix for matplotlib 2.2.2
+* faster support for native MCD file with pyMCStream
 
 =============
 Release 0.6.5
