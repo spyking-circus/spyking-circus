@@ -21,7 +21,7 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 * Documentation can be found at http://spyking-circus.rtfd.org
 * A Google group can be found at http://groups.google.com/forum/#!forum/spyking-circus-users
 * A bug tracker can be found at https://github.com/spyking-circus/spyking-circus/issues
-* Open source database for ground-truth experiment used in the paper https://zenodo.org/record/1205233#.WrTFtXXwaV4
+* Open source ground-truth datasets used in the paper https://zenodo.org/record/1205233#.WrTFtXXwaV4
 
 :copyright: Copyright 2006-2018 by the SpyKING CIRCUS team, see AUTHORS.
 :license: CeCILL, see LICENSE for details.
