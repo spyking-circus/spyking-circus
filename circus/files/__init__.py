@@ -17,6 +17,12 @@ try:
 except ImportError:
     HAVE_NEUROSHARE = False
 
+try:
+    import pyMCStream
+    HAVE_PYMCSTREAM = True
+except ImportError:
+    HAVE_PYMCSTREAM = False
+
 __supported_data_files__ = {
     RawBinaryFile.description : RawBinaryFile,
     RawMCSFile.description : RawMCSFile,
@@ -34,8 +40,6 @@ __supported_data_files__ = {
 
 
 if HAVE_NEUROSHARE:
-    from mcd import MCDFile
-    __supported_data_files__[MCDFile.description] = MCDFile
 
     from blackrock import BlackRockFile
     __supported_data_files__[BlackRockFile.description] = BlackRockFile
@@ -43,6 +47,10 @@ if HAVE_NEUROSHARE:
     from plexon import PlexonFile
     __supported_data_files__[PlexonFile.description] = PlexonFile
 
+if HAVE_PYMCSTREAM:
+    
+    from mcd import MCDFile
+    __supported_data_files__[MCDFile.description] = MCDFile
 
 
 def list_all_file_format():
