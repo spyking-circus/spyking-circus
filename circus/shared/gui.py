@@ -28,6 +28,9 @@ import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
 from matplotlib.colors import colorConverter
 
+from distutils.version import LooseVersion, StrictVersion
+MPL_VERSION = StrictVersion(mpl.__version__) > StrictVersion("2.2.1")
+
 from utils import *
 from algorithms import slice_templates, slice_clusters
 from mpi import SHARED_MEMORY, comm
@@ -755,7 +758,11 @@ class MergeWindow(QMainWindow):
 
 
     def update_inspect_template(self, indices, add_or_remove=None, link=True):
-        all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
+        if MPL_VERSION:
+            all_colors = mpl.colors.colorConverter.to_rgba_array([i['color'] for i in plt.rcParams['axes.prop_cycle'].__dict__['_left']])
+        else:
+            all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
+
         indices = self.to_consider[list(indices)]
 
         for i in xrange(len(indices)):
@@ -786,7 +793,10 @@ class MergeWindow(QMainWindow):
 
 
     def update_inspect(self, indices, add_or_remove=None, link=True):
-        all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
+        if MPL_VERSION:
+            all_colors = mpl.colors.colorConverter.to_rgba_array([i['color'] for i in plt.rcParams['axes.prop_cycle'].__dict__['_left']])
+        else:
+            all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
         if add_or_remove is 'add':
             indices = set(self.inspect_points) | set(indices)
@@ -1414,7 +1424,10 @@ class PreviewGUI(QMainWindow):
 
     def update_inspect(self, indices, add_or_remove=None):
 
-        all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
+        if MPL_VERSION:
+            all_colors = mpl.colors.colorConverter.to_rgba_array([i['color'] for i in plt.rcParams['axes.prop_cycle'].__dict__['_left']])
+        else:
+            all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
         if add_or_remove is 'add':
             indices = set(self.inspect_points) | set(indices)
