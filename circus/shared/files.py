@@ -467,8 +467,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             over_x     = c_overlap.get('over_x')[:]
             over_y     = c_overlap.get('over_y')[:]
             over_data  = c_overlap.get('over_data')[:]
-            c_overlap.close()
-
+        
+        c_overlap.close()
         sub_comm.Barrier()
 
         nb_data = 0
@@ -546,66 +546,52 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             over_x     = c_overlap.get('over_x')[:]
             over_y     = c_overlap.get('over_y')[:]
             over_data  = c_overlap.get('over_data')[:]
-            c_overlap.close()
 
-            # To be faster, we rearrange the overlaps into a dictionnary
-            overlaps  = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(over_shape[0], over_shape[1]))
-            del over_x, over_y, over_data
-
+        c_overlap.close()
         sub_comm.Barrier()
 
         nb_data = 0
-        nb_ptr  = 0
 
         if sub_comm.rank == 0:
-            nb_data    = len(overlaps.data)
-            nb_ptr     = len(overlaps.indptr)
+            nb_data    = len(over_x)
 
         long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-        short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
 
         if sub_comm.rank == 0:
-            indptr_bytes  = short_size * intsize
             indices_bytes = long_size * intsize
             data_bytes    = long_size * floatsize
         else:
-            indptr_bytes  = 0
             indices_bytes = 0
             data_bytes    = 0
 
         win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
-        win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
-        win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
+        win_indices_x = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+        win_indices_y = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
 
-        buf_data, _    = win_data.Shared_query(0)
-        buf_indices, _ = win_indices.Shared_query(0)
-        buf_indptr, _  = win_indptr.Shared_query(0)
+        buf_data, _      = win_data.Shared_query(0)
+        buf_indices_x, _ = win_indices_x.Shared_query(0)
+        buf_indices_y, _ = win_indices_y.Shared_query(0)
 
         buf_data    = numpy.array(buf_data, dtype='B', copy=False)
-        buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
-        buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
+        buf_indices_x = numpy.array(buf_indices_x, dtype='B', copy=False)
+        buf_indices_y = numpy.array(buf_indices_y, dtype='B', copy=False)
 
         data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-        indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
-        indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+        indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(long_size,))
+        indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(long_size,))
 
         sub_comm.Barrier()
 
         if sub_comm.rank == 0:
-            data[:]    = overlaps.data
-            indices[:] = overlaps.indices
-            indptr[:]  = overlaps.indptr
-            del overlaps
-
-        overlaps         = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
-        overlaps.data    = data
-        overlaps.indices = indices
-        overlaps.indptr  = indptr
+            data[:]    = over_data
+            indices_x[:] = over_x
+            indices_y[:] = over_y
+            del over_x, over_y, over_data
 
         sub_comm.Barrier()
         sub_comm.Free()
 
-        return overlaps
+        return indices_x, indices_y, data, over_shape
     
     elif data == 'clusters-light':
 
@@ -783,7 +769,30 @@ def load_data(params, data, extension=''):
             over_data = myfile.get('over_data')[:].ravel()
             over_shape = myfile.get('over_shape')[:].ravel()
             myfile.close()
-            return scipy.sparse.csc_matrix((over_data, (over_x, over_y)), shape=over_shape)
+
+            c_overs   = {}
+            N_over    = int(numpy.sqrt(over_shape[0]))
+
+            for i in xrange(N_over):
+                idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
+                local_x = over_x[idx] - i*N_over
+                c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
+
+            del over_x, over_y, over_data, over_shape
+
+            return c_overs
+        else:
+            raise Exception('No overlaps found! Check suffix?')
+    elif data == 'overlaps-raw':
+        filename = file_out_suff + '.overlap%s.hdf5' %extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            over_x = myfile.get('over_x')[:].ravel()
+            over_y = myfile.get('over_y')[:].ravel()
+            over_data = myfile.get('over_data')[:].ravel()
+            over_shape = myfile.get('over_shape')[:].ravel()
+            myfile.close()
+            return over_x, over_y, over_data, over_shape
         else:
             raise Exception('No overlaps found! Check suffix?')
     elif data == 'version':
@@ -1489,44 +1498,35 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         maxlag = numpy.zeros((N_half, N_half), dtype=numpy.int32)
         maxoverlap = numpy.zeros((N_half, N_half), dtype=numpy.float32)
 
+        to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
+
         if not SHARED_MEMORY:
-
-            if comm.rank > 0:
-                del over_x, over_y, over_data
-            else:
-                for i in xrange(N_half - 1):
-                    idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
-                    local_x = over_x[idx] - (i*N_tm+i+1)
-                    data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
-                    data[local_x, over_y[idx]] = over_data[idx]
-                    maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
-                    maxlag[i+1:, i]     = -maxlag[i, i+1:]
-                    maxoverlap[i, i+1:] = numpy.max(data, 1)
-                    maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
+            over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension=extension, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
         else:
-            del over_x, over_y, over_data
-            to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
-            maxlag = numpy.zeros((N_half, N_half), dtype=numpy.int32)
-            maxoverlap = numpy.zeros((N_half, N_half), dtype=numpy.float32)
-            overlaps = load_data_memshared(params, 'overlaps-raw', extension=extension)
-            for i in to_explore:
-                data = overlaps[i*N_tm+i+1:i*N_tm+N_half].toarray()
-                maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
-                maxlag[i+1:, i]     = -maxlag[i, i+1:]
-                maxoverlap[i, i+1:] = numpy.max(data, 1)
-                maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
+            over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension=extension, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+            
+        for i in to_explore:
 
-            #Now we need to sync everything across nodes
-            maxlag = gather_array(maxlag, comm, 0, 1, 'int32')
+            idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
+            local_x = over_x[idx] - (i*N_tm+i+1)
+            data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
+            data[local_x, over_y[idx]] = over_data[idx]
+            maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
+            maxlag[i+1:, i]     = -maxlag[i, i+1:]
+            maxoverlap[i, i+1:] = numpy.max(data, 1)
+            maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
 
-            if comm.rank == 0:
-                maxlag = maxlag.reshape(comm.size, N_half, N_half)
-                maxlag = numpy.sum(maxlag, 0)
+        #Now we need to sync everything across nodes
+        maxlag = gather_array(maxlag, comm, 0, 1, 'int32')
 
-            maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32')
-            if comm.rank == 0:
-                maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
-                maxoverlap = numpy.sum(maxoverlap, 0)
+        if comm.rank == 0:
+            maxlag = maxlag.reshape(comm.size, N_half, N_half)
+            maxlag = numpy.sum(maxlag, 0)
+
+        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32')
+        if comm.rank == 0:
+            maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
+            maxoverlap = numpy.sum(maxoverlap, 0)
                 
         if comm.rank == 0:
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
