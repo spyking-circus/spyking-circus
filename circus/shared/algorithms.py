@@ -499,7 +499,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
         k             = sorted_temp[k]
         electrodes    = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
-        overlap_k     = c_overs[k].toarray()
+        overlap_k     = c_overs[k]
         is_in_area    = numpy.in1d(best_elec, electrodes)
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
         been_found    = False
@@ -508,7 +508,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         for i in all_idx:
             t_i = None
             if not been_found:
-                overlap_i = c_overs[i].toarray()
+                overlap_i = c_overs[i]
                 M[0, 0]   = overlap_0[i]
                 V[0, 0]   = overlap_k[i, distances[k, i]]
                 for j in all_idx[i+1:]:
@@ -541,7 +541,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                                 been_found = True
                                 #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
                                 break
-
+                                
     #print mixtures
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
