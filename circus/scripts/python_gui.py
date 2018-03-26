@@ -51,6 +51,9 @@ def main(argv=None):
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger(__name__)
 
+    if extension != '':
+        extension = '-' + extension
+
     mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
     if not mytest:
         print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
@@ -84,8 +87,6 @@ def main(argv=None):
             gain = data_file.gain
 
     probe          = params.probe
-    if extension != '':
-        extension = '-' + extension
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
 
     if not os.path.exists(output_path):
