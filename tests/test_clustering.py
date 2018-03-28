@@ -14,7 +14,7 @@ def get_performance(file_name, name):
     pic_name        = file_name + '.pic'
     data            = cPickle.load(open(pic_name))
     n_cells         = data['cells'] 
-    n_point         = numpy.sqrt(len(n_cells))
+    n_point         = int(numpy.sqrt(len(n_cells)))
     amplitude       = data['amplitudes'][0:n_point]
     rate            = data['rates'][::n_point]
     sampling        = data['sampling']
