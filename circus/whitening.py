@@ -32,6 +32,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     nodes, edges     = get_nodes_and_edges(params)
     safety_time      = params.getint('whitening', 'safety_time')
+    safety_space     = params.getboolean('whitening', 'safety_space')
     nb_temp_white    = min(max(20, comm.size), N_e)
     max_silence_1    = int(20*params.rate // comm.size)
     max_silence_2    = 5000
@@ -117,21 +118,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for idx, peak in zip(argmax_peak, all_idx):
                 elec    = numpy.argmax(numpy.abs(local_chunk[peak]))
                 indices = numpy.take(inv_nodes, edges[nodes[elec]])
-                all_times[indices, min_times[idx]:max_times[idx]] = True
+                if safety_space:
+                    all_times[indices, min_times[idx]:max_times[idx]] = True
+                else:
+                    all_times[elec, min_times[idx]:max_times[idx]] = True
         else:
             all_times   = numpy.zeros((N_e, len(local_chunk)), dtype=numpy.bool)
 
-    all_times_Ne   = numpy.any(all_times, 0)
-    subset         = numpy.where(all_times_Ne == False)[0]
-    all_silences   = []
-
-    if do_spatial_whitening:
-        local_silences = numpy.take(local_chunk, subset, axis=0)[:max_silence_1]
-        all_silences   = gather_array(local_silences, comm, 0, 1)
-
-    local_res      = []
-
     if do_temporal_whitening:
+
+        local_res_temp = []
 
         for elec in all_electrodes[numpy.arange(comm.rank, nb_temp_white, comm.size)]:
             res            = numpy.zeros((0, N_t), dtype=numpy.float32)
@@ -148,16 +144,34 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     scount += 1
             if len(res) > 5:
-                local_res += [numpy.cov(res.T)]
+                local_res_temp += [numpy.cov(res.T)]
 
-        nb_elecs  = numpy.array([len(local_res)], dtype=numpy.float32)
-        local_res = numpy.array(local_res, dtype=numpy.float32)
-        if len(local_res) == 0:
-            local_res = numpy.zeros(0, dtype=numpy.float32)
+        nb_elecs  = numpy.array([len(local_res_temp)], dtype=numpy.float32)
+        local_res_temp = numpy.array(local_res_temp, dtype=numpy.float32)
+        if len(local_res_temp) == 0:
+            local_res_temp = numpy.zeros(0, dtype=numpy.float32)
         else:
-            local_res = numpy.sum(local_res, 0)
-        all_res   = gather_array(local_res.ravel(), comm, 0, 1)
+            local_res_temp = numpy.sum(local_res_temp, 0)
+        all_res_temp   = gather_array(local_res_temp.ravel(), comm, 0, 1)
         all_elecs = gather_array(nb_elecs, comm, 0, 1)
+
+    if do_spatial_whitening:
+
+        local_res_spac = numpy.zeros((N_e, N_e), dtype=numpy.float32)
+        local_silences = []
+
+        for elec in numpy.arange(comm.rank, N_e, comm.size):
+            indices        = numpy.take(inv_nodes, edges[nodes[elec]])
+            all_times_elec = numpy.any(numpy.take(all_times, indices, axis=0), 0)
+            esubset        = numpy.where(all_times_elec == False)[0]
+            local_data     = local_chunk[esubset][:, indices]
+            local_whitening = get_whitening_matrix(local_data).astype(numpy.float32)
+            pos            = numpy.where(elec == indices)[0]
+            local_res_spac[elec, indices] = local_whitening[pos]
+            local_silences += [len(esubset)]
+
+        all_res_spac = gather_array(local_res_spac.ravel(), comm, 0, 1)
+        all_silences = gather_array(numpy.array(local_silences, dtype=numpy.int32), comm, 0, 1, 'int32')
 
     if comm.rank == 0:
 
@@ -165,13 +179,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if do_temporal_whitening:
             try:
-                nb_silences     = numpy.sum(all_elecs > 0)
-                all_res         = all_res.reshape((nb_silences, N_t**2))
+                nb_silences  = numpy.sum(all_elecs > 0)
+                all_res_temp = all_res_temp.reshape((nb_silences, N_t**2))
             except Exception:
                 print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', logger)
-            all_res             = numpy.sum(all_res, 0)
-            all_res             = all_res.reshape((N_t, N_t))/numpy.sum(all_elecs)
-            temporal_whitening  = get_whitening_matrix(all_res.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
+            all_res_temp = numpy.sum(all_res_temp, 0)
+            all_res_temp = all_res_temp.reshape((N_t, N_t))/numpy.sum(all_elecs)
+            temporal_whitening  = get_whitening_matrix(all_res_temp.astype(numpy.double), fudge=1e-3)[template_shift].astype(numpy.float32)
             temporal_whitening /= temporal_whitening.sum()
             to_write['temporal'] = temporal_whitening
             have_nans = numpy.sum(numpy.isnan(temporal_whitening))
@@ -183,11 +197,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(["Disabling temporal whitening because of NaNs found"], 'info', logger)
 
         if do_spatial_whitening:
-            if len(all_silences)/params.rate == 0:
-                print_and_log(["No silent periods detected: something wrong with the parameters?"], 'error', logger)
-            spatial_whitening = get_whitening_matrix(all_silences.astype(numpy.double)).astype(numpy.float32)
+            all_res_spac = all_res_spac.reshape(comm.size, N_e, N_e)
+            spatial_whitening = numpy.sum(all_res_spac, 0)
             to_write['spatial'] = spatial_whitening
-            print_and_log(["Found %gs without spikes for whitening matrices..." %(len(all_silences)/params.rate)], 'default', logger)
+
+            print_and_log(["Found %gs without spikes for whitening matrices..." %(numpy.mean(all_silences)/params.rate)], 'default', logger)
 
             have_nans = numpy.sum(numpy.isnan(spatial_whitening))
 
@@ -200,7 +214,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         io.write_datasets(bfile, to_write.keys(), to_write)
         bfile.close()
 
-    del all_silences
     comm.Barrier()
 
     if do_spatial_whitening or do_temporal_whitening:
