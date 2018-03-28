@@ -5,6 +5,7 @@ Release 0.6.6
 * fix for matplotlib 2.2.2
 * fix a bug when loading merged data with phy GUI
 * faster support for native MCD file with pyMCStream
+* more robust whitening for large arrays with numerous overlaps
 
 =============
 Release 0.6.5
