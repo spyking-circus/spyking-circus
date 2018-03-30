@@ -6,6 +6,7 @@ Release 0.6.6
 * fix a bug when loading merged data with phy GUI
 * faster support for native MCD file with pyMCStream
 * more robust whitening for large arrays with numerous overlaps
+* add an experimental mode to refine coreset (isolated spikes)
 
 =============
 Release 0.6.5
