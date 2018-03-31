@@ -29,6 +29,7 @@ class CircusParser(object):
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
                           ['detection', 'spike_thresh', 'float', '6'],
+                          ['detection', 'isolation', 'bool', 'False'],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
                           ['triggers', 'make_plots', 'string', 'png'],
                           ['triggers', 'trig_file', 'string', ''],

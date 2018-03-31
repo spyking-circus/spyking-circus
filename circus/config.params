@@ -20,6 +20,7 @@ peaks          = negative   # Can be negative (default), positive or both
 matched-filter = False      # If True, we perform spike detection with matched filters
 matched_thresh = 5          # Threshold for detection if matched filter is True
 alignment      = True       # Realign the waveforms by oversampling
+isolation      = False      # Enforce individual snippets to be isolated [experimental]
 
 [filtering]
 cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]

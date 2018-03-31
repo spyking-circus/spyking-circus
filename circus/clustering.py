@@ -26,6 +26,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
     alignment      = params.getboolean('detection', 'alignment')
+    isolation      = params.getboolean('detection', 'isolation')
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -136,6 +137,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
+
+    if isolation:
+        yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
 
     comm.Barrier()
 
@@ -410,42 +414,49 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     else:
                                         sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
 
-                                    if gpass == 0:
-                                        to_accept  = True
-                                        idx        = elec_positions[elec]
-                                        ext_amp    = sub_mat[template_shift, idx]
-                                        result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
-                                    elif gpass == 1:
+                                    if isolation:
+                                        is_isolated = numpy.all(numpy.max(numpy.abs(sub_mat[yoff]), 0) <= thresholds[indices])
+                                        to_accept = False
+                                    else:
+                                        is_isolated = True
 
-                                        if smart_searches[loc_peak][elec] > 0:
+                                    if is_isolated:
+                                        if gpass == 0:
+                                            to_accept  = True
+                                            idx        = elec_positions[elec]
+                                            ext_amp    = sub_mat[template_shift, idx]
+                                            result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
+                                        elif gpass == 1:
 
-                                            idx     = elec_positions[elec]
-                                            ext_amp = sub_mat[template_shift, idx]
-                                            idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp, 'right') - 1
-                                            to_keep = result['hist_%s_' %loc_peak + str(elec)][idx] < numpy.random.rand()
+                                            if smart_searches[loc_peak][elec] > 0:
 
-                                            if to_keep:
-                                                to_accept = True
+                                                idx     = elec_positions[elec]
+                                                ext_amp = sub_mat[template_shift, idx]
+                                                idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp, 'right') - 1
+                                                to_keep = result['hist_%s_' %loc_peak + str(elec)][idx] < numpy.random.rand()
+
+                                                if to_keep:
+                                                    to_accept = True
+                                                else:
+                                                    rejected += 1
+
                                             else:
-                                                rejected += 1
+                                                to_accept = True
+
+                                            if to_accept:
+                                                sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
+                                                nx, ny     = sub_mat.shape
+                                                sub_mat    = sub_mat.reshape((1, nx * ny))
+                                                result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
 
                                         else:
-                                            to_accept = True
 
-                                        if to_accept:
                                             sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
                                             nx, ny     = sub_mat.shape
                                             sub_mat    = sub_mat.reshape((1, nx * ny))
-                                            result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
 
-                                    else:
-
-                                        sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
-                                        nx, ny     = sub_mat.shape
-                                        sub_mat    = sub_mat.reshape((1, nx * ny))
-
-                                        to_accept  = True
-                                        result['tmp_%s_' %loc_peak + str(elec)] = numpy.vstack((result['tmp_%s_' %loc_peak + str(elec)], sub_mat))
+                                            to_accept  = True
+                                            result['tmp_%s_' %loc_peak + str(elec)] = numpy.vstack((result['tmp_%s_' %loc_peak + str(elec)], sub_mat))
 
                                 if to_accept:
                                     elt_count += 1
@@ -484,11 +495,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass != 1:
-                print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
+                if isolation:
+                    print_and_log(["We found %d isolated spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
+                else:
+                    print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
                 if nb_elements == 0:
                     print_and_log(["No more isolated spikes in the recording, stop searching"], 'info', logger)
             else:
-                print_and_log(["We found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
+                if isolation:
+                    print_and_log(["We found %d isolated spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
+                else:
+                    print_and_log(["We found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
                 if nb_elements < 0.2*nb_total:
                     few_elts = True
 
@@ -714,6 +731,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):
                 lines += ["                            -decrease smart_search?"]
+            if isolation:
+                lines += ["                            -remove isolation mode?"]
         if total_hits > 0 and not smart_select:
             lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
             lines += ["                              -increase sim_same_elec?"]

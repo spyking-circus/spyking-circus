@@ -45,7 +45,7 @@ def data_stats(params, show=True, export_times=False):
              "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
              "Threshold crossing          : %s" %params.get('detection', 'peaks'),
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
-             "Matched filters             : %s" %params.getboolean('detection', 'matched-filter'),
+             "Snippet isolation           : %s" %params.getboolean('detection', 'isolation'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
              "Overwrite                   : %s" %params.get('data', 'overwrite'),
              "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
