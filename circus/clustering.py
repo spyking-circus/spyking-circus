@@ -139,7 +139,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         xoff  = len(cdata)/2.
 
     if isolation:
-        yoff  = numpy.array(range(-template_shift, -3*template_shift//4) + range(2*template_shift//3, template_shift))
+        yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
 
     comm.Barrier()
 
@@ -415,7 +415,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
 
                                     if isolation:
-                                        is_isolated = numpy.all(numpy.max(numpy.abs(sub_mat[yoff]), 0) <= 3*thresholds[indices])
+                                        is_isolated = numpy.all(numpy.max(numpy.abs(sub_mat[yoff]), 0) <= thresholds[indices])
                                         to_accept = False
                                     else:
                                         is_isolated = True
@@ -731,6 +731,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):
                 lines += ["                            -decrease smart_search?"]
+            if isolation:
+                lines += ["                            -remove isolation mode?"]
         if total_hits > 0 and not smart_select:
             lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
             lines += ["                              -increase sim_same_elec?"]
