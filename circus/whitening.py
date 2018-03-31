@@ -268,6 +268,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
+    isolation      = params.getboolean('detection', 'isolation')
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     nodes, edges   = get_nodes_and_edges(params)
@@ -328,6 +329,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
+
+    if isolation:
+        yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
 
     to_explore = xrange(comm.rank, nb_chunks, comm.size)
 
@@ -430,10 +434,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if groups[elec] < upper_bounds:
 
                             if not alignment:
-                                if negative_peak:
-                                    elts_neg[:, elt_count_neg] = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
-                                else:
-                                    elts_pos[:, elt_count_pos] = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+                                sub_mat = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
 
                             elif alignment:
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
@@ -444,20 +445,31 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
 
-                                if negative_peak:
-                                    elts_neg[:, elt_count_neg] = f(ddata).astype(numpy.float32)
-                                else:
-                                    elts_pos[:, elt_count_pos] = f(ddata).astype(numpy.float32)
+                                sub_mat = f(ddata).astype(numpy.float32)
 
-                            if negative_peak:
-                                elt_count_neg += 1
+                            if isolation:
+                                to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
                             else:
-                                elt_count_pos += 1
+                                to_accept = True
+
+                            if to_accept:
+                                if negative_peak:
+                                    elts_neg[:, elt_count_neg] = sub_mat
+                                else:
+                                    elts_pos[:, elt_count_pos] = sub_mat
+
+                                if negative_peak:
+                                    elt_count_neg += 1
+                                else:
+                                    elt_count_pos += 1
 
                         groups[elec] += 1
                         all_times[indices, min_times[midx]:max_times[midx]] = True
 
-    print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
+    if isolation:
+        print_and_log(["Node %d has collected %d isolated waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
+    else:
+        print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
 
     if sign_peaks in ['negative', 'both']:
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
@@ -473,7 +485,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['positive', 'both']:
             nb_waveforms += gdata_pos.shape[0]
 
-        print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
+        if isolation:
+            print_and_log(["Found %d isolated waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
+        else:
+            print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
         res = {}
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
