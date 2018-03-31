@@ -40,6 +40,7 @@ The detection section is::
     matched-filter = False      # If True, we perform spike detection with matched filters
     matched_thresh = 5          # Threshold for detection if matched filter is True
     alignment      = True       # Realign the waveforms by oversampling
+    isolation      = False      # Enforce individual snippets to be isolated [experimental]
 
 Parameters that are most likely to be changed:
     * ``N_t`` The temporal width of the templates. For *in vitro* data, 5ms seems a good value. For *in vivo* data, you should rather use 3 or even 2ms
@@ -49,6 +50,7 @@ Parameters that are most likely to be changed:
     * ``matched-filter`` If activated, the code will detect smaller spikes by using matched filtering
     * ``matched_thresh`` During matched filtering, the detection threshold
     * ``alignment`` By default, during clustering, the waveforms are realigned by oversampling at 5 times the sampling rate and using bicubic spline interpolation
+    * ``isolation`` When waveforms/snippets are extracted, rejet obvious mixtures to enhance the clustering
     
 Filtering
 ---------
