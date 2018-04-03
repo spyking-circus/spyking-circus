@@ -359,7 +359,7 @@ class MergeWindow(QMainWindow):
                 x_cc /= self.nb_bins
                 control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
 
-            return x_cc, control
+            return x_cc*1e6, control*1e6
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
 
