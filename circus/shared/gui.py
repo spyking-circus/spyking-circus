@@ -153,12 +153,12 @@ class MergeWindow(QMainWindow):
 
         self.nb_bins    = int(self.last_spike/(self.cc_bin*self.sampling_rate*1e-3))
 
-        self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('maxoverlap')[:]
+        self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest', mode='r').get('maxoverlap')[:]
         try:
-            self.lag    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('maxlag')[:]
+            self.lag    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest', mode='r').get('maxlag')[:]
         except Exception:
             self.lag    = numpy.zeros(self.overlap.shape, dtype=numpy.int32)
-        self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('temp_shape')[:]
+        self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest', mode='r').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
 
         if SHARED_MEMORY:
