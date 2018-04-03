@@ -18,7 +18,7 @@ class CircusParser(object):
                           ['fitting', 'refractory', 'float', '0.5'],
                           ['fitting', 'collect_all', 'bool', 'False'],
                           ['data', 'global_tmp', 'bool', 'True'],
-                          ['data', 'chunk_size', 'int', '30'],
+                          ['data', 'chunk_size', 'int', '60'],
                           ['data', 'stream_mode', 'string', 'None'],
                           ['data', 'overwrite', 'bool', 'True'],
                           ['data', 'parallel_hdf5', 'bool', 'True'],
