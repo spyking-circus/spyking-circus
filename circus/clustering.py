@@ -215,7 +215,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     result['tmp_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
 
             # If not the first pass, we sync all the detected times among nodes and give all nodes the w/pca
-            result['all_times_' + str(i)] = numpy.concatenate((result['all_times_' + str(i)], all_gather_array(result['loc_times_' + str(i)], comm, dtype='int32')))
+            result['all_times_' + str(i)] = numpy.concatenate((result['all_times_' + str(i)], all_gather_array(result['loc_times_' + str(i)], comm, dtype='int32', compress=blosc_compress)))
             result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
 
             if gpass == 1:
@@ -524,7 +524,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if gpass > 1:
             for ielec in xrange(N_e):
                 for p in search_peaks:
-                    result['tmp_%s_' %p + str(ielec)] = gather_array(result['tmp_%s_' %p + str(ielec)], comm, numpy.mod(ielec, comm.size), 1)
+                    result['tmp_%s_' %p + str(ielec)] = gather_array(result['tmp_%s_' %p + str(ielec)], comm, numpy.mod(ielec, comm.size), 1, compress=blosc_compress)
         elif gpass == 1:
             for ielec in xrange(comm.rank, N_e, comm.size):
                 result['times_' + str(ielec)] = numpy.copy(result['loc_times_' + str(ielec)])
