@@ -1,4 +1,4 @@
-import numpy, os, mpi4py, logging
+import numpy, os, mpi4py, logging, blosc
 from mpi4py import MPI
 from messages import print_and_log
 comm = MPI.COMM_WORLD
@@ -47,7 +47,7 @@ def gather_mpi_arguments(hostfile, params):
             mpi_args += ['-hostfile', hostfile]
     return mpi_args
 
-def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
+def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=False):
     # gather 1D or 2D numpy arrays
     assert isinstance(data, numpy.ndarray)
     assert len(data.shape) < 3
@@ -60,8 +60,13 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
     np_type       = get_np_dtype(dtype)
     mpi_type      = get_mpi_type(dtype)
 
+    # if compress:
+    #     new_data = blosc.compress(data, typesize=mpi_size.size, cname='blosclz')
+
     gdata         = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
     mpi_comm.Gatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type], root=root)
+
+    #gdata = blosc.decompress(blzpacked)
 
     if len(data.shape) == 1:
         return gdata
@@ -79,7 +84,7 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32'):
             else:
                 return gdata.reshape((gdata.shape[0], 0))
 
-def all_gather_array(data, mpi_comm, shape=0, dtype='float32'):
+def all_gather_array(data, mpi_comm, shape=0, dtype='float32', compress=False):
     # gather 1D or 2D numpy arrays
     assert isinstance(data, numpy.ndarray)
     assert len(data.shape) < 3

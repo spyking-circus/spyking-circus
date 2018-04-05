@@ -47,6 +47,7 @@ def data_stats(params, show=True, export_times=False):
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Snippet isolation           : %s" %params.getboolean('detection', 'isolation'),
              "Template Extraction         : %s" %params.get('clustering', 'extraction'),
+             "HDF5 compression            : %s" %params.getboolean('data', 'compression'),
              "Overwrite                   : %s" %params.get('data', 'overwrite'),
              "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
              "Smart Search                : %s" %params.getboolean('clustering', 'smart_search'),
@@ -1138,14 +1139,16 @@ def load_data(params, data, extension=''):
             raise Exception('No selection found! Check suffix or check if file `{}` exists?'.format(filename))
 
 
-def write_datasets(h5file, to_write, result, electrode=None):
+def write_datasets(h5file, to_write, result, electrode=None, compression=False):
     for key in to_write:
         if electrode is not None:
             mykey = key + str(electrode)
         else:
             mykey = key
-        h5file.create_dataset(mykey, shape=result[mykey].shape, dtype=result[mykey].dtype, chunks=True)
-        h5file.get(mykey)[:] = result[mykey]
+        if compression:
+            h5file.create_dataset(mykey, data=result[mykey], chunks=True, compression='gzip')
+        else:
+            h5file.create_dataset(mykey, data=result[mykey], chunks=True)
 
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
@@ -1156,6 +1159,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     file_out_suff  = params.get('data', 'file_out_suff')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     chunks         = params.getfloat('fitting', 'chunk_size')
+    compression    = params.getboolean('data', 'compression')
     data_length    = data_stats(params, show=False)
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
@@ -1282,7 +1286,10 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         mydata.create_group(key)
         for temp in result[key].keys():
             tmp_path = '%s/%s' %(key, temp)
-            mydata.create_dataset(tmp_path, data=result[key][temp])
+            if compression:
+                mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
+            else:
+                mydata.create_dataset(tmp_path, data=result[key][temp])
     mydata.close()
 
     # Count and print the number of spikes.
@@ -1340,6 +1347,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_t            = params.getint('detection', 'N_t')
+    compression    = params.getboolean('data', 'compression')
     N_total        = params.nb_channels
     file_out_suff  = params.get('data', 'file_out_suff')
     tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
@@ -1476,15 +1484,20 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     comm.Barrier()
 
     #We need to gather the sparse arrays
-    over_x    = gather_array(over_x, comm, dtype='int32')
-    over_y    = gather_array(over_y, comm, dtype='int32')
-    over_data = gather_array(over_data, comm)
+    over_x    = gather_array(over_x, comm, dtype='int32', compress=compression)
+    over_y    = gather_array(over_y, comm, dtype='int32', compress=compression)
+    over_data = gather_array(over_data, comm, compress=compression)
 
     if comm.rank == 0:
         hfile      = h5py.File(filename, 'w', libver='earliest')
-        hfile.create_dataset('over_x', data=over_x)
-        hfile.create_dataset('over_y', data=over_y)
-        hfile.create_dataset('over_data', data=over_data)
+        if compression:
+            hfile.create_dataset('over_x', data=over_x, compression='gzip')
+            hfile.create_dataset('over_y', data=over_y, compression='gzip')
+            hfile.create_dataset('over_data', data=over_data, compression='gzip')
+        else:
+            hfile.create_dataset('over_x', data=over_x)
+            hfile.create_dataset('over_y', data=over_y)
+            hfile.create_dataset('over_data', data=over_data)
         hfile.create_dataset('over_shape', data=numpy.array([N_tm**2, duration], dtype=numpy.int32))
         hfile.close()
 
@@ -1517,13 +1530,13 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
 
         #Now we need to sync everything across nodes
-        maxlag = gather_array(maxlag, comm, 0, 1, 'int32')
+        maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=compression)
 
         if comm.rank == 0:
             maxlag = maxlag.reshape(comm.size, N_half, N_half)
             maxlag = numpy.sum(maxlag, 0)
 
-        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32')
+        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32', compress=compression)
         if comm.rank == 0:
             maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
             maxoverlap = numpy.sum(maxoverlap, 0)
@@ -1536,8 +1549,12 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                     myfile2.pop(key)
 
             myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
-            myfile2.create_dataset('maxlag',  data=maxlag, dtype=numpy.int32)
-            myfile2.create_dataset('maxoverlap', data=maxoverlap, dtype=numpy.float32)
+            if compression:
+                myfile2.create_dataset('maxlag',  data=maxlag, compression='gzip')
+                myfile2.create_dataset('maxoverlap', data=maxoverlap, compression='gzip')
+            else:
+                myfile2.create_dataset('maxlag',  data=maxlag)
+                myfile2.create_dataset('maxoverlap', data=maxoverlap)
             myfile2.close()
 
     comm.Barrier()
