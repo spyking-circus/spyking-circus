@@ -50,53 +50,61 @@ def apply_patch_for_similarities(params, extension):
     if not test_patch_for_similarities(params, extension):
 
         file_out_suff  = params.get('data', 'file_out_suff')
+        compression = params.getboolean('data', 'compression')
+        N_tm    = load_data(params, 'nb_templates', extension)
+        N_half  = N_tm // 2
+        N_t     = params.getint('detection', 'N_t')
 
         if comm.rank == 0:
-
             print_and_log(["Fixing overlaps from 0.5.XX..."], 'default', logger)
 
-            over_file = file_out_suff + '.overlap.hdf5'
-            if os.path.exists(over_file):
-                myfile = h5py.File(over_file, 'r', libver='earliest')
-                over_x = myfile.get('over_x')[:].ravel()
-                over_y = myfile.get('over_y')[:].ravel()
-                over_data = myfile.get('over_data')[:].ravel()
-                over_shape = myfile.get('over_shape')[:].ravel()
-                myfile.close()
-            else:
-                print_and_log(['No overlaps found! Check suffix?'], 'error', logger)
-                sys.exit(0)
+        maxlag = numpy.zeros((N_half, N_half), dtype=numpy.int32)
+        maxoverlap = numpy.zeros((N_half, N_half), dtype=numpy.float32)
 
+        to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
+
+        if not SHARED_MEMORY:
+            over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension=extension,)
+        else:
+            over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension=extension)
             
+        for i in to_explore:
+
+            idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
+            local_x = over_x[idx] - (i*N_tm+i+1)
+            data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
+            data[local_x, over_y[idx]] = over_data[idx]
+            maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
+            maxlag[i+1:, i]     = -maxlag[i, i+1:]
+            maxoverlap[i, i+1:] = numpy.max(data, 1)
+            maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
+
+        #Now we need to sync everything across nodes
+        maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=compression)
+
+        if comm.rank == 0:
+            maxlag = maxlag.reshape(comm.size, N_half, N_half)
+            maxlag = numpy.sum(maxlag, 0)
+
+        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32', compress=compression)
+        if comm.rank == 0:
+            maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
+            maxoverlap = numpy.sum(maxoverlap, 0)
+
+        if comm.rank == 0:
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
-            N_tm    = int(numpy.sqrt(over_shape[0]))
-            N_half  = N_tm // 2
-            N_t     = params.getint('detection', 'N_t')
 
-            if 'maxoverlap' in myfile2.keys():
-                maxoverlap = myfile2['maxoverlap']
+            for key in ['maxoverlap', 'maxlag', 'version']:
+                if key in myfile2.keys():
+                    myfile2.pop(key)
+
+            myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
+            if compression:
+                myfile2.create_dataset('maxlag',  data=maxlag, compression='gzip')
+                myfile2.create_dataset('maxoverlap', data=maxoverlap, compression='gzip')
             else:
-                maxoverlap = myfile2.create_dataset('maxoverlap', shape=(N_half, N_half), dtype=numpy.float32)
-
-            if 'maxlag' in myfile2.keys():
-                maxlag = myfile2['maxlag']
-            else:
-                maxlag = myfile2.create_dataset('maxlag', shape=(N_half, N_half), dtype=numpy.int32)
-
-            if 'version' in myfile2.keys():
-                version = myfile2['version']
-            else:
-                version = myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
-
-            for i in get_tqdm_progressbar(xrange(N_half - 1)):
-                idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
-                local_x = over_x[idx] - (i*N_tm+i+1)
-                data = numpy.zeros((N_half - (i + 1), over_shape[1]), dtype=numpy.float32)
-                data[local_x, over_y[idx]] = over_data[idx]
-                maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
-                maxlag[i+1:, i]     = -maxlag[i, i+1:]
-                maxoverlap[i, i+1:] = numpy.max(data, 1)
-                maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
+                myfile2.create_dataset('maxlag',  data=maxlag)
+                myfile2.create_dataset('maxoverlap', data=maxoverlap)
             myfile2.close()
 
 
