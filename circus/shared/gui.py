@@ -690,8 +690,8 @@ class MergeWindow(QMainWindow):
         self.data_image.set_extent((self.raw_lags[0], self.raw_lags[-1],
                             0, len(self.sort_idcs)))
         self.data_ax.set_ylim(0, len(self.sort_idcs))
-        all_raw_data  = self.raw_data
-        all_raw_data /= (1 + self.raw_data.mean(1)[:, np.newaxis])
+        all_raw_data  = self.raw_data.copy()
+        all_raw_data /= (1 + all_raw_data.mean(1)[:, np.newaxis])
         if len(all_raw_data) > 0:
             cmax          = 0.5*all_raw_data.max()
             cmin          = 0.5*all_raw_data.min()
