@@ -130,7 +130,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     data_file        = params.get_data_file(source=True)
     N_e              = params.getint('data', 'N_e')
     N_total          = params.nb_channels
-    compression      = params.getboolean('data', 'compression')
+    hdf5_compress    = params.getboolean('data', 'hdf5_compress')
     nodes, edges     = get_nodes_and_edges(params)
     N_t              = params.getint('detection', 'N_t')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
@@ -517,7 +517,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
         # Save templates into `<dataset>/<dataset>.templates.hdf5`.
         mydata = h5py.File(os.path.join(file_out, data_suff + '.templates.hdf5'), 'w')
         templates = templates.tocoo()
-        if compression:
+        if hdf5_compress:
             mydata.create_dataset('temp_x', data=templates.row, compression='gzip')
             mydata.create_dataset('temp_y', data=templates.col, compression='gzip')
             mydata.create_dataset('temp_data', data=templates.data, compression='gzip')

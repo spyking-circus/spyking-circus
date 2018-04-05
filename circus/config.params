@@ -11,7 +11,8 @@ global_tmp     = True                  # should be False if local /tmp/ has enou
 overwrite      = True                  # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
 parallel_hdf5  = True                  # Use the parallel HDF5 feature (if available)
 output_dir     =                       # By default, generated data are in the same folder as the data.
-compression    = True                  # To compress templates/overlaps in HDF5. Recommended for large electrodes/clusters
+hdf5_compress  = True                  # To compress templates/overlaps in HDF5. Recommended for large electrodes/clusters
+blosc_compress = False                 # For clusters only, to compress data shared among nodes
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)

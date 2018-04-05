@@ -50,7 +50,8 @@ def apply_patch_for_similarities(params, extension):
     if not test_patch_for_similarities(params, extension):
 
         file_out_suff  = params.get('data', 'file_out_suff')
-        compression = params.getboolean('data', 'compression')
+        hdf5_compress = params.getboolean('data', 'hdf5_compress')
+        blosc_compress = params.getboolean('data', 'blosc_compress')
         N_tm    = load_data(params, 'nb_templates', extension)
         N_half  = N_tm // 2
         N_t     = params.getint('detection', 'N_t')
@@ -80,13 +81,13 @@ def apply_patch_for_similarities(params, extension):
             maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
 
         #Now we need to sync everything across nodes
-        maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=compression)
+        maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=blosc_compress)
 
         if comm.rank == 0:
             maxlag = maxlag.reshape(comm.size, N_half, N_half)
             maxlag = numpy.sum(maxlag, 0)
 
-        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32', compress=compression)
+        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32', compress=blosc_compress)
         if comm.rank == 0:
             maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
             maxoverlap = numpy.sum(maxoverlap, 0)
@@ -99,7 +100,7 @@ def apply_patch_for_similarities(params, extension):
                     myfile2.pop(key)
 
             myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
-            if compression:
+            if hdf5_compress:
                 myfile2.create_dataset('maxlag',  data=maxlag, compression='gzip')
                 myfile2.create_dataset('maxoverlap', data=maxoverlap, compression='gzip')
             else:

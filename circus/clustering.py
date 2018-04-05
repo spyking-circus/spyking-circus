@@ -59,7 +59,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     smart_search   = params.getboolean('clustering', 'smart_search')
     smart_select   = params.getboolean('clustering', 'smart_select')
     n_abs_min      = params.getint('clustering', 'n_abs_min')
-    compression    = params.getboolean('data', 'compression')
+    hdf5_compress  = params.getboolean('data', 'hdf5_compress')
+    blosc_compress = params.getboolean('data', 'blosc_compress')
+
     if smart_select:
         m_ratio    = nclus_min
     else:
@@ -612,7 +614,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
                         result['norm_%s_' %p + str(ielec)]  = nb_selec
-                        if compression:
+                        if hdf5_compress:
                             tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True, compression='gzip')
                         else:
                             tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True)
@@ -943,7 +945,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             result['times_' + str(ielec)] = result['times_' + str(ielec)][all_indices]
             result['peaks_' + str(ielec)] = result['peaks_' + str(ielec)][all_indices]
 
-            io.write_datasets(cfile, to_write, result, ielec, compression=compression)
+            io.write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
 
 
         #At the end we should have a templates variable to store.
@@ -964,9 +966,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', logger)
 
         #We need to gather the sparse arrays
-        temp_x    = gather_array(temp_x, comm, dtype='int32', compress=compression)
-        temp_y    = gather_array(temp_y, comm, dtype='int32', compress=compression)
-        temp_data = gather_array(temp_data, comm, compress=compression)
+        temp_x    = gather_array(temp_x, comm, dtype='int32', compress=blosc_compress)
+        temp_y    = gather_array(temp_y, comm, dtype='int32', compress=blosc_compress)
+        temp_data = gather_array(temp_data, comm, compress=blosc_compress)
 
         if parallel_hdf5:
             if comm.rank == 0:
@@ -975,7 +977,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
                 for i in xrange(comm.size):
                     for j in range(i, N_e, comm.size):
-                        io.write_datasets(cfile, to_write, rs[i], j, compression=compresssion)
+                        io.write_datasets(cfile, to_write, rs[i], j, compression=hdf5_compress)
                     rs[i].close()
                     os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
                 cfile.close()
@@ -1002,7 +1004,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     amplitudes[count:count+middle] = ts[i].get('limits')
                     count      += middle
                     for j in range(i, N_e, comm.size):
-                        io.write_datasets(cfile, to_write, rs[i], j, compression=compression)
+                        io.write_datasets(cfile, to_write, rs[i], j, compression=hdf5_compress)
                     ts[i].close()
                     rs[i].close()
                     os.remove(file_out_suff + '.templates-%d.hdf5' %i)
@@ -1014,7 +1016,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'r+', libver='earliest')
-            if compression:
+            if hdf5_compress:
                 hfile.create_dataset('temp_x', data=temp_x, compression='gzip')
                 hfile.create_dataset('temp_y', data=temp_y, compression='gzip')
                 hfile.create_dataset('temp_data', data=temp_data, compression='gzip')

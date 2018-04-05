@@ -1,7 +1,8 @@
-import numpy, os, mpi4py, logging, blosc
+import numpy, os, mpi4py, logging
 from mpi4py import MPI
 from messages import print_and_log
 comm = MPI.COMM_WORLD
+import blosc
 
 try:
     MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
@@ -58,15 +59,18 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=Fals
     displacements = [numpy.int64(sum(sizes[:i])) for i in range(len(sizes))]
 
     np_type       = get_np_dtype(dtype)
-    mpi_type      = get_mpi_type(dtype)
+    mpi_type      = get_mpi_type(dtype)    
 
-    # if compress:
-    #     new_data = blosc.compress(data, typesize=mpi_size.size, cname='blosclz')
-
-    gdata         = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
-    mpi_comm.Gatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type], root=root)
-
-    #gdata = blosc.decompress(blzpacked)
+    if not compress:
+        gdata = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
+        mpi_comm.Gatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type], root=root)
+    else:
+        new_data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
+        new_data = mpi_comm.gather(new_data, root=0)
+        gdata = numpy.empty(0, dtype=np_type)
+        if comm.rank == 0:
+            for blosc_data in new_data:
+                gdata = numpy.concatenate((gdata, numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type)))
 
     if len(data.shape) == 1:
         return gdata
@@ -97,8 +101,15 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32', compress=False):
     np_type       = get_np_dtype(dtype)
     mpi_type      = get_mpi_type(dtype)
 
-    gdata         = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
-    mpi_comm.Allgatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type])
+    if not compress:
+        gdata = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
+        mpi_comm.Allgatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type])
+    else:
+        new_data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
+        new_data = mpi_comm.allgather(new_data)
+        gdata = numpy.empty(0, dtype=np_type)
+        for blosc_data in new_data:
+            gdata = numpy.concatenate((gdata, numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type)))
 
     if len(data.shape) == 1:
         return gdata
