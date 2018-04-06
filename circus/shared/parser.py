@@ -23,6 +23,8 @@ class CircusParser(object):
                           ['data', 'overwrite', 'bool', 'True'],
                           ['data', 'parallel_hdf5', 'bool', 'True'],
                           ['data', 'output_dir', 'string', ''],
+                          ['data', 'hdf5_compress', 'bool', 'True'],
+                          ['data', 'blosc_compress', 'bool', 'False'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '5'],
                           ['detection', 'matched-filter', 'bool', 'False'],

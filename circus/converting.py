@@ -242,6 +242,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     if do_export:
 
+        apply_patch_for_similarities(params, extension)
+
         if comm.rank == 0:
             os.makedirs(output_path)
             print_and_log(["Exporting data for the phy GUI with %d CPUs..." %nb_cpu], 'info', logger)
@@ -260,8 +262,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             write_results(output_path, params, extension) 
  
             N_tm = write_templates(output_path, params, extension)
-
-            apply_patch_for_similarities(params, extension)
 
             template_file = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
             similarities  = template_file.get('maxoverlap')[:]
