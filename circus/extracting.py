@@ -317,7 +317,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes[count:count+middle] = ts[i].get('limits')
                 count      += middle
                 for j in range(i, N_e, comm.size):
-                    io.write_datasets(cfile, to_write, rs[i], j, compress=hdf5_compress
+                    io.write_datasets(cfile, to_write, rs[i], j, compress=hdf5_compress)
                 ts[i].close()
                 rs[i].close()
                 os.remove(file_out_suff + '.templates-%d.hdf5' %i)
