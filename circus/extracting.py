@@ -27,6 +27,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_elts_temp  = params.getint('extracting', 'max_elts')
     output_dim     = params.getfloat('extracting', 'output_dim')
     noise_thr      = params.getfloat('extracting', 'noise_thr')
+    hdf5_compress  = params.getboolean('data', 'hdf5_compress')
+    blosc_compress = params.getboolean('data', 'blosc_compress')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
@@ -270,7 +272,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             count_templates += 1
             g_count         += 1
 
-        io.write_datasets(cfile, to_write, result, ielec)
+        io.write_datasets(cfile, to_write, result, ielec, compress=hdf5_compress)
 
     #At the end we should have a templates variable to store.
     cfile.close()
@@ -278,18 +280,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     #We need to gather the sparse arrays
-    temp_x    = gather_array(temp_x, comm, dtype='int32')
-    temp_y    = gather_array(temp_y, comm, dtype='int32')
-    temp_data = gather_array(temp_data, comm)
+    temp_x    = gather_array(temp_x, comm, dtype='int32', compress=blosc_compress)
+    temp_y    = gather_array(temp_y, comm, dtype='int32', compress=blosc_compress)
+    temp_data = gather_array(temp_data, comm, compress=blosc_compress)
 
     if parallel_hdf5:
         if comm.rank == 0:
             rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='earliest') for i in xrange(comm.size)]
             cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='earliest')
-            io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
+            io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]}, compress=hdf5_compress)
             for i in xrange(comm.size):
                 for j in range(i, N_e, comm.size):
-                    io.write_datasets(cfile, to_write, rs[i], j)
+                    io.write_datasets(cfile, to_write, rs[i], j, compress=hdf5_compress)
                 rs[i].close()
                 os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
             cfile.close()
@@ -315,12 +317,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes[count:count+middle] = ts[i].get('limits')
                 count      += middle
                 for j in range(i, N_e, comm.size):
-                    io.write_datasets(cfile, to_write, rs[i], j)
+                    io.write_datasets(cfile, to_write, rs[i], j, compress=hdf5_compress)
                 ts[i].close()
                 rs[i].close()
                 os.remove(file_out_suff + '.templates-%d.hdf5' %i)
                 os.remove(file_out_suff + '.clusters-%d.hdf5' %i)
-            io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]})
+            io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]}, compress=hdf5_compress)
             hfile.close()
             cfile.close()
 

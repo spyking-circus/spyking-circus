@@ -304,19 +304,19 @@
        <item>
         <widget class="QDoubleSpinBox" name="get_suggest_value">
          <property name="decimals">
-          <number>5</number>
+          <number>3</number>
          </property>
          <property name="minimum">
           <double>0.000000000000000</double>
          </property>
          <property name="maximum">
-          <double>1.000000000000000</double>
+          <double>10000.000000000000000</double>
          </property>
          <property name="singleStep">
-          <double>0.000010000000000</double>
+          <double>0.100000000000000</double>
          </property>
          <property name="value">
-          <double>0.000010000000000</double>
+          <double>1.000000000000000</double>
          </property>
         </widget>
        </item>

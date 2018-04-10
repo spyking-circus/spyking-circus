@@ -199,6 +199,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
     data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
+    hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
 
@@ -244,9 +245,14 @@ def slice_templates(params, to_remove=[], to_merge=[], extension=''):
 
 
         templates = templates.tocoo()
-        hfile.create_dataset('temp_x', data=templates.row)
-        hfile.create_dataset('temp_y', data=templates.col)
-        hfile.create_dataset('temp_data', data=templates.data)
+        if hdf5_compress:
+            hfile.create_dataset('temp_x', data=templates.row, compression='gzip')
+            hfile.create_dataset('temp_y', data=templates.col, compression='gzip')
+            hfile.create_dataset('temp_data', data=templates.data, compression='gzip')
+        else:
+            hfile.create_dataset('temp_x', data=templates.row)
+            hfile.create_dataset('temp_y', data=templates.col)
+            hfile.create_dataset('temp_data', data=templates.data)
         hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2*len(to_keep)], dtype=numpy.int32))
         hfile.close()
 
@@ -263,6 +269,7 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
     data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
+    hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
 
@@ -306,7 +313,7 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
         cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='earliest')
         to_write = ['data_', 'clusters_', 'times_', 'peaks_']
         for ielec in xrange(N_e):
-            write_datasets(cfile, to_write, result, ielec)
+            write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
 
         write_datasets(cfile, ['electrodes'], result)
         cfile.close()
@@ -384,6 +391,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
+    blosc_compress = params.getboolean('data', 'blosc_compress')
 
     N_tm           = load_data(params, 'nb_templates')
     nb_temp        = N_tm//2
@@ -415,7 +423,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         distances[i+1:, i] = distances[i, i+1:]
 
     #Now we need to sync everything across nodes
-    distances = gather_array(distances, comm, 0, 1, 'float32')
+    distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
     if comm.rank == 0:
         distances = distances.reshape(comm.size, nb_temp, nb_temp)
         distances = numpy.sum(distances, 0)

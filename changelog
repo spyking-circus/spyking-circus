@@ -7,6 +7,10 @@ Release 0.6.6
 * faster support for native MCD file with pyMCStream
 * more robust whitening for large arrays with numerous overlaps
 * add an experimental mode to refine coreset (isolated spikes)
+* put merging units in Hz^2 in the merging GUI
+* add a HDF5 compression mode to greatly reduce disk usage for very large probe
+* add a Blosc compression mode to save bandwith for clusters
+* fix a display bug in the merging GUI when performing multiple passes
 
 =============
 Release 0.6.5

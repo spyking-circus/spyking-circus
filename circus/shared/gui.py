@@ -153,12 +153,12 @@ class MergeWindow(QMainWindow):
 
         self.nb_bins    = int(self.last_spike/(self.cc_bin*self.sampling_rate*1e-3))
 
-        self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('maxoverlap')[:]
+        self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest', mode='r').get('maxoverlap')[:]
         try:
-            self.lag    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('maxlag')[:]
+            self.lag    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest', mode='r').get('maxlag')[:]
         except Exception:
             self.lag    = numpy.zeros(self.overlap.shape, dtype=numpy.int32)
-        self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest').get('temp_shape')[:]
+        self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest', mode='r').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
 
         if SHARED_MEMORY:
@@ -359,7 +359,7 @@ class MergeWindow(QMainWindow):
                 x_cc /= self.nb_bins
                 control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
 
-            return x_cc, control
+            return x_cc*1e6, control*1e6
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
 
@@ -690,8 +690,8 @@ class MergeWindow(QMainWindow):
         self.data_image.set_extent((self.raw_lags[0], self.raw_lags[-1],
                             0, len(self.sort_idcs)))
         self.data_ax.set_ylim(0, len(self.sort_idcs))
-        all_raw_data  = self.raw_data
-        all_raw_data /= (1 + self.raw_data.mean(1)[:, np.newaxis])
+        all_raw_data  = self.raw_data.copy()
+        all_raw_data /= (1 + all_raw_data.mean(1)[:, np.newaxis])
         if len(all_raw_data) > 0:
             cmax          = 0.5*all_raw_data.max()
             cmin          = 0.5*all_raw_data.min()
