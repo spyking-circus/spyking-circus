@@ -142,7 +142,6 @@ def query_yes_no(question, default="yes"):
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
 
-
 def detect_memory(params, safety_threshold=0.1):
     from psutil import virtual_memory
 
@@ -177,7 +176,7 @@ def detect_memory(params, safety_threshold=0.1):
         params.set(section, 'chunk_size', str(chunk_size))
     
     if comm.rank == 0:
-        print_and_log(['Setting data chunk size to %d second' %(max_size)], 'debug', logger)
+        print_and_log(['Setting data chunk size to %d second' %(max_size)], 'info', logger)
 
     return params
 

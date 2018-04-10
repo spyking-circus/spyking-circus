@@ -1,7 +1,7 @@
 import ConfigParser as configparser
 from messages import print_and_log
 from circus.shared.probes import read_probe
-from circus.shared.mpi import comm
+from circus.shared.mpi import comm, check_if_cluster
 from circus.files import __supported_data_files__
 
 import os, sys, copy, numpy, logging
@@ -266,6 +266,16 @@ class CircusParser(object):
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
         self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
         self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
+
+        is_cluster = check_if_cluster()
+
+        self.parser.set('data', 'is_cluster', is_cluster)
+
+        if is_cluster:
+          print_and_log(["Cluster detected, so using local /tmp folders"], 'debug', logger)
+          self.parser.set('data', 'global_tmp', False)
+        else:
+          print_and_log(["Cluster not detected, so using global /tmp folder"], 'debug', logger)
 
         for section in ['whitening', 'clustering']:
             test = (self.parser.getfloat(section, 'nb_elts') > 0) and (self.parser.getfloat(section, 'nb_elts') <= 1)

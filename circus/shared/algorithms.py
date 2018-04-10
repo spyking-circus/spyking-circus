@@ -290,6 +290,8 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
             tmp      = numpy.unique(result['clusters_' + str(elec)][mask])
             all_elements[elec] += list(numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0])
 
+        myfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='earliest')
+
         for elec in xrange(N_e):
             if not light:
                 result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], all_elements[elec], axis=0)
@@ -297,17 +299,15 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
                 result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], all_elements[elec])
                 result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], all_elements[elec])
             else:
-
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
-                myfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='earliest')
                 data   = myfile.get('data_' + str(elec))[:]
                 result['data_' + str(elec)]  = numpy.delete(data, all_elements[elec], axis=0)
                 data   = myfile.get('times_' + str(elec))[:]
                 result['times_' + str(elec)] = numpy.delete(data, all_elements[elec])
                 data   = myfile.get('peaks_' + str(elec))[:]
                 result['peaks_' + str(elec)] = numpy.delete(data, all_elements[elec])
-                myfile.close()
 
+        myfile.close()
         result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_remove))
 
         cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='earliest')

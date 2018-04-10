@@ -8,7 +8,7 @@ from circus.shared.messages import print_and_log, init_logging
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
-    params = detect_memory(params)
+    params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.fitting')
     data_file      = params.data_file

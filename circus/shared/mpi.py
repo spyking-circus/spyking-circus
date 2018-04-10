@@ -13,6 +13,12 @@ except NotImplementedError:
 
 logger = logging.getLogger(__name__)
 
+def check_if_cluster():
+    from uuid import getnode as get_mac
+    myip = numpy.array([numpy.int64(get_mac()) % 100000], dtype='int64')
+    ips = all_gather_array(myip, comm, 1, 'int64')
+    return not len(numpy.unique(ips)) == 1
+
 def gather_mpi_arguments(hostfile, params):
     from mpi4py import MPI
     vendor = MPI.get_vendor()
