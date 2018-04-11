@@ -1,6 +1,6 @@
 import ConfigParser as configparser
 from messages import print_and_log
-from circus.shared.probes import read_probe
+from circus.shared.probes import read_probe, parse_dead_channels
 from circus.shared.mpi import comm, check_if_cluster
 from circus.files import __supported_data_files__
 
@@ -33,6 +33,7 @@ class CircusParser(object):
                           ['detection', 'peaks', 'string', 'negative'],
                           ['detection', 'spike_thresh', 'float', '6'],
                           ['detection', 'isolation', 'bool', 'False'],
+                          ['detection', 'dead_channels', 'string', ''],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
                           ['triggers', 'make_plots', 'string', 'png'],
                           ['triggers', 'trig_file', 'string', ''],
@@ -154,6 +155,18 @@ class CircusParser(object):
 
 
         self.probe = read_probe(self.parser)
+
+        dead_channels = self.parser.get('detection', 'dead_channels')
+        if dead_channels != '':
+          dead_channels = parse_dead_channels(dead_channels)
+          if comm.rank == 0:
+            print_and_log(["Removing dead channels %s" %str(dead_channels)], 'debug', logger)
+          for key in dead_channels.keys():            
+            if int(key) in self.probe["channel_groups"].keys():  
+              for channel in dead_channels[key]:
+                n_before = len(self.probe["channel_groups"][int(key)]['channels'])
+                self.probe["channel_groups"][int(key)]['channels'] = list(set(self.probe["channel_groups"][int(key)]['channels']).difference(dead_channels[key]))
+                n_after = len(self.probe["channel_groups"][int(key)]['channels'])
 
         N_e = 0
         for key in self.probe['channel_groups'].keys():
@@ -351,7 +364,6 @@ class CircusParser(object):
                 print_and_log(["min and max dispersions in [clustering] should be positive"], 'error', logger)
             sys.exit(0)
 
-
         pcs_export = ['prompt', 'none', 'all', 'some']
         test = self.parser.get('converting', 'export_pcs').lower() in pcs_export
         if not test:
@@ -365,7 +377,6 @@ class CircusParser(object):
                 self.parser.set('converting', 'export_pcs', 's')
             elif self.parser.get('converting', 'export_pcs').lower() == 'all':
                 self.parser.set('converting', 'export_pcs', 'a')
-
 
     def get(self, section, data):
       	return self.parser.get(section, data)

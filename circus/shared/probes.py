@@ -1,4 +1,4 @@
-import numpy, os, sys, logging
+import numpy, os, sys, logging, json
 from messages import print_and_log
 from mpi import comm
 
@@ -80,3 +80,18 @@ def get_averaged_n_edges(parser):
     for key, value in edges.items():
         n += len(value)
     return n/float(len(edges.values()))
+
+def parse_dead_channels(channels):
+    is_correct = False
+    try:
+        dead_channels = json.loads(channels)
+        is_correct = True
+    except Exception:
+        pass
+
+    if not is_correct:
+        if comm.rank == 0:
+            print_and_log(["The syntax for dead channels is not correct!"], 'error', logger)
+        sys.exit(0) 
+    else:
+        return dead_channels
