@@ -46,12 +46,8 @@ def data_stats(params, show=True, export_times=False):
              "Threshold crossing          : %s" %params.get('detection', 'peaks'),
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
              "Snippet isolation           : %s" %params.getboolean('detection', 'isolation'),
-             "Template Extraction         : %s" %params.get('clustering', 'extraction'),
-             "Blosc compression           : %s" %params.getboolean('data', 'blosc_compress'),
-             "Overwrite                   : %s" %params.get('data', 'overwrite'),
-             "Collect all spikes          : %s" %params.getboolean('fitting', 'collect_all'),
-             "Smart Search                : %s" %params.getboolean('clustering', 'smart_search'),
-             "Smart Selection             : %s" %params.getboolean('clustering', 'smart_select')]
+             "Cluster detected            : %s" %params.getboolean('data', 'is_cluster'),
+             "Overwrite                   : %s" %params.get('data', 'overwrite')]
 
     if stream_mode:
         lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]

@@ -25,6 +25,7 @@ class CircusParser(object):
                           ['data', 'output_dir', 'string', ''],
                           ['data', 'hdf5_compress', 'bool', 'True'],
                           ['data', 'blosc_compress', 'bool', 'False'],
+                          ['data', 'is_cluster', 'bool', 'False'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '5'],
                           ['detection', 'matched-filter', 'bool', 'False'],
@@ -269,12 +270,12 @@ class CircusParser(object):
 
         is_cluster = check_if_cluster()
 
-        self.parser.set('data', 'is_cluster', is_cluster)
+        self.parser.set('data', 'is_cluster', str(is_cluster))
 
         if is_cluster:
           print_and_log(["Cluster detected, so using local /tmp folders and blosc compression"], 'debug', logger)
-          self.parser.set('data', 'global_tmp', False)
-          self.parser.set('data', 'blosc_compress', True)
+          self.parser.set('data', 'global_tmp', 'False')
+          self.parser.set('data', 'blosc_compress', 'True')
         else:
           print_and_log(["Cluster not detected, so using global /tmp folder"], 'debug', logger)
 
