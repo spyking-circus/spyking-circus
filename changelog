@@ -1,4 +1,10 @@
 =============
+Release 0.6.7
+=============
+
+* optimizations for clusters (auto blosc and network bandwith)
+
+=============
 Release 0.6.6
 =============
 
