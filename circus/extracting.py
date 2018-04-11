@@ -7,7 +7,7 @@ from circus.shared.utils import get_parallel_hdf5_flag
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(426236)
-    params         = detect_memory(params)
+    #params         = detect_memory(params)
     parallel_hdf5  = get_parallel_hdf5_flag(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.extracting')

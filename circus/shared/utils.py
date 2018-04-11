@@ -176,7 +176,7 @@ def detect_memory(params, safety_threshold=0.1):
         params.set(section, 'chunk_size', str(chunk_size))
     
     if comm.rank == 0:
-        print_and_log(['Setting data chunk size to %d second' %(max_size)], 'info', logger)
+        print_and_log(['Setting data chunk size to %d second' %(max_size/float(sampling_rate))], 'info', logger)
 
     return params
 

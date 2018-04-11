@@ -127,6 +127,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
         amplitude = [amplitude] * len(cells)
 
     # Retrieve some additional key parameters.
+    #params           = detect_memory(params)
     data_file        = params.get_data_file(source=True)
     N_e              = params.getint('data', 'N_e')
     N_total          = params.nb_channels
