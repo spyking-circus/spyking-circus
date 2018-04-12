@@ -13,7 +13,7 @@ output_dir     =                       # By default, generated data are in the s
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)
-dead_channels  =            # If not empty or specified in the probe, a dictionary {"channel_group_id" : [list_of_valid_ids]}
+dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
 N_t            = 5          # Width of the templates [in ms]
 spike_thresh   = 6          # Threshold for spike detection
 peaks          = negative   # Can be negative (default), positive or both

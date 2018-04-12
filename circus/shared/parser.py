@@ -162,11 +162,14 @@ class CircusParser(object):
           if comm.rank == 0:
             print_and_log(["Removing dead channels %s" %str(dead_channels)], 'debug', logger)
           for key in dead_channels.keys():            
-            if int(key) in self.probe["channel_groups"].keys():  
+            if key in self.probe["channel_groups"].keys():
               for channel in dead_channels[key]:
-                n_before = len(self.probe["channel_groups"][int(key)]['channels'])
-                self.probe["channel_groups"][int(key)]['channels'] = list(set(self.probe["channel_groups"][int(key)]['channels']).difference(dead_channels[key]))
-                n_after = len(self.probe["channel_groups"][int(key)]['channels'])
+                n_before = len(self.probe["channel_groups"][key]['channels'])
+                self.probe["channel_groups"][key]['channels'] = list(set(self.probe["channel_groups"][key]['channels']).difference(dead_channels[key]))
+                n_after = len(self.probe["channel_groups"][key]['channels'])
+            else:
+              if comm.rank == 0:
+                print_and_log(["Probe has no group named %s for dead channels" %key], 'debug', logger)
 
         N_e = 0
         for key in self.probe['channel_groups'].keys():
