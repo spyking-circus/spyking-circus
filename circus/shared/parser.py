@@ -86,6 +86,7 @@ class CircusParser(object):
                           ['validating', 'juxta_spikes', 'string', ''],
                           ['validating', 'greedy_mode', 'bool', 'True'],
                           ['validating', 'extension', 'string', ''],
+                          ['noedits', 'filter_done', 'bool', 'False'],
                           ['noedits', 'median_done', 'bool', 'False'],
                           ['noedits', 'artefacts_done', 'bool', 'False']]
 
