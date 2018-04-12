@@ -7,11 +7,9 @@ file_format    =                       # Can be raw_binary, openephys, hdf5, ...
 stream_mode    = None                  # None by default. Can be multi-files, or anything depending to the file format
 mapping        = ~/probes/mea_252.prb  # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
 suffix         =                       # Suffix to add to generated files
-global_tmp     = True                  # should be False if local /tmp/ has enough space (better for clusters)
 overwrite      = True                  # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
 parallel_hdf5  = True                  # Use the parallel HDF5 feature (if available)
 output_dir     =                       # By default, generated data are in the same folder as the data.
-blosc_compress = False                 # For clusters only, to compress data shared among nodes
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)
@@ -22,6 +20,7 @@ matched-filter = False      # If True, we perform spike detection with matched f
 matched_thresh = 5          # Threshold for detection if matched filter is True
 alignment      = True       # Realign the waveforms by oversampling
 isolation      = False      # Enforce individual snippets to be isolated [experimental]
+dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
 
 [filtering]
 cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]

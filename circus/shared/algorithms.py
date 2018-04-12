@@ -4,7 +4,7 @@ from circus.shared.files import load_data, write_datasets, get_overlaps, load_da
 from circus.shared.utils import get_tqdm_progressbar
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm, gather_array
+from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 
 logger = logging.getLogger(__name__)
@@ -290,6 +290,8 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
             tmp      = numpy.unique(result['clusters_' + str(elec)][mask])
             all_elements[elec] += list(numpy.where(result['clusters_' + str(elec)] == tmp[nic])[0])
 
+        myfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='earliest')
+
         for elec in xrange(N_e):
             if not light:
                 result['data_' + str(elec)]     = numpy.delete(result['data_' + str(elec)], all_elements[elec], axis=0)
@@ -297,17 +299,15 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='', ligh
                 result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], all_elements[elec])
                 result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], all_elements[elec])
             else:
-
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
-                myfile = h5py.File(file_out_suff + '.clusters.hdf5', 'r', libver='earliest')
                 data   = myfile.get('data_' + str(elec))[:]
                 result['data_' + str(elec)]  = numpy.delete(data, all_elements[elec], axis=0)
                 data   = myfile.get('times_' + str(elec))[:]
                 result['times_' + str(elec)] = numpy.delete(data, all_elements[elec])
                 data   = myfile.get('peaks_' + str(elec))[:]
                 result['peaks_' + str(elec)] = numpy.delete(data, all_elements[elec])
-                myfile.close()
 
+        myfile.close()
         result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_remove))
 
         cfile    = h5py.File(file_out_suff + '.clusters-new.hdf5', 'w', libver='earliest')
@@ -404,15 +404,19 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     overlap.close()
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
-    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-
     if not SHARED_MEMORY:
-        over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+        over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension='-merging')
     else:
         over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     
+    #sub_comm, is_local = get_local_ring(True)
+
+    #if is_local:
+
+    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+
     to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
-        
+            
     for i in to_explore:
 
         idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
@@ -428,7 +432,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         distances = distances.reshape(comm.size, nb_temp, nb_temp)
         distances = numpy.sum(distances, 0)
 
-    comm.Barrier()
+    #sub_comm.Barrier()
+    #sub_comm.Free()
 
     if comm.rank == 0:
         result = load_data(params, 'clusters')
@@ -474,7 +479,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     if SHARED_MEMORY:
         c_overs    = load_data_memshared(params, 'overlaps', extension='-mixtures', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     else:
-        c_overs    = load_data(params, 'overlaps', extension='-mixtures', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+        c_overs    = load_data(params, 'overlaps', extension='-mixtures')
 
     if SHARED_MEMORY:
         templates  = load_data_memshared(params, 'templates', normalize=False)

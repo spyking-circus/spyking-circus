@@ -11,7 +11,9 @@ from circus.shared.utils import get_parallel_hdf5_flag
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
+    numpy.random.seed(520)
     parallel_hdf5  = get_parallel_hdf5_flag(params)
+    #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.clustering')
     #################################################################
@@ -30,10 +32,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    if params.get('data', 'global_tmp'):
+    if params.getboolean('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     else:
         tmp_path_loc = tempfile.gettempdir()
+
     plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')

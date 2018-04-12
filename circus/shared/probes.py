@@ -1,4 +1,4 @@
-import numpy, os, sys, logging
+import numpy, os, sys, logging, ast
 from messages import print_and_log
 from mpi import comm
 
@@ -17,6 +17,7 @@ def read_probe(parser):
         with open(filename, 'r') as f:
             probetext = f.read()
             exec(probetext, probe)
+            del probe['__builtins__']
     except Exception as ex:
         if comm.rank == 0:
             print_and_log(["Something wrong with the syntax of the probe file:\n" + str(ex)], 'error', logger)
@@ -80,3 +81,18 @@ def get_averaged_n_edges(parser):
     for key, value in edges.items():
         n += len(value)
     return n/float(len(edges.values()))
+
+def parse_dead_channels(channels):
+    is_correct = False
+    try:
+        dead_channels = ast.literal_eval(channels)
+        is_correct = True
+    except Exception:
+        pass
+
+    if not is_correct:
+        if comm.rank == 0:
+            print_and_log(["The syntax for dead channels is not correct!"], 'error', logger)
+        sys.exit(0) 
+    else:
+        return dead_channels

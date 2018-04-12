@@ -8,6 +8,7 @@ from circus.shared.messages import print_and_log, init_logging
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     #################################################################
+    #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.fitting')
     data_file      = params.data_file
@@ -306,7 +307,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
                 b       = cmt.sparse_dot(templates, sub_mat)
             else:
-                b       = templates.dot(sub_mat)                
+                b       = templates.dot(sub_mat)
 
             del sub_mat
 
@@ -317,7 +318,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
             if use_gpu and not full_gpu:
-                b = b.asarray()
+                b = b.asarray()           
 
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 

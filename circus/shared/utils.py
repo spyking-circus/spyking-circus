@@ -142,6 +142,45 @@ def query_yes_no(question, default="yes"):
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
 
+def detect_memory(params, safety_threshold=0.1):
+    from psutil import virtual_memory
+
+    N_e  = params.getint('data', 'N_e')
+    data_file      = params.data_file
+    data_file.open()
+    sampling_rate  = data_file.sampling_rate
+    duation = data_file.duration
+    data_file.close()
+
+    from uuid import getnode as get_mac
+    myip = numpy.int64(get_mac()) % 100000
+    sub_comm = comm.Split(myip, 0)
+
+    res = numpy.zeros(1, dtype=numpy.int64)
+    mem = virtual_memory()
+
+    if sub_comm.rank == 0:
+        res[0] = safety_threshold * numpy.int64(mem.available//sub_comm.size)
+
+    sub_comm.Barrier()
+    sub_comm.Free()
+
+    memory = all_gather_array(res, comm, 1, 'int64')
+
+    idx = numpy.where(memory > 0)
+    max_memory = numpy.min(memory[idx]) // (4 * N_e)
+    max_size = (data_file.duration//comm.size)
+
+    for section in ['data', 'whitening']:
+        chunk_size = min(max_memory, max_size)
+        params.set(section, 'chunk_size', str(chunk_size))
+    
+    if comm.rank == 0:
+        print_and_log(['Setting data chunk size to %d second' %(max_size/float(sampling_rate))], 'info', logger)
+
+    return params
+
+
 def get_parallel_hdf5_flag(params):
     ''' Get parallel HDF5 flag.
 

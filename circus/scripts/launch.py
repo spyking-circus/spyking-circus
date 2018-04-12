@@ -290,12 +290,12 @@ but a subset x,y can be done. Steps are:
         if n_edges > 100 and not params.getboolean('clustering', 'compress'):
             print_and_log(['Template compression is highly recommended based on parameters'], 'info', logger)
 
-        if params.getint('data', 'N_e') > 500:
-            if params.getint('data', 'chunk_size') > 10:
-                params.write('data', 'chunk_size', '10')
-            if params.getint('whitening', 'chunk_size') > 10:
-                params.write('whitening', 'chunk_size', '10')
-            print_and_log(["Large number of electrodes, reducing chunk sizes to 10s"], 'info', logger)
+        if params.getint('data', 'N_e') > 1000:
+            if params.getint('data', 'chunk_size') >= 30:
+                params.write('data', 'chunk_size', '15')
+            if params.getint('whitening', 'chunk_size') >= 30:
+                params.write('whitening', 'chunk_size', '15')
+            print_and_log(["Large number of electrodes, reducing chunk sizes to 15s"], 'info', logger)
 
         if not result:
             for subtask, command in subtasks:

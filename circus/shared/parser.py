@@ -1,7 +1,7 @@
 import ConfigParser as configparser
 from messages import print_and_log
-from circus.shared.probes import read_probe
-from circus.shared.mpi import comm
+from circus.shared.probes import read_probe, parse_dead_channels
+from circus.shared.mpi import comm, check_if_cluster
 from circus.files import __supported_data_files__
 
 import os, sys, copy, numpy, logging
@@ -25,6 +25,7 @@ class CircusParser(object):
                           ['data', 'output_dir', 'string', ''],
                           ['data', 'hdf5_compress', 'bool', 'True'],
                           ['data', 'blosc_compress', 'bool', 'False'],
+                          ['data', 'is_cluster', 'bool', 'False'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '5'],
                           ['detection', 'matched-filter', 'bool', 'False'],
@@ -32,6 +33,7 @@ class CircusParser(object):
                           ['detection', 'peaks', 'string', 'negative'],
                           ['detection', 'spike_thresh', 'float', '6'],
                           ['detection', 'isolation', 'bool', 'False'],
+                          ['detection', 'dead_channels', 'string', ''],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
                           ['triggers', 'make_plots', 'string', 'png'],
                           ['triggers', 'trig_file', 'string', ''],
@@ -154,6 +156,21 @@ class CircusParser(object):
 
         self.probe = read_probe(self.parser)
 
+        dead_channels = self.parser.get('detection', 'dead_channels')
+        if dead_channels != '':
+          dead_channels = parse_dead_channels(dead_channels)
+          if comm.rank == 0:
+            print_and_log(["Removing dead channels %s" %str(dead_channels)], 'debug', logger)
+          for key in dead_channels.keys():            
+            if key in self.probe["channel_groups"].keys():
+              for channel in dead_channels[key]:
+                n_before = len(self.probe["channel_groups"][key]['channels'])
+                self.probe["channel_groups"][key]['channels'] = list(set(self.probe["channel_groups"][key]['channels']).difference(dead_channels[key]))
+                n_after = len(self.probe["channel_groups"][key]['channels'])
+            else:
+              if comm.rank == 0:
+                print_and_log(["Probe has no group named %s for dead channels" %key], 'debug', logger)
+
         N_e = 0
         for key in self.probe['channel_groups'].keys():
             N_e += len(self.probe['channel_groups'][key]['channels'])
@@ -267,6 +284,17 @@ class CircusParser(object):
         self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
         self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
 
+        is_cluster = check_if_cluster()
+
+        self.parser.set('data', 'is_cluster', str(is_cluster))
+
+        if is_cluster:
+          print_and_log(["Cluster detected, so using local /tmp folders and blosc compression"], 'debug', logger)
+          self.parser.set('data', 'global_tmp', 'False')
+          self.parser.set('data', 'blosc_compress', 'True')
+        else:
+          print_and_log(["Cluster not detected, so using global /tmp folder"], 'debug', logger)
+
         for section in ['whitening', 'clustering']:
             test = (self.parser.getfloat(section, 'nb_elts') > 0) and (self.parser.getfloat(section, 'nb_elts') <= 1)
             if not test:
@@ -339,7 +367,6 @@ class CircusParser(object):
                 print_and_log(["min and max dispersions in [clustering] should be positive"], 'error', logger)
             sys.exit(0)
 
-
         pcs_export = ['prompt', 'none', 'all', 'some']
         test = self.parser.get('converting', 'export_pcs').lower() in pcs_export
         if not test:
@@ -353,7 +380,6 @@ class CircusParser(object):
                 self.parser.set('converting', 'export_pcs', 's')
             elif self.parser.get('converting', 'export_pcs').lower() == 'all':
                 self.parser.set('converting', 'export_pcs', 'a')
-
 
     def get(self, section, data):
       	return self.parser.get(section, data)

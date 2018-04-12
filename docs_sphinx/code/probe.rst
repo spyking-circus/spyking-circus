@@ -97,5 +97,13 @@ There are two ways to simply handle several shanks:
 
 * in the ``.prb`` file, you can also have several channel groups (see for example adrien.prb in the probes folder). What is done by the code, then, is that during internal computations templates are confined to each channel groups. However, for graphical purpose, when you'll use the GUI, the global x/y coordinates across all shanks are used. Therefore, if you do not want to have them plotted on top of each other, you still need to add a x/y padding for all of them.
 
+How do deal with dead channels ?
+--------------------------------
+
+You have two ways to deal with channels that you want to discard from the analysis:
+
+* in the ``.prb`` file, you can specify a given list of channels to analyse ``channels`` that may not have all the recorded channels. For example, if you have a probe with 32 channels, but ``channels`` set to range(28), then the two last channels will be ignored
+
+* with the ``dead_channels`` parameter of the configuration file. Coming back to the previous example, you can set such a parameter to {1 : [28, 29]} in order to exclude the last two channels
 
 .. _phy: https://github.com/kwikteam/phy
