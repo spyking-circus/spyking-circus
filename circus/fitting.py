@@ -307,7 +307,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
                 b       = cmt.sparse_dot(templates, sub_mat)
             else:
-                b       = templates.dot(sub_mat)                
+                b       = templates.dot(sub_mat)
 
             del sub_mat
 
@@ -319,6 +319,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             #b           = b.transpose()
             if use_gpu and not full_gpu:
                 b = b.asarray()
+
+            print b.mean()
+            
 
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 

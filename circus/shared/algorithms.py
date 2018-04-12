@@ -4,7 +4,7 @@ from circus.shared.files import load_data, write_datasets, get_overlaps, load_da
 from circus.shared.utils import get_tqdm_progressbar
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm, gather_array
+from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 
 logger = logging.getLogger(__name__)
@@ -404,31 +404,36 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     overlap.close()
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
-    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-
     if not SHARED_MEMORY:
-        over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+        over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension='-merging')
     else:
-        over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+        over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, local_only=True)
     
-    to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
-        
-    for i in to_explore:
+    sub_comm, is_local = get_local_ring(True)
 
-        idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
-        local_x = over_x[idx] - (i*nb_temp+i+1)
-        data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
-        data[local_x, over_y[idx]] = over_data[idx]
-        distances[i, i+1:] = numpy.max(data, 1)/norm
-        distances[i+1:, i] = distances[i, i+1:]
+    if is_local:
 
-    #Now we need to sync everything across nodes
-    distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
-    if comm.rank == 0:
-        distances = distances.reshape(comm.size, nb_temp, nb_temp)
-        distances = numpy.sum(distances, 0)
+        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
 
-    comm.Barrier()
+        to_explore = numpy.arange(nb_temp - 1)[sub_comm.rank::sub_comm.size]
+            
+        for i in to_explore:
+
+            idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
+            local_x = over_x[idx] - (i*nb_temp+i+1)
+            data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
+            data[local_x, over_y[idx]] = over_data[idx]
+            distances[i, i+1:] = numpy.max(data, 1)/norm
+            distances[i+1:, i] = distances[i, i+1:]
+
+        #Now we need to sync everything across nodes
+        distances = gather_array(distances, sub_comm, 0, 1, 'float32')
+        if sub_comm.rank == 0:
+            distances = distances.reshape(sub_comm.size, nb_temp, nb_temp)
+            distances = numpy.sum(distances, 0)
+
+    sub_comm.Barrier()
+    sub_comm.Free()
 
     if comm.rank == 0:
         result = load_data(params, 'clusters')
@@ -474,7 +479,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     if SHARED_MEMORY:
         c_overs    = load_data_memshared(params, 'overlaps', extension='-mixtures', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     else:
-        c_overs    = load_data(params, 'overlaps', extension='-mixtures', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+        c_overs    = load_data(params, 'overlaps', extension='-mixtures')
 
     if SHARED_MEMORY:
         templates  = load_data_memshared(params, 'templates', normalize=False)

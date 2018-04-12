@@ -19,6 +19,21 @@ def check_if_cluster():
     ips = all_gather_array(myip, comm, 1, 'int64')
     return not len(numpy.unique(ips)) == 1
 
+def get_local_ring(local_only=False):
+    ## First we need to identify machines in the MPI ring
+    from uuid import getnode as get_mac
+    myip = numpy.int64(get_mac()) % 100000
+    is_local = False
+
+    if local_only:
+        master_ip = comm.bcast(numpy.array([myip], dtype='int64'), root=0)
+        is_local = myip == master_ip[0]
+        sub_comm  = comm.Split(is_local, 0)
+    else:
+        sub_comm  = comm.Split(myip, 0)
+
+    return sub_comm, is_local
+
 def gather_mpi_arguments(hostfile, params):
     from mpi4py import MPI
     vendor = MPI.get_vendor()
