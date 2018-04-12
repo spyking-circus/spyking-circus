@@ -407,33 +407,33 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     if not SHARED_MEMORY:
         over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension='-merging')
     else:
-        over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, local_only=True)
+        over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     
-    sub_comm, is_local = get_local_ring(True)
+    #sub_comm, is_local = get_local_ring(True)
 
-    if is_local:
+    #if is_local:
 
-        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
 
-        to_explore = numpy.arange(nb_temp - 1)[sub_comm.rank::sub_comm.size]
+    to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
             
-        for i in to_explore:
+    for i in to_explore:
 
-            idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
-            local_x = over_x[idx] - (i*nb_temp+i+1)
-            data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
-            data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i+1:] = numpy.max(data, 1)/norm
-            distances[i+1:, i] = distances[i, i+1:]
+        idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
+        local_x = over_x[idx] - (i*nb_temp+i+1)
+        data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
+        data[local_x, over_y[idx]] = over_data[idx]
+        distances[i, i+1:] = numpy.max(data, 1)/norm
+        distances[i+1:, i] = distances[i, i+1:]
 
-        #Now we need to sync everything across nodes
-        distances = gather_array(distances, sub_comm, 0, 1, 'float32')
-        if sub_comm.rank == 0:
-            distances = distances.reshape(sub_comm.size, nb_temp, nb_temp)
-            distances = numpy.sum(distances, 0)
+    #Now we need to sync everything across nodes
+    distances = gather_array(distances, comm, 0, 1, 'float32')
+    if comm.rank == 0:
+        distances = distances.reshape(comm.size, nb_temp, nb_temp)
+        distances = numpy.sum(distances, 0)
 
-    sub_comm.Barrier()
-    sub_comm.Free()
+    #sub_comm.Barrier()
+    #sub_comm.Free()
 
     if comm.rank == 0:
         result = load_data(params, 'clusters')

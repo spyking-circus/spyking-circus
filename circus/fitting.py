@@ -318,10 +318,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
             if use_gpu and not full_gpu:
-                b = b.asarray()
-
-            print b.mean()
-            
+                b = b.asarray()           
 
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 

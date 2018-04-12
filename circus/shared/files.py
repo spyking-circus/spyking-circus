@@ -1526,43 +1526,41 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             if comm.rank > 0:
                 over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension=extension)
         else:
-            raw_data = [over_x, over_y, over_data]
-            over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension=extension, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, local_only=True, raw_data=raw_data)
-            del raw_data
+            over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension=extension, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
 
-        sub_comm, is_local = get_local_ring(True)
+        #sub_comm, is_local = get_local_ring(True)
 
-        if is_local:
-            maxlag = numpy.zeros((N_half, N_half), dtype=numpy.int32)
-            maxoverlap = numpy.zeros((N_half, N_half), dtype=numpy.float32)
+        #if is_local:
+        maxlag = numpy.zeros((N_half, N_half), dtype=numpy.int32)
+        maxoverlap = numpy.zeros((N_half, N_half), dtype=numpy.float32)
 
-            to_explore = numpy.arange(N_half - 1)[sub_comm.rank::sub_comm.size]
+        to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
 
-            for i in to_explore:
+        for i in to_explore:
 
-                idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
-                local_x = over_x[idx] - (i*N_tm+i+1)
-                data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
-                data[local_x, over_y[idx]] = over_data[idx]
-                maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
-                maxlag[i+1:, i]     = -maxlag[i, i+1:]
-                maxoverlap[i, i+1:] = numpy.max(data, 1)
-                maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
+            idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
+            local_x = over_x[idx] - (i*N_tm+i+1)
+            data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
+            data[local_x, over_y[idx]] = over_data[idx]
+            maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
+            maxlag[i+1:, i]     = -maxlag[i, i+1:]
+            maxoverlap[i, i+1:] = numpy.max(data, 1)
+            maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
 
-            #Now we need to sync everything across nodes
-            maxlag = gather_array(maxlag, sub_comm, 0, 1, 'int32')
+        #Now we need to sync everything across nodes
+        maxlag = gather_array(maxlag, comm, 0, 1, 'int32')
 
-            if sub_comm.rank == 0:
-                maxlag = maxlag.reshape(sub_comm.size, N_half, N_half)
-                maxlag = numpy.sum(maxlag, 0)
+        if comm.rank == 0:
+            maxlag = maxlag.reshape(comm.size, N_half, N_half)
+            maxlag = numpy.sum(maxlag, 0)
 
-            maxoverlap = gather_array(maxoverlap, sub_comm, 0, 1, 'float32')
-            if sub_comm.rank == 0:
-                maxoverlap = maxoverlap.reshape(sub_comm.size, N_half, N_half)
-                maxoverlap = numpy.sum(maxoverlap, 0)
+        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32')
+        if comm.rank == 0:
+            maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
+            maxoverlap = numpy.sum(maxoverlap, 0)
         
-        sub_comm.Barrier()
-        sub_comm.Free()
+        #sub_comm.Barrier()
+        #sub_comm.Free()
 
         if comm.rank == 0:
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
