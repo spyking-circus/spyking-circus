@@ -427,7 +427,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         distances[i+1:, i] = distances[i, i+1:]
 
     #Now we need to sync everything across nodes
-    distances = gather_array(distances, comm, 0, 1, 'float32')
+    distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
     if comm.rank == 0:
         distances = distances.reshape(comm.size, nb_temp, nb_temp)
         distances = numpy.sum(distances, 0)

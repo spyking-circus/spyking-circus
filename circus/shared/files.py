@@ -1548,13 +1548,13 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
 
         #Now we need to sync everything across nodes
-        maxlag = gather_array(maxlag, comm, 0, 1, 'int32')
+        maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=blosc_compress)
 
         if comm.rank == 0:
             maxlag = maxlag.reshape(comm.size, N_half, N_half)
             maxlag = numpy.sum(maxlag, 0)
 
-        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32')
+        maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32', compress=blosc_compress)
         if comm.rank == 0:
             maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
             maxoverlap = numpy.sum(maxoverlap, 0)
