@@ -1466,30 +1466,27 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
             for idelay in all_delays:
 
-                tmp_1 = loc_templates[_srows['left'][idelay]]
+                tmp_1 = loc_templates[_srows['left'][idelay]].T.tocsr()
                 tmp_2 = loc_templates2[_srows['right'][idelay]]
 
                 if use_gpu:
-                    tmp_1 = cmt.SparseCUDAMatrix(tmp_1.T.tocsr(), copy_on_host=False)
+                    tmp_1 = cmt.SparseCUDAMatrix(tmp_1, copy_on_host=False)
                     tmp_2 = cmt.CUDAMatrix(tmp_2.toarray(), copy_on_host=False)
                     data  = cmt.sparse_dot(tmp_1, tmp_2).asarray()
                 else:
-                    data  = tmp_1.T.dot(tmp_2)
+                    data  = tmp_1.dot(tmp_2)
 
                 dx, dy     = data.nonzero()
-                data       = data.toarray().ravel()
-                dd         = data.nonzero()[0].astype(numpy.int32)
                 ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
                 ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
-                data       = numpy.take(data, dd)
                 ones       = numpy.ones(len(dx), dtype=numpy.int32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
                 over_y     = numpy.concatenate((over_y, (idelay - 1)*ones))
-                over_data  = numpy.concatenate((over_data, data))
+                over_data  = numpy.concatenate((over_data, data.data))
                 if idelay < N_t:
                     over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
                     over_y     = numpy.concatenate((over_y, (duration - idelay)*ones))
-                    over_data  = numpy.concatenate((over_data, data))
+                    over_data  = numpy.concatenate((over_data, data.data))
 
     if comm.rank == 0:
         print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)
