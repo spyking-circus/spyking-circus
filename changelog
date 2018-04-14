@@ -4,6 +4,7 @@ Release 0.6.7
 
 * optimizations for clusters (auto blosc and network bandwith)
 * addition of a dead_channels option in the [detection] section, as requested
+* prevent user to remove median with only 1 channel
 
 =============
 Release 0.6.6

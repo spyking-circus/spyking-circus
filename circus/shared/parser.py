@@ -186,6 +186,11 @@ class CircusParser(object):
                 print_and_log(['The number of analyzed channels is higher than the number of recorded channels'], 'error', logger)
             sys.exit(0)
 
+        if N_e == 1 and self.parser.getboolean('filtering', 'remove_median'):
+          if comm.rank == 0:
+            print_and_log(["With 1 channel, remove_median in [filtering] is not possible"], 'error', logger)
+          sys.exit(0)  
+
         to_write = ["You must specify explicitly the file format in the config file",
                     "Please have a look to the documentation and add a file_format",
                     "parameter in the [data] section. Valid files formats can be:", '']
