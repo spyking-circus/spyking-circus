@@ -21,6 +21,7 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 
 * Steinmetz N. A., Koch C., Harris K.D., Carandini M., *Challenges and opportunities for large-scale electrophysiology with Neuropixels probes*, Current Opinion in Neurobiology, Volume 50, 92-100
 
+* Stern M., Bolding K. A. , Abbott L. F., Franks K. M,  *A transformation from temporal to ensemble coding in a model of piriform cortex*, eLife, 10.7554/eLife.34831
 
 2017
 ~~~~
