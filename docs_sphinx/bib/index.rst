@@ -14,7 +14,7 @@ How to cite SpyKING CIRCUS
 Selected publications refering to SpyKING CIRCUS
 ------------------------------------------------
 
-Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to send us a mail in order to add a paper
+Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to send us a mail in order update this list, the more the merrier
 
 2018
 ~~~~
@@ -22,6 +22,9 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 * Steinmetz N. A., Koch C., Harris K.D., Carandini M., *Challenges and opportunities for large-scale electrophysiology with Neuropixels probes*, Current Opinion in Neurobiology, Volume 50, 92-100
 
 * Stern M., Bolding K. A. , Abbott L. F., Franks K. M,  *A transformation from temporal to ensemble coding in a model of piriform cortex*, eLife, 10.7554/eLife.34831
+
+* Bolding K. A., Franks K. M. , *Recurrent cortical circuits implement concentration-invariant odor coding*, BioRxiv, 294132
+
 
 2017
 ~~~~
@@ -38,7 +41,7 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 
 * Wilson C.D., Serrano G. O., Koulakov A. A., Rinberg D., *A primacy code for odor identity*, Nature Communication, 1477
 
-* Ferrari U., Gardella C., Marre O., Mora T., *Closed-loop estimation of retinal network sensitivity reveals signature of efficient coding*, bioRxiv, 096313
+* Ferrari U., Gardella C., Marre O., Mora T., *Closed-loop estimation of retinal network sensitivity reveals signature of efficient coding*, eNeuro, ENEURO.0166-17.2017
 
 * Denman, D. J., Siegle, J. H., Koch, C., Reid, R. C., & Blanche, T. J. *Spatial organization of chromatic pathways in the mouse dorsal lateral geniculate nucleus*, Journal of Neuroscience, 37(5), 1102-1116.
 
