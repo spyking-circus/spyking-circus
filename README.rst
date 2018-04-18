@@ -8,7 +8,7 @@ SpyKING CIRCUS
 *A fast and scalable solution for spike sorting of large-scale extracellular recordings*
 
 SpyKING CIRCUS is a python code to allow fast spike sorting on multi channel recordings. 
-A preprint with the details of the algorithm can be found on eLife at https://elifesciences.org/articles/34518 
+A publication on the algorithm can be found at https://elifesciences.org/articles/34518
 It has been tested on datasets coming from *in vitro* retina 
 with 252 electrodes MEA, from *in vivo* hippocampus with tetrodes, *in vivo* and *in vitro* cortex 
 data with 30 and up to 4225 channels, with good results. Synthetic tests on these data show 

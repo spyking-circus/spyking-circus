@@ -25,6 +25,9 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 
 * Bolding K. A., Franks K. M. , *Recurrent cortical circuits implement concentration-invariant odor coding*, BioRxiv, 294132
 
+* Escobar M.-J., Otero M., Reyes C., Herzog R., Araya J., Ibaceta C., Palacios A. G., *Functional Asymmetries between Central and Peripheral Retinal Ganglion Cells in a Diurnal Rodent*,
+BioRxiv, 277814
+
 
 2017
 ~~~~
