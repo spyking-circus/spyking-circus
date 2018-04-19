@@ -31,6 +31,8 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2017
 ~~~~
 
+* Lee J., Carlson D., Shokri H., Yao W., Goetz G., Hagen E., Batty E., Chichilnisky E.J., Einevoll G., Paninski L., *YASS: Yet Another Spike Sorter*, BioRxiv, 151928
+
 * Shan K. Q., Lubenov E. V., Siapas A. G., *Model-based spike sorting with a mixture of drifting t-distributions*, Journal of Neuroscience Methods, 288, 82-98
 
 * Deny S., Ferrari U., Mace E., Yger P., Caplette R., Picaud S., Tkacik G., Marre O., *Multiplexed computations in retinal ganglion cells of a single type*, Nature Communications 10.1038/s41467-017-02159-y
