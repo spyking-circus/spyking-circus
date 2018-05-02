@@ -56,24 +56,24 @@ class H5File(DataFile):
 
         return header
 
-    def allocate(self, shape, data_dtype=None):
+    # def allocate(self, shape, data_dtype=None):
 
-        if data_dtype is None:
-            data_dtype = self.data_dtype
+    #     if data_dtype is None:
+    #         data_dtype = self.data_dtype
 
-        if self.parallel_write:
-            self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=comm)
-            self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
-        else:
-            self.my_file = h5py.File(self.file_name, mode='w')
-            if self.is_master:
-                if self.compression != '':
-                    self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
-                else:
-                    self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
+    #     if self.parallel_write:
+    #         self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=comm)
+    #         self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
+    #     else:
+    #         self.my_file = h5py.File(self.file_name, mode='w')
+    #         if self.is_master:
+    #             if self.compression != '':
+    #                 self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, compression=self.compression, chunks=True)
+    #             else:
+    #                 self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape, chunks=True)
 
-        self.my_file.close()
-        self._read_from_header()
+    #     self.my_file.close()
+    #     self._read_from_header()
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 

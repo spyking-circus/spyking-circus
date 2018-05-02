@@ -83,6 +83,7 @@ class ARFFile(H5File):
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
             self._parallel_write = False
+            print_and_log(['Data are compressed thus parallel writing is disabled'], 'info', logger)
         
         self.size     = self.my_file.get(self._get_channel_key_(0)).shape
         self._shape   = (self.size[0], header['nb_channels'])

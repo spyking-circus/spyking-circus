@@ -6,7 +6,7 @@ class MCDFile(DataFile):
 
     description    = "mcd"    
     extension      = [".mcd"]
-    parallel_write = True
+    parallel_write = False
     is_writable    = False
 
     _params            = {'data_dtype'   : 'uint16',
