@@ -12,8 +12,7 @@ class H5File(DataFile):
     is_writable    = True
 
     _required_fields = {'h5_key'        : str,
-                        'sampling_rate' : float,
-                        'nb_channels'   : int}
+                        'sampling_rate' : float}
     
     _default_values  = {'dtype_offset'  : 'auto', 
                         'gain'          : 1.}

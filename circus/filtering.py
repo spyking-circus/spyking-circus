@@ -55,6 +55,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_process    = all_chunks[comm.rank::comm.size]
         loc_nb_chunks = len(to_process)
         N_total       = params.nb_channels
+        process_all_channels = numpy.all(nodes == numpy.arange(N_total))
 
         if comm.rank == 0:
             to_write = []
@@ -83,10 +84,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
 
             if do_remove_median:
-                if not numpy.all(nodes == numpy.arange(N_total)):
+                if not process_all_channels:
                     global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
                 else:
                     global_median = numpy.median(local_chunk, 1)
+
                 for i in nodes:
                     local_chunk[:, i] -= global_median
 
