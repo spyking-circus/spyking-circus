@@ -18,6 +18,13 @@ class H5File(DataFile):
                         'gain'          : 1.}
 
 
+    def _check_compression(self):
+        # HDF5 does not support parallel writes with compression
+        if self.compression != '':
+            self.parallel_write = False
+            if self.is_master:
+                print_and_log(['Data are compressed thus parallel writing is disabled'], 'debug', logger)
+
     def __check_valid_key__(self, key):
         file       = h5py.File(self.file_name, mode='r')
         all_fields = []
@@ -37,10 +44,7 @@ class H5File(DataFile):
         header['data_dtype']   = self.my_file.get(self.h5_key).dtype
         self.compression       = self.my_file.get(self.h5_key).compression
 
-        # HDF5 does not support parallel writes with compression
-        if self.compression != '':
-            self.parallel_write = False
-            print_and_log(['Data are compressed thus parallel writing is disabled'], 'info', logger)
+        self._check_compression()
         
         self.size        = self.my_file.get(self.h5_key).shape
         

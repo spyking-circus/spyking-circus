@@ -35,10 +35,7 @@ class BRWFile(H5File):
         header['data_dtype']   = self.my_file.get(header['h5_key']).dtype
         self.compression       = self.my_file.get(header['h5_key']).compression
 
-        # HDF5 does not support parallel writes with compression
-        if self.compression != '':
-            self.parallel_write = False
-            print_and_log(['Data are compressed thus parallel writing is disabled'], 'info', logger)
+        self._check_compression()
         
         n_frames    = f.get('3BRecInfo/3BRecVars/NRecFrames').value[0]
         self.size   = self.my_file.get(header['h5_key']).shape[0]

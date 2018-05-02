@@ -80,10 +80,7 @@ class ARFFile(H5File):
         self.compression        = self.my_file.get(self._get_channel_key_(0)).compression
         self._t_start           = dict(self.my_file.get(self.h5_key).attrs.items())['timestamp'][0]
         
-        # HDF5 does not support parallel writes with compression
-        if self.compression != '':
-            self._parallel_write = False
-            print_and_log(['Data are compressed thus parallel writing is disabled'], 'info', logger)
+        self._check_compression()
         
         self.size     = self.my_file.get(self._get_channel_key_(0)).shape
         self._shape   = (self.size[0], header['nb_channels'])

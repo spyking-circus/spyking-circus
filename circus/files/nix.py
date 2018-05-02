@@ -34,11 +34,7 @@ class NixFile(H5File):
                 header['sampling_rate'] = 1./['sampling_interval']
 
         self.compression        = self.my_file.get(self.h5_key).compression
-
-        # HDF5 does not support parallel writes with compression
-        if self.compression != '':
-            self.parallel_write = False
-            print_and_log(['Data are compressed thus parallel writing is disabled'], 'info', logger)
+        self._check_compression()
         
         self.size        = self.my_file.get(self.h5_key).shape
         
