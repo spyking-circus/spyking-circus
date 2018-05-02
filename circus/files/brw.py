@@ -1,11 +1,17 @@
-import h5py, numpy, re, sys
+import h5py, numpy, re, sys, logging
 from .hdf5 import H5File
+from circus.shared.messages import print_and_log
+
+logger = logging.getLogger(__name__)
 
 class BRWFile(H5File):
 
     description = "brw"    
     extension   = [".brw"]
     parallel_write = h5py.get_config().mpi
+
+    _required_fields = {}
+    _default_values  = {}
 
     def _read_from_header(self):
 
