@@ -20,7 +20,7 @@ class H5File(DataFile):
 
 
     def __check_valid_key__(self, key):
-        file       = h5py.File(self.file_name)
+        file       = h5py.File(self.file_name, mode='r')
         all_fields = []
         file.visit(all_fields.append)    
         if not key in all_fields:
@@ -40,7 +40,8 @@ class H5File(DataFile):
 
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
-            self._parallel_write = False
+            self.parallel_write = False
+            print_and_log(['Data are compressed thus parallel writing is disabled'], 'info', logger)
         
         self.size        = self.my_file.get(self.h5_key).shape
         
@@ -61,7 +62,7 @@ class H5File(DataFile):
         if data_dtype is None:
             data_dtype = self.data_dtype
 
-        if self._parallel_write:
+        if self.parallel_write:
             self.my_file = h5py.File(self.file_name, mode='w', driver='mpio', comm=comm)
             self.my_file.create_dataset(self.h5_key, dtype=data_dtype, shape=shape)
         else:
@@ -102,7 +103,7 @@ class H5File(DataFile):
             self.data[:, time:time+data.shape[0]] = data.T
 
     def _open(self, mode='r'):
-        if mode in ['r+', 'w'] and self._parallel_write:
+        if mode in ['r+', 'w'] and self.parallel_write:
             self.my_file = h5py.File(self.file_name, mode=mode, driver='mpio', comm=comm)
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)

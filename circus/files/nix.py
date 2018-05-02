@@ -1,5 +1,6 @@
 import h5py, numpy, re, sys
 from .hdf5 import H5File
+from circus.shared.messages import print_and_log
 
 class NixFile(H5File):
 
@@ -34,7 +35,8 @@ class NixFile(H5File):
 
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
-            self._parallel_write = False
+            self.parallel_write = False
+            print_and_log(['Data are compressed thus parallel writing is disabled'], 'info', logger)
         
         self.size        = self.my_file.get(self.h5_key).shape
         

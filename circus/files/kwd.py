@@ -60,7 +60,8 @@ class KwdFile(H5File):
 
         # HDF5 does not support parallel writes with compression
         if self.compression != '':
-            self._parallel_write = False
+            self.parallel_write = False
+            print_and_log(['Data are compressed thus parallel writing is disabled'], 'info', logger)
         
         self.size        = self.my_file.get(self.h5_key).shape
         
@@ -75,10 +76,6 @@ class KwdFile(H5File):
         mykey                  = 'recordings/%s/application_data' %self.params['recording_number']
         header['gain']         = dict(self.my_file.get(mykey).attrs.items())['channel_bit_volts']
         self._t_start          = dict(self.my_file.get(mykey).attrs.items())['start_time']
-        
-        # HDF5 does not support parallel writes with compression
-        if self.compression != '':
-            self._parallel_write = False
         
         self._close()
 
