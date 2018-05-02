@@ -25,7 +25,7 @@ class KwdFile(H5File):
             to_write    = []
             count       = 0
             params      = self.get_description()
-            my_file     = h5py.File(self.file_name)
+            my_file     = h5py.File(self.file_name, mode='r')
             all_matches = my_file.get('recordings').keys()
             all_streams = []
             for m in all_matches:

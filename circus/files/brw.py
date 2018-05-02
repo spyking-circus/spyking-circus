@@ -22,7 +22,7 @@ class BRWFile(H5File):
 
 
         self._open() 
-        f                       = h5py.File(self.file_name)
+        f                       = h5py.File(self.file_name, mode='r')
         header['sampling_rate'] = f.get('3BRecInfo/3BRecVars/SamplingRate').value[0]
         
 
