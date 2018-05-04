@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
-import six, h5py, pkg_resources, logging
+import six, pkg_resources, logging
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 
 import numpy as np
 

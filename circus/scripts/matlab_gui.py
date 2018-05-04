@@ -6,11 +6,16 @@ import argparse
 import pkg_resources
 import circus
 import tempfile
-import numpy, h5py, logging
+import numpy, logging
 from circus.shared.messages import print_and_log, get_colored_header, init_logging
 from circus.shared.files import write_datasets
 from circus.shared.parser import CircusParser
 from circus.shared.utils import apply_patch_for_similarities
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 
 supported_by_matlab = ['raw_binary', 'mcs_raw_binary']
 

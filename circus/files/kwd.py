@@ -1,6 +1,11 @@
-import h5py, numpy, re, sys, logging
+import numpy, re, sys, logging
 from circus.shared.messages import print_and_log
 from .hdf5 import H5File
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 
 logger = logging.getLogger(__name__)
 

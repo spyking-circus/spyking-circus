@@ -1,7 +1,11 @@
-import h5py, logging
+import logging
 import matplotlib.pyplot as plt
 from scipy import signal
 
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 
 import circus.shared.algorithms as algo
 from ..shared.utils import *

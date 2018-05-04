@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys
+import numpy, re, sys
 import pyMCStream as mc
 from .datafile import DataFile
 

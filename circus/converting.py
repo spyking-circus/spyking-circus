@@ -4,7 +4,10 @@ import os.path as op
 import shutil
 import circus
 import numpy as np
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore

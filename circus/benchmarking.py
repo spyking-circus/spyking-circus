@@ -1,5 +1,8 @@
 from .shared.utils import *
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, init_logging

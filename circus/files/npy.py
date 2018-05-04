@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys
+import numpy, re, sys
 from .raw_binary import RawBinaryFile
 from numpy.lib.format import open_memmap
 

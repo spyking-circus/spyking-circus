@@ -6,11 +6,16 @@ import pkg_resources
 import argparse
 import circus
 import tempfile
-import numpy, h5py, logging
+import numpy, logging
 from distutils.version import LooseVersion, StrictVersion
 from circus.shared.messages import print_and_log, get_header, get_colored_header, init_logging
 from circus.shared.parser import CircusParser
 from colorama import Fore
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 
 from phy import add_default_handler
 from phy.utils._misc import _read_python

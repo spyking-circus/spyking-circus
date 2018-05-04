@@ -4,7 +4,10 @@ from .shared import plot
 from circus.shared.probes import get_nodes_and_edges
 from .shared.files import get_dead_times
 from .shared.mpi import SHARED_MEMORY
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 from circus.shared.messages import print_and_log, init_logging
 
 def main(params, nb_cpu, nb_gpu, use_gpu):

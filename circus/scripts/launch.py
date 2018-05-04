@@ -5,7 +5,12 @@ import argparse
 import shutil
 import subprocess
 import psutil
-import h5py
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
+
 import pkg_resources
 import circus
 import logging

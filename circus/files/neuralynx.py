@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys, os, datetime, warnings
+import numpy, re, sys, os, datetime, warnings
 from .datafile import DataFile
 
 def atoi(text):

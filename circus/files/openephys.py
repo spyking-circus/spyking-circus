@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys, os
+import numpy, re, sys, os
 from .datafile import DataFile
 import xml.etree.ElementTree as ET
 

@@ -1,7 +1,10 @@
 from .shared.utils import *
 import circus.shared.algorithms as algo
 from .shared import plot
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 from circus.shared.probes import get_nodes_and_edges
 from .shared.files import get_dead_times
 from .shared.mpi import SHARED_MEMORY

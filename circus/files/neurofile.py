@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys
+import numpy, re, sys
 from .datafile import DataFile
 import neuroshare as ns
 

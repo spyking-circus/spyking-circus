@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys
+import numpy, re, sys
 from .neurofile import NeuroShareFile
 
 class PlexonFile(NeuroShareFile):

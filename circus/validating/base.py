@@ -1,6 +1,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import sys, h5py
+import sys
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 
 from ..shared.utils import *
 from ..shared.files import get_stas, get_stas_memshared

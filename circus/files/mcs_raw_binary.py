@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys, re, logging
+import numpy, re, sys, re, logging
 from circus.shared.messages import print_and_log
 from .raw_binary import RawBinaryFile
 

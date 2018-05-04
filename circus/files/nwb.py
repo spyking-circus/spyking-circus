@@ -1,5 +1,10 @@
-import h5py, numpy, re, sys
+import numpy, re, sys
 from .hdf5 import H5File
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 
 class NWBFile(H5File):
 

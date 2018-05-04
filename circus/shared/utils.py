@@ -9,7 +9,11 @@ from scipy import linalg
 import scipy.interpolate
 import numpy, os, mpi4py, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
-import h5py
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
+
 from mpi import *
 import files as io
 from messages import print_and_log

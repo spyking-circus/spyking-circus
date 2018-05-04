@@ -1,4 +1,4 @@
-import h5py, numpy, re, sys, os, logging
+import numpy, re, sys, os, logging
 from circus.shared.messages import print_and_log
 from circus.shared.mpi import comm
 

@@ -3,8 +3,14 @@ import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
 from circus.shared.utils import get_tqdm_progressbar
-import numpy, h5py, os, platform, re, sys, scipy, logging
+import numpy, os, platform, re, sys, scipy, logging
 import sys
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
+
 from colorama import Fore
 from mpi import all_gather_array, gather_array, SHARED_MEMORY, comm, get_local_ring
 from mpi4py import MPI
