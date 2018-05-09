@@ -297,10 +297,10 @@ but a subset x,y can be done. Steps are:
 
         if params.getint('data', 'N_e') > 1000:
             changed_size = False
-            if params.getint('data', 'chunk_size') >= 30:
+            if params.getint('data', 'chunk_size')/params.rate >= 30:
                 params.write('data', 'chunk_size', '15')
                 changed_size = True
-            if params.getint('whitening', 'chunk_size') >= 30:
+            if params.getint('whitening', 'chunk_size')/params.rate >= 30:
                 params.write('whitening', 'chunk_size', '15')
                 changed_size = True
             if changed_size:
