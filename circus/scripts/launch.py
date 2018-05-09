@@ -296,11 +296,15 @@ but a subset x,y can be done. Steps are:
             print_and_log(['Template compression is highly recommended based on parameters'], 'info', logger)
 
         if params.getint('data', 'N_e') > 1000:
+            changed_size = False
             if params.getint('data', 'chunk_size') >= 30:
                 params.write('data', 'chunk_size', '15')
+                changed_size = True
             if params.getint('whitening', 'chunk_size') >= 30:
                 params.write('whitening', 'chunk_size', '15')
-            print_and_log(["Large number of electrodes, reducing chunk sizes to 15s"], 'info', logger)
+                changed_size = True
+            if changed_size:
+                print_and_log(["Large number of electrodes, reducing chunk sizes to 15s"], 'info', logger)
 
         if not result:
             for subtask, command in subtasks:
