@@ -351,7 +351,7 @@ def get_artefact(params, times_i, tau, nodes, normalize=True):
     data_file    = params.data_file
     data_file.open()
 
-    artefact     = numpy.zeros((len(nodes), tau), dtype=numpy.float32)
+    artefact     = numpy.zeros((len(nodes), int(tau)), dtype=numpy.float32)
     for time in times_i:
         artefact += data_file.get_snippet(time, tau, nodes).T
 

@@ -62,7 +62,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if do_filtering:
                 to_write += ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
             if do_remove_median:
-                to_write += ["Median over all channels is substracted to each channels"]
+                to_write += ["Median over all channels is subtracted to each channels"]
 
             print_and_log(to_write, 'default', logger)
 
@@ -130,8 +130,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             if comm.rank == 0:
                 print_and_log(['Artefact times are read in timesteps'], 'debug', logger)
-            artefacts        = artefacts.astype(numpy.int64)
-            windows          = windows.astype(numpy.int64)
+
+        artefacts        = artefacts.astype(numpy.int64)
+        windows          = windows.astype(numpy.int64)
 
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
         mytest           = nb_stimuli == len(windows)
@@ -141,9 +142,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(['Error in the trigger files'], 'error', logger)
             sys.exit(0)
 
-        all_labels   = artefacts[:, 0].astype(numpy.int32)
-        all_times    = artefacts[:, 1].astype(numpy.int32)
-
+        all_labels   = artefacts[:, 0]
+        all_times    = artefacts[:, 1]
         mask         = (all_times >= 0) & (all_times + numpy.max(windows[:,1]) < data_file.t_stop)
         all_times    = numpy.compress(mask, all_times)
         all_labels   = numpy.compress(mask, all_labels)
@@ -184,8 +184,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         chunk_size     = params.getint('data', 'chunk_size')
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
-        artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file')).astype(numpy.int64)
-        windows        = numpy.loadtxt(params.get('triggers', 'trig_windows')).astype(numpy.int64)
+        artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
+        windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
         make_plots     = params.get('triggers', 'make_plots')
         plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
 
@@ -203,9 +203,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             if comm.rank == 0:
                 print_and_log(['Artefact times are read in timesteps'], 'debug', logger)
-            artefacts        = artefacts.astype(numpy.int64)
-            windows          = windows.astype(numpy.int64)
- 
+
+        artefacts        = artefacts.astype(numpy.int64)
+        windows          = windows.astype(numpy.int64)
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
         mytest           = nb_stimuli == len(windows)
 
@@ -214,8 +214,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(['Error in the trigger files'], 'error', logger)
             sys.exit(0)
 
-        all_labels   = artefacts[:, 0].astype(numpy.int32)
-        all_times    = artefacts[:, 1].astype(numpy.int32)
+        all_labels   = artefacts[:, 0]
+        all_times    = artefacts[:, 1]
         local_labels = numpy.unique(all_labels)[comm.rank::comm.size]
 
         mask       = numpy.in1d(all_labels, local_labels)
@@ -243,7 +243,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 tau   = max_offset - time
 
             local_chunk   = data_file.get_snippet(time, tau)
-
             for idx, i in enumerate(nodes):
                 local_chunk[:, i] -= art_dict[label][idx, :tau]
             data_file.set_data(time, local_chunk)
@@ -310,7 +309,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_write += ["Filtering has already been done"]
     if remove_median and median_done:
         remove_median = False
-        to_write += ["Median over all channels has already been substracted to each channels"]
+        to_write += ["Median over all channels has already been removed"]
 
     if comm.rank == 0 and len(to_write) > 0:
         print_and_log(to_write, 'info', logger)
