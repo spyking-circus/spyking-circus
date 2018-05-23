@@ -346,18 +346,19 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
 ##### end working zone
 
 
-def get_artefact(params, times_i, tau, nodes, normalize=True):
+def get_artefact(params, times_i, tau, nodes):
 
     data_file    = params.data_file
     data_file.open()
 
-    artefact     = numpy.zeros((len(nodes), int(tau)), dtype=numpy.float32)
+    dx, dy       = len(nodes), int(tau)
+    artefact     = numpy.zeros((0, dx, dy), dtype=numpy.float32)
     for time in times_i:
-        artefact += data_file.get_snippet(time, tau, nodes).T
+        snippet = data_file.get_snippet(time, tau, nodes).T.reshape(1, dx, dy)
+        artefact = numpy.vstack((artefact, snippet))
 
-    if normalize:
-        artefact /= len(times_i)
-
+    artefact = numpy.median(artefact, 0)
+    
     data_file.close()
 
     return artefact
