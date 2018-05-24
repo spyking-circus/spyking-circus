@@ -19,7 +19,9 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2018
 ~~~~
 
-* Barth A. M., Domonkos A., Fernandez-Ruiz A., Freund T.F., Varga V., *Hippocampal Network Dynamics during Rearing Episodes*, Cell Rep. 23(6):1706-1715
+* Vilarchao M. E., Estebanez L., Shulz D. E.,  Férezou I., *Supra-barrel Distribution of Directional Tuning for Global Motion in the Mouse Somatosensory Cortex*, Cell Reports 22, 3534–3547
+
+* Barth A. M., Domonkos A., Fernandez-Ruiz A., Freund T.F., Varga V., *Hippocampal Network Dynamics during Rearing Episodes*, Cell Reports, 23(6):1706-1715
 
 * Steinmetz N. A., Koch C., Harris K.D., Carandini M., *Challenges and opportunities for large-scale electrophysiology with Neuropixels probes*, Current Opinion in Neurobiology, Volume 50, 92-100
 

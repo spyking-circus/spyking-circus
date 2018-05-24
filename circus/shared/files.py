@@ -354,7 +354,7 @@ def get_artefact(params, times_i, tau, nodes):
     dx, dy       = len(nodes), int(tau)
     artefact     = numpy.zeros((0, dx, dy), dtype=numpy.float32)
     for time in times_i:
-        snippet = data_file.get_snippet(time, int(tau), nodes).T.reshape(1, dx, dy)
+        snippet = data_file.get_snippet(int(time), int(tau), nodes).T.reshape(1, dx, dy)
         artefact = numpy.vstack((artefact, snippet))
 
     artefact = numpy.median(artefact, 0)
