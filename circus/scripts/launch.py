@@ -23,7 +23,7 @@ from circus.shared.files import data_stats
 from circus.shared.messages import print_error, print_info, print_and_log, get_colored_header, init_logging
 from circus.shared.mpi import SHARED_MEMORY, comm, gather_mpi_arguments
 from circus.shared.parser import CircusParser
-from circus.shared.utils import query_yes_no
+from circus.shared.utils import query_yes_no, get_shared_memory_flag
 from circus.shared.probes import get_averaged_n_edges
 from circus.files import __supported_data_files__, list_all_file_format
 
@@ -61,7 +61,12 @@ def main(argv=None):
     header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(psutil.cpu_count()) + '\n'
     header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
     header += Fore.GREEN + 'Parallel HDF5 : ' + Fore.CYAN + str(parallel_hdf5) + '\n'
-    header += Fore.GREEN + 'Shared memory : ' + Fore.CYAN + str(SHARED_MEMORY) + '\n'
+
+    do_upgrade = ''
+    if not SHARED_MEMORY:
+        do_upgrade = Fore.WHITE + '   [please consider upgrading MPI]'
+
+    header += Fore.GREEN + 'Shared memory : ' + Fore.CYAN + str(SHARED_MEMORY) + do_upgrade + '\n'
     header += '\n'
     header += Fore.GREEN + "##################################################################"
     header += Fore.RESET
@@ -248,10 +253,11 @@ but a subset x,y can be done. Steps are:
         print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
 
         do_upgrade = ''
+        use_shared_memory = get_shared_memory_flag(params)
         if not SHARED_MEMORY:
             do_upgrade = Fore.WHITE + '   [please consider upgrading MPI]'
 
-        print Fore.GREEN + "Shared memory :", Fore.CYAN + str(SHARED_MEMORY) + do_upgrade
+        print Fore.GREEN + "Shared memory :", Fore.CYAN + str(use_shared_memory) + do_upgrade
         print Fore.GREEN + "Hostfile      :", Fore.CYAN + hostfile
         print ""
         print Fore.GREEN + "##################################################################"

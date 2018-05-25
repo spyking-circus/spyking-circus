@@ -6,6 +6,12 @@ import blosc
 
 logger = logging.getLogger(__name__)
 
+try:
+    MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+    SHARED_MEMORY = True
+except NotImplementedError:
+    SHARED_MEMORY = False
+
 def check_if_cluster():
     from uuid import getnode as get_mac
     myip = numpy.array([numpy.int64(get_mac()) % 100000], dtype='int64')
