@@ -1,6 +1,5 @@
 import circus.shared.algorithms as algo
 from .shared.utils import *
-from .shared.mpi import SHARED_MEMORY
 from .shared.files import get_dead_times
 from .shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
@@ -10,6 +9,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
+    SHARED_MEMORY  = get_shared_memory_flag(params)
     logger         = logging.getLogger('circus.fitting')
     data_file      = params.data_file
     data_file.open()

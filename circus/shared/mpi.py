@@ -4,13 +4,6 @@ from messages import print_and_log
 comm = MPI.COMM_WORLD
 import blosc
 
-try:
-    MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-    SHARED_MEMORY = True
-except NotImplementedError:
-    SHARED_MEMORY = False
-
-
 logger = logging.getLogger(__name__)
 
 def check_if_cluster():

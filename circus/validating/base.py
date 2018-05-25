@@ -8,11 +8,11 @@ with warnings.catch_warnings():
     import h5py
 
 from ..shared.utils import *
-from ..shared.files import get_stas, get_stas_memshared
+from ..shared.files import get_stas, get_stas_memshared, get_shared_memory_flag
 from ..shared import plot
 from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, init_logging
-from circus.shared.mpi import SHARED_MEMORY, comm
+from circus.shared.mpi import comm
 
 try:
     import sklearn
@@ -483,6 +483,9 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     labels_gt = numpy.zeros(spike_times_gt.size)
     ##### TODO: clean test zone
+
+    SHARED_MEMORY = get_shared_memory_flag(params)
+
     if SHARED_MEMORY:
         spikes_gt = get_stas_memshared(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
     else:

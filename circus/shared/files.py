@@ -12,11 +12,11 @@ with warnings.catch_warnings():
     import h5py
 
 from colorama import Fore
-from mpi import all_gather_array, gather_array, SHARED_MEMORY, comm, get_local_ring
+from mpi import all_gather_array, gather_array, comm, get_local_ring
 from mpi4py import MPI
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
-from circus.shared.utils import purge, get_parallel_hdf5_flag, indices_for_dead_times
+from circus.shared.utils import purge, get_parallel_hdf5_flag, indices_for_dead_times, get_shared_memory_flag
 import circus
 logger = logging.getLogger(__name__)
 
@@ -149,7 +149,9 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     return stas
 
 
-def get_dead_times(params, SHARED_MEMORY):
+def get_dead_times(params):
+
+
 
     def _get_dead_times(params):
         dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
@@ -163,7 +165,7 @@ def get_dead_times(params, SHARED_MEMORY):
         all_dead_times = indices_for_dead_times(dead_times[:, 0], dead_times[:, 1])
         return all_dead_times
 
-    if not SHARED_MEMORY:
+    if not get_shared_memory_flag(params):
         return _get_dead_times(params)
     else:
         # First we need to identify machines in the MPI ring.
@@ -454,6 +456,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             sub_comm.Free()
             return templates
         else:
+            sub_comm.Free()
             raise Exception('No templates found! Check suffix?')
     elif data == "overlaps":
 
@@ -1379,6 +1382,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     else:
         if os.path.exists(filename) and erase and (comm.rank == 0):
             os.remove(filename)
+
+    SHARED_MEMORY = get_shared_memory_flag(params)
 
     if maxoverlap:
         if SHARED_MEMORY:

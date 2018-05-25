@@ -185,6 +185,31 @@ def detect_memory(params, safety_threshold=0.1):
     return params
 
 
+def get_shared_memory_flag(params):
+    ''' Get parallel HDF5 flag.
+
+    Argument
+    --------
+    params: dict
+        Dictionnary of parameters.
+
+    Return
+    ------
+    flag: bool
+        True if parallel HDF5 is available and the user want to use it.
+    '''
+    from mpi4py import MPI
+    try:
+        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
+        SHARED_MEMORY = True
+    except NotImplementedError:
+        SHARED_MEMORY = False
+
+    flag = SHARED_MEMORY and params.getboolean('data', 'shared_memory')
+
+    return flag
+
+
 def get_parallel_hdf5_flag(params):
     ''' Get parallel HDF5 flag.
 

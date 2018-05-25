@@ -1,10 +1,10 @@
 import os, logging
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
-from circus.shared.utils import get_tqdm_progressbar
+from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.mpi import all_gather_array, SHARED_MEMORY, comm, gather_array, get_local_ring
+from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 
 logger = logging.getLogger(__name__)
@@ -404,6 +404,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     overlap.close()
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
+    SHARED_MEMORY = get_shared_memory_flag(params)
+
     if not SHARED_MEMORY:
         over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension='-merging')
     else:
@@ -475,6 +477,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
     overlap.close()
+
+    SHARED_MEMORY = get_shared_memory_flag(params)
 
     if SHARED_MEMORY:
         c_overs    = load_data_memshared(params, 'overlaps', extension='-mixtures', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)

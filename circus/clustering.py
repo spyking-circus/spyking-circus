@@ -7,15 +7,15 @@ with warnings.catch_warnings():
     import h5py
 from circus.shared.probes import get_nodes_and_edges
 from .shared.files import get_dead_times
-from .shared.mpi import SHARED_MEMORY
 from circus.shared.messages import print_and_log, init_logging
-from circus.shared.utils import get_parallel_hdf5_flag
+from circus.shared.utils import get_parallel_hdf5_flag, get_shared_memory_flag
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     numpy.random.seed(520)
     parallel_hdf5  = get_parallel_hdf5_flag(params)
+    SHARED_MEMORY  = get_shared_memory_flag(params)
     #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.clustering')
