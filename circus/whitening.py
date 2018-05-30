@@ -3,7 +3,6 @@ import circus.shared.algorithms as algo
 from .shared import plot
 from circus.shared.probes import get_nodes_and_edges
 from .shared.files import get_dead_times
-from .shared.mpi import SHARED_MEMORY
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
@@ -13,6 +12,7 @@ from circus.shared.messages import print_and_log, init_logging
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
+    SHARED_MEMORY  = get_shared_memory_flag(params)
     #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.whitening')

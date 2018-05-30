@@ -26,6 +26,7 @@ class CircusParser(object):
                           ['data', 'hdf5_compress', 'bool', 'True'],
                           ['data', 'blosc_compress', 'bool', 'False'],
                           ['data', 'is_cluster', 'bool', 'False'],
+                          ['data', 'shared_memory', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '5'],
                           ['detection', 'matched-filter', 'bool', 'False'],

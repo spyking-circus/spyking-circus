@@ -38,10 +38,10 @@ MPL_VERSION = StrictVersion(mpl.__version__) > StrictVersion("2.2.1")
 
 from utils import *
 from algorithms import slice_templates, slice_clusters
-from mpi import SHARED_MEMORY, comm
+from mpi import comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
-from circus.shared.utils import apply_patch_for_similarities
+from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +165,8 @@ class MergeWindow(QMainWindow):
             self.lag    = numpy.zeros(self.overlap.shape, dtype=numpy.int32)
         self.shape      = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest', mode='r').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
+
+        SHARED_MEMORY = get_shared_memory_flag(params)
 
         if SHARED_MEMORY:
             self.templates  = io.load_data_memshared(params, 'templates', extension=self.ext_in)
