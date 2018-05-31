@@ -56,7 +56,7 @@ def apply_patch_for_similarities(params, extension):
         file_out_suff  = params.get('data', 'file_out_suff')
         hdf5_compress = params.getboolean('data', 'hdf5_compress')
         blosc_compress = params.getboolean('data', 'blosc_compress')
-        N_tm    = load_data(params, 'nb_templates', extension)
+        N_tm    = io.load_data(params, 'nb_templates', extension)
         N_half  = N_tm // 2
         N_t     = params.getint('detection', 'N_t')
 
@@ -69,9 +69,9 @@ def apply_patch_for_similarities(params, extension):
         to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
 
         if not SHARED_MEMORY:
-            over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension=extension,)
+            over_x, over_y, over_data, over_shape = io.load_data(params, 'overlaps-raw', extension=extension,)
         else:
-            over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension=extension)
+            over_x, over_y, over_data, over_shape = io.load_data_memshared(params, 'overlaps-raw', extension=extension)
             
         for i in to_explore:
 
