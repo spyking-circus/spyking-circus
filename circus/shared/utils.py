@@ -59,6 +59,7 @@ def apply_patch_for_similarities(params, extension):
         N_tm    = io.load_data(params, 'nb_templates', extension)
         N_half  = N_tm // 2
         N_t     = params.getint('detection', 'N_t')
+        duration = 2 * N_t - 1
 
         if comm.rank == 0:
             print_and_log(["Fixing overlaps from 0.5.XX..."], 'default', logger)
