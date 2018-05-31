@@ -574,6 +574,17 @@ class LaunchGUI(QDialog):
                 answer_string = 'a'
             else:
                 answer_string = 'n'
+        elif 'You should re-export the data because of a fix in 0.6' in lines:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Question)
+            msg.setWindowTitle('You should re-export the data because of a fix in 0.6')
+            msg.setText('Continue anyway (results may not be fully correct)?')
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            answer = msg.exec_()
+            if answer == QMessageBox.Yes:
+                answer_string = 'y'
+            else:
+                answer_string = 'n'
         else:
             answer_string = ''
 
