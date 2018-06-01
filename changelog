@@ -5,6 +5,7 @@ Release 0.6.8
 * fix a possible rounding bug if triggers are given in ms
 * artefacts are computed as medians and not means over the signal
 * can turn off shared memory if needed
+* fixes for conversion of old dataset with python GUI
 
 =============
 Release 0.6.7
