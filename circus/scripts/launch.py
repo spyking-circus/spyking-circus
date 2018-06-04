@@ -181,7 +181,7 @@ but a subset x,y can be done. Steps are:
 
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
-        filename     = os.path.join(tmp_path_loc, os.path.basename(filename))
+        filename     = os.path.join(tmp_path_loc, 'preview.dat')
         f_next, extens = os.path.splitext(filename)
         shutil.copyfile(file_params, f_next + '.params')
         steps        = ['filtering', 'whitening']

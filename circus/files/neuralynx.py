@@ -29,6 +29,7 @@ class NeuraLynxFile(DataFile):
                           'dtype_offset' : 0,
                           'data_offset'  : NUM_HEADER_BYTES}
 
+    _default_values    = {'pattern' : ''}
 
     def parse_neuralynx_time_string(self, time_string):
         # Parse a datetime object from the idiosyncratic time string in Neuralynx file headers
@@ -51,14 +52,17 @@ class NeuraLynxFile(DataFile):
         all_files = os.listdir(directory)
         alist     = []
         for f in all_files:
-            if f.find('.ncs') > 0:
+            if self.params['pattern'] != '':
+                test = f.find('.ncs') > 0 and f.find(self.params['pattern']) > 0
+            else:
+                test = f.find('.ncs') > 0
+            if test:
                 alist += [os.path.join(directory, f)]
         alist.sort(key=natural_keys)
-        
         return alist
 
     def _read_header_(self, file):
-        header = { }
+        header = {}
 
         f = open(file, 'rb')
         raw_hdr = f.read(self.NUM_HEADER_BYTES).strip(b'\0')
