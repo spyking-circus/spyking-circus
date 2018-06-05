@@ -114,7 +114,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
         make_plots     = params.get('triggers', 'make_plots')
-        plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+        plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
@@ -187,7 +187,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
         make_plots     = params.get('triggers', 'make_plots')
-        plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+        plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)

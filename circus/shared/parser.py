@@ -170,6 +170,7 @@ class CircusParser(object):
         else:
           file_out = os.path.join(f_next, os.path.basename(f_next))
 
+        print file_out
         self.parser.set('data', 'data_file_no_overwrite', file_out + '_all_sc.dat')
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
         self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix

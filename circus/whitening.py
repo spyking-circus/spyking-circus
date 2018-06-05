@@ -33,7 +33,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size       = params.getint('whitening', 'chunk_size')
-    plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+    plot_path        = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     nodes, edges     = get_nodes_and_edges(params)
     safety_time      = params.getint('whitening', 'safety_time')
     safety_space     = params.getboolean('whitening', 'safety_space')
