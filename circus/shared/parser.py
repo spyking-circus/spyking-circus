@@ -96,12 +96,13 @@ class CircusParser(object):
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '5']]
 
-    def __init__(self, file_name, **kwargs):
+    def __init__(self, file_name, create_folders=True, **kwargs):
 
         self.file_name    = os.path.abspath(file_name)
         f_next, extension = os.path.splitext(self.file_name)
         file_path         = os.path.dirname(self.file_name)
         self.file_params  = f_next + '.params'
+        self.do_folders   = create_folders
         self.parser       = configparser.ConfigParser()
 
         ## First, we remove all tabulations from the parameter file, in order
@@ -154,10 +155,11 @@ class CircusParser(object):
                 if self.parser._sections[section].has_key(key):
                     self.parser._sections[section][key] = value
 
-        try:
-            os.makedirs(f_next)
-        except Exception:
-            pass
+        if self.do_folders:
+            try:
+                os.makedirs(f_next)
+            except Exception:
+                pass
 
         self.parser.set('data', 'data_file', self.file_name)
 
@@ -165,12 +167,11 @@ class CircusParser(object):
           path = os.path.abspath(os.path.expanduser(self.parser.get('data', 'output_dir')))
           self.parser.set('data', 'output_dir', path)
           file_out = os.path.join(path, os.path.basename(f_next))
-          if not os.path.exists(file_out):
+          if not os.path.exists(file_out) and self.do_folders:
             os.makedirs(file_out)
         else:
           file_out = os.path.join(f_next, os.path.basename(f_next))
 
-        print file_out
         self.parser.set('data', 'data_file_no_overwrite', file_out + '_all_sc.dat')
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
         self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix

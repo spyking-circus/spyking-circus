@@ -216,6 +216,7 @@ but a subset x,y can be done. Steps are:
 
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
+
         filename     = os.path.join(tmp_path_loc, 'preview.dat')
         f_next, extens = os.path.splitext(filename)
         preview_params = f_next + '.params'
@@ -234,7 +235,7 @@ but a subset x,y can be done. Steps are:
         description            = data_file.get_description()
         data_file.close()
 
-        new_params = CircusParser(filename)
+        new_params = CircusParser(filename, create_folders=False)
 
         new_params.write('data', 'chunk_size', '2')
         new_params.write('data', 'file_format', 'raw_binary')
@@ -248,6 +249,7 @@ but a subset x,y can be done. Steps are:
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
         new_params.write('data', 'preview_path', preview_params)
+        new_params.write('data', 'output_dir', '')
 
         description['data_dtype']   = 'float32'
         description['dtype_offset'] = 0
@@ -428,6 +430,7 @@ but a subset x,y can be done. Steps are:
         if preview:
             print_and_log(['Launching the preview GUI...'], 'debug', logger)
             mygui = gui.PreviewGUI(new_params)
+            print tmp_path_loc
             shutil.rmtree(tmp_path_loc)
         elif result:
             data_file = params.get_data_file()
