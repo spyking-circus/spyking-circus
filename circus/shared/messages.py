@@ -22,7 +22,12 @@ def get_header():
 
     return header
 
-def init_logging(logfile, debug=True, level=None):
+class InfoFilter(logging.Filter):
+    def filter(self, rec):
+        return rec.levelno == logging.DEBUG
+
+
+def init_logging(logfile, debug=False, level=None):
     """
     Simple configuration of logging.
     """
@@ -36,11 +41,11 @@ def init_logging(logfile, debug=True, level=None):
     if level:
         log_level = level
 
-    logging.basicConfig(level=log_level,
+    logger = logging.basicConfig(level=log_level,
                         format='%(asctime)s %(levelname)-8s [%(name)s] %(message)s',
                         filename=logfile,
                         filemode='a')
-    return logging.getLogger("circus")
+    return logger
 
 
 def write_to_logger(logger, to_write, level='info'):

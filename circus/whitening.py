@@ -26,7 +26,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     dist_peaks     = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
-    file_out       = params.get('data', 'file_out')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     matched_filter = params.getboolean('detection', 'matched-filter')
     matched_thresh = params.getfloat('detection', 'matched_thresh')
@@ -573,7 +572,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     gdata      = gdata.reshape((comm.size, N_e))
                     thresholds = numpy.mean(gdata, 0)
-                    bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='earliest')
+                    bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
                     io.write_datasets(bfile, ['matched_thresholds'], {'matched_thresholds' : thresholds}, compression=hdf5_compress)
                     bfile.close()
                 comm.Barrier()
@@ -588,7 +587,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     gdata      = gdata.reshape((comm.size, N_e))
                     thresholds = numpy.mean(gdata, 0)
-                    bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='earliest')
+                    bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
                     io.write_datasets(bfile, ['matched_thresholds_pos'], {'matched_thresholds_pos' : thresholds}, compression=hdf5_compress)
                     bfile.close()
                 comm.Barrier()

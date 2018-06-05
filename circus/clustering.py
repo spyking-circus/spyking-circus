@@ -27,7 +27,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     N_t            = params.getint('detection', 'N_t')
     dist_peaks     = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
-    file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
     alignment      = params.getboolean('detection', 'alignment')

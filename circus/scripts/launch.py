@@ -160,9 +160,44 @@ but a subset x,y can be done. Steps are:
         tasks_list = filename
 
     if not batch:
-        logfile      = f_next + '.log'
+        file_params  = f_next + '.params'
+
+        import ConfigParser as configparser
+        parser = configparser.ConfigParser()
+        myfile = open(file_params, 'r')
+        lines  = myfile.readlines()
+        myfile.close()
+        myfile = open(file_params, 'w')
+        for l in lines:
+            myfile.write(l.replace('\t', ''))
+        myfile.close()
+
+        parser.read(file_params)
+
+        for section in CircusParser.__all_sections__:
+            if parser.has_section(section):
+                for (key, value) in parser.items(section):
+                    parser.set(section, key, value.split('#')[0].rstrip())
+            else:
+                parser.add_section(section)
+
+        try:
+            use_output_dir = parser.get('data', 'output_dir') != ''
+        except Exception:
+            use_output_dir = False
+
+        if use_output_dir:
+            path = os.path.abspath(os.path.expanduser(parser.get('data', 'output_dir')))
+            file_out = os.path.join(path, os.path.basename(f_next))
+            if not os.path.exists(file_out):
+                os.makedirs(file_out)
+        else:
+            file_out = os.path.join(f_next, os.path.basename(f_next))
+
+        logfile      = file_out + '.log'
         if os.path.exists(logfile):
             os.remove(logfile)
+        
         logger       = init_logging(logfile)
         params       = CircusParser(filename)
         data_file    = params.get_data_file(source=True, has_been_created=False)
@@ -183,7 +218,8 @@ but a subset x,y can be done. Steps are:
             os.makedirs(tmp_path_loc)
         filename     = os.path.join(tmp_path_loc, 'preview.dat')
         f_next, extens = os.path.splitext(filename)
-        shutil.copyfile(file_params, f_next + '.params')
+        preview_params = f_next + '.params'
+        shutil.copyfile(file_params, preview_params)
         steps        = ['filtering', 'whitening']
 
         chunk_size   = int(params.rate)
@@ -211,7 +247,6 @@ but a subset x,y can be done. Steps are:
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
-        preview_params =os.path.abspath(params.get('data', 'data_file_noext')) + '.params'
         new_params.write('data', 'preview_path', preview_params)
 
         description['data_dtype']   = 'float32'
