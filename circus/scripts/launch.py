@@ -196,7 +196,7 @@ but a subset x,y can be done. Steps are:
             if not os.path.exists(file_out):
                 os.makedirs(file_out)
         else:
-            file_out = os.path.join(f_next, os.path.basename(f_next))
+            file_out = f_next
 
         logfile      = file_out + '.log'
         if os.path.exists(logfile):
