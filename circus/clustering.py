@@ -40,7 +40,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         tmp_path_loc = tempfile.gettempdir()
 
     plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
-    print plot_path
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     safety_time    = params.getint('clustering', 'safety_time')

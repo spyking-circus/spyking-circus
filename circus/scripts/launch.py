@@ -162,6 +162,10 @@ but a subset x,y can be done. Steps are:
     if not batch:
         file_params  = f_next + '.params'
 
+        if not os.path.exists(file_params):
+            print_and_log(["%s does not exist" %self.file_params], 'error')
+            sys.exit(0)
+
         import ConfigParser as configparser
         parser = configparser.ConfigParser()
         myfile = open(file_params, 'r')
@@ -248,7 +252,7 @@ but a subset x,y can be done. Steps are:
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
-        new_params.write('data', 'preview_path', preview_params)
+        new_params.write('data', 'preview_path', params.file_params)
         new_params.write('data', 'output_dir', '')
 
         description['data_dtype']   = 'float32'
@@ -430,7 +434,6 @@ but a subset x,y can be done. Steps are:
         if preview:
             print_and_log(['Launching the preview GUI...'], 'debug', logger)
             mygui = gui.PreviewGUI(new_params)
-            print tmp_path_loc
             shutil.rmtree(tmp_path_loc)
         elif result:
             data_file = params.get_data_file()
