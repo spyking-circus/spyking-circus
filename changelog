@@ -7,6 +7,8 @@ Release 0.6.8
 * can turn off shared memory if needed
 * a particular pattern can be specified for neuralynx files
 * fix bugs with output_dir, as everything was not saved in the folder
+* add a circus-folder script to process files within several folders as a single recording
+* multi-files mode is now enabled for Neuralynx data
 
 =============
 Release 0.6.7

@@ -65,6 +65,7 @@ setup(name='spyking-circus',
               'spyking-circus=circus.scripts.launch:main',
               'spyking-circus-subtask=circus.scripts.subtask:main',
               'circus-multi=circus.scripts.circus_multi:main',
+              'circus-folders=circus.scripts.circus_folders:main',
               'circus-gui-matlab=circus.scripts.matlab_gui:main',
               'circus-gui-python=circus.scripts.python_gui:main'
           ],
