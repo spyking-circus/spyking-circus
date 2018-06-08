@@ -39,6 +39,11 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     header = get_colored_header()
+    header += '''Utility to group files within several folders into a single
+virtual folder, such that they can be processed together with the
+multi-files mode
+    '''
+
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('folders', help='a text file with the list of folders to consider')
