@@ -19,6 +19,20 @@ from circus.shared.algorithms import slice_result
 from circus.shared.parser import CircusParser
 from circus.shared.utils import query_yes_no
 
+os_symlink = getattr(os, "symlink", None)
+if callable(os_symlink):
+    pass
+else:
+    def symlink_ms(source, link_name):
+        import ctypes
+        csl = ctypes.windll.kernel32.CreateSymbolicLinkW
+        csl.argtypes = (ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32)
+        csl.restype = ctypes.c_ubyte
+        flags = 1 if os.path.isdir(source) else 0
+        if csl(link_name, source.replace('/', '\\'), flags) == 0:
+            raise ctypes.WinError()
+    os.symlink = symlink_ms
+
 def main(argv=None):
     
     if argv is None:
@@ -81,7 +95,7 @@ def main(argv=None):
                 original_file = os.path.join(folder, file)
                 linked_file = os.path.join(output, os.path.basename(original_file))
                 if not os.path.exists(linked_file):
-                    os.system('ln -s %s %s' %(original_file, linked_file))
+                    os.symlink(original_file, linked_file)
                 else:
                     linked_file = linked_file.replace('02230_2015', '02231_2015')
-                    os.system('ln -s %s %s' %(original_file, linked_file))
+                    os.symlink(original_file, linked_file)
