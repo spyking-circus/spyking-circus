@@ -19,12 +19,47 @@ with warnings.catch_warnings():
 
 supported_by_matlab = ['raw_binary', 'mcs_raw_binary']
 
+def which(program):
+    path_ext = [""];
+    ext_list = None
+
+    if sys.platform == "win32":
+        ext_list = [ext.lower() for ext in os.environ["PATHEXT"].split(";")]
+
+    def is_exe(fpath):
+        exe = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+        # search for executable under windows
+        if not exe:
+            if ext_list:
+                for ext in ext_list:
+                    exe_path = "%s%s" % (fpath,ext)
+                    if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
+                        path_ext[0] = ext
+                        return True
+                return False
+        return exe
+
+    fpath, fname = os.path.split(program)
+
+    if fpath:
+        if is_exe(program):
+            return "%s%s" % (program, path_ext[0])
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return "%s%s" % (exe_file, path_ext[0])
+    return None
+
 def main(argv=None):
 
     if argv is None:
         argv = sys.argv[1:]
 
     header = get_colored_header()
+    header += '''Utility to launch the MATLAB GUI and visualize the results.
+    '''
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')
@@ -124,7 +159,10 @@ def main(argv=None):
                               '-nosplash',
                               '-r', matlab_command]))
     except Exception:
-        print_and_log(["Something wrong with MATLAB. Try circus-gui-python instead?"], 'error', logger)
+        if which('matlab') is not None:
+            print_and_log(["Something wrong with MATLAB. Try circus-gui-python instead?"], 'error', logger)
+        else:
+            print_and_log(["MATLAB can not be found in the path. Please add it to the env variables"], 'error', logger)  
         sys.exit(1)
 
 if __name__ == '__main__':
