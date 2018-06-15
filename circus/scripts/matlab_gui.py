@@ -58,7 +58,7 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     header = get_colored_header()
-    header += '''Utility to launch the MATLAB GUI and visualize the results.
+    header += '''Utility to launch the MATLAB GUI and visualize the results
     '''
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)

@@ -46,9 +46,9 @@ multi-files mode
 
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('folders', help='a text file with the list of folders to consider')
-    parser.add_argument('extension', help='the file extension to consider within folders')
-    parser.add_argument('output', help='the name of the output folder', default='sc_folders')
+    parser.add_argument('folders', help='text file with the list of folders to consider')
+    parser.add_argument('extension', help='file extension to consider within folders')
+    parser.add_argument('output', help='name of the output folder', default='sc_folders')
 
     if len(argv) == 0:
         parser.print_help()
@@ -102,5 +102,4 @@ multi-files mode
                 if not os.path.exists(linked_file):
                     os.symlink(original_file, linked_file)
                 else:
-                    linked_file = linked_file.replace('02230_2015', '02231_2015')
                     os.symlink(original_file, linked_file)

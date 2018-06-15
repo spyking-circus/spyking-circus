@@ -36,8 +36,8 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     header = get_colored_header()
-    header += '''Utility to launch the phy GUI and visualize the results. Note 
-that data must be first converted with the converting mode.
+    header += '''Utility to launch the phy GUI and visualize the results. 
+[data must be first converted with the converting mode]
     '''
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
