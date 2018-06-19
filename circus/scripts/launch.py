@@ -409,9 +409,9 @@ but a subset x,y can be done. Steps are:
 
                         try:
                             subprocess.check_call(mpi_args)
-                        except:
-                            print_and_log(['Step "%s" failed!' % subtask], 'error', logger)
-                            raise
+                        except subprocess.CalledProcessError as e:
+                            print_and_log(['Step "%s" failed for reason %s!' % (subtask, e)], 'error', logger)
+                            sys.exit(0)
 
     if preview or result:
         from circus.shared import gui
