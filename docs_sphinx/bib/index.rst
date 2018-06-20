@@ -19,6 +19,8 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2018
 ~~~~
 
+* Ravello C., Perrinet L. U, Escobar M.-J., Palacios A. G, *Speed-Selectivity in Retinal Ganglion Cells is Modulated by the Complexity of the Visual Stimulus*, BioRxiv, 350330
+
 * Vilarchao M. E., Estebanez L., Shulz D. E.,  Férezou I., *Supra-barrel Distribution of Directional Tuning for Global Motion in the Mouse Somatosensory Cortex*, Cell Reports 22, 3534–3547
 
 * Barth A. M., Domonkos A., Fernandez-Ruiz A., Freund T.F., Varga V., *Hippocampal Network Dynamics during Rearing Episodes*, Cell Reports, 23(6):1706-1715
