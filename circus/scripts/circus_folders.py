@@ -91,14 +91,14 @@ multi-files mode
 
     os.makedirs(output)
 
-    for folder in folders:
+    for count, folder in enumerate(folders):
         files = os.listdir(folder)
         for file in files:
             _, ext = os.path.splitext(file)
             ext = ext.strip('.')
             if ext.lower() == extension.lower():
                 original_file = os.path.join(folder, file)
-                linked_file = os.path.join(output, os.path.basename(original_file))
+                linked_file = os.path.join(output, 'sc_{c}_{f}'.format(c=count, f=os.path.basename(original_file)))
                 if not os.path.exists(linked_file):
                     os.symlink(original_file, linked_file)
                 else:

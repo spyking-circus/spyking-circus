@@ -102,8 +102,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             data_file_out.set_data(g_offset, local_chunk)
 
-
-
         comm.Barrier()
 
 

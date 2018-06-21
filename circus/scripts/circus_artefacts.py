@@ -19,6 +19,19 @@ from circus.shared.algorithms import slice_result
 from circus.shared.parser import CircusParser
 from circus.shared.utils import query_yes_no
 
+def get_dead_times(dead_file, sampling_rate, dead_in_ms=False):
+    dead_times = numpy.loadtxt(dead_file)
+    
+    if len(dead_times.shape) == 1:
+        dead_times = dead_times.reshape(1, 2)
+
+    if dead_in_ms:
+        dead_times *= numpy.int64(sampling_rate)
+
+    dead_times = dead_times.astype(numpy.int64)
+    return dead_times
+
+
 def main(argv=None):
     
     if argv is None:
@@ -43,6 +56,7 @@ stream mode
     
     filename       = os.path.abspath(args.datafile)
     params         = CircusParser(filename)
+    dead_in_ms     = params.getboolean('triggers', 'dead_in_ms')
 
     if os.path.exists(params.logfile):
         os.remove(params.logfile)
@@ -50,9 +64,25 @@ stream mode
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger(__name__)
 
-
     if params.get('data', 'stream_mode') == 'multi-files':
         data_file = params.get_data_file(source=True, has_been_created=False)
-        print ' '.join(data_file.get_file_names())
+        all_times = numpy.zeros((0, 2), dtype=numpy.int64)
+
+        for f in data_file._sources:
+            name, ext = os.path.splitext(f.file_name)
+            dead_file = f.file_name.replace(ext, '.dead')
+            if os.path.exists(dead_file):
+                print_and_log(['Found file %s' %dead_file], 'default', logger)
+                times = get_dead_times(dead_file, data_file.sampling_rate, dead_in_ms)
+                times += f.t_start
+                all_times = numpy.vstack((all_times, times))
+
+        output_file = os.path.join(os.path.dirname(filename), 'dead_zones.txt')
+        if len(all_times) > 0:
+            print_and_log(['Saving global artefact file in %s' %output_file], 'default', logger)
+            if dead_in_ms:
+                all_times = all_times.astype(numpy.float32)/data_file.sampling_rate
+            numpy.savetxt(output_file, all_times)
+
     elif params.get('data', 'stream_mode') == 'single-file':
-        pass
+        print_and_log(['Not implemented'], 'error', logger)
