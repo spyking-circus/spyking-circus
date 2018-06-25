@@ -17,7 +17,6 @@ from colorama import Fore
 from circus.shared.messages import print_and_log, get_colored_header, init_logging
 from circus.shared.algorithms import slice_result
 from circus.shared.parser import CircusParser
-from circus.shared.utils import query_yes_no
 
 def get_dead_times(dead_file, sampling_rate, dead_in_ms=False):
     dead_times = numpy.loadtxt(dead_file)
@@ -28,8 +27,18 @@ def get_dead_times(dead_file, sampling_rate, dead_in_ms=False):
     if dead_in_ms:
         dead_times *= numpy.int64(sampling_rate)
 
-    dead_times = dead_times.astype(numpy.int64)
-    return dead_times
+    return dead_times.astype(numpy.int64)
+
+def get_trig_times(trig_file, sampling_rate, trig_in_ms=False):
+    trig_times = numpy.loadtxt(trig_file)
+    
+    if len(trig_times.shape) == 1:
+        trig_times = trig_times.reshape(1, 2)
+
+    if trig_in_ms:
+        trig_times[:, 1] *= numpy.int64(sampling_rate)
+
+    return trig_times.astype(numpy.int64)
 
 
 def main(argv=None):
@@ -45,18 +54,22 @@ stream mode
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')
     parser.add_argument('-w', '--window', help='text file with artefact window files',
-                        default='')
+                        default=None)
 
     if len(argv) == 0:
         parser.print_help()
         sys.exit()
 
     args = parser.parse_args(argv)
-    window_file = os.path.abspath(args.window)
+    if args.window is None:
+        window_file = None
+    else:
+        window_file = os.path.abspath(args.window)
     
     filename       = os.path.abspath(args.datafile)
     params         = CircusParser(filename)
     dead_in_ms     = params.getboolean('triggers', 'dead_in_ms')
+    trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
 
     if os.path.exists(params.logfile):
         os.remove(params.logfile)
@@ -66,23 +79,44 @@ stream mode
 
     if params.get('data', 'stream_mode') == 'multi-files':
         data_file = params.get_data_file(source=True, has_been_created=False)
-        all_times = numpy.zeros((0, 2), dtype=numpy.int64)
+        all_times_dead = numpy.zeros((0, 2), dtype=numpy.int64)
+        all_times_trig = numpy.zeros((0, 2), dtype=numpy.int64)
 
         for f in data_file._sources:
             name, ext = os.path.splitext(f.file_name)
             dead_file = f.file_name.replace(ext, '.dead')
+            trig_file = f.file_name.replace(ext, '.trig')
+
             if os.path.exists(dead_file):
                 print_and_log(['Found file %s' %dead_file], 'default', logger)
                 times = get_dead_times(dead_file, data_file.sampling_rate, dead_in_ms)
                 times += f.t_start
-                all_times = numpy.vstack((all_times, times))
+                all_times_dead = numpy.vstack((all_times_dead, times))
 
-        output_file = os.path.join(os.path.dirname(filename), 'dead_zones.txt')
-        if len(all_times) > 0:
+            if os.path.exists(trig_file):
+                print_and_log(['Found file %s' %trig_file], 'default', logger)
+
+                if window_file is None:
+                    print_and_log(['To concatenate .trig file, you must provide a window file with -w'], 'error', logger)
+                    sys.exit(0)
+
+                times = get_trig_times(trig_file, data_file.sampling_rate, trig_in_ms)
+                times[:, 1] += f.t_start
+                all_times_trig = numpy.vstack((all_times_trig, times))
+
+        if len(all_times_dead) > 0:
+            output_file = os.path.join(os.path.dirname(filename), 'dead_zones.txt')
             print_and_log(['Saving global artefact file in %s' %output_file], 'default', logger)
             if dead_in_ms:
-                all_times = all_times.astype(numpy.float32)/data_file.sampling_rate
-            numpy.savetxt(output_file, all_times)
+                all_times_dead = all_times_dead.astype(numpy.float32)/data_file.sampling_rate
+            numpy.savetxt(output_file, all_times_dead)
+
+        if len(all_times_trig) > 0:
+            output_file = os.path.join(os.path.dirname(filename), 'triggers.txt')
+            print_and_log(['Saving global artefact file in %s' %output_file], 'default', logger)
+            if trig_in_ms:
+                all_times_trig = all_times_trig.astype(numpy.float32)/data_file.sampling_rate
+            numpy.savetxt(output_file, all_times_trig)
 
     elif params.get('data', 'stream_mode') == 'single-file':
         print_and_log(['Not implemented'], 'error', logger)
