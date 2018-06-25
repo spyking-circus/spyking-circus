@@ -48,7 +48,8 @@ def main(argv=None):
 
     header = get_colored_header()
     header += '''Utility to concatenate artefacts/dead times before using 
-stream mode
+stream mode. Code will look for .dead and .trig files, and 
+concatenate them automatically
     '''
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)

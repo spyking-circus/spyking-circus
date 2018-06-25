@@ -48,13 +48,15 @@ multi-files mode
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('folders', help='text file with the list of folders to consider')
     parser.add_argument('extension', help='file extension to consider within folders')
-    parser.add_argument('output', help='name of the output folder', default='sc_folders')
+    
+    parser.add_argument('-o', '--output', help='name of the output folder [default is output]', default='output')
 
     if len(argv) == 0:
         parser.print_help()
         sys.exit()
 
     args = parser.parse_args(argv)
+
 
     folders_file = os.path.abspath(args.folders)
     output      = os.path.abspath(args.output)
