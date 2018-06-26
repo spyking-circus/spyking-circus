@@ -12,7 +12,6 @@ from circus.shared.messages import print_and_log, init_logging
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
-    SHARED_MEMORY  = get_shared_memory_flag(params)
     #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.whitening')
@@ -290,7 +289,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     if ignore_dead_times:
-        all_dead_times = get_dead_times(params, SHARED_MEMORY)
+        all_dead_times = get_dead_times(params)
     #################################################################
 
 
