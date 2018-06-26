@@ -49,23 +49,23 @@ def main(argv=None):
     header = get_colored_header()
     header += '''Utility to concatenate artefacts/dead times before using 
 stream mode. Code will look for .dead and .trig files, and 
-concatenate them automatically
+concatenate them automatically taking care of file offsets
     '''
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')
-    parser.add_argument('-w', '--window', help='text file with artefact window files',
-                        default=None)
+    # parser.add_argument('-w', '--window', help='text file with artefact window files',
+    #                     default=None)
 
     if len(argv) == 0:
         parser.print_help()
         sys.exit()
 
     args = parser.parse_args(argv)
-    if args.window is None:
-        window_file = None
-    else:
-        window_file = os.path.abspath(args.window)
+    # if args.window is None:
+    #     window_file = None
+    # else:
+    #     window_file = os.path.abspath(args.window)
     
     filename       = os.path.abspath(args.datafile)
     params         = CircusParser(filename)
@@ -91,17 +91,21 @@ concatenate them automatically
             if os.path.exists(dead_file):
                 print_and_log(['Found file %s' %dead_file], 'default', logger)
                 times = get_dead_times(dead_file, data_file.sampling_rate, dead_in_ms)
+                if times.max() > f.duration or times.min() < 0:
+                    print_and_log(['Dead zones larger than duration for file %s' %f.file_name, 
+                                    '-> Clipping automatically'], 'error', logger)
+                    times = numpy.minimum(times, f.duration)
+                    times = numpy.maximum(times, 0)
                 times += f.t_start
                 all_times_dead = numpy.vstack((all_times_dead, times))
 
             if os.path.exists(trig_file):
                 print_and_log(['Found file %s' %trig_file], 'default', logger)
 
-                if window_file is None:
-                    print_and_log(['To concatenate .trig file, you must provide a window file with -w'], 'error', logger)
-                    sys.exit(0)
-
                 times = get_trig_times(trig_file, data_file.sampling_rate, trig_in_ms)
+                if times[:,1].max() > f.duration or times[:,1].min() < 0:
+                    print_and_log(['Triggers larger than duration for file %s' %f.file_name], 'error', logger)
+                    sys.exit(0)
                 times[:, 1] += f.t_start
                 all_times_trig = numpy.vstack((all_times_trig, times))
 
