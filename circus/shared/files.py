@@ -151,8 +151,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
 def get_dead_times(params):
 
-
-
     def _get_dead_times(params):
         dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
         data_file  = params.data_file

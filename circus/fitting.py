@@ -92,7 +92,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
     if ignore_dead_times:
-        all_dead_times = get_dead_times(params, SHARED_MEMORY)
+        all_dead_times = get_dead_times(params)
 
     thresholds = io.load_data(params, 'thresholds')
 

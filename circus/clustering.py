@@ -8,14 +8,13 @@ with warnings.catch_warnings():
 from circus.shared.probes import get_nodes_and_edges
 from .shared.files import get_dead_times
 from circus.shared.messages import print_and_log, init_logging
-from circus.shared.utils import get_parallel_hdf5_flag, get_shared_memory_flag
+from circus.shared.utils import get_parallel_hdf5_flag
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     numpy.random.seed(520)
     parallel_hdf5  = get_parallel_hdf5_flag(params)
-    SHARED_MEMORY  = get_shared_memory_flag(params)
     #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.clustering')
@@ -119,7 +118,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
     if ignore_dead_times:
-        all_dead_times = get_dead_times(params, SHARED_MEMORY)
+        all_dead_times = get_dead_times(params)
 
     result   = {}
 
