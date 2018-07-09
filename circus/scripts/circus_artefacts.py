@@ -36,7 +36,7 @@ def get_trig_times(trig_file, sampling_rate, trig_in_ms=False):
         trig_times = trig_times.reshape(1, 2)
 
     if trig_in_ms:
-        trig_times[:, 1] *= numpy.int64(sampling_rate)
+        trig_times[:, 1] *= numpy.int64(sampling_rate)/1000
 
     return trig_times.astype(numpy.int64)
 
