@@ -25,7 +25,7 @@ def get_dead_times(dead_file, sampling_rate, dead_in_ms=False):
         dead_times = dead_times.reshape(1, 2)
 
     if dead_in_ms:
-        dead_times *= numpy.int64(sampling_rate)
+        dead_times *= numpy.int64(sampling_rate)/1000
 
     return dead_times.astype(numpy.int64)
 

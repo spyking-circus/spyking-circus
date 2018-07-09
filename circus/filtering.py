@@ -289,6 +289,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         data_file_out = params.get_data_file(is_empty=not has_been_created, params=description)
 
+        if comm.rank == 0:
+            print_and_log(['Allocating space for filtered files...'], 'debug', logger)
+
         if not has_been_created:
             data_file_out.allocate(shape=data_file_in.shape)
 
