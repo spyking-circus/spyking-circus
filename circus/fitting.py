@@ -137,6 +137,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
+    if n_tm == 0:
+        if comm.rank == 0:
+            print_and_log(["No templates present. Redo clustering?"], 'default', logger)
+
+        sys.exit(0)
+
     if comm.rank == 0:
         print_and_log(["Here comes the SpyKING CIRCUS %s and %d templates..." %(info_string, n_tm)], 'default', logger)
         purge(file_out_suff, '.data')
