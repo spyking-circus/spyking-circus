@@ -125,3 +125,7 @@ concatenate them automatically taking care of file offsets
 
     elif params.get('data', 'stream_mode') == 'single-file':
         print_and_log(['Not implemented'], 'error', logger)
+        sys.exit(0)
+    else:
+        print_and_log(['You should select a valid stream_mode such as multi-files'], 'error', logger)
+        sys.exit(0)
