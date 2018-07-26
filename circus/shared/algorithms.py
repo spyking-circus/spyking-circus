@@ -6,6 +6,8 @@ from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
+import statsmodels.api as sm
+from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 logger = logging.getLogger(__name__)
 
@@ -23,27 +25,12 @@ def distancematrix(data, ydata=None):
 def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=10, save=False):
 
     if smart_select:
-
-        xmax = xdata.max()
-        off  = ydata.min()
-        idx  = numpy.argmin(xdata)
-        a_0  = (ydata[idx] - off)/numpy.log(1 + (xmax - xdata[idx]))
-
-        def myfunc(x, a, b, c, d):
-            return a*numpy.log(1. + c*((xmax - x)**b)) + d
-
-        def imyfunc(x, a, b, c, d):
-            return numpy.exp(d)*((1. + c*(xmax - x)**b)**a)
-
-        try:
-            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1., off])
-            prediction   = myfunc(xdata, result[0], result[1], result[2], result[3])
-            difference   = xdata*(ydata - prediction)
-            z_score      = (difference - difference.mean())/difference.std()
-            subidx       = numpy.where(z_score >= 3.)[0]
-        except Exception:
-            subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
-
+        x = sm.add_constant(xdata)
+        model = sm.RLM(ydata, x)
+        results = model.fit()
+        difference = ydata - results.fittedvalues
+        z_score = (difference - difference.mean()) / difference.std()
+        subidx = numpy.where(z_score >= 3.)[0]
     else:
         subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
 

@@ -198,42 +198,30 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
     ax.scatter(rho, delta, c='k', s=def_size, linewidth=0)
 
     if smart_select:
-        xmax = rho.max()
-        off  = delta.min()
-        idx  = numpy.argmin(rho)
-        a_0  = (delta[idx] - off)/numpy.log(1 + (xmax - rho[idx]))
 
-        def myfunc(x, a, b, c, d):
-            return a*numpy.log(1. + c*((xmax - x)**b)) + d
-
-        def imyfunc(x, a, b, c, d):
-            return numpy.exp(d)*((1. + c*(xmax - x)**b)**a)
-
-        try:
-            result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, p0=[a_0, 1., 1., off])
-            prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
-            difference   = rho*(delta - prediction)
-            idx          = numpy.argsort(rho)
-            prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
-            z_score      = (difference - difference.mean())/difference.std()
+        idx = numpy.argsort(rho)
             
-            #subidx       = numpy.where(z_score >= 3.)[0]
+        import statsmodels.api as sm
+        from statsmodels.sandbox.regression.predstd import wls_prediction_std
+        x = sm.add_constant(rho)
+        model = sm.RLM(delta, x)
+        results = model.fit()
+        difference = delta - results.fittedvalues
+        z_score = (difference - difference.mean()) / difference.std()
+        centers = numpy.where(z_score >= 3.)[0]
 
-            ax.plot(rho[idx], prediction[idx], c='r')
+        ax.plot(rho[idx], results.fittedvalues[idx], c='r')
             
-            ax2 = fig.add_subplot(246)
-            ax2.set_xlabel(r'$\rho$')
-            ax2.set_ylabel(r'$\epsilon$')
-            ax2.scatter(rho, difference, c='k', s=def_size, linewidth=0)
-            limit = difference.mean() + 3*difference.std()
-            ax2.plot([rho.min(), rho.max()], [limit, limit], 'r--')
-            ax2.scatter(rho[centers], difference[centers], c='r', s=def_size, linewidth=0)
-            ax2.set_xlim(0.98*rmin, 1.02*rmax)
-
-        except Exception:
-            pass
+        ax2 = fig.add_subplot(246)
+        ax2.set_xlabel(r'$\rho$')
+        ax2.set_ylabel(r'$\epsilon$')
+        ax2.scatter(rho, difference, c='k', s=def_size, linewidth=0)
+        limit = difference.mean() + 3*difference.std()
+        ax2.plot([rho.min(), rho.max()], [limit, limit], 'r--')
+        ax2.scatter(rho[centers], difference[centers], c='r', s=def_size, linewidth=0)
+        ax2.set_xlim(0.98*rmin, 1.02*rmax)
     
-    ax.scatter(rho[centers], delta[centers], c='r', s=def_size, linewidth=0)
+    ax.scatter(rho[centers], results.fittedvalues[centers], c='r', s=def_size, linewidth=0)
     try:
         ax.set_yscale('log')
     except Exception:
