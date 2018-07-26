@@ -7,6 +7,9 @@ Release 0.6.8
 * can turn off shared memory if needed
 * fixes for conversion of old dataset with python GUI
 * smooth exit if fitting with 0 templates (thanks to Alex Gonzalez)
+* robust automatic selection of the centroids (thanks to Ruben Herzog)
+* addition of the statsmodels dependency
+* remove the max_cluster parameter
 
 =============
 Release 0.6.7

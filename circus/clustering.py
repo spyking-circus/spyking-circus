@@ -56,26 +56,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_elts        = int(params.getfloat('clustering', 'nb_elts')*N_e*max_elts_elec)
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
-    max_clusters   = params.getint('clustering', 'max_clusters')
     make_plots     = params.get('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
     smart_search   = params.getboolean('clustering', 'smart_search')
-    smart_select   = params.getboolean('clustering', 'smart_select')
     n_abs_min      = params.getint('clustering', 'n_abs_min')
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
-
-    if smart_select:
-        m_ratio    = nclus_min
-    else:
-        m_ratio    = params.getfloat('clustering', 'm_ratio')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
+    m_ratio        = nclus_min
     sub_output_dim = params.getint('clustering', 'sub_dim')
     inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes]  = numpy.argsort(nodes)
@@ -660,9 +654,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         #fresult['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       m_ratio,
-                                                                                      smart_select=smart_select,
-                                                                                      n_min=n_min,
-                                                                                      max_clusters=max_clusters)
+                                                                                      smart_select=True,
+                                                                                      n_min=n_min)
 
                         # Now we perform a merging step, for clusters that look too similar
                         data = result['sub_%s_' %p + str(ielec)]
@@ -689,7 +682,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                             plot.view_clusters(data, r, d, c,
                                                    cluster_results[p][ielec]['groups'], injected=injected,
-                                                   save=save, smart_select=smart_select)
+                                                   save=save, smart_select=True)
 
                         keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec), 'norm_%s_' %p + str(ielec)]
                         for key in keys:
@@ -704,8 +697,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
                         print_and_log(line, 'default', logger)
-                        if (merged[0]-merged[1]) == max_clusters:
-                            local_hits += 1
                         local_mergings += merged[1]
                     else:
                         cluster_results[p][ielec]['groups'] = numpy.zeros(0, dtype=numpy.int32)
@@ -745,11 +736,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 lines += ["                            -decrease smart_search?"]
             if isolation:
                 lines += ["                            -remove isolation mode?"]
-        if total_hits > 0 and not smart_select:
-            lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
-            lines += ["                              -increase sim_same_elec?"]
-        print_and_log(lines, 'info', logger)
 
+        print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
 
     if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:

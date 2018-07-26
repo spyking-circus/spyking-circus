@@ -51,7 +51,6 @@ def data_stats(params, show=True, export_times=False):
              "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
              "Threshold crossing          : %s" %params.get('detection', 'peaks'),
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
-             "Snippet isolation           : %s" %params.getboolean('detection', 'isolation'),
              "Overwrite                   : %s" %params.get('data', 'overwrite')]
 
     if stream_mode:
