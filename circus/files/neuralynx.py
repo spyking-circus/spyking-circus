@@ -54,7 +54,6 @@ class NeuraLynxFile(DataFile):
             tmp_all_files   = os.listdir(dirname)
             tmp_all_files   = filter_per_extension(tmp_all_files, ext)
             tmp_all_files.sort(key=natural_keys)
-
             all_files = []
             for file in tmp_all_files:
 
@@ -85,6 +84,7 @@ class NeuraLynxFile(DataFile):
             params          = self.get_description()
 
             for fname in all_files:
+                params['ncs_pattern'] = '_'.join(fname.split('_')[:-1])
                 new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
@@ -114,11 +114,12 @@ class NeuraLynxFile(DataFile):
         directory = os.path.dirname(self.file_name)
         all_files = os.listdir(directory)
         alist     = []
+
         for f in all_files:
             if self.params['ncs_pattern'] != '':
-                test = f.find('.ncs') > 0 and f.find(self.params['ncs_pattern']) > 0
+                test = f.find('.ncs') > -1 and f.find(self.params['ncs_pattern']) > -1
             else:
-                test = f.find('.ncs') > 0
+                test = f.find('.ncs') > -1
             if test:
                 alist += [os.path.join(directory, f)]
         alist.sort(key=natural_keys)
@@ -167,19 +168,48 @@ class NeuraLynxFile(DataFile):
     def _read_from_header(self):
 
         folder_path       = os.path.dirname(os.path.abspath(self.file_name))
-        self.all_files    = self._get_sorted_channels_()
-
+        tmp_all_files    = self._get_sorted_channels_()
         regexpr           = re.compile('\d+')
+        
+        all_files = []
+        for file in tmp_all_files:
+
+            all_parts = file.split('_')
+            name = '_'.join(all_parts[:-1])
+
+            if self.params['ncs_pattern'] != '':
+                pattern = name.find(self.params['ncs_pattern']) > 0
+            else:
+                pattern = True
+
+            if not pattern:
+                to_consider = False
+            else:
+                to_consider = True
+
+            for f in all_files:
+                already_present = '_'.join(f.split('_')[:-1])
+                if name == already_present:
+                    to_consider = False
+
+            if to_consider:
+                all_files += ['_'.join([name, all_parts[-1]])]
+
+        name = '_'.join(all_files[0].split('_')[:-1])
         self.all_channels = []
-        for f in self.all_files:
-            self.all_channels += [int(regexpr.findall(f)[0])]
+        self.all_files = []
+
+        for f in tmp_all_files:
+            if f.find(name) > -1:
+                self.all_channels += [int(regexpr.findall(f)[0])]
+                self.all_files += [f]
 
         self.header             = self._read_header_(self.all_files[0])
         
         header                  = {}
         header['sampling_rate'] = float(self.header['SamplingFrequency'])        
-        header['nb_channels']   = len(self.all_files)
-        header['gain']          = float(self.header['ADBitVolts'])*1000000        
+        header['nb_channels']   = len(self.all_channels)
+        header['gain']          = float(self.header['ADBitVolts'])*1000000
 
         self.inverse     = self.header.has_key('InputInverted') and (self.header['InputInverted'] == 'True')
         if self.inverse:
