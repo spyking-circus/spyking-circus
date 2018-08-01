@@ -19,6 +19,8 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2018
 ~~~~
 
+* Chaure F, Rey HG, Quian Quiroga R, *A novel and fully automatic spike sorting implementation with variable number of features*, J Neurophysiol. 10.1152/jn.00339.2018
+
 * Ravello C., Perrinet L. U, Escobar M.-J., Palacios A. G, *Speed-Selectivity in Retinal Ganglion Cells is Modulated by the Complexity of the Visual Stimulus*, BioRxiv, 350330
 
 * Wouters J, Kloosterman F., Bertrand A, *Towards online spike sorting for high-density neural probes using discriminative template matching with suppression of interfering spikes*, Journal of Neural Engineering, 1741-2552
