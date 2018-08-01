@@ -10,6 +10,7 @@ Release 0.6.8
 * robust automatic selection of the centroids (thanks to Ruben Herzog)
 * addition of the statsmodels dependency
 * remove the max_cluster parameter
+* reduction of the size for saved clusters
 
 =============
 Release 0.6.7
