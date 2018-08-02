@@ -113,7 +113,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.show()
 
 
-def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=None, save=False):
+def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
 
     import matplotlib.colors as colors
 
@@ -197,29 +197,26 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
 
     ax.scatter(rho, delta, c='k', s=def_size, linewidth=0)
 
-    if smart_select:
-
-        idx = numpy.argsort(rho)
+    idx = numpy.argsort(rho)
             
-        import statsmodels.api as sm
-        from statsmodels.sandbox.regression.predstd import wls_prediction_std
-        x = sm.add_constant(rho)
-        model = sm.RLM(delta, x)
-        results = model.fit()
-        difference = delta - results.fittedvalues
-        z_score = (difference - difference.mean()) / difference.std()
-        centers = numpy.where(z_score >= 3.)[0]
+    import statsmodels.api as sm
+    x = sm.add_constant(rho)
+    model = sm.RLM(delta, x)
+    results = model.fit()
+    difference = numpy.log(delta) - numpy.log(results.fittedvalues)
+    factor = 5*numpy.std(difference)
+    z_score = delta - (1 + factor)*results.fittedvalues
+    centers = numpy.where(z_score >= 0)[0]
+    ax.fill_between(rho[idx], results.fittedvalues[idx], (1 + factor)*results.fittedvalues[idx], alpha=0.5, color='r')
+    ax.plot(rho[idx], results.fittedvalues[idx], color='r')
+    
 
-        ax.plot(rho[idx], results.fittedvalues[idx], c='r')
-            
-        ax2 = fig.add_subplot(246)
-        ax2.set_xlabel(r'$\rho$')
-        ax2.set_ylabel(r'$\epsilon$')
-        ax2.scatter(rho, difference, c='k', s=def_size, linewidth=0)
-        limit = difference.mean() + 3*difference.std()
-        ax2.plot([rho.min(), rho.max()], [limit, limit], 'r--')
-        ax2.scatter(rho[centers], difference[centers], c='r', s=def_size, linewidth=0)
-        ax2.set_xlim(0.98*rmin, 1.02*rmax)
+    ax2 = fig.add_subplot(246)
+    ax2.set_xlabel(r'$\rho$')
+    ax2.set_ylabel(r'$\epsilon$')
+    ax2.scatter(rho, z_score, c='k', s=def_size, linewidth=0)
+    ax2.scatter(rho[centers], z_score[centers], c='r', s=def_size, linewidth=0)
+    ax2.set_xlim(0.98*rmin, 1.02*rmax)
     
     ax.scatter(rho[centers], results.fittedvalues[centers], c='r', s=def_size, linewidth=0)
     try:

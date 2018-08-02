@@ -654,7 +654,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         #fresult['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       m_ratio,
-                                                                                      smart_select=True,
                                                                                       n_min=n_min)
 
                         # Now we perform a merging step, for clusters that look too similar
@@ -682,7 +681,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                             plot.view_clusters(data, r, d, c,
                                                    cluster_results[p][ielec]['groups'], injected=injected,
-                                                   save=save, smart_select=True)
+                                                   save=save)
 
                         keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec), 'norm_%s_' %p + str(ielec)]
                         for key in keys:
