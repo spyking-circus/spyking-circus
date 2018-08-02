@@ -77,7 +77,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
         if compute_rho:
             for i in xrange(N):
-                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
+                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i), i)))
                 tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
                 sdist[i] = numpy.take(dist, numpy.take(indices, tmp))
                 rho[i]   = numpy.mean(sdist[i])
