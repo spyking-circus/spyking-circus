@@ -631,7 +631,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
 
-                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
 
                     if sub_comm.rank == 0:
                         if locdata.dtype == 'int32':
@@ -643,9 +643,9 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         type_size  = 0
                         data_bytes = 0
 
-                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
+                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.uint32), root=0)[0])
 
-                    empty      = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.int32), root=0)[0])
+                    empty      = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.uint32), root=0)[0])
                     if empty > 0:
                         win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
                         buf_data, _ = win_data.Shared_query(0)
