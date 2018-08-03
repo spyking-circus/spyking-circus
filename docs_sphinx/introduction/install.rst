@@ -131,6 +131,7 @@ For information, here is the list of all the dependencies required by the SpyKIN
     8. ``colorama``
     9. ``cudamat`` [optional, CUDA_ only]
     10. ``sklearn`` [optional, only for BEER estimate]
+    11. ``statsmodels``
 
 .. _CUDA: https://developer.nvidia.com/cuda-downloads
 .. _Anaconda: https://www.continuum.io/downloads

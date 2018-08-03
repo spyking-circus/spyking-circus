@@ -24,6 +24,7 @@ requirements:
     - pyqt >=4
     - hdf5
     - scikit-learn
+    - statsmodels
 source:
   path: ..
 
