@@ -204,7 +204,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
     model = sm.RLM(delta, x)
     results = model.fit()
     difference = numpy.log(delta) - numpy.log(results.fittedvalues)
-    factor = 5*numpy.std(difference)
+    factor = 5*1.4826*numpy.median(numpy.abs(difference - numpy.median(difference)))
     z_score = delta - (1 + factor)*results.fittedvalues
     centers = numpy.where(z_score >= 0)[0]
     ax.fill_between(rho[idx], results.fittedvalues[idx], (1 + factor)*results.fittedvalues[idx], alpha=0.5, color='r')
