@@ -441,8 +441,8 @@ class CircusParser(object):
                     safety_time = float(safety_time)
                     self.set(section, 'safety_time', str(int(safety_time*self.rate*1e-3)))
 
-            refactory = self.getfloat('fitting', 'refractory')
-            self.set('fitting', 'refactory', str(int(refactory*self.rate*1e-3)))
+            refractory = self.getfloat('fitting', 'refractory')
+            self.set('fitting', 'refractory', str(int(refractory*self.rate*1e-3)))
 
 
     def _create_data_file(self, data_file, is_empty, params, stream_mode):
