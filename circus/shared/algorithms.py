@@ -7,7 +7,6 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 import statsmodels.api as sm
-from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 logger = logging.getLogger(__name__)
 
@@ -22,33 +21,17 @@ def distancematrix(data, ydata=None):
 
 
 
-def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=10, save=False):
+def fit_rho_delta(xdata, ydata):
 
-    if smart_select:
-        x = sm.add_constant(xdata)
-        model = sm.RLM(ydata, x)
-        results = model.fit()
-        difference = ydata - results.fittedvalues
-        z_score = (difference - difference.mean()) / difference.std()
-        subidx = numpy.where(z_score >= 3.)[0]
-    else:
-        subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
-
-    if display:
-        fig = pylab.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(xdata, ydata, 'ko')
-        ax.plot(xdata[subidx[:len(subidx)]], ydata[subidx[:len(subidx)]], 'ro')
-        if smart_select:
-            idx = numpy.argsort(xdata)
-            ax.plot(xdata[idx], prediction[idx], 'r')
-            ax.set_yscale('log')
-        if save:
-            pylab.savefig(os.path.join(save[0], 'rho_delta_%s.png' %(save[1])))
-            pylab.close()
-        else:
-            pylab.show()
-    return subidx, len(subidx)
+    x = sm.add_constant(xdata)
+    model = sm.RLM(ydata, x)
+    results = model.fit()
+    difference = numpy.log(ydata) - numpy.log(results.fittedvalues)
+    idx = numpy.argsort(xdata)
+    factor = 5*1.4826*numpy.median(numpy.abs(difference - numpy.median(difference)))
+    z_score = ydata - (1 + factor)*results.fittedvalues
+    centers = numpy.where(z_score >= 0)[0]
+    return centers
 
 
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
@@ -64,7 +47,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
         if compute_rho:
             for i in xrange(N):
-                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
+                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i), i)))
                 tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
                 sdist[i] = numpy.take(dist, numpy.take(indices, tmp))
                 rho[i]   = numpy.mean(sdist[i])
@@ -83,7 +66,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
     return rho, dist, sdist, nb_selec
 
 
-def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=None, max_clusters=10, save=False):
+def clustering(rho, dist, mratio=0.1, display=None, n_min=None, save=False):
 
     N                 = len(rho)
     maxd              = numpy.max(dist)
@@ -104,7 +87,7 @@ def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=No
                 nneigh[ordrho[ii]] = ordrho[jj]
 
     delta[ordrho[0]]        = delta.max()
-    clust_idx, max_clusters = fit_rho_delta(rho, delta, smart_select=smart_select, max_clusters=max_clusters)
+    centers = fit_rho_delta(rho, delta)
 
     def assign_halo(idx):
         cl      = numpy.empty(N, dtype=numpy.int32)
@@ -129,9 +112,9 @@ def clustering(rho, dist, mratio=0.1, smart_select=False, display=None, n_min=No
                     NCLUST   -= 1
         return halo, NCLUST
 
-    halo, NCLUST = assign_halo(clust_idx[:max_clusters+1])
+    halo, NCLUST = assign_halo(centers)
 
-    return halo, rho, delta, clust_idx[:max_clusters]
+    return halo, rho, delta, centers
 
 
 def merging(groups, sim_same_elec, data):
