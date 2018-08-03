@@ -183,7 +183,7 @@ def get_dead_times(params):
             nb_dead_times = len(dead_times)
 
         sub_comm.Barrier()
-        long_size  = numpy.int32(sub_comm.bcast(numpy.array([nb_dead_times], dtype=numpy.int32), root=0)[0])
+        long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_dead_times], dtype=numpy.uint32), root=0)[0])
 
         if sub_comm.rank == 0:
             data_bytes    = long_size * intsize
@@ -257,9 +257,9 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     sub_comm.Barrier()
 
     # Broadcast the sizes of the data structures to share.
-    triggers_size = numpy.int64(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.int32), root=0)[0])
-    neighs_size = numpy.int64(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.int32), root=0)[0])
-    ts_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.int32), root=0)[0])
+    triggers_size = numpy.int64(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.uint32), root=0)[0])
+    neighs_size = numpy.int64(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.uint32), root=0)[0])
+    ts_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.uint32), root=0)[0])
 
     # Declare the data structures to share.
     if sub_comm.Get_rank() == 0:
@@ -408,8 +408,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 nb_ptr  = len(sparse_mat.indptr)
 
             sub_comm.Barrier()
-            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.uint32), root=0)[0])
 
             if sub_comm.rank == 0:
                 indptr_bytes  = short_size * intsize
@@ -433,8 +433,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
 
             data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
-            indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(long_size,))
+            indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.uint32, shape=(short_size,))
 
             sub_comm.Barrier()
 
@@ -489,8 +489,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                     nb_data    = len(sparse_mat.data)
                     nb_ptr     = len(sparse_mat.indptr)
 
-                long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-                short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+                long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+                short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.uint32), root=0)[0])
 
                 if sub_comm.rank == 0:
                     indptr_bytes  = short_size * intsize
@@ -514,8 +514,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
 
                 data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-                indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
-                indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+                indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(long_size,))
+                indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.uint32, shape=(short_size,))
 
                 sub_comm.Barrier()
 
@@ -571,7 +571,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             if sub_comm.rank == 0:
                 nb_data    = len(over_x)
 
-            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
 
             if sub_comm.rank == 0:
                 indices_bytes = long_size * intsize
@@ -593,8 +593,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             buf_indices_y = numpy.array(buf_indices_y, dtype='B', copy=False)
 
             data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-            indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(long_size,))
-            indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(long_size,))
+            indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.uint32, shape=(long_size,))
+            indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.uint32, shape=(long_size,))
 
             sub_comm.Barrier()
 
@@ -607,8 +607,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             sub_comm.Barrier()
 
         else:
-            indices_x = numpy.zeros(0, dtype=numpy.int32)
-            indices_y = numpy.zeros(0, dtype=numpy.int32)
+            indices_x = numpy.zeros(0, dtype=numpy.uint32)
+            indices_y = numpy.zeros(0, dtype=numpy.uint32)
             data = numpy.zeros(0, dtype=numpy.float32)
             over_shape = numpy.zeros(2, dtype=numpy.int32)
 
@@ -1233,13 +1233,13 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             gspikes_file = file_out_suff + '.gspiketimes-%d.data' %node
             gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.uint32)
             gtemps_file  = file_out_suff + '.gtemplates-%d.data' %node
-            gtemps       = numpy.fromfile(gtemps_file, dtype=numpy.int32)
+            gtemps       = numpy.fromfile(gtemps_file, dtype=numpy.uint32)
 
         if os.path.exists(amplitudes_file):
 
             amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
             spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.uint32)
-            templates  = numpy.fromfile(templates_file, dtype=numpy.int32)
+            templates  = numpy.fromfile(templates_file, dtype=numpy.uint32)
             N          = len(amplitudes)
             amplitudes = amplitudes.reshape(N//2, 2)
             min_size   = min([amplitudes.shape[0], spiketimes.shape[0], templates.shape[0]])
@@ -1449,8 +1449,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         to_explore = get_tqdm_progressbar(to_explore)
 
 
-    over_x    = numpy.zeros(0, dtype=numpy.int32)
-    over_y    = numpy.zeros(0, dtype=numpy.int32)
+    over_x    = numpy.zeros(0, dtype=numpy.uint32)
+    over_y    = numpy.zeros(0, dtype=numpy.uint32)
     over_data = numpy.zeros(0, dtype=numpy.float32)
     rows      = numpy.arange(N_e*N_t)
     _srows    = {'left' : {}, 'right' : {}}
@@ -1489,9 +1489,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                     data  = tmp_1.dot(tmp_2)
 
                 dx, dy     = data.nonzero()
-                ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
-                ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
-                ones       = numpy.ones(len(dx), dtype=numpy.int32)
+                ddx        = numpy.take(local_idx, dx).astype(numpy.uint32)
+                ddy        = numpy.take(to_consider, dy).astype(numpy.uint32)
+                ones       = numpy.ones(len(dx), dtype=numpy.uint32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
                 over_y     = numpy.concatenate((over_y, (idelay - 1)*ones))
                 over_data  = numpy.concatenate((over_data, data.data))
@@ -1506,8 +1506,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     comm.Barrier()
 
     #We need to gather the sparse arrays
-    over_x    = gather_array(over_x, comm, dtype='int32', compress=blosc_compress)
-    over_y    = gather_array(over_y, comm, dtype='int32', compress=blosc_compress)
+    over_x    = gather_array(over_x, comm, dtype='uint32', compress=blosc_compress)
+    over_y    = gather_array(over_y, comm, dtype='uint32', compress=blosc_compress)
     over_data = gather_array(over_data, comm, compress=blosc_compress)
     over_shape = numpy.array([N_tm**2, duration], dtype=numpy.int32)
 

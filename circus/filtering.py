@@ -161,7 +161,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # First we need to get the average artefacts
         art_dict = {}
         for count, artefact in enumerate(local_labels):
-            indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
+            indices  = numpy.where(all_labels == artefact)[0].astype(numpy.uint32)
             tmp      = numpy.where(windows[:, 0] == artefact)[0]
             tau      = numpy.int64(windows[tmp, 1])
             pspikes  = all_times[indices]

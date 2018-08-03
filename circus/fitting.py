@@ -62,7 +62,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
     n_scalar       = N_e*N_t
-    last_spikes    = numpy.zeros((n_tm, 1), dtype=numpy.int32)
+
     temp_window    = numpy.arange(-template_shift, template_shift+1)
     size_window    = N_e*(2*template_shift+1)
 
@@ -228,7 +228,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
                 all_found_spikes[i] = []
 
-        local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+        local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
 
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
@@ -262,7 +262,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if ignore_dead_times:
             dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + len_chunk])
             if dead_indices[0] != dead_indices[1]:
-                local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.int32) - t_offset
+                local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.uint32) - t_offset
                 local_peaktimes = numpy.sort(local_peaktimes)
 
         #print "Removing the useless borders..."
@@ -272,11 +272,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if collect_all:
             for i in xrange(N_e):
-                all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.int32)
+                all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.uint32)
 
                 if ignore_dead_times:
                     if dead_indices[0] != dead_indices[1]:
-                        all_found_spikes[i] = numpy.array(list(set(all_found_spikes[i] + t_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.int32) - t_offset
+                        all_found_spikes[i] = numpy.array(list(set(all_found_spikes[i] + t_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.uint32) - t_offset
                         all_found_spikes[i] = numpy.sort(all_found_spikes[i])
 
                 idx                 = (all_found_spikes[i] >= local_borders[0]) & (all_found_spikes[i] < local_borders[1])
@@ -426,7 +426,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
-            templates_to_write  = numpy.array(result['templates'], dtype=numpy.int32)
+            templates_to_write  = numpy.array(result['templates'], dtype=numpy.uint32)
 
             spiketimes_file.write(spikes_to_write.tostring())
             amplitudes_file.write(amplitudes_to_write.tostring())
@@ -467,7 +467,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 gspikes  = numpy.take(gspikes, idx)
                 bestlecs = numpy.take(bestlecs, idx)
                 gspikes_to_write     = numpy.array(gspikes + local_offset, dtype=numpy.uint32)
-                gtemplates_to_write  = numpy.array(bestlecs, dtype=numpy.int32)
+                gtemplates_to_write  = numpy.array(bestlecs, dtype=numpy.uint32)
 
                 garbage_times_file.write(gspikes_to_write.tostring())
                 garbage_temp_file.write(gtemplates_to_write.tostring())
