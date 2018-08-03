@@ -26,10 +26,9 @@ def fit_rho_delta(xdata, ydata):
     x = sm.add_constant(xdata)
     model = sm.RLM(ydata, x)
     results = model.fit()
-    difference = numpy.log(ydata) - numpy.log(results.fittedvalues)
-    idx = numpy.argsort(xdata)
-    factor = 5*difference.std()
-    z_score = ydata - (1 + factor)*results.fittedvalues
+    difference = ydata - results.fittedvalues
+    factor = difference.std()
+    z_score = ydata - ((1 + factor)*results.fittedvalues + 3*factor)
     centers = numpy.where(z_score >= 0)[0]
     return centers
 
