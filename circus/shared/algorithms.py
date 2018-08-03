@@ -28,7 +28,7 @@ def fit_rho_delta(xdata, ydata):
     results = model.fit()
     difference = numpy.log(ydata) - numpy.log(results.fittedvalues)
     idx = numpy.argsort(xdata)
-    factor = 5*1.4826*numpy.median(numpy.abs(difference - numpy.median(difference)))
+    factor = 5*difference.std()
     z_score = ydata - (1 + factor)*results.fittedvalues
     centers = numpy.where(z_score >= 0)[0]
     return centers
