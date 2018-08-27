@@ -384,7 +384,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         # Keep the matching.
                         peak_time_step = local_peaktimes[peak_index]
                         
-                        data         = local_peaktimes - peak_time_step
+                        data         = (local_peaktimes - peak_time_step).astype(np.int32)
                         is_neighbor  = np.where(np.abs(data) <= temp_2_shift)[0]
                         idx_neighbor = data[is_neighbor] + temp_2_shift
                         nb_neighbors = len(is_neighbor)
