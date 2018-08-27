@@ -1186,7 +1186,6 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
     refractory     = params.getint('fitting', 'refractory')
-    print refractory
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', logger)

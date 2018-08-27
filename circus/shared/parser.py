@@ -440,7 +440,7 @@ class CircusParser(object):
                 else:
                     safety_time = float(safety_time)
                     self.set(section, 'safety_time', str(int(safety_time*self.rate*1e-3)))
-
+                    
             refractory = self.getfloat('fitting', 'refractory')
             self.set('fitting', 'refractory', str(int(refractory*self.rate*1e-3)))
 
