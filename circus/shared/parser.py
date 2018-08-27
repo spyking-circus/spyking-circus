@@ -155,7 +155,7 @@ class CircusParser(object):
                 if self.parser._sections[section].has_key(key):
                     self.parser._sections[section][key] = value
 
-        if self.do_folders:
+        if self.do_folders and self.parser.get('data', 'output_dir') == '':
             try:
                 os.makedirs(f_next)
             except Exception:
