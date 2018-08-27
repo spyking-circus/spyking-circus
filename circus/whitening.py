@@ -98,7 +98,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         thresholds  = io.load_data(params, 'thresholds')
 
         #print "Extracting the peaks..."
-        local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+        local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
         for i in xrange(N_e):
             peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
@@ -176,7 +176,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_silences += [len(esubset)]
 
         all_res_spac = gather_array(local_res_spac.ravel(), comm, 0, 1)
-        all_silences = gather_array(numpy.array(local_silences, dtype=numpy.int32), comm, 0, 1, 'int32')
+        all_silences = gather_array(numpy.array(local_silences, dtype=numpy.int32), comm, 0, 1, 'uint32')
 
     if comm.rank == 0:
 
@@ -362,8 +362,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
             #print "Extracting the peaks..."
-            all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-            all_extremas  = numpy.zeros(0, dtype=numpy.int32)
+            all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
+            all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
 
             for i in xrange(N_e):
 
@@ -374,7 +374,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 elif sign_peaks == 'both':
                     peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
-                all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
+                all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
             #print "Removing the useless borders..."
             if alignment:
@@ -390,7 +390,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if ignore_dead_times:
                 indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
                 if indices[0] != indices[1]:
-                    local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.int32) - t_offset
+                    local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.uint32) - t_offset
                     local_peaktimes = numpy.sort(local_peaktimes)
 
             if len(local_peaktimes) > 0:
