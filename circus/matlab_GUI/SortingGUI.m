@@ -1669,11 +1669,11 @@ for count=1:nb_templates
 end
 
 [x, y, z] = find(new_templates);
-h5create(tmp_templates, '/temp_x', size(x), 'Datatype', 'int32');
-h5create(tmp_templates, '/temp_y', size(y), 'Datatype', 'int32');
+h5create(tmp_templates, '/temp_x', size(x), 'Datatype', 'uint32');
+h5create(tmp_templates, '/temp_y', size(y), 'Datatype', 'uint32');
 h5create(tmp_templates, '/temp_data', size(z), 'Datatype', 'single');
-h5write(tmp_templates, '/temp_x', int32(x) - 1);
-h5write(tmp_templates, '/temp_y', int32(y) - 1);
+h5write(tmp_templates, '/temp_x', uint32(x) - 1);
+h5write(tmp_templates, '/temp_y', uint32(y) - 1);
 h5write(tmp_templates, '/temp_data', single(z));
 
 if handles.has_version

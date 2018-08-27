@@ -77,7 +77,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
         if compute_rho:
             for i in xrange(N):
-                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
+                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i), i)))
                 tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
                 sdist[i] = numpy.take(dist, numpy.take(indices, tmp))
                 rho[i]   = numpy.mean(sdist[i])
@@ -607,14 +607,15 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
         x = -x
     # find indices of all peaks
     dx = x[1:] - x[:-1]
-    ine, ire, ife = numpy.array([[], [], []], dtype=numpy.int32)
+    ine, ire, ife = numpy.array([[], [], []], dtype=numpy.uint32)
     if not edge:
-        ine = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) > 0))[0]
+        ine = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) > 0))[0].astype(numpy.uint32)
     else:
         if edge.lower() in ['rising', 'both']:
-            ire = numpy.where((numpy.hstack((dx, 0)) <= 0) & (numpy.hstack((0, dx)) > 0))[0]
+            ire = numpy.where((numpy.hstack((dx, 0)) <= 0) & (numpy.hstack((0, dx)) > 0))[0].astype(numpy.uint32)
         if edge.lower() in ['falling', 'both']:
-            ife = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) >= 0))[0]
+            ife = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) >= 0))[0].astype(numpy.uint32)
+
     ind = numpy.unique(numpy.hstack((ine, ire, ife)))
     # first and last values of x cannot be peaks
     if ind.size and ind[0] == 0:

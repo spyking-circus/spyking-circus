@@ -156,11 +156,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     elec_positions = {}
 
     for i in xrange(N_e):
-        result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
-        result['all_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
-        result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
+        result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
+        result['all_times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
+        result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.uint32)
         result['clusters_' + str(i)]  = numpy.zeros(0, dtype=numpy.int32)
-        result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
+        result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.uint32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
             result['norm_%s_' %p + str(i)] = 0
@@ -219,8 +219,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     result['tmp_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
 
             # If not the first pass, we sync all the detected times among nodes and give all nodes the w/pca
-            result['all_times_' + str(i)] = numpy.concatenate((result['all_times_' + str(i)], all_gather_array(result['loc_times_' + str(i)], comm, dtype='int32', compress=blosc_compress)))
-            result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
+            result['all_times_' + str(i)] = numpy.concatenate((result['all_times_' + str(i)], all_gather_array(result['loc_times_' + str(i)], comm, dtype='uint32', compress=blosc_compress)))
+            result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
 
             if gpass == 1:
                 for p in search_peaks:
@@ -271,8 +271,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if do_temporal_whitening:
                     local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
                 #print "Extracting the peaks..."
-                all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-                all_extremas  = numpy.zeros(0, dtype=numpy.int32)
+                all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
+                all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
 
                 if matched_filter:
 
@@ -281,14 +281,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         for i in xrange(N_e):
                             peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i], mpd=dist_peaks)
                             all_peaktimes   = numpy.concatenate((all_peaktimes, peaktimes))
-                            all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
+                            all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                     if sign_peaks in ['negative', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                         for i in xrange(N_e):
                             peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i], mpd=dist_peaks)
                             all_peaktimes   = numpy.concatenate((all_peaktimes, peaktimes))
-                            all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
+                            all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                 else:
                     for i in xrange(N_e):
@@ -299,7 +299,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         elif sign_peaks == 'both':
                             peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
                         all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
-                        all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
+                        all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                 #print "Removing the useless borders..."
                 if alignment:
@@ -316,7 +316,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if ignore_dead_times:
                     indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
                     if indices[0] != indices[1]:
-                        local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.int32) - t_offset
+                        local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.uint32) - t_offset
                         local_peaktimes = numpy.sort(local_peaktimes)
 
                 if len(local_peaktimes) > 0:
@@ -468,7 +468,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 if to_accept:
                                     elt_count += 1
                                     if gpass >= 1:
-                                        to_add = numpy.array([peak + local_offset], dtype=numpy.int32)
+                                        to_add = numpy.array([peak + local_offset], dtype=numpy.uint32)
                                         result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
                                     if gpass == 1:
                                         result['peaks_' + str(elec)] = numpy.concatenate((result['peaks_' + str(elec)], [int(negative_peak)]))
@@ -773,8 +773,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             g_count    = 0
             g_offset   = local_nb_clusters
 
-        temp_x     = numpy.zeros(0, dtype=numpy.int32)
-        temp_y     = numpy.zeros(0, dtype=numpy.int32)
+        temp_x     = numpy.zeros(0, dtype=numpy.uint32)
+        temp_y     = numpy.zeros(0, dtype=numpy.uint32)
         temp_data  = numpy.zeros(0, dtype=numpy.float32)
 
         comm.Barrier()
@@ -853,10 +853,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         mean_channels -= len(to_delete)
 
                     templates  = templates.ravel()
-                    dx         = templates.nonzero()[0].astype(numpy.int32)
+                    dx         = templates.nonzero()[0].astype(numpy.uint32)
 
                     temp_x     = numpy.concatenate((temp_x, dx))
-                    temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
+                    temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
                     temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
                     norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/(N_e*N_t))
@@ -904,10 +904,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             sub_templates[i, :] = 0
 
                     sub_templates = sub_templates.ravel()
-                    dx            = sub_templates.nonzero()[0].astype(numpy.int32)
+                    dx            = sub_templates.nonzero()[0].astype(numpy.uint32)
 
                     temp_x     = numpy.concatenate((temp_x, dx))
-                    temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.int32)))
+                    temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.uint32)))
                     temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
 
                     norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.ravel()**2)/(N_e*N_t))
@@ -938,7 +938,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 result['clusters_%s_' %p + str(ielec)][mask] += max_offset
                 result['clusters_' + str(ielec)] = numpy.concatenate((result['clusters_' + str(ielec)], result['clusters_%s_' %p + str(ielec)]))
 
-            all_indices = numpy.zeros(0, dtype=numpy.int32)
+            all_indices = numpy.zeros(0, dtype=numpy.uint32)
             for p in search_peaks:
                 if p == 'pos':
                     target = 0
@@ -970,8 +970,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', logger)
 
         #We need to gather the sparse arrays
-        temp_x    = gather_array(temp_x, comm, dtype='int32', compress=blosc_compress)
-        temp_y    = gather_array(temp_y, comm, dtype='int32', compress=blosc_compress)
+        temp_x    = gather_array(temp_x, comm, dtype='uint32', compress=blosc_compress)
+        temp_y    = gather_array(temp_y, comm, dtype='uint32', compress=blosc_compress)
         temp_data = gather_array(temp_data, comm, compress=blosc_compress)
 
         if parallel_hdf5:

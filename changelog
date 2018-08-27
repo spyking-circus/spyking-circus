@@ -11,6 +11,8 @@ Release 0.6.8
 * add a circus-artefacts script to concatenate artefact files before using stream mode
 * multi-files mode is now enabled for Neuralynx data
 * fixes for conversion of old dataset with python GUI
+* smooth exit if fitting with 0 templates (thanks to Alex Gonzalez)
+* spike times are now saved as uint32 for long recordings
 
 =============
 Release 0.6.7
