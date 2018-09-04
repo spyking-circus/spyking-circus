@@ -123,7 +123,7 @@ def main(argv=None):
         f = open(os.path.join(output_path, 'params.py'), 'w')
         for key, value in gui_params.items():
             if key in ['dir_path', 'dat_path', 'dtype']:
-                f.write('%s = "%s"\n' %(key, value))
+                f.write('%s = r"%s"\n' %(key, value))
             else:
                 f.write("%s = %s\n" %(key, value))
         f.close()
