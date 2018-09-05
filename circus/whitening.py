@@ -443,7 +443,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             elif alignment:
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
-                                f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
+                                f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=thresholds[elec])
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:
