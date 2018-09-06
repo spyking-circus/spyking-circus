@@ -329,6 +329,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     chunks_to_load = all_chunks[comm.rank::comm.size]
 
     thresholds = io.load_data(params, 'thresholds')
+    mads = io.load_data(params, 'mads')
 
     if alignment:
         cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
@@ -443,7 +444,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             elif alignment:
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
-                                f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=thresholds[elec])
+                                f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=xdata.size * mads[elec]**2)
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:

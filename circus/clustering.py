@@ -104,6 +104,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         basis['proj_pos'], basis['rec_pos'] = io.load_data(params, 'basis-pos')
 
     thresholds = io.load_data(params, 'thresholds')
+    mads = io.load_data(params, 'mads')
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
@@ -405,7 +406,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
-                                            f        = scipy.interpolate.UnivariateSpline(xdata, zdata, s=thresholds[elec])
+                                            f        = scipy.interpolate.UnivariateSpline(xdata, zdata, s=zdata.size*mads[elec]**2)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                             else:
@@ -413,7 +414,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
-                                            f        = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=thresholds[elec], ky=min(len(ydata)-1, 3))
+                                            f        = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=zdata.size*mads[elec]**2, ky=min(len(ydata)-1, 3))
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                             else:
