@@ -696,6 +696,12 @@ def load_data(params, data, extension=''):
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds
+    elif data == 'mads':
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
+            thresholds = myfile.get('thresholds')[:]
+            myfile.close()
+            return thresholds
     elif data == 'matched-thresholds':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(file_out_suff + '.basis.hdf5'):

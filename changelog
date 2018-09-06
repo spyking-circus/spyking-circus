@@ -12,6 +12,7 @@ Release 0.6.8
 * multi-files mode is now enabled for Neuralynx data
 * fixes for conversion of old dataset with python GUI
 * smooth exit if fitting with 0 templates (thanks to Alex Gonzalez)
+* enhance the bicubic spline interpolation for oversampling
 * spike times are now saved as uint32 for long recordings
 
 =============
