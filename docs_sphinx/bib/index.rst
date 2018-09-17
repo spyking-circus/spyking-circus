@@ -19,6 +19,8 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2018
 ~~~~
 
+* Radosevic M., Willumsen A., Petersen P. C., Linden H., Vestergaard M., Berg R. W. *Decoupling of timescales reveals sparse convergent CPG network in the adult spinal cord*, BiorXiv, 402917
+
 * Chaure F, Rey HG, Quian Quiroga R, *A novel and fully automatic spike sorting implementation with variable number of features*, J Neurophysiol. 10.1152/jn.00339.2018
 
 * Ravello C., Perrinet L. U, Escobar M.-J., Palacios A. G, *Speed-Selectivity in Retinal Ganglion Cells is Modulated by the Complexity of the Visual Stimulus*, BioRxiv, 350330
@@ -33,7 +35,7 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 
 * Stern M., Bolding K. A. , Abbott L. F., Franks K. M,  *A transformation from temporal to ensemble coding in a model of piriform cortex*, eLife, 10.7554/eLife.34831
 
-* Bolding K. A., Franks K. M. , *Recurrent cortical circuits implement concentration-invariant odor coding*, BioRxiv, 294132
+* Bolding K. A., Franks K. M. , *Recurrent cortical circuits implement concentration-invariant odor coding*, Science, 361(6407)
 
 * Escobar M.-J., Otero M., Reyes C., Herzog R., Araya J., Ibaceta C., Palacios A. G., *Functional Asymmetries between Central and Peripheral Retinal Ganglion Cells in a Diurnal Rodent*, BioRxiv, 277814
 
