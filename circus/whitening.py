@@ -12,7 +12,6 @@ from circus.shared.messages import print_and_log, init_logging
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
     numpy.random.seed(420)
-    SHARED_MEMORY  = get_shared_memory_flag(params)
     #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.whitening')
@@ -26,7 +25,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     dist_peaks     = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
-    file_out       = params.get('data', 'file_out')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     matched_filter = params.getboolean('detection', 'matched-filter')
     matched_thresh = params.getfloat('detection', 'matched_thresh')
@@ -34,7 +32,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size       = params.getint('whitening', 'chunk_size')
-    plot_path        = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+    plot_path        = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     nodes, edges     = get_nodes_and_edges(params)
     safety_time      = params.getint('whitening', 'safety_time')
     safety_space     = params.getboolean('whitening', 'safety_space')
@@ -98,7 +96,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         thresholds  = io.load_data(params, 'thresholds')
 
         #print "Extracting the peaks..."
-        local_peaktimes = numpy.zeros(0, dtype=numpy.int32)
+        local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
         for i in xrange(N_e):
             peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
@@ -176,7 +174,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_silences += [len(esubset)]
 
         all_res_spac = gather_array(local_res_spac.ravel(), comm, 0, 1)
-        all_silences = gather_array(numpy.array(local_silences, dtype=numpy.int32), comm, 0, 1, 'int32')
+        all_silences = gather_array(numpy.array(local_silences, dtype=numpy.int32), comm, 0, 1, 'uint32')
 
     if comm.rank == 0:
 
@@ -291,7 +289,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     if ignore_dead_times:
-        all_dead_times = get_dead_times(params, SHARED_MEMORY)
+        all_dead_times = get_dead_times(params)
     #################################################################
 
 
@@ -329,6 +327,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     chunks_to_load = all_chunks[comm.rank::comm.size]
 
     thresholds = io.load_data(params, 'thresholds')
+    mads = io.load_data(params, 'mads')
 
     if alignment:
         cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
@@ -362,8 +361,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
             #print "Extracting the peaks..."
-            all_peaktimes = numpy.zeros(0, dtype=numpy.int32)
-            all_extremas  = numpy.zeros(0, dtype=numpy.int32)
+            all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
+            all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
 
             for i in xrange(N_e):
 
@@ -374,7 +373,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 elif sign_peaks == 'both':
                     peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
-                all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.int32)))
+                all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
             #print "Removing the useless borders..."
             if alignment:
@@ -390,7 +389,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if ignore_dead_times:
                 indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
                 if indices[0] != indices[1]:
-                    local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.int32) - t_offset
+                    local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[indices[0]:indices[1]])), dtype=numpy.uint32) - t_offset
                     local_peaktimes = numpy.sort(local_peaktimes)
 
             if len(local_peaktimes) > 0:
@@ -443,7 +442,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             elif alignment:
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
-                                f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0)
+                                f        = scipy.interpolate.UnivariateSpline(xdata, ydata, s=xdata.size * mads[elec]**2, k=3)
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:
@@ -573,7 +572,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     gdata      = gdata.reshape((comm.size, N_e))
                     thresholds = numpy.mean(gdata, 0)
-                    bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='earliest')
+                    bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
                     io.write_datasets(bfile, ['matched_thresholds'], {'matched_thresholds' : thresholds}, compression=hdf5_compress)
                     bfile.close()
                 comm.Barrier()
@@ -588,7 +587,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if comm.rank == 0:
                     gdata      = gdata.reshape((comm.size, N_e))
                     thresholds = numpy.mean(gdata, 0)
-                    bfile      = h5py.File(file_out + '.basis.hdf5', 'r+', libver='earliest')
+                    bfile      = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
                     io.write_datasets(bfile, ['matched_thresholds_pos'], {'matched_thresholds_pos' : thresholds}, compression=hdf5_compress)
                     bfile.close()
                 comm.Barrier()
