@@ -31,6 +31,33 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
+Release 0.6.8
+=============
+
+* fix a possible rounding bug if triggers are given in ms
+* artefacts are computed as medians and not means over the signal
+* can turn off shared memory if needed
+* a particular pattern can be specified for neuralynx files
+* fix bugs with output_dir, as everything was not saved in the folder
+* add a circus-folders script to process virtually files within several folders as a single recording
+* add a circus-artefacts script to concatenate artefact files before using stream mode
+* multi-files mode is now enabled for Neuralynx data
+* fixes for conversion of old dataset with python GUI
+* smooth exit if fitting with 0 templates (thanks to Alex Gonzalez)
+* enhance the bicubic spline interpolation for oversampling
+* spike times are now saved as uint32 for long recordings
+
+=============
+Release 0.6.7
+=============
+
+* optimizations for clusters (auto blosc and network bandwith)
+* addition of a dead_channels option in the [detection] section, as requested
+* prevent user to remove median with only 1 channel
+* fix for parallel writes in HDF5 files
+* hide h5py FutureWarning
+
+=============
 Release 0.6.6
 =============
 
