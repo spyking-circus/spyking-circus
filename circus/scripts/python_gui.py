@@ -74,7 +74,6 @@ def main(argv=None):
         sys.exit(1)
 
     args = parser.parse_args(argv)
-
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
     params         = CircusParser(filename)

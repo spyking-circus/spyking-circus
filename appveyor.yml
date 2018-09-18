@@ -48,7 +48,7 @@ environment:
     secure: 7drSxrQivCMViVHFeeFsfVzN3mELF6vkv4JAcuzdNedzFOvX1HAcGBTe0WolTsUJ
 
   TWINE_PASSWORD:
-    secure: 4XvRpVVtji8vNnPGP2FUPQ==
+    secure: T5fSzOqc6Z1D5P+Bt2qgXA==
 
 install:
   # Add the paths for anaconda
