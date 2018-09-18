@@ -31,7 +31,7 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
-Release 0.6.9
+Release 0.7.0
 =============
 
 * fix a possible rounding bug if triggers are given in ms
