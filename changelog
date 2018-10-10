@@ -1,4 +1,10 @@
 =============
+Release 0.7.1
+=============
+
+* fix a rare bug while interpolating with spline
+
+=============
 Release 0.7.0
 =============
 

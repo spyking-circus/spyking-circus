@@ -404,7 +404,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
-                                            f        = scipy.interpolate.UnivariateSpline(xdata, zdata, s=xdata.size*mads[elec]**2, k=3)
+                                            try:
+                                                f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=xdata.size*mads[elec]**2, k=3)
+                                            except Exception:
+                                                f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0, k=3)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                             else:
@@ -412,7 +415,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
-                                            f        = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=zdata.size*mads[elec]**2, kx=3, ky=1)
+                                            try:
+                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=zdata.size*mads[elec]**2, kx=3, ky=1)
+                                            except Exception:
+                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, kx=3, ky=1)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                             else:
