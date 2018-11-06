@@ -6,11 +6,8 @@ import blosc
 
 logger = logging.getLogger(__name__)
 
-try:
-    MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-    SHARED_MEMORY = True
-except NotImplementedError:
-    SHARED_MEMORY = False
+MPI_VENDOR = MPI.get_vendor()
+SHARED_MEMORY = (hasattr(MPI.Win, 'Allocate_shared') and callable(getattr(MPI.Win, 'Allocate_shared')))
 
 def check_if_cluster():
     from uuid import getnode as get_mac
@@ -34,10 +31,8 @@ def get_local_ring(local_only=False):
     return sub_comm, is_local
 
 def gather_mpi_arguments(hostfile, params):
-    from mpi4py import MPI
-    vendor = MPI.get_vendor()
-    print_and_log(['MPI detected: %s' % str(vendor)], 'debug', logger)
-    if vendor[0] == 'Open MPI':
+    print_and_log(['MPI detected: %s' % str(MPI_VENDOR)], 'debug', logger)
+    if MPI_VENDOR[0] == 'Open MPI':
         mpi_args = ['mpirun']
         if os.getenv('LD_LIBRARY_PATH'):
             mpi_args += ['-x', 'LD_LIBRARY_PATH']
@@ -47,22 +42,22 @@ def gather_mpi_arguments(hostfile, params):
             mpi_args += ['-x', 'PYTHONPATH']
         if os.path.exists(hostfile):
             mpi_args += ['-hostfile', hostfile]
-    elif vendor[0] == 'Microsoft MPI':
+    elif MPI_VENDOR[0] == 'Microsoft MPI':
         mpi_args = ['mpiexec']
         if os.path.exists(hostfile):
             mpi_args += ['-machinefile', hostfile]
-    elif vendor[0] == 'MPICH2':
+    elif MPI_VENDOR[0] == 'MPICH2':
         mpi_args = ['mpiexec']
         if os.path.exists(hostfile):
             mpi_args += ['-f', hostfile]
-    elif vendor[0] == 'MPICH':
+    elif MPI_VENDOR[0] == 'MPICH':
         mpi_args = ['mpiexec']
         if os.path.exists(hostfile):
             mpi_args += ['-f', hostfile]
     else:
         print_and_log([
                         '%s may not be yet properly implemented: contact developpers' %
-                        vendor[0]], 'error', logger)
+                        MPI_VENDOR[0]], 'error', logger)
         mpi_args = ['mpirun']
         if os.path.exists(hostfile):
             mpi_args += ['-hostfile', hostfile]

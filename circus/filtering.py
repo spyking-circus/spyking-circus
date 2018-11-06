@@ -7,7 +7,6 @@ from circus.shared.files import get_artefact
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
-
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.filtering')
     #################################################################

@@ -14,7 +14,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 
-from mpi import *
+from mpi import gather_array, all_gather_array, comm, SHARED_MEMORY
 import files as io
 from messages import print_and_log
 logger = logging.getLogger(__name__)
@@ -199,13 +199,6 @@ def get_shared_memory_flag(params):
     flag: bool
         True if parallel HDF5 is available and the user want to use it.
     '''
-    from mpi4py import MPI
-    try:
-        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-        SHARED_MEMORY = True
-    except NotImplementedError:
-        SHARED_MEMORY = False
-
     flag = SHARED_MEMORY and params.getboolean('data', 'shared_memory')
 
     return flag
