@@ -11,13 +11,25 @@ How to cite SpyKING CIRCUS
     * Yger P., Spampinato, G.L.B, Esposito E., Lefebvre B., Deny S., Gardella C., Stimberg M., Jetter F., Zeck G. Picaud S., Duebel J., Marre O., *A spike sorting toolbox for up to thousands of electrodes validated with ground truth recordings in vitro and in vivo*, eLife 2018;7:e34518
 
 
-Selected publications refering to SpyKING CIRCUS
-------------------------------------------------
+Publications refering to SpyKING CIRCUS
+---------------------------------------
 
 Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to send us a mail in order update this list, the more the merrier
 
 2018
 ~~~~
+
+* Belkhiri M., Kvitsiani D., *D.sort: template based automatic spike sorting tool*, BioRxiv, 10.1101/423913
+
+* Nadian M. H., Karimimehr S., Doostmohammadi J., Ghazizadeh A., Lashgari R., *A fully automated spike sorting algorithm using t-distributed neighbor embedding and density based clustering*, BioRxiv, 10.1101/418913
+
+* Ferrari U., Deny S., Chalk M., Tkacik G., Marre O., Mora T, *Separating intrinsic interactions from extrinsic correlations in a network of sensory neurons*, BioRxiv, 10.1101/243816
+
+* Jin M., Beck J. M, Glickfeld L., *Neuronal adaptation reveals a suboptimal decoding of orientation tuned populations in the mouse visual cortex*, BioRxiv, 10.1101/433722
+
+* Jin M., Glickfeld L., *Contribution of sensory encoding to measured bias*, BioRxiv, 10.1101/444430
+
+* Lazarevich I., Prokin I., Gutkin B., *Neural activity classification with machine learning models trained on interspike interval series data*, arXiv, 1810.03855
 
 * Radosevic M., Willumsen A., Petersen P. C., Linden H., Vestergaard M., Berg R. W. *Decoupling of timescales reveals sparse convergent CPG network in the adult spinal cord*, BiorXiv, 402917
 
@@ -39,9 +51,12 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 
 * Escobar M.-J., Otero M., Reyes C., Herzog R., Araya J., Ibaceta C., Palacios A. G., *Functional Asymmetries between Central and Peripheral Retinal Ganglion Cells in a Diurnal Rodent*, BioRxiv, 277814
 
+* Wouters J., Kloosterman F., Bertrand A., *Data-driven multi-channel filter design with peak-interference suppression for threshold-based spike sorting in high-density neural probes*, IEEE International Conference on Acoustics, Speech and Signal processing (ICASSP)
 
 2017
 ~~~~
+
+* Paninski L., Cunningham J., *Neural data science: accelerating the experiment-analysis-theory cycle in large-scale neuroscience*, BioRxiv, 196949
 
 * Lee J., Carlson D., Shokri H., Yao W., Goetz G., Hagen E., Batty E., Chichilnisky E.J., Einevoll G., Paninski L., *YASS: Yet Another Spike Sorter*, BioRxiv, 151928
 

@@ -1,10 +1,10 @@
 Release notes
 =============
 
-Spyking CIRCUS 0.6
+Spyking CIRCUS 0.7
 ------------------
 
-This is the 0.6 release of the SpyKING CIRCUS, a new approach to the problem of spike sorting. The code is based on a smart clustering with
+This is the 0.7 release of the SpyKING CIRCUS, a new approach to the problem of spike sorting. The code is based on a smart clustering with
 sub sampling, and a greedy template matching approach, such that it can resolve the problem of overlapping spikes. The publication about the software 
 is available at https://elifesciences.org/articles/34518
 
