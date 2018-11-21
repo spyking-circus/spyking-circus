@@ -2,7 +2,7 @@
 Release 0.7.1
 =============
 
-* fix a rare bug while interpolating with spline
+* fix a regression with spline interpolation, more investigation needed
 
 =============
 Release 0.7.0

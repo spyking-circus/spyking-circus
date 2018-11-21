@@ -80,6 +80,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     to_write          = ['clusters_', 'times_', 'data_', 'peaks_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     template_shift_2  = 2*template_shift
+    nb_ss_bins        = 50
 
     #################################################################
 
@@ -404,10 +405,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
-                                            try:
-                                                f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=xdata.size*mads[elec]**2, k=3)
-                                            except Exception:
-                                                f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0, k=3)
+                                            #try:
+                                            #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=xdata.size*mads[elec]**2, k=3)
+                                            #except Exception:
+                                            f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0, k=3)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                             else:
@@ -415,10 +416,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
-                                            try:
-                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=zdata.size*mads[elec]**2, kx=3, ky=1)
-                                            except Exception:
-                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, kx=3, ky=1)
+                                            #try:
+                                            #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=zdata.size*mads[elec]**2, kx=3, ky=1)
+                                            #except Exception:
+                                            f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, kx=3, ky=1)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                             else:
@@ -577,9 +578,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = thresholds[ielec]
                             if bound < ampmax:
-                                bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, 50).tolist() + [numpy.inf]
+                                bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
-                                bins =  [-numpy.inf] + numpy.linspace(bound, bound*5, 50).tolist() + [numpy.inf]
+                                bins =  [-numpy.inf] + numpy.linspace(bound, bound*5, nb_ss_bins - 1).tolist() + [numpy.inf]
 
                         elif p == 'neg':
                             if matched_filter:
@@ -587,9 +588,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = -thresholds[ielec]
                             if ampmin < bound:
-                                bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, 50).tolist() + [numpy.inf]
+                                bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
-                                bins  = [-numpy.inf] + numpy.linspace(5*bound, bound, 50).tolist() + [numpy.inf]
+                                bins  = [-numpy.inf] + numpy.linspace(5*bound, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
 
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
                         a     = a/float(numpy.sum(a))
