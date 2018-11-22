@@ -313,12 +313,12 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
                 idx = numpy.where(neighs == src)[0]
                 ydata = numpy.arange(len(neighs))
                 if len(ydata) == 1:
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0, k=3)
                     rmin = (numpy.argmin(f(cdata)) - xoff) / over_factor
                     ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                     local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                 else:
-                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata) - 1, 3))
+                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=1, kx=3)
                     rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff) / over_factor
                     ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                     local_chunk = f(ddata, ydata).astype(numpy.float32)
