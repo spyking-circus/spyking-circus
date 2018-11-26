@@ -50,7 +50,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
-
+        
     if SHARED_MEMORY:
         templates  = io.load_data_memshared(params, 'templates', normalize=True, transpose=True)
         N_tm, x    = templates.shape

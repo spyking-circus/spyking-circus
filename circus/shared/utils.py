@@ -7,7 +7,7 @@ import scipy.sparse as sp
 from math import log, sqrt
 from scipy import linalg
 import scipy.interpolate
-import numpy, os, mpi4py, tempfile
+import numpy, os, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
 
 with warnings.catch_warnings():
@@ -159,7 +159,7 @@ def detect_memory(params, safety_threshold=0.1):
 
     from uuid import getnode as get_mac
     myip = numpy.int64(get_mac()) % 100000
-    sub_comm = comm.Split(myip, 0)
+    sub_comm = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
 
     res = numpy.zeros(1, dtype=numpy.int64)
     mem = virtual_memory()
