@@ -31,6 +31,12 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
+Release 0.7.4
+=============
+
+* fix a regression with spline interpolation, more investigation needed
+
+=============
 Release 0.7.0
 =============
 

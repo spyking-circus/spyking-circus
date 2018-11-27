@@ -1,4 +1,10 @@
 =============
+Release 0.7.5
+=============
+
+* fix a bug for MPICH when large dictionaries. Not fully solved for very large ones
+
+=============
 Release 0.7.4
 =============
 
