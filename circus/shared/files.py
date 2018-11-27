@@ -489,7 +489,6 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 buf_data, _ = win_data.Shared_query(0)
                 data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
                 buf_data    = numpy.array(buf_data, dtype='B', copy=False)
-                print len(data)
 
                 for i in xrange(N_over):
 
