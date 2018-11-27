@@ -462,7 +462,6 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             c_overlap = h5py.File(file_name, 'r')
             sub_comm, is_local = get_local_ring(local_only)
             local_rank = sub_comm.rank
-            print "toto", comm, sub_comm, local_only, is_local, sub_comm.rank, comm.rank
 
             if not local_only or (local_only and is_local):
 
@@ -470,19 +469,27 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
                 S_over     = over_shape[1]
                 c_overs    = {}
+                nb_data    = 0
 
                 if local_rank== 0:
                     over_x     = c_overlap.get('over_x')[:]
                     over_y     = c_overlap.get('over_y')[:]
                     over_data  = c_overlap.get('over_data')[:]
+                    nb_data    = len(over_x)
                 
                 c_overlap.close()
 
-                nb_data = 0
-                nb_ptr  = 0
+                nb_ptr        = 0
                 indptr_bytes  = 0
                 indices_bytes = 0
                 data_bytes    = 0
+                last_idx      = 0
+
+                nb_data     = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+                win_data    = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
+                buf_data, _ = win_data.Shared_query(0)
+                data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
+                buf_data    = numpy.array(buf_data, dtype='B', copy=False)
 
                 for i in xrange(N_over):
 
@@ -495,39 +502,29 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         nb_ptr     = len(sparse_mat.indptr)
 
                     long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
-                    short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.uint32), root=0)[0])
+                    short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.uint32), root=0)[0])
 
                     if local_rank == 0:
-                        indptr_bytes  = short_size * intsize
-                        indices_bytes = long_size * intsize
-                        data_bytes    = long_size * floatsize
-
-                    win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
-                    win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
-                    win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
-
-                    buf_data, _    = win_data.Shared_query(0)
+                        indices_bytes = short_size * intsize
+                    
+                    win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)                    
                     buf_indices, _ = win_indices.Shared_query(0)
-                    buf_indptr, _  = win_indptr.Shared_query(0)
-
-                    buf_data    = numpy.array(buf_data, dtype='B', copy=False)
                     buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
-                    buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
+                    indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(short_size,))
 
-                    data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-                    indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(long_size,))
-                    indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.uint32, shape=(short_size,))
+                    boundary = last_idx + long_size
 
                     if local_rank == 0:
-                        data[:]    = sparse_mat.data
-                        indices[:] = sparse_mat.indices
-                        indptr[:]  = sparse_mat.indptr
+                        data[last_idx:boundary] = sparse_mat.data
+                        indices[:long_size] = sparse_mat.indices
+                        indices[long_size:] = sparse_mat.indptr
                         del sparse_mat
 
                     c_overs[i]         = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
-                    c_overs[i].data    = data
-                    c_overs[i].indices = indices
-                    c_overs[i].indptr  = indptr
+                    c_overs[i].data    = data[last_idx:boundary]
+                    c_overs[i].indices = indices[:long_size]
+                    c_overs[i].indptr  = indices[long_size:]
+                    last_idx += long_size
 
                 if local_rank == 0:
                     del over_x, over_y, over_data
