@@ -1,4 +1,6 @@
 import numpy, os, mpi4py, logging
+import mpi4py
+mpi4py.rc.threads = False
 from mpi4py import MPI
 from messages import print_and_log
 comm = MPI.COMM_WORLD

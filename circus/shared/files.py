@@ -411,33 +411,28 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 nb_ptr  = len(sparse_mat.indptr)
 
             long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
-            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.uint32), root=0)[0])
+            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.uint32), root=0)[0])
 
             if local_rank == 0:
-                indptr_bytes  = short_size * intsize
-                indices_bytes = long_size * intsize
+                indices_bytes = short_size * intsize
                 data_bytes    = long_size * floatsize               
 
             win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
-            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
-            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
+            win_indices = MPI.Win.Allocate_shared(indices_bytes + indptr_bytes, intsize, comm=sub_comm)
 
             buf_data, _    = win_data.Shared_query(0)
             buf_indices, _ = win_indices.Shared_query(0)
-            buf_indptr, _  = win_indptr.Shared_query(0)
 
             buf_data    = numpy.array(buf_data, dtype='B', copy=False)
             buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
-            buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
 
             data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(long_size,))
-            indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.uint32, shape=(short_size,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(short_size,))
 
             if local_rank == 0:
-                data[:nb_data]    = sparse_mat.data
-                indices[:nb_data] = sparse_mat.indices
-                indptr[:nb_data]  = sparse_mat.indptr
+                data[:]    = sparse_mat.data
+                indices[:long_size] = sparse_mat.indices
+                indices[long_size:] = sparse_mat.indptr
                 del sparse_mat
 
             if not transpose:
@@ -446,8 +441,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 templates = scipy.sparse.csr_matrix((nb_templates, N_e*N_t), dtype=numpy.float32)
 
             templates.data    = data
-            templates.indices = indices
-            templates.indptr  = indptr
+            templates.indices = indices[:long_size]
+            templates.indptr  = indices[long_size:]
 
             sub_comm.Free()
             return templates
