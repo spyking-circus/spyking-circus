@@ -1,4 +1,6 @@
 import numpy, os, mpi4py, logging
+import mpi4py
+mpi4py.rc.threads = False
 from mpi4py import MPI
 from messages import print_and_log
 comm = MPI.COMM_WORLD
@@ -24,9 +26,9 @@ def get_local_ring(local_only=False):
     if local_only:
         master_ip = comm.bcast(numpy.array([myip], dtype='int64'), root=0)
         is_local = myip == master_ip[0]
-        sub_comm  = comm.Split(is_local, 0)
+        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, is_local)
     else:
-        sub_comm  = comm.Split(myip, 0)
+        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
 
     return sub_comm, is_local
 
