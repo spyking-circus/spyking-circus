@@ -541,6 +541,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
             if not local_only or (local_only and is_local):
 
+                c_overlap = h5py.File(file_name, 'r')
                 over_shape = c_overlap.get('over_shape')[:]
                 N_over     = over_shape[0]
                 S_over     = over_shape[1]
