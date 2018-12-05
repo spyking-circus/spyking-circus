@@ -9,14 +9,15 @@ class BlackRockFile(DataFile):
     parallel_write = False
     is_writable    = False
 
+    _params            = {'data_dtype'   : 'float32',
+                          'dtype_offset' : 0}
+
     def _read_from_header(self):
         self._open()
         header                  = {}
         header['sampling_rate'] = float(self.data.basic_header['TimeStampResolution'])        
         header['nb_channels']   = self.data.basic_header['ChannelCount']
         header['gain']          = 1.
-        header['data_dtype']    = 'float32'
-        header['dtype_offset']  = 0
 
         self.size   = self.data.getdata('all', 0, 1/header['sampling_rate'])['data_headers'][0]['NumDataPoints']
         self._shape = (self.size, int(header['nb_channels']))
