@@ -46,6 +46,7 @@ class CircusParser(object):
                           ['whitening', 'chunk_size', 'int', '30'],
                           ['whitening', 'safety_space', 'bool', 'True'],
                           ['filtering', 'remove_median', 'bool', 'False'],
+                          ['filtering', 'common_ground', 'string', ''],
                           ['clustering', 'max_clusters', 'int', '10'],
                           ['clustering', 'nb_repeats', 'int', '3'],
                           ['clustering', 'make_plots', 'string', 'png'],
@@ -89,6 +90,7 @@ class CircusParser(object):
                           ['validating', 'extension', 'string', ''],
                           ['noedits', 'filter_done', 'bool', 'False'],
                           ['noedits', 'median_done', 'bool', 'False'],
+                          ['noedits', 'ground_done', 'bool', 'False'],
                           ['noedits', 'artefacts_done', 'bool', 'False']]
 
     __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
@@ -292,8 +294,28 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["Only 3 detection modes for peaks in [detection]: negative, positive, both"], 'error', logger)
+            sys.exit(0)
 
-        
+        common_ground = self.parser.get('filtering', 'common_ground')
+        if common_ground != '':
+          try:
+            self.parser.set('filtering', 'common_ground', str(int(common_ground)))
+          except Exception:
+            self.parser.set('filtering', 'common_ground', '-1')
+        else:
+            self.parser.set('filtering', 'common_ground', '-1')
+
+        common_ground = self.parser.getint('filtering', 'common_ground')
+
+        all_electrodes = []
+        for key in self.probe['channel_groups'].keys():
+            all_electrodes += self.probe['channel_groups'][key]['channels']
+
+        test = (common_ground == -1) or common_ground in all_electrodes
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["Common ground in filtering section should be a valid electrode"], 'error', logger)
+            sys.exit(0)
 
         is_cluster = check_if_cluster()
 

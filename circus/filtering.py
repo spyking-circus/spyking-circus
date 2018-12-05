@@ -14,13 +14,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     filter_done    = params.getboolean('noedits', 'filter_done')
     artefacts_done = params.getboolean('noedits', 'artefacts_done')
     median_done    = params.getboolean('noedits', 'median_done')
+    ground_done    = params.getboolean('noedits', 'ground_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median  = params.getboolean('filtering', 'remove_median')
+    common_ground  = params.getint('filtering', 'common_ground')
+    remove_ground  = common_ground >= 0
     nodes, edges   = get_nodes_and_edges(params)
     #################################################################
 
 
-    def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median):
+    def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median, do_remove_ground):
 
         try:
             cut_off    = params.getfloat('filtering', 'cut_off')
@@ -62,6 +65,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 to_write += ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
             if do_remove_median:
                 to_write += ["Median over all channels is subtracted to each channels"]
+            if do_remove_ground:
+                to_write += ["Channel %s is used as a reference channel" %common_ground]
 
             print_and_log(to_write, 'default', logger)
 
@@ -80,7 +85,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
                     except Exception:
                         pass
-                local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
+                    local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
 
             if do_remove_median:
                 if not process_all_channels:
@@ -90,6 +95,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 for i in nodes:
                     local_chunk[:, i] -= global_median
+
+            if common_ground > -1:
+                for i in nodes:
+                    local_chunk[:, i] -= local_chunk[:, common_ground]
 
             if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
                 if data_file_in.is_stream:
@@ -310,6 +319,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if remove_median and median_done:
         remove_median = False
         to_write += ["Median over all channels has already been removed"]
+    if remove_ground and ground_done:
+        remove_ground = False
+        to_write += ["Common ground %s has alread been subtracted" %common_ground]
 
     if comm.rank == 0 and len(to_write) > 0:
         print_and_log(to_write, 'info', logger)
@@ -320,15 +332,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         data_file_in.open()
         data_file_out.open(mode='r+')
 
-    if do_filter or remove_median:
-        filter_file(data_file_in, data_file_out, do_filter, remove_median)
+    if do_filter or remove_median or remove_ground:
+        filter_file(data_file_in, data_file_out, do_filter, remove_median, remove_ground)
 
     if comm.rank == 0:
         if do_filter:
             params.write('noedits', 'filter_done', 'True')
         if remove_median:
             params.write('noedits', 'median_done', 'True')
-
+        if remove_ground:
+            params.write('noedits', 'ground_done', 'True')
 
     if clean_artefact and artefacts_done:
         clean_artefact = False
