@@ -5,7 +5,7 @@ from utils.brpylib import NsxFile, brpylib_ver
 class BlackRockFile(DataFile):
 
     description    = "blackrock"    
-    extension      = [".ns5", ".ns6"]
+    extension      = [".ns1", ".ns2", ".nss3", ".ns4", ".ns5", ".ns6"]
     parallel_write = False
     is_writable    = False
 
