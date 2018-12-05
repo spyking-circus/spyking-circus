@@ -62,6 +62,7 @@ The filtering section is::
     cut_off        = 300, auto # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
     filter         = True      # If True, then a low-pass filtering is performed
     remove_median  = False     # If True, median over all channels is substracted to each channels (movement artefacts)
+    common_ground  =           # If you want to use a particular channel as a reference ground: should be a valid channel number
 
 .. warning::
 
@@ -71,6 +72,7 @@ Parameters that are most likely to be changed:
     * ``cut_off`` The default value of 500Hz has been used in various recordings, but you can change it if needed. You can also specify the upper bound of the Butterworth filter
     * ``filter`` If your data are already filtered by a third program, turn that flag to False
     * ``remove_median`` If you have some movement artefacts in your *in vivo* recording, and want to substract the median activity over all analysed channels from each channel individually
+    * ``common_ground`` If you want to use a particular channel as a reference, and subtract its activity from all others. Note that the activity on this particular channel will thus be nul
 
 Triggers
 --------
