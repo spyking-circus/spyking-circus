@@ -68,10 +68,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["Too much cores, automatically resizing the data chunks"], 'debug', logger)
 
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
+        print comm.size, nb_chunks, res, params.rate, chunk_size
 
 
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks     = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
+    print all_chunks
     all_electrodes = numpy.random.permutation(N_e)
 
     for gidx in [all_chunks[comm.rank]]:

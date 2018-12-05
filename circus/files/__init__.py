@@ -10,6 +10,7 @@ from npy import NumpyFile
 from nix import NixFile
 from rhd import RHDFile
 from neuralynx import NeuraLynxFile
+from blackrock import BlackRockFile
 
 try:
     import neuroshare
@@ -35,14 +36,12 @@ __supported_data_files__ = {
     BRWFile.description : BRWFile,
     NumpyFile.description : NumpyFile,
     RHDFile.description : RHDFile,
-    NeuraLynxFile.description : NeuraLynxFile
+    NeuraLynxFile.description : NeuraLynxFile,
+    BlackRockFile.description : BlackRockFile
 }
 
 
 if HAVE_NEUROSHARE:
-
-    from blackrock import BlackRockFile
-    __supported_data_files__[BlackRockFile.description] = BlackRockFile
 
     from plexon import PlexonFile
     __supported_data_files__[PlexonFile.description] = PlexonFile
