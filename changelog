@@ -3,6 +3,7 @@ Release 0.7.5
 =============
 
 * fix a bug for MPICH when large dictionaries. Not fully solved for very large ones
+* fix a bug for numpy files when used with new numpy versions
 
 =============
 Release 0.7.4

@@ -77,7 +77,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if do_filtering:
                 for i in nodes:    
                     try:
-                        local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                        local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
                     except Exception:
                         pass
                 local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
