@@ -1314,4 +1314,3 @@ class NsxFile:
     def close(self):
         name = self.datafile.name
         self.datafile.close()
-        print('\n' + name.split('/')[-1] + ' closed')
