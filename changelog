@@ -6,6 +6,7 @@ Release 0.7.5
 * fix a bug for numpy files when used with new numpy versions
 * add the possibility to subtract one channel as a reference channel from others
 * native support for blackrock files (only .ns5 tested so far)
+* simplification in the parameter file
 
 =============
 Release 0.7.4

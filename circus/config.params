@@ -5,8 +5,8 @@
 [data]
 file_format    =                       # Can be raw_binary, openephys, hdf5, ... See >> spyking-circus help -i for more info
 stream_mode    = None                  # None by default. Can be multi-files, or anything depending to the file format
-mapping        = ~/probes/mea_252.prb  # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
-suffix         =                       # Suffix to add to generated files
+mapping        =                       # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+suffix         =                       # Suffix to add to generated files, if needed
 overwrite      = True                  # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
 parallel_hdf5  = True                  # Use the parallel HDF5 feature (if available)
 output_dir     =                       # By default, generated data are in the same folder as the data.
@@ -16,10 +16,7 @@ radius         = auto       # Radius [in um] (if auto, read from the prb file)
 N_t            = 3          # Width of the templates [in ms]
 spike_thresh   = 6          # Threshold for spike detection
 peaks          = negative   # Can be negative (default), positive or both
-matched-filter = False      # If True, we perform spike detection with matched filters
-matched_thresh = 5          # Threshold for detection if matched filter is True
 alignment      = True       # Realign the waveforms by oversampling
-isolation      = False      # Enforce individual snippets to be isolated [experimental]
 dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
 
 [filtering]
@@ -41,7 +38,6 @@ make_plots     =            # Generate sanity plots of the averaged artefacts [N
 [whitening]
 chunk_size     = 30         # Size of the data chunks [in s]
 safety_time    = auto       # Temporal zone around which templates are isolated [in ms, or auto]
-temporal       = False      # Perform temporal whitening
 spatial        = True       # Perform spatial whitening
 max_elts       = 1000       # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
