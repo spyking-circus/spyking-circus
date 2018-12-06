@@ -41,7 +41,7 @@ To get the list of supported file format, you need to do::
 	|       Extensions       : .nix, .h5, .hdf5
 	|       Supported streams: multi-files
 	| -- BLACKROCK (read only)
-	|       Extensions       : .nev
+	|       Extensions       : .ns2, .ns3, .ns4, .ns5, .ns6
 	|       Supported streams: multi-files
 	| -- RAW_BINARY (read/parallel write)
 	|       Extensions       : 
@@ -82,7 +82,7 @@ This list will tell you what are the wrappers available, and you need to specify
 Neuroshare support
 ------------------
 
-Some of the file formats (plexon, blackrock, ) can be accessed only if you have the neuroshare_ library installed. Note that despite a great simplicity of use, this library provides only very slow read access and no write access to the file formats. Therefore, this is not an efficient wrapper, and it may slow down considerably the code. Feel free to contribute if you have better ideas about what to do!
+Some of the file formats (plexon, ...) can be accessed only if you have the neuroshare_ library installed. Note that despite a great simplicity of use, this library provides only very slow read access and no write access to the file formats. Therefore, this is not an efficient wrapper, and it may slow down considerably the code. Feel free to contribute if you have better ideas about what to do!
 
 Multi-Channel support
 ---------------------
