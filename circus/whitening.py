@@ -498,6 +498,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["Found %d isolated waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
         else:
             print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
+
+        if nb_waveforms == 0:
+            print_and_log(['No waveforms found! Are the data properly loaded??'], 'error', logger)
+
         res = {}
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
