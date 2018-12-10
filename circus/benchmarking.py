@@ -466,7 +466,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
         data_file_out.set_data(offset, local_chunk)
 
         # Update the progress bar about the generation of the benchmark.
-        
+    
+    sys.stderr.flush()    
     # Close the thread/process' files.
     spiketimes_file.flush()
     os.fsync(spiketimes_file.fileno())

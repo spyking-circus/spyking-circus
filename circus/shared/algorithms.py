@@ -1,4 +1,4 @@
-import os, logging
+import os, logging, sys
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag
@@ -558,7 +558,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                                 been_found = True
                                 #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
                                 break
-                                
+    sys.stderr.flush()                
     #print mixtures
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')

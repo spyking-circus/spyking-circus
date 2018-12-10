@@ -174,6 +174,8 @@ def extract_extra_thresholds(params):
     for count, gidx in enumerate(to_explore):
         gidx = all_chunks[gidx]
         medians[:, count] = extract_median(chunk_size, gidx)
+
+    sys.stderr.flush()
     median = numpy.mean(medians, axis=1)
     
     comm.Barrier()
@@ -203,6 +205,7 @@ def extract_extra_thresholds(params):
     for count, gidx in enumerate(to_explore):
         gidx = all_chunks[gidx]
         mads[:, count] = extract_median_absolute_deviation(chunk_size, gidx, median)
+    sys.stderr.flush()
     mad = numpy.mean(mads, axis=1)
     
     comm.Barrier()
@@ -423,6 +426,7 @@ def extract_extra_spikes_(params):
         channels[count] = channel
         values[count] = value
     
+    sys.stderr.flush()
     # Concatenate times, channels and values.
     times = numpy.hstack(times)
     channels = numpy.hstack(channels)

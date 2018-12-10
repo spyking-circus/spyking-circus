@@ -7,6 +7,7 @@ Release 0.7.5
 * add the possibility to subtract one channel as a reference channel from others
 * native support for blackrock files (only .ns5 tested so far)
 * simplification in the parameter file
+* fix for display of progress bars with tqdm
 
 =============
 Release 0.7.4

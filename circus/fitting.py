@@ -476,6 +476,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if full_gpu:
                 del gpu_mask, b, data
 
+    sys.stderr.flush()
+
     spiketimes_file.flush()
     os.fsync(spiketimes_file.fileno())
     spiketimes_file.close()

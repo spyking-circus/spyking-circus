@@ -473,6 +473,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         groups[elec] += 1
                         all_times[indices, min_times[midx]:max_times[midx]] = True
 
+    sys.stderr.flush()
+
     if isolation:
         print_and_log(["Node %d has collected %d isolated waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
     else:

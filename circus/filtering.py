@@ -110,6 +110,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             data_file_out.set_data(g_offset, local_chunk)
 
+        sys.stderr.flush()
         comm.Barrier()
 
 
@@ -182,7 +183,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                 plot.view_artefact(art_dict[artefact], save=save)
 
-
+        sys.stderr.flush()
         return art_dict
 
 
@@ -254,6 +255,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             data_file.set_data(time, local_chunk)
 
         comm.Barrier()
+        sys.stderr.flush()
 
 
     if comm.rank == 0:

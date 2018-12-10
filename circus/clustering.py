@@ -492,6 +492,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 result['nb_chunks_%s_' %p + str(i)] += 1
 
         comm.Barrier()
+        sys.stderr.flush()
 
         print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', logger)
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
@@ -963,6 +964,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         #At the end we should have a templates variable to store.
         cfile.close()
         del result, amps_lims
+        sys.stderr.flush()
 
         comm.Barrier()
 

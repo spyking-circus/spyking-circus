@@ -1272,6 +1272,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                     idx = numpy.where(gtemps == j)[0]
                     result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx]))
 
+    sys.stderr.flush()
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
         result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
@@ -1505,6 +1506,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                     over_y     = numpy.concatenate((over_y, (duration - idelay)*ones))
                     over_data  = numpy.concatenate((over_data, data.data))
 
+    sys.stderr.flush()
     if comm.rank == 0:
         print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)
 

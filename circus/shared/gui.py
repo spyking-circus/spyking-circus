@@ -413,6 +413,7 @@ class MergeWindow(QMainWindow):
                     self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
 
+        sys.stderr.flush()
         self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, comm)
         self.raw_data    = gather_array(self.raw_data, comm, 0, 1)

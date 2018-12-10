@@ -1237,7 +1237,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             y_decfs[count] = y_decf
             confusion_matrices[count] = confusion_matrix
             
-            
+        sys.stderr.flush()
     else:
         raise Exception("Unsupported classifier: model={}".format(model))
         
