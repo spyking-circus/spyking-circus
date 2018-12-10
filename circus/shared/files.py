@@ -50,7 +50,6 @@ def data_stats(params, show=True, export_times=False):
              "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
              "Threshold crossing          : %s" %params.get('detection', 'peaks'),
              "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
-             "Snippet isolation           : %s" %params.getboolean('detection', 'isolation'),
              "Overwrite                   : %s" %params.get('data', 'overwrite')]
 
     if stream_mode:
@@ -477,13 +476,23 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 indptr_bytes  = 0
                 indices_bytes = 0
                 data_bytes    = 0
-                last_idx      = 0
 
                 nb_data     = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
                 win_data    = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
                 buf_data, _ = win_data.Shared_query(0)
                 data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
                 buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+
+                factor = int(2*nb_data)
+                win_indices    = MPI.Win.Allocate_shared(factor * intsize, intsize, comm=sub_comm)
+                buf_indices, _ = win_indices.Shared_query(0)
+                indices        = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(factor,))
+                buf_indices    = numpy.array(buf_indices, dtype='B', copy=False)
+
+                global_offset_data  = 0
+                global_offset_ptr   = 0
+                local_nb_data       = 0
+                local_nb_ptr        = 0
 
                 for i in xrange(N_over):
 
@@ -492,33 +501,27 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         local_x = over_x[idx] - i*N_over
 
                         sparse_mat = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
-                        nb_data    = len(sparse_mat.data)
-                        nb_ptr     = len(sparse_mat.indptr)
+                        local_nb_data    = len(sparse_mat.data)
+                        local_nb_ptr     = len(sparse_mat.indptr)
 
-                    long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
-                    short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.uint32), root=0)[0])
+                    local_nb_data = numpy.int64(sub_comm.bcast(numpy.array([local_nb_data], dtype=numpy.int32), root=0)[0])
+                    local_nb_ptr  = numpy.int64(sub_comm.bcast(numpy.array([local_nb_ptr], dtype=numpy.int32), root=0)[0])
 
-                    if local_rank == 0:
-                        indices_bytes = short_size * intsize
-                    
-                    win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)                    
-                    buf_indices, _ = win_indices.Shared_query(0)
-                    buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
-                    indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(short_size,))
-
-                    boundary = last_idx + long_size
+                    boundary_data = global_offset_data + local_nb_data
+                    boundary_ptr  = global_offset_ptr + nb_data
 
                     if local_rank == 0:
-                        data[last_idx:boundary] = sparse_mat.data
-                        indices[:long_size] = sparse_mat.indices
-                        indices[long_size:] = sparse_mat.indptr
+                        data[global_offset_data:boundary_data] = sparse_mat.data
+                        indices[global_offset_data:boundary_data] = sparse_mat.indices
+                        indices[boundary_ptr:boundary_ptr + local_nb_ptr] = sparse_mat.indptr
                         del sparse_mat
 
                     c_overs[i]         = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
-                    c_overs[i].data    = data[last_idx:boundary]
-                    c_overs[i].indices = indices[:long_size]
-                    c_overs[i].indptr  = indices[long_size:]
-                    last_idx += long_size
+                    c_overs[i].data    = data[global_offset_data:boundary_data]
+                    c_overs[i].indices = indices[global_offset_data:boundary_data]
+                    c_overs[i].indptr  = indices[boundary_ptr:boundary_ptr + local_nb_ptr]
+                    global_offset_data += local_nb_data
+                    global_offset_ptr  += local_nb_ptr
 
                 if local_rank == 0:
                     del over_x, over_y, over_data
