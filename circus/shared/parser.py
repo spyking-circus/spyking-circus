@@ -17,6 +17,7 @@ class CircusParser(object):
     __default_values__ = [['fitting', 'amp_auto', 'bool', 'True'],
                           ['fitting', 'refractory', 'float', '0.5'],
                           ['fitting', 'collect_all', 'bool', 'False'],
+                          ['fitting', 'gpu_only', 'bool', 'False'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],

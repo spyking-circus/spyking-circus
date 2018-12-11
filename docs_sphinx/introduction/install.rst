@@ -35,8 +35,6 @@ Then install the software itself::
     >> conda install -c conda-forge -c spyking-circus spyking-circus
 
 
-If you want to get a support for GPU, see the devoted section on CUDA_.
-
 Using pip
 ~~~~~~~~~
 
@@ -86,18 +84,6 @@ Or to keep the folder in sync with the install in a develop mode::
     If you experience some issues with Qt4 or pyQt, you may need to install it manually on your system. For linux users, simply use your software distribution system (apt for example). For windows user, please see `here <http://doc.qt.io/qt-5/windows-support.html>`_
 
 
-
-Activating CUDA
----------------
-
-Using CUDA_ can, depending on your hardware, **drastically** increase the speed of algorithm. However, in 0.5, 1 GPU is faster than 1 CPU but not faster than several CPUs. This is something we are working on to improve in future releases. To use your GPU, you need to have a working CUDA_ environment installed onto the machine. During the pip installation, the code should automatically detect it and install CUDA_ bindings if possible. Otherwise, to get support for the GPU with an Anaconda_ install, just do::
-
-    >> pip install https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus
-
-.. note::
-    You must have a valid CUDA installation, and ``nvcc`` installed. If you do not want CUDAMAT to be install automatically, simply do ``python setup.py install --nocuda`` while installing the software
-
-
 Home Directory
 --------------
 
@@ -129,11 +115,9 @@ For information, here is the list of all the dependencies required by the SpyKIN
     6. ``matplotlib`` 
     7. ``h5py``
     8. ``colorama``
-    9. ``cudamat`` [optional, CUDA_ only]
+    9. ``blosc``
     10. ``sklearn`` [optional, only for BEER estimate]
-    11. ``blosc``
-
-.. _CUDA: https://developer.nvidia.com/cuda-downloads
+    
 .. _Anaconda: https://www.continuum.io/downloads
 .. _miniconda: http://conda.pydata.org/miniconda.html
 .. _MPI: http://www.open-mpi.org/

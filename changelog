@@ -8,6 +8,8 @@ Release 0.7.5
 * native support for blackrock files (only .ns5 tested so far)
 * simplification in the parameter file
 * fix for display of progress bars with tqdm
+* addition of a multi-folders mode for openephys
+* hide GPU support for now, as this is not actively maintained and optimized
 
 =============
 Release 0.7.4

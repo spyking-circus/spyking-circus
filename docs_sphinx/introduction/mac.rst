@@ -12,18 +12,13 @@ Here are some detailed instructions:
     3. If you prefer, you can use pip (this is equivalent to step 4)::
     
         >> pip install spyking-circus
-    
-    4. [**optional**] Download CUDA_ through the link provided (only for GPU)
-    5. [**optional**] If you want to enable CUDA_, you must have a valid ``nvcc`` install and do::
-    
-        >> pip install https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus
 
-    6. Add the following to ``$HOME/.bash_profile``::
+    4. Add the following to ``$HOME/.bash_profile``::
 
         "export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH"
         "export PYTHONPATH=$HOME/anaconda/bin:$PYTHONPATH"
 
-    7. Here you are! Now run the code, for example::
+    5. Here you are! Now run the code, for example::
 
         >> spyking-circus pathtodata/data.dat -c 7 -g 0
 
@@ -33,7 +28,6 @@ Here are some detailed instructions:
 .. _Git: https://git-scm.com/
 .. _SourceTree: https://www.sourcetreeapp.com/ 
 .. _Anaconda: https://www.continuum.io/downloads
-.. _CUDA: https://developer.nvidia.com/cuda-downloads
 .. _OpenMPI: http://www.open-mpi.org/software/ompi/v1.10/downloads/openmpi-1.10.0.tar.gz
 .. _help: https://wiki.helsinki.fi/display/HUGG/Installing+Open+MPI+on+Mac+OS+X
 .. _Xcode: https://developer.apple.com/xcode/download/

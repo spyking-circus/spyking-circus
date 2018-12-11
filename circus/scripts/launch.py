@@ -59,7 +59,7 @@ def main(argv=None):
 
     header  = get_colored_header()
     header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(psutil.cpu_count()) + '\n'
-    header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
+    #header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
     header += Fore.GREEN + 'Parallel HDF5 : ' + Fore.CYAN + str(parallel_hdf5) + '\n'
 
     do_upgrade = ''
@@ -91,8 +91,8 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-m', '--method',
                         default='filtering,whitening,clustering,fitting',
                         help=method_help)
-    parser.add_argument('-c', '--cpu', type=int, default=1, help='number of CPU')
-    parser.add_argument('-g', '--gpu', type=int, default=0, help='number of GPU')
+    parser.add_argument('-c', '--cpu', type=int, default=int(psutil.cpu_count()/2), help='number of CPU')
+    #parser.add_argument('-g', '--gpu', type=int, default=0, help='number of GPU')
     parser.add_argument('-H', '--hostfile', help='hostfile for MPI',
                         default=pjoin(user_path, 'circus.hosts'))
     parser.add_argument('-b', '--batch', help='datafile is a list of commands to launch, in a batch mode',
@@ -121,8 +121,9 @@ but a subset x,y can be done. Steps are:
             sys.exit(0)
 
     # To save some typing later
-    (nb_cpu, nb_gpu, hostfile, batch,
-     preview, result, extension, output, benchmark, info, second) = (args.cpu, args.gpu, args.hostfile, args.batch,
+    nb_gpu = 0
+    (nb_cpu, hostfile, batch,
+     preview, result, extension, output, benchmark, info, second) = (args.cpu, args.hostfile, args.batch,
                                                        args.preview, args.result, args.extension, args.output, args.type, args.info, args.second)
     filename = os.path.abspath(args.datafile)
 
@@ -287,10 +288,10 @@ but a subset x,y can be done. Steps are:
             print Fore.GREEN + "Steps         :", Fore.CYAN + "result mode"
         else:
             print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
-        print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
+        #print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
         print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu) + "/" + str(psutil.cpu_count())
-        if HAVE_CUDA:
-            print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
+        #if HAVE_CUDA:
+        #    print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
         print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
 
         do_upgrade = ''
@@ -317,12 +318,11 @@ but a subset x,y can be done. Steps are:
                     ('merging', 'mpirun'),
                     ('validating', 'mpirun')]
 
-        if HAVE_CUDA and nb_gpu > 0:
-            use_gpu = 'True'
-        else:
-            use_gpu = 'False'
-
-
+        #if HAVE_CUDA and nb_gpu > 0:
+        #    use_gpu = 'True'
+        #else:
+        use_gpu = 'False'
+        
         time = data_stats(params)/60.
 
         if preview:
@@ -381,12 +381,12 @@ but a subset x,y can be done. Steps are:
 
                         else:
                             if subtask != 'fitting':
-                                nb_tasks = str(max(args.cpu, args.gpu))
+                                nb_tasks = str(args.cpu)
                             else:
-                                if use_gpu == 'True':
-                                    nb_tasks = str(args.gpu)
-                                else:
-                                    nb_tasks = str(args.cpu)
+                                #if use_gpu == 'True':
+                                #    nb_tasks = str(args.gpu)
+                                #else:
+                                nb_tasks = str(args.cpu)
 
                         if subtask == 'benchmarking':
                             if (output is None) or (benchmark is None):

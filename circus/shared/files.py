@@ -49,8 +49,7 @@ def data_stats(params, show=True, export_times=False):
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
              "Threshold crossing          : %s" %params.get('detection', 'peaks'),
-             "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
-             "Overwrite                   : %s" %params.get('data', 'overwrite')]
+             "Cluster detected            : %s" %params.get('data', 'is_cluster')]
 
     if stream_mode:
         lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]
