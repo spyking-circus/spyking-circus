@@ -562,7 +562,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elif gpass > 1:
             tmp_h5py  = h5py.File(result['dist_file'], 'r', libver='earliest')
 
-        for ielec in xrange(comm.rank, N_e, comm.size):
+        to_explore = range(comm.rank, N_e, comm.size)
+        sys.stderr.flush()
+
+        if (comm.rank == 0) and gpass == nb_repeats:
+            print_and_log(["Running density-based clustering..."], 'default', logger)
+            to_explore = get_tqdm_progressbar(to_explore)
+
+        for ielec in to_explore:
 
             for p in search_peaks:
                 cluster_results[p][ielec] = {}
@@ -710,7 +717,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             n_clusters += [numpy.sum(cluster_results[p][ielec]['groups'][mask] == i)]
 
                         line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
-                        print_and_log(line, 'default', logger)
+                        print_and_log(line, 'debug', logger)
                         if (merged[0]-merged[1]) == max_clusters:
                             local_hits += 1
                         local_mergings += merged[1]
@@ -727,6 +734,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             tmp_h5py.close()
         gpass += 1
 
+    sys.stderr.flush()
     try:
         os.remove(result['dist_file'])
     except Exception:

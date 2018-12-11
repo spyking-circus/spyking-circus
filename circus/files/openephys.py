@@ -1,6 +1,9 @@
-import numpy, re, sys, os
+import numpy, re, sys, os, logging
 from .datafile import DataFile
 import xml.etree.ElementTree as ET
+from circus.shared.messages import print_and_log
+
+logger = logging.getLogger(__name__)
 
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -28,6 +31,7 @@ class OpenEphysFile(DataFile):
     extension      = [".openephys"]
     parallel_write = True
     is_writable    = True
+    is_streamable    = ['multi-folders']
 
     # constants
     NUM_HEADER_BYTES   = 1024L
@@ -44,36 +48,20 @@ class OpenEphysFile(DataFile):
 
         # We assume that all names are in the forms XXXX_channel.ncs
 
-        if stream_mode == 'multi-files':
+        if stream_mode == 'multi-folders':
             dirname         = os.path.abspath(os.path.dirname(self.file_name))
+            upper_dir       = os.path.dirname(dirname)
             fname           = os.path.basename(self.file_name)
-            fn, ext         = os.path.splitext(fname)
-            tmp_all_files   = os.listdir(dirname)
-            tmp_all_files   = filter_per_extension(tmp_all_files, ext)
-            tmp_all_files.sort(key=natural_keys)
+
+            all_directories = os.listdir(upper_dir)
             all_files = []
-            for file in tmp_all_files:
 
-                all_parts = file.split('_')
-                name = '_'.join(all_parts[:-1])
+            for local_dir in all_directories:
+                openephys_file = os.path.join(upper_dir, local_dir, fname)
+                if os.path.exists(openephys_file):
+                    all_files += [openephys_file]
 
-                if self.params['ncs_pattern'] != '':
-                    pattern = name.find(self.params['ncs_pattern']) > 0
-                else:
-                    pattern = True
-
-                if not pattern:
-                    to_consider = False
-                else:
-                    to_consider = True
-
-                for f in all_files:
-                    already_present = '_'.join(f.split('_')[:-1])
-                    if name == already_present:
-                        to_consider = False
-
-                if to_consider:
-                    all_files += ['_'.join([name, all_parts[-1]])]
+            all_files.sort(key=natural_keys)
 
             sources         = []
             to_write        = []
@@ -81,7 +69,6 @@ class OpenEphysFile(DataFile):
             params          = self.get_description()
 
             for fname in all_files:
-                params['ncs_pattern'] = '_'.join(fname.split('_')[:-1])
                 new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
