@@ -2,11 +2,11 @@
 Release 0.7.5
 =============
 
-* fix a bug for MPICH when large dictionaries. Not fully solved for very large ones
+* fix a bug for MPICH when large dictionaries.
 * fix a bug for numpy files when used with new numpy versions
 * add the possibility to subtract one channel as a reference channel from others
 * native support for blackrock files (only .ns5 tested so far)
-* simplification in the parameter file
+* simplifications in the parameter file
 * fix for display of progress bars with tqdm
 * addition of a multi-folders mode for openephys
 * hide GPU support for now, as this is not actively maintained and optimized
