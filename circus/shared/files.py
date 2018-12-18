@@ -480,14 +480,14 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 nb_data     = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
                 win_data    = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
                 buf_data, _ = win_data.Shared_query(0)
-                data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
                 buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+                data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
 
                 factor = int(2*nb_data)
                 win_indices    = MPI.Win.Allocate_shared(factor * intsize, intsize, comm=sub_comm)
                 buf_indices, _ = win_indices.Shared_query(0)
-                indices        = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(factor,))
                 buf_indices    = numpy.array(buf_indices, dtype='B', copy=False)
+                indices        = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(factor,))
 
                 global_offset_data  = 0
                 global_offset_ptr   = 0
