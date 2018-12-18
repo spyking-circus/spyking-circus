@@ -112,11 +112,15 @@ class NeuraLynxFile(DataFile):
             all_files = []
 
             for local_dir in all_directories:
-                ncs_file = os.path.join(upper_dir, local_dir, fname)
-                if os.path.exists(ncs_file):
-                    all_files += [ncs_file]
-
-            
+                local_dir = os.path.join(upper_dir, local_dir)
+                if os.path.isdir(local_dir):
+                    all_local_files = os.listdir(local_dir)
+                    for local_file in all_local_files:
+                        ncs_file = os.path.join(upper_dir, local_dir, local_file)
+                        is_valid = len(re.findall(".*_%s_1.ncs" %self.params['ncs_pattern'], ncs_file)) > 0
+                        if is_valid and ncs_file not in all_files:
+                            all_files += [ncs_file]
+         
             all_files.sort(key=natural_keys)
 
             sources         = []
@@ -126,7 +130,6 @@ class NeuraLynxFile(DataFile):
 
             for fname in all_files:
                 params['ncs_pattern'] = self.params['ncs_pattern']
-                print params['ncs_pattern'], fname
                 new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
