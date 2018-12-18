@@ -25,7 +25,7 @@ def filter_per_extension(files, extension):
     return results
 
 
-def filter_name_duplicates(tmp_all_files, ncs_pattern):
+def filter_name_duplicates(tmp_all_files, ncs_pattern=''):
     all_files = []
     for file in tmp_all_files:
 
@@ -59,6 +59,7 @@ class NeuraLynxFile(DataFile):
     extension      = [".ncs"]
     parallel_write = True
     is_writable    = True
+    is_streamable  = ['multi-files', 'multi-folders']
 
     # constants
     NUM_HEADER_BYTES   = 16 * 1024  # 16 kilobytes of header
@@ -84,7 +85,7 @@ class NeuraLynxFile(DataFile):
             tmp_all_files   = filter_per_extension(tmp_all_files, ext)
             tmp_all_files.sort(key=natural_keys)
 
-            all_files = filter_name_duplicates(tmp_all_files)
+            all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
 
             sources         = []
             to_write        = []
@@ -103,36 +104,37 @@ class NeuraLynxFile(DataFile):
             return sources
 
         elif stream_mode == 'multi-folders':
-            pass
-            # dirname         = os.path.abspath(os.path.dirname(self.file_name))
-            # upper_dir       = os.path.dirname(dirname)
-            # fname           = os.path.basename(self.file_name)
+            dirname         = os.path.abspath(os.path.dirname(self.file_name))
+            upper_dir       = os.path.dirname(dirname)
+            fname           = os.path.basename(self.file_name)
 
-            # all_directories = os.listdir(upper_dir)
-            # all_files = []
+            all_directories = os.listdir(upper_dir)
+            all_files = []
 
-            # for local_dir in all_directories:
-            #     ncs_file = os.path.join(upper_dir, local_dir, fname)
-            #     if os.path.exists(openephys_file):
-            #         all_files += [openephys_file]
+            for local_dir in all_directories:
+                ncs_file = os.path.join(upper_dir, local_dir, fname)
+                if os.path.exists(ncs_file):
+                    all_files += [ncs_file]
 
-            # all_files.sort(key=natural_keys)
+            
+            all_files.sort(key=natural_keys)
 
-            # sources         = []
-            # to_write        = []
-            # global_time     = 0
-            # params          = self.get_description()
+            sources         = []
+            to_write        = []
+            global_time     = 0
+            params          = self.get_description()
 
-            # for fname in all_files:
-            #     params['ncs_pattern'] = '_'.join(fname.split('_')[:-1])
-            #     new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
-            #     new_data._t_start = global_time
-            #     global_time += new_data.duration
-            #     sources     += [new_data]
-            #     to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
+            for fname in all_files:
+                params['ncs_pattern'] = self.params['ncs_pattern']
+                print params['ncs_pattern'], fname
+                new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
+                new_data._t_start = global_time
+                global_time += new_data.duration
+                sources     += [new_data]
+                to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
 
-            # print_and_log(to_write, 'debug', logger)
-            # return sources
+            print_and_log(to_write, 'debug', logger)
+            return sources
 
     def parse_neuralynx_time_string(self, time_string):
         # Parse a datetime object from the idiosyncratic time string in Neuralynx file headers
@@ -210,7 +212,8 @@ class NeuraLynxFile(DataFile):
         folder_path   = os.path.dirname(os.path.abspath(self.file_name))
         tmp_all_files = self._get_sorted_channels_()
         regexpr       = re.compile('\d+')
-        all_files     = filter_name_duplicates(tmp_all_files)
+        all_files     = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
+        print all_files
 
         name = '_'.join(all_files[0].split('_')[:-1])
         self.all_channels = []

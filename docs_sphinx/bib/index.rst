@@ -19,7 +19,7 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2018
 ~~~~
 
-* Aydın C., Couto J., Giugliano M., Farrow K., Bonin V., Locomotion modulates specific functional cell types in the mouse visual thalamus*, Nature Communications, 4882 (2018) 
+* Aydın C., Couto J., Giugliano M., Farrow K., Bonin V., *Locomotion modulates specific functional cell types in the mouse visual thalamus*, Nature Communications, 4882 (2018)
 
 * Belkhiri M., Kvitsiani D., *D.sort: template based automatic spike sorting tool*, BioRxiv, 10.1101/423913
 
