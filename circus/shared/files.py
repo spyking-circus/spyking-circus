@@ -52,8 +52,7 @@ def data_stats(params, show=True, export_times=False):
              "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, int(nb_seconds), last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
-             "Threshold crossing          : %s" %threshold,
-             "Cluster detected            : %s" %params.get('data', 'is_cluster')]
+             "Threshold crossing          : %s" %threshold]
 
     if stream_mode:
         lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]
