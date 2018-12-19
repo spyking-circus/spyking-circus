@@ -14,7 +14,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     data_file      = params.data_file
     N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('detecton', 'N_t')
+    N_t            = params.getint('detection', 'N_t')
     N_total        = params.nb_channels
     template_shift = params.getint('detection', 'template_shift')
     chunk_size     = params.getint('data', 'chunk_size')
