@@ -27,7 +27,7 @@ class InfoFilter(logging.Filter):
         return rec.levelno == logging.DEBUG
 
 
-def init_logging(logfile, debug=False, level=None):
+def init_logging(logfile, debug=True, level=None):
     """
     Simple configuration of logging.
     """

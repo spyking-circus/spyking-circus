@@ -11,6 +11,7 @@ Release 0.7.5
 * addition of a multi-folders mode for openephys
 * hide GPU support for now, as this is not actively maintained and optimized
 * fix in the MATLAB GUI for float32 data
+* fix the broken log files
 
 =============
 Release 0.7.4

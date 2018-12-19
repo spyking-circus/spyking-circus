@@ -173,15 +173,15 @@ class CircusParser(object):
           file_out = os.path.join(path, os.path.basename(f_next))
           if not os.path.exists(file_out) and self.do_folders:
             os.makedirs(file_out)
+          self.logfile      = file_out + '.log'
         else:
           file_out = os.path.join(f_next, os.path.basename(f_next))
+          self.logfile      = f_next + '.log'
 
         self.parser.set('data', 'data_file_no_overwrite', file_out + '_all_sc.dat')
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
         self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
         self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
-        self.logfile      = file_out + '.log'
-
 
         self.probe = read_probe(self.parser)
 

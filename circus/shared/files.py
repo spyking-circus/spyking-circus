@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 def data_stats(params, show=True, export_times=False):
 
-
     data_file   = params.get_data_file(source=True, has_been_created=False)
     stream_mode = data_file.is_stream
     chunk_size  = 60 * data_file.sampling_rate

@@ -199,6 +199,7 @@ but a subset x,y can be done. Steps are:
         else:
             file_out = f_next
 
+
         logfile      = file_out + '.log'
         if os.path.exists(logfile):
             os.remove(logfile)
