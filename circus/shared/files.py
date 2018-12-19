@@ -40,6 +40,11 @@ def data_stats(params, show=True, export_times=False):
     N_t = params.getint('detection', 'N_t')
     N_t = numpy.round(1000.*N_t/params.rate, 1)
 
+    if params.get('detection', 'peaks') == 'both':
+        threshold = 'positive and negative'
+    else:
+        threshold = params.get('detection', 'peaks')
+
     lines = ["Number of recorded channels : %d" %params.nb_channels,
              "Number of analyzed channels : %d" %params.getint('data', 'N_e'),
              "File format                 : %s" %params.get('data', 'file_format').upper(),
@@ -48,7 +53,7 @@ def data_stats(params, show=True, export_times=False):
              "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, int(nb_seconds), last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
-             "Threshold crossing          : %s" %params.get('detection', 'peaks'),
+             "Threshold crossing          : %s" %threshold,
              "Cluster detected            : %s" %params.get('data', 'is_cluster')]
 
     if stream_mode:
