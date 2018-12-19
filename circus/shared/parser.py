@@ -46,6 +46,7 @@ class CircusParser(object):
                           ['triggers', 'ignore_times', 'bool', 'False'],
                           ['whitening', 'chunk_size', 'int', '30'],
                           ['whitening', 'safety_space', 'bool', 'True'],
+                          ['whitening', 'temporal', 'bool', 'False'],
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['filtering', 'common_ground', 'string', ''],
                           ['clustering', 'max_clusters', 'int', '10'],

@@ -10,6 +10,7 @@ Release 0.7.5
 * fix for display of progress bars with tqdm
 * addition of a multi-folders mode for openephys
 * hide GPU support for now, as this is not actively maintained and optimized
+* fix in the MATLAB GUI for float32 data
 
 =============
 Release 0.7.4
