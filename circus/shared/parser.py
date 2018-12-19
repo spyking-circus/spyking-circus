@@ -17,6 +17,7 @@ class CircusParser(object):
     __default_values__ = [['fitting', 'amp_auto', 'bool', 'True'],
                           ['fitting', 'refractory', 'float', '0.5'],
                           ['fitting', 'collect_all', 'bool', 'False'],
+                          ['fitting', 'gpu_only', 'bool', 'False'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],
@@ -271,8 +272,14 @@ class CircusParser(object):
         else:
           self.parser.set('triggers', 'trig_in_ms', str(self.parser.get('triggers', 'trig_unit').lower() == 'ms'))
 
-        self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
-        self.parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_windows'))))
+        if self.parser.getboolean('triggers', 'clean_artefact'):
+          for key in ['trig_file', 'trig_windows']:
+            myfile = os.path.abspath(os.path.expanduser(self.parser.get('triggers', key)))
+            if not os.path.exists(myfile):
+              if comm.rank == 0:
+                print_and_log(["File %s can not be found" %str(myfile)], 'error', logger)
+            sys.exit(0)
+            self.parser.set('triggers', key, myfile)
 
         units = ['ms', 'timestep']
         test = self.parser.get('triggers', 'dead_unit').lower() in units
@@ -283,7 +290,13 @@ class CircusParser(object):
         else:
           self.parser.set('triggers', 'dead_in_ms', str(self.parser.get('triggers', 'dead_unit').lower() == 'ms'))
 
-        self.parser.set('triggers', 'dead_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'dead_file'))))
+        if self.parser.getboolean('triggers', 'ignore_times'):
+          myfile = os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'dead_file')))
+          if not os.path.exists(myfile):
+            if comm.rank == 0:
+              print_and_log(["File %s can not be found" %str(myfile)], 'error', logger)
+          sys.exit(0)
+          self.parser.set('triggers', 'dead_file', myfile)
 
         test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
         if not test:

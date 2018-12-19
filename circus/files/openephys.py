@@ -31,7 +31,7 @@ class OpenEphysFile(DataFile):
     extension      = [".openephys"]
     parallel_write = True
     is_writable    = True
-    is_streamable    = ['multi-folders']
+    is_streamable  = ['multi-folders']
 
     # constants
     NUM_HEADER_BYTES   = 1024L

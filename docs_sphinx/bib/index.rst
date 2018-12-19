@@ -19,6 +19,10 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2018
 ~~~~
 
+* Macé E., Montaldo G., Trenholm S., Cowan C., rignall A., Urban A., Roska B., *Whole-Brain Functional Ultrasound Imaging Reveals Brain Modules for Visuomotor Integration*, Neuron, 5:1241-1251
+
+* Aydın C., Couto J., Giugliano M., Farrow K., Bonin V., *Locomotion modulates specific functional cell types in the mouse visual thalamus*, Nature Communications, 4882 (2018)
+
 * Belkhiri M., Kvitsiani D., *D.sort: template based automatic spike sorting tool*, BioRxiv, 10.1101/423913
 
 * Nadian M. H., Karimimehr S., Doostmohammadi J., Ghazizadeh A., Lashgari R., *A fully automated spike sorting algorithm using t-distributed neighbor embedding and density based clustering*, BioRxiv, 10.1101/418913

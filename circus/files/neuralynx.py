@@ -24,12 +24,42 @@ def filter_per_extension(files, extension):
             results += [file]
     return results
 
+
+def filter_name_duplicates(tmp_all_files, ncs_pattern=''):
+    all_files = []
+    for file in tmp_all_files:
+
+        all_parts = file.split('_')
+        name = '_'.join(all_parts[:-1])
+
+        if ncs_pattern != '':
+            pattern = name.find(ncs_pattern) > 0
+        else:
+            pattern = True
+
+        if not pattern:
+            to_consider = False
+        else:
+            to_consider = True
+
+        for f in all_files:
+            already_present = '_'.join(f.split('_')[:-1])
+            if name == already_present:
+                to_consider = False
+
+        if to_consider:
+            all_files += ['_'.join([name, all_parts[-1]])]
+
+    return all_files
+
+
 class NeuraLynxFile(DataFile):
 
     description    = "neuralynx"    
     extension      = [".ncs"]
     parallel_write = True
     is_writable    = True
+    is_streamable  = ['multi-files', 'multi-folders']
 
     # constants
     NUM_HEADER_BYTES   = 16 * 1024  # 16 kilobytes of header
@@ -54,29 +84,8 @@ class NeuraLynxFile(DataFile):
             tmp_all_files   = os.listdir(dirname)
             tmp_all_files   = filter_per_extension(tmp_all_files, ext)
             tmp_all_files.sort(key=natural_keys)
-            all_files = []
-            for file in tmp_all_files:
 
-                all_parts = file.split('_')
-                name = '_'.join(all_parts[:-1])
-
-                if self.params['ncs_pattern'] != '':
-                    pattern = name.find(self.params['ncs_pattern']) > 0
-                else:
-                    pattern = True
-
-                if not pattern:
-                    to_consider = False
-                else:
-                    to_consider = True
-
-                for f in all_files:
-                    already_present = '_'.join(f.split('_')[:-1])
-                    if name == already_present:
-                        to_consider = False
-
-                if to_consider:
-                    all_files += ['_'.join([name, all_parts[-1]])]
+            all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
 
             sources         = []
             to_write        = []
@@ -85,6 +94,42 @@ class NeuraLynxFile(DataFile):
 
             for fname in all_files:
                 params['ncs_pattern'] = '_'.join(fname.split('_')[:-1])
+                new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
+                new_data._t_start = global_time
+                global_time += new_data.duration
+                sources     += [new_data]
+                to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
+
+            print_and_log(to_write, 'debug', logger)
+            return sources
+
+        elif stream_mode == 'multi-folders':
+            dirname         = os.path.abspath(os.path.dirname(self.file_name))
+            upper_dir       = os.path.dirname(dirname)
+            fname           = os.path.basename(self.file_name)
+
+            all_directories = os.listdir(upper_dir)
+            all_files = []
+
+            for local_dir in all_directories:
+                local_dir = os.path.join(upper_dir, local_dir)
+                if os.path.isdir(local_dir):
+                    all_local_files = os.listdir(local_dir)
+                    for local_file in all_local_files:
+                        ncs_file = os.path.join(upper_dir, local_dir, local_file)
+                        is_valid = len(re.findall(".*_%s_1.ncs" %self.params['ncs_pattern'], ncs_file)) > 0
+                        if is_valid and ncs_file not in all_files:
+                            all_files += [ncs_file]
+         
+            all_files.sort(key=natural_keys)
+
+            sources         = []
+            to_write        = []
+            global_time     = 0
+            params          = self.get_description()
+
+            for fname in all_files:
+                params['ncs_pattern'] = self.params['ncs_pattern']
                 new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
@@ -167,33 +212,11 @@ class NeuraLynxFile(DataFile):
 
     def _read_from_header(self):
 
-        folder_path       = os.path.dirname(os.path.abspath(self.file_name))
-        tmp_all_files    = self._get_sorted_channels_()
-        regexpr           = re.compile('\d+')
-        
-        all_files = []
-        for file in tmp_all_files:
-
-            all_parts = file.split('_')
-            name = '_'.join(all_parts[:-1])
-
-            if self.params['ncs_pattern'] != '':
-                pattern = name.find(self.params['ncs_pattern']) > 0
-            else:
-                pattern = True
-
-            if not pattern:
-                to_consider = False
-            else:
-                to_consider = True
-
-            for f in all_files:
-                already_present = '_'.join(f.split('_')[:-1])
-                if name == already_present:
-                    to_consider = False
-
-            if to_consider:
-                all_files += ['_'.join([name, all_parts[-1]])]
+        folder_path   = os.path.dirname(os.path.abspath(self.file_name))
+        tmp_all_files = self._get_sorted_channels_()
+        regexpr       = re.compile('\d+')
+        all_files     = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
+        print all_files
 
         name = '_'.join(all_files[0].split('_')[:-1])
         self.all_channels = []

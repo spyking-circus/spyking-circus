@@ -128,10 +128,10 @@ class DataFile(object):
         self._fill_from_params(params)
 
         if not self.is_empty:
-            try:
-                self._fill_from_header(self._read_from_header())
-            except Exception as ex:
-                print_and_log(["There is an error in the _read_from_header method of the wrapper\n" + str(ex)], 'error', logger)
+            #try:
+            self._fill_from_header(self._read_from_header())
+            #except Exception as ex:
+            #    print_and_log(["There is an error in the _read_from_header method of the wrapper\n" + str(ex)], 'error', logger)
         else:
             self._shape = (0, 0)
 
