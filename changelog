@@ -8,6 +8,7 @@ Release 0.7.5
 * native support for blackrock files (only .ns5 tested so far)
 * simplification in the parameter file
 * fix for display of progress bars with tqdm
+* fix in the MATLAB GUI for float32 data
 
 =============
 Release 0.7.4

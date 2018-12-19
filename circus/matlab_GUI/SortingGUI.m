@@ -2150,8 +2150,6 @@ function DisplayRawData(hObject, eventdata, handles)
 
 if get(handles.EnableWaveforms,'Value')==1
     
-    tstart = handles.DataStartPt;
-    
     NbElec = handles.NelecTot;
     
     if strcmp(handles.DataFormat, 'int8')
@@ -2173,21 +2171,19 @@ if get(handles.EnableWaveforms,'Value')==1
         data_padding = 8;
     end
     
-    FileStart = handles.HeaderSize + data_padding*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed.
-    
+    FileStart = handles.HeaderSize + data_padding*NbElec*handles.DataStartPt;
     
     duration = handles.templates_size(2);
     
     if duration/2 == round(duration/2)
         duration = duration + 1;
     end
+
+    FullLength = duration*NbElec;
+
+    fseek(handles.DataFid, FileStart, 'bof');
     
-    FullStart  = FileStart - handles.templates_size(2)*NbElec*2;
-    FullLength = (duration + 2*handles.templates_size(2))*NbElec;
-    
-    fseek(handles.DataFid,FullStart,'bof');
-    
-    data = double(fread(handles.DataFid,FullLength,handles.DataFormat));
+    data = double(fread(handles.DataFid, FullLength, handles.DataFormat));
     
     if strcmp(handles.DataFormat,'uint16')
         data = data - 32767;
@@ -2198,7 +2194,7 @@ if get(handles.EnableWaveforms,'Value')==1
     
     data = data*handles.Gain;
     
-    data = reshape(data,[NbElec (duration + 2*handles.templates_size(2))]);
+    data = reshape(data, [NbElec duration]);
     
     %% Filtering
     
@@ -2215,7 +2211,7 @@ if get(handles.EnableWaveforms,'Value')==1
     
     %% Reduce the data to the portion of interest - remove also the unnecessary
     %electrodes
-    handles.RawData = data(:,(handles.templates_size(2)+1):(end-handles.templates_size(2)));
+    handles.RawData = data;
     guidata(hObject, handles);
 else
     rmfield(handles, 'RawData');
