@@ -278,7 +278,7 @@ class CircusParser(object):
             if not os.path.exists(myfile):
               if comm.rank == 0:
                 print_and_log(["File %s can not be found" %str(myfile)], 'error', logger)
-            sys.exit(0)
+              sys.exit(0)
             self.parser.set('triggers', key, myfile)
 
         units = ['ms', 'timestep']
@@ -295,7 +295,7 @@ class CircusParser(object):
           if not os.path.exists(myfile):
             if comm.rank == 0:
               print_and_log(["File %s can not be found" %str(myfile)], 'error', logger)
-          sys.exit(0)
+            sys.exit(0)
           self.parser.set('triggers', 'dead_file', myfile)
 
         test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
