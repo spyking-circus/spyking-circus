@@ -69,8 +69,11 @@ def apply_patch_for_similarities(params, extension):
 
         to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
 
+        if comm.rank == 0:
+            to_explore = get_tqdm_progressbar(to_explore)
+
         if not SHARED_MEMORY:
-            over_x, over_y, over_data, over_shape = io.load_data(params, 'overlaps-raw', extension=extension,)
+            over_x, over_y, over_data, over_shape = io.load_data(params, 'overlaps-raw', extension=extension)
         else:
             over_x, over_y, over_data, over_shape = io.load_data_memshared(params, 'overlaps-raw', extension=extension)
             

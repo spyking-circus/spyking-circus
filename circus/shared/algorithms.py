@@ -394,7 +394,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     blosc_compress = params.getboolean('data', 'blosc_compress')
 
     N_tm           = load_data(params, 'nb_templates')
-    nb_temp        = N_tm//2
+    nb_temp        = int(N_tm//2)
     to_merge       = []
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     norm           = N_e * N_t
@@ -491,7 +491,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         templates  = load_data(params, 'templates')
 
     x,        N_tm = templates.shape
-    nb_temp        = N_tm//2
+    nb_temp        = int(N_tm//2)
     merged         = [nb_temp, 0]
 
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
