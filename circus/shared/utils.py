@@ -57,7 +57,7 @@ def apply_patch_for_similarities(params, extension):
         hdf5_compress = params.getboolean('data', 'hdf5_compress')
         blosc_compress = params.getboolean('data', 'blosc_compress')
         N_tm    = io.load_data(params, 'nb_templates', extension)
-        N_half  = N_tm // 2
+        N_half  = int(N_tm // 2)
         N_t     = params.getint('detection', 'N_t')
         duration = 2 * N_t - 1
 
