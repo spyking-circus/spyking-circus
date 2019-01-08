@@ -57,10 +57,12 @@ def load_phy_results(input_path):
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
+    input_extension = extension
+
     logger = init_logging(params.logfile)
     logger = logging.getLogger('circus.deconverting')
     # Retrieve parameters.
-    input_path = params.get('data', 'file_out_suff') + extension + '.GUI'
+    input_path = params.get('data', 'file_out_suff') + input_extension + '.GUI'
     output_path = params.get('data', 'file_out_suff')
     output_extension = '-deconverted'
     clusters_path = output_path + '.clusters{}.hdf5'.format(output_extension)
@@ -102,7 +104,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         # print_and_log(["{}".format(phy_results)], 'debug', logger)
 
         # Read spyking-circus results.
-        templates_input_path = output_path + ".templates{}.hdf5".format(extension)
+        templates_input_path = output_path + ".templates{}.hdf5".format(input_extension)
         templates_input_file = h5py.File(templates_input_path, mode='r', libver='earliest')
         overlaps = templates_input_file.get('maxoverlap')[:]
         try:
@@ -128,9 +130,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         to_remove = []
 
         # Do all the merges.
-        old_results = io.load_data(params, 'results', extension=extension)
-        electrodes = io.load_data(params, 'electrodes', extension=extension)
-        clusters = io.load_data(params, 'clusters', extension=extension)
+        old_results = io.load_data(params, 'results', extension=input_extension)
+        electrodes = io.load_data(params, 'electrodes', extension=input_extension)
+        clusters = io.load_data(params, 'clusters', extension=input_extension)
         for spike_template, spike_cluster in templates_to_clusters.items():
             spike_group = cluster_group[spike_cluster]
             if spike_group in ['good', 'unsorted']:
@@ -214,12 +216,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         to_merge = to_merge[np.lexsort((to_merge[:, 1], to_merge[:, 0])), :]
         to_remove.sort()
 
+        # Log some information.
         initial_nb_templates = len(templates_to_clusters)
         nb_merges = to_merge.shape[0]
         nb_removals = len(to_remove)
         final_nb_templates = initial_nb_templates -nb_merges - nb_removals
         print_and_log([
-            "Manual sorting with the Python GUI (i.e. phy):"
+            "Manual sorting with the Python GUI (i.e. phy):",
             "  initial number of templates: {}".format(initial_nb_templates),
             "  number of merges: {}".format(nb_merges),
             "  number of removals: {}".format(nb_removals),
@@ -227,7 +230,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         ], 'info', logger)
 
         # Slice templates.
-        slice_templates(params, to_merge=to_merge, to_remove=to_remove,
+        to_keep = slice_templates(params, to_merge=to_merge, to_remove=to_remove,
             extension=output_extension, input_extension=extension)
 
         # Slice clusters.
@@ -238,13 +241,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             extension=output_extension, input_extension=extension, light=light)
 
         # Finalize result.
-        nb_templates = templates.shape[0]
-        template_indices = np.arange(0, nb_templates)
-        to_delete = list(to_remove)
-        for one_merge in to_merge:
-            to_delete.append(one_merge[1])
-        to_keep = set(np.unique(template_indices)) - set(to_delete)
-        to_keep = np.array(list(to_keep))
+        # nb_templates = templates.shape[0]
+        # template_indices = np.arange(0, nb_templates)
+        # to_delete = list(to_remove)
+        # for one_merge in to_merge:
+        #     to_delete.append(one_merge[1])
+        # to_keep = set(np.unique(template_indices)) - set(to_delete)
+        # to_keep = np.array(list(to_keep))
+        # to_keep = np.sort(to_keep)
+        # # Would be correct if we could sort 'to_keep' in 'slice_templates'.
+        # print_and_log([
+        #     "to_keep: {}".format(to_keep)
+        # ], 'idebug', logger)
         new_results = {
             'spiketimes': {},
             'amplitudes': {},

@@ -299,7 +299,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='',
             os.remove(output_path)
         shutil.move(temporary_path, output_path)
 
-    return
+    return to_keep
 
 
 def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
