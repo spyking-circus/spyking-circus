@@ -20,7 +20,7 @@ def load_phy_results(input_path):
         cluster_group = cluster_group.split('\n')
         cluster_group = cluster_group[1:-1]
         cluster_group = {
-            int(e.split('\t')[0]): e.split('\t')[1]
+            int(e.split('\t')[0]): e.split('\t')[1].strip()
             for e in cluster_group
         }
 
