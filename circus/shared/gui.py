@@ -1014,13 +1014,15 @@ class MergeWindow(QMainWindow):
             if to_keep != to_remove:
                 key        = 'temp_' + str(to_keep)
                 key2       = 'temp_' + str(to_remove)
-                spikes     = self.result['spiketimes'][key2].astype('int64')
+                spikes     = self.result['spiketimes'][key2]
                 if self.correct_lag:
+                    spikes = spikes.astype(numpy.int64)
                     spikes += self.lag[to_keep, to_remove]
+                    spikes = spikes.astype(numpy.uint32)
                 amplitudes = self.result['amplitudes'][key2]
                 n1, n2     = len(self.result['amplitudes'][key2]), len(self.result['amplitudes'][key])
                 self.result['amplitudes'][key] = numpy.vstack((self.result['amplitudes'][key].reshape(n2, 2), amplitudes.reshape(n1, 2)))
-                self.result['spiketimes'][key] = numpy.concatenate((self.result['spiketimes'][key], spikes.astype(numpy.uint32)))
+                self.result['spiketimes'][key] = numpy.concatenate((self.result['spiketimes'][key], spikes))
                 idx                            = numpy.argsort(self.result['spiketimes'][key])
                 self.result['spiketimes'][key] = self.result['spiketimes'][key][idx]
                 self.result['amplitudes'][key] = self.result['amplitudes'][key][idx]
