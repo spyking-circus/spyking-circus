@@ -299,7 +299,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='',
             os.remove(output_path)
         shutil.move(temporary_path, output_path)
     else:
-        to_keep = np.array([])
+        to_keep = numpy.array([])
 
     return to_keep
 
