@@ -305,7 +305,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='',
 
 
 def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
-    input_extension='', light=False):
+    input_extension='', light=False, method='safe'):
     """Slice clusters in HDF5 templates.
 
     Arguments:
@@ -371,8 +371,12 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
                 result['peaks_' + str(elec)] = numpy.delete(data, all_elements[elec])
 
         myfile.close()
-        # result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_delete))  # TODO remove ?
-        result['electrodes'] = result['electrodes'][to_keep]
+        if method == 'safe':
+            result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_delete))
+        elif method == 'new':
+            result['electrodes'] = result['electrodes'][to_keep]
+        else:
+            raise ValueError("Unexpected method value: {}".format(method))
 
         cfilename = file_out_suff + '.clusters{}.hdf5'.format('-new')
         cfile    = h5py.File(cfilename, 'w', libver='earliest')

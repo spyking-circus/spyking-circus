@@ -277,7 +277,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     dataname = 'clusters-light' if light else 'clusters'
     clusters = io.load_data(params, dataname, extension=extension)
     slice_clusters(params, clusters, to_merge=to_merge, to_remove=to_remove,
-        extension=output_extension, input_extension=extension, light=light)
+        extension=output_extension, input_extension=extension, light=light,
+        method='new')
 
     # Finalize result.
     # nb_templates = templates.shape[0]
