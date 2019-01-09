@@ -50,7 +50,11 @@ def main(argv=None):
         HAVE_CUDA = False
 
 
-    all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging', 'validating']
+    all_steps = [
+        'whitening', 'clustering', 'fitting', 'gathering', 'extracting',
+        'filtering', 'converting', 'deconverting', 'benchmarking',
+        'merging', 'validating'
+    ]
 
     if os.path.exists(pjoin(user_path, 'config.params')):
         config_file = os.path.abspath(pjoin(user_path, 'config.params'))
@@ -79,6 +83,7 @@ but a subset x,y can be done. Steps are:
  - fitting
  - (extra) merging [GUI for meta merging]
  - (extra) converting [export results to phy format]
+ - (extra) deconverting [import results from phy format]
  - (extra) gathering [force collection of results]
  - (extra) extracting [get templates from spike times]
  - (extra) benchmarking [with -o and -t]
@@ -102,7 +107,7 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-r', '--result', help='GUI to display the results on top of raw data',
                         action='store_true')
     parser.add_argument('-s', '--second', type=int, default=0, help='If preview mode, begining of the preview [in s]')
-    parser.add_argument('-e', '--extension', help='extension to consider for merging and converting',
+    parser.add_argument('-e', '--extension', help='extension to consider for merging, converting and deconverting',
                         default='None')
     parser.add_argument('-o', '--output', help='output file [for generation of synthetic benchmarks]')
     parser.add_argument('-t', '--type', help='benchmark type',
@@ -203,7 +208,7 @@ but a subset x,y can be done. Steps are:
         logfile      = file_out + '.log'
         if os.path.exists(logfile):
             os.remove(logfile)
-        
+
         logger       = init_logging(logfile)
         params       = CircusParser(filename)
         data_file    = params.get_data_file(source=True, has_been_created=False)
@@ -315,6 +320,7 @@ but a subset x,y can be done. Steps are:
                     ('extracting', 'mpirun'),
                     ('gathering', 'python'),
                     ('converting', 'mpirun'),
+                    ('deconverting', 'mpirun'),
                     ('benchmarking', 'mpirun'),
                     ('merging', 'mpirun'),
                     ('validating', 'mpirun')]
@@ -323,7 +329,7 @@ but a subset x,y can be done. Steps are:
         #    use_gpu = 'True'
         #else:
         use_gpu = 'False'
-        
+
         time = data_stats(params)/60.
 
         if preview:
@@ -393,17 +399,31 @@ but a subset x,y can be done. Steps are:
                             if (output is None) or (benchmark is None):
                                 print_and_log(["To generate synthetic datasets, you must provide output and type"], 'error', logger)
                                 sys.exit(0)
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, output, benchmark
+                            ]
                         elif subtask in ['merging', 'converting']:
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, extension]
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, extension
+                            ]
+                        elif subtask in ['deconverting']:
+                            nb_tasks = str(1)
+                            nb_cpu = 1
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask', subtask,
+                                filename, str(nb_cpu), str(nb_gpu), use_gpu,
+                                extension
+                            ]
                         else:
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu
+                            ]
 
                         print_and_log(['Launching task %s' %subtask], 'debug', logger)
                         print_and_log(['Command: %s' %str(mpi_args)], 'debug', logger)

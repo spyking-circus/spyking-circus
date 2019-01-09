@@ -361,7 +361,7 @@ def get_artefact(params, times_i, tau, nodes):
         artefact = numpy.vstack((artefact, snippet))
 
     artefact = numpy.median(artefact, 0)
-    
+
     data_file.close()
 
     return artefact
@@ -416,7 +416,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
             if local_rank == 0:
                 indices_bytes = short_size * intsize
-                data_bytes    = long_size * floatsize               
+                data_bytes    = long_size * floatsize
 
             win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
             win_indices = MPI.Win.Allocate_shared(indices_bytes + indptr_bytes, intsize, comm=sub_comm)
@@ -471,7 +471,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                     over_y     = c_overlap.get('over_y')[:]
                     over_data  = c_overlap.get('over_data')[:]
                     nb_data    = len(over_x)
-                
+
                 c_overlap.close()
 
                 nb_ptr        = 0
@@ -611,7 +611,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             return indices_x, indices_y, data, over_shape
         else:
             raise Exception('No overlaps found! Check suffix?')
-    
+
     elif data == 'clusters-light':
 
         file_name = file_out_suff + '.clusters%s.hdf5' %extension
@@ -1576,7 +1576,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         if comm.rank == 0:
             maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
             maxoverlap = numpy.sum(maxoverlap, 0)
-        
+
         #sub_comm.Barrier()
         #sub_comm.Free()
 

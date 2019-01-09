@@ -7,7 +7,7 @@ def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None,
 
     from circus.shared.parser import CircusParser
     params = CircusParser(filename)
-    
+
     if task not in ['filtering', 'benchmarking']:
         params.get_data_file()
 
@@ -15,7 +15,7 @@ def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None,
 
     if task == 'benchmarking':
         module.main(params, nb_cpu, nb_gpu, use_gpu, output, benchmark, sim_same_elec)
-    elif task in ['converting', 'merging']:
+    elif task in ['converting', 'deconverting', 'merging']:
         module.main(params, nb_cpu, nb_gpu, use_gpu, extension)
     else:
         module.main(params, nb_cpu, nb_gpu, use_gpu)
