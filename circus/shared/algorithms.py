@@ -241,7 +241,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='',
                 to_delete += [remove]
 
         # Determine the indices to keep.
-        all_templates = set(numpy.arange(N_tm//2))
+        all_templates = set(numpy.arange(N_tm // 2))
         to_keep = numpy.array(list(all_templates.difference(to_delete)))
 
         positions = numpy.arange(len(to_keep))
@@ -298,6 +298,8 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='',
         if os.path.exists(output_path):
             os.remove(output_path)
         shutil.move(temporary_path, output_path)
+    else:
+        to_keep = np.array([])
 
     return to_keep
 
@@ -328,6 +330,8 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
     if comm.rank == 0:
 
         print_and_log(['Node 0 is slicing clusters'], 'debug', logger)
+        old_templates = load_data(params, 'templates', extension=input_extension)
+        _, N_tm = old_templates.shape
 
         # Determine the template indices to delete.
         to_delete = list(to_remove)
@@ -335,6 +339,10 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
             for count in xrange(len(to_merge)):
                 remove     = to_merge[count][1]
                 to_delete += [remove]
+
+        # Determine the indices to keep.
+        all_templates = set(numpy.arange(N_tm//2))
+        to_keep = numpy.array(list(all_templates.difference(to_delete)))
 
         all_elements = [[] for i in xrange(N_e)]
         for target in numpy.unique(to_delete):
@@ -363,7 +371,8 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
                 result['peaks_' + str(elec)] = numpy.delete(data, all_elements[elec])
 
         myfile.close()
-        result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_delete))
+        # result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_delete))  # TODO remove ?
+        result['electrodes'] = result['electrodes'][to_keep]
 
         cfilename = file_out_suff + '.clusters{}.hdf5'.format('-new')
         cfile    = h5py.File(cfilename, 'w', libver='earliest')

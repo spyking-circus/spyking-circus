@@ -399,17 +399,31 @@ but a subset x,y can be done. Steps are:
                             if (output is None) or (benchmark is None):
                                 print_and_log(["To generate synthetic datasets, you must provide output and type"], 'error', logger)
                                 sys.exit(0)
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
-                        elif subtask in ['merging', 'converting', 'deconverting']:
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, extension]
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, output, benchmark
+                            ]
+                        elif subtask in ['merging', 'converting']:
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, extension
+                            ]
+                        elif subtask in ['deconverting']:
+                            nb_tasks = str(1)
+                            nb_cpu = 1
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask', subtask,
+                                filename, str(nb_cpu), str(nb_gpu), use_gpu,
+                                extension
+                            ]
                         else:
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu
+                            ]
 
                         print_and_log(['Launching task %s' %subtask], 'debug', logger)
                         print_and_log(['Command: %s' %str(mpi_args)], 'debug', logger)
