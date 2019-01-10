@@ -574,6 +574,17 @@ class LaunchGUI(QDialog):
                 answer_string = 'a'
             else:
                 answer_string = 'n'
+        elif 'Do you want to delete these files? [Y/n]' in lines:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Question)
+            msg.setWindowTitle('Delete everything?')
+            msg.setText('Files already deconverted! Do you want to delete everything?')
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            answer = msg.exec_()
+            if answer == QMessageBox.Yes:
+                answer_string = 'y'
+            else:
+                answer_string = 'n'
         elif 'You should re-export the data because of a fix in 0.6' in lines:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Question)
@@ -589,8 +600,10 @@ class LaunchGUI(QDialog):
             answer_string = ''
 
         if answer_string:
-            self.process.write(answer_string + '\n')
-            self.add_output_lines(answer_string + '\n')
+            to_write = answer_string + '\n'
+            to_write = to_write.encode('utf-8')
+            self.process.write(to_write)
+            self.add_output_lines(to_write)
 
     def append_error(self):
         if self.process is None:  # Can happen when manually interrupting
