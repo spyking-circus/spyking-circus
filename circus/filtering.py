@@ -5,16 +5,36 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.files import get_artefact
 
+def check_if_done(params, flag):
+    value = params.get('noedits', flag).lower().strip()
+    print value
+    if value == 'false':
+        return False
+    elif value == 'true':
+        return True
+    elif value == 'started':
+        if comm.rank == 0:
+            if flag == 'filter_done':
+                msg = ['Code was interupted while filtering', 'Data are likely to be corrupted, please recopy raw data']
+            elif flag == 'artefacts_done':
+                msg = ['Code was interupted while removing artefacts', 'Data are likely to be corrupted, please recopy raw data']
+            elif flag == 'median_done':
+                msg = ['Code was interupted while removing median', 'Data are likely to be corrupted, please recopy raw data']
+            elif flag == 'ground_done':
+                msg = ['Code was interupted while removing ground', 'Data are likely to be corrupted, please recopy raw data']
+            print_and_log(msg, 'error')
+        sys.exit(0)
+
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.filtering')
     #################################################################
     do_filter      = params.getboolean('filtering', 'filter')
-    filter_done    = params.getboolean('noedits', 'filter_done')
-    artefacts_done = params.getboolean('noedits', 'artefacts_done')
-    median_done    = params.getboolean('noedits', 'median_done')
-    ground_done    = params.getboolean('noedits', 'ground_done')
+    filter_done    = check_if_done(params, 'filter_done')#params.getboolean('noedits', 'filter_done')
+    artefacts_done = check_if_done(params, 'artefacts_done')#params.getboolean('noedits', 'artefacts_done')
+    median_done    = check_if_done(params, 'median_done')#params.getboolean('noedits', 'median_done')
+    ground_done    = check_if_done(params, 'ground_done')#params.getboolean('noedits', 'ground_done')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median  = params.getboolean('filtering', 'remove_median')
     common_ground  = params.getint('filtering', 'common_ground')
@@ -335,6 +355,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         data_file_out.open(mode='r+')
 
     if do_filter or remove_median or remove_ground:
+        if comm.rank == 0:
+            if do_filter:
+                params.write('noedits', 'filter_done', 'Started')
+            if remove_median:
+                params.write('noedits', 'median_done', 'Started')
+            if remove_ground:
+                params.write('noedits', 'ground_done', 'Started')
         filter_file(data_file_in, data_file_out, do_filter, remove_median, remove_ground)
 
     if comm.rank == 0:
@@ -352,6 +379,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if clean_artefact:
         art_dict   = compute_artefacts(data_file_in)
+        if comm.rank == 0:
+            params.write('noedits', 'artefacts_done', 'Started')
         remove_artefacts(data_file_out, art_dict)
 
     if comm.rank == 0:
