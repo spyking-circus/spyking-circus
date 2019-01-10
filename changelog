@@ -4,6 +4,7 @@ Release 0.7.6
 
 * cosmetic changes in the GUI
 * adding a deconverting method to switch back from phy to MATLAB
+* warn user if data are corrupted because of interrupted filtering
 
 =============
 Release 0.7.5
@@ -19,6 +20,7 @@ Release 0.7.5
 * hide GPU support for now, as this is not actively maintained and optimized
 * fix in the MATLAB GUI for float32 data
 * fix the broken log files
+* default cpu number is now half the available cores
 
 =============
 Release 0.7.4

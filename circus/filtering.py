@@ -5,25 +5,25 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.files import get_artefact
 
-def check_if_done(params, flag):
-    value = params.get('noedits', flag).lower().strip()
-    print value
-    if value == 'false':
-        return False
-    elif value == 'true':
-        return True
-    elif value == 'started':
-        if comm.rank == 0:
-            if flag == 'filter_done':
-                msg = ['Code was interupted while filtering', 'Data are likely to be corrupted, please recopy raw data']
-            elif flag == 'artefacts_done':
-                msg = ['Code was interupted while removing artefacts', 'Data are likely to be corrupted, please recopy raw data']
-            elif flag == 'median_done':
-                msg = ['Code was interupted while removing median', 'Data are likely to be corrupted, please recopy raw data']
-            elif flag == 'ground_done':
-                msg = ['Code was interupted while removing ground', 'Data are likely to be corrupted, please recopy raw data']
-            print_and_log(msg, 'error')
-        sys.exit(0)
+def check_if_done(params, flag, logger):
+        value = params.get('noedits', flag).lower().strip()
+        if value == 'false':
+            return False
+        elif value == 'true':
+            return True
+        elif value == 'started':
+            common_sentence = 'Data are likely to be partially filtered, please recopy raw data'
+            if comm.rank == 0:
+                if flag == 'filter_done':
+                    msg = ['Code was interrupted while filtering', common_sentence, 'And set the flag filter_done in the [noedits] section to False']
+                elif flag == 'artefacts_done':
+                    msg = ['Code was interrupted while removing artefacts', common_sentence, 'And set the flag artefacts_done in the [noedits] section to False']
+                elif flag == 'median_done':
+                    msg = ['Code was interrupted while removing median', common_sentence, 'And set the flag median_done in the [noedits] section to False']
+                elif flag == 'ground_done':
+                    msg = ['Code was interrupted while removing ground', common_sentence, 'And set the flag ground_done in the [noedits] section to False']
+                print_and_log(msg, 'error', logger)
+            sys.exit(0)
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
@@ -31,10 +31,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     logger         = logging.getLogger('circus.filtering')
     #################################################################
     do_filter      = params.getboolean('filtering', 'filter')
-    filter_done    = check_if_done(params, 'filter_done')#params.getboolean('noedits', 'filter_done')
-    artefacts_done = check_if_done(params, 'artefacts_done')#params.getboolean('noedits', 'artefacts_done')
-    median_done    = check_if_done(params, 'median_done')#params.getboolean('noedits', 'median_done')
-    ground_done    = check_if_done(params, 'ground_done')#params.getboolean('noedits', 'ground_done')
+    filter_done    = check_if_done(params, 'filter_done', logger)
+    artefacts_done = check_if_done(params, 'artefacts_done', logger)
+    median_done    = check_if_done(params, 'median_done', logger)
+    ground_done    = check_if_done(params, 'ground_done', logger)
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median  = params.getboolean('filtering', 'remove_median')
     common_ground  = params.getint('filtering', 'common_ground')
