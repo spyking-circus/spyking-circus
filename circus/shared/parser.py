@@ -90,10 +90,10 @@ class CircusParser(object):
                           ['validating', 'juxta_spikes', 'string', ''],
                           ['validating', 'greedy_mode', 'bool', 'True'],
                           ['validating', 'extension', 'string', ''],
-                          ['noedits', 'filter_done', 'bool', 'False'],
-                          ['noedits', 'median_done', 'bool', 'False'],
-                          ['noedits', 'ground_done', 'bool', 'False'],
-                          ['noedits', 'artefacts_done', 'bool', 'False']]
+                          ['noedits', 'filter_done', 'sting', 'False'],
+                          ['noedits', 'median_done', 'string', 'False'],
+                          ['noedits', 'ground_done', 'string', 'False'],
+                          ['noedits', 'artefacts_done', 'string', 'False']]
 
     __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
                         ['fitting', 'nb_chances', 'int', '3'],
