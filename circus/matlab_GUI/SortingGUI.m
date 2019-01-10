@@ -1719,8 +1719,8 @@ h5write(output_file_temp, '/limits', transpose(handles.AmpLim));
 h5create(output_file_temp, '/maxoverlap', size(transpose(overlap)));
 h5write(output_file_temp, '/maxoverlap', transpose(overlap));
 
-h5create(output_file_temp, '/maxlag', size(transpose(lags)));
-h5write(output_file_temp, '/maxlag', transpose(lags));
+h5create(output_file_temp, '/maxlag', size(transpose(handles.lags)));
+h5write(output_file_temp, '/maxlag', transpose(handles.lags));
 
 h5create(output_file_temp, '/tagged', size(transpose(handles.Tagged)));
 h5write(output_file_temp, '/tagged', transpose(handles.Tagged));
