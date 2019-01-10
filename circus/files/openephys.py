@@ -1,6 +1,9 @@
-import numpy, re, sys, os
+import numpy, re, sys, os, logging
 from .datafile import DataFile
 import xml.etree.ElementTree as ET
+from circus.shared.messages import print_and_log
+
+logger = logging.getLogger(__name__)
 
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -13,12 +16,22 @@ def natural_keys(text):
     '''
     return [atoi(c) for c in re.split('(\d+)', text) ]
 
+
+def filter_per_extension(files, extension):
+    results = []
+    for file in files:
+        fn, ext = os.path.splitext(file)
+        if ext == extension:
+            results += [file]
+    return results
+
 class OpenEphysFile(DataFile):
 
     description    = "openephys"    
     extension      = [".openephys"]
     parallel_write = True
     is_writable    = True
+    is_streamable  = ['multi-folders']
 
     # constants
     NUM_HEADER_BYTES   = 1024L
@@ -30,6 +43,40 @@ class OpenEphysFile(DataFile):
                           'dtype_offset' : 0,
                           'data_offset'  : NUM_HEADER_BYTES}
 
+
+    def set_streams(self, stream_mode):
+
+        # We assume that all names are in the forms XXXX_channel.ncs
+
+        if stream_mode == 'multi-folders':
+            dirname         = os.path.abspath(os.path.dirname(self.file_name))
+            upper_dir       = os.path.dirname(dirname)
+            fname           = os.path.basename(self.file_name)
+
+            all_directories = os.listdir(upper_dir)
+            all_files = []
+
+            for local_dir in all_directories:
+                openephys_file = os.path.join(upper_dir, local_dir, fname)
+                if os.path.exists(openephys_file):
+                    all_files += [openephys_file]
+
+            all_files.sort(key=natural_keys)
+
+            sources         = []
+            to_write        = []
+            global_time     = 0
+            params          = self.get_description()
+
+            for fname in all_files:
+                new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
+                new_data._t_start = global_time
+                global_time += new_data.duration
+                sources     += [new_data]
+                to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
+
+            print_and_log(to_write, 'debug', logger)
+            return sources
 
     def _get_sorted_channels_(self):
         tree = ET.parse(self.file_name)

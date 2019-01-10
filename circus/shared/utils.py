@@ -7,14 +7,14 @@ import scipy.sparse as sp
 from math import log, sqrt
 from scipy import linalg
 import scipy.interpolate
-import numpy, os, mpi4py, tempfile
+import numpy, os, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 
-from mpi import *
+from mpi import gather_array, all_gather_array, comm, SHARED_MEMORY
 import files as io
 from messages import print_and_log
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def apply_patch_for_similarities(params, extension):
         hdf5_compress = params.getboolean('data', 'hdf5_compress')
         blosc_compress = params.getboolean('data', 'blosc_compress')
         N_tm    = io.load_data(params, 'nb_templates', extension)
-        N_half  = N_tm // 2
+        N_half  = int(N_tm // 2)
         N_t     = params.getint('detection', 'N_t')
         duration = 2 * N_t - 1
 
@@ -69,8 +69,11 @@ def apply_patch_for_similarities(params, extension):
 
         to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
 
+        if comm.rank == 0:
+            to_explore = get_tqdm_progressbar(to_explore)
+
         if not SHARED_MEMORY:
-            over_x, over_y, over_data, over_shape = io.load_data(params, 'overlaps-raw', extension=extension,)
+            over_x, over_y, over_data, over_shape = io.load_data(params, 'overlaps-raw', extension=extension)
         else:
             over_x, over_y, over_data, over_shape = io.load_data_memshared(params, 'overlaps-raw', extension=extension)
             
@@ -159,7 +162,7 @@ def detect_memory(params, safety_threshold=0.1):
 
     from uuid import getnode as get_mac
     myip = numpy.int64(get_mac()) % 100000
-    sub_comm = comm.Split(myip, 0)
+    sub_comm = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
 
     res = numpy.zeros(1, dtype=numpy.int64)
     mem = virtual_memory()
@@ -199,13 +202,6 @@ def get_shared_memory_flag(params):
     flag: bool
         True if parallel HDF5 is available and the user want to use it.
     '''
-    from mpi4py import MPI
-    try:
-        MPI.Win.Allocate_shared(1, 1, MPI.INFO_NULL, MPI.COMM_SELF).Free()
-        SHARED_MEMORY = True
-    except NotImplementedError:
-        SHARED_MEMORY = False
-
     flag = SHARED_MEMORY and params.getboolean('data', 'shared_memory')
 
     return flag
@@ -239,7 +235,7 @@ def purge(file, pattern):
 
 def get_tqdm_progressbar(iterator):
     sys.stderr.flush()
-    return tqdm.tqdm(iterator, bar_format='{desc}{percentage:3.0f}%|{bar}|[{elapsed}<{remaining}, {rate_fmt}]'  , ncols=72)
+    return tqdm.tqdm(iterator, bar_format='{desc}{percentage:3.0f}%|{bar}|[{elapsed}<{remaining}, {rate_fmt}]', ncols=66)
 
 def get_whitening_matrix(X, fudge=1E-18):
    from numpy.linalg import eigh

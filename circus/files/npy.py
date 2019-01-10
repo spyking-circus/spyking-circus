@@ -43,9 +43,9 @@ class NumpyFile(RawBinaryFile):
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
 
         if self.time_axis == 0:
-            local_chunk  = self.data[t_start:t_stop, :]
+            local_chunk  = self.data[t_start:t_stop, :].copy()
         elif self.time_axis == 1:
-            local_chunk  = self.data[:, t_start:t_stop].T
+            local_chunk  = self.data[:, t_start:t_stop].copy().T
         self._close()
 
         if nodes is not None:

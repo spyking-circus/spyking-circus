@@ -43,12 +43,6 @@ Here are some questions that are popping up regularly. You can ask some or get a
 
 	The main parameters that you can change will be ``cc_merge`` and ``sim_same_elec`` in the ``[clustering]`` section. They are controlling the number of *local* (i.e. per electrode) and *global* (i.e. across the whole probe layout) merges of templates that are performed before the fitting procedure is launched. By reducing ``sim_same_elec`` (can not be less than 0), you reduce the *local* merges, and by increasing ``cc_merge`` (can not be more than 1), you reduce the *global* merges. A first recommendation would be to set ``cc_merge`` to 1. You might also want to turn on the ``smart_search`` parameter in the ``clustering`` section. This will force a smarter collection of the spikes, based on rejection methods, and thus should improve the quality of the clustering.
 
-* **Do I really need to have a GPU?**
-
-.. note::
-
-	In 0.4, it is likely than using 1 GPU is faster than 1 CPU. However, using several CPU is faster than a single GPU, so we recommend using a lot of CPU if you want to gain speed. Dedicated CUDA kernels should be there for 0.5, bringing back the full power of GPUs.
-
 * **Memory usage is saturating for thousands of channels**
 
 .. note::

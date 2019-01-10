@@ -36,6 +36,9 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     header = get_colored_header()
+    header += '''Utility to launch the phy GUI and visualize the results. 
+[data must be first converted with the converting mode]
+    '''
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')
@@ -46,8 +49,31 @@ def main(argv=None):
         parser.print_help()
         sys.exit()
 
-    args = parser.parse_args(argv)
+    try:
+        import vispy 
+    except ImportError:
+        print_and_log(['The package vispy required by phy is not installed'], 'error', logger)
+        sys.exit(1)
 
+    try:
+        import traitlets 
+    except ImportError:
+        print_and_log(['The package traitlets required by phy is not installed'], 'error', logger)
+        sys.exit(1)
+
+    try:
+        import click 
+    except ImportError:
+        print_and_log(['The package click required by phy is not installed'], 'error', logger)
+        sys.exit(1)
+
+    try:
+        import joblib 
+    except ImportError:
+        print_and_log(['The package joblib required by phy is not installed'], 'error', logger)
+        sys.exit(1)
+
+    args = parser.parse_args(argv)
     filename       = os.path.abspath(args.datafile)
     extension      = args.extension
     params         = CircusParser(filename)
@@ -123,7 +149,7 @@ def main(argv=None):
         f = open(os.path.join(output_path, 'params.py'), 'w')
         for key, value in gui_params.items():
             if key in ['dir_path', 'dat_path', 'dtype']:
-                f.write('%s = "%s"\n' %(key, value))
+                f.write('%s = r"%s"\n' %(key, value))
             else:
                 f.write("%s = %s\n" %(key, value))
         f.close()

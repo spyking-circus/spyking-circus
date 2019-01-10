@@ -22,6 +22,9 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     header = get_colored_header()
+    header += '''Utility to split results obtained when using N streams
+into N individual results files, one per stream
+    '''
     parser = argparse.ArgumentParser(description=header,
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('datafile', help='data file')

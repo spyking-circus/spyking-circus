@@ -5,23 +5,46 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.files import get_artefact
 
-def main(params, nb_cpu, nb_gpu, use_gpu):
+def check_if_done(params, flag, logger):
+        value = params.get('noedits', flag).lower().strip()
+        if value == 'false':
+            return False
+        elif value == 'true':
+            return True
+        elif value == 'started':
+            common_sentence = 'Data are likely to be corrupted, please recopy raw data'
+            particular_sentence = 'And set the flag %s in the [noedits] section to False' %flag
+            if comm.rank == 0:
+                if flag == 'filter_done':
+                    msg = ['Code was interrupted while filtering', common_sentence, particular_sentence]
+                elif flag == 'artefacts_done':
+                    msg = ['Code was interrupted while removing artefacts', common_sentence, particular_sentence]
+                elif flag == 'median_done':
+                    msg = ['Code was interrupted while removing median', common_sentence, particular_sentence]
+                elif flag == 'ground_done':
+                    msg = ['Code was interrupted while removing ground', common_sentence, particular_sentence]
+                print_and_log(msg, 'error', logger)
+            sys.exit(0)
 
+def main(params, nb_cpu, nb_gpu, use_gpu):
 
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.filtering')
     #################################################################
     do_filter      = params.getboolean('filtering', 'filter')
-    filter_done    = params.getboolean('noedits', 'filter_done')
-    artefacts_done = params.getboolean('noedits', 'artefacts_done')
-    median_done    = params.getboolean('noedits', 'median_done')
+    filter_done    = check_if_done(params, 'filter_done', logger)
+    artefacts_done = check_if_done(params, 'artefacts_done', logger)
+    median_done    = check_if_done(params, 'median_done', logger)
+    ground_done    = check_if_done(params, 'ground_done', logger)
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median  = params.getboolean('filtering', 'remove_median')
+    common_ground  = params.getint('filtering', 'common_ground')
+    remove_ground  = common_ground >= 0
     nodes, edges   = get_nodes_and_edges(params)
     #################################################################
 
 
-    def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median):
+    def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median, do_remove_ground):
 
         try:
             cut_off    = params.getfloat('filtering', 'cut_off')
@@ -63,6 +86,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 to_write += ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
             if do_remove_median:
                 to_write += ["Median over all channels is subtracted to each channels"]
+            if do_remove_ground:
+                to_write += ["Channel %s is used as a reference channel" %common_ground]
 
             print_and_log(to_write, 'default', logger)
 
@@ -78,10 +103,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if do_filtering:
                 for i in nodes:    
                     try:
-                        local_chunk[:, i]  = signal.filtfilt(b, a, local_chunk[:, i])
+                        local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
                     except Exception:
                         pass
-                local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
+                    local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
 
             if do_remove_median:
                 if not process_all_channels:
@@ -91,6 +116,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 for i in nodes:
                     local_chunk[:, i] -= global_median
+
+            if common_ground > -1:
+                for i in nodes:
+                    local_chunk[:, i] -= local_chunk[:, common_ground]
 
             if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
                 if data_file_in.is_stream:
@@ -102,8 +131,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             data_file_out.set_data(g_offset, local_chunk)
 
-
-
+        sys.stderr.flush()
         comm.Barrier()
 
 
@@ -114,7 +142,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
         make_plots     = params.get('triggers', 'make_plots')
-        plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+        plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
@@ -161,7 +189,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # First we need to get the average artefacts
         art_dict = {}
         for count, artefact in enumerate(local_labels):
-            indices  = numpy.where(all_labels == artefact)[0].astype(numpy.int32)
+            indices  = numpy.where(all_labels == artefact)[0].astype(numpy.uint32)
             tmp      = numpy.where(windows[:, 0] == artefact)[0]
             tau      = numpy.int64(windows[tmp, 1])
             pspikes  = all_times[indices]
@@ -176,7 +204,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 save     = [plot_path, '%d.%s' %(artefact, make_plots)]
                 plot.view_artefact(art_dict[artefact], save=save)
 
-
+        sys.stderr.flush()
         return art_dict
 
 
@@ -187,7 +215,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
         make_plots     = params.get('triggers', 'make_plots')
-        plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+        plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
         if len(windows.shape) == 1:
             windows = windows.reshape(1, 2)
@@ -248,6 +276,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             data_file.set_data(time, local_chunk)
 
         comm.Barrier()
+        sys.stderr.flush()
 
 
     if comm.rank == 0:
@@ -291,6 +320,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         data_file_out = params.get_data_file(is_empty=not has_been_created, params=description)
 
+        if comm.rank == 0:
+            print_and_log(['Allocating space for filtered files...'], 'debug', logger)
+
         if not has_been_created:
             data_file_out.allocate(shape=data_file_in.shape)
 
@@ -310,6 +342,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if remove_median and median_done:
         remove_median = False
         to_write += ["Median over all channels has already been removed"]
+    if remove_ground and ground_done:
+        remove_ground = False
+        to_write += ["Common ground %s has alread been subtracted" %common_ground]
 
     if comm.rank == 0 and len(to_write) > 0:
         print_and_log(to_write, 'info', logger)
@@ -320,15 +355,23 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         data_file_in.open()
         data_file_out.open(mode='r+')
 
-    if do_filter or remove_median:
-        filter_file(data_file_in, data_file_out, do_filter, remove_median)
+    if do_filter or remove_median or remove_ground:
+        if comm.rank == 0:
+            if do_filter:
+                params.write('noedits', 'filter_done', 'Started')
+            if remove_median:
+                params.write('noedits', 'median_done', 'Started')
+            if remove_ground:
+                params.write('noedits', 'ground_done', 'Started')
+        filter_file(data_file_in, data_file_out, do_filter, remove_median, remove_ground)
 
     if comm.rank == 0:
         if do_filter:
             params.write('noedits', 'filter_done', 'True')
         if remove_median:
             params.write('noedits', 'median_done', 'True')
-
+        if remove_ground:
+            params.write('noedits', 'ground_done', 'True')
 
     if clean_artefact and artefacts_done:
         clean_artefact = False
@@ -337,6 +380,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if clean_artefact:
         art_dict   = compute_artefacts(data_file_in)
+        if comm.rank == 0:
+            params.write('noedits', 'artefacts_done', 'Started')
         remove_artefacts(data_file_out, art_dict)
 
     if comm.rank == 0:

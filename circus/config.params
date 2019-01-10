@@ -5,8 +5,8 @@
 [data]
 file_format    =                       # Can be raw_binary, openephys, hdf5, ... See >> spyking-circus help -i for more info
 stream_mode    = None                  # None by default. Can be multi-files, or anything depending to the file format
-mapping        = ~/probes/mea_252.prb  # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
-suffix         =                       # Suffix to add to generated files
+mapping        =                       # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+suffix         =                       # Suffix to add to generated files, if needed
 overwrite      = True                  # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
 parallel_hdf5  = True                  # Use the parallel HDF5 feature (if available)
 output_dir     =                       # By default, generated data are in the same folder as the data.
@@ -16,16 +16,14 @@ radius         = auto       # Radius [in um] (if auto, read from the prb file)
 N_t            = 3          # Width of the templates [in ms]
 spike_thresh   = 6          # Threshold for spike detection
 peaks          = negative   # Can be negative (default), positive or both
-matched-filter = False      # If True, we perform spike detection with matched filters
-matched_thresh = 5          # Threshold for detection if matched filter is True
 alignment      = True       # Realign the waveforms by oversampling
-isolation      = False      # Enforce individual snippets to be isolated [experimental]
 dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
 
 [filtering]
 cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
 filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
+common_ground  =            # If you want to use a particular channel as a reference ground: should be a channel number
 
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
@@ -40,7 +38,6 @@ make_plots     =            # Generate sanity plots of the averaged artefacts [N
 [whitening]
 chunk_size     = 30         # Size of the data chunks [in s]
 safety_time    = auto       # Temporal zone around which templates are isolated [in ms, or auto]
-temporal       = False      # Perform temporal whitening
 spatial        = True       # Perform spatial whitening
 max_elts       = 1000       # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
@@ -65,7 +62,6 @@ make_plots     =            # Generate sanity plots of the clustering [Nothing o
 
 [fitting]
 chunk_size     = 1          # Size of chunks used during fitting [in second]
-gpu_only       = False      # Use GPU for computation of b's AND fitting [not optimized yet]
 amp_limits     = (0.3, 5)   # Amplitudes for the templates during spike detection [if not auto]
 amp_auto       = True       # True if amplitudes are adjusted automatically for every templates
 max_chunk      = inf        # Fit only up to max_chunk
@@ -108,3 +104,4 @@ noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates
 filter_done    = False      # Will become True automatically after filtering
 artefacts_done = False      # Will become True automatically after removing artefacts
 median_done    = False      # Will become True automatically after removing common median
+ground_done    = False      # Will become True automatically after removing common ground

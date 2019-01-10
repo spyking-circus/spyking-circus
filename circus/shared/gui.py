@@ -413,6 +413,7 @@ class MergeWindow(QMainWindow):
                     self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
 
+        sys.stderr.flush()
         self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, comm)
         self.raw_data    = gather_array(self.raw_data, comm, 0, 1)
@@ -440,12 +441,12 @@ class MergeWindow(QMainWindow):
                                                    facecolor=['black' for _ in x]))
             self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
             self.decision_boundary = self.score_ax3.plot([0, self.score_z.max()], [-self.suggest_value, self.score_z.max()-self.suggest_value], 'r--', alpha=0.5)[0]
-            self.score_ax1.set_ylabel('Normalized CC metric')
+            self.score_ax1.set_ylabel('CC metric')
             self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
             self.score_ax2.set_ylabel('# Spikes')
-            self.score_ax3.set_xlabel('Reversed CC')
-            self.score_ax3.set_ylabel('Normalized CC metric')
+            self.score_ax3.set_xlabel('Expected CC')
+            self.score_ax3.set_ylabel('CC metric')
             self.waveforms_ax.set_xticks([])
             self.waveforms_ax.set_yticks([])
             #self.waveforms_ax.set_xlabel('Time [ms]')
@@ -1013,13 +1014,15 @@ class MergeWindow(QMainWindow):
             if to_keep != to_remove:
                 key        = 'temp_' + str(to_keep)
                 key2       = 'temp_' + str(to_remove)
-                spikes     = self.result['spiketimes'][key2].astype('int64')
+                spikes     = self.result['spiketimes'][key2]
                 if self.correct_lag:
+                    spikes = spikes.astype(numpy.int64)
                     spikes += self.lag[to_keep, to_remove]
+                    spikes = spikes.astype(numpy.uint32)
                 amplitudes = self.result['amplitudes'][key2]
                 n1, n2     = len(self.result['amplitudes'][key2]), len(self.result['amplitudes'][key])
                 self.result['amplitudes'][key] = numpy.vstack((self.result['amplitudes'][key].reshape(n2, 2), amplitudes.reshape(n1, 2)))
-                self.result['spiketimes'][key] = numpy.concatenate((self.result['spiketimes'][key], spikes.astype(numpy.uint32)))
+                self.result['spiketimes'][key] = numpy.concatenate((self.result['spiketimes'][key], spikes))
                 idx                            = numpy.argsort(self.result['spiketimes'][key])
                 self.result['spiketimes'][key] = self.result['spiketimes'][key][idx]
                 self.result['amplitudes'][key] = self.result['amplitudes'][key][idx]

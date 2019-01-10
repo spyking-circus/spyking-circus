@@ -12,8 +12,7 @@ with warnings.catch_warnings():
     import h5py
 
 from colorama import Fore
-from mpi import all_gather_array, gather_array, comm, get_local_ring
-from mpi4py import MPI
+from mpi import all_gather_array, gather_array, comm, get_local_ring, MPI
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
 from circus.shared.utils import purge, get_parallel_hdf5_flag, indices_for_dead_times, get_shared_memory_flag
@@ -22,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 def data_stats(params, show=True, export_times=False):
-
 
     data_file   = params.get_data_file(source=True, has_been_created=False)
     stream_mode = data_file.is_stream
@@ -41,6 +39,11 @@ def data_stats(params, show=True, export_times=False):
     N_t = params.getint('detection', 'N_t')
     N_t = numpy.round(1000.*N_t/params.rate, 1)
 
+    if params.get('detection', 'peaks') == 'both':
+        threshold = 'positive and negative'
+    else:
+        threshold = params.get('detection', 'peaks')
+
     lines = ["Number of recorded channels : %d" %params.nb_channels,
              "Number of analyzed channels : %d" %params.getint('data', 'N_e'),
              "File format                 : %s" %params.get('data', 'file_format').upper(),
@@ -49,9 +52,7 @@ def data_stats(params, show=True, export_times=False):
              "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, int(nb_seconds), last_chunk_len),
              "Width of the templates      : %d ms" %N_t,
              "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
-             "Threshold crossing          : %s" %params.get('detection', 'peaks'),
-             "Waveform alignment          : %s" %params.getboolean('detection', 'alignment'),
-             "Overwrite                   : %s" %params.get('data', 'overwrite')]
+             "Threshold crossing          : %s" %threshold]
 
     if stream_mode:
         lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]
@@ -88,6 +89,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     template_shift        = params.getint('detection', 'template_shift')
     template_shift_2      = 2 * template_shift
     duration              = 2 * N_t - 1
+    mads                  = load_data(params, 'mads')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -117,7 +119,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
-                f           = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+                #try:
+                #   f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=xdata.size*mads[src]**2, k=3)
+                #except Exception:
+                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0, k=3)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
@@ -125,7 +130,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
-                f           = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata)-1, 3))
+                #try:
+                #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=local_chunk.size*mads[src]**2, kx=3, ky=1)
+                #except Exception:
+                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, kx=3, ky=1)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 elif pos == 'pos':
@@ -150,8 +158,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
 def get_dead_times(params):
 
-
-
     def _get_dead_times(params):
         dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
         data_file  = params.data_file
@@ -170,11 +176,8 @@ def get_dead_times(params):
         # First we need to identify machines in the MPI ring.
         from uuid import getnode as get_mac
         myip = numpy.int64(get_mac()) % 100000
-        ##### TODO: remove quarantine zone
-        # intsize = MPI.INT.Get_size()
-        ##### end quarantine zone
         intsize  = MPI.LONG_LONG.Get_size()
-        sub_comm = comm.Split(myip, 0)
+        sub_comm = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
         nb_dead_times = 0
 
         if sub_comm.rank == 0:
@@ -182,7 +185,7 @@ def get_dead_times(params):
             nb_dead_times = len(dead_times)
 
         sub_comm.Barrier()
-        long_size  = numpy.int32(sub_comm.bcast(numpy.array([nb_dead_times], dtype=numpy.int32), root=0)[0])
+        long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_dead_times], dtype=numpy.uint32), root=0)[0])
 
         if sub_comm.rank == 0:
             data_bytes    = long_size * intsize
@@ -198,9 +201,8 @@ def get_dead_times(params):
         sub_comm.Barrier()
 
         if sub_comm.rank == 0:
-            data[:]= dead_times
+            data[:] = dead_times
 
-        sub_comm.Barrier()
         sub_comm.Free()
         return data
 
@@ -217,7 +219,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     # intsize = MPI.INT.Get_size()
     ##### end quarantine zone
     float_size = MPI.FLOAT.Get_size()
-    sub_comm = comm.Split(myip, 0)
+    sub_comm = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
 
     # Load parameters.
     data_file    = params.data_file
@@ -256,9 +258,9 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     sub_comm.Barrier()
 
     # Broadcast the sizes of the data structures to share.
-    triggers_size = numpy.int64(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.int32), root=0)[0])
-    neighs_size = numpy.int64(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.int32), root=0)[0])
-    ts_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.int32), root=0)[0])
+    triggers_size = numpy.int64(sub_comm.bcast(numpy.array([nb_triggers], dtype=numpy.uint32), root=0)[0])
+    neighs_size = numpy.int64(sub_comm.bcast(numpy.array([nb_neighs], dtype=numpy.uint32), root=0)[0])
+    ts_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ts], dtype=numpy.uint32), root=0)[0])
 
     # Declare the data structures to share.
     if sub_comm.Get_rank() == 0:
@@ -307,12 +309,12 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
                 idx = numpy.where(neighs == src)[0]
                 ydata = numpy.arange(len(neighs))
                 if len(ydata) == 1:
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0)
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0, k=3)
                     rmin = (numpy.argmin(f(cdata)) - xoff) / over_factor
                     ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                     local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                 else:
-                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=min(len(ydata) - 1, 3))
+                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, ky=1, kx=3)
                     rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff) / over_factor
                     ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                     local_chunk = f(ddata, ydata).astype(numpy.float32)
@@ -359,7 +361,7 @@ def get_artefact(params, times_i, tau, nodes):
         artefact = numpy.vstack((artefact, snippet))
 
     artefact = numpy.median(artefact, 0)
-    
+
     data_file.close()
 
     return artefact
@@ -372,8 +374,6 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
     file_out_suff   = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
 
-    sub_comm, is_local = get_local_ring(local_only)
-
     intsize   = MPI.INT.Get_size()
     floatsize = MPI.FLOAT.Get_size()
 
@@ -382,18 +382,23 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
     N_t       = params.getint('detection', 'N_t')
 
     if data == 'templates':
-        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+
+        file_name = file_out_suff + '.templates%s.hdf5' %extension
+        if os.path.exists(file_name):
+
+            sub_comm, is_local = get_local_ring(local_only)
+            local_rank = sub_comm.rank
             nb_data = 0
             nb_ptr  = 0
-            nb_templates = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest').get('norms').shape[0]
+            indptr_bytes  = 0
+            indices_bytes = 0
+            data_bytes    = 0
+            nb_templates = h5py.File(file_name, 'r', libver='earliest').get('norms').shape[0]
 
-            if sub_comm.rank == 0:
-                temp_x       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                         'r', libver='earliest').get('temp_x')[:].ravel()
-                temp_y       = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                         'r', libver='earliest').get('temp_y')[:].ravel()
-                temp_data    = h5py.File(file_out_suff + '.templates%s.hdf5' %extension,
-                                         'r', libver='earliest').get('temp_data')[:].ravel()
+            if local_rank == 0:
+                temp_x       = h5py.File(file_name, 'r', libver='earliest').get('temp_x')[:].ravel()
+                temp_y       = h5py.File(file_name, 'r', libver='earliest').get('temp_y')[:].ravel()
+                temp_data    = h5py.File(file_name, 'r', libver='earliest').get('temp_data')[:].ravel()
                 sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
                 if normalize:
                     norm_templates = load_data(params, 'norm-templates')
@@ -406,219 +411,216 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 nb_data = len(sparse_mat.data)
                 nb_ptr  = len(sparse_mat.indptr)
 
-            sub_comm.Barrier()
-            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
+            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.uint32), root=0)[0])
 
-            if sub_comm.rank == 0:
-                indptr_bytes  = short_size * intsize
-                indices_bytes = long_size * intsize
+            if local_rank == 0:
+                indices_bytes = short_size * intsize
                 data_bytes    = long_size * floatsize
-            else:
-                indptr_bytes  = 0
-                indices_bytes = 0
-                data_bytes    = 0
 
             win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
-            win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
-            win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
+            win_indices = MPI.Win.Allocate_shared(indices_bytes + indptr_bytes, intsize, comm=sub_comm)
 
             buf_data, _    = win_data.Shared_query(0)
             buf_indices, _ = win_indices.Shared_query(0)
-            buf_indptr, _  = win_indptr.Shared_query(0)
 
             buf_data    = numpy.array(buf_data, dtype='B', copy=False)
             buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
-            buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
 
             data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
-            indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(short_size,))
 
-            sub_comm.Barrier()
-
-            if sub_comm.rank == 0:
-                data[:nb_data]    = sparse_mat.data
-                indices[:nb_data] = sparse_mat.indices
-                indptr[:nb_data]  = sparse_mat.indptr
+            if local_rank == 0:
+                data[:]    = sparse_mat.data
+                indices[:long_size] = sparse_mat.indices
+                indices[long_size:] = sparse_mat.indptr
                 del sparse_mat
 
-            sub_comm.Barrier()
             if not transpose:
                 templates = scipy.sparse.csc_matrix((N_e*N_t, nb_templates), dtype=numpy.float32)
             else:
                 templates = scipy.sparse.csr_matrix((nb_templates, N_e*N_t), dtype=numpy.float32)
+
             templates.data    = data
-            templates.indices = indices
-            templates.indptr  = indptr
+            templates.indices = indices[:long_size]
+            templates.indptr  = indices[long_size:]
 
             sub_comm.Free()
             return templates
         else:
-            sub_comm.Free()
             raise Exception('No templates found! Check suffix?')
     elif data == "overlaps":
 
-        c_overlap  = get_overlaps(params, extension, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        file_name = file_out_suff + '.overlap%s.hdf5' %extension
+        if os.path.exists(file_name):
 
-        if not local_only or (local_only and is_local):
-            over_shape = c_overlap.get('over_shape')[:]
-            N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
-            S_over     = over_shape[1]
-            c_overs    = {}
+            c_overlap = h5py.File(file_name, 'r')
+            sub_comm, is_local = get_local_ring(local_only)
+            local_rank = sub_comm.rank
 
-            if sub_comm.rank == 0:
-                over_x     = c_overlap.get('over_x')[:]
-                over_y     = c_overlap.get('over_y')[:]
-                over_data  = c_overlap.get('over_data')[:]
-            
-            c_overlap.close()
-            sub_comm.Barrier()
+            if not local_only or (local_only and is_local):
 
-            nb_data = 0
-            nb_ptr  = 0
+                over_shape = c_overlap.get('over_shape')[:]
+                N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
+                S_over     = over_shape[1]
+                c_overs    = {}
+                nb_data    = 0
 
-            for i in xrange(N_over):
-
-                if sub_comm.rank == 0:
-                    idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
-                    local_x = over_x[idx] - i*N_over
-
-                    sparse_mat = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
-                    nb_data    = len(sparse_mat.data)
-                    nb_ptr     = len(sparse_mat.indptr)
-
-                long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-                short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr], dtype=numpy.int32), root=0)[0])
-
-                if sub_comm.rank == 0:
-                    indptr_bytes  = short_size * intsize
-                    indices_bytes = long_size * intsize
-                    data_bytes    = long_size * floatsize
-                else:
-                    indptr_bytes  = 0
-                    indices_bytes = 0
-                    data_bytes    = 0
-
-                win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
-                win_indices = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
-                win_indptr  = MPI.Win.Allocate_shared(indptr_bytes, intsize, comm=sub_comm)
-
-                buf_data, _    = win_data.Shared_query(0)
-                buf_indices, _ = win_indices.Shared_query(0)
-                buf_indptr, _  = win_indptr.Shared_query(0)
-
-                buf_data    = numpy.array(buf_data, dtype='B', copy=False)
-                buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
-                buf_indptr  = numpy.array(buf_indptr, dtype='B', copy=False)
-
-                data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-                indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(long_size,))
-                indptr  = numpy.ndarray(buffer=buf_indptr, dtype=numpy.int32, shape=(short_size,))
-
-                sub_comm.Barrier()
-
-                if sub_comm.rank == 0:
-                    data[:]    = sparse_mat.data
-                    indices[:] = sparse_mat.indices
-                    indptr[:]  = sparse_mat.indptr
-                    del sparse_mat
-
-                c_overs[i]         = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
-                c_overs[i].data    = data
-                c_overs[i].indices = indices
-                c_overs[i].indptr  = indptr
-
-                sub_comm.Barrier()
-
-            if sub_comm.rank == 0:
-                del over_x, over_y, over_data
-
-        else:
-            c_overs = {}
-
-        sub_comm.Free()
-
-        return c_overs
-
-    elif data == "overlaps-raw":
-
-        c_overlap  = get_overlaps(params, extension, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
-
-        if not local_only or (local_only and is_local):
-
-            over_shape = c_overlap.get('over_shape')[:]
-            N_over     = over_shape[0]
-            S_over     = over_shape[1]
-            c_overs    = {}
-
-            if raw_data is not None:
-                over_x = raw_data[0]
-                over_y = raw_data[1]
-                over_data = raw_data[2]
-            else:
-                if sub_comm.rank == 0:
+                if local_rank== 0:
                     over_x     = c_overlap.get('over_x')[:]
                     over_y     = c_overlap.get('over_y')[:]
                     over_data  = c_overlap.get('over_data')[:]
+                    nb_data    = len(over_x)
 
-            c_overlap.close()
-            sub_comm.Barrier()
+                c_overlap.close()
 
-            nb_data = 0
-
-            if sub_comm.rank == 0:
-                nb_data    = len(over_x)
-
-            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-
-            if sub_comm.rank == 0:
-                indices_bytes = long_size * intsize
-                data_bytes    = long_size * floatsize
-            else:
+                nb_ptr        = 0
+                indptr_bytes  = 0
                 indices_bytes = 0
                 data_bytes    = 0
 
-            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
-            win_indices_x = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
-            win_indices_y = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+                nb_data     = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+                win_data    = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
+                buf_data, _ = win_data.Shared_query(0)
+                buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+                data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
 
-            buf_data, _      = win_data.Shared_query(0)
-            buf_indices_x, _ = win_indices_x.Shared_query(0)
-            buf_indices_y, _ = win_indices_y.Shared_query(0)
+                factor = int(2*nb_data)
+                win_indices    = MPI.Win.Allocate_shared(factor * intsize, intsize, comm=sub_comm)
+                buf_indices, _ = win_indices.Shared_query(0)
+                buf_indices    = numpy.array(buf_indices, dtype='B', copy=False)
+                indices        = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(factor,))
 
-            buf_data    = numpy.array(buf_data, dtype='B', copy=False)
-            buf_indices_x = numpy.array(buf_indices_x, dtype='B', copy=False)
-            buf_indices_y = numpy.array(buf_indices_y, dtype='B', copy=False)
+                global_offset_data  = 0
+                global_offset_ptr   = 0
+                local_nb_data       = 0
+                local_nb_ptr        = 0
 
-            data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-            indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(long_size,))
-            indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(long_size,))
+                for i in xrange(N_over):
 
-            sub_comm.Barrier()
+                    if local_rank == 0:
+                        idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
+                        local_x = over_x[idx] - i*N_over
 
-            if sub_comm.rank == 0:
-                data[:]    = over_data
-                indices_x[:] = over_x
-                indices_y[:] = over_y
-                del over_x, over_y, over_data
+                        sparse_mat = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
+                        local_nb_data    = len(sparse_mat.data)
+                        local_nb_ptr     = len(sparse_mat.indptr)
 
-            sub_comm.Barrier()
+                    local_nb_data = numpy.int64(sub_comm.bcast(numpy.array([local_nb_data], dtype=numpy.int32), root=0)[0])
+                    local_nb_ptr  = numpy.int64(sub_comm.bcast(numpy.array([local_nb_ptr], dtype=numpy.int32), root=0)[0])
 
+                    boundary_data = global_offset_data + local_nb_data
+                    boundary_ptr  = global_offset_ptr + nb_data
+
+                    if local_rank == 0:
+                        data[global_offset_data:boundary_data] = sparse_mat.data
+                        indices[global_offset_data:boundary_data] = sparse_mat.indices
+                        indices[boundary_ptr:boundary_ptr + local_nb_ptr] = sparse_mat.indptr
+                        del sparse_mat
+
+                    c_overs[i]         = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
+                    c_overs[i].data    = data[global_offset_data:boundary_data]
+                    c_overs[i].indices = indices[global_offset_data:boundary_data]
+                    c_overs[i].indptr  = indices[boundary_ptr:boundary_ptr + local_nb_ptr]
+                    global_offset_data += local_nb_data
+                    global_offset_ptr  += local_nb_ptr
+
+                if local_rank == 0:
+                    del over_x, over_y, over_data
+
+            else:
+                c_overs = {}
+
+            sub_comm.Free()
+            return c_overs
         else:
-            indices_x = numpy.zeros(0, dtype=numpy.int32)
-            indices_y = numpy.zeros(0, dtype=numpy.int32)
-            data = numpy.zeros(0, dtype=numpy.float32)
-            over_shape = numpy.zeros(2, dtype=numpy.int32)
+            raise Exception('No overlaps found! Check suffix?')
 
-        sub_comm.Free()
+    elif data == "overlaps-raw":
 
-        return indices_x, indices_y, data, over_shape
-    
+        file_name = file_out_suff + '.overlap%s.hdf5' %extension
+        if os.path.exists(file_name):
+
+            sub_comm, is_local = get_local_ring(local_only)
+            local_rank = sub_comm.rank
+
+            if not local_only or (local_only and is_local):
+
+                c_overlap = h5py.File(file_name, 'r')
+                over_shape = c_overlap.get('over_shape')[:]
+                N_over     = over_shape[0]
+                S_over     = over_shape[1]
+                c_overs    = {}
+                indices_bytes = 0
+                data_bytes    = 0
+                nb_data = 0
+
+                if raw_data is not None:
+                    over_x = raw_data[0]
+                    over_y = raw_data[1]
+                    over_data = raw_data[2]
+                else:
+                    if local_rank == 0:
+                        over_x     = c_overlap.get('over_x')[:]
+                        over_y     = c_overlap.get('over_y')[:]
+                        over_data  = c_overlap.get('over_data')[:]
+
+                c_overlap.close()
+
+                if local_rank == 0:
+                    nb_data    = len(over_x)
+
+                long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+
+                if local_rank == 0:
+                    indices_bytes = long_size * intsize
+                    data_bytes    = long_size * floatsize
+
+                win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
+                win_indices_x = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+                win_indices_y = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+
+                buf_data, _      = win_data.Shared_query(0)
+                buf_indices_x, _ = win_indices_x.Shared_query(0)
+                buf_indices_y, _ = win_indices_y.Shared_query(0)
+
+                buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+                buf_indices_x = numpy.array(buf_indices_x, dtype='B', copy=False)
+                buf_indices_y = numpy.array(buf_indices_y, dtype='B', copy=False)
+
+                data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
+                indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.uint32, shape=(long_size,))
+                indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.uint32, shape=(long_size,))
+
+                sub_comm.Barrier()
+
+                if local_rank == 0:
+                    data[:]    = over_data
+                    indices_x[:] = over_x
+                    indices_y[:] = over_y
+                    del over_x, over_y, over_data
+
+                sub_comm.Barrier()
+                sub_comm.Free()
+            else:
+                indices_x = numpy.zeros(0, dtype=numpy.uint32)
+                indices_y = numpy.zeros(0, dtype=numpy.uint32)
+                data = numpy.zeros(0, dtype=numpy.float32)
+                over_shape = numpy.zeros(2, dtype=numpy.int32)
+
+            return indices_x, indices_y, data, over_shape
+        else:
+            raise Exception('No overlaps found! Check suffix?')
+
     elif data == 'clusters-light':
 
-        if os.path.exists(file_out_suff + '.clusters%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.clusters%s.hdf5' %extension, 'r', libver='earliest')
+        file_name = file_out_suff + '.clusters%s.hdf5' %extension
+        if os.path.exists(file_name):
+
+            sub_comm, is_local = get_local_ring(local_only)
+            local_rank = sub_comm.rank
+
+            myfile = h5py.File(file_name, 'r', libver='earliest')
             result = {}
 
             nb_data = 0
@@ -626,13 +628,13 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             for key in myfile.keys():
 
                 if ('clusters_' in key) or (key == 'electrodes'):
-                    if sub_comm.rank == 0:
+                    if local_rank == 0:
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
 
-                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
 
-                    if sub_comm.rank == 0:
+                    if local_rank == 0:
                         if locdata.dtype == 'int32':
                             type_size = 0
                         elif locdata.dtype == 'float32':
@@ -642,9 +644,9 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         type_size  = 0
                         data_bytes = 0
 
-                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
+                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.uint32), root=0)[0])
 
-                    empty      = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.int32), root=0)[0])
+                    empty      = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.uint32), root=0)[0])
                     if empty > 0:
                         win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
                         buf_data, _ = win_data.Shared_query(0)
@@ -655,7 +657,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         elif type_size == 1:
                             data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(data_size,))
 
-                        if sub_comm.rank == 0:
+                        if local_rank == 0:
                             data[:]    = locdata
                     else:
                         if type_size == 0:
@@ -666,11 +668,11 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                     sub_comm.Barrier()
 
                     result[str(key)] = data
-
             sub_comm.Free()
-
             myfile.close()
             return result
+        else:
+            raise Exception('No clusters found! Check suffix?')
 
 
 
@@ -697,6 +699,12 @@ def load_data(params, data, extension=''):
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds
+    elif data == 'mads':
+        if os.path.exists(file_out_suff + '.basis.hdf5'):
+            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
+            thresholds = myfile.get('thresholds')[:]
+            myfile.close()
+            return thresholds
     elif data == 'matched-thresholds':
         matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(file_out_suff + '.basis.hdf5'):
@@ -1184,7 +1192,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     data_length    = data_stats(params, show=False)
     duration       = int(min(chunks*max_chunk, data_length))
     templates      = load_data(params, 'norm-templates')
-    refractory     = params.getfloat('fitting', 'refractory')
+    refractory     = params.getint('fitting', 'refractory')
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')
     print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', logger)
@@ -1232,13 +1240,13 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             gspikes_file = file_out_suff + '.gspiketimes-%d.data' %node
             gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.uint32)
             gtemps_file  = file_out_suff + '.gtemplates-%d.data' %node
-            gtemps       = numpy.fromfile(gtemps_file, dtype=numpy.int32)
+            gtemps       = numpy.fromfile(gtemps_file, dtype=numpy.uint32)
 
         if os.path.exists(amplitudes_file):
 
             amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
             spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.uint32)
-            templates  = numpy.fromfile(templates_file, dtype=numpy.int32)
+            templates  = numpy.fromfile(templates_file, dtype=numpy.uint32)
             N          = len(amplitudes)
             amplitudes = amplitudes.reshape(N//2, 2)
             min_size   = min([amplitudes.shape[0], spiketimes.shape[0], templates.shape[0]])
@@ -1266,6 +1274,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                     idx = numpy.where(gtemps == j)[0]
                     result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx]))
 
+    sys.stderr.flush()
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
         result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
@@ -1448,8 +1457,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         to_explore = get_tqdm_progressbar(to_explore)
 
 
-    over_x    = numpy.zeros(0, dtype=numpy.int32)
-    over_y    = numpy.zeros(0, dtype=numpy.int32)
+    over_x    = numpy.zeros(0, dtype=numpy.uint32)
+    over_y    = numpy.zeros(0, dtype=numpy.uint32)
     over_data = numpy.zeros(0, dtype=numpy.float32)
     rows      = numpy.arange(N_e*N_t)
     _srows    = {'left' : {}, 'right' : {}}
@@ -1488,9 +1497,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                     data  = tmp_1.dot(tmp_2)
 
                 dx, dy     = data.nonzero()
-                ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
-                ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
-                ones       = numpy.ones(len(dx), dtype=numpy.int32)
+                ddx        = numpy.take(local_idx, dx).astype(numpy.uint32)
+                ddy        = numpy.take(to_consider, dy).astype(numpy.uint32)
+                ones       = numpy.ones(len(dx), dtype=numpy.uint32)
                 over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
                 over_y     = numpy.concatenate((over_y, (idelay - 1)*ones))
                 over_data  = numpy.concatenate((over_data, data.data))
@@ -1499,14 +1508,15 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                     over_y     = numpy.concatenate((over_y, (duration - idelay)*ones))
                     over_data  = numpy.concatenate((over_data, data.data))
 
+    sys.stderr.flush()
     if comm.rank == 0:
         print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)
 
     comm.Barrier()
 
     #We need to gather the sparse arrays
-    over_x    = gather_array(over_x, comm, dtype='int32', compress=blosc_compress)
-    over_y    = gather_array(over_y, comm, dtype='int32', compress=blosc_compress)
+    over_x    = gather_array(over_x, comm, dtype='uint32', compress=blosc_compress)
+    over_y    = gather_array(over_y, comm, dtype='uint32', compress=blosc_compress)
     over_data = gather_array(over_data, comm, compress=blosc_compress)
     over_shape = numpy.array([N_tm**2, duration], dtype=numpy.int32)
 
@@ -1566,7 +1576,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         if comm.rank == 0:
             maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
             maxoverlap = numpy.sum(maxoverlap, 0)
-        
+
         #sub_comm.Barrier()
         #sub_comm.Free()
 

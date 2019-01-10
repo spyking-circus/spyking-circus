@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def main():
 
     argv = sys.argv
-    
+
     # This should not never be called by the user, therefore we can assume a
     # standard format
     assert (len(sys.argv) in [6, 7, 8, 9]), 'Incorrect number of arguments -- do not run this script manually, use "spyking-circus" instead'
@@ -31,7 +31,7 @@ def main():
             circus.launch(task, filename, nb_cpu, nb_gpu, use_gpu, output, benchmark, sim_same_elec=sim_same_elec)
         else:
             circus.launch(task, filename, nb_cpu, nb_gpu, use_gpu, output, benchmark)
-    elif task in ['converting', 'merging']:
+    elif task in ['converting', 'deconverting', 'merging']:
         extension = sys.argv[6]
         if extension == 'None':
             extension = ''

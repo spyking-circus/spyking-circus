@@ -6,17 +6,17 @@ import sys, subprocess, re
 requires = ['mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
             'psutil', 'tqdm', 'blosc', 'statsmodels']
 
-if '--cuda' in sys.argv:
-  sys.argv.remove('--cuda')
-  try:
-    subprocess.check_call(['nvcc', '--version'])
-    requires += ['cudamat==0.3circus']
-    HAVE_CUDA = True
-  except (OSError, subprocess.CalledProcessError):
-    print("CUDA not found")
-    HAVE_CUDA = False
-else:
-  HAVE_CUDA = False
+# if '--cuda' in sys.argv:
+#   sys.argv.remove('--cuda')
+#   try:
+#     subprocess.check_call(['nvcc', '--version'])
+#     requires += ['cudamat==0.3circus']
+#     HAVE_CUDA = True
+#   except (OSError, subprocess.CalledProcessError):
+#     print("CUDA not found")
+#     HAVE_CUDA = False
+# else:
+#   HAVE_CUDA = False
 
 from setuptools import setup
 
@@ -58,13 +58,15 @@ setup(name='spyking-circus',
       keywords="spike sorting template matching tetrodes extracellular",
       packages=_package_tree('circus'),
       setup_requires=['setuptools>0.18'],
-      dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
+      #dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
       install_requires=requires,
       entry_points={
           'console_scripts': [
               'spyking-circus=circus.scripts.launch:main',
               'spyking-circus-subtask=circus.scripts.subtask:main',
               'circus-multi=circus.scripts.circus_multi:main',
+              'circus-folders=circus.scripts.circus_folders:main',
+              'circus-artefacts=circus.scripts.circus_artefacts:main',
               'circus-gui-matlab=circus.scripts.matlab_gui:main',
               'circus-gui-python=circus.scripts.python_gui:main'
           ],
@@ -120,10 +122,10 @@ msg = ['########################################################################
 '# Probes files and parameter template have been copied to $HOME/spyking-circus #']
 
 
-if HAVE_CUDA:
-  msg += ['# GPU support has been correctly installed                                     #']
-else:
-  msg += ['# GPU support was NOT installed. Be sure to have a valid nvcc command          #']
+# if HAVE_CUDA:
+#   msg += ['# GPU support has been correctly installed                                     #']
+# else:
+#   msg += ['# GPU support was NOT installed. Be sure to have a valid nvcc command          #']
 
 msg += ['################################################################################']
 

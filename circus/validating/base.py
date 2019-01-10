@@ -54,7 +54,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     learning_rate_init = params.getfloat('validating', 'learning_rate')
     make_plots = params.get('validating', 'make_plots')
     roc_sampling = params.getint('validating', 'roc_sampling')
-    plot_path = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+    plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     test_size = params.getfloat('validating', 'test_size')
     matching_jitter = params.getfloat('validating', 'matching_jitter')
     greedy_mode = params.getboolean('validating', 'greedy_mode')
@@ -1237,7 +1237,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             y_decfs[count] = y_decf
             confusion_matrices[count] = confusion_matrix
             
-            
+        sys.stderr.flush()
     else:
         raise Exception("Unsupported classifier: model={}".format(model))
         

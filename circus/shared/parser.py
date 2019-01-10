@@ -17,6 +17,7 @@ class CircusParser(object):
     __default_values__ = [['fitting', 'amp_auto', 'bool', 'True'],
                           ['fitting', 'refractory', 'float', '0.5'],
                           ['fitting', 'collect_all', 'bool', 'False'],
+                          ['fitting', 'gpu_only', 'bool', 'False'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],
@@ -45,7 +46,9 @@ class CircusParser(object):
                           ['triggers', 'ignore_times', 'bool', 'False'],
                           ['whitening', 'chunk_size', 'int', '30'],
                           ['whitening', 'safety_space', 'bool', 'True'],
+                          ['whitening', 'temporal', 'bool', 'False'],
                           ['filtering', 'remove_median', 'bool', 'False'],
+                          ['filtering', 'common_ground', 'string', ''],
                           ['clustering', 'nb_repeats', 'int', '3'],
                           ['clustering', 'make_plots', 'string', 'png'],
                           ['clustering', 'test_clusters', 'bool', 'False'],
@@ -85,22 +88,23 @@ class CircusParser(object):
                           ['validating', 'juxta_spikes', 'string', ''],
                           ['validating', 'greedy_mode', 'bool', 'True'],
                           ['validating', 'extension', 'string', ''],
-                          ['noedits', 'filter_done', 'bool', 'False'],
-                          ['noedits', 'median_done', 'bool', 'False'],
-                          ['noedits', 'artefacts_done', 'bool', 'False']]
+                          ['noedits', 'filter_done', 'sting', 'False'],
+                          ['noedits', 'median_done', 'string', 'False'],
+                          ['noedits', 'ground_done', 'string', 'False'],
+                          ['noedits', 'artefacts_done', 'string', 'False']]
 
     __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
                         ['fitting', 'nb_chances', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '5']]
 
-    def __init__(self, file_name, **kwargs):
+    def __init__(self, file_name, create_folders=True, **kwargs):
 
         self.file_name    = os.path.abspath(file_name)
         f_next, extension = os.path.splitext(self.file_name)
         file_path         = os.path.dirname(self.file_name)
         self.file_params  = f_next + '.params'
-        self.logfile      = f_next + '.log'
+        self.do_folders   = create_folders
         self.parser       = configparser.ConfigParser()
 
         ## First, we remove all tabulations from the parameter file, in order
@@ -153,6 +157,29 @@ class CircusParser(object):
                 if self.parser._sections[section].has_key(key):
                     self.parser._sections[section][key] = value
 
+        if self.do_folders and self.parser.get('data', 'output_dir') == '':
+            try:
+                os.makedirs(f_next)
+            except Exception:
+                pass
+
+        self.parser.set('data', 'data_file', self.file_name)
+
+        if self.parser.get('data', 'output_dir') != '':
+          path = os.path.abspath(os.path.expanduser(self.parser.get('data', 'output_dir')))
+          self.parser.set('data', 'output_dir', path)
+          file_out = os.path.join(path, os.path.basename(f_next))
+          if not os.path.exists(file_out) and self.do_folders:
+            os.makedirs(file_out)
+          self.logfile      = file_out + '.log'
+        else:
+          file_out = os.path.join(f_next, os.path.basename(f_next))
+          self.logfile      = f_next + '.log'
+
+        self.parser.set('data', 'data_file_no_overwrite', file_out + '_all_sc.dat')
+        self.parser.set('data', 'file_out', file_out) # Output file without suffix
+        self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
+        self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
 
         self.probe = read_probe(self.parser)
 
@@ -243,8 +270,14 @@ class CircusParser(object):
         else:
           self.parser.set('triggers', 'trig_in_ms', str(self.parser.get('triggers', 'trig_unit').lower() == 'ms'))
 
-        self.parser.set('triggers', 'trig_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_file'))))
-        self.parser.set('triggers', 'trig_windows', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'trig_windows'))))
+        if self.parser.getboolean('triggers', 'clean_artefact'):
+          for key in ['trig_file', 'trig_windows']:
+            myfile = os.path.abspath(os.path.expanduser(self.parser.get('triggers', key)))
+            if not os.path.exists(myfile):
+              if comm.rank == 0:
+                print_and_log(["File %s can not be found" %str(myfile)], 'error', logger)
+              sys.exit(0)
+            self.parser.set('triggers', key, myfile)
 
         units = ['ms', 'timestep']
         test = self.parser.get('triggers', 'dead_unit').lower() in units
@@ -255,7 +288,13 @@ class CircusParser(object):
         else:
           self.parser.set('triggers', 'dead_in_ms', str(self.parser.get('triggers', 'dead_unit').lower() == 'ms'))
 
-        self.parser.set('triggers', 'dead_file', os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'dead_file'))))
+        if self.parser.getboolean('triggers', 'ignore_times'):
+          myfile = os.path.abspath(os.path.expanduser(self.parser.get('triggers', 'dead_file')))
+          if not os.path.exists(myfile):
+            if comm.rank == 0:
+              print_and_log(["File %s can not be found" %str(myfile)], 'error', logger)
+            sys.exit(0)
+          self.parser.set('triggers', 'dead_file', myfile)
 
         test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
         if not test:
@@ -267,27 +306,28 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["Only 3 detection modes for peaks in [detection]: negative, positive, both"], 'error', logger)
+            sys.exit(0)
 
-        try:
-            os.makedirs(f_next)
-        except Exception:
-            pass
-
-        self.parser.set('data', 'data_file', self.file_name)
-
-        if self.parser.get('data', 'output_dir') != '':
-          path = os.path.abspath(os.path.expanduser(self.parser.get('data', 'output_dir')))
-          self.parser.set('data', 'output_dir', path)
-          file_out = os.path.join(path, os.path.basename(f_next))
-          if not os.path.exists(file_out):
-            os.makedirs(file_out)
+        common_ground = self.parser.get('filtering', 'common_ground')
+        if common_ground != '':
+          try:
+            self.parser.set('filtering', 'common_ground', str(int(common_ground)))
+          except Exception:
+            self.parser.set('filtering', 'common_ground', '-1')
         else:
-          file_out = os.path.join(f_next, os.path.basename(f_next))
+            self.parser.set('filtering', 'common_ground', '-1')
 
-        self.parser.set('data', 'data_file_no_overwrite', file_out + '_all_sc.dat')
-        self.parser.set('data', 'file_out', file_out) # Output file without suffix
-        self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
-        self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
+        common_ground = self.parser.getint('filtering', 'common_ground')
+
+        all_electrodes = []
+        for key in self.probe['channel_groups'].keys():
+            all_electrodes += self.probe['channel_groups'][key]['channels']
+
+        test = (common_ground == -1) or common_ground in all_electrodes
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["Common ground in filtering section should be a valid electrode"], 'error', logger)
+            sys.exit(0)
 
         is_cluster = check_if_cluster()
 
@@ -438,9 +478,9 @@ class CircusParser(object):
                 else:
                     safety_time = float(safety_time)
                     self.set(section, 'safety_time', str(int(safety_time*self.rate*1e-3)))
-
-            refactory = self.getfloat('fitting', 'refractory')
-            self.set('fitting', 'refactory', str(int(refactory*self.rate*1e-3)))
+                    
+            refractory = self.getfloat('fitting', 'refractory')
+            self.set('fitting', 'refractory', str(int(refractory*self.rate*1e-3)))
 
 
     def _create_data_file(self, data_file, is_empty, params, stream_mode):
@@ -527,9 +567,10 @@ class CircusParser(object):
             print_and_log(['Writing value %s for %s:%s' %(value, section, flag)], 'debug', logger)
         self.parser.set(section, flag, value)
         if preview_path:
-            f     = open(self.get('data', 'preview_path'), 'r')
+            f = open(self.get('data', 'preview_path'), 'r')
         else:
-            f     = open(self.file_params, 'r')
+            f = open(self.file_params, 'r')
+
         lines = f.readlines()
         f.close()
         spaces = ''.join([' ']*(max(0, 15 - len(flag))))

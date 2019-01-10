@@ -48,7 +48,7 @@ environment:
     secure: 7drSxrQivCMViVHFeeFsfVzN3mELF6vkv4JAcuzdNedzFOvX1HAcGBTe0WolTsUJ
 
   TWINE_PASSWORD:
-    secure: 4XvRpVVtji8vNnPGP2FUPQ==
+    secure: T5fSzOqc6Z1D5P+Bt2qgXA==
 
 install:
   # Add the paths for anaconda
@@ -77,7 +77,7 @@ test_script:
   - python setup.py sdist --formats=zip,gztar,bztar
   - python setup.py bdist_wheel
   # Try installing from the source package (install dependencies via conda first)
-  - conda install --yes --quiet -c spyking-circus "tqdm!=4.15" mpi4py numpy cython scipy matplotlib h5py colorama psutil "qt>=4" python-blosc statsmodels
+  - conda install --yes --quiet -c spyking-circus "tqdm!=4.15" mpi4py numpy cython scipy matplotlib h5py colorama psutil "qt>=4" "pyqt >=4" python-blosc statsmodels
   - FOR /R dist %%F in (*.tar.gz) do pip install %%F
   - spyking-circus -h
   - pip uninstall -y -q spyking-circus

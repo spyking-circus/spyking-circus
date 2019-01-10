@@ -484,20 +484,11 @@ else
 end
 
 
-%% overlap
-
-if exist([handles.filename '.overlap' handles.suffix], 'file')
-    a               = load([handles.filename '.overlap' handles.suffix],'-mat');
-    if isfield(a, 'overlap')
-        handles.overlap = a.overlap/(handles.templates_size(1) * handles.templates_size(2));
-    else
-        handles.overlap = a.maxoverlap/(handles.templates_size(1) * handles.templates_size(2));
-    end
-else
-    tmpfile = [handles.filename '.templates' handles.suffix];
-    tmpfile = strrep(tmpfile, '.mat', '.hdf5');
-    handles.overlap = h5read(tmpfile, '/maxoverlap')/(handles.templates_size(1) * handles.templates_size(2));
-end
+%% overlap and lags
+tmpfile = [handles.filename '.templates' handles.suffix];
+tmpfile = strrep(tmpfile, '.mat', '.hdf5');
+handles.overlap = h5read(tmpfile, '/maxoverlap')/(handles.templates_size(1) * handles.templates_size(2));
+handles.lags = double(h5read(tmpfile, '/maxlag'))/(handles.SamplingRate/1000);
 
 if size(handles.overlap, 1) == handles.templates_size(3)*2
     handles.overlap = handles.overlap(1:end/2,1:end/2,:);
@@ -957,7 +948,7 @@ function MergeTemplates_Callback(hObject, eventdata, handles)
 CellNb  = str2num(get(handles.TemplateNb,'String'));
 CellNb2 = str2num(get(handles.Template2Nb,'String'));
 
-t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
+t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) + handles.lags(CellNb, CellNb2)];
 [t,id] = sort(t,'ascend');
 
 a = [handles.Amplitudes{CellNb}(:) ; handles.Amplitudes{CellNb2}(:) ];
@@ -982,6 +973,8 @@ handles.BestElec(CellNb2)    = [];
 handles.Tagged(CellNb2)      = [];
 handles.overlap(CellNb2,:)   = [];
 handles.overlap(:,CellNb2)   = [];
+handles.lags(CellNb2,:)      = [];
+handles.lags(:,CellNb2)      = [];
 handles.amp_time_list(CellNb2) = [];
 handles.amp_meanamp_list(CellNb2) = [];
 
@@ -1307,8 +1300,7 @@ if nargin == 1
     
     if (ViewMode==2)
         plot(handles.AmpTimeWin,handles.SpikeTimes{CellNb2},handles.Amplitudes{CellNb2},'r.')
-        
-        t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:)];
+        t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) + handles.lags(CellNb, CellNb2)];
         a = [handles.Amplitudes{CellNb}(:) ; handles.Amplitudes{CellNb2}(:)];
         
         [t,id] = sort(t,'ascend');
@@ -1363,7 +1355,7 @@ if nargin == 1
     if ViewMode==1
         t = handles.SpikeTimes{CellNb};
     else
-        t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) ];
+        t = [handles.SpikeTimes{CellNb}(:) ; handles.SpikeTimes{CellNb2}(:) + handles.lags(CellNb, CellNb2)];
         t = sort(t,'ascend');
     end
     
@@ -1591,6 +1583,8 @@ handles.BestElec(CellNb)    = [];
 handles.Tagged(CellNb)      = [];
 handles.overlap(CellNb,:)   = [];
 handles.overlap(:,CellNb)   = [];
+handles.lags(CellNb,:)      = [];
+handles.lags(:,CellNb)      = [];
 
 handles.amp_time_list(CellNb) = [];
 handles.amp_meanamp_list(CellNb) = [];
@@ -1669,11 +1663,11 @@ for count=1:nb_templates
 end
 
 [x, y, z] = find(new_templates);
-h5create(tmp_templates, '/temp_x', size(x), 'Datatype', 'int32');
-h5create(tmp_templates, '/temp_y', size(y), 'Datatype', 'int32');
+h5create(tmp_templates, '/temp_x', size(x), 'Datatype', 'uint32');
+h5create(tmp_templates, '/temp_y', size(y), 'Datatype', 'uint32');
 h5create(tmp_templates, '/temp_data', size(z), 'Datatype', 'single');
-h5write(tmp_templates, '/temp_x', int32(x) - 1);
-h5write(tmp_templates, '/temp_y', int32(y) - 1);
+h5write(tmp_templates, '/temp_x', uint32(x) - 1);
+h5write(tmp_templates, '/temp_y', uint32(y) - 1);
 h5write(tmp_templates, '/temp_data', single(z));
 
 if handles.has_version
@@ -1721,8 +1715,13 @@ movefile(tmp_templates, output_file_temp)
 
 h5create(output_file_temp, '/limits', size(transpose(handles.AmpLim)));
 h5write(output_file_temp, '/limits', transpose(handles.AmpLim));
+
 h5create(output_file_temp, '/maxoverlap', size(transpose(overlap)));
 h5write(output_file_temp, '/maxoverlap', transpose(overlap));
+
+h5create(output_file_temp, '/maxlag', size(transpose(handles.lags)));
+h5write(output_file_temp, '/maxlag', transpose(handles.lags));
+
 h5create(output_file_temp, '/tagged', size(transpose(handles.Tagged)));
 h5write(output_file_temp, '/tagged', transpose(handles.Tagged));
 for id=1:nb_templates
@@ -1801,6 +1800,10 @@ handles.overlap     = handles.overlap(myslice,:);
 handles.overlap     = handles.overlap(:,myslice);
 handles.overlap(CellNb, CellNb+1) = 1;
 handles.overlap(CellNb+1, CellNb) = 1;
+handles.lags     = handles.lags(myslice,:);
+handles.lags     = handles.lags(:,myslice);
+handles.lags(CellNb, CellNb+1) = 0;
+handles.lags(CellNb+1, CellNb) = 0;
 handles.norms       = handles.norms(myslice, :)
 handles.to_keep     = handles.to_keep(myslice);
 
@@ -1923,8 +1926,9 @@ MaxDelay = 50; % in BinSize
 %% PLOT CROSS-CORR
 % if 0%INSTALL GCC AND COMPILE crosscorrspike.cpp
 if ViewMode==2
+
     t1 = handles.SpikeTimes{CellNb};
-    t2 = handles.SpikeTimes{CellNb2};
+    t2 = handles.SpikeTimes{CellNb2} + handles.lags(CellNb, CellNb2);
     
     %Here it starts
     
@@ -2150,8 +2154,6 @@ function DisplayRawData(hObject, eventdata, handles)
 
 if get(handles.EnableWaveforms,'Value')==1
     
-    tstart = handles.DataStartPt;
-    
     NbElec = handles.NelecTot;
     
     if strcmp(handles.DataFormat, 'int8')
@@ -2173,21 +2175,19 @@ if get(handles.EnableWaveforms,'Value')==1
         data_padding = 8;
     end
     
-    FileStart = handles.HeaderSize + data_padding*NbElec*tstart;%We assume that each voltage value is written on 2 bytes. Otherwise this line must be changed.
-    
+    FileStart = handles.HeaderSize + data_padding*NbElec*handles.DataStartPt;
     
     duration = handles.templates_size(2);
     
     if duration/2 == round(duration/2)
         duration = duration + 1;
     end
+
+    FullLength = duration*NbElec;
+
+    fseek(handles.DataFid, FileStart, 'bof');
     
-    FullStart  = FileStart - handles.templates_size(2)*NbElec*2;
-    FullLength = (duration + 2*handles.templates_size(2))*NbElec;
-    
-    fseek(handles.DataFid,FullStart,'bof');
-    
-    data = double(fread(handles.DataFid,FullLength,handles.DataFormat));
+    data = double(fread(handles.DataFid, FullLength, handles.DataFormat));
     
     if strcmp(handles.DataFormat,'uint16')
         data = data - 32767;
@@ -2198,7 +2198,7 @@ if get(handles.EnableWaveforms,'Value')==1
     
     data = data*handles.Gain;
     
-    data = reshape(data,[NbElec (duration + 2*handles.templates_size(2))]);
+    data = reshape(data, [NbElec duration]);
     
     %% Filtering
     
@@ -2215,7 +2215,7 @@ if get(handles.EnableWaveforms,'Value')==1
     
     %% Reduce the data to the portion of interest - remove also the unnecessary
     %electrodes
-    handles.RawData = data(:,(handles.templates_size(2)+1):(end-handles.templates_size(2)));
+    handles.RawData = data;
     guidata(hObject, handles);
 else
     rmfield(handles, 'RawData');
@@ -2268,7 +2268,8 @@ switch choice
             handles.Tagged(wdw)      = [];
             handles.overlap(wdw,:)   = [];
             handles.overlap(:,wdw)   = [];
-            
+            handles.lags(wdw,:)      = [];
+            handles.lags(:,wdw)      = [];
             handles.amp_time_list(wdw)  = [];
             handles.amp_meanamp_list(wdw)  = [];
 
@@ -2308,7 +2309,8 @@ if any(wdw)
     handles.Tagged(wdw)      = [];
     handles.overlap(wdw,:)   = [];
     handles.overlap(:,wdw)   = [];
-    
+    handles.lags(wdw,:)      = [];
+    handles.lags(:,wdw)      = [];
     handles.amp_time_list(wdw)  = [];
     handles.amp_meanamp_list(wdw)  = [];
     

@@ -50,7 +50,11 @@ def main(argv=None):
         HAVE_CUDA = False
 
 
-    all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging', 'validating']
+    all_steps = [
+        'whitening', 'clustering', 'fitting', 'gathering', 'extracting',
+        'filtering', 'converting', 'deconverting', 'benchmarking',
+        'merging', 'validating'
+    ]
 
     if os.path.exists(pjoin(user_path, 'config.params')):
         config_file = os.path.abspath(pjoin(user_path, 'config.params'))
@@ -59,7 +63,7 @@ def main(argv=None):
 
     header  = get_colored_header()
     header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(psutil.cpu_count()) + '\n'
-    header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
+    #header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
     header += Fore.GREEN + 'Parallel HDF5 : ' + Fore.CYAN + str(parallel_hdf5) + '\n'
 
     do_upgrade = ''
@@ -79,6 +83,7 @@ but a subset x,y can be done. Steps are:
  - fitting
  - (extra) merging [GUI for meta merging]
  - (extra) converting [export results to phy format]
+ - (extra) deconverting [import results from phy format]
  - (extra) gathering [force collection of results]
  - (extra) extracting [get templates from spike times]
  - (extra) benchmarking [with -o and -t]
@@ -91,8 +96,8 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-m', '--method',
                         default='filtering,whitening,clustering,fitting',
                         help=method_help)
-    parser.add_argument('-c', '--cpu', type=int, default=1, help='number of CPU')
-    parser.add_argument('-g', '--gpu', type=int, default=0, help='number of GPU')
+    parser.add_argument('-c', '--cpu', type=int, default=int(psutil.cpu_count()/2), help='number of CPU')
+    #parser.add_argument('-g', '--gpu', type=int, default=0, help='number of GPU')
     parser.add_argument('-H', '--hostfile', help='hostfile for MPI',
                         default=pjoin(user_path, 'circus.hosts'))
     parser.add_argument('-b', '--batch', help='datafile is a list of commands to launch, in a batch mode',
@@ -102,7 +107,7 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-r', '--result', help='GUI to display the results on top of raw data',
                         action='store_true')
     parser.add_argument('-s', '--second', type=int, default=0, help='If preview mode, begining of the preview [in s]')
-    parser.add_argument('-e', '--extension', help='extension to consider for merging and converting',
+    parser.add_argument('-e', '--extension', help='extension to consider for merging, converting and deconverting',
                         default='None')
     parser.add_argument('-o', '--output', help='output file [for generation of synthetic benchmarks]')
     parser.add_argument('-t', '--type', help='benchmark type',
@@ -121,8 +126,9 @@ but a subset x,y can be done. Steps are:
             sys.exit(0)
 
     # To save some typing later
-    (nb_cpu, nb_gpu, hostfile, batch,
-     preview, result, extension, output, benchmark, info, second) = (args.cpu, args.gpu, args.hostfile, args.batch,
+    nb_gpu = 0
+    (nb_cpu, hostfile, batch,
+     preview, result, extension, output, benchmark, info, second) = (args.cpu, args.hostfile, args.batch,
                                                        args.preview, args.result, args.extension, args.output, args.type, args.info, args.second)
     filename = os.path.abspath(args.datafile)
 
@@ -160,9 +166,49 @@ but a subset x,y can be done. Steps are:
         tasks_list = filename
 
     if not batch:
-        logfile      = f_next + '.log'
+        file_params  = f_next + '.params'
+
+        if not os.path.exists(file_params):
+            print_and_log(["%s does not exist" %self.file_params], 'error')
+            sys.exit(0)
+
+        import ConfigParser as configparser
+        parser = configparser.ConfigParser()
+        myfile = open(file_params, 'r')
+        lines  = myfile.readlines()
+        myfile.close()
+        myfile = open(file_params, 'w')
+        for l in lines:
+            myfile.write(l.replace('\t', ''))
+        myfile.close()
+
+        parser.read(file_params)
+
+        for section in CircusParser.__all_sections__:
+            if parser.has_section(section):
+                for (key, value) in parser.items(section):
+                    parser.set(section, key, value.split('#')[0].rstrip())
+            else:
+                parser.add_section(section)
+
+        try:
+            use_output_dir = parser.get('data', 'output_dir') != ''
+        except Exception:
+            use_output_dir = False
+
+        if use_output_dir:
+            path = os.path.abspath(os.path.expanduser(parser.get('data', 'output_dir')))
+            file_out = os.path.join(path, os.path.basename(f_next))
+            if not os.path.exists(file_out):
+                os.makedirs(file_out)
+        else:
+            file_out = f_next
+
+
+        logfile      = file_out + '.log'
         if os.path.exists(logfile):
             os.remove(logfile)
+
         logger       = init_logging(logfile)
         params       = CircusParser(filename)
         data_file    = params.get_data_file(source=True, has_been_created=False)
@@ -181,9 +227,11 @@ but a subset x,y can be done. Steps are:
 
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
-        filename     = os.path.join(tmp_path_loc, os.path.basename(filename))
+
+        filename     = os.path.join(tmp_path_loc, 'preview.dat')
         f_next, extens = os.path.splitext(filename)
-        shutil.copyfile(file_params, f_next + '.params')
+        preview_params = f_next + '.params'
+        shutil.copyfile(file_params, preview_params)
         steps        = ['filtering', 'whitening']
 
         chunk_size   = int(params.rate)
@@ -198,7 +246,7 @@ but a subset x,y can be done. Steps are:
         description            = data_file.get_description()
         data_file.close()
 
-        new_params = CircusParser(filename)
+        new_params = CircusParser(filename, create_folders=False)
 
         new_params.write('data', 'chunk_size', '2')
         new_params.write('data', 'file_format', 'raw_binary')
@@ -211,8 +259,8 @@ but a subset x,y can be done. Steps are:
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')
         new_params.write('whitening', 'chunk_size', '2')
-        preview_params =os.path.abspath(params.get('data', 'data_file_noext')) + '.params'
-        new_params.write('data', 'preview_path', preview_params)
+        new_params.write('data', 'preview_path', params.file_params)
+        new_params.write('data', 'output_dir', '')
 
         description['data_dtype']   = 'float32'
         description['dtype_offset'] = 0
@@ -246,10 +294,10 @@ but a subset x,y can be done. Steps are:
             print Fore.GREEN + "Steps         :", Fore.CYAN + "result mode"
         else:
             print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
-        print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
+        #print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
         print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu) + "/" + str(psutil.cpu_count())
-        if HAVE_CUDA:
-            print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
+        #if HAVE_CUDA:
+        #    print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
         print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
 
         do_upgrade = ''
@@ -272,15 +320,15 @@ but a subset x,y can be done. Steps are:
                     ('extracting', 'mpirun'),
                     ('gathering', 'python'),
                     ('converting', 'mpirun'),
+                    ('deconverting', 'mpirun'),
                     ('benchmarking', 'mpirun'),
                     ('merging', 'mpirun'),
                     ('validating', 'mpirun')]
 
-        if HAVE_CUDA and nb_gpu > 0:
-            use_gpu = 'True'
-        else:
-            use_gpu = 'False'
-
+        #if HAVE_CUDA and nb_gpu > 0:
+        #    use_gpu = 'True'
+        #else:
+        use_gpu = 'False'
 
         time = data_stats(params)/60.
 
@@ -340,37 +388,51 @@ but a subset x,y can be done. Steps are:
 
                         else:
                             if subtask != 'fitting':
-                                nb_tasks = str(max(args.cpu, args.gpu))
+                                nb_tasks = str(args.cpu)
                             else:
-                                if use_gpu == 'True':
-                                    nb_tasks = str(args.gpu)
-                                else:
-                                    nb_tasks = str(args.cpu)
+                                #if use_gpu == 'True':
+                                #    nb_tasks = str(args.gpu)
+                                #else:
+                                nb_tasks = str(args.cpu)
 
                         if subtask == 'benchmarking':
                             if (output is None) or (benchmark is None):
                                 print_and_log(["To generate synthetic datasets, you must provide output and type"], 'error', logger)
                                 sys.exit(0)
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, output, benchmark]
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, output, benchmark
+                            ]
                         elif subtask in ['merging', 'converting']:
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu, extension]
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, extension
+                            ]
+                        elif subtask in ['deconverting']:
+                            nb_tasks = str(1)
+                            nb_cpu = 1
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask', subtask,
+                                filename, str(nb_cpu), str(nb_gpu), use_gpu,
+                                extension
+                            ]
                         else:
-                            mpi_args += ['-np', nb_tasks,
-                                     'spyking-circus-subtask',
-                                     subtask, filename, str(nb_cpu), str(nb_gpu), use_gpu]
+                            mpi_args += [
+                                '-np', nb_tasks, 'spyking-circus-subtask',
+                                subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu
+                            ]
 
                         print_and_log(['Launching task %s' %subtask], 'debug', logger)
                         print_and_log(['Command: %s' %str(mpi_args)], 'debug', logger)
 
                         try:
                             subprocess.check_call(mpi_args)
-                        except:
-                            print_and_log(['Step "%s" failed!' % subtask], 'error', logger)
-                            raise
+                        except subprocess.CalledProcessError as e:
+                            print_and_log(['Step "%s" failed for reason %s!' % (subtask, e)], 'error', logger)
+                            sys.exit(0)
 
     if preview or result:
         from circus.shared import gui

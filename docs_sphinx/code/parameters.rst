@@ -40,21 +40,9 @@ Note that filtering is performed only once, and if the code is relaunched on the
 
 * ``-c`` or ``--cpu``
 
-The number of CPU that will be used by the code, at least during the first three steps. Note that if CUDA is present, and if the GPU are not turned off (with -g 0), GPUs are always preferred to CPU during the fitting phase. 
+The number of CPU that will be used by the code. For example, just do::
 
-For example, just do::
-
-    >> spyking-circus path/mydata.extension -m clustering,fitting -c 10    
-
-* ``-g`` or ``--gpu``
-
-The number of GPU that will be used by the code during the fitting phase. If you have CUDA, but a slow GPU and a lot of CPUs (for example 10), you can disable the GPU usage by setting::
-    
-    >> spyking-circus path/mydata.extension -g 0 -c 10
-
-.. warning::
-
-    Currently, clusters with heterogeneous numbers of GPUs per nodes are not properly handled. Be in touch if interested by the functionality
+    >> spyking-circus path/mydata.extension -m clustering,fitting -c 10
 
 
 * ``-H`` or ``--hostfile``

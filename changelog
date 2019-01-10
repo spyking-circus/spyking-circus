@@ -1,16 +1,52 @@
 =============
-Release 0.6.8
+Release 0.7.6
+=============
+
+* cosmetic changes in the GUI
+* adding a deconverting method to switch back from phy to MATLAB
+* support for the lags between templates in the MATLAB GUI
+* warn user if data are corrupted because of interrupted filtering
+* robust automatic selection of the centroids (thanks to Ruben Herzog)
+* addition of the statsmodels dependency
+* remove the max_cluster parameter
+* reduction of the size for saved clusters
+
+=============
+Release 0.7.5
+=============
+
+* fix a bug for MPICH when large dictionaries.
+* fix a bug for numpy files when used with new numpy versions
+* add the possibility to subtract one channel as a reference channel from others
+* native support for blackrock files (only .ns5 tested so far)
+* simplifications in the parameter file
+* fix for display of progress bars with tqdm
+* addition of a multi-folders mode for openephys
+* hide GPU support for now, as this is not actively maintained and optimized
+* fix in the MATLAB GUI for float32 data
+* fix the broken log files
+* default cpu number is now half the available cores
+
+=============
+Release 0.7.4
+=============
+
+* fix a regression with spline interpolation, more investigation needed
+
+=============
+Release 0.7.0
 =============
 
 * fix a possible rounding bug if triggers are given in ms
 * artefacts are computed as medians and not means over the signal
 * can turn off shared memory if needed
+* a particular pattern can be specified for neuralynx files
+* fix bugs with output_dir, as everything was not saved in the folder
+* add a circus-folders script to process virtually files within several folders as a single recording
+* add a circus-artefacts script to concatenate artefact files before using stream mode
+* multi-files mode is now enabled for Neuralynx data
 * fixes for conversion of old dataset with python GUI
 * smooth exit if fitting with 0 templates (thanks to Alex Gonzalez)
-* robust automatic selection of the centroids (thanks to Ruben Herzog)
-* addition of the statsmodels dependency
-* remove the max_cluster parameter
-* reduction of the size for saved clusters
 
 =============
 Release 0.6.7

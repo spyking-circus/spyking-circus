@@ -531,6 +531,13 @@
                 </widget>
                </item>
                <item>
+                <widget class="QCheckBox" name="checkBox">
+                 <property name="text">
+                  <string>Deconverting</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QCheckBox" name="cb_gathering">
                  <property name="toolTip">
                   <string>Gather data while fitting is still in progress</string>
