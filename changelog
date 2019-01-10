@@ -4,6 +4,7 @@ Release 0.7.6
 
 * cosmetic changes in the GUI
 * adding a deconverting method to switch back from phy to MATLAB
+* support for the lags between templates in the MATLAB GUI
 * warn user if data are corrupted because of interrupted filtering
 
 =============
