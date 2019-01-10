@@ -131,6 +131,7 @@ but a subset x,y can be done. Steps are:
      preview, result, extension, output, benchmark, info, second) = (args.cpu, args.hostfile, args.batch,
                                                        args.preview, args.result, args.extension, args.output, args.type, args.info, args.second)
     filename = os.path.abspath(args.datafile)
+    real_file = filename
 
     f_next, extens = os.path.splitext(filename)
 
@@ -288,6 +289,7 @@ but a subset x,y can be done. Steps are:
         print_and_log(['Data file  : %s' %filename], 'debug', logger)
 
         print get_colored_header()
+        print Fore.GREEN + "File          :", Fore.CYAN + real_file
         if preview:
             print Fore.GREEN + "Steps         :", Fore.CYAN + "preview mode"
         elif result:
