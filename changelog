@@ -10,6 +10,7 @@ Release 0.7.6
 * addition of the statsmodels dependency
 * remove the max_cluster parameter
 * reduction of the size for saved clusters
+* display the file name in the header
 
 =============
 Release 0.7.5

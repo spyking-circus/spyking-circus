@@ -424,7 +424,7 @@ class DataFile(object):
         if t_start < 0:
             t_start = 0
 
-        return t_start, t_stop
+        return numpy.int64(t_start), numpy.int64(t_stop)
 
 
     def _get_streams_index_by_time(self, local_time):
