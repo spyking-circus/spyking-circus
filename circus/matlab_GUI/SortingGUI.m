@@ -488,7 +488,20 @@ end
 tmpfile = [handles.filename '.templates' handles.suffix];
 tmpfile = strrep(tmpfile, '.mat', '.hdf5');
 handles.overlap = h5read(tmpfile, '/maxoverlap')/(handles.templates_size(1) * handles.templates_size(2));
-handles.lags = double(h5read(tmpfile, '/maxlag'))/(handles.SamplingRate/1000);
+
+info     = h5info(tmpfile);
+has_maxlag = 0;
+for id=1:size(info.Datasets, 1)
+    if strcmp(info.Datasets(id).Name, 'maxlag')
+        handles.lags = double(h5read(tmpfile, '/maxlag'))/(handles.SamplingRate/1000);
+        has_maxlag = 1;
+    end
+end
+
+if (has_maxlag == 0)
+    nb_templates = length(handles.overlap);
+    handles.lags = double(zeros(nb_templates, nb_templates));
+end
 
 if size(handles.overlap, 1) == handles.templates_size(3)*2
     handles.overlap = handles.overlap(1:end/2,1:end/2,:);
