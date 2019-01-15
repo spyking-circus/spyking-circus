@@ -317,7 +317,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             del sub_mat
 
-            local_restriction = (-padding[0], chunk_size - padding[1])
+            local_restriction = (temp_2_shift, len_chunk - temp_2_shift)
             all_spikes   = local_peaktimes + padding[0]
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
