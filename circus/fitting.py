@@ -260,7 +260,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.unique(local_peaktimes)
 
         if ignore_dead_times:
-            dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + len_chunk])
+            dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + chunk_size])
             if dead_indices[0] != dead_indices[1]:
                 local_peaktimes = numpy.array(list(set(local_peaktimes + t_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.uint32) - t_offset
                 local_peaktimes = numpy.sort(local_peaktimes)
@@ -317,9 +317,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             del sub_mat
 
-            local_offset = padding[0] + t_offset
-            local_bounds = (temp_2_shift, len_chunk - temp_2_shift)
-            all_spikes   = local_peaktimes + local_offset
+            local_restriction = (-padding[0], chunk_size - padding[1])
+            all_spikes   = local_peaktimes + padding[0]
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
@@ -408,9 +407,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             b[:, is_neighbor] += (tmp1 + tmp2).dot(indices)
                         # Add matching to the result.
                         t_spike               = all_spikes[peak_index]
-                        result['spiketimes'] += [t_spike]
-                        result['amplitudes'] += [(best_amp_n, best_amp2_n)]
-                        result['templates']  += [best_template_index]
+                        if (t_spike >= local_restriction[0]) and (t_spike <= local_restriction[1]):
+                            result['spiketimes'] += [t_spike + t_offset]
+                            result['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                            result['templates']  += [best_template_index]
                         # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
                     else:
@@ -423,7 +423,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             mask[best_template_index, peak_index] = 0
 
-
             spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
             templates_to_write  = numpy.array(result['templates'], dtype=numpy.uint32)
@@ -434,7 +433,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if collect_all:
 
-                for temp, spike in zip(templates_to_write, spikes_to_write - local_offset):
+                for temp, spike in zip(templates_to_write, spikes_to_write - padding[0]):
                     c_all_times[c_min_times[spike]:c_max_times[spike], neighbors[temp]] = False
 
                 gspikes       = numpy.where(numpy.sum(c_all_times, 1) > 0)[0]
@@ -466,7 +465,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 
                 gspikes  = numpy.take(gspikes, idx)
                 bestlecs = numpy.take(bestlecs, idx)
-                gspikes_to_write     = numpy.array(gspikes + local_offset, dtype=numpy.uint32)
+                gspikes_to_write     = numpy.array(gspikes + padding[0], dtype=numpy.uint32)
                 gtemplates_to_write  = numpy.array(bestlecs, dtype=numpy.uint32)
 
                 garbage_times_file.write(gspikes_to_write.tostring())

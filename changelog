@@ -8,6 +8,7 @@ Release 0.7.6
 * warn user if data are corrupted because of interrupted filtering
 * reduction of the size for saved clusters
 * display the file name in the header
+* fix a nasty bug allowing spikes at the border of chunks to be fitted even during dead periods
 
 =============
 Release 0.7.5
