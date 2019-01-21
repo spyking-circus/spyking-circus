@@ -19,11 +19,11 @@ Generate a parameter file
 Before running the algorithm, you will always need to provide parameters, as a parameter file. Note that this parameter file has to be in the same folder than your data, and should be named ``path/mydata.params``. If you have already yours, great, just copy it in the folder. Otherwise, just launch the algorithm, and the algorithm will ask you if you want to create a template one, that you have to edit before launching the code::
 
     >> spyking-circus.py path/mydata.extension
-    ##############################################################
-    #####          Welcome to the SpyKING CIRCUS             #####
-    #####                                                    #####
-    #####          Written by P.Yger and O.Marre             #####
-    ##############################################################
+    ##################################################################
+    #####           Welcome to the SpyKING CIRCUS (0.7.6)        #####
+    #####                                                        #####
+    #####              Written by P.Yger and O.Marre             #####
+    ##################################################################
     The parameter file is not present!
     You must have a file named path/mydata.params, properly configured, 
     in the same folder, with the data file.
@@ -42,13 +42,13 @@ It should take around the time of the recording to run – maybe a bit more. The
 
 
     ##################################################################
-    #####              Welcome to the SpyKING CIRCUS             #####
+    #####           Welcome to the SpyKING CIRCUS (0.7.6)        #####
     #####                                                        #####
     #####              Written by P.Yger and O.Marre             #####
     ##################################################################
 
+    File          : /home/test.dat
     Steps         : filtering, whitening, clustering, fitting
-    GPU detected  : False
     Number of CPU : 1
     Parallel HDF5 : True
     Shared memory : True
@@ -59,15 +59,13 @@ It should take around the time of the recording to run – maybe a bit more. The
     -------------------------  Informations  -------------------------
     | Number of recorded channels : 252
     | Number of analyzed channels : 252
-    | Data type                   : uint16
-    | Sampling rate               : 10 kHz
-    | Header offset for the data  : 1794
-    | Duration of the recording   : 7 min 12 s
-    | Width of the templates      : 5 ms
-    | Spatial radius considered   : 250 um
-    | Waveform alignment          : True
-    | Skip strong artefacts       : False
-    | Template Extraction         : median-raw
+    | File format                 : RAW_BINARY
+    | Data type                   : int16
+    | Sampling rate               : 20 kHz
+    | Duration of the recording   : 4 min 0 s 0 ms
+    | Width of the templates      : 3 ms
+    | Spatial radius considered   : 200 um
+    | Threshold crossing          : negative
     ------------------------------------------------------------------
     -------------------------  Informations  -------------------------
     | Filtering has already been done with cut off at 500Hz
