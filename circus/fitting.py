@@ -278,7 +278,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 if ignore_dead_times:
                     if dead_indices[0] != dead_indices[1]:
-                        all_found_spikes[i] = numpy.array(list(set(all_found_spikes[i] + goffset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.uint32) - goffset
+                        all_found_spikes[i] = numpy.array(list(set(all_found_spikes[i] + g_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.uint32) - g_offset
                         all_found_spikes[i] = numpy.sort(all_found_spikes[i])
 
                 idx                 = (all_found_spikes[i] >= local_borders[0]) & (all_found_spikes[i] < local_borders[1])
