@@ -666,9 +666,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max()
                         #fresult['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
-                        cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
-                                                                                      m_ratio,
-                                                                                      n_min=n_min)
+                        #numpy.save('rho_%s_' %p + str(ielec), result['rho_%s_' %p + str(ielec)])
+                        #numpy.save('dist_%s_' %p + str(ielec), dist)
+
+                        cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(result['rho_%s_' %p + str(ielec)], dist,
+                                                                                      n_min=n_min, alpha=0.05)                        
+
+                        # cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
+                        #                                                               m_ratio,
+                        #                                                               n_min=n_min)
 
                         # Now we perform a merging step, for clusters that look too similar
                         data = result['sub_%s_' %p + str(ielec)]
@@ -709,14 +715,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             n_clusters += [numpy.sum(cluster_results[p][ielec]['groups'][mask] == i)]
 
                         line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
-                        print_and_log(line, 'default', logger)
+                        print_and_log(line, 'debug', logger)
                         local_mergings += merged[1]
                     else:
                         cluster_results[p][ielec]['groups'] = numpy.zeros(0, dtype=numpy.int32)
                         cluster_results[p][ielec]['n_clus'] = 0
                         result['clusters_%s_' %p + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
                         line = ["Node %d: not enough %s spikes on channel %d" %(comm.rank, flag, ielec)]
-                        print_and_log(line, 'default', logger)
+                        print_and_log(line, 'debug', logger)
 
                     local_nb_clusters += cluster_results[p][ielec]['n_clus']
 

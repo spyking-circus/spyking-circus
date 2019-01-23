@@ -10,6 +10,7 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 import statsmodels.api as sm
+from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,106 @@ def clustering(rho, dist, mratio=0.1, display=None, n_min=None, save=False):
     halo, NCLUST = assign_halo(centers)
 
     return halo, rho, delta, centers
+
+def clustering_by_density(rho, dist, n_min, alpha=0.05):
+    npts = len(rho)
+    dist = scipy.spatial.distance.squareform(dist)
+    delta = compute_delta(dist, rho)
+    nclus, labels, centers, threshold = find_centroids_and_cluster(dist, rho, delta, n_min, alpha)
+    halolabels = halo_assign(dist, labels, centers)
+    halolabels -= 1
+    centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max()+1)))[0]
+    return halolabels, rho, delta, centers
+
+def compute_delta(dist, rho):
+    rho_sort_id = numpy.argsort(rho) # index to sort
+    rho_sort_id = (rho_sort_id[::-1]) # reversing sorting indexes
+    sort_rho = rho[rho_sort_id] # sortig rho in ascending order
+    gtmat = numpy.greater_equal(sort_rho,sort_rho[:, None]) # gtmat(i,j)=1 if rho(i)>=rho(j) and 0 otherwise
+    
+    sortdist = numpy.zeros_like(dist)
+    sortdist = dist[rho_sort_id, :]
+    sortdist = sortdist[:, rho_sort_id]    
+    seldist = gtmat*sortdist # keeping only distance to points with highest or equal rho 
+    seldist[seldist == 0] = float("inf") 
+              
+    auxdelta = numpy.min(seldist,axis=1)
+    delta = numpy.zeros_like(auxdelta) 
+    delta[rho_sort_id] = auxdelta 
+    delta[rho == numpy.max(rho)] = numpy.max(delta[numpy.logical_not(numpy.isinf(delta))]) # assigns max delta to the max rho
+    delta[numpy.isinf(delta)] = 0
+    return delta
+
+def find_centroids_and_cluster(dist, rho, delta, n_min, alpha):
+
+    npnts = len(rho)    
+    centers = numpy.zeros((npnts))    
+
+    # fitting a power law to the rho vs delta relationship
+    # preparing data
+    mindelta = 10**(-4) # min delta to be considered, improves fit
+    nzind = numpy.where(numpy.logical_and(delta > mindelta, rho > 0))[0] # delta different from 0 and rhos higher than 0
+    nzdelta = delta[nzind] # y of fit
+    nzrho = rho[nzind] # x of fit
+    
+    # fitting a line in log space
+    threshold = estimate_threshold(numpy.log(nzrho), numpy.log(nzdelta),alpha)
+    threshold = numpy.exp(threshold) # to linear form
+    
+    # selecting centroids
+    selid = (nzdelta > threshold)    
+    auxid = nzind[selid] # centroids on original basis
+    nclus = len(auxid)
+
+    centers[auxid] = numpy.arange(nclus) + 1 # assigning labels to centroids
+    threshold = numpy.vstack((nzrho,threshold)) # saving the x and y
+    
+    # assigning points to clusters based on their distance to the centroids
+    if nclus == 1:
+        labels = numpy.ones(npnts)
+    else:
+        centersx = numpy.where(centers)[0] # index of centroids
+        dist2cent = dist[centersx, :]
+        labels = numpy.argmin(dist2cent, axis=0) + 1
+        _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
+        
+        small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
+
+        if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
+            cluslab = centers[centersx] # cluster labels
+            id2rem = numpy.where(numpy.in1d(cluslab, small_clusters))[0] # ids to remove
+            clusidx = numpy.delete(centersx, id2rem) # removing
+            centers = numpy.zeros(len(centers))
+            nclus = nclus - len(id2rem)
+            centers[clusidx] = numpy.arange(nclus) + 1 # re labeling centroids            
+            dist2cent = dist[centersx, :]# re compute distances from centroid to any other point
+            labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
+            
+    return nclus, labels, centers, threshold
+    
+
+def halo_assign(dist, labels, centers):
+
+    halolabels = labels.copy()    
+    sameclusmat = numpy.equal(labels, labels[:, None]) #
+    sameclus_cent = sameclusmat[centers > 0, :] # selects only centroids
+    dist2cent = dist[centers > 0, :] # distance to centroids
+    dist2cluscent = dist2cent*sameclus_cent # preserves only distances to the corresponding cluster centroid
+    nclusmem = numpy.sum(sameclus_cent, axis=1) # number of cluster members
+        
+    meandist2cent = numpy.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
+    gt_meandist2cent = numpy.greater(dist2cluscent, meandist2cent[:, None]) # greater than the mean dist to centroid
+    remids = numpy.sum(gt_meandist2cent, axis=0)
+    halolabels[remids > 0] = 0 # setting to 0 the removes points
+    return halolabels
+
+
+def estimate_threshold(x, y, alpha):
+    x = sm.add_constant(x)
+    model = sm.OLS(y,x)
+    results = model.fit()
+    _,_,threshold = wls_prediction_std(results, alpha=alpha)
+    return threshold
 
 
 def merging(groups, sim_same_elec, data):
