@@ -122,7 +122,7 @@ def clustering_by_density(rho, dist, n_min, alpha=0.05):
     npts = len(rho)
     dist = scipy.spatial.distance.squareform(dist)
     delta = compute_delta(dist, rho)
-    nclus, labels, centers, threshold = find_centroids_and_cluster(dist, rho, delta, n_min, alpha)
+    nclus, labels, centers = find_centroids_and_cluster(dist, rho, delta, n_min, alpha)
     halolabels = halo_assign(dist, labels, centers)
     halolabels -= 1
     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max()+1)))[0]
@@ -154,22 +154,23 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha):
 
     # fitting a power law to the rho vs delta relationship
     # preparing data
-    mindelta = 10**(-4) # min delta to be considered, improves fit
-    nzind = numpy.where(numpy.logical_and(delta > mindelta, rho > 0))[0] # delta different from 0 and rhos higher than 0
-    nzdelta = delta[nzind] # y of fit
-    nzrho = rho[nzind] # x of fit
+    # mindelta = 10**(-4) # min delta to be considered, improves fit
+    # nzind = numpy.where(numpy.logical_and(delta > mindelta, rho > 0))[0] # delta different from 0 and rhos higher than 0
+    # nzdelta = delta[nzind] # y of fit
+    # nzrho = rho[nzind] # x of fit
     
-    # fitting a line in log space
-    threshold = estimate_threshold(numpy.log(nzrho), numpy.log(nzdelta),alpha)
-    threshold = numpy.exp(threshold) # to linear form
+    # # fitting a line in log space
+    # threshold = estimate_threshold(numpy.log(nzrho), numpy.log(nzdelta),alpha)
+    # threshold = numpy.exp(threshold) # to linear form
     
-    # selecting centroids
-    selid = (nzdelta > threshold)    
-    auxid = nzind[selid] # centroids on original basis
+    # # selecting centroids
+    # selid = (nzdelta > threshold)    
+    # auxid = nzind[selid] # centroids on original basis
+    
+    auxid = fit_rho_delta(rho, delta)
     nclus = len(auxid)
 
     centers[auxid] = numpy.arange(nclus) + 1 # assigning labels to centroids
-    threshold = numpy.vstack((nzrho,threshold)) # saving the x and y
     
     # assigning points to clusters based on their distance to the centroids
     if nclus == 1:
@@ -192,7 +193,7 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha):
             dist2cent = dist[centersx, :]# re compute distances from centroid to any other point
             labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
             
-    return nclus, labels, centers, threshold
+    return nclus, labels, centers
     
 
 def halo_assign(dist, labels, centers):
