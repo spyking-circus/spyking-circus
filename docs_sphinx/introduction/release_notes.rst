@@ -31,6 +31,34 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
+Release 0.7.6
+=============
+
+* cosmetic changes in the GUI
+* adding a deconverting method to switch back from phy to MATLAB
+* support for the lags between templates in the MATLAB GUI
+* warn user if data are corrupted because of interrupted filtering
+* reduction of the size for saved clusters
+* display the file name in the header
+* fix a nasty bug allowing spikes at the border of chunks to be fitted even during dead periods
+
+=============
+Release 0.7.5
+=============
+
+* fix a bug for MPICH when large dictionaries.
+* fix a bug for numpy files when used with new numpy versions
+* add the possibility to subtract one channel as a reference channel from others
+* native support for blackrock files (only .ns5 tested so far)
+* simplifications in the parameter file
+* fix for display of progress bars with tqdm
+* addition of a multi-folders mode for openephys
+* hide GPU support for now, as this is not actively maintained and optimized
+* fix in the MATLAB GUI for float32 data
+* fix the broken log files
+* default cpu number is now half the available cores
+
+=============
 Release 0.7.4
 =============
 

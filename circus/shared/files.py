@@ -693,32 +693,52 @@ def load_data(params, data, extension=''):
     data_file_noext = params.get('data', 'data_file_noext')
 
     if data == 'thresholds':
+        filename = file_out_suff + '.basis.hdf5'
         spike_thresh = params.getfloat('detection', 'spike_thresh')
-        if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'mads':
-        if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return thresholds
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'matched-thresholds':
+        filename = file_out_suff + '.basis.hdf5'
         matched_thresh = params.getfloat('detection', 'matched_thresh')
-        if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('matched_thresholds')[:]
             myfile.close()
             return matched_thresh * thresholds
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'matched-thresholds-pos':
+        filename = file_out_suff + '.basis.hdf5'
         matched_thresh = params.getfloat('detection', 'matched_thresh')
-        if os.path.exists(file_out_suff + '.basis.hdf5'):
-            myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('matched_thresholds_pos')[:]
             myfile.close()
             return matched_thresh * thresholds
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'spatial_whitening':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
@@ -727,7 +747,9 @@ def load_data(params, data, extension=''):
             myfile.close()
             return spatial
         else:
-            raise Exception('Whitening matrix has to be computed first!')
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'temporal_whitening':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
@@ -736,39 +758,77 @@ def load_data(params, data, extension=''):
             myfile.close()
             return temporal
         else:
-            raise Exception('Whitening matrix has to be computed first!')
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'basis':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
-        basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
-        basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
-        myfile.close()
-        return basis_proj, basis_rec
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
+            basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
+            myfile.close()
+            return basis_proj, basis_rec
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'basis-pos':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
-        basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
-        basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
-        myfile.close()
-        return basis_proj, basis_rec
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
+            basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
+            myfile.close()
+            return basis_proj, basis_rec
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'waveform':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
-        waveforms  = myfile.get('waveform')[:]
-        myfile.close()
-        return waveforms
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            waveforms  = myfile.get('waveform')[:]
+            myfile.close()
+            return waveforms
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'waveforms':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
-        waveforms  = myfile.get('waveforms')[:]
-        myfile.close()
-        return waveforms
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            waveforms  = myfile.get('waveforms')[:]
+            myfile.close()
+            return waveforms
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'waveform-pos':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
-        waveforms  = myfile.get('waveform_pos')[:]
-        myfile.close()
-        return waveforms
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            waveforms  = myfile.get('waveform_pos')[:]
+            myfile.close()
+            return waveforms
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'waveforms-pos':
-        myfile     = h5py.File(file_out_suff + '.basis.hdf5', 'r', libver='earliest')
-        waveforms  = myfile.get('waveforms_pos')[:]
-        myfile.close()
-        return waveforms
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            waveforms  = myfile.get('waveforms_pos')[:]
+            myfile.close()
+            return waveforms
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'templates':
         filename = file_out_suff + '.templates%s.hdf5' %extension
         if os.path.exists(filename):
@@ -780,7 +840,9 @@ def load_data(params, data, extension=''):
             myfile.close()
             return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
         else:
-            raise Exception('No templates found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'nb_templates':
         filename = file_out_suff + '.templates%s.hdf5' %extension
         if os.path.exists(filename):
@@ -789,7 +851,9 @@ def load_data(params, data, extension=''):
             myfile.close()
             return nb_templates
         else:
-            raise Exception('No templates found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'overlaps':
         filename = file_out_suff + '.overlap%s.hdf5' %extension
         if os.path.exists(filename):
@@ -812,7 +876,9 @@ def load_data(params, data, extension=''):
 
             return c_overs
         else:
-            raise Exception('No overlaps found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'overlaps-raw':
         filename = file_out_suff + '.overlap%s.hdf5' %extension
         if os.path.exists(filename):
@@ -824,7 +890,9 @@ def load_data(params, data, extension=''):
             myfile.close()
             return over_x, over_y, over_data, over_shape
         else:
-            raise Exception('No overlaps found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'version':
         filename = file_out_suff + '.templates%s.hdf5' %extension
         if os.path.exists(filename):
@@ -843,7 +911,9 @@ def load_data(params, data, extension=''):
                 version = None
             return version
         else:
-            raise Exception('No templates found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'norm-templates':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
@@ -851,7 +921,9 @@ def load_data(params, data, extension=''):
             myfile.close()
             return norms
         else:
-            raise Exception('No templates found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'spike-cluster':
         filename = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
         if os.path.exists(filename):

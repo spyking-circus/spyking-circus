@@ -216,7 +216,6 @@ class NeuraLynxFile(DataFile):
         tmp_all_files = self._get_sorted_channels_()
         regexpr       = re.compile('\d+')
         all_files     = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
-        print all_files
 
         name = '_'.join(all_files[0].split('_')[:-1])
         self.all_channels = []
