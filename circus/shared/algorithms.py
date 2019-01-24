@@ -87,22 +87,7 @@ def compute_delta(dist, rho):
 def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
 
     npnts = len(rho)    
-    centers = numpy.zeros((npnts))    
-
-    # fitting a power law to the rho vs delta relationship
-    # preparing data
-    # mindelta = 10**(-4) # min delta to be considered, improves fit
-    # nzind = numpy.where(numpy.logical_and(delta > mindelta, rho > 0))[0] # delta different from 0 and rhos higher than 0
-    # nzdelta = delta[nzind] # y of fit
-    # nzrho = rho[nzind] # x of fit
-    
-    # # fitting a line in log space
-    # threshold = estimate_threshold(numpy.log(nzrho), numpy.log(nzdelta),alpha)
-    # threshold = numpy.exp(threshold) # to linear form
-    
-    # # selecting centroids
-    # selid = (nzdelta > threshold)    
-    # auxid = nzind[selid] # centroids on original basis
+    centers = numpy.zeros((npnts))
     
     auxid = fit_rho_delta(rho, delta, alpha)
     nclus = len(auxid)
