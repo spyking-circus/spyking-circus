@@ -178,7 +178,7 @@ class CircusParser(object):
 
         self.parser.set('data', 'data_file_no_overwrite', file_out + '_all_sc.dat')
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
-        self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
+        self.parser.set('data', 'file_out_suff', file_out + self.parser.get('data', 'suffix')) # Output file with suffix
         self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
 
         self.probe = read_probe(self.parser)

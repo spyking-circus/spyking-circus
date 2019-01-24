@@ -670,7 +670,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         #numpy.save('dist_%s_' %p + str(ielec), dist)
 
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(result['rho_%s_' %p + str(ielec)], dist,
-                                                                                      n_min=n_min, alpha=0.05)                        
+                                                                                      n_min=n_min, alpha=3)                        
 
                         # cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
                         #                                                               m_ratio,

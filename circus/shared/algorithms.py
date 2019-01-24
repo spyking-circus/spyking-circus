@@ -24,17 +24,34 @@ def distancematrix(data, ydata=None):
 
     return distances.astype(numpy.float32)
 
-def fit_rho_delta(xdata, ydata):
+def fit_rho_delta(xdata, ydata, alpha=3):
 
     x = sm.add_constant(xdata)
     model = sm.RLM(ydata, x)
     results = model.fit()
     difference = ydata - results.fittedvalues
     factor = difference.std()
-    z_score = ydata - ((1 + factor)*results.fittedvalues + 3*factor)
+    z_score = ydata - ((1 + factor)*results.fittedvalues + alpha*factor)
     centers = numpy.where(z_score >= 0)[0]
     return centers
 
+
+def compute_rho(data, dist, update=None, mratio=0.01):
+    npts = len(data)
+    nb_selec = max(5, int(mratio*N)) # number of closest neighbors to compute density
+    if update is None:
+        sdist = {}
+        if compute_rho:
+            sorted_idx = np.argsort(dist, axis=0) # sorting each row in asciending order
+            dist_sorted = np.take_along_axis(dist, sorted_idx, axis=0)
+            rho =  1/np.mean(dist_sorted[:nb_selec,:], axis=0) # density computation
+            rho[np.isnan(rho)] = 0
+            sdist = sorted_idx[:nb_selec]
+    else:
+        npts = len(update[0])
+        
+
+    return rho
 
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
@@ -118,7 +135,7 @@ def clustering(rho, dist, mratio=0.1, display=None, n_min=None, save=False):
 
     return halo, rho, delta, centers
 
-def clustering_by_density(rho, dist, n_min, alpha=0.05):
+def clustering_by_density(rho, dist, n_min, alpha=3):
     npts = len(rho)
     dist = scipy.spatial.distance.squareform(dist)
     delta = compute_delta(dist, rho)
@@ -147,7 +164,7 @@ def compute_delta(dist, rho):
     delta[numpy.isinf(delta)] = 0
     return delta
 
-def find_centroids_and_cluster(dist, rho, delta, n_min, alpha):
+def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
 
     npnts = len(rho)    
     centers = numpy.zeros((npnts))    
@@ -167,13 +184,13 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha):
     # selid = (nzdelta > threshold)    
     # auxid = nzind[selid] # centroids on original basis
     
-    auxid = fit_rho_delta(rho, delta)
+    auxid = fit_rho_delta(rho, delta, alpha)
     nclus = len(auxid)
 
     centers[auxid] = numpy.arange(nclus) + 1 # assigning labels to centroids
     
     # assigning points to clusters based on their distance to the centroids
-    if nclus == 1:
+    if nclus <= 1:
         labels = numpy.ones(npnts)
     else:
         centersx = numpy.where(centers)[0] # index of centroids
