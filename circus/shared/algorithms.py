@@ -30,8 +30,8 @@ def fit_rho_delta(xdata, ydata, alpha=3):
     model = sm.RLM(ydata, x)
     results = model.fit()
     difference = ydata - results.fittedvalues
-    factor = difference.std()
-    z_score = ydata - ((1 + factor)*results.fittedvalues + alpha*factor)
+    factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
+    z_score = ydata - ((1 + alpha*factor)*results.fittedvalues)
     centers = numpy.where(z_score >= 0)[0]
     return centers
 
@@ -44,7 +44,7 @@ def compute_rho(data, update=None, mratio=0.01):
     if update is None:
         dist = scipy.spatial.distance.squareform(distancematrix(data))
         dist_sorted = numpy.sort(dist, axis=1) # sorting each row in ascending order
-        rho =  numpy.mean(dist_sorted[:, 1:nb_selec+1], axis=1) # density computation
+        rho = numpy.mean(dist_sorted[:, 1:nb_selec+1], axis=1) # density computation
         sdist = dist_sorted[:, 1:nb_selec+1]
         dist = scipy.spatial.distance.squareform(dist)
     else:
@@ -54,88 +54,6 @@ def compute_rho(data, update=None, mratio=0.01):
         rho = numpy.mean(dist_sorted[:, 1:nb_selec+1], axis=1) # density computation
         sdist = dist_sorted[:, 1:nb_selec+1]
     return rho, dist, sdist
-
-def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
-
-    N     = len(data)
-    rho   = numpy.zeros(N, dtype=numpy.float32)
-
-    if update is None:
-        dist = distancematrix(data)
-        didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
-        nb_selec = max(5, int(mratio*N))
-        sdist    = {}
-
-        if compute_rho:
-            for i in range(N):
-                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i), i)))
-                tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
-                sdist[i] = numpy.take(dist, numpy.take(indices, tmp))
-                rho[i]   = numpy.mean(sdist[i])
-
-    else:
-        M        = len(update[0])
-        nb_selec = max(5, int(mratio*M))
-        sdist    = {}
-
-        for i in range(N):
-            dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
-            all_dist = numpy.concatenate((dist, update[1][i]))
-            idx      = numpy.argsort(all_dist)[:nb_selec]
-            sdist[i] = numpy.take(all_dist, idx)
-            rho[i]   = numpy.mean(sdist[i])
-    return rho, dist, sdist, nb_selec
-
-
-def clustering(rho, dist, mratio=0.1, display=None, n_min=None, save=False):
-
-    N                 = len(rho)
-    maxd              = numpy.max(dist)
-    didx              = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
-    ordrho            = numpy.argsort(rho)[::-1]
-    delta, nneigh     = numpy.zeros(N, dtype=numpy.float32), numpy.zeros(N, dtype=numpy.int32)
-    delta[ordrho[0]]  = -1
-    for ii in xrange(1, N):
-        delta[ordrho[ii]] = maxd
-        for jj in xrange(ii):
-            if ordrho[jj] > ordrho[ii]:
-                xdist = dist[didx(ordrho[ii], ordrho[jj])]
-            else:
-                xdist = dist[didx(ordrho[jj], ordrho[ii])]
-
-            if xdist < delta[ordrho[ii]]:
-                delta[ordrho[ii]]  = xdist
-                nneigh[ordrho[ii]] = ordrho[jj]
-
-    delta[ordrho[0]]        = delta.max()
-    centers = fit_rho_delta(rho, delta)
-
-    def assign_halo(idx):
-        cl      = numpy.empty(N, dtype=numpy.int32)
-        cl[:]   = -1
-        NCLUST  = len(idx)
-        cl[idx] = numpy.arange(NCLUST)
-
-        # assignation
-        for i in xrange(N):
-            if cl[ordrho[i]] == -1:
-                cl[ordrho[i]] = cl[nneigh[ordrho[i]]]
-
-        # halo (ignoring outliers ?)
-        halo = cl.copy()
-
-        if n_min is not None:
-
-            for cluster in xrange(NCLUST):
-                idx = numpy.where(halo == cluster)[0]
-                if len(idx) < n_min:
-                    halo[idx] = -1
-                    NCLUST   -= 1
-        return halo, NCLUST
-
-    halo, NCLUST = assign_halo(centers)
-
-    return halo, rho, delta, centers
 
 def clustering_by_density(rho, dist, n_min, alpha=3):
     npts = len(rho)

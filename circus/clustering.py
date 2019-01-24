@@ -61,6 +61,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     extraction     = params.get('clustering', 'extraction')
     smart_search   = params.getboolean('clustering', 'smart_search')
     n_abs_min      = params.getint('clustering', 'n_abs_min')
+    sensitivity    = params.getfloat('clustering', 'sensitivity')
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
@@ -665,7 +666,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max()
 
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(result['rho_%s_' %p + str(ielec)], dist,
-                                                                                      n_min=n_min, alpha=3)                        
+                                                                                      n_min=n_min, alpha=sensitivity)                        
 
                         # Now we perform a merging step, for clusters that look too similar
                         data = result['sub_%s_' %p + str(ielec)]
@@ -687,14 +688,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             if icount < (len(injected) - 1):
                                                 injected[icount] = True
 
-                            mask = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
-                            sel  = numpy.unique(cluster_results[p][ielec]['groups'][mask])
                             data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                             plot.view_clusters(data, r, d, c,
                                                    cluster_results[p][ielec]['groups'], injected=injected,
-                                                   save=save)
+                                                   save=save, alpha=sensitivity)
 
-                        keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec), 'norm_%s_' %p + str(ielec)]
+                        keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec)]
                         for key in keys:
                             if result.has_key(key):
                                 result.pop(key)

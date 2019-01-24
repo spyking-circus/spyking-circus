@@ -113,7 +113,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.show()
 
 
-def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
+def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, alpha=3):
 
     import matplotlib.colors as colors
 
@@ -204,8 +204,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False):
     model = sm.RLM(delta, x)
     results = model.fit()
     difference = delta - results.fittedvalues
-    factor = difference.std()
-    upper = ((1 + factor)*results.fittedvalues + 3*factor)
+    factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
+    upper = ((1 + alpha*factor)*results.fittedvalues)
     z_score = delta - upper
     centers = numpy.where(z_score >= 0)[0]
     ax.fill_between(rho[idx], results.fittedvalues[idx], upper[idx], alpha=0.5, color='r')
