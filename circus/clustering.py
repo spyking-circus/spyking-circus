@@ -159,7 +159,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.uint32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
-            result['norm_%s_' %p + str(i)] = 0
         indices = numpy.take(inv_nodes, edges[nodes[i]])
         elec_positions[i] = numpy.where(indices == i)[0]
 
@@ -623,11 +622,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
-                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
-
+                        rho, dist, sdist = algo.compute_rho(result['sub_%s_' %p + str(ielec)], mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
-                        result['norm_%s_' %p + str(ielec)]  = nb_selec
                         if hdf5_compress:
                             tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True, compression='gzip')
                         else:
@@ -641,16 +638,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['pca_%s_' %p + str(ielec)][numpy.arange(sub_output_dim), numpy.arange(sub_output_dim)] = 1
 
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
-                        result['norm_%s_' %p + str(ielec)] = 1
                         result['sub_%s_' %p + str(ielec)]  = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
                         result['sdist_%s_' %p + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                 else:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
+
+                        rho, _, sdist = algo.compute_rho(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
-                        del dist, rho
+                        del rho
 
                 if gpass == nb_repeats:
 

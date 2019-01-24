@@ -36,23 +36,24 @@ def fit_rho_delta(xdata, ydata, alpha=3):
     return centers
 
 
-def compute_rho(data, dist, update=None, mratio=0.01):
-    npts = len(data)
-    nb_selec = max(5, int(mratio*N)) # number of closest neighbors to compute density
-    if update is None:
-        sdist = {}
-        if compute_rho:
-            sorted_idx = numpy.argsort(dist, axis=0) # sorting each row in asciending order
-            dist_sorted = numpy.take_along_axis(dist, sorted_idx, axis=0)
-            rho =  numpy.mean(dist_sorted[:nb_selec,:], axis=0) # density computation
-            rho[numpy.isnan(rho)] = 0
-            sdist['dist'] = dist_sorted[:nb_selec]
-    else:
-        npts = len(update[0])
-        dist = scipy.spatial.distance.squarematrix(distancematrix(data, update[0]))
-        all_dist
+def compute_rho(data, update=None, mratio=0.01):
+    N = len(data)
+    nb_selec = max(5, int(mratio*N))
+    rho = numpy.zeros(N, dtype=numpy.float32)
 
-    return rho
+    if update is None:
+        dist = scipy.spatial.distance.squareform(distancematrix(data))
+        dist_sorted = numpy.sort(dist, axis=1) # sorting each row in ascending order
+        rho =  numpy.mean(dist_sorted[:, 1:nb_selec+1], axis=1) # density computation
+        sdist = dist_sorted[:, 1:nb_selec+1]
+        dist = scipy.spatial.distance.squareform(dist)
+    else:
+        dist = distancematrix(data, update[0])
+        all_dist = numpy.hstack((update[1], dist))
+        dist_sorted =  numpy.sort(all_dist, axis=1) # sorting each row in ascending order
+        rho = numpy.mean(dist_sorted[:, 1:nb_selec+1], axis=1) # density computation
+        sdist = dist_sorted[:, 1:nb_selec+1]
+    return rho, dist, sdist
 
 def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
 
@@ -66,7 +67,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
         sdist    = {}
 
         if compute_rho:
-            for i in xrange(N):
+            for i in range(N):
                 indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i), i)))
                 tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
                 sdist[i] = numpy.take(dist, numpy.take(indices, tmp))
@@ -77,7 +78,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
         nb_selec = max(5, int(mratio*M))
         sdist    = {}
 
-        for i in xrange(N):
+        for i in range(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
             all_dist = numpy.concatenate((dist, update[1][i]))
             idx      = numpy.argsort(all_dist)[:nb_selec]
