@@ -1,4 +1,13 @@
 =============
+Release 0.8.0
+=============
+
+* major improvement in the clustering. No more max_clusters parameters
+* much faster clustering (thanks to Ruben Herzog)
+* added the statsmodels library as a required dependency
+
+
+=============
 Release 0.7.6
 =============
 

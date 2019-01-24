@@ -747,7 +747,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if few_elts:
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):
-                lines += ["                            -decrease smart_search?"]
+                lines += ["                            -remove smart_search?"]
             if isolation:
                 lines += ["                            -remove isolation mode?"]
 

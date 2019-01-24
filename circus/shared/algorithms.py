@@ -42,14 +42,15 @@ def compute_rho(data, dist, update=None, mratio=0.01):
     if update is None:
         sdist = {}
         if compute_rho:
-            sorted_idx = np.argsort(dist, axis=0) # sorting each row in asciending order
-            dist_sorted = np.take_along_axis(dist, sorted_idx, axis=0)
-            rho =  1/np.mean(dist_sorted[:nb_selec,:], axis=0) # density computation
-            rho[np.isnan(rho)] = 0
-            sdist = sorted_idx[:nb_selec]
+            sorted_idx = numpy.argsort(dist, axis=0) # sorting each row in asciending order
+            dist_sorted = numpy.take_along_axis(dist, sorted_idx, axis=0)
+            rho =  numpy.mean(dist_sorted[:nb_selec,:], axis=0) # density computation
+            rho[numpy.isnan(rho)] = 0
+            sdist['dist'] = dist_sorted[:nb_selec]
     else:
         npts = len(update[0])
-        
+        dist = scipy.spatial.distance.squarematrix(distancematrix(data, update[0]))
+        all_dist
 
     return rho
 
