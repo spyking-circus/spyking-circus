@@ -152,7 +152,6 @@ Fitting
 The fitting section is::
 
     chunk          = 1         # Size of chunks used during fitting [in second]
-    gpu_only       = True      # Use GPU for computation of b's AND fitting
     amp_limits     = (0.3, 30) # Amplitudes for the templates during spike detection
     amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
     max_chunk      = inf       # Fit only up to max_chunk   
@@ -161,7 +160,6 @@ The fitting section is::
 
 Parameters that are most likely to be changed:
     * ``chunk`` again, to reduce memory usage, you can reduce the size of the temporal chunks during fitting. Note that it has to be one order of magnitude higher than the template width ``N_t``
-    * ``gpu_only`` By default, all operations will take place on the GPU. However, if not enough memory is available on the GPU, then you can turn this flag to False. 
     * ``max_chunk`` If you just want to fit the first *N* chunks, otherwise, the whole file is processed
     * ``collect_all`` If you want to also collect all the spike times at which no templates were fitted. This is particularly useful to debug the algorithm, and understand if something is wrong on a given channel
 

@@ -614,7 +614,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         print_and_log(['Smart search is actived on channel %d' % ielec], 'debug', logger)
 
                 elif gpass == 1:
-                    if len(result['data_%s_' %p + str(ielec)]) > 1:
+                    if len(result['data_%s_' %p + str(ielec)]) >= 1:
 
                         if result['pca_%s_' %p + str(ielec)] is None:
                             pca                               = PCA(sub_output_dim)
@@ -637,18 +637,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if result['pca_%s_' %p + str(ielec)] is None:
                             n_neighb                    = len(edges[nodes[ielec]])
                             dimension                   = basis['proj_%s' %p].shape[1] * n_neighb
-                            result['pca_%s_' %p + str(ielec)] = numpy.identity(dimension, dtype=numpy.float32)
-                        result['rho_%s_' %p  + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
+                            result['pca_%s_' %p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
+                            result['pca_%s_' %p + str(ielec)][numpy.arange(sub_output_dim), numpy.arange(sub_output_dim)] = 1
+
+                        result['rho_%s_' %p  + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                         result['norm_%s_' %p + str(ielec)] = 1
-                        result['sub_%s_' %p + str(ielec)]  = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                        result['sdist_%s_' %p + str(ielec)] = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.float32)
+                        result['sub_%s_' %p + str(ielec)]  = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
+                        result['sdist_%s_' %p + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                 else:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                         rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
-                        #result['norm_%s_' %p + str(ielec)] += nb_selec
                         del dist, rho
 
                 if gpass == nb_repeats:
@@ -665,16 +666,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if (n_data > 1):
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max()
-                        #fresult['rho_%s_' %p + str(ielec)] /= result['norm_%s_' %p + str(ielec)]
-                        #numpy.save('rho_%s_' %p + str(ielec), result['rho_%s_' %p + str(ielec)])
-                        #numpy.save('dist_%s_' %p + str(ielec), dist)
 
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       n_min=n_min, alpha=3)                        
-
-                        # cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
-                        #                                                               m_ratio,
-                        #                                                               n_min=n_min)
 
                         # Now we perform a merging step, for clusters that look too similar
                         data = result['sub_%s_' %p + str(ielec)]
