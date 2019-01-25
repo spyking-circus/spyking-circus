@@ -123,6 +123,7 @@ The clustering section is::
     nb_repeats     = 3          # Number of passes used for the clustering
     make_plots     =            # Generate sanity plots of the clustering
     sim_same_elec  = 3          # Distance within clusters under which they are re-merged
+    sensitivity    = 5          # The only parameter to control the cluster. The lower, the more sensitive
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
     smart_search   = True       # Parameter to activate the smart search mode

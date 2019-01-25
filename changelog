@@ -5,7 +5,8 @@ Release 0.8.0
 * major improvement in the clustering. No more max_clusters parameters
 * much faster clustering (thanks to Ruben Herzog)
 * added the statsmodels library as a required dependency
-
+* enhancement of the smart search mode
+* fix a typo when using dead times and the collect mode
 
 =============
 Release 0.7.6
