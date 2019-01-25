@@ -595,18 +595,28 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 bins  = [-numpy.inf] + numpy.linspace(5*bound, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
 
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
-                        a     = a/float(numpy.sum(a))
+                        nb_spikes = numpy.sum(a)
+                        a = a/float(nb_spikes)
 
                         z      = a[a > 0]
                         c      = 1./numpy.min(z)
                         d      = (1./(c*a))
                         d      = numpy.minimum(1, d)
-                        target = numpy.sum(d)/ratio
-                        twist  = numpy.sum(a*d)/target
+                        d     /= numpy.sum(d)
+                        twist  = numpy.sum(a*d)
                         factor = twist*c
+                        rejection_curve = factor*a
+                        if ratio > 1:
+                            target_max = 1 - 1./(ratio - 1)
+                            rejection_curve *= target_max/rejection_curve.max()
 
-                        result['hist_%s_'%p + str(ielec) ]   = factor*a
+                        result['hist_%s_'%p + str(ielec) ]   = rejection_curve
                         result['bounds_%s_' %p + str(ielec)] = b
+
+                        if make_plots not in ['None', '']:
+                            save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
+                            plot.view_rejection(a, b[1:], result['hist_%s_'%p + str(ielec)], save=save)
+
                     else:
                         smart_searches[p][ielec] = 0
 

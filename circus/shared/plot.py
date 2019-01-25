@@ -240,6 +240,40 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     del fig
 
 
+
+def view_rejection(a, b, hist, save=False):
+
+    import matplotlib.colors as colors
+
+    fig = pylab.figure(figsize=(15, 10))
+    ax  = fig.add_subplot(211)
+    ax.plot(b, a)
+    ax.set_xlabel(r'$Amplitude$')
+    ax.set_ylabel(r'$Probability$')
+    ax.set_title('distribution of amplitudes')
+
+    ax  = fig.add_subplot(212)
+    ax.plot(b, hist)
+    ax.set_xlabel(r'$Amplitude$')
+    ax.set_ylabel(r'$Probability$')
+    ax.set_title('Rejection curve')
+
+    try:
+        pylab.tight_layout()
+    except Exception:
+        pass
+    if save:
+        try:
+            pylab.savefig(os.path.join(save[0], 'rejection_%s' %save[1]))
+            pylab.close()
+        except Exception:
+            pass
+    else:
+        pylab.show()
+    del fig
+
+
+
 def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves=200, save=False):
     
     nb_templates = templates.shape[1]
