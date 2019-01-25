@@ -607,7 +607,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         factor = twist*c
                         rejection_curve = factor*a
                         if ratio > 1:
-                            target_max = 1 - 1./(2*ratio - 1)
+                            target_max = 1 - (1 - rejection_curve.max())/ratio
                             rejection_curve *= target_max/rejection_curve.max()
 
                         result['hist_%s_'%p + str(ielec) ]   = rejection_curve
