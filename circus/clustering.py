@@ -34,11 +34,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     if params.getboolean('data', 'global_tmp'):
-        tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+        tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     else:
         tmp_path_loc = tempfile.gettempdir()
 
-    plot_path      = os.path.join(params.get('data', 'data_file_noext'), 'plots')
+    plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     safety_time    = params.getint('clustering', 'safety_time')
@@ -608,7 +608,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         rejection_curve = factor*a
                         if ratio > 1:
                             target_max = 1 - (1 - rejection_curve.max())/ratio
-                            rejection_curve *= target_max/rejection_curve.max()
+                            assert target_max < 1, "Problem %g %g" %(ratio, rejection_curve.max())
+                            rejection_curve *= target_max/(rejection_curve.max())
 
                         result['hist_%s_'%p + str(ielec) ]   = rejection_curve
                         result['bounds_%s_' %p + str(ielec)] = b
