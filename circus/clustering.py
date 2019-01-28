@@ -605,10 +605,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         d     /= numpy.sum(d)
                         twist  = numpy.sum(a*d)
                         factor = twist*c
-                        rejection_curve = factor*a
+                        rejection_curve = numpy.minimum(0.95, factor*a)
                         if ratio > 1:
                             target_max = 1 - (1 - rejection_curve.max())/ratio
-                            assert target_max < 1, "Problem %g %g" %(ratio, rejection_curve.max())
                             rejection_curve *= target_max/(rejection_curve.max())
 
                         result['hist_%s_'%p + str(ielec) ]   = rejection_curve
