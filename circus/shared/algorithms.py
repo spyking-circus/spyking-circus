@@ -10,7 +10,6 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 import statsmodels.api as sm
-import sklearn.metrics
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 logger = logging.getLogger(__name__)
