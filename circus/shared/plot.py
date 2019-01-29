@@ -205,8 +205,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     results = model.fit()
     difference = delta - results.fittedvalues
     factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
-    upper = ((1 + alpha*factor)*results.fittedvalues)
-    z_score = delta - upper
+    upper = results.fittedvalues + alpha*factor*(1 + results.fittedvalues)
+    z_score = difference - alpha*factor*(1 + results.fittedvalues)
     mcenters = numpy.where(z_score >= 0)[0]
     ax.fill_between(rho[idx], results.fittedvalues[idx], upper[idx], alpha=0.5, color='r')
     ax.plot(rho[mcenters], delta[mcenters], 'r.')
