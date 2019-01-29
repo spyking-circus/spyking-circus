@@ -207,9 +207,9 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
     upper = ((1 + alpha*factor)*results.fittedvalues)
     z_score = delta - upper
-    centers = numpy.where(z_score >= 0)[0]
+    mcenters = numpy.where(z_score >= 0)[0]
     ax.fill_between(rho[idx], results.fittedvalues[idx], upper[idx], alpha=0.5, color='r')
-    ax.plot(rho[idx], results.fittedvalues[idx], color='r')
+    ax.plot(rho[mcenters], delta[mcenters], 'r.')
     
 
     ax2 = fig.add_subplot(246)
@@ -219,7 +219,6 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     ax2.scatter(rho[centers], z_score[centers], c='r', s=def_size, linewidth=0)
     ax2.set_xlim(0.98*rmin, 1.02*rmax)
     
-    ax.scatter(rho[centers], results.fittedvalues[centers], c='r', s=def_size, linewidth=0)
     try:
         ax.set_yscale('log')
     except Exception:

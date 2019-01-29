@@ -613,9 +613,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['hist_%s_'%p + str(ielec) ]   = rejection_curve
                         result['bounds_%s_' %p + str(ielec)] = b
 
-                        if make_plots not in ['None', '']:
-                            save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
-                            plot.view_rejection(a, b[1:], result['hist_%s_'%p + str(ielec)], save=save)
+                        # if make_plots not in ['None', '']:
+                        #     save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
+                        #     plot.view_rejection(a, b[1:], result['hist_%s_'%p + str(ielec)], save=save)
 
                     else:
                         smart_searches[p][ielec] = 0
@@ -655,7 +655,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
-                        rho, _, sdist = algo.compute_rho(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
+                        rho, sdist = algo.compute_rho(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
                         del rho

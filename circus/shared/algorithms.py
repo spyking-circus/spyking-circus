@@ -10,6 +10,7 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 import statsmodels.api as sm
+import sklearn.metrics
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 logger = logging.getLogger(__name__)
@@ -39,45 +40,46 @@ def fit_rho_delta(xdata, ydata, alpha=3):
 def compute_rho(data, update=None, mratio=0.01):
     N = len(data)
     nb_selec = max(5, int(mratio*N))
-    rho = numpy.zeros(N, dtype=numpy.float32)
 
     if update is None:
-        dist = scipy.spatial.distance.squareform(distancematrix(data))
+        dist = distancematrix(data, data)
+        #dist = sklearn.metrics.pairwise_distances(data, data, n_jobs=1)
         dist_sorted = numpy.sort(dist, axis=1) # sorting each row in ascending order
-        rho = numpy.mean(dist_sorted[:, 1:nb_selec+1], axis=1) # density computation
-        sdist = dist_sorted[:, 1:nb_selec+1]
-        dist = scipy.spatial.distance.squareform(dist)
+        dist_sorted = dist_sorted[:, 1:nb_selec+1]
+        rho = numpy.mean(dist_sorted, axis=1) # density computation
+        dist = scipy.spatial.distance.squareform(dist, checks=False)
+        return rho, dist, dist_sorted
     else:
         dist = distancematrix(data, update[0])
-        all_dist = numpy.hstack((update[1], dist))
-        dist_sorted =  numpy.sort(all_dist, axis=1) # sorting each row in ascending order
-        rho = numpy.mean(dist_sorted[:, 1:nb_selec+1], axis=1) # density computation
-        sdist = dist_sorted[:, 1:nb_selec+1]
-    return rho, dist, sdist
+        #dist = sklearn.metrics.pairwise_distances(data, update[0], n_jobs=1)
+        dist = numpy.hstack((update[1], dist))
+        dist =  numpy.sort(dist, axis=1) # sorting each row in ascending order
+        dist = dist[:, 1:nb_selec+1]
+        rho = numpy.mean(dist, axis=1) # density computation
+        return rho, dist
 
 def clustering_by_density(rho, dist, n_min, alpha=3):
-    npts = len(rho)
-    dist = scipy.spatial.distance.squareform(dist)
+    dist = scipy.spatial.distance.squareform(dist, checks=False)
     delta = compute_delta(dist, rho)
     nclus, labels, centers = find_centroids_and_cluster(dist, rho, delta, n_min, alpha)
     halolabels = halo_assign(dist, labels, centers)
     halolabels -= 1
-    centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max()+1)))[0]
+    centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
     return halolabels, rho, delta, centers
 
 def compute_delta(dist, rho):
     rho_sort_id = numpy.argsort(rho) # index to sort
     rho_sort_id = (rho_sort_id[::-1]) # reversing sorting indexes
     sort_rho = rho[rho_sort_id] # sortig rho in ascending order
-    gtmat = numpy.greater_equal(sort_rho,sort_rho[:, None]) # gtmat(i,j)=1 if rho(i)>=rho(j) and 0 otherwise
+    gtmat = numpy.greater_equal(sort_rho, sort_rho[:, None]) # gtmat(i,j)=1 if rho(i)>=rho(j) and 0 otherwise
     
     sortdist = numpy.zeros_like(dist)
     sortdist = dist[rho_sort_id, :]
     sortdist = sortdist[:, rho_sort_id]    
-    seldist = gtmat*sortdist # keeping only distance to points with highest or equal rho 
-    seldist[seldist == 0] = float("inf") 
-              
-    auxdelta = numpy.min(seldist,axis=1)
+    sortdist *= gtmat # keeping only distance to points with highest or equal rho 
+    sortdist[sortdist == 0] = float("inf")
+
+    auxdelta = numpy.min(sortdist, axis=1)
     delta = numpy.zeros_like(auxdelta) 
     delta[rho_sort_id] = auxdelta 
     delta[rho == numpy.max(rho)] = numpy.max(delta[numpy.logical_not(numpy.isinf(delta))]) # assigns max delta to the max rho
