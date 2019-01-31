@@ -445,7 +445,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 #try:
                                 #   f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=xdata.size * mads[elec]**2, k=3)
                                 #except Exception:
-                                f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0, k=3)
+                                f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3)
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:
