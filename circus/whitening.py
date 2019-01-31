@@ -459,6 +459,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 to_accept = True
 
+                            if alignment:
+                                if negative_peak:
+                                    if numpy.min(sub_mat) >= -thresholds[elec]:
+                                        to_accept = False
+                                else:
+                                    if numpy.max(sub_mat) <= thresholds[elec]:
+                                        to_accept = False
+
                             if to_accept:
                                 if negative_peak:
                                     elts_neg[:, elt_count_neg] = sub_mat
