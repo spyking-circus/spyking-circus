@@ -76,7 +76,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     template_shift_2  = 2*template_shift
     nb_ss_bins        = 50
-
     #################################################################
 
     if sign_peaks == 'negative':
