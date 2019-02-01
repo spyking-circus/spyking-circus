@@ -629,6 +629,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             pca                               = PCA(sub_output_dim)
                             pca.fit(result['data_%s_' %p + str(ielec)])
                             result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
+                            print_and_log(["The percentage of variance explained by local PCA on electrode %d is %s" 
+                                %(ielec, numpy.sum(pca.explained_variance_ratio_))], 'debug', logger)
 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 

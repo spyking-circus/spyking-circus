@@ -541,8 +541,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elif sign_peaks == 'negative':
             print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
         elif sign_peaks == 'both':
-            print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
-
+            print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'debug', logger)
+        print_and_log(["The percentage of variance explained is %s" %numpy.sum(pca.explained_variance_ratio_)], 'info', logger)
         bfile.close()
 
     comm.Barrier()
