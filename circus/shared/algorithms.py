@@ -10,6 +10,7 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 import statsmodels.api as sm
+#import sklearn.metrics
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ def compute_rho(data, update=None, mratio=0.01):
         dist = distancematrix(data, update[0])
         #dist = sklearn.metrics.pairwise_distances(data, update[0], n_jobs=1)
         dist = numpy.hstack((update[1], dist))
-        dist =  numpy.sort(dist, axis=1) # sorting each row in ascending order
+        dist = numpy.sort(dist, axis=1) # sorting each row in ascending order
         dist = dist[:, 1:nb_selec+1]
         rho = numpy.mean(dist, axis=1) # density computation
         return rho, dist

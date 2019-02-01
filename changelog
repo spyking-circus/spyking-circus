@@ -6,6 +6,7 @@ Release 0.8.0
 * much faster clustering (thanks to Ruben Herzog)
 * added the statsmodels library as a required dependency
 * enhancement of the smart search mode
+* enhancement of the bicubic spline interpolation
 * fix a typo when using dead times and the collect mode
 
 =============

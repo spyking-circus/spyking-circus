@@ -330,7 +330,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     mads = io.load_data(params, 'mads')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
+        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
@@ -542,7 +542,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
         elif sign_peaks == 'both':
             print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'debug', logger)
-        print_and_log(["The percentage of variance explained is %s" %numpy.sum(pca.explained_variance_ratio_)], 'info', logger)
+        print_and_log(["The percentage of variance explained is %s" %numpy.sum(pca.explained_variance_ratio_)], 'debug', logger)
         bfile.close()
 
     comm.Barrier()

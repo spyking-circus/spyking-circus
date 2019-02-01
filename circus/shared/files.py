@@ -97,7 +97,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
+        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
 
@@ -286,7 +286,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
         if do_temporal_whitening:
             temporal_whitening = load_data(params, 'temporal_whitening')
         if alignment:
-            cdata = numpy.linspace(-template_shift, template_shift, int(over_factor* N_t))
+            cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
             xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
             xoff  = len(cdata) / 2.
 

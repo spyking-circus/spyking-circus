@@ -137,7 +137,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(tmp_path_loc)
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
+        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
