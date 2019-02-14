@@ -116,7 +116,7 @@ For information, here is the list of all the dependencies required by the SpyKIN
     7. ``h5py``
     8. ``colorama``
     9. ``blosc``
-    10. ``sklearn`` [optional, only for BEER estimate]
+    10. ``scikit-learn``
     11. ``statsmodels``
     
 .. _Anaconda: https://www.continuum.io/downloads
