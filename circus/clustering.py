@@ -801,52 +801,60 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         for ielec in to_explore:
 
+            n_neighb = len(edges[nodes[ielec]])
+            indices  = inv_nodes[edges[nodes[ielec]]]
+
             for p in search_peaks:
 
                 #print "Dealing with cluster", ielec
                 n_data   = len(result['data_%s_' %p + str(ielec)])
-                n_neighb = len(edges[nodes[ielec]])
                 data     = result['data_%s_' %p + str(ielec)].reshape(n_data, basis['proj_%s' %p].shape[1], n_neighb)
-                mask     = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
                 loc_pad  = count_templates
                 myamps   = []
-                indices  = inv_nodes[edges[nodes[ielec]]]
 
-                for group in numpy.unique(cluster_results[p][ielec]['groups'][mask]):
+                if p == 'pos':
+                    myslice = numpy.where((result['peaks_' + str(ielec)] == 0) & (cluster_results[p][ielec]['groups'] > -1))[0]
+                elif p == 'neg':
+                    myslice = numpy.where((result['peaks_' + str(ielec)] == 1) & (cluster_results[p][ielec]['groups'] > -1))[0]
+
+                loc_times = numpy.take(result['times_' + str(ielec)], myslice)
+                loc_clusters = numpy.take(cluster_results[p][ielec]['groups'], myslice)
+    
+                if extraction in ['mean-pca', 'median-pca']:
+                    data = data[myslice]
+
+                for group in numpy.unique(loc_clusters):
                     electrodes[g_count] = ielec
-                    myslice          = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
-                    if p == 'pos':
-                        myslice2     = numpy.where(result['peaks_' + str(ielec)] == 0)[0]
-                    elif p == 'neg':
-                        myslice2     = numpy.where(result['peaks_' + str(ielec)] == 1)[0]
+                    myslice = numpy.where(loc_clusters == group)[0]
+                    
                     if extraction == 'median-pca':
-                        sub_data         = numpy.take(data, myslice, axis=0)
-                        first_component  = numpy.median(sub_data, axis=0)
-                        tmp_templates    = numpy.dot(first_component.T, basis['rec_%s' %p])
+                        sub_data        = numpy.take(data, myslice, axis=0)
+                        first_component = numpy.median(sub_data, axis=0)
+                        tmp_templates   = numpy.dot(first_component.T, basis['rec_%s' %p])
                     elif extraction == 'mean-pca':
-                        sub_data         = numpy.take(data, myslice, axis=0)
-                        first_component  = numpy.mean(sub_data, axis=0)
-                        tmp_templates    = numpy.dot(first_component.T, basis['rec_%s' %p])
+                        sub_data        = numpy.take(data, myslice, axis=0)
+                        first_component = numpy.mean(sub_data, axis=0)
+                        tmp_templates   = numpy.dot(first_component.T, basis['rec_%s' %p])
                     elif extraction == 'median-raw':                
-                        labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
-                        times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
-                        first_component  = numpy.median(sub_data, 0)
-                        tmp_templates    = first_component
+                        labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 500)]
+                        times_i         = numpy.take(loc_times, labels_i)
+                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        first_component = numpy.median(sub_data, 0)
+                        tmp_templates   = first_component
                     elif extraction == 'mean-raw':                
-                        labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
-                        times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(sub_data, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
-                        first_component  = numpy.mean(sub_data, 0)
-                        tmp_templates    = first_component
+                        labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 500)]
+                        times_i         = numpy.take(loc_times, labels_i)
+                        sub_data        = io.get_stas(sub_data, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        first_component = numpy.mean(sub_data, 0)
+                        tmp_templates   = first_component
 
                     if p == 'neg':
-                        tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+                        tmpidx = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                     elif p == 'pos':
-                        tmpidx           = divmod(tmp_templates.argmax(), tmp_templates.shape[1])
+                        tmpidx = divmod(tmp_templates.argmax(), tmp_templates.shape[1])
 
-                    shift            = template_shift - tmpidx[1]
-                    templates        = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                    shift     = template_shift - tmpidx[1]
+                    templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                     if shift > 0:
                         templates[indices, shift:] = tmp_templates[:, :-shift]
                     elif shift < 0:
