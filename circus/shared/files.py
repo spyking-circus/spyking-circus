@@ -970,6 +970,11 @@ def load_data(params, data, extension=''):
             return get_results(params, extension)
         except Exception:
             raise Exception('No results found! Check suffix or run the fitting?')
+    elif data == 'duration':
+        try:
+            return get_duration(params, extension)
+        except Exception:
+            raise Exception('No results found! Check suffix or run the fitting?')
     elif data == 'garbage':
         try:
             return get_garbage(params, extension)
@@ -1426,6 +1431,14 @@ def get_results(params, extension=''):
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
             result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
+    myfile.close()
+    return result
+
+def get_duration(params, extension=''):
+    file_out_suff        = params.get('data', 'file_out_suff')
+    result               = {}
+    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='earliest')
+    duration = myfile['info']['duration']
     myfile.close()
     return result
 

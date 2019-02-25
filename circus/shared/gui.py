@@ -145,6 +145,7 @@ class MergeWindow(QMainWindow):
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
         self.auto_mode  = params.getfloat('merging', 'auto_mode')
+        self.duration   = load_data(params, 'duration')
 
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
@@ -364,6 +365,10 @@ class MergeWindow(QMainWindow):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
 
                 x_cc /= self.nb_bins
+
+                r1 = len(spikes_1)/duration
+                r2 = len(spikes_2)/duration
+
                 control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
 
             return x_cc*1e6, control*1e6
