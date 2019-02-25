@@ -145,8 +145,11 @@ class MergeWindow(QMainWindow):
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
         self.auto_mode  = params.getfloat('merging', 'auto_mode')
-        self.duration   = load_data(params, 'duration')
+        max_chunk      = params.getfloat('fitting', 'max_chunk')
+        chunks         = params.getfloat('fitting', 'chunk_size')
+        data_length    = io.data_stats(params, show=False)
 
+        self.duration   = int(min(chunks*max_chunk, data_length))
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
 
@@ -366,12 +369,12 @@ class MergeWindow(QMainWindow):
 
                 x_cc /= self.nb_bins
 
-                r1 = len(spikes_1)/duration
-                r2 = len(spikes_2)/duration
+                r1 = len(spike_1)/self.duration
+                r2 = len(spike_2)/self.duration
 
-                control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
+                control2 = r1 * r2 * self.duration * self.cc_bin * 1e-3
 
-            return x_cc*1e6, control*1e6
+            return x_cc*1e6, control2
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
 
@@ -444,12 +447,12 @@ class MergeWindow(QMainWindow):
                              (self.score_ax3, self.score_z, self.score_y)]:
                 self.collections.append(ax.scatter(x, y,
                                                    facecolor=['black' for _ in x]))
-            self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
+            #self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
             self.decision_boundary = self.score_ax3.plot([0, self.score_z.max()], [-self.suggest_value, self.score_z.max()-self.suggest_value], 'r--', alpha=0.5)[0]
             self.score_ax1.set_ylabel('CC metric')
             self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
-            self.score_ax2.set_ylabel('# Spikes')
+            self.score_ax2.set_ylabel('Nb spikes')
             self.score_ax3.set_xlabel('Expected CC')
             self.score_ax3.set_ylabel('CC metric')
             self.waveforms_ax.set_xticks([])
