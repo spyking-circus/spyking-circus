@@ -155,12 +155,7 @@ class MergeWindow(QMainWindow):
 
         self.result     = io.load_data(params, 'results', self.ext_in)
 
-        self.last_spike = 0
-        for spikes in self.result['spiketimes'].values():
-            if len(spikes) > 0:
-                self.last_spike = max(self.last_spike, spikes.max())
-
-        self.nb_bins    = int(self.last_spike/(self.cc_bin*self.sampling_rate*1e-3))
+        self.nb_bins    = int(self.duration/(self.cc_bin*1e-3))
 
         self.overlap    = h5py.File(self.file_out_suff + '.templates%s.hdf5' %self.ext_in, libver='earliest', mode='r').get('maxoverlap')[:]
         try:
@@ -355,8 +350,9 @@ class MergeWindow(QMainWindow):
 
         def reversed_corr(spike_1, spike_2, max_delay):
 
-            size     = 2*max_delay+1
-            x_cc     = numpy.zeros(size, dtype=numpy.float32)
+            size    = 2*max_delay+1
+            x_cc    = numpy.zeros(size, dtype=numpy.float32)
+            control = 0
             control2 = 0
 
             if (len(spike_1) > 0) and (len(spike_2) > 0):
@@ -372,9 +368,10 @@ class MergeWindow(QMainWindow):
                 r1 = len(spike_1)/self.duration
                 r2 = len(spike_2)/self.duration
 
+                control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
                 control2 = r1 * r2 * self.duration * self.cc_bin * 1e-3
 
-            return x_cc*1e6, control2
+            return x_cc*1e6, control*1e6
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
 
@@ -452,7 +449,7 @@ class MergeWindow(QMainWindow):
             self.score_ax1.set_ylabel('CC metric')
             self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
-            self.score_ax2.set_ylabel('Nb pikes')
+            self.score_ax2.set_ylabel('Nb spikes')
             self.score_ax3.set_xlabel('Expected CC')
             self.score_ax3.set_ylabel('CC metric')
             self.waveforms_ax.set_xticks([])
