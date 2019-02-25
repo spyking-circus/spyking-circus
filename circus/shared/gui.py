@@ -355,9 +355,9 @@ class MergeWindow(QMainWindow):
 
         def reversed_corr(spike_1, spike_2, max_delay):
 
-            size    = 2*max_delay+1
-            x_cc    = numpy.zeros(size, dtype=numpy.float32)
-            control = 0
+            size     = 2*max_delay+1
+            x_cc     = numpy.zeros(size, dtype=numpy.float32)
+            control2 = 0
 
             if (len(spike_1) > 0) and (len(spike_2) > 0):
 
@@ -452,7 +452,7 @@ class MergeWindow(QMainWindow):
             self.score_ax1.set_ylabel('CC metric')
             self.score_ax1.set_xlabel('Template similarity')
             self.score_ax2.set_xlabel('Template Norm')
-            self.score_ax2.set_ylabel('Nb spikes')
+            self.score_ax2.set_ylabel('Nb pikes')
             self.score_ax3.set_xlabel('Expected CC')
             self.score_ax3.set_ylabel('CC metric')
             self.waveforms_ax.set_xticks([])
