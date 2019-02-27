@@ -626,6 +626,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             pca                               = PCA(sub_output_dim)
                             pca.fit(result['data_%s_' %p + str(ielec)])
                             result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
+                            if result['pca_%s_' %p + str(ielec)].shape[1] < sub_output_dim:
+                                zeros = numpy.zeros((result['pca_%s_' %p + str(ielec)].shape[0], sub_output_dim - result['pca_%s_' %p + str(ielec)].shape[1]))
+                                result['pca_%s_' %p + str(ielec)] = numpy.hstack((result['pca_%s_' %p + str(ielec)], zeros))
 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
@@ -645,7 +648,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             dimension                   = basis['proj_%s' %p].shape[1] * n_neighb
                             result['pca_%s_' %p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
                             result['pca_%s_' %p + str(ielec)][numpy.arange(sub_output_dim), numpy.arange(sub_output_dim)] = 1
-
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                         result['norm_%s_' %p + str(ielec)] = 1
                         result['sub_%s_' %p + str(ielec)]  = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
@@ -727,7 +729,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         cluster_results[p][ielec]['n_clus'] = 0
                         result['clusters_%s_' %p + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
                         line = ["Node %d: not enough %s spikes on channel %d" %(comm.rank, flag, ielec)]
-                        print_and_log(line, 'default', logger)
+                        print_and_log(line, 'debug', logger)
 
                     local_nb_clusters += cluster_results[p][ielec]['n_clus']
 

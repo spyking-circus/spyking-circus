@@ -89,6 +89,7 @@ def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
         M        = len(update[0])
         nb_selec = max(5, int(mratio*M))
         sdist    = {}
+        dist     = None
 
         for i in xrange(N):
             dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
