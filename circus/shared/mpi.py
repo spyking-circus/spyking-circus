@@ -5,6 +5,7 @@ from mpi4py import MPI
 from messages import print_and_log
 comm = MPI.COMM_WORLD
 import blosc
+from distutils.version import StrictVersion
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,9 @@ def get_local_ring(local_only=False):
 def gather_mpi_arguments(hostfile, params):
     print_and_log(['MPI detected: %s' % str(MPI_VENDOR)], 'debug', logger)
     if MPI_VENDOR[0] == 'Open MPI':
+        if MPI_VENDOR[1][0] >= 3:
+            print_and_log(['SpyKING CIRCUS do not work with OPENMPI >= 3.0'], 'error', logger)
+            sys.exit(0)
         mpi_args = ['mpirun']
         if os.getenv('LD_LIBRARY_PATH'):
             mpi_args += ['-x', 'LD_LIBRARY_PATH']
