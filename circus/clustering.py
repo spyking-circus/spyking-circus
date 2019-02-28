@@ -813,21 +813,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 data     = result['data_%s_' %p + str(ielec)].reshape(n_data, basis['proj_%s' %p].shape[1], n_neighb)
                 loc_pad  = count_templates
                 myamps   = []
+                mask     = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
 
                 if p == 'pos':
-                    myslice = numpy.where((result['peaks_' + str(ielec)] == 0) & (cluster_results[p][ielec]['groups'] > -1))[0]
+                    myslice2 = numpy.where(result['peaks_' + str(ielec)] == 0)[0]
                 elif p == 'neg':
-                    myslice = numpy.where((result['peaks_' + str(ielec)] == 1) & (cluster_results[p][ielec]['groups'] > -1))[0]
+                    myslice2 = numpy.where(result['peaks_' + str(ielec)] == 1)[0]
 
-                loc_times = numpy.take(result['times_' + str(ielec)], myslice)
-                loc_clusters = numpy.take(cluster_results[p][ielec]['groups'], myslice)
+                loc_times = numpy.take(result['times_' + str(ielec)], myslice2)
+                loc_clusters = numpy.take(cluster_results[p][ielec]['groups'], mask)
     
-                if extraction in ['mean-pca', 'median-pca']:
-                    data = data[myslice]
-
                 for group in numpy.unique(loc_clusters):
                     electrodes[g_count] = ielec
-                    myslice = numpy.where(loc_clusters == group)[0]
+                    myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
                     
                     if extraction == 'median-pca':
                         sub_data        = numpy.take(data, myslice, axis=0)
@@ -953,9 +951,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], data))
                 if len(result['clusters_' + str(ielec)]) > 0:
-                    max_offset = numpy.max(result['clusters_' + str(ielec)]) + 1
+                    max_offset = numpy.int32(numpy.max(result['clusters_' + str(ielec)]) + 1)
                 else:
-                    max_offset = 0
+                    max_offset = numpy.int32(0)
+
                 mask = result['clusters_%s_' %p + str(ielec)] > -1
                 result['clusters_%s_' %p + str(ielec)][mask] += max_offset
                 result['clusters_' + str(ielec)] = numpy.concatenate((result['clusters_' + str(ielec)], result['clusters_%s_' %p + str(ielec)]))
