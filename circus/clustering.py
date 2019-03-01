@@ -641,9 +641,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
                         if hdf5_compress:
-                            tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True, compression='gzip')
+                            tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist.distances, chunks=True, compression='gzip')
                         else:
-                            tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True)
+                            tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist.distances, chunks=True)
                         del dist, rho
                     else:
                         if result['pca_%s_' %p + str(ielec)] is None:

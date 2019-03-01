@@ -8,6 +8,7 @@ Release 0.8.0
 * enhancement of the smart search mode
 * enhancement of the bicubic spline interpolation
 * fix a typo when using dead times and the collect mode
+* fix a minor bug when small amount of spikes are found during smart search
 
 =============
 Release 0.7.6

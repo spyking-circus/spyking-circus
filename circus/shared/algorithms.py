@@ -16,14 +16,66 @@ from statsmodels.sandbox.regression.predstd import wls_prediction_std
 logger = logging.getLogger(__name__)
 
 
-def distancematrix(data, ydata=None):
+class DistanceMatrix(object):
 
-    if ydata is None:
-        distances = scipy.spatial.distance.pdist(data, 'euclidean')
-    else:
-        distances = scipy.spatial.distance.cdist(data, ydata, 'euclidean')
+    def __init__(self, size):
+        self.size = size
+        self.didx = lambda i,j: i*self.size + j - i*(i+1)//2 - i - 1
 
-    return distances.astype(numpy.float32)
+    def initialize(self, data, ydata=None):
+        if ydata is None:
+            self.distances = scipy.spatial.distance.pdist(data, 'euclidean').astype(numpy.float32)
+        else:
+            self.distances = scipy.spatial.distance.cdist(data, ydata, 'euclidean').astype(numpy.float32)
+
+    def get_value(self, i, j):
+        if i < j:
+            return self.distances[self.didx(i, j)]
+        elif i > j:
+            return self.distances[self.didx(j, i)]
+        elif i == 0:
+            return 0
+
+    def get_row(self, i, with_diag=True):
+        start = self.distances[self.didx(numpy.arange(0, i), i)]
+        end = self.distances[self.didx(i, numpy.arange(i+1, self.size))]
+        if with_diag:
+            result = numpy.concatenate((start, numpy.array([0], dtype=numpy.float32), end))
+        else:
+            result = numpy.concatenate((start, end))
+    
+        return result
+
+    def get_col(self, i, with_diag=True):
+        return self.get_row(i, with_diag)
+
+    def to_dense(self):
+        return scipy.spatial.distance.squareform(self.distances)
+
+    def get_rows(self, indices, with_diag=True):
+        if with_diag:
+            result = numpy.zeros((len(indices), self.size), dtype=numpy.float32)
+        else:
+            result = numpy.zeros((len(indices), self.size - 1), dtype=numpy.float32)
+
+        for count, i in enumerate(indices):
+            result[count] = self.get_row(i, with_diag)
+        return result
+
+    def get_cols(self, indices, with_diag=True):
+        if with_diag:
+            result = numpy.zeros((self.size, len(indices)), dtype=numpy.float32)
+        else:
+            result = numpy.zeros((self.size - 1, len(indices)), dtype=numpy.float32)
+
+        for count, i in enumerate(indices):
+            result[:, count] = self.get_col(i, with_diag)
+        return result
+
+    @property
+    def max(self):
+        return numpy.max(self.distances)
+    
 
 def fit_rho_delta(xdata, ydata, alpha=3):
 
@@ -36,34 +88,53 @@ def fit_rho_delta(xdata, ydata, alpha=3):
     centers = numpy.where(z_score >= 0)[0]
     return centers
 
-
 def compute_rho(data, update=None, mratio=0.01):
     N = len(data)
     nb_selec = max(5, int(mratio*N))
+    rho = numpy.zeros(N, dtype=numpy.float32)
+    dist_sorted = numpy.zeros((N, nb_selec), dtype=numpy.float32)
 
     if update is None:
-        dist = distancematrix(data, data)
-        dist_sorted = numpy.sort(dist, axis=1) # sorting each row in ascending order
-        dist_sorted = dist_sorted[:, 1:nb_selec+1]
-        rho = numpy.mean(dist_sorted, axis=1) # density computation
-        dist = scipy.spatial.distance.squareform(dist, checks=False)
+        dist = DistanceMatrix(N)
+        dist.initialize(data)
+        for i in range(N):
+            dist_sorted[i] = numpy.sort(dist.get_row(i, with_diag=False))[:nb_selec]
+            rho[i] = numpy.mean(dist_sorted[i])
         return rho, dist, dist_sorted
     else:
-        dist = distancematrix(data, update[0])
-        dist = numpy.hstack((update[1], dist))
-        dist = numpy.sort(dist, axis=1) # sorting each row in ascending order
-        dist = dist[:, 1:nb_selec+1]
-        rho = numpy.mean(dist, axis=1) # density computation
-        return rho, dist
+        for i in range(N):
+            dist = scipy.spatial.distance.cdist(data[i].reshape(1, len(data[i])), update[0]).flatten()
+            dist = numpy.concatenate((update[1][i], dist))
+            dist_sorted[i] = numpy.sort(dist)[:nb_selec]
+            rho[i] = numpy.mean(dist_sorted[i])
+        return rho, dist_sorted
 
 def clustering_by_density(rho, dist, n_min, alpha=3):
-    dist = scipy.spatial.distance.squareform(dist, checks=False)
-    delta = compute_delta(dist, rho)
-    nclus, labels, centers = find_centroids_and_cluster(dist, rho, delta, n_min, alpha)
-    halolabels = halo_assign(dist, labels, centers)
+    distances = DistanceMatrix(len(rho))
+    distances.distances = dist
+    delta = compute_delta(distances, rho)
+    nclus, labels, centers = find_centroids_and_cluster(distances, rho, delta, n_min, alpha)
+    halolabels = halo_assign(distances, labels, centers)
     halolabels -= 1
     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
     return halolabels, rho, delta, centers
+
+# def compute_delta(dist, rho):
+#     N = len(rho)
+#     maxd = dist.max
+#     ordrho = numpy.argsort(rho)[::-1]
+#     delta, nneigh = numpy.zeros(N, dtype=numpy.float32), numpy.zeros(N, dtype=numpy.int32)
+#     delta[ordrho[0]] = -1
+#     for ii in range(1, N):
+#         delta[ordrho[ii]] = maxd
+#         for jj in range(ii):
+#             xdist = dist.get_value(ordrho[ii], ordrho[jj])
+#             if xdist < delta[ordrho[ii]]:
+#                 delta[ordrho[ii]]  = xdist
+#                 nneigh[ordrho[ii]] = ordrho[jj]
+
+#     delta[ordrho[0]] = delta.max()
+#     return delta
 
 def compute_delta(dist, rho):
     rho_sort_id = numpy.argsort(rho) # index to sort
@@ -72,7 +143,7 @@ def compute_delta(dist, rho):
     gtmat = numpy.greater_equal(sort_rho, sort_rho[:, None]) # gtmat(i,j)=1 if rho(i)>=rho(j) and 0 otherwise
     
     sortdist = numpy.zeros_like(dist)
-    sortdist = dist[rho_sort_id, :]
+    sortdist = dist.get_rows(rho_sort_id)
     sortdist = sortdist[:, rho_sort_id]    
     sortdist *= gtmat # keeping only distance to points with highest or equal rho 
     sortdist[sortdist == 0] = float("inf")
@@ -87,7 +158,7 @@ def compute_delta(dist, rho):
 def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
 
     npnts = len(rho)    
-    centers = numpy.zeros((npnts))
+    centers = numpy.zeros(npnts)
     
     auxid = fit_rho_delta(rho, delta, alpha)
     nclus = len(auxid)
@@ -99,7 +170,7 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
         labels = numpy.ones(npnts)
     else:
         centersx = numpy.where(centers)[0] # index of centroids
-        dist2cent = dist[centersx, :]
+        dist2cent = dist.get_rows(centersx)
         labels = numpy.argmin(dist2cent, axis=0) + 1
         _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
         
@@ -112,7 +183,7 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
             centers = numpy.zeros(len(centers))
             nclus = nclus - len(id2rem)
             centers[clusidx] = numpy.arange(nclus) + 1 # re labeling centroids            
-            dist2cent = dist[centersx, :]# re compute distances from centroid to any other point
+            dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
             labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
             
     return nclus, labels, centers
@@ -123,7 +194,7 @@ def halo_assign(dist, labels, centers):
     halolabels = labels.copy()    
     sameclusmat = numpy.equal(labels, labels[:, None]) #
     sameclus_cent = sameclusmat[centers > 0, :] # selects only centroids
-    dist2cent = dist[centers > 0, :] # distance to centroids
+    dist2cent = dist.get_rows(numpy.where(centers > 0)[0]) # distance to centroids
     dist2cluscent = dist2cent*sameclus_cent # preserves only distances to the corresponding cluster centroid
     nclusmem = numpy.sum(sameclus_cent, axis=1) # number of cluster members
         
