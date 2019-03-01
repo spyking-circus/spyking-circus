@@ -92,7 +92,7 @@ def compute_rho(data, update=None, mratio=0.01):
     N = len(data)
     nb_selec = max(5, int(mratio*N))
     rho = numpy.zeros(N, dtype=numpy.float32)
-    dist_sorted = numpy.zeros((N, nb_selec), dtype=numpy.float32)
+    dist_sorted = {}
 
     if update is None:
         dist = DistanceMatrix(N)
@@ -118,23 +118,6 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     halolabels -= 1
     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
     return halolabels, rho, delta, centers
-
-# def compute_delta(dist, rho):
-#     N = len(rho)
-#     maxd = dist.max
-#     ordrho = numpy.argsort(rho)[::-1]
-#     delta, nneigh = numpy.zeros(N, dtype=numpy.float32), numpy.zeros(N, dtype=numpy.int32)
-#     delta[ordrho[0]] = -1
-#     for ii in range(1, N):
-#         delta[ordrho[ii]] = maxd
-#         for jj in range(ii):
-#             xdist = dist.get_value(ordrho[ii], ordrho[jj])
-#             if xdist < delta[ordrho[ii]]:
-#                 delta[ordrho[ii]]  = xdist
-#                 nneigh[ordrho[ii]] = ordrho[jj]
-
-#     delta[ordrho[0]] = delta.max()
-#     return delta
 
 def compute_delta(dist, rho):
     rho_sort_id = numpy.argsort(rho) # index to sort
