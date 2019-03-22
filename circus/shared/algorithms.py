@@ -405,9 +405,13 @@ def slice_result(result, times):
     for t in times:
         sub_result = {'spiketimes' : {}, 'amplitudes' : {}}
         for key in result['spiketimes'].keys():
-            idx = numpy.where((result['spiketimes'][key] >= t[0]) & (result['spiketimes'][key] <= t[1]))[0]
-            sub_result['spiketimes'][key] = result['spiketimes'][key][idx] - t[0]
-            sub_result['amplitudes'][key] = result['amplitudes'][key][idx]
+            spike_times = result['spiketimes'][key]
+            spike_times = spike_times.ravel()
+            amplitudes = result['amplitudes'][key]
+            amplitudes = amplitudes.ravel()
+            indices = numpy.where((spike_times >= t[0]) & (spike_times <= t[1]))[0]
+            sub_result['spiketimes'][key] = spike_times[indices] - t[0]
+            sub_result['amplitudes'][key] = amplitudes[indices]
         sub_results += [sub_result]
 
     return sub_results
