@@ -72,6 +72,24 @@ class DistanceMatrix(object):
             result[:, count] = self.get_col(i, with_diag)
         return result
 
+    def get_deltas(self, rho):
+        rho_sort_id = numpy.argsort(rho) # index to sort
+        rho_sort_id = (rho_sort_id[::-1]) # reversing sorting indexes
+        sort_rho = rho[rho_sort_id] # sortig rho in ascending order
+        auxdelta = numpy.zeros(self.size, dtype=numpy.float32)
+
+        for count, i in enumerate(rho_sort_id):
+            line = self.get_row(i)[rho_sort_id[:count+1]]
+            line[line == 0] = float("inf")
+            auxdelta[count] = numpy.min(line)
+
+        delta = numpy.zeros_like(auxdelta) 
+        delta[rho_sort_id] = auxdelta 
+        delta[rho == numpy.max(rho)] = numpy.max(delta[numpy.logical_not(numpy.isinf(delta))]) # assigns max delta to the max rho
+        delta[numpy.isinf(delta)] = 0
+
+        return delta
+
     @property
     def max(self):
         return numpy.max(self.distances)
@@ -120,23 +138,7 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     return halolabels, rho, delta, centers
 
 def compute_delta(dist, rho):
-    rho_sort_id = numpy.argsort(rho) # index to sort
-    rho_sort_id = (rho_sort_id[::-1]) # reversing sorting indexes
-    sort_rho = rho[rho_sort_id] # sortig rho in ascending order
-    gtmat = numpy.greater_equal(sort_rho, sort_rho[:, None]) # gtmat(i,j)=1 if rho(i)>=rho(j) and 0 otherwise
-    
-    sortdist = numpy.zeros_like(dist)
-    sortdist = dist.get_rows(rho_sort_id)
-    sortdist = sortdist[:, rho_sort_id]    
-    sortdist *= gtmat # keeping only distance to points with highest or equal rho 
-    sortdist[sortdist == 0] = float("inf")
-
-    auxdelta = numpy.min(sortdist, axis=1)
-    delta = numpy.zeros_like(auxdelta) 
-    delta[rho_sort_id] = auxdelta 
-    delta[rho == numpy.max(rho)] = numpy.max(delta[numpy.logical_not(numpy.isinf(delta))]) # assigns max delta to the max rho
-    delta[numpy.isinf(delta)] = 0
-    return delta
+    return dist.get_deltas(rho)
 
 def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
 
