@@ -73,6 +73,12 @@ While running, in its first phase (filtering), two options are possible:
     * if your file format does not allow write access, or ``overwrite`` is ``False``, the code will filter and concatenate all files into a new file, saved as a ``float32`` binary file called ``mydata_all_sc.extension``. Templates are then detected onto this single files, and fitting is also applied onto it.
 
 
+
+Chunks contained in several folders
+-----------------------------------
+
+For some particular file formats (i.e. openephys), all the data are stored within a single folder, and your experiment may be split over several folders. In order to deal with that, the code can virtually concatenate files found in several folders, using the mode ``multi-folders``. When activating such a mode for the ``stream_mode``, the code will search for all folders, at the root of the file currently used, and will search inside all of them if compatible recordings can be found. If yes, they will all be concatenated virtually, such that all the folders are processed as a whole
+
 Chunks contained in the same datafile
 -------------------------------------
 

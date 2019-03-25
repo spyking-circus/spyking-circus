@@ -1,4 +1,4 @@
-import numpy, os, mpi4py, logging
+import numpy, os, mpi4py, logging, sys
 import mpi4py
 mpi4py.rc.threads = False
 from mpi4py import MPI
@@ -37,7 +37,8 @@ def gather_mpi_arguments(hostfile, params):
     print_and_log(['MPI detected: %s' % str(MPI_VENDOR)], 'debug', logger)
     if MPI_VENDOR[0] == 'Open MPI':
         if MPI_VENDOR[1][0] >= 3:
-            print_and_log(['SpyKING CIRCUS do not work with OPENMPI >= 3.0'], 'error', logger)
+            print_and_log(['SpyKING CIRCUS does not work with OPENMPI >= 3.0',
+                           'Consider downgrading or switching to MPICH'], 'error', logger)
             sys.exit(0)
         mpi_args = ['mpirun']
         if os.getenv('LD_LIBRARY_PATH'):

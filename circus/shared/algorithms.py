@@ -10,8 +10,6 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
 import scipy.linalg, scipy.sparse
 import statsmodels.api as sm
-import sklearn.metrics
-from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 logger = logging.getLogger(__name__)
 
@@ -188,15 +186,7 @@ def halo_assign(dist, labels, centers):
     remids = numpy.sum(gt_meandist2cent, axis=0)
     halolabels[remids > 0] = 0 # setting to 0 the removes points
     return halolabels
-
-
-def estimate_threshold(x, y, alpha):
-    x = sm.add_constant(x)
-    model = sm.OLS(y,x)
-    results = model.fit()
-    _,_,threshold = wls_prediction_std(results, alpha=alpha)
-    return threshold
-
+    
 
 def merging(groups, sim_same_elec, data):
 
