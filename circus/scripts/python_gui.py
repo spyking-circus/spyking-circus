@@ -49,6 +49,18 @@ def main(argv=None):
         parser.print_help()
         sys.exit()
 
+    args = parser.parse_args(argv)
+    filename       = os.path.abspath(args.datafile)
+    extension      = args.extension
+    params         = CircusParser(filename)
+    if os.path.exists(params.logfile):
+        os.remove(params.logfile)
+    logger         = init_logging(params.logfile)
+    logger         = logging.getLogger(__name__)
+
+    if extension != '':
+        extension = '-' + extension
+
     try:
         import vispy 
     except ImportError:
@@ -72,18 +84,6 @@ def main(argv=None):
     except ImportError:
         print_and_log(['The package joblib required by phy is not installed'], 'error', logger)
         sys.exit(1)
-
-    args = parser.parse_args(argv)
-    filename       = os.path.abspath(args.datafile)
-    extension      = args.extension
-    params         = CircusParser(filename)
-    if os.path.exists(params.logfile):
-        os.remove(params.logfile)
-    logger         = init_logging(params.logfile)
-    logger         = logging.getLogger(__name__)
-
-    if extension != '':
-        extension = '-' + extension
 
     mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
     if not mytest:

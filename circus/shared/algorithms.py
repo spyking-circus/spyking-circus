@@ -33,7 +33,7 @@ class DistanceMatrix(object):
             return self.distances[self.didx(i, j)]
         elif i > j:
             return self.distances[self.didx(j, i)]
-        elif i == 0:
+        elif i == j:
             return 0
 
     def get_row(self, i, with_diag=True):
