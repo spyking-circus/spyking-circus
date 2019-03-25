@@ -1,4 +1,17 @@
 =============
+Release 0.8.0
+=============
+
+* major improvement in the clustering. No more max_clusters parameters
+* much faster clustering (thanks to Ruben Herzog)
+* added the statsmodels library as a required dependency
+* enhancement of the smart search mode
+* enhancement of the bicubic spline interpolation
+* fix a typo when using dead times and the collect mode
+* fix a minor bug when small amount of spikes are found during smart search
+* fix a bug in the wrapper for BRW files
+
+=============
 Release 0.7.6
 =============
 
@@ -6,6 +19,9 @@ Release 0.7.6
 * adding a deconverting method to switch back from phy to MATLAB
 * support for the lags between templates in the MATLAB GUI
 * warn user if data are corrupted because of interrupted filtering
+* robust automatic selection of the centroids (thanks to Ruben Herzog)
+* addition of the statsmodels dependency
+* remove the max_cluster parameter
 * reduction of the size for saved clusters
 * display the file name in the header
 * fix a nasty bug allowing spikes at the border of chunks to be fitted even during dead periods
@@ -46,8 +62,6 @@ Release 0.7.0
 * multi-files mode is now enabled for Neuralynx data
 * fixes for conversion of old dataset with python GUI
 * smooth exit if fitting with 0 templates (thanks to Alex Gonzalez)
-* enhance the bicubic spline interpolation for oversampling
-* spike times are now saved as uint32 for long recordings
 
 =============
 Release 0.6.7

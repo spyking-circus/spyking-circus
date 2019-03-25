@@ -113,7 +113,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.show()
 
 
-def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=None, save=False):
+def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, alpha=3):
 
     import matplotlib.colors as colors
 
@@ -197,43 +197,28 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
 
     ax.scatter(rho, delta, c='k', s=def_size, linewidth=0)
 
-    if smart_select:
-        xmax = rho.max()
-        off  = delta.min()
-        idx  = numpy.argmin(rho)
-        a_0  = (delta[idx] - off)/numpy.log(1 + (xmax - rho[idx]))
-
-        def myfunc(x, a, b, c, d):
-            return a*numpy.log(1. + c*((xmax - x)**b)) + d
-
-        def imyfunc(x, a, b, c, d):
-            return numpy.exp(d)*((1. + c*(xmax - x)**b)**a)
-
-        try:
-            result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, p0=[a_0, 1., 1., off])
-            prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
-            difference   = rho*(delta - prediction)
-            idx          = numpy.argsort(rho)
-            prediction   = myfunc(rho, result[0], result[1], result[2], result[3])
-            z_score      = (difference - difference.mean())/difference.std()
+    idx = numpy.argsort(rho)
             
-            #subidx       = numpy.where(z_score >= 3.)[0]
-
-            ax.plot(rho[idx], prediction[idx], c='r')
-            
-            ax2 = fig.add_subplot(246)
-            ax2.set_xlabel(r'$\rho$')
-            ax2.set_ylabel(r'$\epsilon$')
-            ax2.scatter(rho, difference, c='k', s=def_size, linewidth=0)
-            limit = difference.mean() + 3*difference.std()
-            ax2.plot([rho.min(), rho.max()], [limit, limit], 'r--')
-            ax2.scatter(rho[centers], difference[centers], c='r', s=def_size, linewidth=0)
-            ax2.set_xlim(0.98*rmin, 1.02*rmax)
-
-        except Exception:
-            pass
+    import statsmodels.api as sm
+    x = sm.add_constant(rho)
+    model = sm.RLM(delta, x)
+    results = model.fit()
+    difference = delta - results.fittedvalues
+    factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
+    upper = results.fittedvalues + alpha*factor*(1 + results.fittedvalues)
+    z_score = difference - alpha*factor*(1 + results.fittedvalues)
+    mcenters = numpy.where(z_score >= 0)[0]
+    ax.fill_between(rho[idx], results.fittedvalues[idx], upper[idx], alpha=0.5, color='r')
+    ax.plot(rho[mcenters], delta[mcenters], 'r.')
     
-    ax.scatter(rho[centers], delta[centers], c='r', s=def_size, linewidth=0)
+
+    ax2 = fig.add_subplot(246)
+    ax2.set_xlabel(r'$\rho$')
+    ax2.set_ylabel(r'$\epsilon$')
+    ax2.scatter(rho, z_score, c='k', s=def_size, linewidth=0)
+    ax2.scatter(rho[centers], z_score[centers], c='r', s=def_size, linewidth=0)
+    ax2.set_xlim(0.98*rmin, 1.02*rmax)
+    
     try:
         ax.set_yscale('log')
     except Exception:
@@ -252,6 +237,40 @@ def view_clusters(data, rho, delta, centers, halo, smart_select=False, injected=
     else:
         pylab.show()
     del fig
+
+
+
+def view_rejection(a, b, hist, save=False):
+
+    import matplotlib.colors as colors
+
+    fig = pylab.figure(figsize=(15, 10))
+    ax  = fig.add_subplot(211)
+    ax.plot(b, a)
+    ax.set_xlabel(r'$Amplitude$')
+    ax.set_ylabel(r'$Probability$')
+    ax.set_title('distribution of amplitudes')
+
+    ax  = fig.add_subplot(212)
+    ax.plot(b, hist)
+    ax.set_xlabel(r'$Amplitude$')
+    ax.set_ylabel(r'$Probability$')
+    ax.set_title('Rejection curve')
+
+    try:
+        pylab.tight_layout()
+    except Exception:
+        pass
+    if save:
+        try:
+            pylab.savefig(os.path.join(save[0], 'rejection_%s' %save[1]))
+            pylab.close()
+        except Exception:
+            pass
+    else:
+        pylab.show()
+    del fig
+
 
 
 def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves=200, save=False):

@@ -146,7 +146,7 @@ class NeuraLynxFile(DataFile):
             tmp_time = [int(x) for x in time_string.split()[-1].replace('.', ':').split(':')]
             tmp_microsecond = tmp_time[3] * 1000
         except:
-            warnings.warn('Unable to parse time string from Neuralynx header: ' + time_string)
+            print_and_log(['Unable to parse time string from Neuralynx header: ' + time_string], 'debug', logger)
             return None
         else:
             return datetime.datetime(tmp_date[2], tmp_date[0], tmp_date[1],  # Year, month, day
@@ -183,7 +183,7 @@ class NeuraLynxFile(DataFile):
         # let's check for it
         hdr_lines = [line.strip() for line in raw_hdr.split('\r\n') if line != '']
         if hdr_lines[0] != '######## Neuralynx Data File Header':
-            warnings.warn('Unexpected start to header: ' + hdr_lines[0])
+            print_and_log(['Unexpected start to header: ' + hdr_lines[0]], 'debug', logger)
 
         # Try to read the original file path
         try:
@@ -191,7 +191,7 @@ class NeuraLynxFile(DataFile):
             header[u'FileName']  = ' '.join(hdr_lines[1].split()[3:])
             # hdr['save_path'] = hdr['FileName']
         except:
-            warnings.warn('Unable to parse original file path from Neuralynx header: ' + hdr_lines[1])
+            print_and_log(['Unable to parse original file path from Neuralynx header: ' + hdr_lines[1]], 'debug', logger)
 
         # Process lines with file opening and closing times
         header[u'TimeOpened'] = hdr_lines[2][3:]
@@ -205,7 +205,7 @@ class NeuraLynxFile(DataFile):
                 name, value = line[1:].split()  # Ignore the dash and split PARAM_NAME and PARAM_VALUE
                 header[name] = value
             except:
-                warnings.warn('Unable to parse parameter line from Neuralynx header: ' + line)
+                print_and_log(['Unable to parse parameter line from Neuralynx header: ' + line], 'debug', logger)
 
         return header
 

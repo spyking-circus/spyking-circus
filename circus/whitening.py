@@ -330,7 +330,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     mads = io.load_data(params, 'mads')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
+        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
@@ -445,7 +445,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 #try:
                                 #   f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=xdata.size * mads[elec]**2, k=3)
                                 #except Exception:
-                                f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=0, k=3)
+                                f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3)
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:
@@ -458,6 +458,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
                             else:
                                 to_accept = True
+
+                            if alignment:
+                                if negative_peak:
+                                    if numpy.min(sub_mat) >= -thresholds[elec]:
+                                        to_accept = False
+                                else:
+                                    if numpy.max(sub_mat) <= thresholds[elec]:
+                                        to_accept = False
 
                             if to_accept:
                                 if negative_peak:
@@ -485,15 +493,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if sign_peaks in ['positive', 'both']:
         gdata_pos = gather_array(elts_pos[:, :elt_count_pos].T, comm, 0, 1)
 
+    nb_waveforms = 0
+
     if comm.rank == 0:
         #DO PCA on elts and store the basis obtained.
 
-        nb_waveforms = 0
         if sign_peaks in ['negative', 'both']:
             nb_waveforms += gdata_neg.shape[0]
         if sign_peaks in ['positive', 'both']:
             nb_waveforms += gdata_pos.shape[0]
 
+    nb_waveforms = all_gather_array(numpy.array([nb_waveforms], dtype=numpy.float32), comm, 0)[0]
+
+    if comm.rank == 0:
         if isolation:
             print_and_log(["Found %d isolated waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
         else:
@@ -501,8 +513,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if nb_waveforms == 0:
             print_and_log(['No waveforms found! Are the data properly loaded??'], 'error', logger)
+    
+    if nb_waveforms == 0:
+        sys.exit(0)
 
+    if comm.rank == 0:
         res = {}
+        pca = None
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
                 pca          = PCA(output_dim)
@@ -533,8 +550,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elif sign_peaks == 'negative':
             print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
         elif sign_peaks == 'both':
-            print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
-
+            print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'debug', logger)
+        if pca is not None:
+            print_and_log(["The percentage of variance explained is %s" %numpy.sum(pca.explained_variance_ratio_)], 'debug', logger)
         bfile.close()
 
     comm.Barrier()

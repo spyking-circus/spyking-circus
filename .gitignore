@@ -1,4 +1,4 @@
-# generated directories
+# Generated directories
 dist
 build
 /docs
@@ -8,6 +8,7 @@ tests/plots
 
 # PyCharms
 .idea
+venv
 
 # Build-related directories
 /.eggs

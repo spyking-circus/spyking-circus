@@ -81,29 +81,30 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=Fals
 
     np_type       = get_np_dtype(dtype)
     mpi_type      = get_mpi_type(dtype)    
+    data_shape    = data.shape
 
     if not compress:
         gdata = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
         mpi_comm.Gatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type], root=root)
     else:
-        new_data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
-        new_data = mpi_comm.gather(new_data, root=0)
+        data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
+        data = mpi_comm.gather(data, root=0)
         gdata = numpy.empty(0, dtype=np_type)
         if comm.rank == 0:
-            for blosc_data in new_data:
+            for blosc_data in data:
                 gdata = numpy.concatenate((gdata, numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type)))
 
-    if len(data.shape) == 1:
+    if len(data_shape) == 1:
         return gdata
     else:
         if shape == 0:
-            num_lines = data.shape[0]
+            num_lines = data_shape[0]
             if num_lines > 0:
                 return gdata.reshape((num_lines, gdata.size//num_lines))
             else:
                 return gdata.reshape((0, gdata.shape[1]))
         if shape == 1:
-            num_columns = data.shape[1]
+            num_columns = data_shape[1]
             if num_columns > 0:
                 return gdata.reshape((gdata.size//num_columns, num_columns))
             else:
@@ -121,28 +122,29 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32', compress=False):
 
     np_type       = get_np_dtype(dtype)
     mpi_type      = get_mpi_type(dtype)
+    data_shape    = data.shape
 
     if not compress:
         gdata = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
         mpi_comm.Allgatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type])
     else:
-        new_data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
-        new_data = mpi_comm.allgather(new_data)
+        data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
+        data = mpi_comm.allgather(data)
         gdata = numpy.empty(0, dtype=np_type)
-        for blosc_data in new_data:
+        for blosc_data in data:
             gdata = numpy.concatenate((gdata, numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type)))
 
-    if len(data.shape) == 1:
+    if len(data_shape) == 1:
         return gdata
     else:
         if shape == 0:
-            num_lines = data.shape[0]
+            num_lines = data_shape[0]
             if num_lines > 0:
                 return gdata.reshape((num_lines, gdata.size//num_lines))
             else:
                 return gdata.reshape((0, gdata.shape[1]))
         if shape == 1:
-            num_columns = data.shape[1]
+            num_columns = data_shape[1]
             if num_columns > 0:
                 return gdata.reshape((gdata.size//num_columns, num_columns))
             else:

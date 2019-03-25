@@ -46,6 +46,18 @@ During the process, you have the option to export or not the Principal Component
     For millions of spikes, we do not recommend to export *all* Principal Components. You can export only *some*, but then keep in mind that you can not redefine manually your clusters in phy_
 
 
+Deconverting
+------------
+
+This option will allow you to convert back your results from phy to the MATLAB GUI. This could be useful if you want to compare results between the GUI, or if you need to switch because of missing functionnalities. To convert the data, simply use::
+
+    >> spyking-circus path/mydata.extension -m deconverting
+
+.. note::
+    If you worked with data and a particular extension, then you will need to specify the extension::
+
+    >> spyking-circus path/mydata.extension -m deconverting -e extension
+
 
 Extracting
 ----------

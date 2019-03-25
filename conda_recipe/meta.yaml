@@ -1,6 +1,6 @@
 package:
   name: spyking-circus
-  version: "0.7.6"
+  version: "0.8.0"
 
 requirements:
   build:
@@ -24,6 +24,7 @@ requirements:
     - pyqt >=4
     - hdf5
     - scikit-learn
+    - statsmodels
 source:
   path: ..
 

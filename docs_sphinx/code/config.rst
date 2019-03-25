@@ -120,14 +120,13 @@ The clustering section is::
     max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
     nclus_min      = 0.002      # Min number of elements in a cluster (given in percentage)
-    max_clusters   = 10         # Maximal number of clusters for every electrodes
     nb_repeats     = 3          # Number of passes used for the clustering
     make_plots     =            # Generate sanity plots of the clustering
     sim_same_elec  = 3          # Distance within clusters under which they are re-merged
+    sensitivity    = 5          # The only parameter to control the cluster. The lower, the more sensitive
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
     smart_search   = True       # Parameter to activate the smart search mode
-    smart_select   = False      # Experimental: activate the smart selection of centroids (max_clusters is ignored)
     noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
     remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
     cc_mixtures    = 0.75       # If CC between a sum of two templates and a template is higher, it is removed
@@ -140,10 +139,8 @@ Parameters that are most likely to be changed:
     * ``extraction`` The method to estimate the templates. ``Raw`` methods are slower, but more accurate, as data are read from the files. ``PCA`` methods are faster, but less accurate, and may lead to some distorted templates. ``Quadratic`` is slower, and should not be used.
     * ``max_elts`` The number of elements that every electrode will try to collect, in order to perform the clustering
     * ``nclus_min`` If you have too many clusters with few elements, you can increase this value. This is expressed in percentage of collected spike per electrode. So one electrode collecting *max_elts* spikes will keep clusters with more than *nclus_min.max_elts*. Otherwise, they are discarded
-    * ``max_clusters`` This is the maximal number of cluster that you expect to see on a given electrode. For *in vitro* data, 10 seems to be a reasonable value. For *in vivo* data and dense probes, you should set it to 10-15. Increase it only if the code tells you so.
     * ``nb_repeats`` The number of passes performed by the algorithm to refine the density landscape
-    * ``smart_search`` By default, the code will collect only a subset of spikes, randomly, on all electrodes. However, for long recordings, or if you have low thresholds, you may want to select them in a smarter manner, in order to avoid missing the large ones, under represented. If the smart search is activated, the code will first sample the distribution of amplitudes, on all channels, and then implement a rejection algorithm such that it will try to select spikes in order to make the distribution of amplitudes more uniform. This can be very efficient, and may become True by default in future releases.
-    * ``smart_select`` This option (experimental) should boost the quality of the clustering, by selecting the centroids in a automatic manner. If activated the ``max_clusters`` parameter is ignored
+    * ``smart_search`` By default, the code will collect only a subset of spikes, randomly, on all electrodes. However, for long recordings, or if you have low thresholds, you may want to select them in a smarter manner, in order to avoid missing the large ones, under represented. If the smart search is activated, the code will first sample the distribution of amplitudes, on all channels, and then implement a rejection algorithm such that it will try to select spikes in order to make the distribution of amplitudes more uniform.
     * ``cc_merge`` After local merging per electrode, this step will make sure that you do not have duplicates in your templates, that may have been spread on several electrodes. All templates with a correlation coefficient higher than that parameter are merged. Remember that the more you merge, the faster is the fit
     * ``dispersion`` The spread of the amplitudes allowed, for every templates, around the centroid.
     * ``remove_mixture`` By default, any template that can be explained as sum of two others is deleted. 

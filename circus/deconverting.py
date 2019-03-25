@@ -7,6 +7,7 @@ import circus
 import circus.shared.files as io
 
 from circus.shared.algorithms import slice_templates, slice_clusters
+from circus.shared.files import load_data
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import logging, comm, query_yes_no
 
@@ -146,7 +147,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     try:
         lag = templates_input_file.get('maxlag')[:]
     except TypeError:  # i.e. 'maxlag' not in HDF5 file.
-        lag = np.zeros(overalps.shape, dtype=np.int32)
+        lag = np.zeros(overlaps.shape, dtype=np.int32)
     shape = templates_input_file.get('temp_shape')[:]
 
     # Set correct lag option.
@@ -161,6 +162,34 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     clusters_to_templates = {}
     for spike_cluster in cluster_group:
         clusters_to_templates[spike_cluster] = None
+
+    # # TODO remove templates without spikes.
+    # print_and_log([  # TODO remove.
+    #     "Removing templates without spikes..."
+    # ], 'info', logger)
+    # electrodes = io.load_data(params, 'electrodes', extension=input_extension)  # TODO remove duplicate.
+    # clusters = io.load_data(params, 'clusters', extension=input_extension)  # TODO remove duplicate
+    # for spike_template, _ in templates_to_clusters.items():
+    #     # Retrieve the prefered electrode.
+    #     elec_ic = electrodes[spike_template]
+    #     # Retrieve template index among templates with same prefered electrodeself.
+    #     first_index = np.where(electrodes == elec_ic)[0][0]
+    #     nic = spike_template - first_index
+    #     # Retrieve the cluster label.
+    #     label = 'clusters_{}'.format(elec_ic)
+    #     # Select the points labelled by the clustering.
+    #     mask = clusters[label] > -1
+    #     # Retrieve the labels used by the clustering.
+    #     tmp = np.unique(clusters[label][mask])
+    #     # Retrieve the number of points labelled for both templates.
+    #     cluster_label = tmp[nic]
+    #     elements = np.where(clusters[label] == cluster_label)[0]
+    #     # ...
+    #     if len(elements) == 0:
+    #         print_and_log([
+    #             "template {} has no spike".format(spike_template)
+    #         ], 'info', logger)
+    # raise NotImplementedError
 
     to_merge = []
     to_remove = []
@@ -248,6 +277,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             message = "Unexpected group value: {}".format(spike_group)
             raise ValueError(message)
 
+    # Remove unmentioned templates (e.g. without any fitted spike).
+    old_templates = load_data(params, 'templates', extension=input_extension)
+    initial_nb_templates = old_templates.shape[1] // 2
+    all_spike_templates = set(range(0, initial_nb_templates))
+    mentioned_spike_templates = set(templates_to_clusters.keys())
+    unmentioned_spike_templates = list(all_spike_templates - mentioned_spike_templates)
+    # print_and_log(["unmentioned templates: {}".format(unmentioned_spike_templates)], 'info', logger)
+    to_remove.extend(unmentioned_spike_templates)
+
     if to_merge == []:
         to_merge = np.zeros((0, 2), dtype=np.int)
     else:
@@ -256,10 +294,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     to_remove.sort()
 
     # Log some information.
-    initial_nb_templates = len(templates_to_clusters)
     nb_merges = to_merge.shape[0]
     nb_removals = len(to_remove)
-    final_nb_templates = initial_nb_templates -nb_merges - nb_removals
+    final_nb_templates = initial_nb_templates - nb_merges - nb_removals
     print_and_log([
         "Manual sorting with the Python GUI (i.e. phy):",
         "  initial number of templates: {}".format(initial_nb_templates),
@@ -271,6 +308,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     # Slice templates.
     to_keep = slice_templates(params, to_merge=to_merge, to_remove=to_remove,
         extension=output_extension, input_extension=extension)
+    # print_and_log([
+    #     "to_merge (passed to slice_templates: {}".format(to_merge),
+    #     "to_remove (passed to slice_templates: {}".format(to_remove),
+    #     "to_keep (returned be slice_templates): {}".format(to_keep),
+    # ], 'info', logger)
 
     # Slice clusters.
     light = True
@@ -302,6 +344,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         new_key = 'temp_{}'.format(k)
         new_results['spiketimes'][new_key] = old_results['spiketimes'].pop(old_key)
         new_results['amplitudes'][new_key] = old_results['amplitudes'].pop(old_key)
+        # Check if the number of spikes is not equal to 0.
+        nb_spikes = len(new_results['spiketimes'][new_key])
+        if nb_spikes == 0:
+            print_and_log([
+                "{} - template {} has no spikes".format(k, template_index)
+            ], 'error', logger)
     keys = ['spiketimes', 'amplitudes']
     # TODO add support for [fitting] collect_all=True (not supported).
     # Save new result to output file.

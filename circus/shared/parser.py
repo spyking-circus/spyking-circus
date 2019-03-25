@@ -49,19 +49,18 @@ class CircusParser(object):
                           ['whitening', 'temporal', 'bool', 'False'],
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['filtering', 'common_ground', 'string', ''],
-                          ['clustering', 'max_clusters', 'int', '10'],
                           ['clustering', 'nb_repeats', 'int', '3'],
                           ['clustering', 'make_plots', 'string', 'png'],
                           ['clustering', 'test_clusters', 'bool', 'False'],
                           ['clustering', 'sim_same_elec', 'float', '2'],
                           ['clustering', 'smart_search', 'bool', 'True'],
-                          ['clustering', 'smart_select', 'bool', 'False'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
                           ['clustering', 'noise_thr', 'float', '0.8'],
                           ['clustering', 'cc_merge', 'float', '0.975'],
                           ['clustering', 'cc_mixtures', 'float', '0.75'],
                           ['clustering', 'n_abs_min', 'int', '20'],
+                          ['clustering', 'sensitivity', 'float', '5'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
@@ -177,10 +176,10 @@ class CircusParser(object):
         else:
           file_out = os.path.join(f_next, os.path.basename(f_next))
           self.logfile      = f_next + '.log'
-
+        
         self.parser.set('data', 'data_file_no_overwrite', file_out + '_all_sc.dat')
         self.parser.set('data', 'file_out', file_out) # Output file without suffix
-        self.parser.set('data', 'file_out_suff', file_out  + self.parser.get('data', 'suffix')) # Output file with suffix
+        self.parser.set('data', 'file_out_suff', file_out + self.parser.get('data', 'suffix')) # Output file with suffix
         self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
 
         self.probe = read_probe(self.parser)

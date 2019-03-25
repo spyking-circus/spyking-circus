@@ -54,26 +54,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_elts        = int(params.getfloat('clustering', 'nb_elts')*N_e*max_elts_elec)
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
-    max_clusters   = params.getint('clustering', 'max_clusters')
     make_plots     = params.get('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
     smart_search   = params.getboolean('clustering', 'smart_search')
-    smart_select   = params.getboolean('clustering', 'smart_select')
     n_abs_min      = params.getint('clustering', 'n_abs_min')
+    sensitivity    = params.getfloat('clustering', 'sensitivity')
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
-
-    if smart_select:
-        m_ratio    = nclus_min
-    else:
-        m_ratio    = params.getfloat('clustering', 'm_ratio')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
+    m_ratio        = nclus_min
     sub_output_dim = params.getint('clustering', 'sub_dim')
     inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes]  = numpy.argsort(nodes)
@@ -81,7 +76,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     template_shift_2  = 2*template_shift
     nb_ss_bins        = 50
-
     #################################################################
 
     if sign_peaks == 'negative':
@@ -143,7 +137,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(tmp_path_loc)
 
     if alignment:
-        cdata = numpy.linspace(-template_shift, template_shift, int(over_factor*N_t))
+        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
@@ -165,7 +159,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.uint32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
-            result['norm_%s_' %p + str(i)] = 0
         indices = numpy.take(inv_nodes, edges[nodes[i]])
         elec_positions[i] = numpy.where(indices == i)[0]
 
@@ -408,7 +401,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             #try:
                                             #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=xdata.size*mads[elec]**2, k=3)
                                             #except Exception:
-                                            f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=0, k=3)
+                                            f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                             else:
@@ -419,7 +412,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             #try:
                                             #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=zdata.size*mads[elec]**2, kx=3, ky=1)
                                             #except Exception:
-                                            f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=0, kx=3, ky=1)
+                                            f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                             else:
@@ -601,18 +594,28 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 bins  = [-numpy.inf] + numpy.linspace(5*bound, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
 
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
-                        a     = a/float(numpy.sum(a))
+                        nb_spikes = numpy.sum(a)
+                        a = a/float(nb_spikes)
 
                         z      = a[a > 0]
                         c      = 1./numpy.min(z)
                         d      = (1./(c*a))
                         d      = numpy.minimum(1, d)
-                        target = numpy.sum(d)/ratio
-                        twist  = numpy.sum(a*d)/target
+                        d     /= numpy.sum(d)
+                        twist  = numpy.sum(a*d)
                         factor = twist*c
+                        rejection_curve = numpy.minimum(0.95, factor*a)
+                        if ratio > 1:
+                            target_max = 1 - (1 - rejection_curve.max())/ratio
+                            rejection_curve *= target_max/(rejection_curve.max())
 
-                        result['hist_%s_'%p + str(ielec) ]   = factor*a
+                        result['hist_%s_'%p + str(ielec) ]   = rejection_curve
                         result['bounds_%s_' %p + str(ielec)] = b
+
+                        # if make_plots not in ['None', '']:
+                        #     save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
+                        #     plot.view_rejection(a, b[1:], result['hist_%s_'%p + str(ielec)], save=save)
+
                     else:
                         smart_searches[p][ielec] = 0
 
@@ -626,21 +629,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             pca                               = PCA(sub_output_dim)
                             pca.fit(result['data_%s_' %p + str(ielec)])
                             result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
+                            print_and_log(["The percentage of variance explained by local PCA on electrode %d is %s" 
+                                %(ielec, numpy.sum(pca.explained_variance_ratio_))], 'debug', logger)
                             if result['pca_%s_' %p + str(ielec)].shape[1] < sub_output_dim:
                                 zeros = numpy.zeros((result['pca_%s_' %p + str(ielec)].shape[0], sub_output_dim - result['pca_%s_' %p + str(ielec)].shape[1]))
                                 result['pca_%s_' %p + str(ielec)] = numpy.hstack((result['pca_%s_' %p + str(ielec)], zeros))
 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
-                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], compute_rho=True, mratio=m_ratio)
-
+                        rho, dist, sdist = algo.compute_rho(result['sub_%s_' %p + str(ielec)], mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
-                        result['norm_%s_' %p + str(ielec)]  = nb_selec
                         if hdf5_compress:
-                            tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True, compression='gzip')
+                            tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist.distances, chunks=True, compression='gzip')
                         else:
-                            tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist, chunks=True)
+                            tmp_h5py.create_dataset('dist_%s_' %p + str(ielec), data=dist.distances, chunks=True)
                         del dist, rho
                     else:
                         if result['pca_%s_' %p + str(ielec)] is None:
@@ -649,16 +652,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['pca_%s_' %p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
                             result['pca_%s_' %p + str(ielec)][numpy.arange(sub_output_dim), numpy.arange(sub_output_dim)] = 1
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
-                        result['norm_%s_' %p + str(ielec)] = 1
                         result['sub_%s_' %p + str(ielec)]  = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
                         result['sdist_%s_' %p + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                 else:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
                         data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                        rho, dist, sdist, nb_selec = algo.rho_estimation(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
+
+                        rho, sdist = algo.compute_rho(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
-                        del dist, rho
+                        del rho
 
                 if gpass == nb_repeats:
 
@@ -674,12 +677,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if (n_data > 1):
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max()
-                        
-                        cluster_results[p][ielec]['groups'], r, d, c = algo.clustering(result['rho_%s_' %p + str(ielec)], dist,
-                                                                                      m_ratio,
-                                                                                      smart_select=smart_select,
-                                                                                      n_min=n_min,
-                                                                                      max_clusters=max_clusters)
+
+                        cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(result['rho_%s_' %p + str(ielec)], dist,
+                                                                                      n_min=n_min, alpha=sensitivity)                        
 
                         # Now we perform a merging step, for clusters that look too similar
                         data = result['sub_%s_' %p + str(ielec)]
@@ -701,14 +701,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             if icount < (len(injected) - 1):
                                                 injected[icount] = True
 
-                            mask = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
-                            sel  = numpy.unique(cluster_results[p][ielec]['groups'][mask])
                             data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                             plot.view_clusters(data, r, d, c,
                                                    cluster_results[p][ielec]['groups'], injected=injected,
-                                                   save=save, smart_select=smart_select)
+                                                   save=save, alpha=sensitivity)
 
-                        keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec), 'norm_%s_' %p + str(ielec)]
+                        keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec)]
                         for key in keys:
                             if result.has_key(key):
                                 result.pop(key)
@@ -721,8 +719,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
                         print_and_log(line, 'debug', logger)
-                        if (merged[0]-merged[1]) == max_clusters:
-                            local_hits += 1
                         local_mergings += merged[1]
                     else:
                         cluster_results[p][ielec]['groups'] = numpy.zeros(0, dtype=numpy.int32)
@@ -760,14 +756,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if few_elts:
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):
-                lines += ["                            -decrease smart_search?"]
+                lines += ["                            -remove smart_search?"]
             if isolation:
                 lines += ["                            -remove isolation mode?"]
-        if total_hits > 0 and not smart_select:
-            lines += ["%d electrodes has %d clusters: -increase max_clusters?" %(total_hits, max_clusters)]
-            lines += ["                              -increase sim_same_elec?"]
-        print_and_log(lines, 'info', logger)
 
+        print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
 
     if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
@@ -810,52 +803,58 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         for ielec in to_explore:
 
+            n_neighb = len(edges[nodes[ielec]])
+            indices  = inv_nodes[edges[nodes[ielec]]]
+
             for p in search_peaks:
 
                 #print "Dealing with cluster", ielec
                 n_data   = len(result['data_%s_' %p + str(ielec)])
-                n_neighb = len(edges[nodes[ielec]])
                 data     = result['data_%s_' %p + str(ielec)].reshape(n_data, basis['proj_%s' %p].shape[1], n_neighb)
-                mask     = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
                 loc_pad  = count_templates
                 myamps   = []
-                indices  = inv_nodes[edges[nodes[ielec]]]
+                mask     = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
 
-                for group in numpy.unique(cluster_results[p][ielec]['groups'][mask]):
+                if p == 'pos':
+                    myslice2 = numpy.where(result['peaks_' + str(ielec)] == 0)[0]
+                elif p == 'neg':
+                    myslice2 = numpy.where(result['peaks_' + str(ielec)] == 1)[0]
+
+                loc_times = numpy.take(result['times_' + str(ielec)], myslice2)
+                loc_clusters = numpy.take(cluster_results[p][ielec]['groups'], mask)
+    
+                for group in numpy.unique(loc_clusters):
                     electrodes[g_count] = ielec
-                    myslice          = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
-                    if p == 'pos':
-                        myslice2     = numpy.where(result['peaks_' + str(ielec)] == 0)[0]
-                    elif p == 'neg':
-                        myslice2     = numpy.where(result['peaks_' + str(ielec)] == 1)[0]
+                    myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
+                    
                     if extraction == 'median-pca':
-                        sub_data         = numpy.take(data, myslice, axis=0)
-                        first_component  = numpy.median(sub_data, axis=0)
-                        tmp_templates    = numpy.dot(first_component.T, basis['rec_%s' %p])
+                        sub_data        = numpy.take(data, myslice, axis=0)
+                        first_component = numpy.median(sub_data, axis=0)
+                        tmp_templates   = numpy.dot(first_component.T, basis['rec_%s' %p])
                     elif extraction == 'mean-pca':
-                        sub_data         = numpy.take(data, myslice, axis=0)
-                        first_component  = numpy.mean(sub_data, axis=0)
-                        tmp_templates    = numpy.dot(first_component.T, basis['rec_%s' %p])
+                        sub_data        = numpy.take(data, myslice, axis=0)
+                        first_component = numpy.mean(sub_data, axis=0)
+                        tmp_templates   = numpy.dot(first_component.T, basis['rec_%s' %p])
                     elif extraction == 'median-raw':                
-                        labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
-                        times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
-                        first_component  = numpy.median(sub_data, 0)
-                        tmp_templates    = first_component
+                        labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
+                        times_i         = numpy.take(loc_times, labels_i)
+                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        first_component = numpy.median(sub_data, 0)
+                        tmp_templates   = first_component
                     elif extraction == 'mean-raw':                
-                        labels_i         = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
-                        times_i          = numpy.take(result['times_' + str(ielec)][myslice2], labels_i)
-                        sub_data         = io.get_stas(sub_data, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
-                        first_component  = numpy.mean(sub_data, 0)
-                        tmp_templates    = first_component
+                        labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
+                        times_i         = numpy.take(loc_times, labels_i)
+                        sub_data        = io.get_stas(sub_data, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        first_component = numpy.mean(sub_data, 0)
+                        tmp_templates   = first_component
 
                     if p == 'neg':
-                        tmpidx           = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+                        tmpidx = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                     elif p == 'pos':
-                        tmpidx           = divmod(tmp_templates.argmax(), tmp_templates.shape[1])
+                        tmpidx = divmod(tmp_templates.argmax(), tmp_templates.shape[1])
 
-                    shift            = template_shift - tmpidx[1]
-                    templates        = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                    shift     = template_shift - tmpidx[1]
+                    templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                     if shift > 0:
                         templates[indices, shift:] = tmp_templates[:, :-shift]
                     elif shift < 0:
@@ -952,9 +951,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], data))
                 if len(result['clusters_' + str(ielec)]) > 0:
-                    max_offset = numpy.max(result['clusters_' + str(ielec)]) + 1
+                    max_offset = numpy.int32(numpy.max(result['clusters_' + str(ielec)]) + 1)
                 else:
-                    max_offset = 0
+                    max_offset = numpy.int32(0)
+
                 mask = result['clusters_%s_' %p + str(ielec)] > -1
                 result['clusters_%s_' %p + str(ielec)][mask] += max_offset
                 result['clusters_' + str(ielec)] = numpy.concatenate((result['clusters_' + str(ielec)], result['clusters_%s_' %p + str(ielec)]))

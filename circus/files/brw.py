@@ -31,7 +31,7 @@ class BRWFile(H5File):
         bit_depth      = f.get('3BRecInfo/3BRecVars/BitDepth').value[0]
         inversion      = f.get('3BRecInfo/3BRecVars/SignalInversion').value[0]
         header['gain'] = inversion * ((max_volt - min_volt) / 2**bit_depth)
-        header['dtype_offset'] = inversion*min_volt
+        header['dtype_offset'] = -inversion*min_volt
         header['data_dtype']   = self.my_file.get(header['h5_key']).dtype
         self.compression       = self.my_file.get(header['h5_key']).compression
 
