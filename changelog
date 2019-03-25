@@ -9,6 +9,7 @@ Release 0.8.0
 * enhancement of the bicubic spline interpolation
 * fix a typo when using dead times and the collect mode
 * fix a minor bug when small amount of spikes are found during smart search
+* fix a bug in the wrapper for BRW files
 
 =============
 Release 0.7.6
