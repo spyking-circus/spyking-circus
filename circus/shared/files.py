@@ -448,7 +448,9 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             sub_comm.Free()
             return templates
         else:
-            raise Exception('No templates found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == "overlaps":
 
         file_name = file_out_suff + '.overlap%s.hdf5' %extension
@@ -534,7 +536,9 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             sub_comm.Free()
             return c_overs
         else:
-            raise Exception('No overlaps found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
+            sys.exit(0)
 
     elif data == "overlaps-raw":
 
@@ -610,7 +614,9 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
             return indices_x, indices_y, data, over_shape
         else:
-            raise Exception('No overlaps found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
+            sys.exit(0)
 
     elif data == 'clusters-light':
 
@@ -670,7 +676,10 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             myfile.close()
             return result
         else:
-            raise Exception('No clusters found! Check suffix?')
+            if comm.rank == 0:
+                print_and_log(["No clusters found! Check suffix?"], 'error', logger)
+            sys.exit(0)
+
 
 
 

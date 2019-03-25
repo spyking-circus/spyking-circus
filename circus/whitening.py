@@ -493,15 +493,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if sign_peaks in ['positive', 'both']:
         gdata_pos = gather_array(elts_pos[:, :elt_count_pos].T, comm, 0, 1)
 
+    nb_waveforms = 0
+
     if comm.rank == 0:
         #DO PCA on elts and store the basis obtained.
 
-        nb_waveforms = 0
         if sign_peaks in ['negative', 'both']:
             nb_waveforms += gdata_neg.shape[0]
         if sign_peaks in ['positive', 'both']:
             nb_waveforms += gdata_pos.shape[0]
 
+    nb_waveforms = all_gather_array(numpy.array([nb_waveforms], dtype=numpy.float32), comm, 0)[0]
+
+    if comm.rank == 0:
         if isolation:
             print_and_log(["Found %d isolated waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
         else:
@@ -509,8 +513,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if nb_waveforms == 0:
             print_and_log(['No waveforms found! Are the data properly loaded??'], 'error', logger)
+    
+    if nb_waveforms == 0:
+        sys.exit(0)
 
+    if comm.rank == 0:
         res = {}
+        pca = None
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
                 pca          = PCA(output_dim)
@@ -542,7 +551,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
         elif sign_peaks == 'both':
             print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'debug', logger)
-        print_and_log(["The percentage of variance explained is %s" %numpy.sum(pca.explained_variance_ratio_)], 'debug', logger)
+        if pca is not None:
+            print_and_log(["The percentage of variance explained is %s" %numpy.sum(pca.explained_variance_ratio_)], 'debug', logger)
         bfile.close()
 
     comm.Barrier()
