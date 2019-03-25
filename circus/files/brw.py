@@ -23,13 +23,13 @@ class BRWFile(H5File):
 
         self._open() 
         f                       = h5py.File(self.file_name, mode='r')
-        header['sampling_rate'] = f.get('3BRecInfo/3BRecVars/SamplingRate').value[0]
+        header['sampling_rate'] = f['3BRecInfo/3BRecVars/SamplingRate'][0]
         
 
-        max_volt       = f.get('3BRecInfo/3BRecVars/MaxVolt').value[0]
-        min_volt       = f.get('3BRecInfo/3BRecVars/MinVolt').value[0]
-        bit_depth      = f.get('3BRecInfo/3BRecVars/BitDepth').value[0]
-        inversion      = f.get('3BRecInfo/3BRecVars/SignalInversion').value[0]
+        max_volt       = f['3BRecInfo/3BRecVars/MaxVolt'][0]
+        min_volt       = f['3BRecInfo/3BRecVars/MinVolt'][0]
+        bit_depth      = f['3BRecInfo/3BRecVars/BitDepth'][0]
+        inversion      = f['3BRecInfo/3BRecVars/SignalInversion'][0]
         header['gain'] = inversion * ((max_volt - min_volt) / 2**bit_depth)
         header['dtype_offset'] = -inversion*min_volt
         header['data_dtype']   = self.my_file.get(header['h5_key']).dtype
@@ -37,7 +37,7 @@ class BRWFile(H5File):
 
         self._check_compression()
         
-        n_frames    = f.get('3BRecInfo/3BRecVars/NRecFrames').value[0]
+        n_frames    = f['3BRecInfo/3BRecVars/NRecFrames'][0]
         self.size   = self.my_file.get(header['h5_key']).shape[0]
         header['nb_channels']  = int(self.size/n_frames)
         
