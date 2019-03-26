@@ -4,6 +4,7 @@ from .shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.files import get_artefact
+from circus.shared.mpi import get_parent_communicator
 
 def check_if_done(params, flag, logger):
         value = params.get('noedits', flag).lower().strip()
@@ -26,8 +27,10 @@ def check_if_done(params, flag, logger):
                 print_and_log(msg, 'error', logger)
             sys.exit(0)
 
-def main(params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu, no_recursive):
 
+    if no_recursive:
+        comm = get_parent_communicator()
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.filtering')
     #################################################################
@@ -392,4 +395,5 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if not params.getboolean('data', 'overwrite'):
         data_file_out.close()
 
-    comm.Barrier()
+    if no_recursive:
+        comm.Disconnect()

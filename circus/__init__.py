@@ -3,7 +3,7 @@ import logging
 
 __version__ = '0.8.0'
 
-def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None, extension='', sim_same_elec=None):
+def launch(task, filename, nb_cpu, nb_gpu, use_gpu, no_recursive, output=None, benchmark=None, extension='', sim_same_elec=None):
 
     from circus.shared.parser import CircusParser
     params = CircusParser(filename)
@@ -14,8 +14,8 @@ def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None,
     module = importlib.import_module('circus.' + task)
 
     if task == 'benchmarking':
-        module.main(params, nb_cpu, nb_gpu, use_gpu, output, benchmark, sim_same_elec)
+        module.main(params, nb_cpu, nb_gpu, use_gpu, output, benchmark, no_recursive, sim_same_elec)
     elif task in ['converting', 'deconverting', 'merging']:
-        module.main(params, nb_cpu, nb_gpu, use_gpu, extension)
+        module.main(params, nb_cpu, nb_gpu, use_gpu, extension, no_recursive)
     else:
-        module.main(params, nb_cpu, nb_gpu, use_gpu)
+        module.main(params, nb_cpu, nb_gpu, use_gpu, no_recursive)

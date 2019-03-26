@@ -3,8 +3,12 @@ from .shared.utils import *
 from .shared.files import get_dead_times
 from .shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.mpi import get_parent_communicator
 
-def main(params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu, no_recursive):
+
+    if no_recursive:
+        comm = get_parent_communicator()
 
     #################################################################
     #params         = detect_memory(params)
@@ -509,3 +513,5 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         io.collect_data(comm.size, params, erase=True)
 
     data_file.close()
+    if no_recursive:
+        comm.Disconnect()

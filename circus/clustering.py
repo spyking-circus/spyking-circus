@@ -9,6 +9,7 @@ from circus.shared.probes import get_nodes_and_edges
 from .shared.files import get_dead_times
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
+from circus.shared.mpi import get_parent_communicator
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
@@ -1083,3 +1084,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+
+    if no_recursive:
+        comm.Disconnect()

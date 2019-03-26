@@ -3,6 +3,7 @@ from shared import gui
 from shared.messages import init_logging, print_and_log
 from circus.shared.utils import query_yes_no
 import pylab
+from circus.shared.mpi import get_parent_communicator
 
 try:
     from PyQt5.QtWidgets import QApplication
@@ -15,8 +16,10 @@ except ImportError:
     else:
         from PyQt4.QtGui import QApplication
 
-def main(params, nb_cpu, nb_gpu, use_gpu, extension):
+def main(params, nb_cpu, nb_gpu, use_gpu, extension, no_recursive):
 
+    if no_recursive:
+        comm = get_parent_communicator()
     logger        = init_logging(params.logfile)
     logger        = logging.getLogger('circus.merging')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -45,3 +48,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         print_and_log(['Launching the merging GUI...'], 'debug', logger)
     mygui = gui.MergeWindow(params, app, extension_in, extension_out)
     sys.exit(app.exec_())
+
+    if no_recursive:
+        comm.Disconnect()

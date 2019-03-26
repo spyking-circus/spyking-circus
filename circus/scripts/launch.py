@@ -21,7 +21,7 @@ colorama.init(autoreset=True)
 from colorama import Fore, Back, Style
 from circus.shared.files import data_stats
 from circus.shared.messages import print_error, print_info, print_and_log, get_colored_header, init_logging
-from circus.shared.mpi import SHARED_MEMORY, comm, gather_mpi_arguments
+from circus.shared.mpi import SHARED_MEMORY, gather_mpi_arguments
 from circus.shared.parser import CircusParser
 from circus.shared.utils import query_yes_no, get_shared_memory_flag
 from circus.shared.probes import get_averaged_n_edges
@@ -383,8 +383,6 @@ but a subset x,y can be done. Steps are:
                             #myinfo.Set("hostfile", hostfile)
                             child_args = [shutil.which("spyking-circus-subtask")]
 
-                        print no_recursive
-
                         if subtask in ['filtering', 'benchmarking'] and not is_writable:
                             if not preview and overwrite:
                                 print_and_log(['The file format %s is read only!' %file_format,
@@ -415,12 +413,18 @@ but a subset x,y can be done. Steps are:
                                 subtask, filename, str(nb_cpu), str(nb_gpu),
                                 use_gpu, output, benchmark
                             ]
+                            if no_recursive:
+                                child_args += [subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, 'True', output, benchmark]
                         elif subtask in ['merging', 'converting']:
                             mpi_args += [
                                 '-np', nb_tasks, 'spyking-circus-subtask',
                                 subtask, filename, str(nb_cpu), str(nb_gpu),
                                 use_gpu, extension
                             ]
+                            if no_recursive:
+                                child_args += [subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, 'True', extension]
                         elif subtask in ['deconverting']:
                             nb_tasks = str(1)
                             nb_cpu = 1
@@ -429,6 +433,9 @@ but a subset x,y can be done. Steps are:
                                 filename, str(nb_cpu), str(nb_gpu), use_gpu,
                                 extension
                             ]
+                            if no_recursive:
+                                child_args += [subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu, 'True', extension]
                         else:
                             mpi_args += [
                                 '-np', nb_tasks, 'spyking-circus-subtask',
@@ -437,15 +444,15 @@ but a subset x,y can be done. Steps are:
                             ]
                             if no_recursive:
                                 child_args += [subtask, filename, str(nb_cpu), str(nb_gpu),
-                                use_gpu]
+                                use_gpu, 'True']
 
                         print_and_log(['Launching task %s' %subtask], 'debug', logger)
                         print_and_log(['Command: %s' %str(mpi_args)], 'debug', logger)
 
                         if no_recursive:
-                            print child_args
+                            print sys.executable, child_args
                             child_spawned = MPI.COMM_SELF.Spawn(sys.executable, args=child_args, maxprocs=int(nb_tasks), info=myinfo)
-                            print child_spawned.rank
+                            child_spawned.Disconnect()
                         else:
                             try:
                                 subprocess.check_call(mpi_args)

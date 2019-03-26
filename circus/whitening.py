@@ -8,10 +8,13 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.mpi import get_parent_communicator
 
-def main(params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu, no_recursive):
     # Part 1: Whitening
     numpy.random.seed(420)
+    if no_recursive:
+        comm = get_parent_communicator()
     #params         = detect_memory(params)
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.whitening')
@@ -620,3 +623,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 comm.Barrier()
 
     data_file.close()
+
+    if no_recursive:
+        comm.Disconnect()

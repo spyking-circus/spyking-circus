@@ -3,10 +3,15 @@ import circus.shared.algorithms as algo
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
+from circus.shared.mpi import get_parent_communicator
 
 
-def main(params, nb_cpu, nb_gpu, use_gpu):
+def main(params, nb_cpu, nb_gpu, use_gpu, no_recursive):
     numpy.random.seed(426236)
+
+    if no_recursive:
+        comm = get_parent_communicator()
+
     #params         = detect_memory(params)
     parallel_hdf5  = get_parallel_hdf5_flag(params)
     logger         = init_logging(params.logfile)
@@ -357,3 +362,5 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     io.get_overlaps(params, erase=True, parallel_hdf5=parallel_hdf5)
 
     data_file.close()
+    if no_recursive:
+        comm.Disconnect()

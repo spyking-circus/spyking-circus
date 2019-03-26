@@ -13,8 +13,12 @@ from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import query_yes_no, apply_patch_for_similarities
+from circus.shared.mpi import get_parent_communicator
 
-def main(params, nb_cpu, nb_gpu, use_gpu, extension):
+def main(params, nb_cpu, nb_gpu, use_gpu, no_recursive, extension):
+
+    if no_recursive:
+        comm = get_parent_communicator()
 
     logger         = init_logging(params.logfile)
     logger         = logging.getLogger('circus.converting')
@@ -315,3 +319,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         comm.Barrier()
         if make_pcs < 2:
             write_pcs(output_path, params, extension, N_tm, make_pcs)
+
+    if no_recursive:
+        comm.Disconnect()

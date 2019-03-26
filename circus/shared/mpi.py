@@ -2,8 +2,9 @@ import numpy, os, mpi4py, logging, sys
 import mpi4py
 mpi4py.rc.threads = False
 from mpi4py import MPI
-from messages import print_and_log
 comm = MPI.COMM_WORLD
+
+from messages import print_and_log
 import blosc
 from distutils.version import StrictVersion
 
@@ -32,6 +33,11 @@ def get_local_ring(local_only=False):
         sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
 
     return sub_comm, is_local
+
+def get_parent_communicator():
+    global comm
+    comm = MPI.Comm.Get_parent()
+    return comm
 
 def gather_mpi_arguments(hostfile, params):
     print_and_log(['MPI detected: %s' % str(MPI_VENDOR)], 'debug', logger)

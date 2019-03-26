@@ -6,8 +6,9 @@ with warnings.catch_warnings():
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.mpi import get_parent_communicator
 
-def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
+def main(params, nb_cpu, nb_gpu, use_gpu, no_recursive, file_name, benchmark, sim_same_elec):
     """
     Useful tool to create synthetic datasets for benchmarking.
     
@@ -16,6 +17,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     benchmark : {'fitting', 'clustering', 'synchrony', 'pca-validation', 'smart-search', 'drifts'}
         
     """
+    if no_recursive:
+        comm = get_parent_communicator()
+
     if sim_same_elec is None:
         sim_same_elec = 0.8
 
@@ -576,3 +580,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
             # `<dataset>/injected/<dataset>.templates.hdf5`
             shutil.move(os.path.join(file_out, data_suff + '.templates.hdf5'),
                         os.path.join(result_path, data_suff + '.templates.hdf5'))
+
+    if no_recursive:
+        comm.Disconnect()
