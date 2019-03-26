@@ -14,6 +14,7 @@ def main():
 
     argv = sys.argv
 
+    print 'Call!'
     # This should not never be called by the user, therefore we can assume a
     # standard format
     assert (len(sys.argv) in [6, 7, 8, 9]), 'Incorrect number of arguments -- do not run this script manually, use "spyking-circus" instead'

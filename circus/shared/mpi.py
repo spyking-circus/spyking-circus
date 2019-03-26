@@ -35,12 +35,14 @@ def get_local_ring(local_only=False):
 
 def gather_mpi_arguments(hostfile, params):
     print_and_log(['MPI detected: %s' % str(MPI_VENDOR)], 'debug', logger)
+    no_recursive = False
     if MPI_VENDOR[0] == 'Open MPI':
-        if MPI_VENDOR[1][0] >= 3:
-            print_and_log(['SpyKING CIRCUS does not work with OPENMPI >= 3.0',
-                           'Consider downgrading or switching to MPICH'], 'error', logger)
-            sys.exit(0)
+        # if MPI_VENDOR[1][0] >= 3:
+        #     print_and_log(['SpyKING CIRCUS does not work with OPENMPI >= 3.0',
+        #                    'Consider downgrading or switching to MPICH'], 'error', logger)
+        #     sys.exit(0)
         mpi_args = ['mpirun']
+        no_recursive = True
         if os.getenv('LD_LIBRARY_PATH'):
             mpi_args += ['-x', 'LD_LIBRARY_PATH']
         if os.getenv('PATH'):
@@ -68,7 +70,7 @@ def gather_mpi_arguments(hostfile, params):
         mpi_args = ['mpirun']
         if os.path.exists(hostfile):
             mpi_args += ['-hostfile', hostfile]
-    return mpi_args
+    return mpi_args, no_recursive
 
 def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=False):
     # gather 1D or 2D numpy arrays

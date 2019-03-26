@@ -374,7 +374,16 @@ but a subset x,y can be done. Steps are:
                             sys.exit(0)
                     elif command == 'mpirun':
                         # Use mpirun to make the call
-                        mpi_args = gather_mpi_arguments(hostfile, params)
+                        mpi_args, no_recursive = gather_mpi_arguments(hostfile, params)
+
+                        if no_recursive:
+                            from mpi4py import MPI
+                            import shutil
+                            myinfo = MPI.Info.Create()
+                            #myinfo.Set("hostfile", hostfile)
+                            child_args = [shutil.which("spyking-circus-subtask")]
+
+                        print no_recursive
 
                         if subtask in ['filtering', 'benchmarking'] and not is_writable:
                             if not preview and overwrite:
@@ -426,15 +435,23 @@ but a subset x,y can be done. Steps are:
                                 subtask, filename, str(nb_cpu), str(nb_gpu),
                                 use_gpu
                             ]
+                            if no_recursive:
+                                child_args += [subtask, filename, str(nb_cpu), str(nb_gpu),
+                                use_gpu]
 
                         print_and_log(['Launching task %s' %subtask], 'debug', logger)
                         print_and_log(['Command: %s' %str(mpi_args)], 'debug', logger)
 
-                        try:
-                            subprocess.check_call(mpi_args)
-                        except subprocess.CalledProcessError as e:
-                            print_and_log(['Step "%s" failed for reason %s!' % (subtask, e)], 'error', logger)
-                            sys.exit(0)
+                        if no_recursive:
+                            print child_args
+                            child_spawned = MPI.COMM_SELF.Spawn(sys.executable, args=child_args, maxprocs=int(nb_tasks), info=myinfo)
+                            print child_spawned.rank
+                        else:
+                            try:
+                                subprocess.check_call(mpi_args)
+                            except subprocess.CalledProcessError as e:
+                                print_and_log(['Step "%s" failed for reason %s!' % (subtask, e)], 'error', logger)
+                                sys.exit(0)
 
     if preview or result:
         from circus.shared import gui
