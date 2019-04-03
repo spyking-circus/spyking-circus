@@ -1115,6 +1115,31 @@ function DefineTrend_Callback(hObject, eventdata, handles)
 TrendSliceNb_Callback(hObject, eventdata, handles);
 
 
+% --- Executes on key press with focus on SortingGUI or any of its controls.
+function SortingGUI_WindowKeyPressFcn(hObject, eventdata, handles)
+% hObject    handle to SortingGUI (see GCBO)
+% eventdata  structure with the following fields (see MATLAB.UI.FIGURE)
+%   Key: name of the key that was pressed, in lower case
+%   Character: character interpretation of the key(s) that was pressed
+%   Modifier: name(s) of the modifier key(s) (i.e., control, shift) pressed
+% handles    structure with handles and user data (see GUIDATA)
+
+switch eventdata.Key
+    case 'rightarrow'    
+        TemplateNbPlus_Callback(handles.TemplateNbPlus, eventdata, handles)
+    case 'leftarrow'
+        TemplateNbMinus_Callback(handles.TemplateNbMinus, eventdata, handles)
+    case 'uparrow'
+        SuggestSimilar_Callback(handles.SuggestSimilar, eventdata, handles)
+    case 'downarrow'
+        SuggestSimilarPrev_Callback(handles.SuggestSimilarPrev, eventdata, handles)
+    case 'm'
+        MergeTemplates_Callback(handles.MergeTemplates, eventdata, handles)
+    case 'k'
+        KillBtn_Callback(handles.KillBtn, eventdata, handles)
+
+end
+
 
 % --- Executes on button press in SetAmpMin.
 function SetAmpMin_Callback(hObject, eventdata, handles)
