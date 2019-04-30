@@ -91,6 +91,9 @@ class DistanceMatrix(object):
     @property
     def max(self):
         return numpy.max(self.distances)
+
+    def __del__(self):
+        del self.distances
     
 
 def fit_rho_delta(xdata, ydata, alpha=3):
@@ -133,6 +136,7 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     halolabels = halo_assign(distances, labels, centers)
     halolabels -= 1
     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
+    del distances
     return halolabels, rho, delta, centers
 
 def compute_delta(dist, rho):

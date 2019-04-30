@@ -681,6 +681,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(result['rho_%s_' %p + str(ielec)], dist,
                                                                                       n_min=n_min, alpha=sensitivity)                        
 
+                        
                         # Now we perform a merging step, for clusters that look too similar
                         data = result['sub_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], merged = algo.merging(cluster_results[p][ielec]['groups'],
@@ -720,6 +721,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
                         print_and_log(line, 'debug', logger)
                         local_mergings += merged[1]
+                        del dist, r, d, c
                     else:
                         cluster_results[p][ielec]['groups'] = numpy.zeros(0, dtype=numpy.int32)
                         cluster_results[p][ielec]['n_clus'] = 0
