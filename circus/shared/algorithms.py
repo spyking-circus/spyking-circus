@@ -117,14 +117,15 @@ def compute_rho(data, update=None, mratio=0.01):
         dist = DistanceMatrix(N)
         dist.initialize(data)
         for i in range(N):
-            dist_sorted[i] = numpy.sort(dist.get_row(i, with_diag=False))[:nb_selec]
+            data = dist.get_row(i, with_diag=False)
+            dist_sorted[i] = data[numpy.argpartition(data, nb_selec)[:nb_selec]]  #numpy.sort(dist.get_row(i, with_diag=False))[:nb_selec]
             rho[i] = numpy.mean(dist_sorted[i])
         return rho, dist, dist_sorted
     else:
         for i in range(N):
             dist = scipy.spatial.distance.cdist(data[i].reshape(1, len(data[i])), update[0]).flatten()
             dist = numpy.concatenate((update[1][i], dist))
-            dist_sorted[i] = numpy.sort(dist)[:nb_selec]
+            dist_sorted[i] = dist[numpy.argpartition(dist, nb_selec)[:nb_selec]]
             rho[i] = numpy.mean(dist_sorted[i])
         return rho, dist_sorted
 
