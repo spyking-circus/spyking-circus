@@ -961,6 +961,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 result['clusters_%s_' %p + str(ielec)][mask] += max_offset
                 result['clusters_' + str(ielec)] = numpy.concatenate((result['clusters_' + str(ielec)], result['clusters_%s_' %p + str(ielec)]))
 
+            del data
+
             all_indices = numpy.zeros(0, dtype=numpy.uint32)
             for p in search_peaks:
                 if p == 'pos':
@@ -1054,7 +1056,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 hfile.create_dataset('temp_data', data=temp_data)
             hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2*total_nb_clusters], dtype=numpy.int32))
             hfile.close()
-            del temp_x, temp_y, temp_data
+        
+    del temp_x, temp_y, temp_data
 
     comm.Barrier()
 
@@ -1084,4 +1087,5 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                           "Number of mixtures removed : %d" %merged2[1]], 'info', logger)
 
     comm.Barrier()
+
     io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
