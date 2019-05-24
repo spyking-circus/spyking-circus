@@ -16,7 +16,7 @@ In a text file, you must specify all the portions [t_start, t_stop] that you wan
 	
 	0 500 
 	1000 1500
-	2000 1500
+	2000 2500
 	...
 	10000 10500
 

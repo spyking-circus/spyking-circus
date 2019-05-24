@@ -1059,6 +1059,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         
     del temp_x, temp_y, temp_data
 
+    import gc
+    gc.collect()
+
     comm.Barrier()
 
     if total_nb_clusters > 0:
