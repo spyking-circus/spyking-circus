@@ -11,6 +11,7 @@ from nix import NixFile
 from rhd import RHDFile
 from neuralynx import NeuraLynxFile
 from blackrock import BlackRockFile
+from mda import MdaFile
 
 try:
     import neuroshare
@@ -37,7 +38,8 @@ __supported_data_files__ = {
     NumpyFile.description : NumpyFile,
     RHDFile.description : RHDFile,
     NeuraLynxFile.description : NeuraLynxFile,
-    BlackRockFile.description : BlackRockFile
+    BlackRockFile.description : BlackRockFile,
+    MdaFile.description : MdaFile,
 }
 
 
