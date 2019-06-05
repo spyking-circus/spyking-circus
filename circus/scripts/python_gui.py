@@ -1,5 +1,18 @@
 #!/usr/bin/env python
-import os, shutil, phycontrib
+import os, shutil
+
+try:
+    import phycontrib
+    HAVE_PHYCONTRIB = True
+except ImportError:
+    HAVE_PHYCONTRIB = False
+
+try:
+    import phylib
+    HAVE_PHYLIB = True
+except ImportError:
+    HAVE_PHYLIB = False
+
 import sys
 import subprocess
 import pkg_resources
@@ -17,10 +30,13 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 
-from phy import add_default_handler
-from phy.utils._misc import _read_python
 from phy.gui import create_app, run_app
-from phycontrib.template import TemplateController
+
+try:
+    from phycontrib.template import TemplateController
+except ImportError:
+    from phy.apps.template.gui import TemplateController
+
 import numpy as np
 from circus.shared.utils import query_yes_no, test_patch_for_similarities
 
@@ -85,10 +101,24 @@ def main(argv=None):
         print_and_log(['The package joblib required by phy is not installed'], 'error', logger)
         sys.exit(1)
 
-    mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
-    if not mytest:
-        print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
-        sys.exit(1)
+    if HAVE_PHYCONTRIB:
+        mytest = StrictVersion(phycontrib.__version__) >= StrictVersion("1.0.12")
+        if not mytest:
+            print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
+            sys.exit(1)
+
+    if HAVE_PHYLIB:
+        try:
+            import colorcet 
+        except ImportError:
+            print_and_log(['The package colorcet required by phy is not installed'], 'error', logger)
+            sys.exit(1)
+
+        try:
+            import qtconsole 
+        except ImportError:
+            print_and_log(['The package qtconsole required by phy is not installed'], 'error', logger)
+            sys.exit(1)
 
     if not test_patch_for_similarities(params, extension):
         print_and_log(['You should re-export the data because of a fix in 0.6'], 'error', logger)
