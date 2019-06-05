@@ -26,19 +26,19 @@ def filter_per_extension(files, extension):
 def get_offset(data_dtype, dtype_offset):
 
     if dtype_offset == 'auto':
-        if data_dtype in ['uint16', numpy.uint16]:
+        if data_dtype in ['uint16', numpy.uint16, '<u2', '>u2']:
             dtype_offset = 32768
-        elif data_dtype in ['int16', numpy.int16]:
+        elif data_dtype in ['int16', numpy.int16, '<i2', '>i2']:
             dtype_offset = 0
-        elif data_dtype in ['int32', numpy.int32]:
+        elif data_dtype in ['int32', numpy.int32, '<i4', '>i4']:
             dtype_offset = 0
-        elif data_dtype in ['int64', numpy.int64]:
+        elif data_dtype in ['int64', numpy.int64, '<i8', '>i8']:
             dtype_offset = 0
         elif data_dtype in ['float32', numpy.float32]:
             dtype_offset = 0
         elif data_dtype in ['int8', numpy.int8]:
             dtype_offset = 0
-        elif data_dtype in ['uint8', numpy.uint8]:
+        elif data_dtype in ['uint8', numpy.uint8, '<u1', '>u1']:
             dtype_offset = 127
         elif data_dtype in ['float64', numpy.float64]:
             dtype_offset = 0
