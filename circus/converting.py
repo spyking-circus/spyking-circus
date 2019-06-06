@@ -333,7 +333,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                     gui_params['dat_path'] += "]"
                 else:
                     gui_params['dat_path'] = 'r"%s"' %params.get('data', 'data_file')
-            print gui_params
         else:
             gui_params['dat_path']   = 'giverandomname.dat'
         gui_params['n_channels_dat'] = params.nb_channels

@@ -165,14 +165,12 @@ def main(argv=None):
             else:
                 if params.get('data', 'stream_mode') == 'multi-files':
                     data_file = params.get_data_file(source=True, has_been_created=False)
-                    gui_params['dat_path'] = "["
-                    for f in data_file.get_file_names():
-                        gui_params['dat_path'] += 'r"%s", ' %f
-                    gui_params['dat_path'] += "]"
+                    gui_params['dat_path'] = [r"%s" %f for f in data_file.get_file_names()]
                 else:
-                    gui_params['dat_path'] = 'r"%s"' %params.get('data', 'data_file')
+                    gui_params['dat_path'] = r"%s" %params.get('data', 'data_file')
         else:
             gui_params['dat_path']   = 'giverandomname.dat'
+
         gui_params['n_channels_dat'] = params.nb_channels
         gui_params['n_features_per_channel'] = 5
         gui_params['dtype']          = data_dtype
@@ -180,16 +178,6 @@ def main(argv=None):
         gui_params['sample_rate']    = params.rate
         gui_params['dir_path']       = output_path
         gui_params['hp_filtered']    = True
-
-        phy_param = os.path.join(output_path, 'params.py')
-        if not os.path.exists(phy_param):
-            f = open(os.path.join(output_path, 'params.py'), 'w')
-            for key, value in gui_params.items():
-                if key in ['dir_path', 'dat_path', 'dtype']:
-                    f.write('%s = r"%s"\n' %(key, value))
-                else:
-                    f.write("%s = %s\n" %(key, value))
-            f.close()
 
         os.chdir(output_path)
         create_app()
