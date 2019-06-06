@@ -107,6 +107,8 @@ def main(argv=None):
             print_and_log(['You need to update phy-contrib to the latest git version'], 'error', logger)
             sys.exit(1)
 
+        print_and_log(['phy-contrib is deprecated, you should upgrade to phy 2.0 and phylib'], 'info', logger)
+
     if HAVE_PHYLIB:
         try:
             import colorcet 
