@@ -327,9 +327,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             else:
                 if params.get('data', 'stream_mode') == 'multi-files':
                     data_file = params.get_data_file(source=True, has_been_created=False)
-                    gui_params['dat_path'] = ' '.join(data_file.get_file_names())
+                    gui_params['dat_path'] = "["
+                    for f in data_file.get_file_names():
+                        gui_params['dat_path'] += 'r"%s", ' %f
+                    gui_params['dat_path'] += "]"
                 else:
-                    gui_params['dat_path'] = params.get('data', 'data_file')
+                    gui_params['dat_path'] = 'r"%s"' %params.get('data', 'data_file')
+            print gui_params
         else:
             gui_params['dat_path']   = 'giverandomname.dat'
         gui_params['n_channels_dat'] = params.nb_channels
@@ -342,7 +346,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         f = open(os.path.join(output_path, 'params.py'), 'w')
         for key, value in gui_params.items():
-            if key in ['dir_path', 'dat_path', 'dtype']:
+            if key in ['dir_path', 'dtype']:
                 f.write('%s = r"%s"\n' %(key, value))
             else:
                 f.write("%s = %s\n" %(key, value))
