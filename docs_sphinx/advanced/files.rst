@@ -62,6 +62,6 @@ At the end of that step, several numpy_ files are produced in a path ``path/myda
 
 
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy
 .. _numpy: http://www.numpy.org/
 .. _HDF5: https://www.hdfgroup.org/HDF5/

@@ -76,6 +76,6 @@ To know more about how to play with the data, and build your own analysis, eithe
 
 
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy
 .. _numpy: http://www.numpy.org/
 .. _HDF5: https://www.hdfgroup.org/HDF5/

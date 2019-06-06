@@ -118,6 +118,6 @@ Then copy this file into the folder where the raw data are and launch::
 
 If the raw data are not found, the Traceview will not be displayed. If you really want to see that view, remember that you need to get the raw data **filtered**, so  you must also copy them back from your sorting machine.
 
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
 

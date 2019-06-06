@@ -24,7 +24,7 @@ This allows you to load a sorting session that has been saved and not finished. 
 Python GUI
 ----------
 
-To launch the Python GUI, you need a valid installation of phy_ and phycontrib_, and you should be able to simply do::
+To launch the Python GUI, you need a valid installation of phy_ 2.0 and phylib_, and you should be able to simply do::
 
 	>> spyking-circus path/mydata.extension -m converting -c N
 
@@ -42,6 +42,6 @@ As you see, first, you need to export the data to the phy_ format using the ``co
 		>> circus-gui-python path/mydata.extension -e merged
 
 
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
-.. _phycontrib: https://github.com/kwikteam/phy-contrib
+.. _phylib: https://github.com/cortex-lab/phylib

@@ -89,6 +89,6 @@ Validating
 This method allows to compare the performance of the algorithm to those of a optimized classifier. This is an implementation of the BEER (Best Ellipsoidal Error Rate) estimate, as described in  `[Harris et al, 2000] <http://robotics.caltech.edu/~zoran/Reading/buzsaki00.pdf>`_. Note that the implementation is slightly more generic, and requires the installation of ``sklearn``. To use it, you need to have, if your datafile is ``mydata.extension``, a file named ``mydata/mydata.npy`` which is simply an array of all the ground truth spike times. To know more about the BEER estimate, see the devoted documentation (see :doc:`More on the BEER estimate <../advanced/beer>`)
 
 
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
 

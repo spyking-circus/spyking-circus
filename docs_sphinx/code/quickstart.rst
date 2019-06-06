@@ -118,11 +118,11 @@ An experimental GUI derived from phy_ and made especially for template-matching 
     >> spyking-circus path/mydata.extension -m converting
     >> circus-gui-python path/mydata.extension
 
-To enable it, you must have a valid installation of phy_ and phycontrib_
+To enable it, you must have a valid installation of phy_ and phylib_
 
 
 To know more about the GUI section, see :doc:`documentation on the GUI <../GUI/index>`
 
-.. _phy: https://github.com/kwikteam/phy
-.. _phycontrib: https://github.com/kwikteam/phy-contrib
+.. _phy: https://github.com/cortex-lab/phy
+.. _phylib: https://github.com/cortex-lab/phylib
 .. _MATLAB: http://fr.mathworks.com/products/matlab/

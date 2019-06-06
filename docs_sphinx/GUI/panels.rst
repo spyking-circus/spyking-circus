@@ -44,12 +44,12 @@ Python GUI
    A view of the Python GUI, derived from phy_, and oriented toward template matching algorithm. To use it, you need a valid version of phy_, and phycontrib_
 
 
-To know more about how to use phy_ and phycontrib_, see the devoted websites. If you want to have a exhaustive description of the sorting workflow performed with phy_, please see the `phy documentation <http://phy-contrib.readthedocs.io/en/latest/template-gui/>`_.
+To know more about how to use phy_ and phylib_, see the devoted websites. If you want to have a exhaustive description of the sorting workflow performed with phy_, please see the `phy documentation <http://phy-contrib.readthedocs.io/en/latest/template-gui/>`_.
 
 
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
-.. _phycontrib: https://github.com/kwikteam/phy-contrib
+.. _phycontrib: https://github.com/cortex-lab/phylib
 
 
 

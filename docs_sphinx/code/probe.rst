@@ -106,4 +106,4 @@ You have two ways to deal with channels that you want to discard from the analys
 
 * with the ``dead_channels`` parameter of the configuration file. Coming back to the previous example, you can set such a parameter to {1 : [28, 29]} in order to exclude the last two channels
 
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy

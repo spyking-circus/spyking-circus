@@ -10,6 +10,7 @@ Release 0.8.0
 * fix a typo when using dead times and the collect mode
 * fix a minor bug when small amount of spikes are found during smart search
 * fix a bug in the wrapper for BRW files
+* support for phy 2.0 and phylib
 
 =============
 Release 0.7.6

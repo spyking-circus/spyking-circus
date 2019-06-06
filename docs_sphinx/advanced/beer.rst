@@ -42,7 +42,7 @@ The code will generate a file ``mydata/mydata.beer.dat`` storing all the needed 
 
 If you are interested by using such a feature, please contact us!
 
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
 
 

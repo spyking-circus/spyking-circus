@@ -126,7 +126,7 @@ To save the results of your post-processing, click on the ``Save`` button. A num
 
   >> circus-gui-matlab mydata.extension -e suffix
 
-.. _phy: https://github.com/kwikteam/phy
+.. _phy: https://github.com/cortex-lab/phy
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
 
 
