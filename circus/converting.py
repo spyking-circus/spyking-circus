@@ -317,7 +317,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             write_pcs(output_path, params, extension, N_tm, make_pcs)
 
 
-        supported_by_phy = ['raw_binary', 'mcs_raw_binary']
+        supported_by_phy = ['raw_binary', 'mcs_raw_binary', 'mda']
         file_format    = data_file.description
         gui_params = {}
 

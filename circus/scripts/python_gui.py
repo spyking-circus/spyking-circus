@@ -40,7 +40,7 @@ except ImportError:
 import numpy as np
 from circus.shared.utils import query_yes_no, test_patch_for_similarities
 
-supported_by_phy = ['raw_binary', 'mcs_raw_binary']
+supported_by_phy = ['raw_binary', 'mcs_raw_binary', 'mda']
 
 #------------------------------------------------------------------------------
 # Set up logging with the CLI tool
