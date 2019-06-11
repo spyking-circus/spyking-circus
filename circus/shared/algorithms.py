@@ -463,7 +463,7 @@ def slice_result(result, times):
         sub_results += [sub_result]
 
     return sub_results
-
+    
 
 def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
