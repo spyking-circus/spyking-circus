@@ -11,6 +11,9 @@ Release 0.8.0
 * fix a minor bug when small amount of spikes are found during smart search
 * fix a bug in the wrapper for BRW files
 * support for phy 2.0 and phylib
+* remove the strongly time shifted templates
+* additing of a wrapper for MDA file format
+* amplitudes for unfitted spikes is now 1 when exporting to phy
 
 =============
 Release 0.7.6

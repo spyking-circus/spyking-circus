@@ -74,7 +74,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 elec_id    = int(key.split('_')[-1])
                 data       = garbage['gspikes'].pop(key).astype(numpy.uint64)
                 spikes     = numpy.concatenate((spikes, data))
-                amplitudes = numpy.concatenate((amplitudes, numpy.zeros(len(data))))
+                amplitudes = numpy.concatenate((amplitudes, numpy.ones(len(data))))
                 clusters   = numpy.concatenate((clusters, (elec_id + N_tm)*numpy.ones(len(data), dtype=numpy.uint32)))                
 
         idx = numpy.argsort(spikes)
