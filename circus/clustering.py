@@ -861,6 +861,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if np.abs(shift) > template_shift / 4:
 
                         shifted_templates = numpy.concatenate((shifted_templates, numpy.array([count_templates], dtype='int32')))
+                        myamps           += [[0, 10]]
 
                     else:
 
@@ -944,19 +945,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     count_templates += 1
                     g_count         += 1
 
-                # if make_plots not in ['None', '']:
-                #     if n_data > 1:
-                #         save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
-                #         idx      = numpy.where(indices == ielec)[0][0]
-                #         sub_data = numpy.take(data,idx, axis=2)
-                #         nb_temp  = cluster_results[p][ielec]['n_clus']
-                #         vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
-                #         sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
-                #         sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
-                #         sub_tmp  = sub_tmp[ielec, :, :]
-                #         plot.view_waveforms_clusters(numpy.dot(sub_data, basis['rec_%s' %p]), cluster_results[p][ielec]['groups'],
-                #             thresholds[ielec], sub_tmp,
-                #             numpy.array(myamps), save=save)
+                if make_plots not in ['None', '']:
+                    if n_data > 1:
+                        save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
+                        idx      = numpy.where(indices == ielec)[0][0]
+                        sub_data = numpy.take(data, idx, axis=2)
+                        nb_temp  = cluster_results[p][ielec]['n_clus']
+                        vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
+                        sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
+                        sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
+                        sub_tmp  = sub_tmp[ielec, :, :]
+                        plot.view_waveforms_clusters(numpy.dot(sub_data, basis['rec_%s' %p]), cluster_results[p][ielec]['groups'],
+                            thresholds[ielec], sub_tmp,
+                            numpy.array(myamps), save=save)
 
                 data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
                 result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], data))
@@ -1077,7 +1078,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if len(shifted_templates) > 0:
 
         if comm.rank == 0:
-            print_and_log(["Removing %d shifted templates..." %len(shifted_templates)], 'default', logger)
+            print_and_log(["Removing %d strongly shifted templates..." %len(shifted_templates)], 'default', logger)
 
         if comm.rank == 0:
             result = io.load_data(params, 'clusters')
@@ -1102,7 +1103,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if remove_mixture:
             if comm.rank == 0:
-                print_and_log(["Removing mixtures..."], 'default', logger)
+                print_and_log(["Removing mixtures of templates..."], 'default', logger)
             merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         else:
             merged2 = [0, 0]
