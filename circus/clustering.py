@@ -791,6 +791,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         temp_x     = numpy.zeros(0, dtype=numpy.uint32)
         temp_y     = numpy.zeros(0, dtype=numpy.uint32)
         temp_data  = numpy.zeros(0, dtype=numpy.float32)
+        shifted_templates = numpy.zeros(0, dtype=numpy.int32)
 
         comm.Barrier()
         cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='earliest')
@@ -856,82 +857,90 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         tmpidx = divmod(tmp_templates.argmax(), tmp_templates.shape[1])
 
                     shift     = template_shift - tmpidx[1]
-                    templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-                    if shift > 0:
-                        templates[indices, shift:] = tmp_templates[:, :-shift]
-                    elif shift < 0:
-                        templates[indices, :shift] = tmp_templates[:, -shift:]
+
+                    if np.abs(shift) > template_shift / 4:
+
+                        shifted_templates = numpy.concatenate((shifted_templates, numpy.array([count_templates], dtype='int32')))
+                        myamps           += [[0, 10]]
+
                     else:
-                        templates[indices, :] = tmp_templates
 
-                    mean_channels += len(indices)
-                    if comp_templates:
-                        to_delete  = []
-                        for i in indices:
-                            if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
-                                templates[i, :] = 0
-                                to_delete += [i]
-                        mean_channels -= len(to_delete)
+                        templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                        if shift > 0:
+                            templates[indices, shift:] = tmp_templates[:, :-shift]
+                        elif shift < 0:
+                            templates[indices, :shift] = tmp_templates[:, -shift:]
+                        else:
+                            templates[indices, :] = tmp_templates
 
-                    templates  = templates.ravel()
-                    dx         = templates.nonzero()[0].astype(numpy.uint32)
+                        mean_channels += len(indices)
+                        if comp_templates:
+                            to_delete  = []
+                            for i in indices:
+                                if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
+                                    templates[i, :] = 0
+                                    to_delete += [i]
+                            mean_channels -= len(to_delete)
 
-                    temp_x     = numpy.concatenate((temp_x, dx))
-                    temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
-                    temp_data  = numpy.concatenate((temp_data, templates[dx]))
+                        templates  = templates.ravel()
+                        dx         = templates.nonzero()[0].astype(numpy.uint32)
 
-                    norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/(N_e*N_t))
+                        temp_x     = numpy.concatenate((temp_x, dx))
+                        temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
+                        temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
-                    x, y, z          = sub_data.shape
-                    sub_data_flat    = sub_data.reshape(x, y*z)
-                    first_flat       = first_component.reshape(y*z, 1)
-                    amplitudes       = numpy.dot(sub_data_flat, first_flat)
-                    amplitudes      /= numpy.sum(first_flat**2)
+                        norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/(N_e*N_t))
 
-                    variation        = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                        x, y, z          = sub_data.shape
+                        sub_data_flat    = sub_data.reshape(x, y*z)
+                        first_flat       = first_component.reshape(y*z, 1)
+                        amplitudes       = numpy.dot(sub_data_flat, first_flat)
+                        amplitudes      /= numpy.sum(first_flat**2)
 
-                    physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                    amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - dispersion[0]*variation))
-                    amp_max          = max(1.2, numpy.median(amplitudes) + dispersion[1]*variation)
-                    amps_lims[g_count] = [amp_min, amp_max]
-                    myamps            += [[amp_min, amp_max]]
+                        variation        = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
 
-                    for i in xrange(x):
-                        sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
+                        physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
+                        amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - dispersion[0]*variation))
+                        amp_max          = max(1.2, numpy.median(amplitudes) + dispersion[1]*variation)
+                        amps_lims[g_count] = [amp_min, amp_max]
+                        myamps            += [[amp_min, amp_max]]
 
-                    if len(sub_data_flat) > 1:
-                        pca              = PCA(1)
-                        pca.fit(sub_data_flat)
-                        second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
-                    else:
-                        second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
+                        for i in xrange(x):
+                            sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
 
-                    if extraction in ['median-pca', 'mean-pca']:
-                        tmp_templates = numpy.dot(second_component.T, basis['rec_%s' %p])
-                    elif extraction in ['median-raw', 'mean-raw']:
-                        tmp_templates = second_component
+                        if len(sub_data_flat) > 1:
+                            pca              = PCA(1)
+                            pca.fit(sub_data_flat)
+                            second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
+                        else:
+                            second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
-                    offset        = total_nb_clusters + count_templates
-                    sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-                    if shift > 0:
-                        sub_templates[indices, shift:] = tmp_templates[:, :-shift]
-                    elif shift < 0:
-                        sub_templates[indices, :shift] = tmp_templates[:, -shift:]
-                    else:
-                        sub_templates[indices, :] = tmp_templates
+                        if extraction in ['median-pca', 'mean-pca']:
+                            tmp_templates = numpy.dot(second_component.T, basis['rec_%s' %p])
+                        elif extraction in ['median-raw', 'mean-raw']:
+                            tmp_templates = second_component
 
-                    if comp_templates:
-                        for i in to_delete:
-                            sub_templates[i, :] = 0
+                        offset        = total_nb_clusters + count_templates
+                        sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                        if shift > 0:
+                            sub_templates[indices, shift:] = tmp_templates[:, :-shift]
+                        elif shift < 0:
+                            sub_templates[indices, :shift] = tmp_templates[:, -shift:]
+                        else:
+                            sub_templates[indices, :] = tmp_templates
 
-                    sub_templates = sub_templates.ravel()
-                    dx            = sub_templates.nonzero()[0].astype(numpy.uint32)
+                        if comp_templates:
+                            for i in to_delete:
+                                sub_templates[i, :] = 0
 
-                    temp_x     = numpy.concatenate((temp_x, dx))
-                    temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.uint32)))
-                    temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
+                        sub_templates = sub_templates.ravel()
+                        dx            = sub_templates.nonzero()[0].astype(numpy.uint32)
 
-                    norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.ravel()**2)/(N_e*N_t))
+                        temp_x     = numpy.concatenate((temp_x, dx))
+                        temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.uint32)))
+                        temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
+
+                        norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.ravel()**2)/(N_e*N_t))
 
                     count_templates += 1
                     g_count         += 1
@@ -940,7 +949,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if n_data > 1:
                         save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
                         idx      = numpy.where(indices == ielec)[0][0]
-                        sub_data = numpy.take(data,idx, axis=2)
+                        sub_data = numpy.take(data, idx, axis=2)
                         nb_temp  = cluster_results[p][ielec]['n_clus']
                         vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
                         sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
@@ -987,7 +996,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if local_nb_clusters > 0:
             mean_channels /= local_nb_clusters
 
-        gdata4 = gather_array(numpy.array([mean_channels], dtype=numpy.float32), comm, 0)
+        gdata4 = gather_array(numpy.array([mean_channels], dtype=numpy.float32), comm)
+
+        shifted_templates = all_gather_array(shifted_templates, comm, 0, dtype='int32')
 
         if comm.rank == 0:
             idx           = numpy.where(gdata4 != 0)[0]
@@ -1064,6 +1075,23 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
+    if len(shifted_templates) > 0:
+
+        if comm.rank == 0:
+            print_and_log(["Removing %d strongly shifted templates..." %len(shifted_templates)], 'default', logger)
+
+        if comm.rank == 0:
+            result = io.load_data(params, 'clusters')
+        else:
+            result = []
+
+        algo.slice_templates(params, to_remove=shifted_templates)
+        algo.slice_clusters(params, to_remove=shifted_templates, result=result)
+
+    comm.Barrier()
+
+    total_nb_clusters = int(io.load_data(params, 'nb_templates') // 2)
+
     if total_nb_clusters > 0:
 
         if comm.rank == 0:
@@ -1075,7 +1103,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if remove_mixture:
             if comm.rank == 0:
-                print_and_log(["Removing mixtures..."], 'default', logger)
+                print_and_log(["Removing mixtures of templates..."], 'default', logger)
             merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         else:
             merged2 = [0, 0]
@@ -1087,7 +1115,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
 
         print_and_log(["Number of global merges    : %d" %merged1[1],
-                          "Number of mixtures removed : %d" %merged2[1]], 'info', logger)
+                       "Number of mixtures removed : %d" %merged2[1]], 'info', logger)
 
     comm.Barrier()
 
