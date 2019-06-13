@@ -20,7 +20,7 @@ Here are some detailed instructions:
 
     5. Here you are! Now run the code, for example::
 
-        >> spyking-circus pathtodata/data.dat -c 7 -g 0
+        >> spyking-circus pathtodata/data.dat -c 7
 
 
 .. _Anaconda: https://www.anaconda.com/distribution/

@@ -14,7 +14,7 @@ How to install
 
 .. note::
     
-    If you are a Windows or a Mac user, we recommend using Anaconda_, and:
+    We recommend using Anaconda_, with a simple install:
 
     * :doc:`see here for detailed instructions on Windows <../introduction/windows>` 
     * :doc:`see here for detailed instructions on Mac OS X <../introduction/mac>`
@@ -121,6 +121,6 @@ For information, here is the list of all the dependencies required by the SpyKIN
     
 .. _Anaconda: https://www.anaconda.com/distribution/
 .. _miniconda: https://docs.conda.io/en/latest/miniconda.html
-.. _MPI: http://www.open-mpi.org/
+.. _MPI: https://www.mpich.org/
 .. _Xcode: https://developer.apple.com/xcode/download/
 .. _HDF5: https://www.hdfgroup.org

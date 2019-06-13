@@ -21,7 +21,7 @@ This will install the parallel libraries into ``HDFHOME/hdf5``. To have them ava
 Once this is done, you need to install h5py_ and link it toward this particular library. This can easily be done by downloading h5py_, and then in the folder, do::
 
     > python setup.py configure --mpi --hdf5=HDFHOME/hdf5
-    > python setup.py build_ext --include-dirs=/usr/lib/openmpi/include
+    > python setup.py build_ext --include-dirs=/usr/lib/YOURMPI/include
     > python setup.py install --user
 
 .. _HDF5: https://www.hdfgroup.org/HDF5/release/obtain5.html

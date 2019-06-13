@@ -8,7 +8,15 @@ The code is able to use multiple CPU to speed up the operations. It can even use
 Structure of the hostfile
 -------------------------
 
-Such a hostfile may depend on the fork of MPI you are using. For OpenMPI_, this will typically look like::
+Such a hostfile may depend on the fork of MPI you are using. For MPICH_, this will typically look like (if you want to use only 4 cores per machine)::
+
+    192.168.0.1:4
+    192.168.0.2:4
+    192.168.0.3:4
+    192.168.0.4:4
+    192.168.0.5:4
+
+For OpenMPI_, this will typically look like (if you want to use only 4 cores per machine)::
 
     192.168.0.1 max-slots=4
     192.168.0.2 max-slots=4
@@ -27,11 +35,15 @@ Then the code will launch 4 instances of the program on the 5 nodes listed in th
     
     If you are using multiple machines, all should read/write in a **shared** folder. This can be done with NFS_ or SAMBA_ on Windows. Usually, most clusters will provide you such a shared ``/home/user`` folder, be sure this is the case 
 
+.. warning::
+    
+    For now, the code is working with MPICH_ versions higher than 3.0, and OpenMPI_ versions below 3.0. We plan to make this more uniform in a near future, but the two implementations made different implementation choices for the MPI library
+
 
 Shared Memory
 -------------
 
-With recent versions of MPI, you can share memory on a single machine, and this is used by the code to reduce the memory footprint. If you have large number of channels and/or templates, be sure to use a recent version of MPI_ (OpenMPI_ > 1.8.5 for example)
+With recent versions of MPI, you can share memory on a single machine, and this is used by the code to reduce the memory footprint. If you have large number of channels and/or templates, be sure to use a recent version of MPICH_ (>= 3.0) or OpenMPI_ (> 1.8.5)
 
 
 Handling of GPUs
@@ -48,8 +60,8 @@ This will tell the code that because ``n_gpu`` is larger than ``n_cpu``, several
     Currently, clusters with heterogeneous numbers of GPUs per nodes are not properly handled. Be in touch if interested by the functionality
     
 
-.. _MPI: http://www.open-mpi.org/
-.. _OpenMPI: http://www.open-mpi.org/
+.. _MPICH: https://www.mpich.org/
+.. _OpenMPI: https://www.mpich.org/
 .. _NFS: https://en.wikipedia.org/wiki/Network_File_System
 .. _Samba: https://support.microsoft.com/en-us/kb/224967
 

@@ -62,4 +62,4 @@ To know more about how to install the sofware, (see :doc:`How to install <../int
 .. _Git: https://git-scm.com/
 .. _SourceTree: https://www.sourcetreeapp.com/ 
 .. _Xcode: https://developer.apple.com/xcode/download/
-.. _MPI: http://www.open-mpi.org/
+.. _MPI: https://www.mpich.org/

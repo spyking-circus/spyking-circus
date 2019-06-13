@@ -21,7 +21,7 @@ Here are some detailed instructions:
 
     9. Here you are! Now run the code, for example::
 
-        >> spyking-circus pathtodata/data.dat -c 7 -g 0
+        >> spyking-circus pathtodata/data.dat -c 7
 
 .. _Anaconda: https://www.anaconda.com/distribution/
 .. _MPIv6: https://www.microsoft.com/en-us/download/details.aspx?id=47259
