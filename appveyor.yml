@@ -69,7 +69,7 @@ test_script:
   - conda update --yes --quiet conda
   # Stay with the conda version to avoid a downgrade to 4.3 from conda-forge
   - conda config --set auto_update_conda False
-  - conda config --add channels conda-forge --add channels mpi4py
+  - conda config --add channels conda-forge --add channels anaconda
   - conda install --yes --quiet conda-build setuptools wheel
   - conda build -c spyking-circus -c conda-forge conda_recipe
   - python packaging_tools/move_conda_package.py
