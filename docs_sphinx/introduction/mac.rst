@@ -13,12 +13,7 @@ Here are some detailed instructions:
     
         >> pip install spyking-circus
 
-    4. Add the following to ``$HOME/.bash_profile``::
-
-        "export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH"
-        "export PYTHONPATH=$HOME/anaconda/bin:$PYTHONPATH"
-
-    5. Here you are! Now run the code, for example::
+    4. Here you are! Now run the code, for example::
 
         >> spyking-circus pathtodata/data.dat -c 7
 

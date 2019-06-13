@@ -32,7 +32,7 @@ For large number of channels, a lot of clusters (or equivalently templates, or c
 
 .. note::
 
-    |rarr| The SpyKING CIRCUS, in its current form, aims at automatizing as much as possible the whole workflow of spike sorting, reducing the human interaction. Not that it can be zero, but the software aims toward a drastic reduction of the manual curation, and results shows that performances as good or even better than with classical spike sorting approaches can be obtained (obtaining for example `one of the best score on synthetic data <http://spikesortingtest.com>`_).
+    |rarr| The SpyKING CIRCUS, in its current form, aims at automatizing as much as possible the whole workflow of spike sorting, reducing the human interaction. Not that it can be zero, but the software aims toward a drastic reduction of the manual curation, and results shows that performances as good or even better than with classical spike sorting approaches can be obtained.
 
 .. _MPI: https://www.mpich.org/
 

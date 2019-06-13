@@ -31,22 +31,6 @@ If you do not have git installed, and want to get the source, then one way to pr
     3. Click on the ``Clone in SourceTree`` button, and use the following link with SourceTree_ https://github.com/spyking-circus/spyking-circus
     4. In SourceTree_ you just need to click on the ``Pull`` button to get the latest version of the software.
 
-For Windows users
-~~~~~~~~~~~~~~~~~
-
-.. note::
-
-	See the install section for Windows user :doc:`here <../introduction/windows>`
-
-For Mac OS X users
-~~~~~~~~~~~~~~~~~~
-
-In order to install MPI_, you may need to download the Xcode_ tools
-
-.. note::
-
-	See the install section for Mac user :doc:`here <../introduction/mac>`
-
 
 Download the archive
 --------------------

@@ -2,13 +2,6 @@ environment:
   # For new releases, only one job will upload the source code to Pypi, and only
   # one job each for Python 2 and 3 will upload a wheel.
   matrix:
-    - PYTHON: "C:\\Miniconda36"
-      PYTHON_VERSION: "3.6"
-      PYTHON_ARCH: "32"
-      PYPI_UPLOAD_SOURCE: yes
-      PYPI_UPLOAD_WHEEL: yes
-      platform: x86
-
     - PYTHON: "C:\\Miniconda36-x64"
       PYTHON_VERSION: "3.6"
       PYTHON_ARCH: "64"
@@ -16,26 +9,12 @@ environment:
       PYPI_UPLOAD_WHEEL: yes
       platform: x64
 
-    - PYTHON: "C:\\Miniconda35"
-      PYTHON_VERSION: "3.5"
-      PYTHON_ARCH: "32"
-      PYPI_UPLOAD_SOURCE: yes
-      PYPI_UPLOAD_WHEEL: yes
-      platform: x86
-
-    - PYTHON: "C:\\Miniconda35-x64"
-      PYTHON_VERSION: "3.5"
+    - PYTHON: "C:\\Miniconda37-x64"
+      PYTHON_VERSION: "3.7"
       PYTHON_ARCH: "64"
       PYPI_UPLOAD_SOURCE: no
       PYPI_UPLOAD_WHEEL: no
       platform: x64
-
-    - PYTHON: "C:\\Miniconda"
-      PYTHON_VERSION: "2.7"
-      PYTHON_ARCH: "32"
-      PYPI_UPLOAD_SOURCE: no
-      PYPI_UPLOAD_WHEEL: yes
-      platform: x86
 
     - PYTHON: "C:\\Miniconda-x64"
       PYTHON_VERSION: "2.7"
@@ -55,7 +34,7 @@ install:
   - 'set PATH=%PYTHON%;%PYTHON%\Library\bin;%PYTHON%\Scripts;%PATH%'
   # Install MPI
   - ps: (new-object net.webclient).DownloadFile(
-        "https://download.microsoft.com/download/D/7/B/D7BBA00F-71B7-436B-80BC-4D22F2EE9862/MSMpiSetup.exe",
+        "https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/msmpisetup.exe",
         "C:\projects\MSMpiSetup.exe")
   - C:\projects\MSMpiSetup.exe -unattend -minimal
   - set PATH=C:\Program Files\Microsoft MPI\Bin;%PATH%

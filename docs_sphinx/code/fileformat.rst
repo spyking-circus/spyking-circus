@@ -7,51 +7,48 @@ To get the list of supported file format, you need to do::
 	-------------------------  Informations  -------------------------
 	| The file formats that are supported are:
 	| 
-	| -- PLEXON (read only)
-	|       Extensions       : .plx
-	|       Supported streams: multi-files
-	| -- KWD (read/write)
-	|       Extensions       : .kwd
-	|       Supported streams: multi-files, single-file
-	| -- BRW (read/write)
-	|       Extensions       : .brw
-	|       Supported streams: multi-files
-	| -- MCD (read only)
-	|       Extensions       : .mcd
-	|       Supported streams: multi-files
-	| -- NEURALYNX (read/parallel write)
-	|       Extensions       : .ncs
+	| -- RAW_BINARY (read/parallel write)
+	|       Extensions       : 
 	|       Supported streams: multi-files
 	| -- MCS_RAW_BINARY (read/parallel write)
 	|       Extensions       : .raw, .dat
 	|       Supported streams: multi-files
-	| -- NWB (read/write)
-	|       Extensions       : .nwb, .h5, .hdf5
-	|       Supported streams: multi-files
-	| -- RHD (read/write)
-	|       Extensions       : .rhd
+	| -- HDF5 (read/write)
+	|       Extensions       : .h5, .hdf5
 	|       Supported streams: multi-files
 	| -- OPENEPHYS (read/parallel write)
 	|       Extensions       : .openephys
-	|       Supported streams: multi-files
-	| -- HDF5 (read/write)
-	|       Extensions       : .h5, .hdf5
+	|       Supported streams: multi-folders
+	| -- KWD (read/write)
+	|       Extensions       : .kwd
+	|       Supported streams: multi-files, single-file
+	| -- NWB (read/write)
+	|       Extensions       : .nwb, .h5, .hdf5
 	|       Supported streams: multi-files
 	| -- NIX (read/write)
 	|       Extensions       : .nix, .h5, .hdf5
 	|       Supported streams: multi-files
-	| -- BLACKROCK (read only)
-	|       Extensions       : .ns2, .ns3, .ns4, .ns5, .ns6
-	|       Supported streams: multi-files
-	| -- RAW_BINARY (read/parallel write)
-	|       Extensions       : 
+	| -- ARF (read/write)
+	|       Extensions       : .arf, .hdf5, .h5
+	|       Supported streams: multi-files, single-file
+	| -- BRW (read/write)
+	|       Extensions       : .brw
 	|       Supported streams: multi-files
 	| -- NUMPY (read/parallel write)
 	|       Extensions       : .npy
 	|       Supported streams: multi-files
-	| -- ARF (read/write)
-	|       Extensions       : .arf, .hdf5, .h5
-	|       Supported streams: multi-files, single-file
+	| -- RHD (read/parallel write)
+	|       Extensions       : .rhd
+	|       Supported streams: multi-files
+	| -- NEURALYNX (read/parallel write)
+	|       Extensions       : .ncs
+	|       Supported streams: multi-files, multi-folders
+	| -- BLACKROCK (read only)
+	|       Extensions       : .ns1, .ns2, .nss3, .ns4, .ns5, .ns6
+	|       Supported streams: multi-files
+	| -- MDA (read/parallel write)
+	|       Extensions       : .mda
+	|       Supported streams: multi-files
 	------------------------------------------------------------------
 
 This list will tell you what are the wrappers available, and you need to specify one in your configuration file with the ``file_format`` parameter in the ``[data]`` section. To know more about the mandatory/optional parameters for a given file format, you should do::

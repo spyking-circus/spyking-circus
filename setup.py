@@ -3,7 +3,7 @@ import os
 from os.path import join as pjoin
 import sys, subprocess, re
 
-requires = ['mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
+requires = ['mpi4py', 'numpy', 'cython', 'scipy==1.2', 'matplotlib', 'h5py', 'colorama',
             'psutil', 'tqdm', 'blosc', 'statsmodels', 'scikit-learn']
 
 # if '--cuda' in sys.argv:

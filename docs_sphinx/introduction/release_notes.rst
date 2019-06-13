@@ -1,10 +1,10 @@
 Release notes
 =============
 
-Spyking CIRCUS 0.7
+Spyking CIRCUS 0.8
 ------------------
 
-This is the 0.7 release of the SpyKING CIRCUS, a new approach to the problem of spike sorting. The code is based on a smart clustering with
+This is the 0.8 release of the SpyKING CIRCUS, a new approach to the problem of spike sorting. The code is based on a smart clustering with
 sub sampling, and a greedy template matching approach, such that it can resolve the problem of overlapping spikes. The publication about the software 
 is available at https://elifesciences.org/articles/34518
 
@@ -29,6 +29,24 @@ Code and documentation contributions (ordered by the number of commits):
 * Christophe Gardella
 * Olivier Marre
 * Cyrille Rossant
+
+=============
+Release 0.8.0
+=============
+
+* major improvement in the clustering. No more max_clusters parameters
+* much faster clustering (thanks to Ruben Herzog)
+* added the statsmodels library as a required dependency
+* enhancement of the smart search mode
+* enhancement of the bicubic spline interpolation
+* fix a typo when using dead times and the collect mode
+* fix a minor bug when small amount of spikes are found during smart search
+* fix a bug in the wrapper for BRW files
+* support for phy 2.0 and phylib
+* remove the strongly time shifted templates
+* additing of a wrapper for MDA file format
+* amplitudes for unfitted spikes is now 1 when exporting to phy
+* default install is now qt5, to work with phy 2.0
 
 =============
 Release 0.7.6

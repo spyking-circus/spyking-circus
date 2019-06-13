@@ -37,27 +37,13 @@ Then the code will launch 4 instances of the program on the 5 nodes listed in th
 
 .. warning::
     
-    For now, the code is working with MPICH_ versions higher than 3.0, and OpenMPI_ versions below 3.0. We plan to make this more uniform in a near future, but the two implementations made different implementation choices for the MPI library
+    For now, the code is working with MPICH_ versions higher than 3.0, and OpenMPI_ versions below 3.0. We plan to make this more uniform in a near future, but the two softwares made different implementation choices for the MPI library
 
 
 Shared Memory
 -------------
 
 With recent versions of MPI, you can share memory on a single machine, and this is used by the code to reduce the memory footprint. If you have large number of channels and/or templates, be sure to use a recent version of MPICH_ (>= 3.0) or OpenMPI_ (> 1.8.5)
-
-
-Handling of GPUs
-----------------
-
-By default, the code will assume that you have only one GPU per nodes. If this is not the case, then you need to specify the number of GPUs and the number of CPUs when launching the code. For example::
-
-    >> spyking-circus path/mydata.extension -c 5 -g 10
-
-This will tell the code that because ``n_gpu`` is larger than ``n_cpu``, several GPUs per nodes must be assumed. In this particular example, 2 GPUs per nodes. 
-
-.. warning::
-
-    Currently, clusters with heterogeneous numbers of GPUs per nodes are not properly handled. Be in touch if interested by the functionality
     
 
 .. _MPICH: https://www.mpich.org/
