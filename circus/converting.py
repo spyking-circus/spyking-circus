@@ -121,8 +121,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 to_write_sparse[t, x, pos]       = tmp[x, y] 
 
         if export_all:
+            garbage = io.load_data(params, 'garbage', extension)
             for t in xrange(N_tm, N_tm + N_e):
+                elec = t - N_tm
+                spikes = garbage['gspikes'].pop('elec_%d' %elec).astype(numpy.uint64)
+                spikes = numpy.random.permutation(spikes)[:100]
                 mapping_sparse[t, 0] = t - N_tm
+                waveform = io.get_stas(params, times_i=spikes, mean_mode=True, neighs=[elec], src=elec, labels_i=np.ones(len(spikes)))
+                
+                nb_loc = 1
+
+                if sparse_export:
+                    to_write_sparse[t, :, 0] = waveform
+                else:
+                    to_write_sparse[t, :, elec] = waveform
 
         numpy.save(os.path.join(output_path, 'templates'), to_write_sparse)
 

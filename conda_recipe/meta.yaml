@@ -21,7 +21,7 @@ requirements:
     - python-blosc
     - qt
     - psutil
-    - tqdm !=4.15
+    - tqdm
     - pyqt
     - hdf5
     - scikit-learn
