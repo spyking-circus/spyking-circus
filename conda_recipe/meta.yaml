@@ -11,7 +11,7 @@ requirements:
     - python
     - mpi4py >=3
     - numpy
-    - mpich >=3 [linux]
+    - mpich >=3 [unix]
     - cython
     - scipy ==1.2
     - matplotlib
