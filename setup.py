@@ -6,18 +6,6 @@ import sys, subprocess, re
 requires = ['mpi4py', 'numpy', 'cython', 'scipy==1.2', 'matplotlib', 'h5py', 'colorama',
             'psutil', 'tqdm', 'blosc', 'statsmodels', 'scikit-learn']
 
-# if '--cuda' in sys.argv:
-#   sys.argv.remove('--cuda')
-#   try:
-#     subprocess.check_call(['nvcc', '--version'])
-#     requires += ['cudamat==0.3circus']
-#     HAVE_CUDA = True
-#   except (OSError, subprocess.CalledProcessError):
-#     print("CUDA not found")
-#     HAVE_CUDA = False
-# else:
-#   HAVE_CUDA = False
-
 from setuptools import setup
 
 

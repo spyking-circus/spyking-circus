@@ -1,5 +1,5 @@
-Python GUIs
-===========
+Quick preview GUIs
+==================
 
 Preview GUI
 -----------
