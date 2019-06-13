@@ -23,11 +23,4 @@ Here are some detailed instructions:
         >> spyking-circus pathtodata/data.dat -c 7 -g 0
 
 
-.. _BitBucket: https://bitbucket.org
-.. _Brew: http://brew.sh/
-.. _Git: https://git-scm.com/
-.. _SourceTree: https://www.sourcetreeapp.com/ 
-.. _Anaconda: https://www.continuum.io/downloads
-.. _OpenMPI: http://www.open-mpi.org/software/ompi/v1.10/downloads/openmpi-1.10.0.tar.gz
-.. _help: https://wiki.helsinki.fi/display/HUGG/Installing+Open+MPI+on+Mac+OS+X
-.. _Xcode: https://developer.apple.com/xcode/download/
+.. _Anaconda: https://www.anaconda.com/distribution/

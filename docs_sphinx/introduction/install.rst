@@ -119,8 +119,8 @@ For information, here is the list of all the dependencies required by the SpyKIN
     10. ``scikit-learn``
     11. ``statsmodels``
     
-.. _Anaconda: https://www.continuum.io/downloads
-.. _miniconda: http://conda.pydata.org/miniconda.html
+.. _Anaconda: https://www.anaconda.com/distribution/
+.. _miniconda: https://docs.conda.io/en/latest/miniconda.html
 .. _MPI: http://www.open-mpi.org/
 .. _Xcode: https://developer.apple.com/xcode/download/
 .. _HDF5: https://www.hdfgroup.org

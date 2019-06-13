@@ -14,6 +14,7 @@ Release 0.8.0
 * remove the strongly time shifted templates
 * additing of a wrapper for MDA file format
 * amplitudes for unfitted spikes is now 1 when exporting to phy
+* default install is now qt5, to work with phy 2.0
 
 =============
 Release 0.7.6

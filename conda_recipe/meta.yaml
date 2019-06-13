@@ -9,8 +9,9 @@ requirements:
   run:
     - libgcc [linux]
     - python
-    - mpi4py
+    - mpi4py >=3
     - numpy
+    - mpich >=3
     - cython
     - scipy
     - matplotlib
@@ -18,7 +19,7 @@ requirements:
     - setuptools >=26
     - colorama
     - python-blosc
-    - qt >=4,<5
+    - qt >=4
     - psutil
     - tqdm !=4.15
     - pyqt >=4

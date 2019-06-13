@@ -5,7 +5,7 @@ Here are some detailed instructions:
 
     1. Install Anaconda_ (Python 2.7 or 3.5)
     2. Launched Anaconda's command line
-    3. Execute ``conda install mpi4py``
+    3. Execute ``conda install -c conda-forge mpi4py``
     4. You should see the following message:
         * mpi4py requires that Microsoft MPI 6 be installed on the host system. That is a system wide installation that is currently not available through conda. In order to successfully use mpi4py you must install Microsoft MPI and then append the bin directory of the MPI installation to your PATH environment variable. To install Microsoft MPI see MPIv6_
 
@@ -23,12 +23,5 @@ Here are some detailed instructions:
 
         >> spyking-circus pathtodata/data.dat -c 7 -g 0
 
-    
-.. _BitBucket: https://bitbucket.org
-.. _Git: https://git-scm.com/
-.. _SourceTree: https://www.sourcetreeapp.com/ 
-.. _Anaconda: https://www.continuum.io/downloads
-.. _Pycharm: https://www.jetbrains.com/pycharm/
+.. _Anaconda: https://www.anaconda.com/distribution/
 .. _MPIv6: https://www.microsoft.com/en-us/download/details.aspx?id=47259
-.. _mpi4py: http://www.lfd.uci.edu/~gohlke/pythonlibs/#mpi4py
-.. _here: http://www.microsoft.com/en-us/download/details.aspx?id=44266
