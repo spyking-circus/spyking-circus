@@ -13,7 +13,7 @@ requirements:
     - numpy
     - mpich >=3 [linux]
     - cython
-    - scipy
+    - scipy ==1.2
     - matplotlib
     - h5py
     - setuptools >=26

@@ -84,6 +84,16 @@ Or to keep the folder in sync with the install in a develop mode::
     If you experience some issues with Qt4 or pyQt, you may need to install it manually on your system. For linux users, simply use your software distribution system (apt for example). For windows user, please see `here <http://doc.qt.io/qt-5/windows-support.html>`_
 
 
+Installing phy 2.0
+~~~~~~~~~~~~~~~~~~
+
+If you want to use the phy GUI to visualize your results, you may need to install phy 2.0::
+
+    >> pip install colorcet pyopengl joblib
+    >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
+    >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
+
+
 Home Directory
 --------------
 
