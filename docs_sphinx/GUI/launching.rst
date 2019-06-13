@@ -1,10 +1,22 @@
-Launching the GUIs
-================== 
+Launching the visualization GUIs
+================================
 
 You have several options and GUIs to visualize your results, just pick the one you are the most comfortable with!
 
 Matlab GUI
 ----------
+
+Installing MATLAB
+~~~~~~~~~~~~~~~~~
+
+SpyKING CIRUCS will assume that you have a valid installation of MATLAB, and that the matlab command can be found in the system $PATH. For windows user, please have a look to this `howto <https://helpdeskgeek.com/windows-10/add-windows-path-environment-variable/>`_. For unix users (mac or linux), simply add the following line to your .bash_profile or .bashrc file, in your $HOME directory::
+
+    export $PATH=$PATH:/PATH_TO_YOUR_MATLAB/bin/matlab
+
+Then relaunch the terminal
+
+Launching the MATLAB GUI
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 To launch the MATLAB_ GUI provided with the software, you need of course to have a valid installation of MATLAB_, and you should be able to simply do::
 
@@ -21,10 +33,24 @@ This allows you to load a sorting session that has been saved and not finished. 
 	>> circus-gui-matlab path/mydata.extension -e merged
 
 
-Python GUI
-----------
+Phy GUI
+-------
 
-To launch the Python GUI, you need a valid installation of phy_ 2.0 and phylib_, and you should be able to simply do::
+To launch the phy_ GUI (pure python based using opengl), you need a valid installation of phy_ 2.0 and phylib_.
+
+Installing phy 2.0
+~~~~~~~~~~~~~~~~~~
+
+If you want to use the phy GUI to visualize your results, you may need to install phy 2.0::
+
+    >> pip install colorcet pyopengl joblib
+    >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
+    >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
+
+Launching the phy 2.0 GUI
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If phy_ 2.0 is installed, you should be able to simply do::
 
 	>> spyking-circus path/mydata.extension -m converting -c N
 

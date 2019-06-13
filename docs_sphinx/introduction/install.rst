@@ -81,7 +81,7 @@ Or to keep the folder in sync with the install in a develop mode::
 
 .. note::
 
-    If you experience some issues with Qt4 or pyQt, you may need to install it manually on your system. For linux users, simply use your software distribution system (apt for example). For windows user, please see `here <http://doc.qt.io/qt-5/windows-support.html>`_
+    If you experience some issues with Qt or pyQt, you may need to install it manually on your system. For linux users, simply use your software distribution system (apt for example). For windows user, please see `here <http://doc.qt.io/qt-5/windows-support.html>`_
 
 
 Installing phy 2.0

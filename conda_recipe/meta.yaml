@@ -9,20 +9,20 @@ requirements:
   run:
     - libgcc [linux]
     - python
-    - mpi4py >=3
+    - mpi4py
     - numpy
     - mpich >=3 [unix]
     - cython
-    - scipy ==1.2
+    - scipy ==1.2 #temporary because of statsmodels 0.9
     - matplotlib
     - h5py
     - setuptools >=26
     - colorama
     - python-blosc
-    - qt >=4
+    - qt
     - psutil
     - tqdm !=4.15
-    - pyqt >=4
+    - pyqt
     - hdf5
     - scikit-learn
     - statsmodels

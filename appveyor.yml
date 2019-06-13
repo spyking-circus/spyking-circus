@@ -69,15 +69,15 @@ test_script:
   - conda update --yes --quiet conda
   # Stay with the conda version to avoid a downgrade to 4.3 from conda-forge
   - conda config --set auto_update_conda False
-  - conda config --add channels conda-forge --add channels intel
+  - conda config --add channels conda-forge --add channels mpi4py
   - conda install --yes --quiet conda-build setuptools wheel
-  - conda build -c spyking-circus -c conda-forge -c intel conda_recipe
+  - conda build -c spyking-circus -c conda-forge conda_recipe
   - python packaging_tools/move_conda_package.py
   - conda install --yes --quiet wheel
   - python setup.py sdist --formats=zip,gztar,bztar
   - python setup.py bdist_wheel
   # Try installing from the source package (install dependencies via conda first)
-  - conda install --yes --quiet -c spyking-circus "tqdm!=4.15" "mpi4py>=3" numpy cython "scipy==1.2" matplotlib h5py colorama psutil "qt>=4" "pyqt >=4" python-blosc statsmodels scikit-learn
+  - conda install --yes --quiet -c spyking-circus "tqdm!=4.15" mpi4py numpy cython "scipy==1.2" matplotlib h5py colorama psutil qt pyqt python-blosc statsmodels scikit-learn
   - FOR /R dist %%F in (*.tar.gz) do pip install %%F
   - spyking-circus -h
   - pip uninstall -y -q spyking-circus
