@@ -63,7 +63,7 @@ install:
   - conda config --set auto_update_conda False
   - conda config --set channel_priority strict
   - conda config --add channels conda-forge
-  - conda install --yes --quiet conda-build setuptools wheel conda-verify
+  - conda install --yes --quiet conda-build=3.16 setuptools wheel conda-verify
 
 # command to run tests
 script:

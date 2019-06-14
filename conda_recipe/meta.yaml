@@ -6,6 +6,7 @@ requirements:
   build:
     - python
     - setuptools >=26
+    
   run:
     - libgcc [linux]
     - python
@@ -27,7 +28,7 @@ requirements:
     - scikit-learn
     - statsmodels
 source:
-  path: ../
+  path: ..
 
 build:
   noarch_python: False
