@@ -1088,6 +1088,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         algo.slice_templates(params, to_remove=shifted_templates)
         algo.slice_clusters(params, to_remove=shifted_templates, result=result)
 
+        del result
+
     comm.Barrier()
 
     total_nb_clusters = int(io.load_data(params, 'nb_templates') // 2)

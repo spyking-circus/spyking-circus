@@ -156,4 +156,10 @@ def get_np_dtype(data_type):
     return numpy.dtype(data_type)
 
 def get_mpi_type(data_type):
-    return MPI._typedict[get_np_dtype(data_type).char]
+    if hasattr(MPI, '_typedict'):
+        mpi_type = MPI._typedict[numpy.dtype(data_type).char]
+    elif hasattr(MPI, '__TypeDict__'):
+        mpi_type = MPI.__TypeDict__[numpy.dtype(data_type).char]
+    else:
+        raise ValueError('cannot convert type')
+    return mpi_type

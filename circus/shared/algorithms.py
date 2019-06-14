@@ -577,6 +577,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
+    del result, over_x, over_y, over_data
+
     if comm.rank == 0:
         os.remove(filename)
 
@@ -696,6 +698,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         slice_clusters(params, result, to_remove=to_remove)
 
     comm.Barrier()
+
+    del c_overs
 
     if comm.rank == 0:
         os.remove(filename)
