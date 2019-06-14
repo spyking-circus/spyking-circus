@@ -27,7 +27,7 @@ requirements:
     - scikit-learn
     - statsmodels
 source:
-  path: ..
+  path: ../
 
 build:
   noarch_python: False

@@ -19,13 +19,15 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2019
 ~~~~
 
+* Reinhard K., Li C., Do Q., Burke E., Heynderickx S., Farrow K.,*A projection specific logic to sampling visual inputs in mouse superior colliculus*, bioRxiv 272914; doi: https://doi.org/10.1101/272914
+
 * Fiáth, Richárd, et al., *Fine-scale mapping of cortical laminar activity during sleep slow oscillations using high-density linear silicon probes*, Journal of neuroscience methods 316: 58-70
 
-* Heiney, Kristine, et al. *µSpikeHunter: An advanced computational tool for the analysis of neuronal communication and action potential propagation in microfluidic platforms.*, Scientific reports 9.1: 5777
+* Heiney, Kristine, et al. *µSpikeHunter: An advanced computational tool for the analysis of neuronal communication and action potential propagation in microfluidic platforms*, Scientific reports 9.1: 5777
 
-* Angotzi, Gian Nicola, et al. *SiNAPS: An implantable active pixel sensor CMOS-probe for simultaneous large-scale neural recordings.*, Biosensors and Bioelectronics 126: 355-364.
+* Angotzi, Gian Nicola, et al. *SiNAPS: An implantable active pixel sensor CMOS-probe for simultaneous large-scale neural recordings*, Biosensors and Bioelectronics 126: 355-364.
 
-* Williams, Alex H., et al. *Discovering precise temporal patterns in large-scale neural recordings through robust and interpretable time warping.*, bioRxiv: 661165
+* Williams, Alex H., et al. *Discovering precise temporal patterns in large-scale neural recordings through robust and interpretable time warping*, bioRxiv: 661165
 
 * Hennig, M. H., Hurwitz C., Sorbaro M., *Scaling Spike Detection and Sorting for Next-Generation Electrophysiology*, In Vitro Neuronal Networks. Springer, Cham 171-184.
 
@@ -51,6 +53,8 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 
 2018
 ~~~~
+
+* Parikh R., *Large-scale neuron cell classification of single-channel and multi-channel extracellularrecordings in the anterior lateral motor cortex*, bioRxiv 445700; doi: https://doi.org/10.1101/445700
 
 * Macé E., Montaldo G., Trenholm S., Cowan C., rignall A., Urban A., Roska B., *Whole-Brain Functional Ultrasound Imaging Reveals Brain Modules for Visuomotor Integration*, Neuron, 5:1241-1251
 
