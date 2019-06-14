@@ -107,15 +107,9 @@ setup(name='spyking-circus',
       zip_safe=False)
 
 msg = ['################################################################################',
-'# Probes files and parameter template have been copied to $HOME/spyking-circus #']
-
-
-# if HAVE_CUDA:
-#   msg += ['# GPU support has been correctly installed                                     #']
-# else:
-#   msg += ['# GPU support was NOT installed. Be sure to have a valid nvcc command          #']
-
-msg += ['################################################################################']
+'# Probes files and parameter template have been copied to $HOME/spyking-circus #',
+'# If you want to use the phy GUI, please see documentation to install it       #',
+'################################################################################']
 
 for line in msg:
   print(line)
