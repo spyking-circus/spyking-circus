@@ -16,6 +16,39 @@ Publications refering to SpyKING CIRCUS
 
 Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to send us a mail in order update this list, the more the merrier
 
+2019
+~~~~
+
+* Fiáth, Richárd, et al., *Fine-scale mapping of cortical laminar activity during sleep slow oscillations using high-density linear silicon probes*, Journal of neuroscience methods 316: 58-70
+
+* Heiney, Kristine, et al. *µSpikeHunter: An advanced computational tool for the analysis of neuronal communication and action potential propagation in microfluidic platforms.*, Scientific reports 9.1: 5777
+
+* Angotzi, Gian Nicola, et al. *SiNAPS: An implantable active pixel sensor CMOS-probe for simultaneous large-scale neural recordings.*, Biosensors and Bioelectronics 126: 355-364.
+
+* Williams, Alex H., et al. *Discovering precise temporal patterns in large-scale neural recordings through robust and interpretable time warping.*, bioRxiv: 661165
+
+* Hennig, M. H., Hurwitz C., Sorbaro M., *Scaling Spike Detection and Sorting for Next-Generation Electrophysiology*, In Vitro Neuronal Networks. Springer, Cham 171-184.
+
+* Carlson D., and Lawrence C., *Continuing progress of spike sorting in the era of big data*, Current opinion in neurobiology 55: 90-96
+
+* Souza B. C., Lopes-dos-Santos V., Bacelo J., Tort A. B., *Spike sorting with Gaussian mixture models*, Scientific reports, 9(1), 3627
+
+* Gardella C., Marre O., Mora T., *Modeling the correlated activity of neural populations: A review*, Neural computation, 31(2), 233-269.
+
+* Dai J., Zhang P., Sun H., Qiao X., Zhao Y., Ma J., Wang, C., *Reliability of motor and sensory neural decoding by threshold crossings for intracortical brain–machine interface*, Journal of neural engineering.
+
+* Despouy E., Curot J., Denuelle M., Deudon M., Sol J. C., Lotterie J. A., Valton L., *Neuronal spiking activity highlights a gradient of epileptogenicity in human tuberous sclerosis lesions*, Clinical Neurophysiology, 130(4), 537-547.
+
+* Wouters J., Kloosterman F., Bertrand A., *A data-driven regularization approach for template matching in spike sorting with high-density neural probes*, In Proceedings of IEEE EMBC. IEEE.
+
+* Weingärtner S., Chen X., Akçakaya M., Moore T., *Robust Online Spike Recovery for High-Density Electrode Recordings using Convolutional Compressed Sensing*. In 2019 9th International IEEE/EMBS Conference on Neural Engineering (NER) (pp. 1015-1020). IEEE.
+
+* Sorochynskyi O., Deny S., Marre O., Ferrari U., *From serial to parallel: predicting synchronous firing of large neural populations from sequential recordings*, bioRxiv, 560656.
+
+* Mahmud, M., Vassanelli, S., *Open-Source Tools for Processing and Analysis of In Vitro Extracellular Neuronal Signals. In In Vitro Neuronal Networks* (pp. 233-250). Springer, Cham.
+
+* Wouters J., Kloosterman F., Bertrand A., *Signal-to-peak-interference ratio maximization with automatic interference weighting for threshold-based spike sorting of high-density neural probe data*, In International IEEE/EMBS Conference on Neural Engineering:[proceedings]. International IEEE EMBS Conference on Neural Engineering. IEEE.
+
 2018
 ~~~~
 

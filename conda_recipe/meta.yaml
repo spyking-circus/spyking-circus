@@ -53,5 +53,7 @@ test:
 
 about:
   home: http://spyking-circus.rtfd.org
-  license: CEA CNRS Inria Logiciel Libre License, version 2.1 (CeCILL-2.1)
+  license: CeCILL-2.1
+  dev_url: https://github.com/spyking-circus/spyking-circus
+  doc_url: http://spyking-circus.rtfd.org
   summary: 'Fast spike sorting by template matching'
