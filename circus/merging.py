@@ -32,7 +32,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     comm.Barrier()
 
-    if comm.rank == 0:
+    if comm.rank == 0 and params.getfloat('merging', 'auto_mode') == 0:
         app = QApplication([])
         try:
             pylab.style.use('ggplot')
@@ -43,5 +43,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     if comm.rank == 0:
         print_and_log(['Launching the merging GUI...'], 'debug', logger)
+
     mygui = gui.MergeWindow(params, app, extension_in, extension_out)
     sys.exit(app.exec_())

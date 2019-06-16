@@ -123,8 +123,9 @@ class MergeWindow(QMainWindow):
 
     def __init__(self, params, app, extension_in='', extension_out='-merged'):
 
-        if comm.rank == 0:
-            super(MergeWindow, self).__init__()
+        if app is not None:
+            if comm.rank == 0:
+                super(MergeWindow, self).__init__()
 
         if comm.rank == 0:
             print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', logger)
@@ -137,6 +138,7 @@ class MergeWindow(QMainWindow):
         self.ext_out       = extension_out
         data_file          = params.data_file
         self.N_e           = params.getint('data', 'N_e')
+        self.nb_templates  = int(io.load_data(params, 'nb_templates') // 2)
         self.N_t           = params.getint('detection', 'N_t')
         self.N_total       = params.nb_channels
         self.sampling_rate = params.rate
@@ -211,7 +213,8 @@ class MergeWindow(QMainWindow):
         if comm.rank > 0:
             self.listen()
 
-        self.init_gui_layout()
+        if self.app is not None:
+            self.init_gui_layout()
 
         self.probe      = self.params.probe
         self.x_position = []
@@ -231,72 +234,81 @@ class MergeWindow(QMainWindow):
         self.inspect_points = []
         self.inspect_colors = []
         self.lasso_selector = None
-        self.rect_selectors = [widgets.RectangleSelector(ax,
+
+        if self.app is not None:
+            self.suggest_value = self.get_suggest_value.value()
+        else:
+            self.suggest_value = self.auto_mode
+
+        if self.app is not None:
+            self.rect_selectors = [widgets.RectangleSelector(ax,
                                                          onselect=self.callback_rect,
                                                          button=1,
                                                          drawtype='box',
                                                          spancoords='data')
                                for ax in [self.score_ax1, self.score_ax2, self.score_ax3]]
-        for selector in self.rect_selectors:
-            selector.set_active(False)
+            for selector in self.rect_selectors:
+                selector.set_active(False)
 
-        self.lag_selector = SymmetricVCursor(self.data_ax, color='blue')
-        self.lag_selector.active = False
-        self.line_lag1 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
-                                              color='black')
-        self.line_lag2 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
-                                              color='black')
+            self.lag_selector = SymmetricVCursor(self.data_ax, color='blue')
+    
+            self.lag_selector.active = False
+            self.line_lag1 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
+                                                  color='black')
+            self.line_lag2 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
+                                                  color='black')
 
-        self.suggest_value = self.get_suggest_value.value()
-
-        self.update_lag(2)
-        self.plot_data()
-        self.plot_scores()
+            self.update_lag(2)
+            
+            self.plot_data()
+            self.plot_scores()
         #
-        # # Connect matplotlib events
-        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3,
-                    self.ui.detail, self.ui.data_overview, self.ui.waveforms]:
-            fig.mpl_connect('scroll_event', self.zoom)
-            fig.mpl_connect('button_press_event', self.on_mouse_press)
+            # # Connect matplotlib events
+            for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3,
+                        self.ui.detail, self.ui.data_overview, self.ui.waveforms]:
+                fig.mpl_connect('scroll_event', self.zoom)
+                fig.mpl_connect('button_press_event', self.on_mouse_press)
 
-        # self.fig.canvas.mpl_connect('close_event', self.handle_close)
-        self.ui.btn_rectangle.clicked.connect(self.update_rect_selector)
-        self.ui.btn_lasso.clicked.connect(self.update_rect_selector)
-        self.ui.btn_picker.clicked.connect(self.update_rect_selector)
-        self.ui.btn_select.clicked.connect(self.add_to_selection)
-        self.ui.btn_unselect.clicked.connect(self.remove_selection)
-        self.ui.btn_delete.clicked.connect(self.remove_templates)
-        self.ui.btn_suggest_templates.clicked.connect(self.suggest_templates)
-        self.ui.btn_suggest_pairs.clicked.connect(self.suggest_pairs)
-        self.ui.get_suggest_value.valueChanged.connect(self.update_suggest_value)
-        self.ui.btn_unselect_template.clicked.connect(self.remove_selection_templates)
+            # self.fig.canvas.mpl_connect('close_event', self.handle_close)
+            self.ui.btn_rectangle.clicked.connect(self.update_rect_selector)
+            self.ui.btn_lasso.clicked.connect(self.update_rect_selector)
+            self.ui.btn_picker.clicked.connect(self.update_rect_selector)
+            self.ui.btn_select.clicked.connect(self.add_to_selection)
+            self.ui.btn_unselect.clicked.connect(self.remove_selection)
+            self.ui.btn_delete.clicked.connect(self.remove_templates)
+            self.ui.btn_suggest_templates.clicked.connect(self.suggest_templates)
+            self.ui.btn_suggest_pairs.clicked.connect(self.suggest_pairs)
+            self.ui.get_suggest_value.valueChanged.connect(self.update_suggest_value)
+            self.ui.btn_unselect_template.clicked.connect(self.remove_selection_templates)
 
-        self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
-        self.ui.btn_merge.clicked.connect(self.do_merge)
-        self.ui.btn_finalize.clicked.connect(self.finalize)
-        self.ui.btn_merge_and_finalize.clicked.connect(self.merge_and_finalize)
-        self.ui.btn_set_lag.clicked.connect(lambda event: setattr(self.lag_selector,
-                                                                  'active', True))
-        self.ui.show_peaks.clicked.connect(self.update_waveforms)
+            self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
+            self.ui.btn_merge.clicked.connect(self.do_merge)
+            self.ui.btn_finalize.clicked.connect(self.finalize)
+            self.ui.btn_merge_and_finalize.clicked.connect(self.merge_and_finalize)
+            self.ui.btn_set_lag.clicked.connect(lambda event: setattr(self.lag_selector,
+                                                                      'active', True))
+            self.ui.show_peaks.clicked.connect(self.update_waveforms)
 
-        # TODO: Tooltips
-        # self.electrode_ax.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
-        # self.score_ax2.format_coord = lambda x, y: 'normalized cross-correlation metric: %.2f  cross-correlation metric %.2f' % (x, y)
-        # self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized cross-correlation metric %.2f' % (x, y)
-        # self.data_ax.format_coord = self.data_tooltip
-        # Select the best point at start
-        idx = np.argmax(self.score_y)
-        self.update_inspect({idx})
+            # TODO: Tooltips
+            # self.electrode_ax.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
+            # self.score_ax2.format_coord = lambda x, y: 'normalized cross-correlation metric: %.2f  cross-correlation metric %.2f' % (x, y)
+            # self.score_ax3.format_coord = lambda x, y: 'template similarity: %.2f  normalized cross-correlation metric %.2f' % (x, y)
+            # self.data_ax.format_coord = self.data_tooltip
+            # Select the best point at start
+            idx = np.argmax(self.score_y)
+            self.update_inspect({idx})
 
         if self.auto_mode > 0:
             print_and_log(['Automatic merging with a threshold of %g' %self.auto_mode], 'info', logger)
-            self.suggest_value = self.auto_mode
             perform_merges = True
+            self.update_lag(2)
+            self.current_order = 0
 
             while perform_merges:
 
                 self.suggest_pairs(None)
                 self.add_to_selection(None)
+                print("test", len(self.selected_points))
 
                 if len(self.selected_points) == 0:
                     perform_merges = False
@@ -317,9 +329,10 @@ class MergeWindow(QMainWindow):
 
     def update_suggest_value(self):
         self.suggest_value = self.get_suggest_value.value()
-        self.decision_boundary.set_xdata([0, self.score_z.max()])
-        self.decision_boundary.set_ydata([-self.suggest_value, self.score_z.max() - self.suggest_value])
-        self.ui.score_3.draw_idle()
+        if self.app is not None:
+            self.decision_boundary.set_xdata([0, self.score_z.max()])
+            self.decision_boundary.set_ydata([-self.suggest_value, self.score_z.max() - self.suggest_value])
+            self.ui.score_3.draw_idle()
 
     def closeEvent(self, event):
         if comm.rank == 0:
@@ -398,7 +411,8 @@ class MergeWindow(QMainWindow):
         if comm.rank == 0:
             print_and_log(['Updating the data...'], 'default', logger)
             to_explore = get_tqdm_progressbar(to_explore)
-            self.ui.label_nb_templates.setText("# templates: %d" %len(self.to_consider))
+            if self.app is not None:
+                self.ui.label_nb_templates.setText("# templates: %d" %len(self.to_consider))
 
 
         for count, temp_id1 in enumerate(to_explore):
@@ -435,83 +449,85 @@ class MergeWindow(QMainWindow):
 
     def plot_scores(self):
         # Left: Scores
-        if not getattr(self, 'collections', None):
-            # It is important to set one facecolor per point so that we can change
-            # it later
-            self.collections = []
-            for ax, x, y in [(self.score_ax1, self.score_x, self.score_y),
-                             (self.score_ax2, self.norms[self.to_consider], self.rates[self.to_consider]),
-                             (self.score_ax3, self.score_z, self.score_y)]:
-                self.collections.append(ax.scatter(x, y,
-                                                   facecolor=['black' for _ in x]))
-            #self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
-            self.decision_boundary = self.score_ax3.plot([0, self.score_z.max()], [-self.suggest_value, self.score_z.max()-self.suggest_value], 'r--', alpha=0.5)[0]
-            self.score_ax1.set_ylabel('CC metric')
-            self.score_ax1.set_xlabel('Template similarity')
-            self.score_ax2.set_xlabel('Template Norm')
-            self.score_ax2.set_ylabel('Nb spikes')
-            self.score_ax3.set_xlabel('Expected CC')
-            self.score_ax3.set_ylabel('CC metric')
-            self.waveforms_ax.set_xticks([])
-            self.waveforms_ax.set_yticks([])
-            #self.waveforms_ax.set_xlabel('Time [ms]')
-            #self.waveforms_ax.set_ylabel('Amplitude')
+        if self.app is not None:
+            if not getattr(self, 'collections', None):
+                # It is important to set one facecolor per point so that we can change
+                # it later
+                self.collections = []
+                for ax, x, y in [(self.score_ax1, self.score_x, self.score_y),
+                                 (self.score_ax2, self.norms[self.to_consider], self.rates[self.to_consider]),
+                                 (self.score_ax3, self.score_z, self.score_y)]:
+                    self.collections.append(ax.scatter(x, y,
+                                                       facecolor=['black' for _ in x]))
+                #self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
+                self.decision_boundary = self.score_ax3.plot([0, self.score_z.max()], [-self.suggest_value, self.score_z.max()-self.suggest_value], 'r--', alpha=0.5)[0]
+                self.score_ax1.set_ylabel('CC metric')
+                self.score_ax1.set_xlabel('Template similarity')
+                self.score_ax2.set_xlabel('Template Norm')
+                self.score_ax2.set_ylabel('Nb spikes')
+                self.score_ax3.set_xlabel('Expected CC')
+                self.score_ax3.set_ylabel('CC metric')
+                self.waveforms_ax.set_xticks([])
+                self.waveforms_ax.set_yticks([])
+                #self.waveforms_ax.set_xlabel('Time [ms]')
+                #self.waveforms_ax.set_ylabel('Amplitude')
 
-        else:
-            for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
-                                                                 (self.norms[self.to_consider], self.rates[self.to_consider]),
-                                                                 (self.score_z, self.score_y)]):
-                collection.set_offsets(np.hstack([x[np.newaxis, :].T,
-                                                  y[np.newaxis, :].T]))
-
-        for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
-                                     (self.score_ax2, self.rates[self.to_consider], self.norms[self.to_consider]),
-                                     (self.score_ax3, self.score_y, self.score_z)]:
-            if len(score_y) > 0:
-                ymin, ymax = min(score_y), max(score_y)
             else:
-                ymin, ymax = 0, 1
-            yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
-            ax.set_ylim((ymax + ymin)*0.5 - yrange, (ymax + ymin)*0.5 + yrange)
+                for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
+                                                                     (self.norms[self.to_consider], self.rates[self.to_consider]),
+                                                                     (self.score_z, self.score_y)]):
+                    collection.set_offsets(np.hstack([x[np.newaxis, :].T,
+                                                      y[np.newaxis, :].T]))
 
-            if len(score_x) > 0:
-                xmin, xmax = min(score_x), max(score_x)
-            else:
-                xmin, xmax = 0, 1
-            xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
-            ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
+            for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
+                                         (self.score_ax2, self.rates[self.to_consider], self.norms[self.to_consider]),
+                                         (self.score_ax3, self.score_y, self.score_z)]:
+                if len(score_y) > 0:
+                    ymin, ymax = min(score_y), max(score_y)
+                else:
+                    ymin, ymax = 0, 1
+                yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
+                ax.set_ylim((ymax + ymin)*0.5 - yrange, (ymax + ymin)*0.5 + yrange)
 
-        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3, self.ui.waveforms]:
-            fig.draw_idle()
+                if len(score_x) > 0:
+                    xmin, xmax = min(score_x), max(score_x)
+                else:
+                    xmin, xmax = 0, 1
+                xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
+                ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
+
+            for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3, self.ui.waveforms]:
+                fig.draw_idle()
 
     def plot_data(self):
         # Right: raw data
-        all_raw_data = self.raw_data
-        cmax         = 0.5*all_raw_data.max()
-        cmin         = 0.5*all_raw_data.min()
-        self.update_sort_idcs()
-        all_raw_data = all_raw_data[self.sort_idcs, :]
+        if self.app is not None:
+            all_raw_data = self.raw_data
+            cmax         = 0.5*all_raw_data.max()
+            cmin         = 0.5*all_raw_data.min()
+            self.update_sort_idcs()
+            all_raw_data = all_raw_data[self.sort_idcs, :]
 
-        self.data_image = self.data_ax.imshow(all_raw_data,
-                                              interpolation='nearest', cmap='coolwarm',
-                                              extent=(self.raw_lags[0], self.raw_lags[-1],
-                                                      0, len(self.sort_idcs)), origin='lower')
-        self.data_ax.set_aspect('auto')
-        self.data_ax.spines['right'].set_visible(False)
-        self.data_ax.spines['left'].set_visible(False)
-        self.data_ax.spines['top'].set_visible(False)
-        self.data_image.set_clim(cmin, cmax)
-        self.inspect_markers = self.data_ax.scatter([], [], marker='<',
-                                                    clip_on=False, s=40)
-        self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
-                                                    width=self.raw_lags[-1] - self.raw_lags[0],
-                                                    height=0,
-                                                    color='white', alpha=0.75)
-        self.data_ax.add_patch(self.data_selection)
-        self.data_ax.set_xlim(self.raw_lags[0], self.raw_lags[-1])
-        self.data_ax.set_ylim(0, len(self.sort_idcs)+1)
-        self.data_ax.set_yticks([])
-        self.ui.data_overview.draw()
+            self.data_image = self.data_ax.imshow(all_raw_data,
+                                                  interpolation='nearest', cmap='coolwarm',
+                                                  extent=(self.raw_lags[0], self.raw_lags[-1],
+                                                          0, len(self.sort_idcs)), origin='lower')
+            self.data_ax.set_aspect('auto')
+            self.data_ax.spines['right'].set_visible(False)
+            self.data_ax.spines['left'].set_visible(False)
+            self.data_ax.spines['top'].set_visible(False)
+            self.data_image.set_clim(cmin, cmax)
+            self.inspect_markers = self.data_ax.scatter([], [], marker='<',
+                                                        clip_on=False, s=40)
+            self.data_selection = mpl.patches.Rectangle((self.raw_lags[0], 0),
+                                                        width=self.raw_lags[-1] - self.raw_lags[0],
+                                                        height=0,
+                                                        color='white', alpha=0.75)
+            self.data_ax.add_patch(self.data_selection)
+            self.data_ax.set_xlim(self.raw_lags[0], self.raw_lags[-1])
+            self.data_ax.set_ylim(0, len(self.sort_idcs)+1)
+            self.data_ax.set_yticks([])
+            self.ui.data_overview.draw()
 
     def data_tooltip(self, x, y):
         row = int(y)
@@ -638,36 +654,39 @@ class MergeWindow(QMainWindow):
         actual_lag = self.raw_lags[np.argmin(np.abs(self.raw_lags - lag))]
         self.use_lag = actual_lag
         self.score_x, self.score_y, self.score_z = self.calc_scores(lag=self.use_lag)
-        self.points = [zip(self.score_x, self.score_y),
-                       zip(self.norms[self.to_consider], self.rates[self.to_consider]),
-                       zip(self.score_z, self.score_y)]
-        self.line_lag1.set_xdata((lag, lag))
-        self.line_lag2.set_xdata((-lag, -lag))
-        self.data_ax.set_xlabel('lag (ms) -- cutoff: %.2fms' % self.use_lag)
+        if self.app is not None:
+            self.points = [zip(self.score_x, self.score_y),
+                           zip(self.norms[self.to_consider], self.rates[self.to_consider]),
+                           zip(self.score_z, self.score_y)]
+            self.line_lag1.set_xdata((lag, lag))
+            self.line_lag2.set_xdata((-lag, -lag))
+            self.data_ax.set_xlabel('lag (ms) -- cutoff: %.2fms' % self.use_lag)
 
     def update_rect_selector(self, event):
         for selector in self.rect_selectors:
             selector.set_active(self.ui.btn_rectangle.isChecked())
 
     def update_detail_plot(self):
-        self.detail_ax.clear()
         indices = self.inspect_points
         all_raw_data    = self.raw_data
         all_raw_control = self.raw_control.ravel()
 
-        for count, idx in enumerate(indices):
-            data_line, = self.detail_ax.plot(self.raw_lags,
-                                             all_raw_data[idx, :].T, lw=2, color=self.inspect_colors[count])
-            self.detail_ax.plot(self.raw_lags, all_raw_control[idx]*numpy.ones(all_raw_data.shape[1]), ':',
-                                color=self.inspect_colors[count], lw=2)
-        #self.detail_ax.set_ylim(0, 3)
-        self.detail_ax.set_xticks(self.data_ax.get_xticks())
-        self.detail_ax.set_xticklabels([])
-        self.ui.detail.draw_idle()
+        if self.app is not None:
+            self.detail_ax.clear()
+            for count, idx in enumerate(indices):
+                data_line, = self.detail_ax.plot(self.raw_lags,
+                                                 all_raw_data[idx, :].T, lw=2, color=self.inspect_colors[count])
+                self.detail_ax.plot(self.raw_lags, all_raw_control[idx]*numpy.ones(all_raw_data.shape[1]), ':',
+                                    color=self.inspect_colors[count], lw=2)
+            #self.detail_ax.set_ylim(0, 3)
+            self.detail_ax.set_xticks(self.data_ax.get_xticks())
+            self.detail_ax.set_xticklabels([])
+            self.ui.detail.draw_idle()
 
     def update_sort_idcs(self):
         # The selected points are sorted before all the other points -- an easy
         # way to achieve this is to add the maximum score to their score
+        
         if self.current_order == 0:
             score = self.score_x
         elif self.current_order == 1:
@@ -676,6 +695,7 @@ class MergeWindow(QMainWindow):
             score = self.score_z
         else:
             raise AssertionError(self.current_order)
+        
         score = score.copy()
         if len(self.selected_points):
             score[np.array(sorted(self.selected_points))] += score.max()
@@ -685,89 +705,94 @@ class MergeWindow(QMainWindow):
     def update_data_plot(self):
         reverse_sort = np.argsort(self.sort_idcs)
 
-        if len(self.inspect_points):
-            inspect = reverse_sort[np.array(sorted(self.inspect_points))]
-            data = numpy.vstack((np.ones(len(inspect))*(2*self.raw_lags[-1]-self.raw_lags[-2]), inspect+0.5)).T
-            self.inspect_markers.set_offsets(data)
-            self.inspect_markers.set_color(self.inspect_colors)
-        else:
-            self.inspect_markers.set_offsets([])
-            self.inspect_markers.set_color([])
+        if self.app is not None:
+            if len(self.inspect_points):
+                inspect = reverse_sort[np.array(sorted(self.inspect_points))]
+                data = numpy.vstack((np.ones(len(inspect))*(2*self.raw_lags[-1]-self.raw_lags[-2]), inspect+0.5)).T
+                self.inspect_markers.set_offsets(data)
+                self.inspect_markers.set_color(self.inspect_colors)
+            else:
+                self.inspect_markers.set_offsets([])
+                self.inspect_markers.set_color([])
 
-        self.ui.data_overview.draw_idle()
+            self.ui.data_overview.draw_idle()
 
     def update_data_sort_order(self, new_sort_order=None):
         if new_sort_order is not None:
             self.current_order = new_sort_order
         self.update_sort_idcs()
-        self.data_image.set_extent((self.raw_lags[0], self.raw_lags[-1],
-                            0, len(self.sort_idcs)))
-        self.data_ax.set_ylim(0, len(self.sort_idcs))
-        all_raw_data  = self.raw_data.copy()
-        all_raw_data /= (1 + all_raw_data.mean(1)[:, np.newaxis])
-        if len(all_raw_data) > 0:
-            cmax          = 0.5*all_raw_data.max()
-            cmin          = 0.5*all_raw_data.min()
-            all_raw_data  = all_raw_data[self.sort_idcs, :]
-        else:
-            cmin = 0
-            cmax = 1
-        self.data_image.set_data(all_raw_data)
-        self.data_image.set_clim(cmin, cmax)
-        self.data_selection.set_y(len(self.sort_idcs)-len(self.selected_points))
-        self.data_selection.set_height(len(self.selected_points))
-        self.update_data_plot()
+
+        if self.app is not None:
+            self.data_image.set_extent((self.raw_lags[0], self.raw_lags[-1],
+                                0, len(self.sort_idcs)))
+            self.data_ax.set_ylim(0, len(self.sort_idcs))
+            all_raw_data  = self.raw_data.copy()
+            all_raw_data /= (1 + all_raw_data.mean(1)[:, np.newaxis])
+            if len(all_raw_data) > 0:
+                cmax          = 0.5*all_raw_data.max()
+                cmin          = 0.5*all_raw_data.min()
+                all_raw_data  = all_raw_data[self.sort_idcs, :]
+            else:
+                cmin = 0
+                cmax = 1
+            self.data_image.set_data(all_raw_data)
+            self.data_image.set_clim(cmin, cmax)
+            self.data_selection.set_y(len(self.sort_idcs)-len(self.selected_points))
+            self.data_selection.set_height(len(self.selected_points))
+            self.update_data_plot()
 
     def update_waveforms(self):
 
-        self.waveforms_ax.clear()
+        if self.app is not None:
+            self.waveforms_ax.clear()
 
-        for idx, p in enumerate(self.to_consider[list(self.inspect_templates)]):
-            tmp   = self.templates[:, p]
-            tmp   = tmp.toarray().reshape(self.N_e, self.N_t)
-            elec  = numpy.argmin(numpy.min(tmp, 1))
-            thr   = self.thresholds[elec]
+            for idx, p in enumerate(self.to_consider[list(self.inspect_templates)]):
+                tmp   = self.templates[:, p]
+                tmp   = tmp.toarray().reshape(self.N_e, self.N_t)
+                elec  = numpy.argmin(numpy.min(tmp, 1))
+                thr   = self.thresholds[elec]
 
-            if self.ui.show_peaks.isChecked():
-                indices = [self.inv_nodes[self.nodes[elec]]]
-            else:
-                indices = self.inv_nodes[self.edges[self.nodes[elec]]]
+                if self.ui.show_peaks.isChecked():
+                    indices = [self.inv_nodes[self.nodes[elec]]]
+                else:
+                    indices = self.inv_nodes[self.edges[self.nodes[elec]]]
 
-            for sidx in indices:
-                xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
-                self.waveforms_ax.plot(xaxis, self.y_position[sidx] + tmp[sidx], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
-                #self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
+                for sidx in indices:
+                    xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
+                    self.waveforms_ax.plot(xaxis, self.y_position[sidx] + tmp[sidx], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
+                    #self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
 
-        self.waveforms_ax.set_xlabel('Probe Space')
-        self.waveforms_ax.set_ylabel('Probe Space')
+            self.waveforms_ax.set_xlabel('Probe Space')
+            self.waveforms_ax.set_ylabel('Probe Space')
 
-        for fig in [self.ui.waveforms]:
-            fig.draw_idle()
+            for fig in [self.ui.waveforms]:
+                fig.draw_idle()
 
 
     def update_score_plot(self):
-        for collection in self.collections:
-            if collection.axes == self.score_ax2:
-                fcolors = collection.get_facecolors()
-                colorin = colorConverter.to_rgba('black', alpha=0.5)
-                colorout = colorConverter.to_rgba('black')
-                fcolors[:] = colorout
-                for p in self.selected_templates:
-                    fcolors[p] = colorin
-                for idx, p in enumerate(self.inspect_templates):
-                    fcolors[p] = colorConverter.to_rgba(self.inspect_colors_templates[idx])
-            else:
-                fcolors = collection.get_facecolors()
-                colorin = colorConverter.to_rgba('black', alpha=0.5)
-                colorout = colorConverter.to_rgba('black')
-                fcolors[:] = colorout
-                for p in self.selected_points:
-                    fcolors[p] = colorin
-                for idx, p in enumerate(self.inspect_points):
-                    fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+        if self.app is not None:
+            for collection in self.collections:
+                if collection.axes == self.score_ax2:
+                    fcolors = collection.get_facecolors()
+                    colorin = colorConverter.to_rgba('black', alpha=0.5)
+                    colorout = colorConverter.to_rgba('black')
+                    fcolors[:] = colorout
+                    for p in self.selected_templates:
+                        fcolors[p] = colorin
+                    for idx, p in enumerate(self.inspect_templates):
+                        fcolors[p] = colorConverter.to_rgba(self.inspect_colors_templates[idx])
+                else:
+                    fcolors = collection.get_facecolors()
+                    colorin = colorConverter.to_rgba('black', alpha=0.5)
+                    colorout = colorConverter.to_rgba('black')
+                    fcolors[:] = colorout
+                    for p in self.selected_points:
+                        fcolors[p] = colorin
+                    for idx, p in enumerate(self.inspect_points):
+                        fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
 
-        for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3]:
-            fig.draw_idle()
+            for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3]:
+                fig.draw_idle()
 
 
     def update_inspect_template(self, indices, add_or_remove=None, link=True):
@@ -829,10 +854,11 @@ class MergeWindow(QMainWindow):
                 indices += [numpy.where(self.to_consider == i)[0][0]]
             self.update_inspect_template(indices, 'add', False)
 
-        self.update_score_plot()
-        self.update_detail_plot()
-        self.update_data_plot()
-        self.update_waveforms()
+        if self.app is not None:
+            self.update_score_plot()
+            self.update_detail_plot()
+            self.update_data_plot()
+            self.update_waveforms()
 
     def update_selection(self, indices, add_or_remove=None):
         if add_or_remove is None:
@@ -842,7 +868,7 @@ class MergeWindow(QMainWindow):
             self.selected_points.difference_update(set(indices))
         else:
             self.selected_points.update(set(indices))
-
+    
         self.update_score_plot()
         self.update_detail_plot()
         self.update_data_sort_order()
@@ -863,14 +889,19 @@ class MergeWindow(QMainWindow):
     def suggest_pairs(self, event):
         self.inspect_points = set()
         indices  = numpy.where(self.score_y > numpy.maximum(0, self.score_z-self.suggest_value))[0]
-        self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
+        if self.app is not None:
+            self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
+
         self.update_inspect(indices, add_or_remove='add')
-        self.app.restoreOverrideCursor()
+        
+        if self.app is not None:
+            self.app.restoreOverrideCursor()
 
     def suggest_templates(self, event):
         self.inspect_templates = set()
         indices = numpy.where(self.norms[self.to_consider] <= 1)[0]
-        self.update_inspect_template(indices, add_or_remove='add')
+        if self.app is not None:
+            self.update_inspect_template(indices, add_or_remove='add')
 
 
     def on_mouse_press(self, event):
@@ -962,7 +993,8 @@ class MergeWindow(QMainWindow):
 
     def remove_templates(self, event):
         print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', logger)
-        self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
+        if self.app is not None:
+            self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
         if len(self.inspect_templates) > 0:
             self.to_delete = numpy.concatenate((self.to_delete, self.to_consider[self.inspect_templates]))
@@ -972,23 +1004,27 @@ class MergeWindow(QMainWindow):
             self.selected_templates = set()
             self.inspect_points     = set()
             self.inspect_templates  = set()
-            self.score_ax1.clear()
-            self.score_ax2.clear()
-            self.score_ax3.clear()
-            self.update_lag(self.use_lag)
-            self.update_data_sort_order()
-            self.update_detail_plot()
-            self.update_waveforms()
-            self.plot_scores()
+            if self.app is not None:
+                self.score_ax1.clear()
+                self.score_ax2.clear()
+                self.score_ax3.clear()
+                self.update_lag(self.use_lag)
+                self.update_data_sort_order()
+                self.update_detail_plot()
+                self.update_waveforms()
+                self.plot_scores()
             # do lengthy process
-        self.app.restoreOverrideCursor()
+    
+        if self.app is not None:
+            self.app.restoreOverrideCursor()
 
 
     def do_merge(self, event, regenerate=True):
         # This simply removes the data points for now
         print_and_log(['Data indices to merge: %s' %str(sorted(self.selected_points))], 'debug', logger)
 
-        self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
+        if self.app is not None:
+            self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
         for pair in self.pairs[list(self.selected_points), :]:
 
@@ -1047,24 +1083,27 @@ class MergeWindow(QMainWindow):
             self.selected_templates = set()
             self.inspect_points     = set()
             self.inspect_templates  = set()
-            self.score_ax1.clear()
-            self.score_ax2.clear()
-            self.score_ax3.clear()
-            self.update_lag(self.use_lag)
-            self.update_data_sort_order()
-            self.update_detail_plot()
-            self.update_waveforms()
-            self.plot_scores()
+            if self.app is not None:
+                self.score_ax1.clear()
+                self.score_ax2.clear()
+                self.score_ax3.clear()
+                self.update_lag(self.use_lag)
+                self.update_data_sort_order()
+                self.update_detail_plot()
+                self.update_waveforms()
+                self.plot_scores()
         # do lengthy process
 
-        self.app.restoreOverrideCursor()
+        if self.app is not None:
+            self.app.restoreOverrideCursor()
 
 
     def finalize(self, event):
 
 
         if comm.rank == 0:
-            self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
+            if self.app is not None:
+                self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
             self.mpi_wait = comm.bcast(numpy.array([1], dtype=numpy.int32), root=0)
 
         comm.Barrier()
@@ -1079,6 +1118,8 @@ class MergeWindow(QMainWindow):
 
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
             to_keep = numpy.array(list(to_keep))
+            nb_templates = self.nb_templates - len(self.to_delete) - len(self.all_merges) 
+            print_and_log(['We keep %d templates out of %d' %(nb_templates, self.nb_templates)], 'info', logger)
 
             for count, temp_id in enumerate(to_keep):
                 key_before = 'temp_' + str(temp_id)
@@ -1109,7 +1150,8 @@ class MergeWindow(QMainWindow):
                 maxlag[c, :]      = self.lag[i, to_keep]
             mydata.close()
 
-            self.app.restoreOverrideCursor()
+            if self.app is not None:
+                self.app.restoreOverrideCursor()
 
         sys.exit(0)
 
@@ -1459,67 +1501,71 @@ class PreviewGUI(QMainWindow):
 
     def update_electrode_plot(self):
         collection = self.electrode_collection
-        fcolors = collection.get_facecolors()
-        colorin = colorConverter.to_rgba('black', alpha=0.25)
-        colorout = colorConverter.to_rgba('black')
 
-        fcolors[:] = colorout
-        for p in self.selected_points:
-            fcolors[p] = colorin
-        for idx, p in enumerate(self.inspect_points):
-            fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+        if self.app is not None:
+            fcolors = collection.get_facecolors()
+            colorin = colorConverter.to_rgba('black', alpha=0.25)
+            colorout = colorConverter.to_rgba('black')
 
-        self.ui.electrodes.draw_idle()
+            fcolors[:] = colorout
+            for p in self.selected_points:
+                fcolors[p] = colorin
+            for idx, p in enumerate(self.inspect_points):
+                fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+
+            self.ui.electrodes.draw_idle()
 
     def update_data_plot(self):
-        self.data_x.clear()
-        indices         = self.inspect_points
-        if len(indices) > 0:
-            yspacing  = numpy.max(np.abs(self.data[:, indices]))*1.01
-        else:
-            yspacing = 0
 
-        if not self.show_fit:
-            for count, idx in enumerate(indices):
-                data_line, = self.data_x.plot(self.time,
-                                              count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
-                thr = self.thresholds[idx]*(self.user_threshold/self.spike_thresh)
-                if self.peaks_sign in ['negative', 'both']:
-                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], '--',
-                                     color=self.inspect_colors[count], lw=2)
-                if self.peaks_sign in ['positive', 'both']:
-                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing , thr + count * yspacing], '--',
-                                     color=self.inspect_colors[count], lw=2)
+        if self.app is not None:
+            self.data_x.clear()
+            indices         = self.inspect_points
+            if len(indices) > 0:
+                yspacing  = numpy.max(np.abs(self.data[:, indices]))*1.01
+            else:
+                yspacing = 0
 
-        else:
-
-            for count, idx in enumerate(indices):
-
-                if self.ui.show_residuals.isChecked():
+            if not self.show_fit:
+                for count, idx in enumerate(indices):
                     data_line, = self.data_x.plot(self.time,
-                                        count * yspacing + (self.data[:,idx] - self.curve[idx, :]), lw=1, color='0.5', alpha=0.5)
-                data_line, = self.data_x.plot(self.time,
-                                        count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
-                data_line, = self.data_x.plot(self.time,
-                                        count * yspacing + self.curve[idx, :], lw=1, color='k')
+                                                  count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
+                    thr = self.thresholds[idx]*(self.user_threshold/self.spike_thresh)
+                    if self.peaks_sign in ['negative', 'both']:
+                        self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], '--',
+                                         color=self.inspect_colors[count], lw=2)
+                    if self.peaks_sign in ['positive', 'both']:
+                        self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing , thr + count * yspacing], '--',
+                                         color=self.inspect_colors[count], lw=2)
 
-                thr = self.thresholds[idx]
-                if self.peaks_sign in ['negative', 'both']:
-                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], '--',
-                                 color=self.inspect_colors[count], lw=2)
-                if self.peaks_sign in ['positive', 'both']:
-                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
-                                 color=self.inspect_colors[count], lw=2)
+            else:
 
-                if self.ui.show_unfitted.isChecked() and self.has_garbage:
-                    for i in self.uncollected[idx]:
-                        self.data_x.add_patch(plt.Rectangle((i-0.001, -self.thresholds[idx] + count * yspacing), 0.002, 2*self.thresholds[idx], alpha=0.5, color='k'))
+                for count, idx in enumerate(indices):
 
-        self.data_x.set_yticklabels([])
-        self.data_x.set_xlabel('Time [s]')
-        self.data_x.set_xlim(self.t_start, self.t_stop)
+                    if self.ui.show_residuals.isChecked():
+                        data_line, = self.data_x.plot(self.time,
+                                            count * yspacing + (self.data[:,idx] - self.curve[idx, :]), lw=1, color='0.5', alpha=0.5)
+                    data_line, = self.data_x.plot(self.time,
+                                            count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
+                    data_line, = self.data_x.plot(self.time,
+                                            count * yspacing + self.curve[idx, :], lw=1, color='k')
 
-        self.ui.raw_data.draw_idle()
+                    thr = self.thresholds[idx]
+                    if self.peaks_sign in ['negative', 'both']:
+                        self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], '--',
+                                     color=self.inspect_colors[count], lw=2)
+                    if self.peaks_sign in ['positive', 'both']:
+                        self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
+                                     color=self.inspect_colors[count], lw=2)
+
+                    if self.ui.show_unfitted.isChecked() and self.has_garbage:
+                        for i in self.uncollected[idx]:
+                            self.data_x.add_patch(plt.Rectangle((i-0.001, -self.thresholds[idx] + count * yspacing), 0.002, 2*self.thresholds[idx], alpha=0.5, color='k'))
+
+            self.data_x.set_yticklabels([])
+            self.data_x.set_xlabel('Time [s]')
+            self.data_x.set_xlim(self.t_start, self.t_stop)
+
+            self.ui.raw_data.draw_idle()
 
     def update_statusbar(self, event):
         # Update information about the mouse position to the status bar
