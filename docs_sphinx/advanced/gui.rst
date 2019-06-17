@@ -62,56 +62,7 @@ Once this is done, you should see a file ``mapping.hdf5`` in the directory where
 phy
 ---
 
-After the ``converting`` step, you must have a folder ``mydata/mydata.GUI``. You simply need to copy this folder onto a computer without SpyKING CIRCUS, but only phy_. Then you just need to copy the following code snippet into a file ``phy_launcher.py``.
-
-
-.. code:: python    
-    
-    from phy import add_default_handler
-    from phy.utils._misc import _read_python
-    from phy.gui import create_app, run_app
-    from phycontrib.template import TemplateController
-    
-    gui_params                   = {}
-    gui_params['dat_path']       = DATAPATH
-    gui_params['dir_path']       = DATAPATH/DATAPATH.GUI #If data are left in the directory created by SpyKING CIRCUS (where are the .npy)
-    gui_params['n_channels_dat'] = TOTAL_NB_CHANNELS
-    gui_params['n_features_per_channel'] = 5
-    gui_params['dtype']          = DATATYPE
-    gui_params['offset']         = DATA_OFFSET
-    gui_params['sample_rate']    = SAMPLE_RATE
-    gui_params['hp_filtered']    = True
-
-    create_app()
-    controller = TemplateController(**gui_params)
-    gui = controller.create_gui()
-
-    gui.show()
-    run_app()
-    gui.close()
-    del gui
-
-
-
-You need to edit the appropriate values in capital letters, and then simply copy it into the folder where the raw data are. Now you can do::
-
-    >> python phy_launcher.py
-
-
-One other option is to simply create a ``params.py`` file
-
-.. code:: python
-
-    dat_path       = DATAPATH
-    dir_path       = DATAPATH/DATAPATH.GUI #If data are left in the directory created by SpyKING CIRCUS (where are the .npy)
-    n_channels_dat = TOTAL_NB_CHANNELS
-    n_features_per_channel = 5
-    dtype          = DATATYPE
-    offset         = DATA_OFFSET
-    sample_rate    = SAMPLE_RATE
-    hp_filtered    = True
-
-Then copy this file into the folder where the raw data are and launch::
+After the ``converting`` step, you must have a folder ``mydata/mydata.GUI``. You simply need to copy this folder onto a computer without SpyKING CIRCUS, but only phy_ and phylib_. In this folder, you should see a file ``params.py``, generated during the ``converting`` step. So in a terminal, you simply need to go to this folder, and launch from a terminal::
     
     >> phy template-gui params.py
 
@@ -119,5 +70,6 @@ Then copy this file into the folder where the raw data are and launch::
 If the raw data are not found, the Traceview will not be displayed. If you really want to see that view, remember that you need to get the raw data **filtered**, so  you must also copy them back from your sorting machine.
 
 .. _phy: https://github.com/cortex-lab/phy
+.. _phy: https://github.com/cortex-lab/phylib
 .. _MATLAB: http://fr.mathworks.com/products/matlab/
 
