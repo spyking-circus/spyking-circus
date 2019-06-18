@@ -37,13 +37,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         p         = {}
         positions = []
         nodes     = []
+        shanks    = []
         for key in probe['channel_groups'].keys():
             p.update(probe['channel_groups'][key]['geometry'])
             nodes     +=  probe['channel_groups'][key]['channels']
             positions += [p[channel] for channel in probe['channel_groups'][key]['channels']]
+            shanks += [key] * len(probe['channel_groups'][key]['channels']) 
         idx       = numpy.argsort(nodes)
         positions = numpy.array(positions)[idx]
-        return positions
+        shanks = numpy.array(shanks)
+        return positions, shanks
 
     def get_max_loc_channel(params):
         nodes, edges    = get_nodes_and_edges(params)
@@ -270,7 +273,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             else:
                 numpy.save(os.path.join(output_path, 'whitening_mat'), numpy.eye(N_e))
 
-            numpy.save(os.path.join(output_path, 'channel_positions'), generate_mapping(probe).astype(numpy.double))
+            positions, shanks = generate_mapping(probe)
+            numpy.save(os.path.join(output_path, 'channel_positions'), positions.astype(numpy.double))
+            numpy.save(os.path.join(output_path, 'channel_shanks'), shanks.astype(numpy.double))
             nodes, edges   = get_nodes_and_edges(params)
             numpy.save(os.path.join(output_path, 'channel_map'), nodes.astype(numpy.int32))
 
