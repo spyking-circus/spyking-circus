@@ -1,4 +1,11 @@
 =============
+Release 0.8.1
+=============
+
+* add a docker file to build the software
+* add support for shanks in phy 2.0
+
+=============
 Release 0.8.0
 =============
 
