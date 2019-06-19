@@ -302,7 +302,7 @@
              <item>
               <widget class="QGroupBox" name="grp_merge_convert">
                <property name="title">
-                <string>Merging/Converting</string>
+                <string>Merging/Converting/Deconverting</string>
                </property>
                <layout class="QVBoxLayout" name="verticalLayout_7">
                 <property name="leftMargin">
@@ -531,7 +531,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="checkBox">
+                <widget class="QCheckBox" name="cb_deconverting">
                  <property name="text">
                   <string>Deconverting</string>
                  </property>

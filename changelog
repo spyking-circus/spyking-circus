@@ -4,6 +4,7 @@ Release 0.8.1
 
 * add a docker file to build the software
 * add support for shanks in phy 2.0
+* add support for deconverting in the qt launcher
 
 =============
 Release 0.8.0
@@ -19,7 +20,7 @@ Release 0.8.0
 * fix a bug in the wrapper for BRW files
 * support for phy 2.0 and phylib
 * remove the strongly time shifted templates
-* additing of a wrapper for MDA file format
+* addition of a wrapper for MDA file format
 * amplitudes for unfitted spikes is now 1 when exporting to phy
 * default install is now qt5, to work with phy 2.0
 

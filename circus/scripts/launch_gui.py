@@ -127,6 +127,7 @@ class LaunchGUI(QDialog):
         self.ui.cb_benchmarking.toggled.connect(self.update_benchmarking)
         self.ui.cb_merging.toggled.connect(self.update_extension)
         self.ui.cb_converting.toggled.connect(self.update_extension)
+        self.ui.cb_deconverting.toggled.connect(self.update_extension)
         self.update_benchmarking()
         self.update_extension()
         for cb in self.task_comboboxes:
@@ -239,7 +240,8 @@ class LaunchGUI(QDialog):
     def update_extension(self):
         batch_mode = self.ui.cb_batch.isChecked()
         if (not batch_mode and (self.ui.cb_merging.isChecked() or
-                                    self.ui.cb_converting.isChecked())):
+                                    self.ui.cb_converting.isChecked() or 
+                                    self.ui.cb_deconverting.isChecked())):
             self.ui.edit_extension.setEnabled(True)
         else:
             self.ui.edit_extension.setEnabled(False)
