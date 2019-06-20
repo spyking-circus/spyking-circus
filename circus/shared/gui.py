@@ -226,6 +226,9 @@ class MergeWindow(QMainWindow):
                     self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
                     self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
 
+        if self.auto_mode > 0:
+            print_and_log(['Automatic merging with a threshold of %g' %self.auto_mode], 'info', logger)
+
         self.generate_data()
         self.selected_points = set()
         self.selected_templates = set()
@@ -299,7 +302,6 @@ class MergeWindow(QMainWindow):
             self.update_inspect({idx})
 
         if self.auto_mode > 0:
-            print_and_log(['Automatic merging with a threshold of %g' %self.auto_mode], 'info', logger)
             perform_merges = True
             self.update_lag(2)
             self.current_order = 0
@@ -308,7 +310,6 @@ class MergeWindow(QMainWindow):
 
                 self.suggest_pairs(None)
                 self.add_to_selection(None)
-                print("test", len(self.selected_points))
 
                 if len(self.selected_points) == 0:
                     perform_merges = False
@@ -999,6 +1000,7 @@ class MergeWindow(QMainWindow):
         if len(self.inspect_templates) > 0:
             self.to_delete = numpy.concatenate((self.to_delete, self.to_consider[self.inspect_templates]))
             self.generate_data()
+            self.update_lag(self.use_lag)
             self.collections        = None
             self.selected_points    = set()
             self.selected_templates = set()
@@ -1008,7 +1010,6 @@ class MergeWindow(QMainWindow):
                 self.score_ax1.clear()
                 self.score_ax2.clear()
                 self.score_ax3.clear()
-                self.update_lag(self.use_lag)
                 self.update_data_sort_order()
                 self.update_detail_plot()
                 self.update_waveforms()
@@ -1078,6 +1079,7 @@ class MergeWindow(QMainWindow):
 
         if regenerate:
             self.generate_data()
+            self.update_lag(self.use_lag)
             self.collections = None
             self.selected_points    = set()
             self.selected_templates = set()
@@ -1086,12 +1088,12 @@ class MergeWindow(QMainWindow):
             if self.app is not None:
                 self.score_ax1.clear()
                 self.score_ax2.clear()
-                self.score_ax3.clear()
-                self.update_lag(self.use_lag)
+                self.score_ax3.clear()                
                 self.update_data_sort_order()
                 self.update_detail_plot()
                 self.update_waveforms()
                 self.plot_scores()
+
         # do lengthy process
 
         if self.app is not None:
@@ -1622,7 +1624,6 @@ class PreviewGUI(QMainWindow):
         else:
             # deal with something that should never happen
             scale_factor = 1
-            print event.button
         # set new limits
         newxmin = np.clip(xdata - cur_xrange*scale_factor, np.min(x), np.max(x))
         newxmax = np.clip(xdata + cur_xrange*scale_factor, np.min(x), np.max(x))
