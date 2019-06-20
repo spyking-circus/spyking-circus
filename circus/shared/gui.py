@@ -1504,70 +1504,68 @@ class PreviewGUI(QMainWindow):
     def update_electrode_plot(self):
         collection = self.electrode_collection
 
-        if self.app is not None:
-            fcolors = collection.get_facecolors()
-            colorin = colorConverter.to_rgba('black', alpha=0.25)
-            colorout = colorConverter.to_rgba('black')
+        fcolors = collection.get_facecolors()
+        colorin = colorConverter.to_rgba('black', alpha=0.25)
+        colorout = colorConverter.to_rgba('black')
 
-            fcolors[:] = colorout
-            for p in self.selected_points:
-                fcolors[p] = colorin
-            for idx, p in enumerate(self.inspect_points):
-                fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+        fcolors[:] = colorout
+        for p in self.selected_points:
+            fcolors[p] = colorin
+        for idx, p in enumerate(self.inspect_points):
+            fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
 
-            self.ui.electrodes.draw_idle()
+        self.ui.electrodes.draw_idle()
 
     def update_data_plot(self):
 
-        if self.app is not None:
-            self.data_x.clear()
-            indices         = self.inspect_points
-            if len(indices) > 0:
-                yspacing  = numpy.max(np.abs(self.data[:, indices]))*1.01
-            else:
-                yspacing = 0
+        self.data_x.clear()
+        indices         = self.inspect_points
+        if len(indices) > 0:
+            yspacing  = numpy.max(np.abs(self.data[:, indices]))*1.01
+        else:
+            yspacing = 0
 
-            if not self.show_fit:
-                for count, idx in enumerate(indices):
-                    data_line, = self.data_x.plot(self.time,
+        if not self.show_fit:
+            for count, idx in enumerate(indices):
+                data_line, = self.data_x.plot(self.time,
                                                   count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
-                    thr = self.thresholds[idx]*(self.user_threshold/self.spike_thresh)
-                    if self.peaks_sign in ['negative', 'both']:
-                        self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], '--',
-                                         color=self.inspect_colors[count], lw=2)
-                    if self.peaks_sign in ['positive', 'both']:
-                        self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing , thr + count * yspacing], '--',
-                                         color=self.inspect_colors[count], lw=2)
+                thr = self.thresholds[idx]*(self.user_threshold/self.spike_thresh)
+                if self.peaks_sign in ['negative', 'both']:
+                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing , -thr + count * yspacing], '--',
+                                        color=self.inspect_colors[count], lw=2)
+                if self.peaks_sign in ['positive', 'both']:
+                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing , thr + count * yspacing], '--',
+                                        color=self.inspect_colors[count], lw=2)
 
-            else:
+        else:
 
-                for count, idx in enumerate(indices):
+            for count, idx in enumerate(indices):
 
-                    if self.ui.show_residuals.isChecked():
-                        data_line, = self.data_x.plot(self.time,
+                if self.ui.show_residuals.isChecked():
+                    data_line, = self.data_x.plot(self.time,
                                             count * yspacing + (self.data[:,idx] - self.curve[idx, :]), lw=1, color='0.5', alpha=0.5)
-                    data_line, = self.data_x.plot(self.time,
+                data_line, = self.data_x.plot(self.time,
                                             count * yspacing + self.data[:, idx], lw=1, color=self.inspect_colors[count])
-                    data_line, = self.data_x.plot(self.time,
+                data_line, = self.data_x.plot(self.time,
                                             count * yspacing + self.curve[idx, :], lw=1, color='k')
 
-                    thr = self.thresholds[idx]
-                    if self.peaks_sign in ['negative', 'both']:
-                        self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], '--',
+                thr = self.thresholds[idx]
+                if self.peaks_sign in ['negative', 'both']:
+                    self.data_x.plot([self.t_start, self.t_stop], [-thr + count * yspacing, -thr + count * yspacing], '--',
                                      color=self.inspect_colors[count], lw=2)
-                    if self.peaks_sign in ['positive', 'both']:
-                        self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
+                if self.peaks_sign in ['positive', 'both']:
+                    self.data_x.plot([self.t_start, self.t_stop], [thr + count * yspacing, thr + count * yspacing], '--',
                                      color=self.inspect_colors[count], lw=2)
 
-                    if self.ui.show_unfitted.isChecked() and self.has_garbage:
-                        for i in self.uncollected[idx]:
-                            self.data_x.add_patch(plt.Rectangle((i-0.001, -self.thresholds[idx] + count * yspacing), 0.002, 2*self.thresholds[idx], alpha=0.5, color='k'))
+                if self.ui.show_unfitted.isChecked() and self.has_garbage:
+                    for i in self.uncollected[idx]:
+                        self.data_x.add_patch(plt.Rectangle((i-0.001, -self.thresholds[idx] + count * yspacing), 0.002, 2*self.thresholds[idx], alpha=0.5, color='k'))
 
-            self.data_x.set_yticklabels([])
-            self.data_x.set_xlabel('Time [s]')
-            self.data_x.set_xlim(self.t_start, self.t_stop)
+        self.data_x.set_yticklabels([])
+        self.data_x.set_xlabel('Time [s]')
+        self.data_x.set_xlim(self.t_start, self.t_stop)
 
-            self.ui.raw_data.draw_idle()
+        self.ui.raw_data.draw_idle()
 
     def update_statusbar(self, event):
         # Update information about the mouse position to the status bar

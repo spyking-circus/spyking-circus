@@ -5,6 +5,7 @@ Release 0.8.1
 * add a docker file to build the software
 * add support for shanks in phy 2.0
 * add support for deconverting in the qt launcher
+* do not create a Qt App if merging in auto mode
 
 =============
 Release 0.8.0
