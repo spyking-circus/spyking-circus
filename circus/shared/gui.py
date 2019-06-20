@@ -1120,8 +1120,8 @@ class MergeWindow(QMainWindow):
 
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
             to_keep = numpy.array(list(to_keep))
-            nb_templates = self.nb_templates - len(self.to_delete) - len(self.all_merges) 
-            print_and_log(['We keep %d templates out of %d' %(nb_templates, self.nb_templates)], 'info', logger)
+            # nb_templates = self.nb_templates - len(self.to_delete) - len(self.all_merges) 
+            print_and_log(['We obtained %d templates out of %d' %(len(to_keep), self.nb_templates)], 'info', logger)
 
             for count, temp_id in enumerate(to_keep):
                 key_before = 'temp_' + str(temp_id)
