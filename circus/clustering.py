@@ -74,8 +74,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes[nodes]  = numpy.argsort(nodes)
     to_write          = ['clusters_', 'times_', 'data_', 'peaks_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
-    template_shift_2  = 2*template_shift
+    template_shift_2  = round(1.25*template_shift)
     nb_ss_bins        = 50
+    use_hanning      = params.getboolean('detection', 'hanning')
     #################################################################
 
     if sign_peaks == 'negative':
@@ -90,6 +91,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         smart_searches[p] = numpy.ones(N_e, dtype=numpy.float32)*int(smart_search)
 
     basis = {}
+
+    if use_hanning:
+        hanning_filter = numpy.hanning(N_t)
 
     if sign_peaks in ['negative', 'both']:
         basis['proj_neg'], basis['rec_neg'] = io.load_data(params, 'basis')
@@ -421,6 +425,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
                                         sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
+                                    
+                                    if use_hanning:
+                                        sub_mat = (sub_mat.T*hanning_filter).T
 
                                     if isolation:
                                         is_isolated = numpy.all(numpy.max(numpy.abs(sub_mat[yoff]), 0) <= thresholds[indices])

@@ -42,7 +42,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
     template_shift_2 = 2*template_shift
+    use_hanning      = params.getboolean('detection', 'hanning')
     #################################################################
+
+    if use_hanning:
+        hanning_filter = numpy.hanning(N_t)
 
     if comm.rank == 0:
         print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', logger)
@@ -523,7 +527,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
                 pca          = PCA(output_dim)
-                pca.fit(gdata_neg)
+                if use_hanning:
+                    pca.fit(gdata_neg*hanning_filter)
+                else:
+                    pca.fit(gdata_neg)
                 res['proj']  = pca.components_.T.astype(numpy.float32)
             else:
                 res['proj']  = numpy.identity(int(output_dim), dtype=numpy.float32)
@@ -534,7 +541,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['positive', 'both']:
             if len(gdata_pos) > 0:
                 pca             = PCA(output_dim)
-                pca.fit(gdata_pos)
+                if use_hanning:
+                    pca.fit(gdata_pos*hanning_filter)
+                else:
+                    pca.fit(gdata_pos)
                 res['proj_pos'] = pca.components_.T.astype(numpy.float32)
             else:
                 res['proj_pos'] = numpy.identity(int(output_dim), dtype=numpy.float32)

@@ -29,6 +29,7 @@ class CircusParser(object):
                           ['data', 'is_cluster', 'bool', 'False'],
                           ['data', 'shared_memory', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
+                          ['detection', 'hanning', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '5'],
                           ['detection', 'matched-filter', 'bool', 'False'],
                           ['detection', 'matched_thresh', 'float', '5'],
@@ -426,6 +427,10 @@ class CircusParser(object):
                 self.parser.set('converting', 'export_pcs', 's')
             elif self.parser.get('converting', 'export_pcs').lower() == 'all':
                 self.parser.set('converting', 'export_pcs', 'a')
+
+        if self.parser.getboolean('detection', 'hanning'):
+            if comm.rank == 0:
+                print_and_log(["Hanning filtering is activated"], 'info', logger)
 
     def get(self, section, data):
       	return self.parser.get(section, data)
