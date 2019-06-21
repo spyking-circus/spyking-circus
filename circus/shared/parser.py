@@ -430,7 +430,7 @@ class CircusParser(object):
 
         if self.parser.getboolean('detection', 'hanning'):
             if comm.rank == 0:
-                print_and_log(["Hanning filtering is activated"], 'info', logger)
+                print_and_log(["Hanning filtering is activated"], 'debug', logger)
 
     def get(self, section, data):
       	return self.parser.get(section, data)
