@@ -30,7 +30,7 @@ class CircusParser(object):
                           ['data', 'shared_memory', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'hanning', 'bool', 'True'],
-                          ['detection', 'oversampling_factor', 'int', '5'],
+                          ['detection', 'oversampling_factor', 'int', '4'],
                           ['detection', 'matched-filter', 'bool', 'False'],
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
@@ -98,7 +98,8 @@ class CircusParser(object):
     __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '5'],
-                        ['clustering', 'decimation', 'bool', 'True']]
+                        ['clustering', 'decimation', 'bool', 'True'],
+                        ['detection', 'jitter_range', 'float', '0.5']]
 
     def __init__(self, file_name, create_folders=True, **kwargs):
 
@@ -463,6 +464,9 @@ class CircusParser(object):
                 sys.exit(0)
 
             self._N_t = int(self.rate*self._N_t*1e-3)
+
+            jitter_range = self.getfloat('detection', 'jitter_range')
+            self.set('detection', 'jitter_range', str(int(self.rate*jitter_range*1e-3)))
             if numpy.mod(self._N_t, 2) == 0:
                 self._N_t += 1
 

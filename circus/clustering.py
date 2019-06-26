@@ -74,7 +74,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes[nodes]  = numpy.argsort(nodes)
     to_write          = ['clusters_', 'times_', 'data_', 'peaks_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
-    template_shift_2  = round(1.25*template_shift)
+    jitter_range     = params.getint('detection', 'jitter_range')
+    template_shift_2 = template_shift + jitter_range
     nb_ss_bins        = 50
     use_hanning      = params.getboolean('detection', 'hanning')
     #################################################################
@@ -141,7 +142,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(tmp_path_loc)
 
     if alignment:
-        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 

@@ -238,6 +238,8 @@ def extract_extra_spikes_(params):
     safety_time  = params.getint('whitening', 'safety_time')
     safety_space = params.getboolean('clustering', 'safety_space')
     chunk_size   = params.getint('data', 'chunk_size')
+    jitter_range     = params.getint('detection', 'jitter_range')
+    template_shift_2 = template_shift + jitter_range
     # chunk_size = params.getint('whitening', 'chunk_size')
     N_total        = params.nb_channels
     file_out_suff  = params.get('data', 'file_out_suff')

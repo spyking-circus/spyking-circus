@@ -41,7 +41,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    template_shift_2 = round(1.25*template_shift)
+    jitter_range     = params.getint('detection', 'jitter_range')
+    template_shift_2 = template_shift + jitter_range
     use_hanning      = params.getboolean('detection', 'hanning')
     #################################################################
 
@@ -334,7 +335,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     mads = io.load_data(params, 'mads')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
