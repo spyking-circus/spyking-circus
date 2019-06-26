@@ -525,9 +525,10 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     to_merge       = []
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     norm           = N_e * N_t
+    decimation     = params.getboolean('clustering', 'decimation')
 
     result   = []
-    overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+    overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
@@ -603,8 +604,10 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges     = get_nodes_and_edges(params)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
+    decimation       = params.getboolean('clustering', 'decimation')
 
-    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+
+    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=False)
     overlap.close()
 
     SHARED_MEMORY = get_shared_memory_flag(params)

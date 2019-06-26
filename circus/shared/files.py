@@ -1463,7 +1463,7 @@ def get_garbage(params, extension=''):
     return result
 
 
-def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0):
+def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0, decimation=False):
 
     parallel_hdf5  = get_parallel_hdf5_flag(params)
     data_file      = params.data_file
@@ -1554,6 +1554,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     over_data = numpy.zeros(0, dtype=numpy.float32)
     rows      = numpy.arange(N_e*N_t)
     _srows    = {'left' : {}, 'right' : {}}
+
+    if decimation:
+        all_delays = all_delays[::2]
 
     for idelay in all_delays:
         _srows['left'][idelay]  = numpy.where(rows % N_t < idelay)[0]
