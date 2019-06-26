@@ -230,7 +230,7 @@ def merging(groups, sim_same_elec, data):
                     dmin     = dist
                     to_merge = [ic1, ic2]
 
-        if dmin < sim_same_elec:
+        if dmin < sim_same_elec/0.674:
             groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, groups
 

@@ -41,7 +41,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    template_shift_2 = 2*template_shift
+    template_shift_2 = round(1.25*template_shift)
     use_hanning      = params.getboolean('detection', 'hanning')
     #################################################################
 

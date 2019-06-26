@@ -87,7 +87,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     template_shift        = params.getint('detection', 'template_shift')
-    template_shift_2      = 2 * template_shift
+    template_shift_2      = round(1.25*template_shift)
     duration              = 2 * N_t - 1
     mads                  = load_data(params, 'mads')
 
@@ -231,7 +231,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
     template_shift   = params.getint('detection', 'template_shift')
-    template_shift_2 = 2 * template_shift
+    template_shift_2 = round(1.25*template_shift)
     duration         = 2 * N_t - 1
 
     # Calculate the sizes of the data structures to share.

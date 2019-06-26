@@ -95,8 +95,7 @@ class CircusParser(object):
                           ['noedits', 'ground_done', 'string', 'False'],
                           ['noedits', 'artefacts_done', 'string', 'False']]
 
-    __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
-                        ['fitting', 'nb_chances', 'int', '3'],
+    __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '5']]
 

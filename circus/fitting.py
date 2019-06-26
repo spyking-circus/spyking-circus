@@ -30,7 +30,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     tmp_limits     = map(float, tmp_limits)
     amp_auto       = params.getboolean('fitting', 'amp_auto')
-    space_explo    = params.getfloat('fitting', 'space_explo')
     nb_chances     = params.getint('fitting', 'nb_chances')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
