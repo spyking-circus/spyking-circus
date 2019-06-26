@@ -199,11 +199,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             elif gpass == 1:
                 if not numpy.all(sdata > 0):
                     lines = ["Smart Search disabled on %d electrodes" %(numpy.sum(sdata == 0))]
-                    print_and_log(lines, 'info', logger)
+                    print_and_log(lines, 'debug', logger)
                 if numpy.any(sdata > 0):
                     print_and_log(["Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', logger)
                 else:
-                    print_and_log(["Searching random spikes for the clustering (%d/%d) (no smart search)..." %(gpass, nb_repeats)], 'default', logger)
+                    print_and_log(["Searching random spikes for the clustering (%d/%d) (no smart search)" %(gpass, nb_repeats)], 'default', logger)
             else:
                 print_and_log(["Searching random spikes to refine the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', logger)
 
