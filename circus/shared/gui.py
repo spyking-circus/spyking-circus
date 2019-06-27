@@ -127,7 +127,7 @@ class MergeWindow(QMainWindow):
             if comm.rank == 0:
                 super(MergeWindow, self).__init__()
 
-        if comm.rank == 0:
+        if comm.rank == 0 and app is not None:
             print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', logger)
 
         apply_patch_for_similarities(params, extension_in)
@@ -1123,7 +1123,12 @@ class MergeWindow(QMainWindow):
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
             to_keep = numpy.array(list(to_keep))
             # nb_templates = self.nb_templates - len(self.to_delete) - len(self.all_merges) 
-            print_and_log(['We obtained %d templates out of %d' %(len(to_keep), self.nb_templates)], 'info', logger)
+            print_and_log(['We kept %d templates out of %d after merging' %(len(to_keep), self.nb_templates),
+                           'As meta merging is still experimental, you need',
+                           'to use the extension option to see its results',
+                           '>> circus-gui-matlab mydata.dat -e merged',
+                           'or',
+                           '>> spyking-circus mydata.dat -m converting -e merged'], 'info', logger)
 
             for count, temp_id in enumerate(to_keep):
                 key_before = 'temp_' + str(temp_id)
