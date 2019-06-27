@@ -75,13 +75,13 @@ def main(argv=None):
     header += Fore.GREEN + "##################################################################"
     header += Fore.RESET
 
-    method_help = '''by default, first 4 steps are performed,
+    method_help = '''by default, all steps are performed,
 but a subset x,y can be done. Steps are:
  - filtering
  - whitening
  - clustering
  - fitting
- - (extra) merging [GUI for meta merging]
+ - merging [with or without a GUI for meta merging]
  - (extra) converting [export results to phy format]
  - (extra) deconverting [import results from phy format]
  - (extra) gathering [force collection of results]
@@ -94,7 +94,7 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('datafile', help='data file (or a list of commands if batch mode)')
     parser.add_argument('-i', '--info', help='list the file formats supported by SpyKING CIRCUS', action='store_true')
     parser.add_argument('-m', '--method',
-                        default='filtering,whitening,clustering,fitting',
+                        default='filtering,whitening,clustering,fitting,merging',
                         help=method_help)
     parser.add_argument('-c', '--cpu', type=int, default=int(psutil.cpu_count()/2), help='number of CPU')
     #parser.add_argument('-g', '--gpu', type=int, default=0, help='number of GPU')
