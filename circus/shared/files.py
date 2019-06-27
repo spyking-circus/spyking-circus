@@ -1557,7 +1557,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     _srows    = {'left' : {}, 'right' : {}}
 
     if decimation:
-        all_delays = all_delays[::2]
+        all_delays = all_delays[1::2]
 
     for idelay in all_delays:
         _srows['left'][idelay]  = numpy.where(rows % N_t < idelay)[0]

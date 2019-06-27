@@ -54,7 +54,7 @@ nb_repeats     = 3          # Number of passes used for the clustering
 smart_search   = True       # Activate the smart search mode
 sim_same_elec  = 3          # Distance within clusters under which they are re-merged
 sensitivity    = 3          # Single parameter for clustering sensitivity. The lower the more sensitive
-cc_merge       = 0.975      # If CC between two templates is higher, they are merged
+cc_merge       = 0.95       # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
@@ -69,7 +69,7 @@ max_chunk      = inf        # Fit only up to max_chunk
 collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
 
 [merging]
-cc_overlap     = 0.7        # Only templates with CC higher than cc_overlap may be merged
+cc_overlap     = 0.85       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2          # Bin size for computing CC [in ms]
 correct_lag    = True       # If spikes are aligned when merging. May be better for phy usage
 auto_mode      = 0          # If >0, merging will be automatic (see doc, 0.1 is a good value)
