@@ -310,13 +310,13 @@
           <double>0.000000000000000</double>
          </property>
          <property name="maximum">
-          <double>10000.000000000000000</double>
+          <double>1.000000000000000</double>
          </property>
          <property name="singleStep">
-          <double>0.100000000000000</double>
+          <double>0.010000000000000</double>
          </property>
          <property name="value">
-          <double>1.000000000000000</double>
+          <double>0.500000000000000</double>
          </property>
         </widget>
        </item>

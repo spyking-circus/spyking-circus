@@ -71,6 +71,7 @@ class CircusParser(object):
                           ['merging', 'cc_bin', 'float', '2'],
                           ['merging', 'correct_lag', 'bool', 'False'],
                           ['merging', 'auto_mode', 'float', '0'],
+                          ['merging', 'default_lag', 'int', '5'],
                           ['converting', 'export_pcs', 'string', 'prompt'],
                           ['converting', 'erase_all', 'bool', 'True'],
                           ['converting', 'export_all', 'bool', 'False'],

@@ -1557,11 +1557,14 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     _srows    = {'left' : {}, 'right' : {}}
 
     if decimation:
-        all_delays = all_delays[1::2]
+        nb_delays = len(all_delays) // 10
+        indices = list(range(nb_delays)) + list(range(nb_delays, len(all_delays) - nb_delays, 3)) + list(range(len(all_delays) - nb_delays, len(all_delays)))
+        all_delays = all_delays[indices]
 
     for idelay in all_delays:
         _srows['left'][idelay]  = numpy.where(rows % N_t < idelay)[0]
         _srows['right'][idelay] = numpy.where(rows % N_t >= (N_t - idelay))[0]
+
 
     for ielec in to_explore:
 
