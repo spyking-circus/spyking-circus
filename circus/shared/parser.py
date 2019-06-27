@@ -381,18 +381,17 @@ class CircusParser(object):
                 print_and_log(["nclus_min in [validating] should be in [0,1["], 'error', logger)
             sys.exit(0)
 
-        test = (self.parser.getfloat('merging', 'auto_mode') >= 0)
+        test = (self.parser.getfloat('merging', 'auto_mode') >= 0) and (self.parser.getfloat('merging', 'auto_mode') < 1)
         if not test:
             if comm.rank == 0:
-                print_and_log(["auto_mode in [merging] should be positive"], 'error', logger)
+                print_and_log(["auto_mode in [merging] should be in [0, 1]"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getint('detection', 'oversampling_factor') >= 0)
         if not test:
             if comm.rank == 0:
-                print_and_log(["oversampling_factor in [detection] should be postiive["], 'error', logger)
+                print_and_log(["oversampling_factor in [detection] should be positive["], 'error', logger)
             sys.exit(0)
-
 
         test = (not self.parser.getboolean('data', 'overwrite') and not self.parser.getboolean('filtering', 'filter'))
         if test:
