@@ -276,6 +276,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
+    smoothing      = params.getboolean('detection', 'smoothing')
     isolation      = params.getboolean('detection', 'isolation')
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -447,10 +448,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             elif alignment:
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
-                                #try:
-                                #   f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=xdata.size * mads[elec]**2, k=3)
-                                #except Exception:
-                                f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
+
+                                if smoothing:
+                                    smoothing_factor = 0.25*xdata.size * mads[elec]**2
+                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=smoothing_factor, k=3)
+                                else:
+                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:

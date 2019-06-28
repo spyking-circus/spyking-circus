@@ -82,6 +82,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
     alignment     = params.getboolean('detection', 'alignment') and auto_align
+    smoothing     = params.getboolean('detection', 'smoothing')
     over_factor   = float(params.getint('detection', 'oversampling_factor'))
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -120,10 +121,11 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
-                #try:
-                #   f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=xdata.size*mads[src]**2, k=3)
-                #except Exception:
-                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+                if smoothing:
+                    smoothing_factor = xdata.size * mads[elec]**2
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=smoothing_factor, k=3)
+                else:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
@@ -131,10 +133,11 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
-                #try:
-                #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=local_chunk.size*mads[src]**2, kx=3, ky=1)
-                #except Exception:
-                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+                if smoothing:
+                    smoothing_factor = local_chunk.size*numpy.mean(mads[neighs])**2
+                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=smoothing_factor, kx=3, ky=1)
+                else:
+                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 elif pos == 'pos':
