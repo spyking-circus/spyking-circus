@@ -143,6 +143,7 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     halolabels = halo_assign(distances, labels, centers)
     halolabels -= 1
     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
+
     del distances
     return halolabels, rho, delta, centers
 
@@ -166,26 +167,26 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
         centersx = numpy.where(centers)[0] # index of centroids
         dist2cent = dist.get_rows(centersx)
         labels = numpy.argmin(dist2cent, axis=0) + 1
-        _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
+        # _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
         
-        small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
+        # small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
 
-        if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
-            cluslab = centers[centersx] # cluster labels
-            id2rem = numpy.where(numpy.in1d(cluslab, small_clusters))[0] # ids to remove
-            clusidx = numpy.delete(centersx, id2rem) # removing
-            centers = numpy.zeros(len(centers))
-            nclus = nclus - len(id2rem)
-            centers[clusidx] = numpy.arange(nclus) + 1 # re labeling centroids            
-            dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
-            labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
+        # if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
+        #     cluslab = centers[centersx] # cluster labels
+        #     id2rem = numpy.where(numpy.in1d(cluslab, small_clusters))[0] # ids to remove
+        #     clusidx = numpy.delete(centersx, id2rem) # removing
+        #     centers = numpy.zeros(len(centers))
+        #     nclus = nclus - len(id2rem)
+        #     centers[clusidx] = numpy.arange(nclus) + 1 # re labeling centroids            
+        #     dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
+        #     labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
             
     return nclus, labels, centers
     
 
 def halo_assign(dist, labels, centers):
 
-    halolabels = labels.copy()    
+    halolabels = labels.copy()
     sameclusmat = numpy.equal(labels, labels[:, None]) #
     sameclus_cent = sameclusmat[centers > 0, :] # selects only centroids
     dist2cent = dist.get_rows(numpy.where(centers > 0)[0]) # distance to centroids

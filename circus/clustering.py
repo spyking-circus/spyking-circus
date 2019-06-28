@@ -699,6 +699,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                                             sim_same_elec,
                                                                             data)
 
+                        idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
+                        for label, cluster_size in zip(idx_clusters, counts):
+                            if cluster_size < n_min:
+                                tmp = cluster_results[p][ielec]['groups'] == label
+                                cluster_results[p][ielec]['groups'][tmp] = -1
+
                         if make_plots not in ['None', '']:
                             save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
                             injected = None
