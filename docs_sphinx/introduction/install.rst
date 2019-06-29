@@ -32,7 +32,7 @@ As an example for linux, just type::
 
 Then install the software itself::
 
-    >> conda install -c conda-forge -c spyking-circus spyking-circus
+    >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
 
 
 Using pip

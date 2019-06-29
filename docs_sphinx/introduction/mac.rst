@@ -7,7 +7,7 @@ Here are some detailed instructions:
 
     2. Install spiking-circus by executing::
 
-        >> conda install -c conda-forge -c spyking-circus spyking-circus
+        >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
     
     3. If you prefer, you can use pip (this is equivalent to step 4)::
     
