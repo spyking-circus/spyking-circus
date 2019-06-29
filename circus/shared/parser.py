@@ -29,6 +29,7 @@ class CircusParser(object):
                           ['data', 'is_cluster', 'bool', 'False'],
                           ['data', 'shared_memory', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
+                          ['detection', 'hanning', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '5'],
                           ['detection', 'matched-filter', 'bool', 'False'],
                           ['detection', 'matched_thresh', 'float', '5'],
@@ -70,6 +71,7 @@ class CircusParser(object):
                           ['merging', 'cc_bin', 'float', '2'],
                           ['merging', 'correct_lag', 'bool', 'False'],
                           ['merging', 'auto_mode', 'float', '0'],
+                          ['merging', 'default_lag', 'int', '5'],
                           ['converting', 'export_pcs', 'string', 'prompt'],
                           ['converting', 'erase_all', 'bool', 'True'],
                           ['converting', 'export_all', 'bool', 'False'],
@@ -94,10 +96,13 @@ class CircusParser(object):
                           ['noedits', 'ground_done', 'string', 'False'],
                           ['noedits', 'artefacts_done', 'string', 'False']]
 
-    __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
-                        ['fitting', 'nb_chances', 'int', '3'],
+    __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
-                        ['clustering', 'sub_dim', 'int', '5']]
+                        ['clustering', 'sub_dim', 'int', '5'],
+                        ['clustering', 'decimation', 'bool', 'True'],
+                        ['detection', 'jitter_range', 'float', '0.25'],
+                        ['detection', 'smoothing', 'bool', 'True'],
+                        ['detection', 'smoothing_factor', 'float', '0.25']]
 
     def __init__(self, file_name, create_folders=True, **kwargs):
 
@@ -378,18 +383,17 @@ class CircusParser(object):
                 print_and_log(["nclus_min in [validating] should be in [0,1["], 'error', logger)
             sys.exit(0)
 
-        test = (self.parser.getfloat('merging', 'auto_mode') >= 0)
+        test = (self.parser.getfloat('merging', 'auto_mode') >= 0) and (self.parser.getfloat('merging', 'auto_mode') < 1)
         if not test:
             if comm.rank == 0:
-                print_and_log(["auto_mode in [merging] should be positive"], 'error', logger)
+                print_and_log(["auto_mode in [merging] should be in [0, 1]"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getint('detection', 'oversampling_factor') >= 0)
         if not test:
             if comm.rank == 0:
-                print_and_log(["oversampling_factor in [detection] should be postiive["], 'error', logger)
+                print_and_log(["oversampling_factor in [detection] should be positive["], 'error', logger)
             sys.exit(0)
-
 
         test = (not self.parser.getboolean('data', 'overwrite') and not self.parser.getboolean('filtering', 'filter'))
         if test:
@@ -427,6 +431,10 @@ class CircusParser(object):
             elif self.parser.get('converting', 'export_pcs').lower() == 'all':
                 self.parser.set('converting', 'export_pcs', 'a')
 
+        if self.parser.getboolean('detection', 'hanning'):
+            if comm.rank == 0:
+                print_and_log(["Hanning filtering is activated"], 'debug', logger)
+
     def get(self, section, data):
       	return self.parser.get(section, data)
 
@@ -458,6 +466,9 @@ class CircusParser(object):
                 sys.exit(0)
 
             self._N_t = int(self.rate*self._N_t*1e-3)
+
+            jitter_range = self.getfloat('detection', 'jitter_range')
+            self.set('detection', 'jitter_range', str(int(self.rate*jitter_range*1e-3)))
             if numpy.mod(self._N_t, 2) == 0:
                 self._N_t += 1
 

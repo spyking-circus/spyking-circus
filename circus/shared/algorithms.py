@@ -143,6 +143,7 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     halolabels = halo_assign(distances, labels, centers)
     halolabels -= 1
     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
+
     del distances
     return halolabels, rho, delta, centers
 
@@ -166,26 +167,26 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
         centersx = numpy.where(centers)[0] # index of centroids
         dist2cent = dist.get_rows(centersx)
         labels = numpy.argmin(dist2cent, axis=0) + 1
-        _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
+        # _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
         
-        small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
+        # small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
 
-        if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
-            cluslab = centers[centersx] # cluster labels
-            id2rem = numpy.where(numpy.in1d(cluslab, small_clusters))[0] # ids to remove
-            clusidx = numpy.delete(centersx, id2rem) # removing
-            centers = numpy.zeros(len(centers))
-            nclus = nclus - len(id2rem)
-            centers[clusidx] = numpy.arange(nclus) + 1 # re labeling centroids            
-            dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
-            labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
+        # if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
+        #     cluslab = centers[centersx] # cluster labels
+        #     id2rem = numpy.where(numpy.in1d(cluslab, small_clusters))[0] # ids to remove
+        #     clusidx = numpy.delete(centersx, id2rem) # removing
+        #     centers = numpy.zeros(len(centers))
+        #     nclus = nclus - len(id2rem)
+        #     centers[clusidx] = numpy.arange(nclus) + 1 # re labeling centroids            
+        #     dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
+        #     labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
             
     return nclus, labels, centers
     
 
 def halo_assign(dist, labels, centers):
 
-    halolabels = labels.copy()    
+    halolabels = labels.copy()
     sameclusmat = numpy.equal(labels, labels[:, None]) #
     sameclus_cent = sameclusmat[centers > 0, :] # selects only centroids
     dist2cent = dist.get_rows(numpy.where(centers > 0)[0]) # distance to centroids
@@ -219,14 +220,18 @@ def merging(groups, sim_same_elec, data):
                 pr_1 = numpy.dot(sd1, v_n)
                 pr_2 = numpy.dot(sd2, v_n)
 
-                norm = numpy.median(numpy.abs(pr_1 - numpy.median(pr_1)))**2 + numpy.median(numpy.abs(pr_2 - numpy.median(pr_2)))**2
-                dist = numpy.sum(v_n**2)/numpy.sqrt(norm)
+                med1 = numpy.median(pr_1)
+                med2 = numpy.median(pr_2)
+                mad1 = numpy.median(numpy.abs(pr_1 - med1))**2
+                mad2 = numpy.median(numpy.abs(pr_2 - med2))**2
+                norm = mad1 + mad2
+                dist = numpy.sqrt((med1 - med2)**2/norm)
 
                 if dist < dmin:
                     dmin     = dist
                     to_merge = [ic1, ic2]
 
-        if dmin < sim_same_elec:
+        if dmin < sim_same_elec/0.674:
             groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, groups
 
@@ -525,9 +530,10 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     to_merge       = []
     cc_merge       = params.getfloat('clustering', 'cc_merge')
     norm           = N_e * N_t
+    decimation     = params.getboolean('clustering', 'decimation')
 
     result   = []
-    overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+    overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
     filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
@@ -603,8 +609,10 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges     = get_nodes_and_edges(params)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
+    decimation       = params.getboolean('clustering', 'decimation')
 
-    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+
+    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
 
     SHARED_MEMORY = get_shared_memory_flag(params)

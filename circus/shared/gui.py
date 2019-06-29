@@ -127,7 +127,7 @@ class MergeWindow(QMainWindow):
             if comm.rank == 0:
                 super(MergeWindow, self).__init__()
 
-        if comm.rank == 0:
+        if comm.rank == 0 and app is not None:
             print_and_log(["Loading GUI with %d CPUs..." %comm.size], 'default', logger)
 
         apply_patch_for_similarities(params, extension_in)
@@ -147,6 +147,8 @@ class MergeWindow(QMainWindow):
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
         self.auto_mode  = params.getfloat('merging', 'auto_mode')
+        self.default_lag = params.getint('merging', 'default_lag')
+
         max_chunk      = params.getfloat('fitting', 'max_chunk')
         chunks         = params.getfloat('fitting', 'chunk_size')
         data_length    = io.data_stats(params, show=False)
@@ -261,7 +263,7 @@ class MergeWindow(QMainWindow):
             self.line_lag2 = self.data_ax.axvline(self.data_ax.get_ybound()[0],
                                                   color='black')
 
-            self.update_lag(2)
+            self.update_lag(self.default_lag)
             
             self.plot_data()
             self.plot_scores()
@@ -303,7 +305,7 @@ class MergeWindow(QMainWindow):
 
         if self.auto_mode > 0:
             perform_merges = True
-            self.update_lag(2)
+            self.update_lag(self.default_lag)
             self.current_order = 0
 
             while perform_merges:
@@ -332,7 +334,7 @@ class MergeWindow(QMainWindow):
         self.suggest_value = self.get_suggest_value.value()
         if self.app is not None:
             self.decision_boundary.set_xdata([0, self.score_z.max()])
-            self.decision_boundary.set_ydata([-self.suggest_value, self.score_z.max() - self.suggest_value])
+            self.decision_boundary.set_ydata([self.suggest_value, self.suggest_value])
             self.ui.score_3.draw_idle()
 
     def closeEvent(self, event):
@@ -444,7 +446,7 @@ class MergeWindow(QMainWindow):
         data    = self.raw_data[:, abs(self.raw_lags) <= lag]
         control = self.raw_control
         score  = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
-        score2 = control - data.mean(axis=1)
+        score2 = numpy.maximum(1 - data.mean(axis=1)/control, 0)
         score3 = control
         return score, score2, score3
 
@@ -461,7 +463,7 @@ class MergeWindow(QMainWindow):
                     self.collections.append(ax.scatter(x, y,
                                                        facecolor=['black' for _ in x]))
                 #self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
-                self.decision_boundary = self.score_ax3.plot([0, self.score_z.max()], [-self.suggest_value, self.score_z.max()-self.suggest_value], 'r--', alpha=0.5)[0]
+                self.decision_boundary = self.score_ax3.plot([0, self.score_z.max()], [self.suggest_value, self.suggest_value], 'r--', alpha=0.5)[0]
                 self.score_ax1.set_ylabel('CC metric')
                 self.score_ax1.set_xlabel('Template similarity')
                 self.score_ax2.set_xlabel('Template Norm')
@@ -889,7 +891,8 @@ class MergeWindow(QMainWindow):
 
     def suggest_pairs(self, event):
         self.inspect_points = set()
-        indices  = numpy.where(self.score_y > numpy.maximum(0, self.score_z-self.suggest_value))[0]
+        #indices  = numpy.where(self.score_y > self.suggest_value+self.score_z/self.score_z.max())[0]
+        indices  = numpy.where(self.score_y > self.suggest_value)[0]
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
@@ -1121,7 +1124,12 @@ class MergeWindow(QMainWindow):
             to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
             to_keep = numpy.array(list(to_keep))
             # nb_templates = self.nb_templates - len(self.to_delete) - len(self.all_merges) 
-            print_and_log(['We obtained %d templates out of %d' %(len(to_keep), self.nb_templates)], 'info', logger)
+            print_and_log(['We kept %d templates out of %d after merging' %(len(to_keep), self.nb_templates),
+                           'As meta merging is still experimental, you need',
+                           'to use the extension option to see its results',
+                           '>> circus-gui-matlab mydata.dat -e merged',
+                           'or',
+                           '>> spyking-circus mydata.dat -m converting -e merged'], 'info', logger)
 
             for count, temp_id in enumerate(to_keep):
                 key_before = 'temp_' + str(temp_id)

@@ -82,13 +82,16 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
     alignment     = params.getboolean('detection', 'alignment') and auto_align
+    smoothing     = params.getboolean('detection', 'smoothing')
     over_factor   = float(params.getint('detection', 'oversampling_factor'))
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     template_shift        = params.getint('detection', 'template_shift')
-    template_shift_2      = 2 * template_shift
-    duration              = 2 * N_t - 1
+    jitter_range          = params.getint('detection', 'jitter_range')
+    template_shift_2      = template_shift + jitter_range
+    duration              = 2 * template_shift_2 + 1
     mads                  = load_data(params, 'mads')
 
     if do_spatial_whitening:
@@ -97,7 +100,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
 
@@ -119,9 +122,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
-                #try:
-                #   f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=xdata.size*mads[src]**2, k=3)
-                #except Exception:
+                #if False:
+                #    smoothing_factor = smoothing_factor*xdata.size * mads[elec]**2
+                #    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=smoothing_factor, k=3)
+                #else:
                 f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
@@ -130,9 +134,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
-                #try:
-                #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=local_chunk.size*mads[src]**2, kx=3, ky=1)
-                #except Exception:
+                #if False:
+                #    smoothing_factor = smoothing_factor*local_chunk.size*numpy.median(mads[neighs])**2
+                #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=smoothing_factor, kx=3, ky=1)
+                #else:
                 f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
@@ -231,7 +236,7 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
     template_shift   = params.getint('detection', 'template_shift')
-    template_shift_2 = 2 * template_shift
+    template_shift_2 = round(1.25*template_shift)
     duration         = 2 * N_t - 1
 
     # Calculate the sizes of the data structures to share.
@@ -1463,7 +1468,7 @@ def get_garbage(params, extension=''):
     return result
 
 
-def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0):
+def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0, decimation=False):
 
     parallel_hdf5  = get_parallel_hdf5_flag(params)
     data_file      = params.data_file
@@ -1555,9 +1560,15 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     rows      = numpy.arange(N_e*N_t)
     _srows    = {'left' : {}, 'right' : {}}
 
+    if decimation:
+        nb_delays = len(all_delays) // 10
+        indices = list(range(nb_delays)) + list(range(nb_delays, len(all_delays) - nb_delays, 3)) + list(range(len(all_delays) - nb_delays, len(all_delays)))
+        all_delays = all_delays[indices]
+
     for idelay in all_delays:
         _srows['left'][idelay]  = numpy.where(rows % N_t < idelay)[0]
         _srows['right'][idelay] = numpy.where(rows % N_t >= (N_t - idelay))[0]
+
 
     for ielec in to_explore:
 

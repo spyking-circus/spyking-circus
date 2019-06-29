@@ -41,8 +41,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    template_shift_2 = 2*template_shift
+    jitter_range     = params.getint('detection', 'jitter_range')
+    template_shift_2 = template_shift + jitter_range
+    use_hanning      = params.getboolean('detection', 'hanning')
     #################################################################
+
+    if use_hanning:
+        hanning_filter = numpy.hanning(N_t)
 
     if comm.rank == 0:
         print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', logger)
@@ -271,6 +276,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
+    smoothing      = params.getboolean('detection', 'smoothing')
     isolation      = params.getboolean('detection', 'isolation')
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -283,6 +289,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     if sign_peaks == 'both':
        max_elts_elec *= 2
     nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
@@ -330,7 +337,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     mads = io.load_data(params, 'mads')
 
     if alignment:
-        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
@@ -442,10 +449,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             elif alignment:
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
-                                #try:
-                                #   f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=xdata.size * mads[elec]**2, k=3)
-                                #except Exception:
-                                f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
+
+                                if smoothing:
+                                    smoothing_factor = smoothing_factor*xdata.size * mads[elec]**2
+                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=smoothing_factor, k=3)
+                                else:
+                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:
@@ -523,7 +532,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
                 pca          = PCA(output_dim)
-                pca.fit(gdata_neg)
+                if use_hanning:
+                    pca.fit(gdata_neg*hanning_filter)
+                else:
+                    pca.fit(gdata_neg)
                 res['proj']  = pca.components_.T.astype(numpy.float32)
             else:
                 res['proj']  = numpy.identity(int(output_dim), dtype=numpy.float32)
@@ -534,7 +546,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['positive', 'both']:
             if len(gdata_pos) > 0:
                 pca             = PCA(output_dim)
-                pca.fit(gdata_pos)
+                if use_hanning:
+                    pca.fit(gdata_pos*hanning_filter)
+                else:
+                    pca.fit(gdata_pos)
                 res['proj_pos'] = pca.components_.T.astype(numpy.float32)
             else:
                 res['proj_pos'] = numpy.identity(int(output_dim), dtype=numpy.float32)

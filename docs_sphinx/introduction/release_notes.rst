@@ -31,6 +31,22 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
+Release 0.8.1
+=============
+
+* add a docker file to build the software
+* add support for shanks in phy 2.0
+* add support for deconverting in the qt launcher
+* do not create a Qt App if merging in auto mode
+* waveforms are convolved with a Hanning window to boost PCA
+* oversampling in now adapted as function of the sampling rate
+* reduction of I/O while oversampling
+* speed improvement with undersampling while cleaning the dictionary
+* automation of the software for SpikeForest/SpikeToolkit benchmarks
+* merging is now included in the default pipeline
+* normalization of the metrics in the meta merging GUI
+
+=============
 Release 0.8.0
 =============
 

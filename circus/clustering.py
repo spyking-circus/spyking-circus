@@ -29,10 +29,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
     alignment      = params.getboolean('detection', 'alignment')
+    smoothing      = params.getboolean('detection', 'smoothing')
     isolation      = params.getboolean('detection', 'isolation')
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     if params.getboolean('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     else:
@@ -74,8 +76,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes[nodes]  = numpy.argsort(nodes)
     to_write          = ['clusters_', 'times_', 'data_', 'peaks_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
-    template_shift_2  = 2*template_shift
+    jitter_range     = params.getint('detection', 'jitter_range')
+    template_shift_2 = template_shift + jitter_range
     nb_ss_bins        = 50
+    use_hanning      = params.getboolean('detection', 'hanning')
     #################################################################
 
     if sign_peaks == 'negative':
@@ -90,6 +94,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         smart_searches[p] = numpy.ones(N_e, dtype=numpy.float32)*int(smart_search)
 
     basis = {}
+
+    if use_hanning:
+        hanning_filter = numpy.hanning(N_t)
 
     if sign_peaks in ['negative', 'both']:
         basis['proj_neg'], basis['rec_neg'] = io.load_data(params, 'basis')
@@ -137,7 +144,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             os.makedirs(tmp_path_loc)
 
     if alignment:
-        cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
 
@@ -195,11 +202,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             elif gpass == 1:
                 if not numpy.all(sdata > 0):
                     lines = ["Smart Search disabled on %d electrodes" %(numpy.sum(sdata == 0))]
-                    print_and_log(lines, 'info', logger)
+                    print_and_log(lines, 'debug', logger)
                 if numpy.any(sdata > 0):
                     print_and_log(["Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', logger)
                 else:
-                    print_and_log(["Searching random spikes for the clustering (%d/%d) (no smart search)..." %(gpass, nb_repeats)], 'default', logger)
+                    print_and_log(["Searching random spikes for the clustering (%d/%d) (no smart search)" %(gpass, nb_repeats)], 'default', logger)
             else:
                 print_and_log(["Searching random spikes to refine the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', logger)
 
@@ -398,9 +405,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
-                                            #try:
-                                            #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=xdata.size*mads[elec]**2, k=3)
-                                            #except Exception:
+                                            #if False:
+                                            #    smoothing_factor = smoothing_factor*xdata.size*mads[elec]**2
+                                            #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
+                                            #else:
                                             f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
@@ -409,9 +417,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
-                                            #try:
-                                            #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=zdata.size*mads[elec]**2, kx=3, ky=1)
-                                            #except Exception:
+                                            #if False:
+                                            #    smoothing_factor = smoothing_factor*zdata.size*numpy.median(mads[indices])**2
+                                            #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=smoothing_factor, kx=3, ky=1)
+                                            #else:
                                             f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
@@ -421,6 +430,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             sub_mat  = f(ddata, ydata).astype(numpy.float32)
                                     else:
                                         sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
+                                    
+                                    if use_hanning:
+                                        sub_mat = (sub_mat.T*hanning_filter).T
 
                                     if isolation:
                                         is_isolated = numpy.all(numpy.max(numpy.abs(sub_mat[yoff]), 0) <= thresholds[indices])
@@ -687,6 +699,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         cluster_results[p][ielec]['groups'], merged = algo.merging(cluster_results[p][ielec]['groups'],
                                                                             sim_same_elec,
                                                                             data)
+
+                        idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
+                        for label, cluster_size in zip(idx_clusters, counts):
+                            if cluster_size < n_min:
+                                tmp = cluster_results[p][ielec]['groups'] == label
+                                cluster_results[p][ielec]['groups'][tmp] = -1
 
                         if make_plots not in ['None', '']:
                             save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
