@@ -34,6 +34,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     if params.getboolean('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     else:
@@ -404,11 +405,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
-                                            if smoothing:
-                                                smoothing_factor = xdata.size*mads[elec]**2
-                                                f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
-                                            else:
-                                                f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
+                                            #if False:
+                                            #    smoothing_factor = smoothing_factor*xdata.size*mads[elec]**2
+                                            #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
+                                            #else:
+                                            f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                             else:
@@ -416,11 +417,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
-                                            if smoothing:
-                                                smoothing_factor = zdata.size*numpy.mean(mads[indices])**2
-                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=smoothing_factor, kx=3, ky=1)
-                                            else:
-                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
+                                            #if False:
+                                            #    smoothing_factor = smoothing_factor*zdata.size*numpy.median(mads[indices])**2
+                                            #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=smoothing_factor, kx=3, ky=1)
+                                            #else:
+                                            f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
                                             if negative_peak:
                                                 rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                             else:
