@@ -45,7 +45,7 @@ install:
 build: false  # not a C# project
 
 test_script:
-  - conda update --yes --quiet conda
+  - conda install --yes --quiet conda==4.16
   # Stay with the conda version to avoid a downgrade to 4.3 from conda-forge
   - conda config --set auto_update_conda False
   - conda config --add channels conda-forge
