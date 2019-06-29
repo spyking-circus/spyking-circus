@@ -61,14 +61,14 @@ install:
   - conda update --yes --quiet conda
   # Stay with the conda version to avoid a downgrade to 4.3 from conda-forge
   - conda config --set auto_update_conda False
-  - conda config --set channel_priority strict
   - conda config --add channels conda-forge
+  - conda config --add channels anaconda
   - conda install --yes --quiet conda-build=3.17 setuptools wheel conda-verify
 
 # command to run tests
 script:
 # Build the conda package
-- conda build -c conda-forge -c spyking-circus conda_recipe
+- conda build -c conda-forge -c anaconda -c spyking-circus conda_recipe
 - python packaging_tools/move_conda_package.py
 # Build source and binary packages
 - python setup.py sdist --formats=zip,gztar,bztar
