@@ -102,6 +102,8 @@ Once the algorithm has run on the data path/mydata.extension, you should have th
 
 See the details here see :doc:`file formats <../advanced/files>` to know more how those files are structured.
 
+Since 0.8.2, you should also have the same files, but with the ``-merged`` extension for some of them. This is because the merging step has been included in the default pipeline of the algorithm. Both results (with or without this extra merging) can be visualized, and/or exported for MATLAB_ and phy_.
+
 Matlab GUI
 ~~~~~~~~~~
 

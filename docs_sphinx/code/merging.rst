@@ -2,21 +2,26 @@ Automatic Merging
 =================
 
 Need for an meta merging step
-----------------------------------
+-----------------------------
 
 Because for high number of channels, the chance that a cell can be split among several templates are high, one need to merge putative templates belonging to the same cells. This is a classical step in most of the spike sorting technique, and traditionally, this step was performed by a human operator, reviewing all templates one by one. Problem is that with the new generation of dense probes that the code can handle (4225 channels), the output of the algorithm can lead to more than 1000 templates, and one can not expect a human to go through all pairs iteratively.
 
 To automatize the procedure, we developed a so-called meta-merging step that will allow to quickly identify pairs of templates that have to be merged. To do so, first, we consider only pairs that have a similarity between their templates higher than ``cc_overlap``. This allow not to considerate all the possible pairs, but only those that are likely to be the same cells, because their templates are similar. 
 
+.. note::
+
+  Since 0.8.2, the merging step is now included in the deafault pipeline of the algorithm, in order to simplify the evaluation with automatic procedures. However, since we don't want to claim that such a meta-merging is optimal for all dataset, all species, and also for long and non-stationary recordings, we would encourage users to look at full results if the meta merging is suspicious.
+
+
 Comparison of CrossCorrelograms
 -------------------------------
 
-Then, for all those pairs of cells, we are computing the cross-correlation function in a time window of [-100, 100] ms, with a particular time bin ``cc_bin``. The rationale behind is that a pair of template that should be merged should have a dip in the center of its cross-correlogram. To quantify that in an automated manner, we compute a control cross-correlogram in the same window of interest, but by reverting in time the spikes of cell 2. This allow us to compare the normal cross-correlogram between the two cells to a "control" one, keeping the same amount of correlation (see Figure).
+Then, for all those pairs of cells, we are computing the cross-correlation function in a time window of [-100, 100] ms, with a particular time bin ``cc_bin``. The rationale behind is that a pair of template that should be merged should have a dip in the center of its cross-correlogram. To quantify that in an automated manner, we compute the theoretical amount of correlation that we should have, assuming the two cells would be independent. This allow us to compare the normal cross-correlogram between the two cells to a "control" one, keeping the same amount of correlation (see Figure).
 
 .. figure::  merging0.png
    :align:   center
 
-   Difference between a normal cross-correlogram for a given pair of cells, and a control version where the spikes from the second cells are reversed in time. The center area in between the red dash dotted line is the one of interest.
+   Difference between a normal cross-correlogram for a given pair of cells, and a ``control`` version. The center area in between the red dash dotted line is the one of interest.
 
 To quantify the dip, we measure the difference between the cross correlogram and its shuffled version in a window of interest [``-cc_average``, ``cc_average``].
 

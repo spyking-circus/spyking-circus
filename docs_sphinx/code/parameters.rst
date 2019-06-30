@@ -29,6 +29,8 @@ What are the steps of the algorithm you would like to perform. Defaults steps ar
     2. whitening
     3. clustering
     4. fitting
+    5. merging
+
 
 Note that filtering is performed only once, and if the code is relaunched on the same data, a flag in the parameter file will prevent the code to filter twice. You can specify only a subset of steps by doing::
     
@@ -36,7 +38,7 @@ Note that filtering is performed only once, and if the code is relaunched on the
 
 .. note::
 
-    Extra steps are available, such as ``merging`` (see the devoted section :doc:`documentation on Meta Merging <../code/merging>`), or even more (:doc:`documentation on extra steps <../advanced/extras>`).
+    The results of the ``merging`` step are still saved with a different extension compared to the full results of the algorithm. This is because we don't claim that a full automation of the software can work out of the box for all dataset, areas, species, ... So if you want to work from merged results, use the ``-e merged`` extension while converting/displaying results. But otherwise, just look to the ra results, without the merging step (see the devoted section :doc:`documentation on Meta Merging <../code/merging>`), or even more (:doc:`documentation on extra steps <../advanced/extras>`).
 
 * ``-c`` or ``--cpu``
 

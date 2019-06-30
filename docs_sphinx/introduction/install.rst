@@ -42,6 +42,16 @@ To do so, use the ``pip`` utility::
 
     >> pip install spyking-circus
 
+
+Note that if you are using a linux distribution, you must be sure that you have ``mpich`` instead of ``openmpi`` (default on Ubuntu). To do that, please do::
+
+    >> sudo apt remove openmpi
+    >> sudo apt install mpich libmpich-dev
+
+And to be sure that mpi4py is not installed with precompiled binary that would link with openmpi, you need to do::
+
+    >> pip install spyking-circus --no-binary=mpi4py
+
 You might want to add the ``--user`` flag, to install SpyKING CIRCUS for the local user only, which means that you don't need administrator privileges for the installation.
 
 In principle, the above command also install SpyKING CIRCUS's dependencies, and CUDA_ support if ``nvcc`` command is found in your environment. Once the install is complete, you need to add the ``PATH`` where SpyKING CIRCUS has been installed into your local ``PATH``, if not already the case. To do so, simply edit your ``$HOME/.bashrc`` and add the following line::

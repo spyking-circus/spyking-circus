@@ -31,7 +31,7 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
-Release 0.8.1
+Release 0.8.2
 =============
 
 * add a docker file to build the software
