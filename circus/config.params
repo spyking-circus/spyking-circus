@@ -74,6 +74,7 @@ cc_bin         = 2          # Bin size for computing CC [in ms]
 correct_lag    = True       # If spikes are aligned when merging. May be better for phy usage
 default_lag    = 5          # Default length of the period to compute dip in the CC [ms]
 auto_mode      = 0.75       # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
+remove_noise   = False      # If True, meta merging will remove obvious noise templates (weak amplitudes)
 
 [converting]
 erase_all      = True       # If False, a prompt will ask you to export if export has already been done

@@ -148,6 +148,7 @@ class MergeWindow(QMainWindow):
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
         self.auto_mode  = params.getfloat('merging', 'auto_mode')
         self.default_lag = params.getint('merging', 'default_lag')
+        self.remove_noise = params.getboolean('merging', 'remove_noise')
 
         max_chunk      = params.getfloat('fitting', 'max_chunk')
         chunks         = params.getfloat('fitting', 'chunk_size')
@@ -302,6 +303,10 @@ class MergeWindow(QMainWindow):
             # Select the best point at start
             idx = np.argmax(self.score_y)
             self.update_inspect({idx})
+
+        if self.remove_noise:
+            self.suggest_templates(None)
+            self.remove_templates(None)
 
         if self.auto_mode > 0:
             perform_merges = True
@@ -903,7 +908,7 @@ class MergeWindow(QMainWindow):
 
     def suggest_templates(self, event):
         self.inspect_templates = set()
-        indices = numpy.where(self.norms[self.to_consider] <= 1)[0]
+        indices = numpy.where(self.norms[self.to_consider] <= 1.1)[0]
         if self.app is not None:
             self.update_inspect_template(indices, add_or_remove='add')
 

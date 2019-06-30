@@ -1,4 +1,10 @@
 =============
+Release 0.8.3
+=============
+
+* automatic suppression, during meta merging, of noise templates
+
+=============
 Release 0.8.2
 =============
 
