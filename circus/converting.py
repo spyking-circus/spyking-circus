@@ -14,7 +14,7 @@ from colorama import Fore
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import query_yes_no, apply_patch_for_similarities
 
-def get_rpv(spikes, sampling_rate, duration=2e-3):
+def get_rpv(spikes, sampling_rate, duration=5e-3):
     idx = numpy.where(numpy.diff(spikes) < int(duration*sampling_rate))[0]
     return len(idx)/float(len(spikes))
 
