@@ -451,8 +451,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
 
                                 if smoothing:
-                                    smoothing_factor = smoothing_factor*xdata.size * mads[elec]**2
-                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=smoothing_factor, k=3)
+                                    factor = smoothing_factor*xdata.size * mads[elec]**2
+                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=factor, k=3)
                                 else:
                                     f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
                                 if negative_peak:
