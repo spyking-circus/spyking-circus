@@ -15,7 +15,6 @@ from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import query_yes_no, apply_patch_for_similarities
 
 def get_rpv(spikes, sampling_rate, duration=2e-3):
-    print len(spikes), sampling_rate, duration
     idx = numpy.where(numpy.diff(spikes) < int(duration*sampling_rate))[0]
     return len(idx)/float(len(spikes))
 
@@ -72,21 +71,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         if prelabelling:
             labels = []
 
-        count = 0
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
             myspikes   = result['spiketimes'].pop(key).astype(numpy.uint64)
             spikes     = numpy.concatenate((spikes, myspikes))
-            data       = result['amplitudes'].pop(key).astype(numpy.double)
-            amplitudes = numpy.concatenate((amplitudes, data[:, 0]))
-            clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.uint32)))
+            myamplitudes = result['amplitudes'].pop(key).astype(numpy.double)
+            amplitudes = numpy.concatenate((amplitudes, myamplitudes[:, 0]))
+            clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(myamplitudes), dtype=numpy.uint32)))
             if prelabelling:
-                rpv = get_rpv(myspikes, params.data_file.sampling_rate) 
-                if (rpv > 0) and (rpv <= 0.02):
-                    labels += [[count, 'good']]
-                elif rpv > 0.1:
-                    labels += [[count, 'mua']]
-            count += 1
+                rpv = get_rpv(myspikes, params.data_file.sampling_rate)
+                median_amp = numpy.median(myamplitudes[:, 0])
+                if (rpv > 0) and (rpv <= 0.02) and numpy.abs(median_amp - 1) < 0.2:
+                    labels += [[temp_id, 'good']]
+                elif ((rpv > 0.1) or (median_amp < 0.5)):
+                    labels += [[temp_id, 'mua']]
 
         if export_all:
             print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', logger)
