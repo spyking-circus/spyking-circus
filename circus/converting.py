@@ -14,6 +14,11 @@ from colorama import Fore
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import query_yes_no, apply_patch_for_similarities
 
+def get_rpv(spikes, sampling_rate, duration=2e-3):
+    print len(spikes), sampling_rate, duration
+    idx = numpy.where(numpy.diff(spikes) < int(duration*sampling_rate))[0]
+    return len(idx)/float(len(spikes))
+
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     logger         = init_logging(params.logfile)
@@ -23,6 +28,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     probe          = params.probe
     output_path    = params.get('data', 'file_out_suff') + extension + '.GUI'
     N_e            = params.getint('data', 'N_e')
+    prelabelling   = params.getboolean('converting', 'prelabelling')
     N_t            = params.getint('detection', 'N_t')
     erase_all      = params.getboolean('converting', 'erase_all')
     export_pcs     = params.get('converting', 'export_pcs')
@@ -62,14 +68,26 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         clusters   = numpy.zeros(0, dtype=numpy.uint32)
         amplitudes = numpy.zeros(0, dtype=numpy.double)
         N_tm       = len(result['spiketimes'])
+
+        if prelabelling:
+            labels = []
+
+        count = 0
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
-            data       = result['spiketimes'].pop(key).astype(numpy.uint64)
-            spikes     = numpy.concatenate((spikes, data))
+            myspikes   = result['spiketimes'].pop(key).astype(numpy.uint64)
+            spikes     = numpy.concatenate((spikes, myspikes))
             data       = result['amplitudes'].pop(key).astype(numpy.double)
             amplitudes = numpy.concatenate((amplitudes, data[:, 0]))
             clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(data), dtype=numpy.uint32)))
-        
+            if prelabelling:
+                rpv = get_rpv(myspikes, params.data_file.sampling_rate) 
+                if (rpv > 0) and (rpv <= 0.02):
+                    labels += [[count, 'good']]
+                elif rpv > 0.1:
+                    labels += [[count, 'mua']]
+            count += 1
+
         if export_all:
             print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', logger)
             garbage = io.load_data(params, 'garbage', extension)
@@ -79,6 +97,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 spikes     = numpy.concatenate((spikes, data))
                 amplitudes = numpy.concatenate((amplitudes, numpy.ones(len(data))))
                 clusters   = numpy.concatenate((clusters, (elec_id + N_tm)*numpy.ones(len(data), dtype=numpy.uint32)))                
+
+        if prelabelling:
+            f = open(os.path.join(output_path, 'cluster_group.tsv'), 'w')
+            f.write('cluster_id\tgroup\n')
+            for l in labels:
+                f.write('%s\t%s\n' %(l[0], l[1]))
+            f.close()
 
         idx = numpy.argsort(spikes)
         numpy.save(os.path.join(output_path, 'spike_templates'), clusters[idx])

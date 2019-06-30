@@ -54,7 +54,7 @@ nb_repeats     = 3          # Number of passes used for the clustering
 smart_search   = True       # Activate the smart search mode
 sim_same_elec  = 3          # Distance within clusters under which they are re-merged
 sensitivity    = 3          # Single parameter for clustering sensitivity. The lower the more sensitive
-cc_merge       = 0.95       # If CC between two templates is higher, they are merged
+cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
 remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
@@ -80,7 +80,8 @@ remove_noise   = False      # If True, meta merging will remove obvious noise te
 erase_all      = True       # If False, a prompt will ask you to export if export has already been done
 export_pcs     = prompt     # Can be prompt [default] or in none, all, some
 export_all     = False      # If True, unfitted spikes will be exported as the last Ne templates
-sparse_export  = False      # For recent versions of phy, and large number of templates/channels
+sparse_export  = True       # For recent versions of phy, and large number of templates/channels
+prelabelling   = False      # If True, putative labels (good, noise, best, mua) are pre-assigned to neurons
 
 [validating]
 nearest_elec   = auto       # Validation channel (e.g. electrode closest to the ground truth cell)
