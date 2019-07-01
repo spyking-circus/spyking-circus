@@ -393,6 +393,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                 to_accept  = False
 
+                                if gpass == 0:
+                                    indices = [elec_positions[elec]]
+
                                 if gpass == 1:
                                     to_update = result['data_%s_' %loc_peak + str(elec)]
                                 else:
@@ -401,7 +404,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 if len(to_update) < loop_max_elts_elec:
 
                                     if alignment:
-                                        idx   = elec_positions[elec]
                                         zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                         ydata = numpy.arange(len(indices))
                                         if len(ydata) == 1:
@@ -417,9 +419,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                             sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                         else:
+                                            idx = elec_positions[elec]
                                             #if False:
                                             #    smoothing_factor = smoothing_factor*zdata.size*numpy.median(mads[indices])**2
-                                            #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=smoothing_factor, kx=3, ky=1)
+                                            #    f = scipy.interpolate.RectBivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
                                             #else:
                                             f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
                                             if negative_peak:
@@ -443,8 +446,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     if is_isolated:
                                         if gpass == 0:
                                             to_accept  = True
-                                            idx        = elec_positions[elec]
-                                            ext_amp    = sub_mat[template_shift, idx]
+                                            ext_amp    = sub_mat[template_shift]
                                             result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
                                         elif gpass == 1:
 
