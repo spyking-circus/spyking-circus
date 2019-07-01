@@ -91,6 +91,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         max_loc_channel = get_max_loc_channel(params)
         templates       = io.load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
+        nodes, edges    = get_nodes_and_edges(params)
 
         if sparse_export:
             n_channels_max = 0
@@ -130,7 +131,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 spikes = garbage['gspikes'].pop('elec_%d' %elec).astype(numpy.uint64)
                 spikes = numpy.random.permutation(spikes)[:100]
                 mapping_sparse[t, 0] = t - N_tm
-                waveform = io.get_stas(params, times_i=spikes, mean_mode=True, neighs=[elec], src=elec, labels_i=np.ones(len(spikes)))
+                waveform = io.get_stas(params, times_i=spikes, labels_i=np.ones(len(spikes)), src=elec, neighs=[elec], nodes=nodes, mean_mode=True)
                 
                 nb_loc = 1
 
