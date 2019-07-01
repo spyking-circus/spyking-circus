@@ -81,7 +81,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             if prelabelling:
                 rpv = get_rpv(myspikes, params.data_file.sampling_rate)
                 median_amp = numpy.median(myamplitudes[:, 0])
-                if (rpv > 0) and (rpv <= 0.02) and numpy.abs(median_amp - 1) < 0.2:
+                if (rpv > 0) and (rpv <= 0.01) and numpy.abs(median_amp - 1) < 0.25:
                     labels += [[temp_id, 'good']]
                 elif ((rpv > 0.1) or (median_amp < 0.5)):
                     labels += [[temp_id, 'mua']]
