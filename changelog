@@ -5,6 +5,7 @@ Release 0.8.3
 * automatic suppression, during meta merging, of noise templates
 * during the phy export, we can automatically pre-assign labels to neurons
 * fix a bug when converting to phy with dead channels
+* speedup the estimation of the amplitude distribution
 
 =============
 Release 0.8.2

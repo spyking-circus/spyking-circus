@@ -393,6 +393,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                 to_accept  = False
 
+                                if gpass == 0:
+                                    indices = [elec_positions[i]]
+
                                 if gpass == 1:
                                     to_update = result['data_%s_' %loc_peak + str(elec)]
                                 else:
@@ -443,8 +446,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     if is_isolated:
                                         if gpass == 0:
                                             to_accept  = True
-                                            idx        = elec_positions[elec]
-                                            ext_amp    = sub_mat[template_shift, idx]
+                                            ext_amp    = sub_mat[template_shift]
                                             result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
                                         elif gpass == 1:
 
