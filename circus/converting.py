@@ -16,7 +16,10 @@ from circus.shared.utils import query_yes_no, apply_patch_for_similarities
 
 def get_rpv(spikes, sampling_rate, duration=5e-3):
     idx = numpy.where(numpy.diff(spikes) < int(duration*sampling_rate))[0]
-    return len(idx)/float(len(spikes))
+    if len(spikes) > 0:
+        return len(idx)/float(len(spikes))
+    else:
+        return numpy.inf
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
@@ -70,6 +73,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         if prelabelling:
             labels = []
+            norms  = io.load_data(params, 'norm-templates', extension)
+            norms  = norms[:len(norms)//2]
 
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
@@ -81,10 +86,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             if prelabelling:
                 rpv = get_rpv(myspikes, params.data_file.sampling_rate)
                 median_amp = numpy.median(myamplitudes[:, 0])
+                std_amp = numpy.std(myamplitudes[:, 0])
                 if (rpv > 0) and (rpv <= 0.01) and numpy.abs(median_amp - 1) < 0.25:
-                    labels += [[temp_id, 'good']]
-                elif ((rpv > 0.1) or (median_amp < 0.5)):
-                    labels += [[temp_id, 'mua']]
+                     if numpy.std(myamplitudes[:, 0] < 0.1) and norm[tm_id] > 0.4:
+                         labels += [[temp_id, 'best']]
+                     else:
+                         labels += [[temp_id, 'good']]
+                elif (rpv > 0.1):
+                    if  (median_amp < 0.5):
+                        labels += [[temp_id, 'mua']]
+                    elif (norms[temp_id] < 0.1):
+                        labels += [[temp_id, 'noise']]
 
         if export_all:
             print_and_log(["Last %d templates are unfitted spikes on all electrodes" %N_e], 'info', logger)
@@ -379,7 +391,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         gui_params['n_channels_dat'] = params.nb_channels
         gui_params['n_features_per_channel'] = 5
         gui_params['dtype']          = data_file.data_dtype
-        gui_params['offset']         = data_file.data_offset
+        if 'data_offset' in data_file.params.keys():
+            gui_params['offset']     = data_file.data_offset
         gui_params['sample_rate']    = params.rate
         gui_params['dir_path']       = output_path
         gui_params['hp_filtered']    = True
