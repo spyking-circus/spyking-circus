@@ -703,10 +703,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                                             data)
 
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
+                        count = 0
+                        to_remove = []
                         for label, cluster_size in zip(idx_clusters, counts):
-                            if cluster_size < n_min:
+                            if (label > -1) and (cluster_size < n_min):
                                 tmp = cluster_results[p][ielec]['groups'] == label
                                 cluster_results[p][ielec]['groups'][tmp] = -1
+                                to_remove += [count]
+                            count += 1
+
+                        c = numpy.delete(c, to_remove)
 
                         if make_plots not in ['None', '']:
                             save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
