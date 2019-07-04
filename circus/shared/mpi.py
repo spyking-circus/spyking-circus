@@ -40,7 +40,7 @@ def gather_mpi_arguments(hostfile, params):
             print_and_log(['SpyKING CIRCUS does not work with OPENMPI >= 3.0',
                            'Consider downgrading or switching to MPICH'], 'error', logger)
             sys.exit(0)
-        mpi_args = ['mpirun']
+        mpi_args = ['mpirun', '-mca mpi_warn_on_fork', '0']
         if os.getenv('LD_LIBRARY_PATH'):
             mpi_args += ['-x', 'LD_LIBRARY_PATH']
         if os.getenv('PATH'):
