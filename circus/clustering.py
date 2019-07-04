@@ -67,6 +67,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
+    sparsify       = params.getfloat('clustering', 'sparsify')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
@@ -903,7 +904,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if comp_templates:
                             to_delete  = []
                             for i in indices:
-                                if (numpy.abs(templates[i, :]).max() < 0.5*(thresholds[i]/spike_thresh)):
+                                if (numpy.abs(templates[i, :]).max() < sparsify*(thresholds[i]/spike_thresh)):
                                     templates[i, :] = 0
                                     to_delete += [i]
                             mean_channels -= len(to_delete)

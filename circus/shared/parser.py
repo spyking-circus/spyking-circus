@@ -102,6 +102,7 @@ class CircusParser(object):
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '5'],
                         ['clustering', 'decimation', 'bool', 'True'],
+                        ['clustering', 'sparsify', 'float', '0.5'],
                         ['detection', 'jitter_range', 'float', '0.1'],
                         ['detection', 'smoothing', 'bool', 'True'],
                         ['detection', 'smoothing_factor', 'float', '0.25']]
