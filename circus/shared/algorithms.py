@@ -4,7 +4,7 @@ import shutil, h5py
 import scipy.linalg, scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
-from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag
+from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
@@ -220,18 +220,25 @@ def merging(groups, sim_same_elec, data):
                 pr_1 = numpy.dot(sd1, v_n)
                 pr_2 = numpy.dot(sd2, v_n)
 
-                med1 = numpy.median(pr_1)
-                med2 = numpy.median(pr_2)
-                mad1 = numpy.median(numpy.abs(pr_1 - med1))**2
-                mad2 = numpy.median(numpy.abs(pr_2 - med2))**2
-                norm = mad1 + mad2
-                dist = numpy.sqrt((med1 - med2)**2/norm)
+                # med1 = numpy.median(pr_1)
+                # med2 = numpy.median(pr_2)
+                # mad1 = numpy.median(numpy.abs(pr_1 - med1))**2
+                # mad2 = numpy.median(numpy.abs(pr_2 - med2))**2
+                # norm = mad1 + mad2
+                # dist = numpy.sqrt((med1 - med2)**2/norm)
 
-                if dist < dmin:
-                    dmin     = dist
+                # if dist < dmin:
+                #     dmin     = dist
+                #     to_merge = [ic1, ic2]
+
+                dist = dip(numpy.concatenate([pr_1, pr_2]))
+                thr = dip_threshold(len(pr_1) + len(pr_2), 0.1)
+
+                if dist < thr:
+                    dmin     = thr
                     to_merge = [ic1, ic2]
 
-        if dmin < sim_same_elec/0.674:
+        if dmin < 0.05:
             groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, groups
 

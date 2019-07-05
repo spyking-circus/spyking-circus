@@ -7,6 +7,7 @@ import scipy.sparse as sp
 from math import log, sqrt
 from scipy import linalg
 import scipy.interpolate
+from scipy.stats import gamma
 import numpy, os, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
 
@@ -860,3 +861,90 @@ class PCA(object):
             Average log-likelihood of the samples under the current model
         """
         return np.mean(self.score_samples(X))
+
+
+
+def maxstuff(X):
+    index = 0
+    maxi = X[0]
+    for i in range(1, len(X)):
+        if X[i] > maxi:
+            maxi = X[i]
+            index = i
+    return maxi, index
+
+
+def interpolation(Z, X, F):
+    """
+    """
+    try:
+        indices = X.searchsorted(Z)
+    except BaseException:
+        print(X)
+        print(Z)
+    return -(F[indices] * (X[indices - 1] - Z) - F[indices - 1] *
+             (X[indices] - Z)) / (X[indices] - X[indices - 1])
+
+
+def gcm(X, left, right):
+    F = numpy.arange(0, 1, 1 / len(X))
+    GCM = numpy.array(left)
+    while left < right:
+        slopes_left = (F[(left + 1):(right + 1)] - F[left]) / \
+            (X[(left + 1):(right + 1)] - X[left])
+        left += 1 + slopes_left.argmin()
+        GCM = numpy.append(GCM, left)
+    return GCM
+
+
+def lcm(X, left, right):
+    F = numpy.arange(0, 1, 1 / len(X))
+    LCM = numpy.array(right)
+    while left < right:
+        slopes_right = (F[left:right] - F[right]) / (X[left:right] - X[right])
+        right = left + slopes_right.argmin()
+        LCM = numpy.append(right, LCM)
+    return LCM
+
+
+def dip_threshold(n, p_value):
+    k = 21.642
+    theta = 1.84157e-2/sqrt(n)
+    return gamma.ppf(1.-p_value, a = k, scale = theta)
+
+
+def dip(X):
+    X = numpy.sort(X)
+    F = numpy.arange(0, 1, 1 / X.shape[0]) + 1 / X.shape[0]
+    left = 0
+    right = len(X) - 1
+    D = 0
+    d = 1
+    while True:
+        GCM = gcm(X, left, right)
+        LCM = lcm(X, left, right)
+
+        Lg = interpolation(X[GCM], X[LCM], F[LCM])
+        Gl = interpolation(X[LCM], X[GCM], F[GCM])
+
+        gap_g, gap_g_index = maxstuff(numpy.abs(F[GCM] - Lg))
+        gap_l, gap_l_index = maxstuff(numpy.abs(F[LCM] - Gl))
+
+        if gap_g > gap_l:
+            d = gap_g
+            left_ = GCM[gap_g_index]
+            right_ = LCM[LCM.searchsorted(GCM[gap_g_index])]
+        else:
+            d = gap_l
+            left_ = GCM[GCM.searchsorted(LCM[gap_l_index]) - 1]
+            right_ = LCM[gap_l_index]
+        if d <= D:
+            return D / 2
+        else:
+            sup_l = numpy.abs(interpolation(
+                X[left:(left_ + 1)], X[GCM], F[GCM]) - F[left:(left_ + 1)]).max()
+            sup_r = numpy.abs(interpolation(
+                X[right_:(right + 1)], X[LCM], F[LCM]) - F[right_:(right + 1)]).max()
+            D = max([D, sup_l, sup_r])
+            left = left_
+            right = right_
