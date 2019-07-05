@@ -34,6 +34,7 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     os.environ['OPENBLAS_NUM_THREADS'] = str(1)
+    os.environ['HDF5_USE_FILE_LOCKING'] = "FALSE"
 
     parallel_hdf5 = h5py.get_config().mpi
     user_path     = pjoin(os.path.expanduser('~'), 'spyking-circus')

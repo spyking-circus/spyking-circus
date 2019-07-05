@@ -7,6 +7,7 @@ Release 0.8.3
 * fix a bug when converting to phy with dead channels
 * fix a bug when converting to phy with file formats without data_offset
 * speedup the estimation of the amplitude distribution
+* fixes for clusters
 
 =============
 Release 0.8.2
