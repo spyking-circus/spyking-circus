@@ -235,10 +235,10 @@ def merging(groups, sim_same_elec, data):
                 thr = dip_threshold(len(pr_1) + len(pr_2), 0.1)
 
                 if dist < thr:
-                    dmin     = thr
+                    dmin     = dist/thr
                     to_merge = [ic1, ic2]
 
-        if dmin < 0.05:
+        if dmin < 1:
             groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, groups
 
