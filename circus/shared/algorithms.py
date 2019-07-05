@@ -200,9 +200,9 @@ def halo_assign(dist, labels, centers):
     return halolabels
     
 
-def merging(groups, sim_same_elec, data):
+def merging(groups, sim_same_elec, data, weights=None):
 
-    def perform_merging(groups, sim_same_elec, data):
+    def perform_merging(groups, sim_same_elec, data, weights=None):
         mask      = numpy.where(groups > -1)[0]
         clusters  = numpy.unique(groups[mask])
         dmin      = numpy.inf
@@ -216,29 +216,28 @@ def merging(groups, sim_same_elec, data):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
                 sd2  = numpy.take(data, idx2, axis=0)
                 m2   = numpy.median(sd2, 0)
-                v_n  = m1 - m2
+                v_n  = (m1 - m2)*weights/weights.sum()
                 pr_1 = numpy.dot(sd1, v_n)
                 pr_2 = numpy.dot(sd2, v_n)
 
-                # med1 = numpy.median(pr_1)
-                # med2 = numpy.median(pr_2)
-                # mad1 = numpy.median(numpy.abs(pr_1 - med1))**2
-                # mad2 = numpy.median(numpy.abs(pr_2 - med2))**2
-                # norm = mad1 + mad2
-                # dist = numpy.sqrt((med1 - med2)**2/norm)
+                med1 = numpy.median(pr_1)
+                med2 = numpy.median(pr_2)
+                mad1 = numpy.median(numpy.abs(pr_1 - med1))**2
+                mad2 = numpy.median(numpy.abs(pr_2 - med2))**2
+                norm = mad1 + mad2
+                dist = numpy.sqrt((med1 - med2)**2/norm)
 
+                if dist < dmin:
+                    dmin     = dist
+                    to_merge = [ic1, ic2]
+
+                # dist = dip(numpy.concatenate([pr_1, pr_2]))
+                # thr = dip_threshold(len(pr_1) + len(pr_2), 0.1)
                 # if dist < dmin:
                 #     dmin     = dist
                 #     to_merge = [ic1, ic2]
 
-                dist = dip(numpy.concatenate([pr_1, pr_2]))
-                thr = dip_threshold(len(pr_1) + len(pr_2), 0.1)
-
-                if dist < thr:
-                    dmin     = dist/thr
-                    to_merge = [ic1, ic2]
-
-        if dmin < 1:
+        if dmin < sim_same_elec/0.674:
             groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, groups
 
@@ -250,7 +249,7 @@ def merging(groups, sim_same_elec, data):
     merged          = [len(clusters), 0]
 
     while has_been_merged:
-        has_been_merged, groups = perform_merging(groups, sim_same_elec, data)
+        has_been_merged, groups = perform_merging(groups, sim_same_elec, data, weights)
         if has_been_merged:
             merged[1] += 1
 
