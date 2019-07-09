@@ -909,7 +909,7 @@ def lcm(X, left, right):
 
 def dip_threshold(n, p_value):
     k = 21.642
-    theta = 1.84157e-2/sqrt(n)
+    theta = 1.84157e-2/numpy.sqrt(n)
     return gamma.ppf(1.-p_value, a = k, scale = theta)
 
 
