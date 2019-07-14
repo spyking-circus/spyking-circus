@@ -22,7 +22,7 @@ Python
 	from pylab import *
 	params    = CircusParser('yourdatafile.dat')
 	N_e       = params.getint('data', 'N_e') # The number of channels
-	N_t       = params.getint('data', 'N_t') # The temporal width of the template
+	N_t       = params.getint('detection', 'N_t') # The temporal width of the template
 	templates = load_data(params, 'templates') # To load the templates
 	temp_i = templates[:, i].toarray().reshape(N_e, N_t) # To read the template i as a 2D matrix
 	imshow(temp_i, aspect='auto')

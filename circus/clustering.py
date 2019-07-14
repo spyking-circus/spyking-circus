@@ -79,7 +79,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     jitter_range     = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
-    nb_ss_bins        = 50
+    nb_ss_bins        = params.getint('clustering', 'nb_ss_bins')
     use_hanning      = params.getboolean('detection', 'hanning')
     #################################################################
 
