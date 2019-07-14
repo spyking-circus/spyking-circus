@@ -102,7 +102,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if use_savgol:
         savgol_window = params.getint('clustering', 'savgol_window')
-        hanning_filter = numpy.hanning(N_t)
+        kaiser_filter = numpy.kaiser(N_t, N_t//3)
 
     if sign_peaks in ['negative', 'both']:
         basis['proj_neg'], basis['rec_neg'] = io.load_data(params, 'basis')
@@ -886,9 +886,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         tmp_templates   = first_component
 
                     if use_savgol:
-                        for i in range(len(tmp_templates)):
-                            tmp = scipy.signal.savgol_filter(tmp_templates[i], savgol_window, 3)
-                            tmp_templates[i] = hanning_filter*tmp_templates[i] + (1 - hanning_filter)*tmp
+                        for i in range(len(first_component)):
+                            tmp = scipy.signal.savgol_filter(first_component[i], savgol_window, 3)
+                            first_component[i] = kaiser_filter*first_component[i] + (1 - kaiser_filter)*tmp
+
+                        tmp_templates = first_component
 
                     if p == 'neg':
                         tmpidx = divmod(tmp_templates.argmin(), tmp_templates.shape[1])

@@ -2,13 +2,14 @@
 Release 0.8.3
 =============
 
-* automatic suppression, during meta merging, of noise templates
+* automatic suppression, during meta merging, of noisy templates (for SpikeToolKit/Forest)
 * during the phy export, we can automatically pre-assign labels to neurons
 * fix a bug when converting to phy with dead channels
 * fix a bug when converting to phy with file formats without data_offset
 * speedup the estimation of the amplitude distribution
 * fixes for clusters
 * enhancement of the templates thanks to Savitzky-Golay filtering
+* fix a bug when launching GUIs for file format without data offset
 
 =============
 Release 0.8.2

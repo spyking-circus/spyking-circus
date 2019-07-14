@@ -93,7 +93,7 @@ def main(argv=None):
         gain = 1
 
     file_out_suff  = params.get('data', 'file_out_suff')
-    if hasattr(data_file, 'data_offset'):
+    if data_file.params.has_key('data_offset'):
         data_offset = data_file.data_offset
     else:
         data_offset = 0
