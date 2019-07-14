@@ -81,6 +81,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift_2 = template_shift + jitter_range
     nb_ss_bins        = params.getint('clustering', 'nb_ss_bins')
     use_hanning      = params.getboolean('detection', 'hanning')
+    use_savgol       = params.getboolean('clustering', 'savgol')
     #################################################################
 
     if sign_peaks == 'negative':
@@ -97,6 +98,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     basis = {}
 
     if use_hanning:
+        hanning_filter = numpy.hanning(N_t)
+
+    if use_savgol:
+        savgol_window = params.getint('clustering', 'savgol_window')
         hanning_filter = numpy.hanning(N_t)
 
     if sign_peaks in ['negative', 'both']:
@@ -791,6 +796,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
+        if use_savgol:
+            print_and_log(["Templates will be smoothed by Savitzky Golay Filtering ..."], 'debug', logger)
 
     if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
 
@@ -877,6 +884,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_data        = io.get_stas(sub_data, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
+
+                    if use_savgol:
+                        for i in range(len(tmp_templates)):
+                            tmp = scipy.signal.savgol_filter(tmp_templates[i], savgol_window, 3)
+                            tmp_templates[i] = hanning_filter*tmp_templates[i] + (1 - hanning_filter)*tmp
 
                     if p == 'neg':
                         tmpidx = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
