@@ -305,6 +305,7 @@ class MergeWindow(QMainWindow):
             self.update_inspect({idx})
 
         if self.remove_noise:
+            self.update_lag(self.default_lag)
             self.suggest_templates(None)
             self.remove_templates(None)
 
@@ -832,10 +833,11 @@ class MergeWindow(QMainWindow):
             self.inspect_points = set()
             self.update_inspect(is_selected, 'add', False)
 
-        self.update_score_plot()
-        self.update_detail_plot()
-        self.update_data_plot()
-        self.update_waveforms()
+        if self.app is not None:
+            self.update_score_plot()
+            self.update_detail_plot()
+            self.update_data_plot()
+            self.update_waveforms()
 
 
     def update_inspect(self, indices, add_or_remove=None, link=True):
@@ -877,9 +879,10 @@ class MergeWindow(QMainWindow):
         else:
             self.selected_points.update(set(indices))
     
-        self.update_score_plot()
-        self.update_detail_plot()
-        self.update_data_sort_order()
+        if self.app is not None:
+            self.update_score_plot()
+            self.update_detail_plot()
+            self.update_data_sort_order()
 
     def add_to_selection(self, event):
         to_add = set(self.inspect_points)
@@ -909,9 +912,7 @@ class MergeWindow(QMainWindow):
     def suggest_templates(self, event):
         self.inspect_templates = set()
         indices = numpy.where(self.norms[self.to_consider] <= 1.1)[0]
-        if self.app is not None:
-            self.update_inspect_template(indices, add_or_remove='add')
-
+        self.update_inspect_template(indices, add_or_remove='add')
 
     def on_mouse_press(self, event):
         if event.inaxes in [self.score_ax1, self.score_ax2, self.score_ax3]:
@@ -1001,7 +1002,9 @@ class MergeWindow(QMainWindow):
             self.lasso_selector.points = self.points[2]
 
     def remove_templates(self, event):
-        print_and_log(['Deleting templates: %s' %str(sorted(self.inspect_templates))], 'default', logger)
+        print_and_log(['Deleting %d noisy templates' %len(self.inspect_templates)], 'default', logger)
+        print_and_log(['Deleting noisy templates: %s' %str(sorted(self.inspect_templates))], 'debug', logger)
+
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 

@@ -79,8 +79,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     jitter_range     = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
-    nb_ss_bins        = 50
+    nb_ss_bins        = params.getint('clustering', 'nb_ss_bins')
     use_hanning      = params.getboolean('detection', 'hanning')
+    use_savgol       = params.getboolean('clustering', 'savgol')
     #################################################################
 
     if sign_peaks == 'negative':
@@ -98,6 +99,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if use_hanning:
         hanning_filter = numpy.hanning(N_t)
+
+    if use_savgol:
+        savgol_window = params.getint('clustering', 'savgol_window')
+        savgol_filter = numpy.hanning(N_t)**3
 
     if sign_peaks in ['negative', 'both']:
         basis['proj_neg'], basis['rec_neg'] = io.load_data(params, 'basis')
@@ -796,6 +801,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
+        if use_savgol:
+            print_and_log(["Templates will be smoothed by Savitzky Golay Filtering ..."], 'debug', logger)
 
     if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
 
@@ -883,6 +890,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
 
+                    if use_savgol:
+                        for i in range(len(first_component)):
+                            tmp = scipy.signal.savgol_filter(first_component[i], savgol_window, 3)
+                            first_component[i] = savgol_filter*first_component[i] + (1 - savgol_filter)*tmp
+
+                        tmp_templates = first_component
+
                     if p == 'neg':
                         tmpidx = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
                     elif p == 'pos':
@@ -908,10 +922,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         mean_channels += len(indices)
                         if comp_templates:
                             to_delete  = []
-                            for i in indices:
-                                if (numpy.abs(templates[i, :]).max() < sparsify*(thresholds[i]/spike_thresh)):
-                                    templates[i, :] = 0
-                                    to_delete += [i]
+                            stds = numpy.std(templates[indices], 1)
+                            to_delete = numpy.where(stds < (sparsify*(thresholds[indices]/spike_thresh)/0.674))[0]
+                            templates[indices[to_delete], :] = 0
                             mean_channels -= len(to_delete)
 
                         templates  = templates.ravel()
@@ -962,8 +975,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             sub_templates[indices, :] = tmp_templates
 
                         if comp_templates:
-                            for i in to_delete:
-                                sub_templates[i, :] = 0
+                            sub_templates[indices[to_delete], :] = 0
 
                         sub_templates = sub_templates.ravel()
                         dx            = sub_templates.nonzero()[0].astype(numpy.uint32)

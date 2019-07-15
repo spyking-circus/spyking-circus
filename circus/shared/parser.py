@@ -103,6 +103,8 @@ class CircusParser(object):
                         ['clustering', 'sub_dim', 'int', '5'],
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.5'],
+                        ['clustering', 'nb_ss_bins', 'int', '50'],
+                        ['clustering', 'savgol', 'bool', 'True'],
                         ['detection', 'jitter_range', 'float', '0.1'],
                         ['detection', 'smoothing', 'bool', 'True'],
                         ['detection', 'smoothing_factor', 'float', '0.25']]
@@ -478,6 +480,12 @@ class CircusParser(object):
             self.set('detection', 'N_t', str(self._N_t))
             self.set('detection', 'dist_peaks', str(self._N_t))
             self.set('detection', 'template_shift', str((self._N_t-1)//2))
+
+            self._savgol = int(self.rate*0.5*1e-3)
+            if numpy.mod(self._savgol, 2) == 0:
+                self._savgol += 1
+
+            self.set('clustering', 'savgol_window', str(self._savgol))
 
             if self.parser._sections['fitting'].has_key('chunk'):
                 self.parser.set('fitting', 'chunk_size', self.parser._sections['fitting']['chunk'])

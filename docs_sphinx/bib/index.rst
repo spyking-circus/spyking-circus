@@ -19,6 +19,8 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2019
 ~~~~
 
+* Bolding K. A., Nagappan S., Han B.-X., Wang F., Franks K. M., *Pattern recovery by recurrent circuits in piriform cortex*, biooRxiv 694331; doi: https://doi.org/10.1101/694331
+
 * Reinhard K., Li C., Do Q., Burke E., Heynderickx S., Farrow K.,*A projection specific logic to sampling visual inputs in mouse superior colliculus*, bioRxiv 272914; doi: https://doi.org/10.1101/272914
 
 * Fiáth, Richárd, et al., *Fine-scale mapping of cortical laminar activity during sleep slow oscillations using high-density linear silicon probes*, Journal of neuroscience methods 316: 58-70

@@ -294,13 +294,14 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
         for k in numpy.random.permutation(subcurves)[:n_curves]:
             pylab.plot(data[k], '0.5')
         
-        pylab.plot(templates[:, count], 'r')        
+        pylab.plot(templates[:, count], 'r')
         pylab.plot(amps_lim[count][0]*templates[:, count], 'b', alpha=0.5)
         pylab.plot(amps_lim[count][1]*templates[:, count], 'b', alpha=0.5)
         
         xmin, xmax = pylab.xlim()
         pylab.plot([xmin, xmax], [-threshold, -threshold], 'k--')
         pylab.plot([xmin, xmax], [threshold, threshold], 'k--')
+        pylab.plot([xmin, xmax], [0, 0], 'k--')
         #pylab.ylim(-1.5*threshold, 1.5*threshold)
         ymin, ymax = pylab.ylim()
         pylab.plot([center, center], [ymin, ymax], 'k--')
