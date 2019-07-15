@@ -174,11 +174,13 @@ The merging section is::
     correct_lag    = True      # If spikes are aligned when merging. May be better for phy usage
     default_lag    = 5         # Default length of the period to compute dip in the CC [ms]
     auto_mode      = 0.75      # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
+    remove_noise   = False     # If True, meta merging will remove obvious noise templates (weak amplitudes)
 
 
 To know more about how those merges are performed and how to use this option, see :doc:`Automatic Merging <../code/merging>`. Parameters that are most likely to be changed:
     * ``correct_lag`` By default, in the meta-merging GUI, when two templates are merged, the spike times of the one removed are simply added to the one kept, without modification. However, it is more accurate to shift those spike, in times, by the temporal shift that may exist between those two templates. This will lead to a better visualization in phy, with more aligned spikes
-    * ``auto_mode`` If your recording is stationary, you can try to perform a fully automated merging. By setting a positive value, you control the level of merging performed by the software. Values such as 1 should be a good start, but see see :doc:`Automatic Merging <../code/merging>` for more details. 
+    * ``auto_mode`` If your recording is stationary, you can try to perform a fully automated merging. By setting a positive value, you control the level of merging performed by the software. Values such as 0.75 should be a good start, but see see :doc:`Automatic Merging <../code/merging>` for more details. The lower, the more the merging will be aggressive.
+    * ``remove_noise`` If you want to automatically get rid of noise templates (very weak ones), just set this value to True.
 
 Converting
 ----------
