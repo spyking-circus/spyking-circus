@@ -14,7 +14,7 @@ requirements:
     - numpy
     - mpich >=3 [unix]
     - cython
-    - scipy ==1.2 #temporary because of statsmodels 0.9
+    - scipy
     - matplotlib
     - h5py
     - setuptools >=26
