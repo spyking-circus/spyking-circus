@@ -233,6 +233,11 @@ class MergeWindow(QMainWindow):
             print_and_log(['Automatic merging with a threshold of %g' %self.auto_mode], 'info', logger)
 
         self.generate_data()
+
+        if len(self.raw_data) == 0:
+            print_and_log(['No pairs were found given the parameters'], 'info', logger)
+            self.finalize(None)
+
         self.selected_points = set()
         self.selected_templates = set()
         self.inspect_templates = []
