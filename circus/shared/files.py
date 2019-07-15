@@ -416,8 +416,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 nb_data = len(sparse_mat.data)
                 nb_ptr  = len(sparse_mat.indptr)
 
-            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
-            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.uint32), root=0)[0])
+            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.int32), root=0)[0])
 
             if local_rank == 0:
                 indices_bytes = short_size * intsize
@@ -433,7 +433,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
 
             data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(short_size,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(short_size,))
 
             if local_rank == 0:
                 data[:]    = sparse_mat.data
@@ -486,7 +486,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 indices_bytes = 0
                 data_bytes    = 0
 
-                nb_data     = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+                nb_data     = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
                 win_data    = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
                 buf_data, _ = win_data.Shared_query(0)
                 buf_data    = numpy.array(buf_data, dtype='B', copy=False)
@@ -579,7 +579,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 if local_rank == 0:
                     nb_data    = len(over_x)
 
-                long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+                long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
 
                 if local_rank == 0:
                     indices_bytes = long_size * intsize
@@ -598,8 +598,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 buf_indices_y = numpy.array(buf_indices_y, dtype='B', copy=False)
 
                 data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-                indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.uint32, shape=(long_size,))
-                indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.uint32, shape=(long_size,))
+                indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(long_size,))
+                indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(long_size,))
 
                 sub_comm.Barrier()
 
@@ -643,7 +643,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
 
-                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
                     type_size  = 0
                     data_bytes = 0
 
@@ -654,8 +654,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                             type_size = 1
                         data_bytes = data_size * 4
                         
-                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.uint32), root=0)[0])
-                    empty      = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.uint32), root=0)[0])
+                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
+                    empty      = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.int32), root=0)[0])
                     if empty > 0:
                         win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
                         buf_data, _ = win_data.Shared_query(0)
