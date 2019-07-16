@@ -210,7 +210,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     lines = ["Smart Search disabled on %d electrodes" %(numpy.sum(sdata == 0))]
                     print_and_log(lines, 'debug', logger)
                 if numpy.any(sdata > 0):
-                    print_and_log(["Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', logger)
+                    if isolation:
+                        print_and_log(["Smart Search of good isolated spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', logger)
+                    else:
+                        print_and_log(["Smart Search of good spikes for the clustering (%d/%d)..." %(gpass, nb_repeats)], 'default', logger)
                 else:
                     print_and_log(["Searching random spikes for the clustering (%d/%d) (no smart search)" %(gpass, nb_repeats)], 'default', logger)
             else:
@@ -357,6 +360,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if elt_count == loop_nb_elts:
                             break
 
+                        is_isolated = True
+
                         if sign_peaks == 'negative':
                             elec = numpy.argmin(local_chunk[peak])
                             negative_peak = True
@@ -384,8 +389,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     negative_peak = True
                                     loc_peak      = 'neg'
 
-                        if ((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank)):
+                        if (((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank))):
 
+                            is_local_extrema = (elec in all_extremas[all_peaktimes == peak])
                             indices = numpy.take(inv_nodes, edges[nodes[elec]])
 
                             if safety_space:
@@ -393,63 +399,73 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 myslice = all_times[elec, min_times[midx]:max_times[midx]]
 
-                            is_local_extrema = elec in all_extremas[all_peaktimes == peak]
-
                             if is_local_extrema and not myslice.any():
 
-                                to_accept  = False
+                                if isolation and gpass == 1:
 
-                                if gpass == 0:
-                                    indices = [elec_positions[elec]]
+                                    nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
+                                    vicinity_peaks = all_peaktimes[nearby_peaks]
+                                    vicinity_extremas = all_extremas[nearby_peaks]
+                                    extremas = local_chunk[vicinity_peaks, vicinity_extremas]
 
-                                if gpass == 1:
-                                    to_update = result['data_%s_' %loc_peak + str(elec)]
-                                else:
-                                    to_update = result['tmp_%s_' %loc_peak + str(elec)]
-
-                                if len(to_update) < loop_max_elts_elec:
-
-                                    if alignment:
-                                        zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
-                                        ydata = numpy.arange(len(indices))
-                                        if len(ydata) == 1:
-                                            #if False:
-                                            #    smoothing_factor = smoothing_factor*xdata.size*mads[elec]**2
-                                            #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
-                                            #else:
-                                            f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
-                                            if negative_peak:
-                                                rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
-                                            else:
-                                                rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
-                                            ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
-                                            sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+                                    nearby = numpy.in1d(vicinity_extremas, indices)
+                                    to_consider = extremas[nearby]
+                                    if len(to_consider) > 0:
+                                        if negative_peak:
+                                            if numpy.min(to_consider) < local_chunk[peak, elec]:
+                                                is_isolated = False
                                         else:
-                                            idx = elec_positions[elec]
-                                            #if False:
-                                            #    smoothing_factor = smoothing_factor*zdata.size*numpy.median(mads[indices])**2
-                                            #    f = scipy.interpolate.RectBivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
-                                            #else:
-                                            f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
-                                            if negative_peak:
-                                                rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                                            if numpy.max(to_consider) > local_chunk[peak, elec]:
+                                                is_isolated = False
+
+                                if is_isolated:
+
+                                    to_accept  = False
+    
+                                    if gpass == 0:
+                                        indices = [elec_positions[elec]]
+
+                                    if gpass == 1:
+                                        to_update = result['data_%s_' %loc_peak + str(elec)]
+                                    else:
+                                        to_update = result['tmp_%s_' %loc_peak + str(elec)]
+
+                                    if len(to_update) < loop_max_elts_elec:
+
+                                        if alignment:
+                                            zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
+                                            ydata = numpy.arange(len(indices))
+                                            if len(ydata) == 1:
+                                                #if False:
+                                                #    smoothing_factor = smoothing_factor*xdata.size*mads[elec]**2
+                                                #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
+                                                #else:
+                                                f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
+                                                if negative_peak:
+                                                    rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
+                                                else:
+                                                    rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                                                ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                                                sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                             else:
-                                                rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
-                                            ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
-                                            sub_mat  = f(ddata, ydata).astype(numpy.float32)
-                                    else:
-                                        sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
-                                    
-                                    if use_hanning:
-                                        sub_mat = (sub_mat.T*hanning_filter).T
+                                                idx = elec_positions[elec]
+                                                #if False:
+                                                #    smoothing_factor = smoothing_factor*zdata.size*numpy.median(mads[indices])**2
+                                                #    f = scipy.interpolate.RectBivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
+                                                #else:
+                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
+                                                if negative_peak:
+                                                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                                                else:
+                                                    rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                                                ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                                                sub_mat  = f(ddata, ydata).astype(numpy.float32)
+                                        else:
+                                            sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
 
-                                    if isolation:
-                                        is_isolated = numpy.all(numpy.max(numpy.abs(sub_mat[yoff]), 0) <= thresholds[indices])
-                                        to_accept = False
-                                    else:
-                                        is_isolated = True
+                                        if use_hanning:
+                                            sub_mat = (sub_mat.T*hanning_filter).T
 
-                                    if is_isolated:
                                         if gpass == 0:
                                             to_accept  = True
                                             ext_amp    = sub_mat[template_shift]
@@ -482,21 +498,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
                                             nx, ny     = sub_mat.shape
                                             sub_mat    = sub_mat.reshape((1, nx * ny))
-
                                             to_accept  = True
                                             result['tmp_%s_' %loc_peak + str(elec)] = numpy.vstack((result['tmp_%s_' %loc_peak + str(elec)], sub_mat))
 
-                                if to_accept:
-                                    elt_count += 1
-                                    if gpass >= 1:
-                                        to_add = numpy.array([peak + local_offset], dtype=numpy.uint32)
-                                        result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
-                                    if gpass == 1:
-                                        result['peaks_' + str(elec)] = numpy.concatenate((result['peaks_' + str(elec)], [int(negative_peak)]))
-                                    if safety_space:
-                                        all_times[indices, min_times[midx]:max_times[midx]] = True
-                                    else:
-                                        all_times[elec, min_times[midx]:max_times[midx]] = True
+                                    if to_accept:
+                                        elt_count += 1
+                                        if gpass >= 1:
+                                            to_add = numpy.array([peak + local_offset], dtype=numpy.uint32)
+                                            result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
+                                        if gpass == 1:
+                                            result['peaks_' + str(elec)] = numpy.concatenate((result['peaks_' + str(elec)], [int(negative_peak)]))
+                                        if safety_space:
+                                            all_times[indices, min_times[midx]:max_times[midx]] = True
+                                        else:
+                                            all_times[elec, min_times[midx]:max_times[midx]] = True
 
                 if gpass == 0:
                     for i in xrange(comm.rank, N_e, comm.size):
@@ -524,12 +539,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass != 1:
-                if isolation:
-                    print_and_log(["We found %d isolated spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
-                else:
-                    print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
+                print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
                 if nb_elements == 0:
-                    print_and_log(["No more isolated spikes in the recording, stop searching"], 'info', logger)
+                    print_and_log(["No more spikes in the recording, stop searching"], 'info', logger)
             else:
                 if isolation:
                     print_and_log(["We found %d isolated spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
