@@ -58,6 +58,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     make_plots     = params.get('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
+    dip_threshold  = params.getfloat('clustering', 'dip_threshold')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
@@ -723,7 +724,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         data = result['sub_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], merged = algo.merging(cluster_results[p][ielec]['groups'],
                                                                             sim_same_elec,
-                                                                            data, result['weights_%s_' %p  + str(ielec)])
+                                                                            dip_threshold,
+                                                                            data)
 
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
                         count = 0
