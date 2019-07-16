@@ -10,7 +10,7 @@ To automatize the procedure, we developed a so-called meta-merging step that wil
 
 .. note::
 
-  Since 0.8.2, the merging step is now included in the deafault pipeline of the algorithm, in order to simplify the evaluation with automatic procedures. However, since we don't want to claim that such a meta-merging is optimal for all dataset, all species, and also for long and non-stationary recordings, we would encourage users to look at full results if the meta merging is suspicious.
+  Since 0.8.2, the merging step is now included in the default pipeline of the algorithm, in order to simplify the evaluation with automatic procedures. However, since we don't want to claim that such a meta-merging is optimal for all dataset, all species, and also for long and non-stationary recordings, we would encourage users to look at full results if the meta merging is suspicious. You can also automatically remove the nisy templates with the remove_noise option in the ``merging`` section.
 
 
 Comparison of CrossCorrelograms
