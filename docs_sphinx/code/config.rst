@@ -98,7 +98,7 @@ Whitening
 The whitening section is::
 
     chunk_size     = 60        # Size of the data chunks [in s]
-    safety_time    = 1         # Temporal zone around which templates are isolated [in ms]
+    safety_time    = auto      # Temporal zone around which templates are isolated [in ms]
     spatial        = True      # Perform spatial whitening
     max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8       # Fraction of max_elts that should be obtained per electrode [0-1]
@@ -116,13 +116,14 @@ The clustering section is::
 
     extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw, or quadratic
     safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
-    safety_time    = 1          # Temporal zone around which templates are isolated [in ms]
+    safety_time    = auto       # Temporal zone around which templates are isolated [in ms]
     max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
     nclus_min      = 0.002      # Min number of elements in a cluster (given in percentage)
     nb_repeats     = 3          # Number of passes used for the clustering
     make_plots     =            # Generate sanity plots of the clustering
     sim_same_elec  = 3          # Distance within clusters under which they are re-merged
+    dip_threshold  = 0.5        # Will replace sim_same_elec in the future. Set it to 0 to keep using sim_same_elec
     sensitivity    = 5          # The only parameter to control the cluster. The lower, the more sensitive
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
