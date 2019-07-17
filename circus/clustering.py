@@ -58,6 +58,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     make_plots     = params.get('clustering', 'make_plots')
     sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
+    dip_threshold  = params.getfloat('clustering', 'dip_threshold')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
@@ -172,6 +173,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.uint32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
+            result['weights_%s_' %p + str(i)] = None
         indices = numpy.take(inv_nodes, edges[nodes[i]])
         elec_positions[i] = numpy.where(indices == i)[0]
 
@@ -236,6 +238,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if gpass == 1:
                 for p in search_peaks:
                     result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
+                    result['weights_%s_' %p  + str(i)] = comm.bcast(result['weights_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
                     result['data_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
                     result['data_'  + str(i)]      = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
         # I guess this is more relevant, to take signals from all over the recordings
@@ -661,11 +664,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             pca                               = PCA(sub_output_dim)
                             pca.fit(result['data_%s_' %p + str(ielec)])
                             result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
+                            result['weights_%s_' %p + str(ielec)] = pca.explained_variance_ratio_.astype(numpy.float32)
                             print_and_log(["The percentage of variance explained by local PCA on electrode %d is %s" 
                                 %(ielec, numpy.sum(pca.explained_variance_ratio_))], 'debug', logger)
                             if result['pca_%s_' %p + str(ielec)].shape[1] < sub_output_dim:
                                 zeros = numpy.zeros((result['pca_%s_' %p + str(ielec)].shape[0], sub_output_dim - result['pca_%s_' %p + str(ielec)].shape[1]))
                                 result['pca_%s_' %p + str(ielec)] = numpy.hstack((result['pca_%s_' %p + str(ielec)], zeros))
+                                result['weights_%s_' %p + str(ielec)] = numpy.hstack((result['weights_%s_' %p + str(ielec)], zeros))
 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
@@ -683,6 +688,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             dimension                   = basis['proj_%s' %p].shape[1] * n_neighb
                             result['pca_%s_' %p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
                             result['pca_%s_' %p + str(ielec)][numpy.arange(sub_output_dim), numpy.arange(sub_output_dim)] = 1
+                            result['weights_%s_' %p + str(ielec)] = numpy.ones(sub_output_dim, dtype=numpy.float32)
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                         result['sub_%s_' %p + str(ielec)]  = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
                         result['sdist_%s_' %p + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
@@ -718,6 +724,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         data = result['sub_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], merged = algo.merging(cluster_results[p][ielec]['groups'],
                                                                             sim_same_elec,
+                                                                            dip_threshold,
                                                                             data)
 
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
