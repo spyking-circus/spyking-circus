@@ -240,7 +240,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
                     result['weights_%s_' %p  + str(i)] = comm.bcast(result['weights_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
                     result['data_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
-                    result['data_'  + str(i)]      = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
         # I guess this is more relevant, to take signals from all over the recordings
         numpy.random.seed(gpass)
         all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int64))
@@ -665,12 +664,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             pca.fit(result['data_%s_' %p + str(ielec)])
                             result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
                             result['weights_%s_' %p + str(ielec)] = pca.explained_variance_ratio_.astype(numpy.float32)
-                            print_and_log(["The percentage of variance explained by local PCA on electrode %d is %s" 
-                                %(ielec, numpy.sum(pca.explained_variance_ratio_))], 'debug', logger)
+                            print_and_log(["The percentage of variance explained by local PCA on electrode %s for %s spikes is %g with %d dimensions"
+                                %(ielec, p, numpy.sum(pca.explained_variance_ratio_), result['pca_%s_' %p + str(ielec)].shape[1])], 'debug', logger)
                             if result['pca_%s_' %p + str(ielec)].shape[1] < sub_output_dim:
-                                zeros = numpy.zeros((result['pca_%s_' %p + str(ielec)].shape[0], sub_output_dim - result['pca_%s_' %p + str(ielec)].shape[1]))
-                                result['pca_%s_' %p + str(ielec)] = numpy.hstack((result['pca_%s_' %p + str(ielec)], zeros))
-                                result['weights_%s_' %p + str(ielec)] = numpy.hstack((result['weights_%s_' %p + str(ielec)], zeros))
+                               zeros = numpy.zeros((result['pca_%s_' %p + str(ielec)].shape[0], sub_output_dim - result['pca_%s_' %p + str(ielec)].shape[1]))
+                               result['pca_%s_' %p + str(ielec)] = numpy.hstack((result['pca_%s_' %p + str(ielec)], zeros))
+                               result['weights_%s_' %p + str(ielec)] = numpy.hstack((result['weights_%s_' %p + str(ielec)], zeros))
 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
@@ -731,7 +730,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         count = 0
                         to_remove = []
                         for label, cluster_size in zip(idx_clusters, counts):
-                            if (label > -1) and (cluster_size < n_min):
+                            if (label > -1) and (cluster_size < n_min/2):
                                 tmp = cluster_results[p][ielec]['groups'] == label
                                 cluster_results[p][ielec]['groups'][tmp] = -1
                                 to_remove += [count]
@@ -858,6 +857,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             to_explore = get_tqdm_progressbar(to_explore)
 
         for ielec in to_explore:
+
+            result['data_' + str(ielec)] = numpy.zeros((0, result['pca_%s_' %p + str(ielec)].shape[1]), dtype=numpy.float32)
 
             n_neighb = len(edges[nodes[ielec]])
             indices  = inv_nodes[edges[nodes[ielec]]]

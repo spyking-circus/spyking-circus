@@ -123,6 +123,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     cNorm     = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
     scalarMap = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
     assigned  = numpy.where(halo > -1)[0]
+    not_assigned = numpy.where(halo == -1)[0]
 
     ax  = fig.add_subplot(241)
     ax.set_xlabel(r'$\rho$')
@@ -146,16 +147,19 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
         visu_data = pca.fit_transform(data.astype(numpy.double))
         
         ax = fig.add_subplot(242)
+        ax.scatter(visu_data[not_assigned,0], visu_data[not_assigned,1], c='k', linewidth=0, s=def_size, alpha=0.5)
         ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 0')
         ax.set_ylabel('Dim 1')
 
         ax = fig.add_subplot(243)
+        ax.scatter(visu_data[not_assigned,0], visu_data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
         ax.scatter(visu_data[assigned,0], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 0')
         ax.set_ylabel('Dim 2')
                 
         ax = fig.add_subplot(244)
+        ax.scatter(visu_data[not_assigned,1], visu_data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
         ax.scatter(visu_data[assigned,1], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
         ax.set_xlabel('Dim 1')
         ax.set_ylabel('Dim 2')

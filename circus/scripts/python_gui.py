@@ -161,7 +161,7 @@ def main(argv=None):
         gui_params                   = {}
         if file_format in supported_by_phy:
             if not params.getboolean('data', 'overwrite'):
-                gui_params['dat_path']   = params.get('data', 'data_file_no_overwrite')
+                gui_params['dat_path']   = r"%s" %params.get('data', 'data_file_no_overwrite')
             else:
                 if params.get('data', 'stream_mode') == 'multi-files':
                     data_file = params.get_data_file(source=True, has_been_created=False)

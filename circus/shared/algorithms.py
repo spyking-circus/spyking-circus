@@ -167,20 +167,16 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
         centersx = numpy.where(centers)[0] # index of centroids
         dist2cent = dist.get_rows(centersx)
         labels = numpy.argmin(dist2cent, axis=0) + 1
-        # _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
-        
-        # small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
+        _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
 
-        # if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
-        #     cluslab = centers[centersx] # cluster labels
-        #     id2rem = numpy.where(numpy.in1d(cluslab, small_clusters))[0] # ids to remove
-        #     clusidx = numpy.delete(centersx, id2rem) # removing
-        #     centers = numpy.zeros(len(centers))
-        #     nclus = nclus - len(id2rem)
-        #     centers[clusidx] = numpy.arange(nclus) + 1 # re labeling centroids            
-        #     dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
-        #     labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
-            
+        small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
+
+        if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
+            id2rem = centersx[numpy.in1d(centersx, small_clusters)] # ids to remove
+            centers[numpy.in1d(centers, id2rem) ] = 0
+            labels[numpy.in1d(labels, id2rem) ] = 0
+            nclus -= len(id2rem)
+
     return nclus, labels, centers
     
 
@@ -192,7 +188,6 @@ def halo_assign(dist, labels, centers):
     dist2cent = dist.get_rows(numpy.where(centers > 0)[0]) # distance to centroids
     dist2cluscent = dist2cent*sameclus_cent # preserves only distances to the corresponding cluster centroid
     nclusmem = numpy.sum(sameclus_cent, axis=1) # number of cluster members
-        
     meandist2cent = numpy.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
     gt_meandist2cent = numpy.greater(dist2cluscent, meandist2cent[:, None]) # greater than the mean dist to centroid
     remids = numpy.sum(gt_meandist2cent, axis=0)

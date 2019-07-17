@@ -529,6 +529,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         res = {}
         pca = None
+        pca_pos = None
+        pca_neg = None
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
                 pca          = PCA(output_dim)
@@ -537,6 +539,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     pca.fit(gdata_neg)
                 res['proj']  = pca.components_.T.astype(numpy.float32)
+                pca_neg = numpy.sum(pca.explained_variance_ratio_)
             else:
                 res['proj']  = numpy.identity(int(output_dim), dtype=numpy.float32)
             res['rec']       = res['proj'].T
@@ -551,6 +554,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     pca.fit(gdata_pos)
                 res['proj_pos'] = pca.components_.T.astype(numpy.float32)
+                pca_pos = numpy.sum(pca.explained_variance_ratio_)
             else:
                 res['proj_pos'] = numpy.identity(int(output_dim), dtype=numpy.float32)
             res['rec_pos']       = res['proj_pos'].T
@@ -566,8 +570,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["A basis with %s dimensions has been built" %res['proj'].shape[1]], 'info', logger)
         elif sign_peaks == 'both':
             print_and_log(["Two basis with %s dimensions has been built" %res['proj'].shape[1]], 'debug', logger)
-        if pca is not None:
-            print_and_log(["The percentage of variance explained is %s" %numpy.sum(pca.explained_variance_ratio_)], 'debug', logger)
+        if pca_pos is not None:
+            print_and_log(["The percentage of variance explained is %s for positive spikes" %pca_pos], 'debug', logger)
+        if pca_neg is not None:
+            print_and_log(["The percentage of variance explained is %s for negative spikes" %pca_neg], 'debug', logger)
+
         bfile.close()
 
     comm.Barrier()
