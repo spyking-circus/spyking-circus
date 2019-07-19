@@ -45,6 +45,7 @@ output_dim     = 5          # Can be in percent of variance explain, or num of d
 
 [clustering]
 extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw
+sub_dim        = 10         # Number of dimensions to keep for local PCA per electrode
 safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
 safety_time    = auto       # Temporal zone around which templates are isolated [in ms, or auto]
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)

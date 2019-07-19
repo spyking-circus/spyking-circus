@@ -100,7 +100,7 @@ class CircusParser(object):
 
     __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
-                        ['clustering', 'sub_dim', 'int', '5'],
+                        ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.5'],
                         ['clustering', 'nb_ss_bins', 'int', '50'],
