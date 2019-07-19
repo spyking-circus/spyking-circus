@@ -425,7 +425,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     to_accept  = False
     
                                     if gpass == 0:
-                                        indices = [elec_positions[elec]]
+                                        indices = elec_positions[elec]
 
                                     if gpass == 1:
                                         to_update = result['data_%s_' %loc_peak + str(elec)]
