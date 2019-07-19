@@ -492,7 +492,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 buf_data    = numpy.array(buf_data, dtype='B', copy=False)
                 data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
 
-                factor = int(2*nb_data)
+                factor = int(3*nb_data)
                 win_indices    = MPI.Win.Allocate_shared(factor * intsize, intsize, comm=sub_comm)
                 buf_indices, _ = win_indices.Shared_query(0)
                 buf_indices    = numpy.array(buf_indices, dtype='B', copy=False)

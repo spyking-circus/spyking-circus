@@ -10,9 +10,10 @@ Release 0.8.3
 * minor fixes for clusters
 * smoothing of the templates thanks to Savitzky-Golay filtering
 * fix a bug when launching GUIs for file format without data offset
-* can now work with scipy 1.3
-* isolation mode is improved, now the default and leading to better performance
+* can now work with scipy 1.3 and statsmodels 0.10
+* isolation mode is improved, set as default and leading to better performance
 * reducing overclustering with the Hartigan dip-test of unimodality
+* can now set the number of dimensions for local PCA (10 by default)
 
 =============
 Release 0.8.2

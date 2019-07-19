@@ -173,7 +173,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.uint32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
-            result['weights_%s_' %p + str(i)] = None
         indices = numpy.take(inv_nodes, edges[nodes[i]])
         elec_positions[i] = numpy.where(indices == i)[0]
 
@@ -226,10 +225,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 for p in search_peaks:
                     result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
                     result['nb_chunks_%s_' %p + str(i)] = 1
-            else:
+            elif gpass == 1:
                 n_neighb = len(edges[nodes[i]])
                 for p in search_peaks:
                     result['tmp_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
+            else:
+                for p in search_peaks:
+                    result['tmp_%s_' %p + str(i)] = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
 
             # If not the first pass, we sync all the detected times among nodes and give all nodes the w/pca
             result['all_times_' + str(i)] = numpy.concatenate((result['all_times_' + str(i)], all_gather_array(result['loc_times_' + str(i)], comm, dtype='uint32', compress=blosc_compress)))
@@ -237,9 +239,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if gpass == 1:
                 for p in search_peaks:
-                    result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
-                    result['weights_%s_' %p  + str(i)] = comm.bcast(result['weights_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
                     result['data_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
+
+            if gpass == 2:
+                for p in search_peaks:
+                    result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
+
         # I guess this is more relevant, to take signals from all over the recordings
         numpy.random.seed(gpass)
         all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int64))
@@ -500,6 +505,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
                                             nx, ny     = sub_mat.shape
                                             sub_mat    = sub_mat.reshape((1, nx * ny))
+                                            sub_mat    = numpy.dot(sub_mat, result['pca_%s_' %loc_peak + str(elec)])
                                             to_accept  = True
                                             result['tmp_%s_' %loc_peak + str(elec)] = numpy.vstack((result['tmp_%s_' %loc_peak + str(elec)], sub_mat))
 
@@ -660,16 +666,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if len(result['data_%s_' %p + str(ielec)]) >= 1:
 
                         if result['pca_%s_' %p + str(ielec)] is None:
-                            pca                               = PCA(sub_output_dim)
-                            pca.fit(result['data_%s_' %p + str(ielec)])
-                            result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
-                            result['weights_%s_' %p + str(ielec)] = pca.explained_variance_ratio_.astype(numpy.float32)
-                            print_and_log(["The percentage of variance explained by local PCA on electrode %s for %s spikes is %g with %d dimensions"
+
+                            if result['data_%s_' %p + str(ielec)].shape[1] > sub_output_dim:
+                                pca = PCA(sub_output_dim)
+                                pca.fit(result['data_%s_' %p + str(ielec)])
+                                result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
+                                print_and_log(["The percentage of variance explained by local PCA on electrode %s for %s spikes is %g with %d dimensions"
                                 %(ielec, p, numpy.sum(pca.explained_variance_ratio_), result['pca_%s_' %p + str(ielec)].shape[1])], 'debug', logger)
-                            if result['pca_%s_' %p + str(ielec)].shape[1] < sub_output_dim:
-                               zeros = numpy.zeros((result['pca_%s_' %p + str(ielec)].shape[0], sub_output_dim - result['pca_%s_' %p + str(ielec)].shape[1]))
-                               result['pca_%s_' %p + str(ielec)] = numpy.hstack((result['pca_%s_' %p + str(ielec)], zeros))
-                               result['weights_%s_' %p + str(ielec)] = numpy.hstack((result['weights_%s_' %p + str(ielec)], zeros))
+                            else:
+                                dimension = result['data_%s_' %p + str(ielec)].shape[1]
+                                result['pca_%s_' %p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
+                                result['pca_%s_' %p + str(ielec)][numpy.arange(dimension), numpy.arange(dimension)] = 1
 
                         result['sub_%s_' %p + str(ielec)] = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
@@ -686,16 +693,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             n_neighb                    = len(edges[nodes[ielec]])
                             dimension                   = basis['proj_%s' %p].shape[1] * n_neighb
                             result['pca_%s_' %p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
-                            result['pca_%s_' %p + str(ielec)][numpy.arange(sub_output_dim), numpy.arange(sub_output_dim)] = 1
-                            result['weights_%s_' %p + str(ielec)] = numpy.ones(sub_output_dim, dtype=numpy.float32)
+                            result['pca_%s_' %p + str(ielec)][numpy.arange(dimension), numpy.arange(dimension)] = 1
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                         result['sub_%s_' %p + str(ielec)]  = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
                         result['sdist_%s_' %p + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                 else:
                     if len(result['tmp_%s_' %p + str(ielec)]) > 1:
-                        data      = numpy.dot(result['tmp_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
 
-                        rho, sdist = algo.compute_rho(result['sub_%s_' %p + str(ielec)], update=(data, result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
+                        rho, sdist = algo.compute_rho(result['sub_%s_' %p + str(ielec)], update=(result['tmp_%s_' %p + str(ielec)], result['sdist_%s_' %p + str(ielec)]), mratio=m_ratio)
                         result['rho_%s_' %p  + str(ielec)]  = rho
                         result['sdist_%s_' %p + str(ielec)] = sdist
                         del rho
@@ -720,11 +725,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         
                         # Now we perform a merging step, for clusters that look too similar
-                        data = result['sub_%s_' %p + str(ielec)]
                         cluster_results[p][ielec]['groups'], merged = algo.merging(cluster_results[p][ielec]['groups'],
                                                                             sim_same_elec,
                                                                             dip_threshold,
-                                                                            data)
+                                                                            result['sub_%s_' %p + str(ielec)])
 
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
                         count = 0
@@ -752,8 +756,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             if icount < (len(injected) - 1):
                                                 injected[icount] = True
 
-                            data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                            plot.view_clusters(data, r, d, c,
+                            plot.view_clusters(result['sub_%s_' %p + str(ielec)], r, d, c,
                                                    cluster_results[p][ielec]['groups'], injected=injected,
                                                    save=save, alpha=sensitivity)
 
@@ -1018,8 +1021,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             thresholds[ielec], sub_tmp,
                             numpy.array(myamps), save=save)
 
-                data = numpy.dot(result['data_%s_' %p + str(ielec)], result['pca_%s_' %p + str(ielec)])
-                result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], data))
+                result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], result['sub_%s_' %p + str(ielec)]))
                 if len(result['clusters_' + str(ielec)]) > 0:
                     max_offset = numpy.int32(numpy.max(result['clusters_' + str(ielec)]) + 1)
                 else:

@@ -53,7 +53,7 @@ class CircusParser(object):
                           ['clustering', 'nb_repeats', 'int', '3'],
                           ['clustering', 'make_plots', 'string', 'png'],
                           ['clustering', 'test_clusters', 'bool', 'False'],
-                          ['clustering', 'sim_same_elec', 'float', '2'],
+                          ['clustering', 'sim_same_elec', 'float', '3'],
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
