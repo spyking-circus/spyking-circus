@@ -492,7 +492,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 buf_data    = numpy.array(buf_data, dtype='B', copy=False)
                 data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
 
-                factor = int(3*nb_data)
+                factor = 2*int(max(nb_data, (N_over+1)**2))
                 win_indices    = MPI.Win.Allocate_shared(factor * intsize, intsize, comm=sub_comm)
                 buf_indices, _ = win_indices.Shared_query(0)
                 buf_indices    = numpy.array(buf_indices, dtype='B', copy=False)
@@ -517,7 +517,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                     local_nb_ptr  = numpy.int64(sub_comm.bcast(numpy.array([local_nb_ptr], dtype=numpy.int32), root=0)[0])
 
                     boundary_data = global_offset_data + local_nb_data
-                    boundary_ptr  = global_offset_ptr + nb_data
+                    boundary_ptr  = global_offset_ptr + factor//2
 
                     if local_rank == 0:
                         data[global_offset_data:boundary_data] = sparse_mat.data

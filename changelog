@@ -1,4 +1,12 @@
 =============
+Release 0.8.4
+=============
+
+* fix if no spikes are found on some electrodes
+* fix as mean/median-pca methods were broken (albeit not used)
+* fix to prevent a rare crash while loading too sparse overlaps
+
+=============
 Release 0.8.3
 =============
 

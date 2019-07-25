@@ -909,12 +909,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
 
-                    if use_savgol:
-                        for i in range(len(first_component)):
-                            tmp = scipy.signal.savgol_filter(first_component[i], savgol_window, 3)
-                            first_component[i] = savgol_filter*first_component[i] + (1 - savgol_filter)*tmp
+                    if use_savgol: 
+                        if extraction in ['median-raw', 'mean-raw']:
+                            to_filter = first_component
+                        elif extraction in ['median-pca', 'mean-pca']:
+                            to_filter = tmp_templates
+                        
+                        for i in range(len(to_filter)):
+                            tmp = scipy.signal.savgol_filter(to_filter[i], savgol_window, 3)
+                            to_filter[i] = savgol_filter*to_filter[i] + (1 - savgol_filter)*tmp
 
-                        tmp_templates = first_component
+                        tmp_templates = to_filter
 
                     if p == 'neg':
                         tmpidx = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
