@@ -690,10 +690,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         del dist, rho
                     else:
                         if result['pca_%s_' %p + str(ielec)] is None:
-                            n_neighb                    = len(edges[nodes[ielec]])
-                            dimension                   = basis['proj_%s' %p].shape[1] * n_neighb
+                            n_neighb  = len(edges[nodes[ielec]])
+                            dimension = basis['proj_%s' %p].shape[1] * n_neighb
+                            nb_max = min(dimension, sub_output_dim)
                             result['pca_%s_' %p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
-                            result['pca_%s_' %p + str(ielec)][numpy.arange(dimension), numpy.arange(dimension)] = 1
+                            result['pca_%s_' %p + str(ielec)][numpy.arange(nb_max), numpy.arange(nb_max)] = 1
                         result['rho_%s_' %p  + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
                         result['sub_%s_' %p + str(ielec)]  = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
                         result['sdist_%s_' %p + str(ielec)] = numpy.zeros((0), dtype=numpy.float32)
