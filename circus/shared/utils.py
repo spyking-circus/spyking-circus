@@ -914,37 +914,40 @@ def dip_threshold(n, p_value):
 
 
 def dip(X):
-    X = numpy.sort(X)
-    F = numpy.arange(0, 1, 1 / X.shape[0]) + 1 / X.shape[0]
-    left = 0
-    right = len(X) - 1
-    D = 0
-    d = 1
-    while True:
-        GCM = gcm(X, left, right)
-        LCM = lcm(X, left, right)
+    if len(X) > 0:
+        X = numpy.sort(X)
+        F = numpy.arange(0, 1, 1 / X.shape[0]) + 1 / X.shape[0]
+        left = 0
+        right = len(X) - 1
+        D = 0
+        d = 1
+        while True:
+            GCM = gcm(X, left, right)
+            LCM = lcm(X, left, right)
 
-        Lg = interpolation(X[GCM], X[LCM], F[LCM])
-        Gl = interpolation(X[LCM], X[GCM], F[GCM])
+            Lg = interpolation(X[GCM], X[LCM], F[LCM])
+            Gl = interpolation(X[LCM], X[GCM], F[GCM])
 
-        gap_g, gap_g_index = maxstuff(numpy.abs(F[GCM] - Lg))
-        gap_l, gap_l_index = maxstuff(numpy.abs(F[LCM] - Gl))
+            gap_g, gap_g_index = maxstuff(numpy.abs(F[GCM] - Lg))
+            gap_l, gap_l_index = maxstuff(numpy.abs(F[LCM] - Gl))
 
-        if gap_g > gap_l:
-            d = gap_g
-            left_ = GCM[gap_g_index]
-            right_ = LCM[LCM.searchsorted(GCM[gap_g_index])]
-        else:
-            d = gap_l
-            left_ = GCM[GCM.searchsorted(LCM[gap_l_index]) - 1]
-            right_ = LCM[gap_l_index]
-        if d <= D:
-            return D / 2
-        else:
-            sup_l = numpy.abs(interpolation(
-                X[left:(left_ + 1)], X[GCM], F[GCM]) - F[left:(left_ + 1)]).max()
-            sup_r = numpy.abs(interpolation(
-                X[right_:(right + 1)], X[LCM], F[LCM]) - F[right_:(right + 1)]).max()
-            D = max([D, sup_l, sup_r])
-            left = left_
-            right = right_
+            if gap_g > gap_l:
+                d = gap_g
+                left_ = GCM[gap_g_index]
+                right_ = LCM[LCM.searchsorted(GCM[gap_g_index])]
+            else:
+                d = gap_l
+                left_ = GCM[GCM.searchsorted(LCM[gap_l_index]) - 1]
+                right_ = LCM[gap_l_index]
+            if d <= D:
+                return D / 2
+            else:
+                sup_l = numpy.abs(interpolation(
+                    X[left:(left_ + 1)], X[GCM], F[GCM]) - F[left:(left_ + 1)]).max()
+                sup_r = numpy.abs(interpolation(
+                    X[right_:(right + 1)], X[LCM], F[LCM]) - F[right_:(right + 1)]).max()
+                D = max([D, sup_l, sup_r])
+                left = left_
+                right = right_
+    else:
+        return numpy.inf

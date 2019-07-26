@@ -217,7 +217,7 @@ def merging(groups, sim_mad, sim_dip, data):
 
                 if sim_dip > 0:
                     sub_data = numpy.concatenate([pr_1, pr_2])
-                    if len(sub_data) > 10:
+                    if len(sub_data) > 2:
                         dist = dip(sub_data)/dip_threshold(len(sub_data), sim_dip)
                     else:
                         dist = numpy.inf
