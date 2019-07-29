@@ -225,25 +225,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 for p in search_peaks:
                     result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
                     result['nb_chunks_%s_' %p + str(i)] = 1
-            elif gpass == 1:
-                n_neighb = len(edges[nodes[i]])
-                for p in search_peaks:
-                    result['tmp_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
-            else:
-                for p in search_peaks:
-                    result['tmp_%s_' %p + str(i)] = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
 
             # If not the first pass, we sync all the detected times among nodes and give all nodes the w/pca
             result['all_times_' + str(i)] = numpy.concatenate((result['all_times_' + str(i)], all_gather_array(result['loc_times_' + str(i)], comm, dtype='uint32', compress=blosc_compress)))
             result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
 
             if gpass == 1:
+                n_neighb = len(edges[nodes[i]])
                 for p in search_peaks:
                     result['data_%s_' %p + str(i)] = numpy.zeros((0, basis['proj_%s' %p].shape[1] * n_neighb), dtype=numpy.float32)
 
             if gpass == 2:
                 for p in search_peaks:
                     result['pca_%s_' %p  + str(i)] = comm.bcast(result['pca_%s_' %p + str(i)], root=numpy.mod(i, comm.size))
+
+            if gpass > 1:
+                for p in search_peaks:
+                    result['tmp_%s_' %p + str(i)] = numpy.zeros((0, result['pca_%s_' %p  + str(i)].shape[1]), dtype=numpy.float32)
+
 
         # I guess this is more relevant, to take signals from all over the recordings
         numpy.random.seed(gpass)
