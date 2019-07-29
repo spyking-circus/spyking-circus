@@ -54,7 +54,7 @@ def main(argv=None):
     all_steps = [
         'whitening', 'clustering', 'fitting', 'gathering', 'extracting',
         'filtering', 'converting', 'deconverting', 'benchmarking',
-        'merging', 'validating'
+        'merging', 'validating', 'thresholding'
     ]
 
     if os.path.exists(pjoin(user_path, 'config.params')):
@@ -84,6 +84,7 @@ but a subset x,y can be done. Steps are:
  - fitting
  - merging [with or without a GUI for meta merging]
  - (extra) converting [export results to phy format]
+ - (extra) thresholding [to get MUA activity only]
  - (extra) deconverting [import results from phy format]
  - (extra) gathering [force collection of results]
  - (extra) extracting [get templates from spike times]
@@ -326,7 +327,8 @@ but a subset x,y can be done. Steps are:
                     ('deconverting', 'mpirun'),
                     ('benchmarking', 'mpirun'),
                     ('merging', 'mpirun'),
-                    ('validating', 'mpirun')]
+                    ('validating', 'mpirun'),
+                    ('thresholding', 'mpirun')]
 
         #if HAVE_CUDA and nb_gpu > 0:
         #    use_gpu = 'True'
