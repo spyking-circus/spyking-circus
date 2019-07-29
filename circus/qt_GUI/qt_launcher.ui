@@ -518,6 +518,9 @@
                  <property name="text">
                   <string>Merging</string>
                  </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
                 </widget>
                </item>
                <item>
@@ -531,7 +534,20 @@
                 </widget>
                </item>
                <item>
+                <widget class="QCheckBox" name="cb_thresholding">
+                 <property name="toolTip">
+                  <string>To export only MUA activity</string>
+                 </property>
+                 <property name="text">
+                  <string>Thresholding</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QCheckBox" name="cb_deconverting">
+                 <property name="toolTip">
+                  <string>To convert data back from phy to the MATLAB format</string>
+                 </property>
                  <property name="text">
                   <string>Deconverting</string>
                  </property>
