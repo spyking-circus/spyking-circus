@@ -85,6 +85,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
     electrodes_file = open(file_out_suff + '.elec-%d.data' %comm.rank, 'wb')
     comm.Barrier()
+    amplitudes_file = open(file_out_suff + '.amp-%d.data' %comm.rank, 'wb')
+    comm.Barrier()
 
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
@@ -126,6 +128,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
         local_elecs     = numpy.zeros(0, dtype=numpy.uint32)
+        local_amps      = numpy.zeros(0, dtype=numpy.float32)
 
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
@@ -134,12 +137,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i], mpd=dist_peaks)
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     local_elecs = numpy.concatenate((local_elecs, i*numpy.ones(len(peaktimes), dtype='uint32')))
+                    local_amps = numpy.concatenate((local_amps, filter_chunk[peaktimes, i]))
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 for i in xrange(N_e):
                     peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i], mpd=dist_peaks)
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     local_elecs = numpy.concatenate((local_elecs, i*numpy.ones(len(peaktimes), dtype='uint32')))
+                    local_amps = numpy.concatenate((local_amps, filter_chunk[peaktimes, i]))
         else:
             for i in xrange(N_e):
                 if sign_peaks == 'negative':
@@ -150,6 +155,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)          
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
                 local_elecs = numpy.concatenate((local_elecs, i*numpy.ones(len(peaktimes), dtype='uint32')))
+                local_amps = numpy.concatenate((local_amps, local_chunk[peaktimes, i]))
 
         g_offset = t_offset + padding[0]
 
@@ -164,9 +170,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes) + g_offset
         local_elecs     = numpy.compress(idx, local_elecs)
+        local_amps      = numpy.compress(idx, local_amps)
 
         spiketimes_file.write(local_peaktimes.tostring())
         electrodes_file.write(local_elecs.tostring())
+        amplitudes_file.write(local_amps.tostring())
 
 
     sys.stderr.flush()
@@ -178,6 +186,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     electrodes_file.flush()
     os.fsync(electrodes_file.fileno())
     electrodes_file.close()
+
+    amplitudes_file.flush()
+    os.fsync(amplitudes_file.fileno())
+    amplitudes_file.close()
 
     comm.Barrier()
     

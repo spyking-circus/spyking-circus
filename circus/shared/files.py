@@ -1453,10 +1453,11 @@ def collect_mua(nb_threads, params, erase=False):
     print_and_log(["Gathering MUA from %d nodes..." %nb_threads], 'default', logger)
 
     # Initialize data collection.
-    result = {'spiketimes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
+    result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
 
     for i in xrange(N_e):
         result['spiketimes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
+        result['amplitudes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.float32)
 
     to_explore = xrange(nb_threads)
 
@@ -1467,30 +1468,35 @@ def collect_mua(nb_threads, params, erase=False):
     for count, node in enumerate(to_explore):
         spiketimes_file = file_out_suff + '.mua-%d.data' %node
         templates_file  = file_out_suff + '.elec-%d.data' %node
+        amplitudes_file = file_out_suff + '.amp-%d.data' %node
 
         if os.path.exists(templates_file):
 
             spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.uint32)
             templates  = numpy.fromfile(templates_file, dtype=numpy.uint32)
-            min_size   = min([spiketimes.shape[0], templates.shape[0]])
+            amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
+            min_size   = min([spiketimes.shape[0], templates.shape[0], amplitudes.shape[0]])
             spiketimes = spiketimes[:min_size]
             templates  = templates[:min_size]
+            amplitudes = amplitudes[:min_size]
             local_temp = numpy.unique(templates)
 
             for j in local_temp:
                 idx = numpy.where(templates == j)[0]
-                result['spiketimes']['elec_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx]))
-                
+                result['spiketimes']['elec_' + str(j)] = numpy.concatenate((result['spiketimes']['elec_' + str(j)], spiketimes[idx]))
+                result['amplitudes']['elec_' + str(j)] = numpy.concatenate((result['amplitudes']['elec_' + str(j)], amplitudes[idx]))
+
     sys.stderr.flush()
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
         result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
         idx                       = numpy.argsort(result['spiketimes'][key])
         result['spiketimes'][key] = result['spiketimes'][key][idx]
+        result['amplitudes'][key] = result['amplitudes'][key][idx]
 
     # Save results into `<dataset>/<dataset>.result.hdf5`.
     mydata = h5py.File(file_out_suff + '.mua.hdf5', 'w', libver='earliest')
-    keys = ['spiketimes']
+    keys = ['spiketimes', 'amplitudes']
     for key in keys:
         mydata.create_group(key)
         for temp in result[key].keys():

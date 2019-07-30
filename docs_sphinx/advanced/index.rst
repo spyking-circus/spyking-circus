@@ -7,6 +7,7 @@ Advanced Informations
    tuning
    datafile
    extras
+   mua
    algorithm
    files
    gui

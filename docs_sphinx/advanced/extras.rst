@@ -27,7 +27,7 @@ In some cases, you may not want to spike sort the data, but you could only be in
     >> spyking-circus path/mydata.extension -m thresholding -c N
 
 .. note::
-    This thresholding step will produce a file ``mydata/mydata.mua.hdf5`` in which you will have one entry per electrode, with all the times at which a threshold crossing has been detected
+    This thresholding step will produce a file ``mydata/mydata.mua.hdf5`` in which you will have one entry per electrode, with all the times (and amplitudes) at which threshold crossing has been detected. :doc:`More on the MUA extraction <../advanced/mua>`
 
 Gathering
 ---------
