@@ -887,7 +887,7 @@ def interpolation(Z, X, F):
 
 
 def gcm(X, left, right):
-    F = numpy.arange(0, 1, 1 / len(X))
+    F = numpy.arange(0, 1, 1. / len(X))
     GCM = numpy.array(left)
     while left < right:
         slopes_left = (F[(left + 1):(right + 1)] - F[left]) / \
@@ -898,7 +898,7 @@ def gcm(X, left, right):
 
 
 def lcm(X, left, right):
-    F = numpy.arange(0, 1, 1 / len(X))
+    F = numpy.arange(0, 1, 1. / len(X))
     LCM = numpy.array(right)
     while left < right:
         slopes_right = (F[left:right] - F[right]) / (X[left:right] - X[right])
@@ -916,7 +916,7 @@ def dip_threshold(n, p_value):
 def dip(X):
     if len(X) > 0:
         X = numpy.sort(X)
-        F = numpy.arange(0, 1, 1 / X.shape[0]) + 1 / X.shape[0]
+        F = numpy.arange(0, 1, 1. / X.shape[0]) + 1. / X.shape[0]
         left = 0
         right = len(X) - 1
         D = 0
@@ -940,7 +940,7 @@ def dip(X):
                 left_ = GCM[GCM.searchsorted(LCM[gap_l_index]) - 1]
                 right_ = LCM[gap_l_index]
             if d <= D:
-                return D / 2
+                return D / 2.
             else:
                 sup_l = numpy.abs(interpolation(
                     X[left:(left_ + 1)], X[GCM], F[GCM]) - F[left:(left_ + 1)]).max()
