@@ -18,6 +18,17 @@ This option will launh the Meta merging GUI, allowing a fast merging of obvious 
 
         >> circus-gui-matlab path/mydata.extension -e merged
 
+
+Thresholding
+------------
+
+In some cases, you may not want to spike sort the data, but you could only be interested by all the times at which you have threshold crossings, i.e. putative events or Multi Unit Activity (MUA). Note that the denser the probe, the more you will overestimate the real MUA, because of spikes being counted multiple times. To launch it, simply use::
+
+    >> spyking-circus path/mydata.extension -m thresholding -c N
+
+.. note::
+    This thresholding step will produce a file ``mydata/mydata.mua.hdf5`` in which you will have one entry per electrode, with all the times at which a threshold crossing has been detected
+
 Gathering
 ---------
 

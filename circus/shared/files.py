@@ -1456,7 +1456,7 @@ def collect_mua(nb_threads, params, erase=False):
     result = {'spiketimes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
 
     for i in xrange(N_e):
-        result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
+        result['spiketimes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
 
     to_explore = xrange(nb_threads)
 
@@ -1479,7 +1479,7 @@ def collect_mua(nb_threads, params, erase=False):
 
             for j in local_temp:
                 idx = numpy.where(templates == j)[0]
-                result['spiketimes']['temp_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx]))
+                result['spiketimes']['elec_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx]))
                 
     sys.stderr.flush()
     # TODO: find a programmer comment.
