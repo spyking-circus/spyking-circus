@@ -5,6 +5,8 @@ Release 0.8.4
 * fix if no spikes are found on some electrodes
 * fix as mean/median-pca methods were broken (albeit not used)
 * fix to prevent a rare crash while loading too sparse overlaps
+* fix a bug with the new dip method in python 2.7
+* add the thresholding method to extract only MUA activity (requested by users)
 
 =============
 Release 0.8.3

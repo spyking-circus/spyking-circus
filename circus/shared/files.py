@@ -1284,7 +1284,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     refractory     = params.getint('fitting', 'refractory')
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')
-    print_and_log(["Gathering data from %d nodes..." %nb_threads], 'default', logger)
+    print_and_log(["Gathering spikes from %d nodes..." %nb_threads], 'default', logger)
 
     # Initialize data collection.
     result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
@@ -1436,6 +1436,84 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     # TODO: find a programmer comment
     if erase:
         purge(file_out_suff, '.data')
+
+
+def collect_mua(nb_threads, params, erase=False):
+
+    # Retrieve the key parameters.
+    data_file      = params.data_file
+    N_e            = params.getint('data', 'N_e')
+    N_t            = params.getint('detection', 'N_t')
+    file_out_suff  = params.get('data', 'file_out_suff')
+    max_chunk      = params.getfloat('fitting', 'max_chunk')
+    chunks         = params.getfloat('fitting', 'chunk_size')
+    hdf5_compress  = params.getboolean('data', 'hdf5_compress')
+    data_length    = data_stats(params, show=False)
+    duration       = int(min(chunks*max_chunk, data_length))
+    print_and_log(["Gathering MUA from %d nodes..." %nb_threads], 'default', logger)
+
+    # Initialize data collection.
+    result = {'spiketimes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
+
+    for i in xrange(N_e):
+        result['spiketimes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
+
+    to_explore = xrange(nb_threads)
+
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(to_explore)
+
+    # For each thread/process collect data.
+    for count, node in enumerate(to_explore):
+        spiketimes_file = file_out_suff + '.mua-%d.data' %node
+        templates_file  = file_out_suff + '.elec-%d.data' %node
+
+        if os.path.exists(templates_file):
+
+            spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.uint32)
+            templates  = numpy.fromfile(templates_file, dtype=numpy.uint32)
+            min_size   = min([spiketimes.shape[0], templates.shape[0]])
+            spiketimes = spiketimes[:min_size]
+            templates  = templates[:min_size]
+            local_temp = numpy.unique(templates)
+
+            for j in local_temp:
+                idx = numpy.where(templates == j)[0]
+                result['spiketimes']['elec_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx]))
+                
+    sys.stderr.flush()
+    # TODO: find a programmer comment.
+    for key in result['spiketimes']:
+        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
+        idx                       = numpy.argsort(result['spiketimes'][key])
+        result['spiketimes'][key] = result['spiketimes'][key][idx]
+
+    # Save results into `<dataset>/<dataset>.result.hdf5`.
+    mydata = h5py.File(file_out_suff + '.mua.hdf5', 'w', libver='earliest')
+    keys = ['spiketimes']
+    for key in keys:
+        mydata.create_group(key)
+        for temp in result[key].keys():
+            tmp_path = '%s/%s' %(key, temp)
+            if hdf5_compress:
+                mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
+            else:
+                mydata.create_dataset(tmp_path, data=result[key][temp])
+    mydata.close()
+
+    # Count and print the number of spikes.
+    count = 0
+    for item in result['spiketimes'].keys():
+        count += len(result['spiketimes'][item])
+
+    to_write = ["Number of threhsold crossings discovered : %d" %count]
+
+    print_and_log(to_write, 'info', logger)
+
+    # TODO: find a programmer comment
+    if erase:
+        purge(file_out_suff, '.data')
+
 
 def get_results(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
