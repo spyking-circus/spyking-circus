@@ -99,6 +99,7 @@ class CircusParser(object):
                           ['noedits', 'artefacts_done', 'string', 'False']]
 
     __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
+                        ['filtering', 'butter_order', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
