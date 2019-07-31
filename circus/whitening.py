@@ -278,7 +278,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     alignment      = params.getboolean('detection', 'alignment')
     smoothing      = params.getboolean('detection', 'smoothing')
     isolation      = params.getboolean('detection', 'isolation')
-    over_factor    = float(params.getint('detection', 'oversampling_factor'))
+    over_factor    = params.getint('detection', 'oversampling_factor')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     nodes, edges   = get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -462,6 +462,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
 
                                 sub_mat = f(ddata).astype(numpy.float32)
+
+                                # nb_points = len(ydata)*over_factor
+                                # f = scipy.signal.resample(ydata, nb_points)
+
+                                # if negative_peak:
+                                #     rmin = numpy.argmin(f[nb_points//2 - jitter_range*over_factor: nb_points//2 + jitter_range*over_factor])
+                                # else:
+                                #     rmin = numpy.argmax(f[nb_points//2 - jitter_range*over_factor: nb_points//2 + jitter_range*over_factor])
+
+                                # rmin  += nb_points //2 - jitter_range*over_factor
+                                # ddata  = numpy.arange(rmin-over_factor*template_shift, rmin+over_factor*(template_shift + 1), over_factor).astype(numpy.int32)
+                                # sub_mat = f[ddata]
 
                             if isolation:
                                 to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
