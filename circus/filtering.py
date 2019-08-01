@@ -70,7 +70,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', logger)
                     sys.exit(0)
 
-        chunk_size    = params.getint('data', 'chunk_size')
+        chunk_size    = detect_memory(params)
         nb_chunks, _  = data_file_in.analyze(chunk_size)
 
         b, a          = signal.butter(3, np.array(cut_off)/(params.rate/2.), 'pass')
@@ -137,7 +137,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     def compute_artefacts(data_file):
 
-        chunk_size     = params.getint('data', 'chunk_size')
+        chunk_size     = detect_memory(params, safety_threshold=0.5)
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
@@ -210,7 +210,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     def remove_artefacts(data_file, art_dict):
 
-        chunk_size     = params.getint('data', 'chunk_size')
+        chunk_size     = detect_memory(params, safety_threshold=0.5)
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))

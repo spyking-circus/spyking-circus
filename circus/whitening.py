@@ -8,6 +8,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.mpi import detect_memory
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
@@ -31,7 +32,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size       = params.getint('whitening', 'chunk_size')
+    chunk_size       = detect_memory(params, whitening=True)
     plot_path        = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     nodes, edges     = get_nodes_and_edges(params)
     safety_time      = params.getint('whitening', 'safety_time')

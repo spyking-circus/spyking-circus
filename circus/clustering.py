@@ -9,6 +9,7 @@ from circus.shared.probes import get_nodes_and_edges
 from .shared.files import get_dead_times
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
+from circus.shared.mpi import detect_memory
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
@@ -49,7 +50,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     dispersion     = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
     dispersion     = map(float, dispersion)
     nodes, edges   = get_nodes_and_edges(params)
-    chunk_size     = params.getint('data', 'chunk_size')
+    chunk_size     = detect_memory(params)
     max_elts_elec  = params.getint('clustering', 'max_elts')
     if sign_peaks == 'both':
        max_elts_elec *= 2
