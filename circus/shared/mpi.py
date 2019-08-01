@@ -33,11 +33,12 @@ def get_local_ring(local_only=False):
 
     return sub_comm, is_local
 
-def detect_memory(params, safety_threshold=0.1):
+def detect_memory(params, whitening=False, fitting=False):
     from psutil import virtual_memory
 
     N_e  = params.getint('data', 'N_e')
-    data_file      = params.data_file
+    safety_threshold = params.getfloat('data', 'memory_usage')
+    data_file        = params.data_file
     data_file.open()
     sampling_rate  = data_file.sampling_rate
     duation = data_file.duration
@@ -60,16 +61,18 @@ def detect_memory(params, safety_threshold=0.1):
 
     idx = numpy.where(memory > 0)
     max_memory = numpy.min(memory[idx]) // (4 * N_e)
-    max_size = (data_file.duration//comm.size)
 
-    for section in ['data', 'whitening']:
-        chunk_size = min(max_memory, max_size)
-        params.set(section, 'chunk_size', str(chunk_size))
+    if whitening:
+        max_size = (30*data_file.sampling_rate)
+    else:       
+        max_size = (data_file.duration//comm.size)
+
+    chunk_size = min(max_memory, max_size)
     
     if comm.rank == 0:
-        print_and_log(['Setting data chunk size to %d second' %(max_size/float(sampling_rate))], 'info', logger)
+        print_and_log(['Setting data chunk size to %d second' %(chunk_size/float(sampling_rate))], 'debug', logger)
 
-    return params
+    return chunk_size
 
 def gather_mpi_arguments(hostfile, params):
     print_and_log(['MPI detected: %s' % str(MPI_VENDOR)], 'debug', logger)

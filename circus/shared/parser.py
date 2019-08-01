@@ -108,7 +108,8 @@ class CircusParser(object):
                         ['detection', 'jitter_range', 'float', '0.1'],
                         ['detection', 'smoothing', 'bool', 'True'],
                         ['detection', 'smoothing_factor', 'float', '0.25'],
-                        ['clustering', 'dip_threshold', 'float', '0.5']]
+                        ['clustering', 'dip_threshold', 'float', '0.5'],
+                        ['data', 'memory_usage', 'float', '0.01']]
 
     def __init__(self, file_name, create_folders=True, **kwargs):
 
@@ -387,6 +388,12 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["nclus_min in [validating] should be in [0,1["], 'error', logger)
+            sys.exit(0)
+
+        test = (self.parser.getfloat('data', 'memory_usage') > 0) and (self.parser.getfloat('data', 'memory_usage') <= 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["memory_usage in [data] should be in ]0,1]"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('merging', 'auto_mode') >= 0) and (self.parser.getfloat('merging', 'auto_mode') < 1)
