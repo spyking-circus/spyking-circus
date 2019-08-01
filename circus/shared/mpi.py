@@ -33,7 +33,7 @@ def get_local_ring(local_only=False):
 
     return sub_comm, is_local
 
-def detect_memory(params, whitening=False, fitting=False):
+def detect_memory(params, whitening=False, filtering=False, fitting=False):
     from psutil import virtual_memory
 
     N_e  = params.getint('data', 'N_e')
@@ -62,15 +62,17 @@ def detect_memory(params, whitening=False, fitting=False):
     idx = numpy.where(memory > 0)
     max_memory = numpy.min(memory[idx]) // (4 * N_e)
 
-    if whitening:
-        max_size = (30*data_file.sampling_rate)
+    if whitening or filtering:
+        max_size = int(30*data_file.sampling_rate)
+    elif fitting:
+        max_size = int(data_file.sampling_rate)
     else:       
         max_size = (data_file.duration//comm.size)
 
     chunk_size = min(max_memory, max_size)
     
     if comm.rank == 0:
-        print_and_log(['Setting data chunk size to %d second' %(chunk_size/float(sampling_rate))], 'debug', logger)
+        print_and_log(['Setting data chunk size to %g second' %(chunk_size/float(sampling_rate))], 'debug', logger)
 
     return chunk_size
 

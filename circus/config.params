@@ -13,7 +13,7 @@ output_dir     =                       # By default, generated data are in the s
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)
-N_t            = 3          # Width of the templates [in ms]
+N_t            = auto       # Width of the templates [in ms] (if auto, adjusted while whitening)
 spike_thresh   = 6          # Threshold for spike detection
 peaks          = negative   # Can be negative (default), positive or both
 alignment      = True       # Realign the waveforms by oversampling

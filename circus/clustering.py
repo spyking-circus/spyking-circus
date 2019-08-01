@@ -812,8 +812,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):
                 lines += ["                            -remove smart_search?"]
-            if isolation:
-                lines += ["                            -remove isolation mode?"]
 
         print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
