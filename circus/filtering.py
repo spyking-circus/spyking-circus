@@ -4,6 +4,7 @@ from .shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.files import get_artefact
+from circus.shared.mpi import detect_memory
 
 def check_if_done(params, flag, logger):
         value = params.get('noedits', flag).lower().strip()
@@ -137,7 +138,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     def compute_artefacts(data_file):
 
-        chunk_size     = detect_memory(params, safety_threshold=0.5)
+        chunk_size     = detect_memory(params)
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
@@ -210,7 +211,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     def remove_artefacts(data_file, art_dict):
 
-        chunk_size     = detect_memory(params, safety_threshold=0.5)
+        chunk_size     = detect_memory(params)
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))

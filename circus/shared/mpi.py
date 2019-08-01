@@ -63,7 +63,7 @@ def detect_memory(params, whitening=False, fitting=False):
     max_memory = numpy.min(memory[idx]) // (4 * N_e)
 
     if whitening:
-        max_size = (30*data_file.sampling_rate)
+        max_size = int(30*data_file.sampling_rate)
     else:       
         max_size = (data_file.duration//comm.size)
 

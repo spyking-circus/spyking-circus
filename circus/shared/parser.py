@@ -35,6 +35,7 @@ class CircusParser(object):
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
                           ['detection', 'spike_thresh', 'float', '6'],
+                          ['detection', 'N_t', 'string', 'auto'],
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
@@ -109,7 +110,7 @@ class CircusParser(object):
                         ['detection', 'smoothing', 'bool', 'True'],
                         ['detection', 'smoothing_factor', 'float', '0.25'],
                         ['clustering', 'dip_threshold', 'float', '0.5'],
-                        ['data', 'memory_usage', 'float', '0.01']]
+                        ['data', 'memory_usage', 'float', '0.05']]
 
     def __init__(self, file_name, create_folders=True, **kwargs):
 
@@ -470,7 +471,7 @@ class CircusParser(object):
             if comm.rank == 0:
                 print_and_log(['Changing all values in the param depending on the rate'], 'debug', logger)
 
-
+            value = self.get('detection', 'N_t')
             try:
                 self._N_t = self.getfloat('detection', 'N_t')
             except Exception:
@@ -494,13 +495,6 @@ class CircusParser(object):
                 self._savgol += 1
 
             self.set('clustering', 'savgol_window', str(self._savgol))
-
-            if self.parser._sections['fitting'].has_key('chunk'):
-                self.parser.set('fitting', 'chunk_size', self.parser._sections['fitting']['chunk'])
-
-            for section in ['data', 'whitening', 'fitting']:
-                chunk_size = int(self.parser.getfloat(section, 'chunk_size') * self.rate)
-                self.set(section, 'chunk_size', str(chunk_size))
 
             for section in ['clustering', 'whitening', 'extracting']:
                 safety_time = self.get(section, 'safety_time')

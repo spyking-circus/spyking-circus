@@ -3,6 +3,7 @@ from .shared.utils import *
 from .shared.files import get_dead_times
 from .shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.mpi import detect_memory
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
