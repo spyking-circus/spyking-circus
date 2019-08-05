@@ -59,9 +59,9 @@ To know more about the host file, see the MPI section :doc:`documentation on MPI
 
 The code can accept a text file with several commands that will be executed one after the other, in a batch mode. This is interesting for processing several datasets in a row. An example of such a text file ``commands.txt`` would simply be::
     
-    path/mydata1.extention -c 10
-    path/mydata2.extention -c 10 -m fitting
-    path/mydata3.extention -c 10 -m clustering,fitting,converting
+    path/mydata1.extension -c 10
+    path/mydata2.extension -c 10 -m fitting
+    path/mydata3.extension -c 10 -m clustering,fitting,converting
 
 Then simply launch the code by doing::
 

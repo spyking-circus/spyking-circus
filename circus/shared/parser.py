@@ -1,3 +1,11 @@
+"""
+parser.py
+
+author: Pierre Yeger 
+mail: pierre.yger <at> inserm.fr
+
+Contains the class to read *param files
+"""
 import ConfigParser as configparser
 from messages import print_and_log
 from circus.shared.probes import read_probe, parse_dead_channels
@@ -9,6 +17,60 @@ import os, sys, copy, numpy, logging
 logger = logging.getLogger(__name__)
 
 class CircusParser(object):
+    """
+    Circus class to read *param files.
+
+    Attributes
+    ----------
+    do_folders : bool
+        if a folder must be created upon reading
+
+    file_format : str
+        file format of the recording (see with spyking-circus help -i)
+
+    file_name : str
+        path of recording file (e.g., '/analysis/continuous.dat')
+
+    file_params : str
+        path of the parameters file (e.g., '/analysis/continuous.params')
+ 
+    logfile : str
+        path of the spyking-circus log file created after execution
+
+    nb_channels : int 
+        number of recording channels described in the probe file.
+
+    parser : configparser
+
+    probe : dict
+        the content of the probe file.
+    
+    Methods
+    -------
+
+    get(section, data)
+        gets the data variable in the section of the params file.
+
+    getboolean(section, data)
+        gets the data variable in the section of the params file as bool.
+
+    getfloat(section, data)
+        gets the data variable in the section of the params file as float.
+
+    getint(section, data)
+        gets the data variable in the section of the params file as integer.
+
+    set(section, data)
+        sets a data variable in the section of the params file.
+
+    get_data_file(is_empty=False, params=None, source=False, has_been_created=True)
+        creates a dictionary form the datafile section in the param file.
+
+    write(section, flag, value, preview_)
+        writes the value in the variable data of a section of a param file.
+    
+    
+    """
 
     __all_sections__ = ['data', 'whitening', 'extracting', 'clustering',
                        'fitting', 'filtering', 'merging', 'noedits', 'triggers',
@@ -53,7 +115,7 @@ class CircusParser(object):
                           ['clustering', 'nb_repeats', 'int', '3'],
                           ['clustering', 'make_plots', 'string', 'png'],
                           ['clustering', 'test_clusters', 'bool', 'False'],
-                          ['clustering', 'sim_same_elec', 'float', '3'],
+                          ['clustering', 'sim_same_elec', 'floaruntimepatht', '3'],
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
@@ -112,7 +174,22 @@ class CircusParser(object):
                         ['clustering', 'dip_threshold', 'float', '0.5']]
 
     def __init__(self, file_name, create_folders=True, **kwargs):
+        """
+        Parameters:
+        ----------
+        file_name : string
+            a path containing the *params file.
 
+        create_folders : bool
+            if a folder will be created. If true, output_dir in the data section
+        of the param file will be created.
+
+        
+        Returns:
+        --------
+        a CircusParser object. 
+
+        """ 
         self.file_name    = os.path.abspath(file_name)
         f_next, extension = os.path.splitext(self.file_name)
         file_path         = os.path.dirname(self.file_name)
@@ -443,21 +520,105 @@ class CircusParser(object):
                 print_and_log(["Hanning filtering is activated"], 'debug', logger)
 
     def get(self, section, data):
+        """
+        Gets the value of the  variable data in a section as a string.
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'detection')
+        
+        data : str
+            the variable data to be read (e.g., 'oversampling_factor')
+
+        Returns
+        -------
+        str 
+            The value of the variable data.    
+        
+        """
       	return self.parser.get(section, data)
 
     def getboolean(self, section, data):
+        """
+        Gets the boolean variable from the variable data in a section
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'filtering')
+        
+        data : str
+            the variable data to be read (e.g., 'remove_median')
+
+        Returns
+        -------
+        bool
+            if the variable data is applied or not.    
+        
+        """
       	return self.parser.getboolean(section, data)
 
     def getfloat(self, section, data):
+        """
+        Gets the value of the  variable data in a section
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'clustering')
+        
+        data : str
+            the variable data to be read (e.g., 'nb_elts')
+
+        Returns
+        -------
+        float 
+            The value of the variable data.    
+        
+        """
       	return self.parser.getfloat(section, data)
 
     def getint(self, section, data):
+        """
+        Gets the value of the  variable data in a section
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'detection')
+        
+        data : str
+            the variable data to be read (e.g., 'oversampling_factor')
+
+        Returns
+        -------
+        int 
+            The value of the variable data.    
+        
+        """
       	return self.parser.getint(section, data)
 
     def set(self, section, data, value):
+        """
+        Assigns a value to a variable data in a section
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'detection')
+        
+        data : str
+            the variable data to be read (e.g., 'oversampling_factor')
+
+        """
+
         self.parser.set(section, data, value)
 
     def _update_rate_values(self):
+        """
+        Updates temporal values depending on the sampling rate of the recordings.
+        """
 
         if self._N_t is None:
 
@@ -472,7 +633,7 @@ class CircusParser(object):
                     print_and_log(['N_t must now be defined in the [detection] section'], 'error', logger)
                 sys.exit(0)
 
-            self._N_t = int(self.rate*self._N_t*1e-3)
+            self._N_t = int(self.rate*self._N_t*1e-3) 
 
             jitter_range = self.getfloat('detection', 'jitter_range')
             self.set('detection', 'jitter_range', str(int(self.rate*jitter_range*1e-3)))
@@ -509,6 +670,27 @@ class CircusParser(object):
 
 
     def _create_data_file(self, data_file, is_empty, params, stream_mode):
+        """
+        Creates a data file with parameters from the param file.
+
+        Parameters
+        ----------
+
+        data_file : str 
+            the path for the datafile
+        
+        is_empty : bool
+
+        params :  dict
+
+        stream_mode : str
+            multi-files, multi-folders or single-file.
+
+        Returns
+        -------
+        dict
+            a supported data file with the parameters from the param file.
+        """
         file_format       = params.pop('file_format').lower()
         if comm.rank == 0:
             print_and_log(['Trying to read file %s as %s' %(data_file, file_format)], 'debug', logger)
@@ -530,6 +712,26 @@ class CircusParser(object):
 
 
     def get_data_file(self, is_empty=False, params=None, source=False, has_been_created=True):
+        """
+        Gets the datafile as described in the param files.
+
+        Parameters
+        ----------
+        is_empty : bool
+
+        params : dict
+
+        source : bool
+
+        has_been_created : bool
+            if the data file was 
+
+        Returns
+        -------
+        dict   
+            A dictionary with the parameters of created data file.
+
+        """
 
         if params is None:
             params = {}
@@ -588,6 +790,22 @@ class CircusParser(object):
 
 
     def write(self, section, flag, value, preview_path=False):
+        """
+        Writes the section of the param file with 
+
+        Parameters
+        ----------
+        section : str
+            a section in the param file
+
+        flag : str
+
+            a variable of a section in the param file
+
+        value : str
+
+            the value of the variable data in a section of param file.
+        """
         if comm.rank == 0:
             print_and_log(['Writing value %s for %s:%s' %(value, section, flag)], 'debug', logger)
         self.parser.set(section, flag, value)
