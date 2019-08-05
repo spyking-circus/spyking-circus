@@ -1,3 +1,11 @@
+"""
+filtering.py
+
+author: Pierre Yeger
+e-mail: pierre.yger <at> inserm.fr
+
+Executes filtering and trigger sections on the data. 
+"""
 from scipy import signal
 from .shared import plot
 from .shared.utils import *
@@ -6,6 +14,26 @@ from circus.shared.messages import print_and_log, init_logging
 from circus.shared.files import get_artefact
 
 def check_if_done(params, flag, logger):
+    """
+    Read filter_done in [noedits] section of the param file
+
+    Parameters
+    ----------
+    params : CircusParser object 
+        the parser objects with filtering options from param file.
+
+    flag : str
+        'filter_done', 'artefacts_done', 'median_done' or 'ground_done'
+    
+    logger : logging object
+        log message id
+
+    Return
+    ------
+    bool
+        True if data has been filtered, false if data was not
+        filtered, or started if filtering started.
+    """
         value = params.get('noedits', flag).lower().strip()
         if value == 'false':
             return False
@@ -45,10 +73,26 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
     def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median, do_remove_ground):
+        """
+        Performs a high-pass and low-pass Butterworth filter on the data file.
+
+        Parameters
+        ----------
+        
+        data_file_in : 
+
+        data_file_out : 
+
+        do_filtering : bool
+
+        do_remove_median : bool
+ 
+        do_remove_median : bool
+        """
 
         try:
             cut_off    = params.getfloat('filtering', 'cut_off')
-            cut_off    = [cut_off, 0.95*(params.rate/2.)]
+            cut_off    = [cut_off, 0.95*(params.rate/2.)] # Nyquist 
         except Exception:
             cut_off        = params.get('filtering', 'cut_off')
             cut_off        = cut_off.split(',')
@@ -137,6 +181,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
     def compute_artefacts(data_file):
+        """
+        Compute artefact locations based on the [triggers] section of the params file.
+
+        Parameters
+        ----------
+        data_file :
+
+        Return
+        ------
+        dict
+            A dictionary with the location of the artefacts
+        """
 
         chunk_size     = params.getint('data', 'chunk_size')
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
@@ -210,6 +266,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
     def remove_artefacts(data_file, art_dict):
+        """
+        Remove artefact times based on the [triggers] section of the params file.
+
+        Parameters
+        ----------
+
+        data_file :
+
+        art_dict : dict
+            a dictionary with the artefact times.
+        """
 
         chunk_size     = params.getint('data', 'chunk_size')
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
