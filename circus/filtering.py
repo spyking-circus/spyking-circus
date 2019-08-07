@@ -34,23 +34,24 @@ def check_if_done(params, flag, logger):
         True if data has been filtered, false if data was not
         filtered, or started if filtering started.
     """
-        value = params.get('noedits', flag).lower().strip()
-        if value == 'false':
-            return False
-        elif value == 'true':
-            return True
-        elif value == 'started':
-            common_sentence = 'Data are likely to be corrupted, please recopy raw data'
-            particular_sentence = 'And set the flag %s in the [noedits] section to False' %flag
-            if comm.rank == 0:
-                if flag == 'filter_done':
-                    msg = ['Code was interrupted while filtering', common_sentence, particular_sentence]
-                elif flag == 'artefacts_done':
-                    msg = ['Code was interrupted while removing artefacts', common_sentence, particular_sentence]
-                elif flag == 'median_done':
-                    msg = ['Code was interrupted while removing median', common_sentence, particular_sentence]
-                elif flag == 'ground_done':
-                    msg = ['Code was interrupted while removing ground', common_sentence, particular_sentence]
+
+    value = params.get('noedits', flag).lower().strip()
+    if value == 'false':
+        return False
+    elif value == 'true':
+        return True
+    elif value == 'started':
+        common_sentence = 'Data are likely to be corrupted, please recopy raw data'
+        particular_sentence = 'And set the flag %s in the [noedits] section to False' %flag
+        if comm.rank == 0:
+            if flag == 'filter_done':
+                msg = ['Code was interrupted while filtering', common_sentence, particular_sentence]
+            elif flag == 'artefacts_done':
+                msg = ['Code was interrupted while removing artefacts', common_sentence, particular_sentence]
+            elif flag == 'median_done':
+                msg = ['Code was interrupted while removing median', common_sentence, particular_sentence]
+            elif flag == 'ground_done':
+                msg = ['Code was interrupted while removing ground', common_sentence, particular_sentence]
                 print_and_log(msg, 'error', logger)
             sys.exit(0)
 

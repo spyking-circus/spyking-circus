@@ -537,7 +537,8 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
-      	return self.parser.get(section, data)
+
+        return self.parser.get(section, data)
 
     def getboolean(self, section, data):
         """
@@ -557,7 +558,8 @@ class CircusParser(object):
             if the variable data is applied or not.    
         
         """
-      	return self.parser.getboolean(section, data)
+
+        return self.parser.getboolean(section, data)
 
     def getfloat(self, section, data):
         """
@@ -577,7 +579,8 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
-      	return self.parser.getfloat(section, data)
+
+        return self.parser.getfloat(section, data)
 
     def getint(self, section, data):
         """
@@ -597,7 +600,8 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
-      	return self.parser.getint(section, data)
+
+        return self.parser.getint(section, data)
 
     def set(self, section, data, value):
         """
@@ -608,65 +612,88 @@ class CircusParser(object):
         section :  str
             the section in *params to be read (e.g., 'detection')
         
-        data : str
+        data : {int, float, str}
             the variable data to be read (e.g., 'oversampling_factor')
 
         """
 
-        self.parser.set(section, data, value)
+        try:
+            myval = str(value)
+        except Exception as ex:
+            print('"%s" cannot be converted to str: %s' %(value, ex))
+
+        self.parser.set(section, data, myval)
 
     def _update_rate_values(self):
         """
-        Updates temporal values depending on the sampling rate of the recordings.
+        Updates the values in sampling points of the following values:
+
+        - template width (N_t) in [detection] 
+        - minimal distance between peaks (dist_peaks) in [detection]
+        - the template shift (template_shift) in [detection]
+        - the jitter range (jitter_range) in [detection]
+        - the (savgol_window) in [clustering]
+        - the (chunk_size) in [data, whitening, fitting]
+        - the (safety_time) in [clustering, whitening, extracting]
+        - the (refractory) in [fitting]
         """
 
         if self._N_t is None:
 
             if comm.rank == 0:
-                print_and_log(['Changing all values in the param depending on the rate'], 'debug', logger)
-
+                print_and_log(['Update values based on sampling rate'], 
+                    'debug', logger)
 
             try:
                 self._N_t = self.getfloat('detection', 'N_t')
             except Exception:
                 if comm.rank == 0:
-                    print_and_log(['N_t must now be defined in the [detection] section'], 'error', logger)
+                    print_and_log(['N_t is not found in [detection]'], 
+                        'error', logger)
                 sys.exit(0)
 
-            self._N_t = int(self.rate*self._N_t*1e-3) 
-
-            jitter_range = self.getfloat('detection', 'jitter_range')
-            self.set('detection', 'jitter_range', str(int(self.rate*jitter_range*1e-3)))
+            # template width from milisecond to sampling points
+            self._N_t = int(self.rate * self._N_t * 1e-3) 
             if numpy.mod(self._N_t, 2) == 0:
                 self._N_t += 1
+            self.set('detection', 'N_t',self._N_t )
+            self.set('detection', 'dist_peaks', self._N_t )
+            self.set('detection', 'template_shift', (self._N_t-1)//2 )
 
-            self.set('detection', 'N_t', str(self._N_t))
-            self.set('detection', 'dist_peaks', str(self._N_t))
-            self.set('detection', 'template_shift', str((self._N_t-1)//2))
+            # jitter_range form milisecond sampling points
+            jitter = self.getfloat('detection', 'jitter_range')
+            jitter_range = int(self.rate * jitter * 1e-3)
+            self.set('detection', 'jitter_range', jitter_range )
 
-            self._savgol = int(self.rate*0.5*1e-3)
+            # savgol from milisecond to sampling points
+            self._savgol = int(self.rate * 0.5 * 1e-3)
             if numpy.mod(self._savgol, 2) == 0:
                 self._savgol += 1
 
-            self.set('clustering', 'savgol_window', str(self._savgol))
+            self.set('clustering', 'savgol_window', self._savgol)
 
             if self.parser._sections['fitting'].has_key('chunk'):
-                self.parser.set('fitting', 'chunk_size', self.parser._sections['fitting']['chunk'])
+                self.parser.set('fitting', 'chunk_size', 
+                    self.parser._sections['fitting']['chunk'])
 
+            # chunck_size from second to sampling points
             for section in ['data', 'whitening', 'fitting']:
-                chunk_size = int(self.parser.getfloat(section, 'chunk_size') * self.rate)
-                self.set(section, 'chunk_size', str(chunk_size))
+                chunk = self.parser.getfloat(section, 'chunk_size')
+                chunk_size = int(chunk * self.rate)
+                self.set(section, 'chunk_size', chunk_size)
 
+            # safety_time from milisecond to sampling points
             for section in ['clustering', 'whitening', 'extracting']:
                 safety_time = self.get(section, 'safety_time')
                 if safety_time == 'auto':
-                    self.set(section, 'safety_time', str(self._N_t//3))
+                    self.set(section, 'safety_time', self._N_t//3)
                 else:
-                    safety_time = float(safety_time)
-                    self.set(section, 'safety_time', str(int(safety_time*self.rate*1e-3)))
+                    safety_time = int(float(safety_time) * self.rate * 1e-3)
+                    self.set(section, 'safety_time', safety_time )
                     
+            # refractory from milisecond to sampling points
             refractory = self.getfloat('fitting', 'refractory')
-            self.set('fitting', 'refractory', str(int(refractory*self.rate*1e-3)))
+            self.set('fitting','refractory',int(refractory*self.rate*1e-3))
 
 
     def _create_data_file(self, data_file, is_empty, params, stream_mode):
