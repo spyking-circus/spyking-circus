@@ -4,9 +4,10 @@ from mpi import comm
 
 logger = logging.getLogger(__name__)
 
-def read_probe(parser):
+def read_probe(parser, filename=None):
     probe    = {}
-    filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
+    if filename is None:
+        filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
     if comm.rank == 0:
         print_and_log(["Reading the probe file %s" %filename], 'debug', logger)
     if not os.path.exists(filename):
@@ -72,7 +73,7 @@ def get_nodes_and_edges(parser, validating=False):
             edges[i] = get_edges(i, parser.probe['channel_groups'][key])
             nodes   += [i]
 
-    return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
+    return numpy.array(nodes, dtype=numpy.int32), edges
 
 
 def get_averaged_n_edges(parser):

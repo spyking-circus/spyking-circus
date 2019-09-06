@@ -40,7 +40,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_silence_1    = int(20*params.rate // comm.size)
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     jitter_range     = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
     use_hanning      = params.getboolean('detection', 'hanning')
@@ -288,7 +288,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_elts_elec    = params.getint('whitening', 'max_elts')
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     if sign_peaks == 'both':
        max_elts_elec *= 2

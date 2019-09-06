@@ -185,7 +185,7 @@ class MergeWindow(QMainWindow):
         self.nodes      = nodes
         self.edges      = edges
         self.inv_nodes  = numpy.zeros(self.N_total, dtype=numpy.int32)
-        self.inv_nodes[nodes] = numpy.argsort(nodes)
+        self.inv_nodes[nodes] = numpy.arange(len(nodes))
 
         self.norms      = numpy.zeros(len(self.indices), dtype=numpy.float32)
         self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)

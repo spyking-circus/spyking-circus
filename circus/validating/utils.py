@@ -22,7 +22,7 @@ def get_neighbors(params, chan=None):
     N_total = params.getint('data', 'N_total')
     nodes, edges = get_nodes_and_edges(params, validating=True)
     inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     if chan is None:
         # Select all the channels.
         chans = inv_nodes[nodes]

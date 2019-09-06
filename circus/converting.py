@@ -203,7 +203,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         if export_all:
             best_elec = numpy.concatenate((best_elec, numpy.arange(N_e)))
         inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-        inv_nodes[nodes] = numpy.argsort(nodes)
+        inv_nodes[nodes] = numpy.arange(len(nodes))
 
         for count, elec in enumerate(best_elec):
             nb_loc                = len(edges[nodes[elec]])

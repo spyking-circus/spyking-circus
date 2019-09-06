@@ -580,7 +580,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     chunk_size       = N_t
     N_total          = params.getint('data', 'N_total')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
 
     if templates is None:
         templates    = load_data(params, 'templates')

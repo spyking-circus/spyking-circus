@@ -138,7 +138,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     nodes, edges     = get_nodes_and_edges(params)
     N_t              = params.getint('detection', 'N_t')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     N_tm_init             = templates.shape[1]//2

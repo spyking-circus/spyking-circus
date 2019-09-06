@@ -75,7 +75,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     m_ratio        = nclus_min
     sub_output_dim = params.getint('clustering', 'sub_dim')
     inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes]  = numpy.argsort(nodes)
+    inv_nodes[nodes]  = numpy.arange(len(nodes))
     to_write          = ['clusters_', 'times_', 'data_', 'peaks_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     jitter_range     = params.getint('detection', 'jitter_range')

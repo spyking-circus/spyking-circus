@@ -33,7 +33,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     #################################################################
 
     if comm.rank == 0:

@@ -615,7 +615,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     limits           = load_data(params, 'limits')
     nodes, edges     = get_nodes_and_edges(params)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     decimation       = params.getboolean('clustering', 'decimation')
 
 
