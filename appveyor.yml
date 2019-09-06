@@ -2,6 +2,13 @@ environment:
   # For new releases, only one job will upload the source code to Pypi, and only
   # one job each for Python 2 and 3 will upload a wheel.
   matrix:
+    - PYTHON: "C:\\Miniconda37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
+      PYPI_UPLOAD_SOURCE: yes
+      PYPI_UPLOAD_WHEEL: yes
+      platform: x64
+
     - PYTHON: "C:\\Miniconda36-x64"
       PYTHON_VERSION: "3.6"
       PYTHON_ARCH: "64"
@@ -9,12 +16,12 @@ environment:
       PYPI_UPLOAD_WHEEL: yes
       platform: x64
 
-    # - PYTHON: "C:\\Miniconda37-x64"
-    #   PYTHON_VERSION: "3.7"
-    #   PYTHON_ARCH: "64"
-    #   PYPI_UPLOAD_SOURCE: no
-    #   PYPI_UPLOAD_WHEEL: no
-    #   platform: x64
+    - PYTHON: "C:\\Miniconda35-x64"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "64"
+      PYPI_UPLOAD_SOURCE: yes
+      PYPI_UPLOAD_WHEEL: yes
+      platform: x64
 
     - PYTHON: "C:\\Miniconda-x64"
       PYTHON_VERSION: "2.7"
@@ -50,7 +57,7 @@ test_script:
   - conda config --set auto_update_conda False
   - conda config --add channels conda-forge
   - conda config --add channels anaconda
-  - conda install --yes --quiet conda-build=3.17 setuptools wheel conda-verify
+  - conda install --yes --quiet conda-build setuptools wheel conda-verify
   - conda build -c spyking-circus -c conda-forge -c anaconda conda_recipe
   - python packaging_tools/move_conda_package.py
   - conda install --yes --quiet wheel

@@ -108,6 +108,7 @@ class CircusParser(object):
                           ['triggers', 'dead_file', 'string', ''],
                           ['triggers', 'ignore_times', 'bool', 'False'],
                           ['whitening', 'chunk_size', 'int', '30'],
+                          ['whitening', 'fudge', 'float', '1e-18'],
                           ['whitening', 'safety_space', 'bool', 'True'],
                           ['whitening', 'temporal', 'bool', 'False'],
                           ['filtering', 'remove_median', 'bool', 'False'],
