@@ -25,6 +25,7 @@ requirements:
     - tqdm
     - pyqt
     - hdf5
+    - sip
     - scikit-learn
     - statsmodels
 source:
