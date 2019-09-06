@@ -50,9 +50,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             p.update(probe['channel_groups'][key]['geometry'])
             nodes     +=  probe['channel_groups'][key]['channels']
             positions += [p[channel] for channel in probe['channel_groups'][key]['channels']]
-            shanks += [key] * len(probe['channel_groups'][key]['channels']) 
-        idx       = numpy.argsort(nodes)
-        positions = numpy.array(positions)[idx]
+            shanks += [key] * len(probe['channel_groups'][key]['channels'])
+        positions = numpy.array(positions)
         shanks = numpy.array(shanks)
         return positions, shanks
 
