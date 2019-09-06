@@ -4,7 +4,7 @@ from os.path import join as pjoin
 import sys, subprocess, re
 
 requires = ['mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
-            'psutil', 'tqdm', 'blosc', 'statsmodels', 'scikit-learn', 'sip']
+            'psutil', 'tqdm', 'blosc', 'statsmodels', 'scikit-learn']
 
 from setuptools import setup
 
