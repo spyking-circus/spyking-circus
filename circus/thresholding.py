@@ -26,7 +26,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size     = detect_memory(params, safety_threshold=0.5)
+    chunk_size     = detect_memory(params)
     gpu_only       = params.getboolean('fitting', 'gpu_only')
     nodes, edges   = get_nodes_and_edges(params)
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
