@@ -32,7 +32,7 @@ In this step, we are removing the spurious spatio-temporal correlations that may
 .. figure::  whitening_1.png
    :align:   center
 
-   Temporal matrix to perform the whitening of the data for 24 electrodes
+   spatial matrix to perform the whitening of the data for 24 electrodes
 
 Clustering
 ----------
