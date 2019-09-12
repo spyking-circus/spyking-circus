@@ -251,7 +251,7 @@ but a subset x,y can be done. Steps are:
 
         new_params = CircusParser(filename, create_folders=False)
 
-        new_params.write('data', 'chunk_size', '2')
+        new_params.write('data', 'chunk_size', '1')
         new_params.write('data', 'file_format', 'raw_binary')
         new_params.write('data', 'data_dtype', 'float32')
         new_params.write('data', 'data_offset', '0')
@@ -261,7 +261,7 @@ but a subset x,y can be done. Steps are:
         new_params.write('data', 'sampling_rate', str(params.rate))
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')
-        new_params.write('whitening', 'chunk_size', '2')
+        new_params.write('whitening', 'chunk_size', '1')
         new_params.write('data', 'preview_path', params.file_params)
         new_params.write('data', 'output_dir', '')
 
@@ -353,17 +353,6 @@ but a subset x,y can be done. Steps are:
         n_edges = get_averaged_n_edges(params)
         if n_edges > 100 and not params.getboolean('clustering', 'compress'):
             print_and_log(['Template compression is highly recommended based on parameters'], 'info', logger)
-
-        if params.getint('data', 'N_e') > 1000:
-            changed_size = False
-            if params.getint('data', 'chunk_size')/params.rate >= 30:
-                params.write('data', 'chunk_size', '15')
-                changed_size = True
-            if params.getint('whitening', 'chunk_size')/params.rate >= 30:
-                params.write('whitening', 'chunk_size', '15')
-                changed_size = True
-            if changed_size:
-                print_and_log(["Large number of electrodes, reducing chunk sizes to 15s"], 'info', logger)
 
         if not result:
             for subtask, command in subtasks:

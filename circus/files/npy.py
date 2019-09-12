@@ -20,15 +20,26 @@ class NumpyFile(RawBinaryFile):
 
         self._open()
         self.size = self.data.shape
+        self.grid_ids = False
 
-        if self.size[0] > self.size[1]:
-            self.time_axis = 0
-            self._shape = (self.size[0], self.size[1])
-        else:
-            self.time_axis = 1
-            self._shape = (self.size[1], self.size[0])
+        if len(self.size) == 2:
+            if self.size[0] > self.size[1]:
+                self.time_axis = 0
+                self._shape = (self.size[0], self.size[1])
+            else:
+                self.time_axis = 1
+                self._shape = (self.size[1], self.size[0])
+            header['nb_channels']  = self._shape[1]
+        elif len(self.size) == 3:
+            self.grid_ids = True
+            if self.size[0] > self.size[-1]:
+                self.time_axis = 0
+                self._shape = (self.size[0], self.size[1], self.size[2])
+            else:
+                self.time_axis = 1
+                self._shape = (self.size[2], self.size[1], self.size[0])
+            header['nb_channels']  = self._shape[1] * self._shape[2]
 
-        header['nb_channels'] = self._shape[1]
         header['data_dtype']  = self.data.dtype
         self.size             = len(self.data)
         self._close()
@@ -43,9 +54,15 @@ class NumpyFile(RawBinaryFile):
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
 
         if self.time_axis == 0:
-            local_chunk  = self.data[t_start:t_stop, :].copy()
+            if not self.grid_ids:
+                local_chunk = self.data[t_start:t_stop, :].copy()
+            else:
+                local_chunk = self.data[t_start:t_stop, :, :].copy().reshape(t_stop-t_start, self.nb_channels)
         elif self.time_axis == 1:
-            local_chunk  = self.data[:, t_start:t_stop].copy().T
+            if not self.grid_ids:
+                local_chunk = self.data[:, t_start:t_stop].copy().T
+            else:
+                local_chunk = self.data[:, :, t_start:t_stop].copy().reshape(self.nb_channels, t_stop-t_start).T
         self._close()
 
         if nodes is not None:
@@ -59,9 +76,15 @@ class NumpyFile(RawBinaryFile):
         self._open(mode='r+')
         data = self._unscale_data_from_float32(data)
         if self.time_axis == 0:
-            self.data[time:time+len(data)] = data
+            if not self.grid_ids:
+                self.data[time:time+len(data)] = data
+            else:
+                self.data[time:time+len(data), :, :] = data.reshape(len(data), self._shape[1], self._shape[2])
         elif self.time_axis == 1:
-            self.data[:, time:time+len(data)] = data.T
+            if not self.grid_ids:
+                self.data[:, time:time+len(data)] = data.T
+            else:
+                self.data[:, :, time:time+len(data)] = data.reshape(len(data), self._shape[1], self._shape[2]).T
         self._close()
 
 
