@@ -4,10 +4,9 @@ from mpi import comm
 
 logger = logging.getLogger(__name__)
 
-def read_probe(parser, filename=None):
+def read_probe(parser):
     probe    = {}
-    if filename is None:
-        filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
+    filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
     if comm.rank == 0:
         print_and_log(["Reading the probe file %s" %filename], 'debug', logger)
     if not os.path.exists(filename):
