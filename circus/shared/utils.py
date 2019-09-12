@@ -200,14 +200,11 @@ def get_tqdm_progressbar(iterator):
     sys.stderr.flush()
     return tqdm.tqdm(iterator, bar_format='{desc}{percentage:3.0f}%|{bar}|[{elapsed}<{remaining}, {rate_fmt}]', ncols=66)
 
-def get_whitening_matrix(X, fudge=1E-18):
-   from numpy.linalg import eigh
-   Xcov = numpy.dot(X.T, X)/X.shape[0]
-   d,V  = eigh(Xcov)
-   D    = numpy.diag(1./numpy.sqrt(d+fudge))
-   W    = numpy.dot(numpy.dot(V,D), V.T)
-   return W
-
+def get_whitening_matrix(X, fudge=1e-15):
+    sigma = np.dot(X.T, X) / X.shape[0]
+    u, s, _ = linalg.svd(sigma)
+    W = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + fudge))), u.T)
+    return W
 
 def check_is_fitted(estimator, attributes, msg=None, all_or_any=all):
     """Perform is_fitted validation for estimator.

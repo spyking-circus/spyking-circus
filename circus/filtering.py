@@ -72,9 +72,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     sys.exit(0)
 
         chunk_size    = detect_memory(params, filtering=True)
+        butter_order  = params.getint('filtering', 'butter_order')
         nb_chunks, _  = data_file_in.analyze(chunk_size)
 
-        b, a          = signal.butter(3, np.array(cut_off)/(params.rate/2.), 'pass')
+        b, a          = signal.butter(butter_order, np.array(cut_off)/(params.rate/2.), 'pass')
         all_chunks    = numpy.arange(nb_chunks, dtype=numpy.int64)
         to_process    = all_chunks[comm.rank::comm.size]
         loc_nb_chunks = len(to_process)
@@ -84,7 +85,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             to_write = []
             if do_filtering:
-                to_write += ["Filtering the signal with a Butterworth filter in (%g, %g) Hz" %(cut_off[0],cut_off[1])]
+                to_write += ["Filtering the signal with a Butterworth filter (order %d) in (%g, %g) Hz" %(butter_order, cut_off[0],cut_off[1])]
             if do_remove_median:
                 to_write += ["Median over all channels is subtracted to each channels"]
             if do_remove_ground:

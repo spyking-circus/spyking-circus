@@ -47,6 +47,7 @@ class CircusParser(object):
                           ['triggers', 'dead_file', 'string', ''],
                           ['triggers', 'ignore_times', 'bool', 'False'],
                           ['whitening', 'chunk_size', 'int', '30'],
+                          ['whitening', 'fudge', 'float', '1e-18'],
                           ['whitening', 'safety_space', 'bool', 'True'],
                           ['whitening', 'temporal', 'bool', 'False'],
                           ['filtering', 'remove_median', 'bool', 'False'],
@@ -101,6 +102,7 @@ class CircusParser(object):
 
     __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
                         ['fitting', 'max_chunk', 'float', 'inf'],
+                        ['filtering', 'butter_order', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
