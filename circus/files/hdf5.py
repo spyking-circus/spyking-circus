@@ -48,21 +48,29 @@ class H5File(DataFile):
         header = {}
         header['data_dtype']   = self.my_file.get(self.h5_key).dtype
         self.compression       = self.my_file.get(self.h5_key).compression
-
+        self.grid_ids          = False
         self._check_compression()
         
         self.size        = self.my_file.get(self.h5_key).shape
         
-        if self.size[0] > self.size[1]:
-            self.time_axis = 0
-            self._shape = (self.size[0], self.size[1])
-        else:
-            self.time_axis = 1
-            self._shape = (self.size[1], self.size[0])
-
-        header['nb_channels']  = self._shape[1]
+        if len(self.size) == 2:
+            if self.size[0] > self.size[1]:
+                self.time_axis = 0
+                self._shape = (self.size[0], self.size[1])
+            else:
+                self.time_axis = 1
+                self._shape = (self.size[1], self.size[0])
+            header['nb_channels']  = self._shape[1]
+        elif len(self.size) == 3:
+            self.grid_ids = True
+            if self.size[0] > self.size[-1]:
+                self.time_axis = 0
+                self._shape = (self.size[0], self.size[1], self.size[2])
+            else:
+                self.time_axis = 1
+                self._shape = (self.size[2], self.size[1], self.size[0])
+            header['nb_channels']  = self._shape[1] * self._shape[2]
         self._close()
-
         return header
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
@@ -71,14 +79,26 @@ class H5File(DataFile):
         
         if nodes is None:
             if self.time_axis == 0:
-                local_chunk = self.data[t_start:t_stop, :]
+                if not self.grid_ids:
+                    local_chunk = self.data[t_start:t_stop, :]
+                else:
+                    local_chunk = self.data[t_start:t_stop, :, :].reshape(t_stop-t_start, self.nb_channels)
             elif self.time_axis == 1:
-                local_chunk = self.data[:, t_start:t_stop].T
+                if not self.grid_ids:
+                    local_chunk = self.data[:, t_start:t_stop].T
+                else:
+                    local_chunk = self.data[:, :, t_start:t_stop].reshape(self.nb_channels, t_stop-t_start).T
         else:
             if self.time_axis == 0:
-                local_chunk = self.data[t_start:t_stop, nodes]
+                if not self.grid_ids:
+                    local_chunk = self.data[t_start:t_stop, nodes]
+                else:
+                    local_chunk = self.data[t_start:t_stop, :, :].reshape(t_stop-t_start, self.nb_channels)[:, nodes]
             elif self.time_axis == 1:
-                local_chunk = self.data[nodes, t_start:t_stop].T
+                if not self.grid_ids:
+                    local_chunk = self.data[nodes, t_start:t_stop].T
+                else:
+                    local_chunk = self.data[:, :, t_start:t_stop].reshape(self.nb_channels, t_stop-t_start)[nodes, :].T
 
         return self._scale_data_to_float32(local_chunk)
 
@@ -87,9 +107,15 @@ class H5File(DataFile):
         data = self._unscale_data_from_float32(data)
         
         if self.time_axis == 0:
-            self.data[time:time+data.shape[0], :] = data
+            if not self.grid_ids:
+                self.data[time:time+data.shape[0], :] = data
+            else:
+                self.data[time:time+data.shape[0], :, :] = data.reshape(data.shape[0], self._shape[1], self._shape[2])
         elif self.time_axis == 1:
-            self.data[:, time:time+data.shape[0]] = data.T
+            if not self.grid_ids:
+                self.data[:, time:time+data.shape[0]] = data.T
+            else:
+                self.data[:, :, time:time+data.shape[0]] = data.reshape(data.shape[0], self._shape[1], self._shape[2]).T
 
     def _open(self, mode='r'):
         if mode in ['r+', 'w'] and self.parallel_write:

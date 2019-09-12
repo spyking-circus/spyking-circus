@@ -150,11 +150,7 @@ class MergeWindow(QMainWindow):
         self.default_lag = params.getint('merging', 'default_lag')
         self.remove_noise = params.getboolean('merging', 'remove_noise')
 
-        max_chunk      = params.getfloat('fitting', 'max_chunk')
-        chunks         = params.getfloat('fitting', 'chunk_size')
-        data_length    = io.data_stats(params, show=False)
-
-        self.duration   = int(min(chunks*max_chunk, data_length))
+        self.duration   = io.data_stats(params, show=False)
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
 

@@ -13,7 +13,7 @@ output_dir     =                       # By default, generated data are in the s
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)
-N_t            = 3          # Width of the templates [in ms]
+N_t            = auto       # Width of the templates [in ms] (if auto, adjusted while whitening)
 spike_thresh   = 6          # Threshold for spike detection
 peaks          = negative   # Can be negative (default), positive or both
 alignment      = True       # Realign the waveforms by oversampling
@@ -36,8 +36,6 @@ ignore_times   = False      # If True, any spike in the dead regions will be ign
 make_plots     =            # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
 [whitening]
-chunk_size     = 30         # Size of the data chunks [in s]
-safety_time    = auto       # Temporal zone around which templates are isolated [in ms, or auto]
 spatial        = True       # Perform spatial whitening
 max_elts       = 1000       # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
@@ -46,8 +44,6 @@ output_dim     = 5          # Can be in percent of variance explain, or num of d
 [clustering]
 extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw
 sub_dim        = 10         # Number of dimensions to keep for local PCA per electrode
-safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
-safety_time    = auto       # Temporal zone around which templates are isolated [in ms, or auto]
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
 nclus_min      = 0.005      # Min number of elements in a cluster (given in percentage) [0-1]
@@ -58,16 +54,11 @@ dip_threshold  = 0.5        # Will replace sim_same_elec in the future. Set it t
 sensitivity    = 3          # Single parameter for clustering sensitivity. The lower the more sensitive
 cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
-noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
-remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
-cc_mixtures    = 0.75       # If CC between a sum of two templates and a template is higher, it is removed
 make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 
 [fitting]
-chunk_size     = 1          # Size of chunks used during fitting [in second]
 amp_limits     = (0.3, 5)   # Amplitudes for the templates during spike detection [if not auto]
 amp_auto       = True       # True if amplitudes are adjusted automatically for every templates
-max_chunk      = inf        # Fit only up to max_chunk
 collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
 
 [merging]

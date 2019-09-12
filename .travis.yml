@@ -69,7 +69,7 @@ install:
   - conda config --set auto_update_conda False
   - conda config --add channels conda-forge
   - conda config --add channels anaconda
-  - conda install --yes --quiet conda-build=3.17 setuptools wheel conda-verify
+  - conda install --yes --quiet conda-build setuptools wheel
 
 # command to run tests
 script:

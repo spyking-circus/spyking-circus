@@ -8,6 +8,8 @@ Release 0.8.4
 * fix a bug with the new dip method in python 2.7
 * add the thresholding method to extract only MUA activity (requested by users)
 * channel lists in probe files can be non sorted
+* memory usage is dynamically adapted to reduce memory footprint
+* hdf5 and npy file format can now work with 3D arrays (x, y, time) or (time, x, y)
 
 =============
 Release 0.8.3

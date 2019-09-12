@@ -5,7 +5,7 @@ package:
 requirements:
   build:
     - python
-    - setuptools >=26
+    - setuptools
     
   run:
     - libgcc [linux]
@@ -17,7 +17,7 @@ requirements:
     - scipy
     - matplotlib
     - h5py
-    - setuptools >=26
+    - setuptools
     - colorama
     - python-blosc
     - qt

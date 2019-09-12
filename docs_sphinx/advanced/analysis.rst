@@ -20,7 +20,8 @@ Python
 	from circus.shared.parser import CircusParser
 	from circus.shared.files import load_data
 	from pylab import *
-	params    = CircusParser('yourdatafile.dat')
+	params    = CircusParser('silico_0.dat')
+	params.get_data_file()
 	N_e       = params.getint('data', 'N_e') # The number of channels
 	N_t       = params.getint('detection', 'N_t') # The temporal width of the template
 	templates = load_data(params, 'templates') # To load the templates
@@ -39,9 +40,9 @@ Matlab
 	temp_x = double(h5read(tmpfile, '/temp_x') + 1);
 	temp_y = double(h5read(tmpfile, '/temp_y') + 1); 
 	temp_z = double(h5read(tmpfile, '/temp_data'));
-	templates = sparse(temp_x, temp_y, temp_z, templates_size(1)*templates_size(2), templates_size(3));
+	templates = sparse(temp_x, temp_y, temp_z, N_e*N_t, templates_size(3));
 	templates_size = [templates_size(1) templates_size(2) templates_size(3)/2];
-	temp_i = full(reshape(templates(:, tmpnum), templates_size(2), templates_size(1)))';
+	temp_i = full(reshape(templates(:, tmpnum), N_t, N_e);
 	imshow(temp_i)
 
 

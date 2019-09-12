@@ -45,7 +45,7 @@ setup(name='spyking-circus',
       license='License :: OSI Approved :: CeCILL-2.1',
       keywords="spike sorting template matching tetrodes extracellular",
       packages=_package_tree('circus'),
-      setup_requires=['setuptools>0.18'],
+      setup_requires=['setuptools'],
       #dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
       install_requires=requires,
       entry_points={

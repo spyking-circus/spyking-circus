@@ -3,6 +3,7 @@ from .shared.utils import *
 from .shared.files import get_dead_times
 from .shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.mpi import detect_memory
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
@@ -25,7 +26,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size     = params.getint('fitting', 'chunk_size')
+    chunk_size     = detect_memory(params)
     gpu_only       = params.getboolean('fitting', 'gpu_only')
     nodes, edges   = get_nodes_and_edges(params)
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
