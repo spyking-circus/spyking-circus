@@ -1,17 +1,7 @@
-#=========================================================================
-# config.params
-#
-# Note that depending on the file format selected, the parameters in the 
-# data section can vary
-# You should refer to the documentation to know what are the needed 
-# parameters for a give file format. Otherwise, launch the code and a 
-# message will tell you what is needed
-#
-#=========================================================================
+### Note that depending on the file format selected, the parameters in the data section can vary
+### You should refer to the documentation to know what are the needed parameters for a given
+### file format. Otherwise, launch the code and a message will tell you what is needed
 
-#=========================================================================
-# data
-#=========================================================================
 [data]
 file_format    =                       # Can be raw_binary, openephys, hdf5, ... See >> spyking-circus help -i for more info
 stream_mode    = None                  # None by default. Can be multi-files, or anything depending to the file format
@@ -21,29 +11,20 @@ overwrite      = True                  # Filter or remove artefacts on site (if 
 parallel_hdf5  = True                  # Use the parallel HDF5 feature (if available)
 output_dir     =                       # By default, generated data are in the same folder as the data.
 
-#=========================================================================
-# detection 
-#=========================================================================
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)
-N_t            = 3          # Width of the templates [in ms]
+N_t            = auto       # Width of the templates [in ms] (if auto, adjusted while whitening)
 spike_thresh   = 6          # Threshold for spike detection
 peaks          = negative   # Can be negative (default), positive or both
 alignment      = True       # Realign the waveforms by oversampling
 dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
 
-#=========================================================================
-# filtering 
-#=========================================================================
 [filtering]
 cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
 filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
 common_ground  =            # If you want to use a particular channel as a reference ground: should be a channel number
 
-#=========================================================================
-# triggers 
-#=========================================================================
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
 trig_windows   =            # The time windows of those external stimuli [in trig units]
@@ -54,25 +35,15 @@ dead_unit      = ms         # The unit in which times for dead regions are expre
 ignore_times   = False      # If True, any spike in the dead regions will be ignored by the analysis
 make_plots     =            # Generate sanity plots of the averaged artefacts [Nothing or None if no plots]
 
-#=========================================================================
-# whitening 
-#=========================================================================
 [whitening]
-chunk_size     = 30         # Size of the data chunks [in s]
-safety_time    = auto       # Temporal zone around which templates are isolated [in ms, or auto]
 spatial        = True       # Perform spatial whitening
 max_elts       = 1000       # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
 output_dim     = 5          # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 
-#=========================================================================
-# clustering 
-#=========================================================================
 [clustering]
 extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw
 sub_dim        = 10         # Number of dimensions to keep for local PCA per electrode
-safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
-safety_time    = auto       # Temporal zone around which templates are isolated [in ms, or auto]
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
 nclus_min      = 0.005      # Min number of elements in a cluster (given in percentage) [0-1]
@@ -83,24 +54,13 @@ dip_threshold  = 0.5        # Will replace sim_same_elec in the future. Set it t
 sensitivity    = 3          # Single parameter for clustering sensitivity. The lower the more sensitive
 cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
-noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold in [0-1]
-remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
-cc_mixtures    = 0.75       # If CC between a sum of two templates and a template is higher, it is removed
 make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 
-#=========================================================================
-# fitting 
-#=========================================================================
 [fitting]
-chunk_size     = 1          # Size of chunks used during fitting [in second]
 amp_limits     = (0.3, 5)   # Amplitudes for the templates during spike detection [if not auto]
 amp_auto       = True       # True if amplitudes are adjusted automatically for every templates
-max_chunk      = inf        # Fit only up to max_chunk
 collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
 
-#=========================================================================
-# merging 
-#=========================================================================
 [merging]
 cc_overlap     = 0.85       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2          # Bin size for computing CC [in ms]
@@ -109,9 +69,6 @@ default_lag    = 5          # Default length of the period to compute dip in the
 auto_mode      = 0.75       # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
 remove_noise   = False      # If True, meta merging will remove obvious noise templates (weak amplitudes)
 
-#=========================================================================
-# converting 
-#=========================================================================
 [converting]
 erase_all      = True       # If False, a prompt will ask you to export if export has already been done
 export_pcs     = prompt     # Can be prompt [default] or in none, all, some
@@ -119,9 +76,6 @@ export_all     = False      # If True, unfitted spikes will be exported as the l
 sparse_export  = True       # For recent versions of phy, and large number of templates/channels
 prelabelling   = False      # If True, putative labels (good, noise, best, mua) are pre-assigned to neurons
 
-#=========================================================================
-# validating 
-#=========================================================================
 [validating]
 nearest_elec   = auto       # Validation channel (e.g. electrode closest to the ground truth cell)
 max_iter       = 200        # Maximum number of iterations of the stochastic gradient descent (SGD)
@@ -136,9 +90,6 @@ juxta_spikes   =            # If none, spikes are automatically detected based o
 filter         = True       # If the juxta channel need to be filtered or not
 make_plots     = png        # Generate sanity plots of the validation [Nothing or None if no plots]
 
-#=========================================================================
-# extracting 
-#=========================================================================
 [extracting]
 safety_time    = 1          # Temporal zone around which spikes are isolated [in ms]
 max_elts       = 1000       # Max number of collected events per templates
@@ -146,9 +97,6 @@ output_dim     = 5          # Percentage of variance explained while performing 
 cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
 
-#=========================================================================
-# noedits will be writing by spyking-circus 
-#=========================================================================
 [noedits]
 filter_done    = False      # Will become True automatically after filtering
 artefacts_done = False      # Will become True automatically after removing artefacts
