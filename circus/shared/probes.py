@@ -72,7 +72,7 @@ def get_nodes_and_edges(parser, validating=False):
             edges[i] = get_edges(i, parser.probe['channel_groups'][key])
             nodes   += [i]
 
-    return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
+    return numpy.array(nodes, dtype=numpy.int32), edges
 
 
 def get_averaged_n_edges(parser):

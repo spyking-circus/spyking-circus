@@ -7,9 +7,10 @@ Release 0.8.4
 * fix to prevent a rare crash while loading too sparse overlaps
 * fix a bug with the new dip method in python 2.7
 * add the thresholding method to extract only MUA activity (requested by users)
-* more robust whitening step to avoid some very rare NaNs
+* channel lists in probe files can be non sorted
 * memory usage is dynamically adapted to reduce memory footprint
 * hdf5 and npy file format can now work with 3D arrays (x, y, time) or (time, x, y)
+* fix a bug if basis for pos and neg spikes have different sizes
 
 =============
 Release 0.8.3

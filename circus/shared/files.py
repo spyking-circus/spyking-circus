@@ -1601,7 +1601,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     comm.Barrier()
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
 
     cuda_string = 'using %d CPU...' %comm.size
 
