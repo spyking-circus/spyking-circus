@@ -24,6 +24,7 @@ venv
 # General backup/temporary files
 *~
 *.bak
+*.swp
 
 # Generated SSH
 .#*

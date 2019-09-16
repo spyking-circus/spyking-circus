@@ -149,7 +149,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             for i in xrange(N_e):
                 if sign_peaks == 'negative':
-                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                    peaktimes = algo.detect_peaks(x = local_chunk[:, i], threshold = thresholds[i], valley=1, mpd=dist_peaks)
                 elif sign_peaks == 'positive':
                     peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False, mpd=dist_peaks)
                 elif sign_peaks == 'both':

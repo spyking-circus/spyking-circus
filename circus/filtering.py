@@ -1,3 +1,11 @@
+"""
+filtering.py
+
+author: Pierre Yeger
+e-mail: pierre.yger <at> inserm.fr
+
+Executes filtering and trigger sections on the data. 
+"""
 from scipy import signal
 from .shared import plot
 from .shared.utils import *
@@ -7,23 +15,44 @@ from circus.shared.files import get_artefact
 from circus.shared.mpi import detect_memory
 
 def check_if_done(params, flag, logger):
-        value = params.get('noedits', flag).lower().strip()
-        if value == 'false':
-            return False
-        elif value == 'true':
-            return True
-        elif value == 'started':
-            common_sentence = 'Data are likely to be corrupted, please recopy raw data'
-            particular_sentence = 'And set the flag %s in the [noedits] section to False' %flag
-            if comm.rank == 0:
-                if flag == 'filter_done':
-                    msg = ['Code was interrupted while filtering', common_sentence, particular_sentence]
-                elif flag == 'artefacts_done':
-                    msg = ['Code was interrupted while removing artefacts', common_sentence, particular_sentence]
-                elif flag == 'median_done':
-                    msg = ['Code was interrupted while removing median', common_sentence, particular_sentence]
-                elif flag == 'ground_done':
-                    msg = ['Code was interrupted while removing ground', common_sentence, particular_sentence]
+    """
+    Read filter_done in [noedits] section of the param file
+
+    Parameters
+    ----------
+    params : CircusParser object 
+        the parser objects with filtering options from param file.
+
+    flag : str
+        'filter_done', 'artefacts_done', 'median_done' or 'ground_done'
+    
+    logger : logging object
+        log message id
+
+    Return
+    ------
+    bool
+        True if data has been filtered, false if data was not
+        filtered, or started if filtering started.
+    """
+
+    value = params.get('noedits', flag).lower().strip()
+    if value == 'false':
+        return False
+    elif value == 'true':
+        return True
+    elif value == 'started':
+        common_sentence = 'Data are likely to be corrupted, please recopy raw data'
+        particular_sentence = 'And set the flag %s in the [noedits] section to False' %flag
+        if comm.rank == 0:
+            if flag == 'filter_done':
+                msg = ['Code was interrupted while filtering', common_sentence, particular_sentence]
+            elif flag == 'artefacts_done':
+                msg = ['Code was interrupted while removing artefacts', common_sentence, particular_sentence]
+            elif flag == 'median_done':
+                msg = ['Code was interrupted while removing median', common_sentence, particular_sentence]
+            elif flag == 'ground_done':
+                msg = ['Code was interrupted while removing ground', common_sentence, particular_sentence]
                 print_and_log(msg, 'error', logger)
             sys.exit(0)
 
@@ -46,10 +75,26 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
     def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median, do_remove_ground):
+        """
+        Performs a high-pass and low-pass Butterworth filter on the data file.
+
+        Parameters
+        ----------
+        
+        data_file_in : 
+
+        data_file_out : 
+
+        do_filtering : bool
+
+        do_remove_median : bool
+ 
+        do_remove_median : bool
+        """
 
         try:
             cut_off    = params.getfloat('filtering', 'cut_off')
-            cut_off    = [cut_off, 0.95*(params.rate/2.)]
+            cut_off    = [cut_off, 0.95*(params.rate/2.)] # Nyquist 
         except Exception:
             cut_off        = params.get('filtering', 'cut_off')
             cut_off        = cut_off.split(',')
@@ -138,6 +183,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
     def compute_artefacts(data_file):
+        """
+        Compute artefact locations based on the [triggers] section of the params file.
+
+        Parameters
+        ----------
+        data_file :
+
+        Return
+        ------
+        dict
+            A dictionary with the location of the artefacts
+        """
 
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
@@ -210,6 +267,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
     def remove_artefacts(data_file, art_dict):
+        """
+        Remove artefact times based on the [triggers] section of the params file.
+
+        Parameters
+        ----------
+
+        data_file :
+
+        art_dict : dict
+            a dictionary with the artefact times.
+        """
 
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))

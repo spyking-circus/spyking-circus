@@ -791,7 +791,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, val
     if show:
         if valley:
             x = -x
-        pylab.plot(ind, x[ind], 'ro')
+        pylab.plot(ind, x[ind], 'ro', fillstyle = 'none')
         pylab.plot(x, 'k')
 
     return ind

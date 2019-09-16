@@ -1,3 +1,11 @@
+"""
+parser.py
+
+author: Pierre Yeger 
+mail: pierre.yger <at> inserm.fr
+
+Contains the class to read *param files
+"""
 import ConfigParser as configparser
 from messages import print_and_log
 from circus.shared.probes import read_probe, parse_dead_channels
@@ -9,6 +17,60 @@ import os, sys, copy, numpy, logging
 logger = logging.getLogger(__name__)
 
 class CircusParser(object):
+    """
+    Circus class to read *param files.
+
+    Attributes
+    ----------
+    do_folders : bool
+        if a folder must be created upon reading
+
+    file_format : str
+        file format of the recording (see with spyking-circus help -i)
+
+    file_name : str
+        path of recording file (e.g., '/analysis/continuous.dat')
+
+    file_params : str
+        path of the parameters file (e.g., '/analysis/continuous.params')
+ 
+    logfile : str
+        path of the spyking-circus log file created after execution
+
+    nb_channels : int 
+        number of recording channels described in the probe file.
+
+    parser : configparser
+
+    probe : dict
+        the content of the probe file.
+    
+    Methods
+    -------
+
+    get(section, data)
+        gets the data variable in the section of the params file.
+
+    getboolean(section, data)
+        gets the data variable in the section of the params file as bool.
+
+    getfloat(section, data)
+        gets the data variable in the section of the params file as float.
+
+    getint(section, data)
+        gets the data variable in the section of the params file as integer.
+
+    set(section, data)
+        sets a data variable in the section of the params file.
+
+    get_data_file(is_empty=False, params=None, source=False, has_been_created=True)
+        creates a dictionary form the datafile section in the param file.
+
+    write(section, flag, value, preview_)
+        writes the value in the variable data of a section of a param file.
+    
+    
+    """
 
     __all_sections__ = ['data', 'whitening', 'extracting', 'clustering',
                        'fitting', 'filtering', 'merging', 'noedits', 'triggers',
@@ -116,7 +178,22 @@ class CircusParser(object):
                         ['data', 'memory_usage', 'float', '0.1']]
 
     def __init__(self, file_name, create_folders=True, **kwargs):
+        """
+        Parameters:
+        ----------
+        file_name : string
+            a path containing the *params file.
 
+        create_folders : bool
+            if a folder will be created. If true, output_dir in the data section
+        of the param file will be created.
+
+        
+        Returns:
+        --------
+        a CircusParser object. 
+
+        """ 
         self.file_name    = os.path.abspath(file_name)
         f_next, extension = os.path.splitext(self.file_name)
         file_path         = os.path.dirname(self.file_name)
@@ -453,21 +530,123 @@ class CircusParser(object):
                 print_and_log(["Hanning filtering is activated"], 'debug', logger)
 
     def get(self, section, data):
-      	return self.parser.get(section, data)
+        """
+        Gets the value of the  variable data in a section as a string.
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'detection')
+        
+        data : str
+            the variable data to be read (e.g., 'oversampling_factor')
+
+        Returns
+        -------
+        str 
+            The value of the variable data.    
+        
+        """
+
+        return self.parser.get(section, data)
 
     def getboolean(self, section, data):
-      	return self.parser.getboolean(section, data)
+        """
+        Gets the boolean variable from the variable data in a section
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'filtering')
+        
+        data : str
+            the variable data to be read (e.g., 'remove_median')
+
+        Returns
+        -------
+        bool
+            if the variable data is applied or not.    
+        
+        """
+
+        return self.parser.getboolean(section, data)
 
     def getfloat(self, section, data):
-      	return self.parser.getfloat(section, data)
+        """
+        Gets the value of the  variable data in a section
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'clustering')
+        
+        data : str
+            the variable data to be read (e.g., 'nb_elts')
+
+        Returns
+        -------
+        float 
+            The value of the variable data.    
+        
+        """
+
+        return self.parser.getfloat(section, data)
 
     def getint(self, section, data):
-      	return self.parser.getint(section, data)
+        """
+        Gets the value of the  variable data in a section
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'detection')
+        
+        data : str
+            the variable data to be read (e.g., 'oversampling_factor')
+
+        Returns
+        -------
+        int 
+            The value of the variable data.    
+        
+        """
+
+        return self.parser.getint(section, data)
 
     def set(self, section, data, value):
-        self.parser.set(section, data, value)
+        """
+        Assigns a value to a variable data in a section
+
+        Parameters
+        ----------
+        section :  str
+            the section in *params to be read (e.g., 'detection')
+        
+        data : {int, float, str}
+            the variable data to be read (e.g., 'oversampling_factor')
+
+        """
+
+        try:
+            myval = str(value)
+        except Exception as ex:
+            print('"%s" cannot be converted to str: %s' %(value, ex))
+
+        self.parser.set(section, data, myval)
 
     def _update_rate_values(self):
+        """
+        Updates the values in sampling points of the following values:
+
+        - template width (N_t) in [detection] 
+        - minimal distance between peaks (dist_peaks) in [detection]
+        - the template shift (template_shift) in [detection]
+        - the jitter range (jitter_range) in [detection]
+        - the (savgol_window) in [clustering]
+        - the (chunk_size) in [data, whitening, fitting]
+        - the (safety_time) in [clustering, whitening, extracting]
+        - the (refractory) in [fitting]
+        """
 
         if self._N_t is None:
 
@@ -479,39 +658,76 @@ class CircusParser(object):
                 self._N_t = self.getfloat('detection', 'N_t')
             except Exception:
                 if comm.rank == 0:
-                    print_and_log(['N_t must now be defined in the [detection] section'], 'error', logger)
+                    print_and_log(['N_t is not found in [detection]'], 
+                        'error', logger)
                 sys.exit(0)
 
-            self._N_t = int(self.rate*self._N_t*1e-3)
-
-            jitter_range = self.getfloat('detection', 'jitter_range')
-            self.set('detection', 'jitter_range', str(int(self.rate*jitter_range*1e-3)))
+            # template width from milisecond to sampling points
+            self._N_t = int(self.rate * self._N_t * 1e-3) 
             if numpy.mod(self._N_t, 2) == 0:
                 self._N_t += 1
+            self.set('detection', 'N_t',self._N_t )
+            self.set('detection', 'dist_peaks', self._N_t )
+            self.set('detection', 'template_shift', (self._N_t-1)//2 )
 
-            self.set('detection', 'N_t', str(self._N_t))
-            self.set('detection', 'dist_peaks', str(self._N_t))
-            self.set('detection', 'template_shift', str((self._N_t-1)//2))
+            # jitter_range form milisecond sampling points
+            jitter = self.getfloat('detection', 'jitter_range')
+            jitter_range = int(self.rate * jitter * 1e-3)
+            self.set('detection', 'jitter_range', jitter_range )
 
-            self._savgol = int(self.rate*0.5*1e-3)
+            # savgol from milisecond to sampling points
+            self._savgol = int(self.rate * 0.5 * 1e-3)
             if numpy.mod(self._savgol, 2) == 0:
                 self._savgol += 1
 
-            self.set('clustering', 'savgol_window', str(self._savgol))
+            self.set('clustering', 'savgol_window', self._savgol)
 
+            if self.parser._sections['fitting'].has_key('chunk'):
+                self.parser.set('fitting', 'chunk_size', 
+                    self.parser._sections['fitting']['chunk'])
+
+            # chunck_size from second to sampling points
+            for section in ['data', 'whitening', 'fitting']:
+                chunk = self.parser.getfloat(section, 'chunk_size')
+                chunk_size = int(chunk * self.rate)
+                self.set(section, 'chunk_size', chunk_size)
+
+            # safety_time from milisecond to sampling points
             for section in ['clustering', 'whitening', 'extracting']:
                 safety_time = self.get(section, 'safety_time')
                 if safety_time == 'auto':
-                    self.set(section, 'safety_time', str(self._N_t//3))
+                    self.set(section, 'safety_time', self._N_t//3)
                 else:
-                    safety_time = float(safety_time)
-                    self.set(section, 'safety_time', str(int(safety_time*self.rate*1e-3)))
+                    safety_time = int(float(safety_time) * self.rate * 1e-3)
+                    self.set(section, 'safety_time', safety_time )
                     
+            # refractory from milisecond to sampling points
             refractory = self.getfloat('fitting', 'refractory')
-            self.set('fitting', 'refractory', str(int(refractory*self.rate*1e-3)))
+            self.set('fitting','refractory',int(refractory*self.rate*1e-3))
 
 
     def _create_data_file(self, data_file, is_empty, params, stream_mode):
+        """
+        Creates a data file with parameters from the param file.
+
+        Parameters
+        ----------
+
+        data_file : str 
+            the path for the datafile
+        
+        is_empty : bool
+
+        params :  dict
+
+        stream_mode : str
+            multi-files, multi-folders or single-file.
+
+        Returns
+        -------
+        dict
+            a supported data file with the parameters from the param file.
+        """
         file_format       = params.pop('file_format').lower()
         if comm.rank == 0:
             print_and_log(['Trying to read file %s as %s' %(data_file, file_format)], 'debug', logger)
@@ -533,6 +749,26 @@ class CircusParser(object):
 
 
     def get_data_file(self, is_empty=False, params=None, source=False, has_been_created=True):
+        """
+        Gets the datafile as described in the param files.
+
+        Parameters
+        ----------
+        is_empty : bool
+
+        params : dict
+
+        source : bool
+
+        has_been_created : bool
+            if the data file was 
+
+        Returns
+        -------
+        dict   
+            A dictionary with the parameters of created data file.
+
+        """
 
         if params is None:
             params = {}
@@ -591,6 +827,22 @@ class CircusParser(object):
 
 
     def write(self, section, flag, value, preview_path=False):
+        """
+        Writes the section of the param file with 
+
+        Parameters
+        ----------
+        section : str
+            a section in the param file
+
+        flag : str
+
+            a variable of a section in the param file
+
+        value : str
+
+            the value of the variable data in a section of param file.
+        """
         if comm.rank == 0:
             print_and_log(['Writing value %s for %s:%s' %(value, section, flag)], 'debug', logger)
         self.parser.set(section, flag, value)

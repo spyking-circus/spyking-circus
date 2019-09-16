@@ -30,7 +30,7 @@ An iterative procedure with a dedicated GUI
 
 We design a Python GUI to quickly visualize all those values and allow human to quickly performs all merges that need to be done. To launch it, with *N* processors, you need to do::
 
-    >> spykig-circus mydata.extension -m merging -c N
+    >> spyking-circus mydata.extension -m merging -c N
 
 The GUI is still an ongoing work, so any feedbacks are welcome, but the idea is to show, in a single plot, all the putative pairs of cells that have to be merged. As can be seen in the top left panel, every point is a pair of neuron, and x-axis in the upper left panel shows the template similarity (between ``cc_merge`` and 1), while y-axis show the normalized difference between the control CC and the normal CC (see above). In the bottom left plot, this is the same measure on the y-axis, while the x-axis only shows the CC of the Reverse Cross-Correlogram. **Any pairs along the diagonal are likely to be merged**
 
