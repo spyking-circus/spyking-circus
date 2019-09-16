@@ -859,7 +859,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         for ielec in to_explore:
 
-            result['data_' + str(ielec)] = numpy.zeros((0, result['pca_%s_' %p + str(ielec)].shape[1]), dtype=numpy.float32)
+            nb_dim_kept = numpy.inf
+            for p in search_peaks:
+                nb_dim_kept = min(nb_dim_kept, result['pca_%s_' %p + str(ielec)].shape[1])
+
+            result['data_' + str(ielec)] = numpy.zeros((0, nb_dim_kept), dtype=numpy.float32)
 
             n_neighb = len(edges[nodes[ielec]])
             indices  = inv_nodes[edges[nodes[ielec]]]
@@ -911,10 +915,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             to_filter = first_component
                         elif extraction in ['median-pca', 'mean-pca']:
                             to_filter = tmp_templates
-                        
-                        for i in range(len(to_filter)):
-                            tmp = scipy.signal.savgol_filter(to_filter[i], savgol_window, 3)
-                            to_filter[i] = savgol_filter*to_filter[i] + (1 - savgol_filter)*tmp
+
+                        if savgol_window > 3:
+                            for i in range(len(to_filter)):
+                                tmp = scipy.signal.savgol_filter(to_filter[i], savgol_window, 3)
+                                to_filter[i] = savgol_filter*to_filter[i] + (1 - savgol_filter)*tmp
 
                         tmp_templates = to_filter
 
@@ -1024,7 +1029,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             thresholds[ielec], sub_tmp,
                             numpy.array(myamps), save=save)
 
-                result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], result['sub_%s_' %p + str(ielec)]))
+                nb_dim_found = result['sub_%s_' %p + str(ielec)].shape[1]
+
+                if nb_dim_kept == nb_dim_found:
+                    result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], result['sub_%s_' %p + str(ielec)]))
+                else:
+                    sliced_data = result['sub_%s_' %p + str(ielec)][:, :nb_dim_kept]
+                    result['data_' + str(ielec)] = numpy.concatenate((result['data_' + str(ielec)], sliced_data))
                 if len(result['clusters_' + str(ielec)]) > 0:
                     max_offset = numpy.int32(numpy.max(result['clusters_' + str(ielec)]) + 1)
                 else:

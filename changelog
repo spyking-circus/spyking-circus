@@ -10,6 +10,7 @@ Release 0.8.4
 * channel lists in probe files can be non sorted
 * memory usage is dynamically adapted to reduce memory footprint
 * hdf5 and npy file format can now work with 3D arrays (x, y, time) or (time, x, y)
+* fix a bug if basis for pos and neg spikes have different sizes
 
 =============
 Release 0.8.3
