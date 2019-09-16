@@ -33,6 +33,49 @@ def get_local_ring(local_only=False):
 
     return sub_comm, is_local
 
+def detect_memory(params, whitening=False, filtering=False, fitting=False):
+    from psutil import virtual_memory
+
+    N_e  = params.getint('data', 'N_e')
+    safety_threshold = params.getfloat('data', 'memory_usage')
+    data_file        = params.data_file
+    data_file.open()
+    sampling_rate  = data_file.sampling_rate
+    duation = data_file.duration
+    data_file.close()
+
+    from uuid import getnode as get_mac
+    myip = numpy.int64(get_mac()) % 100000
+    sub_comm = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
+
+    res = numpy.zeros(1, dtype=numpy.int64)
+    mem = virtual_memory()
+
+    if sub_comm.rank == 0:
+        res[0] = safety_threshold * numpy.int64(mem.available//sub_comm.size)
+
+    sub_comm.Barrier()
+    sub_comm.Free()
+
+    memory = all_gather_array(res, comm, 1, 'int64')
+
+    idx = numpy.where(memory > 0)
+    max_memory = numpy.min(memory[idx]) // (4 * N_e)
+
+    if whitening or filtering:
+        max_size = int(30*data_file.sampling_rate)
+    elif fitting:
+        max_size = int(data_file.sampling_rate)
+    else:       
+        max_size = (data_file.duration//comm.size)
+
+    chunk_size = min(max_memory, max_size)
+    
+    if comm.rank == 0:
+        print_and_log(['Setting data chunk size to %g second' %(chunk_size/float(sampling_rate))], 'debug', logger)
+
+    return chunk_size
+
 def gather_mpi_arguments(hostfile, params):
     print_and_log(['MPI detected: %s' % str(MPI_VENDOR)], 'debug', logger)
     if MPI_VENDOR[0] == 'Open MPI':

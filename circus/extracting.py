@@ -3,7 +3,7 @@ import circus.shared.algorithms as algo
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
-
+from circus.shared.mpi import detect_memory
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(426236)
@@ -17,7 +17,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     N_t            = params.getint('detection', 'N_t')
     N_total        = params.nb_channels
     template_shift = params.getint('detection', 'template_shift')
-    chunk_size     = params.getint('data', 'chunk_size')
+    chunk_size     = detect_memory(params)
     file_out       = params.get('data', 'file_out')
     file_out_suff  = params.get('data', 'file_out_suff')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -33,7 +33,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     #################################################################
 
     if comm.rank == 0:

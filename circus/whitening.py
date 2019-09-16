@@ -8,6 +8,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.mpi import detect_memory
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
@@ -31,7 +32,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size       = params.getint('whitening', 'chunk_size')
+    chunk_size       = detect_memory(params, whitening=True)
     plot_path        = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     nodes, edges     = get_nodes_and_edges(params)
     safety_time      = params.getint('whitening', 'safety_time')
@@ -40,7 +41,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_silence_1    = int(20*params.rate // comm.size)
     max_silence_2    = 5000
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     jitter_range     = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
     use_hanning      = params.getboolean('detection', 'hanning')
@@ -278,17 +279,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     alignment      = params.getboolean('detection', 'alignment')
     smoothing      = params.getboolean('detection', 'smoothing')
     isolation      = params.getboolean('detection', 'isolation')
-    over_factor    = float(params.getint('detection', 'oversampling_factor'))
+    over_factor    = params.getint('detection', 'oversampling_factor')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     nodes, edges   = get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size       = params.getint('data', 'chunk_size')
+    chunk_size       = detect_memory(params)
     safety_time      = params.getint('whitening', 'safety_time')
     max_elts_elec    = params.getint('whitening', 'max_elts')
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     if sign_peaks == 'both':
        max_elts_elec *= 2
@@ -462,6 +463,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
 
                                 sub_mat = f(ddata).astype(numpy.float32)
+
+                                # nb_points = len(ydata)*over_factor
+                                # f = scipy.signal.resample(ydata, nb_points)
+
+                                # if negative_peak:
+                                #     rmin = numpy.argmin(f[nb_points//2 - jitter_range*over_factor: nb_points//2 + jitter_range*over_factor])
+                                # else:
+                                #     rmin = numpy.argmax(f[nb_points//2 - jitter_range*over_factor: nb_points//2 + jitter_range*over_factor])
+
+                                # rmin  += nb_points //2 - jitter_range*over_factor
+                                # ddata  = numpy.arange(rmin-over_factor*template_shift, rmin+over_factor*(template_shift + 1), over_factor).astype(numpy.int32)
+                                # sub_mat = f[ddata]
 
                             if isolation:
                                 to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])

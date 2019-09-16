@@ -12,6 +12,7 @@ from .shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.files import get_artefact
+from circus.shared.mpi import detect_memory
 
 def check_if_done(params, flag, logger):
     """
@@ -115,7 +116,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         print_and_log(['Second value of cut off must either auto, or a valid a number'], 'error', logger)
                     sys.exit(0)
 
-        chunk_size    = params.getint('data', 'chunk_size')
+        chunk_size    = detect_memory(params, filtering=True)
         butter_order  = params.getint('filtering', 'butter_order')
         nb_chunks, _  = data_file_in.analyze(chunk_size)
 
@@ -195,7 +196,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             A dictionary with the location of the artefacts
         """
 
-        chunk_size     = params.getint('data', 'chunk_size')
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
@@ -279,7 +279,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             a dictionary with the artefact times.
         """
 
-        chunk_size     = params.getint('data', 'chunk_size')
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
         artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
         windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))

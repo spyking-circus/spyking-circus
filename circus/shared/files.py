@@ -1276,10 +1276,9 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     N_t            = params.getint('detection', 'N_t')
     file_out_suff  = params.get('data', 'file_out_suff')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
-    chunks         = params.getfloat('fitting', 'chunk_size')
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     data_length    = data_stats(params, show=False)
-    duration       = int(min(chunks*max_chunk, data_length))
+    duration       = data_length
     templates      = load_data(params, 'norm-templates')
     refractory     = params.getint('fitting', 'refractory')
     N_tm           = len(templates)
@@ -1446,10 +1445,9 @@ def collect_mua(nb_threads, params, erase=False):
     N_t            = params.getint('detection', 'N_t')
     file_out_suff  = params.get('data', 'file_out_suff')
     max_chunk      = params.getfloat('fitting', 'max_chunk')
-    chunks         = params.getfloat('fitting', 'chunk_size')
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     data_length    = data_stats(params, show=False)
-    duration       = int(min(chunks*max_chunk, data_length))
+    duration       = int(data_length)
     print_and_log(["Gathering MUA from %d nodes..." %nb_threads], 'default', logger)
 
     # Initialize data collection.
@@ -1603,7 +1601,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     comm.Barrier()
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
 
     cuda_string = 'using %d CPU...' %comm.size
 

@@ -6,6 +6,7 @@ with warnings.catch_warnings():
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, init_logging
+from circus.shared.mpi import detect_memory
 
 def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     """
@@ -138,7 +139,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     nodes, edges     = get_nodes_and_edges(params)
     N_t              = params.getint('detection', 'N_t')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.argsort(nodes)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     N_tm_init             = templates.shape[1]//2
@@ -166,7 +167,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     # Retrieve some additional key parameters.
-    chunk_size     = params.getint('data', 'chunk_size')
+    chunk_size     = detect_memory(params)
     scalings       = []
     
     params.set('data', 'data_file', file_name)
