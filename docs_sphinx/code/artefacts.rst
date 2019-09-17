@@ -43,10 +43,14 @@ Setting stimulation times
 
 In a first text file, you must specify all the times of your artefacts, identified by a given identifier. The times can be given in ms or in timesteps, and this can be changed with the ``trig_unit`` parameter. By default, they are assumed to be in ms. For example, imagine you have 2 different stimulation protocols, each one inducing a different artefact. The text file will look like::
 	
+	// mytimes.triggers
+    // Two interleaved stim (0 and 1) are
+    // played at various times, roughly every
+    // 500 ms
 	0 500.2 
 	1 1000.2
 	0 1500.3
-	1 2000.1
+	1 2000.1 # this is a comment
 	...
 	0 27364.1
 	1 80402.4
@@ -58,8 +62,11 @@ Setting time windows
 
 In a second text file, you must tell the algorithm what is the time window you want to consider for a given artefact. Using the same example, and assuming that stim 0 produces an artefact of 100ms, while stim 1 produces a longer artefact of 510ms, the file should look like::
 
-	0 100
-	1 510
+	// Estimated duration of the artefacts
+	// Stim 0 lasts 100 ms
+	// Stim 1 lasts 510 ms
+	0 100 # short opto flash
+	1 510 # long opto flash
 
 Here, again, use ``trig_unit`` if you want to provide times in timesteps.
 

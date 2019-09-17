@@ -197,8 +197,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         """
 
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
-        artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
-        windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
+        artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'), comments =['#','//'])
+        windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'), comments =['#','//'])
         make_plots     = params.get('triggers', 'make_plots')
         plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
@@ -280,8 +280,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         """
 
         trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
-        artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'))
-        windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'))
+        artefacts      = numpy.loadtxt(params.get('triggers', 'trig_file'), comments =['#','//'])
+        windows        = numpy.loadtxt(params.get('triggers', 'trig_windows'), comments =['#','//'])
         make_plots     = params.get('triggers', 'make_plots')
         plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 

@@ -2,12 +2,12 @@ environment:
   # For new releases, only one job will upload the source code to Pypi, and only
   # one job each for Python 2 and 3 will upload a wheel.
   matrix:
-    - PYTHON: "C:\\Miniconda37-x64"
-      PYTHON_VERSION: "3.7"
-      PYTHON_ARCH: "64"
-      PYPI_UPLOAD_SOURCE: yes
-      PYPI_UPLOAD_WHEEL: yes
-      platform: x64
+    # - PYTHON: "C:\\Miniconda37-x64"
+    #   PYTHON_VERSION: "3.7"
+    #   PYTHON_ARCH: "64"
+    #   PYPI_UPLOAD_SOURCE: yes
+    #   PYPI_UPLOAD_WHEEL: yes
+    #   platform: x64
 
     - PYTHON: "C:\\Miniconda36-x64"
       PYTHON_VERSION: "3.6"
