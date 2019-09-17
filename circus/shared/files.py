@@ -162,9 +162,23 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
 
 def get_dead_times(params):
+    """
+    Read the sampling points to be excluced from the data file from 
+    'dead_file' in [triggers] section of the params file. If 'dead_unit'
+    is 'ms', it will transform sampling points in ms.
+
+    Parameters
+    ----------
+    params -- the parameter file.
+
+    Returns
+    -------
+    A 2D NumPy array containing the start and stop sampling points 
+    (or times) to be excluded from the data. 
+    """
 
     def _get_dead_times(params):
-        dead_times = numpy.loadtxt(params.get('triggers', 'dead_file'))
+        dead_times = numpy.loadtxt(fname = params.get('triggers', 'dead_file'), comments =['#','//'])
         data_file  = params.data_file
         if len(dead_times.shape) == 1:
             dead_times = dead_times.reshape(1, 2)
