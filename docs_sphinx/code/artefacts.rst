@@ -14,8 +14,12 @@ Setting dead periods
 
 In a text file, you must specify all the portions [t_start, t_stop] that you want to exclude from analysis. The times can be given in ms or in timesteps, and this can be changed with the ``dead_unit`` parameter. By default, they are assumed to be in ms. Assuming we want to exclude the first 500ms of every second, such a text file will look like::
 	
+    // myartefact.dead
+    // Exclude 500 ms every 1000 ms from t=0 until t=10 seg
+    // times are given in 'ms' (set dead_unit = 'ms' in [triggers]
+    // columns: t_start t_stop
 	0 500 
-	1000 1500
+	1000 1500 # this is a comment
 	2000 2500
 	...
 	10000 10500
