@@ -140,7 +140,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         to_explore = xrange(comm.rank, nb_chunks, comm.size)
 
-        data_file_in.open()
+        data_file_in.open(mode='r+')
 
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(to_explore)
