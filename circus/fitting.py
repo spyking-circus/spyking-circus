@@ -13,7 +13,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     SHARED_MEMORY  = get_shared_memory_flag(params)
     logger         = logging.getLogger('circus.fitting')
     data_file      = params.data_file
-    data_file.open()
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
@@ -38,6 +37,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes]  = numpy.arange(len(nodes))
+    data_file.open()
     #################################################################
 
     if use_gpu:

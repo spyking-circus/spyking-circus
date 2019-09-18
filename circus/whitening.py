@@ -18,7 +18,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     logger         = logging.getLogger('circus.whitening')
     #################################################################
     data_file      = params.data_file
-    data_file.open()
     N_e            = params.getint('data', 'N_e')
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     N_total        = params.nb_channels
@@ -45,6 +44,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     jitter_range     = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
     use_hanning      = params.getboolean('detection', 'hanning')
+    data_file.open()
     #################################################################
 
     if use_hanning:

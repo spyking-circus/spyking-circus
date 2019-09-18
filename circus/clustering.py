@@ -20,7 +20,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     logger         = logging.getLogger('circus.clustering')
     #################################################################
     data_file      = params.data_file
-    data_file.open()
     N_e            = params.getint('data', 'N_e')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
@@ -83,6 +82,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_ss_bins        = params.getint('clustering', 'nb_ss_bins')
     use_hanning      = params.getboolean('detection', 'hanning')
     use_savgol       = params.getboolean('clustering', 'savgol')
+    data_file.open()
     #################################################################
 
     if sign_peaks == 'negative':
