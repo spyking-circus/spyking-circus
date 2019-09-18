@@ -13,7 +13,7 @@ The 16 recording sites cover a distance of 200 um and are spaced every
 11x15 um and the shank thickness 15 um.
 
 The file creates a main python dictionary called channel_groups. The 
-dictionary contains FOUR dictionaries called '0', '1', '2' and '3'
+dictionary contains FOUR dictionaries called '1', '2', '3' and '4'
 corresponding to the FOUR schanks of the silicon probe (A,B,C and D). 
 Every shank contains another dictionary with "channels", "graph" and 
 "geometry" having the channel number.
