@@ -97,8 +97,6 @@ Whitening
 
 The whitening section is::
 
-    chunk_size     = 60        # Size of the data chunks [in s]
-    safety_time    = auto      # Temporal zone around which templates are isolated [in ms]
     spatial        = True      # Perform spatial whitening
     max_elts       = 10000     # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8       # Fraction of max_elts that should be obtained per electrode [0-1]
@@ -106,7 +104,6 @@ The whitening section is::
 
 Parameters that are most likely to be changed:
     * ``output_dim`` If you want to save some memory usage, you can reduce the number of features kept to describe a waveform.
-    * ``chunk_size`` If you have a very large number of electrode, and not enough memory, you can reduce it
 
 
 Clustering
@@ -115,8 +112,6 @@ Clustering
 The clustering section is::
 
     extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw, or quadratic
-    safety_space   = True       # If True, we exclude spikes in the vicinity of a selected spikes
-    safety_time    = auto       # Temporal zone around which templates are isolated [in ms]
     max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
     nclus_min      = 0.002      # Min number of elements in a cluster (given in percentage)
@@ -124,7 +119,7 @@ The clustering section is::
     make_plots     =            # Generate sanity plots of the clustering
     sim_same_elec  = 3          # Distance within clusters under which they are re-merged
     dip_threshold  = 0.5        # Will replace sim_same_elec in the future. Set it to 0 to keep using sim_same_elec
-    sensitivity    = 5          # The only parameter to control the cluster. The lower, the more sensitive
+    sensitivity    = 3          # The only parameter to control the cluster. The lower, the more sensitive
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
     smart_search   = True       # Parameter to activate the smart search mode
@@ -153,16 +148,12 @@ Fitting
 
 The fitting section is::
 
-    chunk          = 1         # Size of chunks used during fitting [in second]
     amp_limits     = (0.3, 30) # Amplitudes for the templates during spike detection
     amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
-    max_chunk      = inf       # Fit only up to max_chunk   
     collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
 
 
 Parameters that are most likely to be changed:
-    * ``chunk`` again, to reduce memory usage, you can reduce the size of the temporal chunks during fitting. Note that it has to be one order of magnitude higher than the template width ``N_t``
-    * ``max_chunk`` If you just want to fit the first *N* chunks, otherwise, the whole file is processed
     * ``collect_all`` If you want to also collect all the spike times at which no templates were fitted. This is particularly useful to debug the algorithm, and understand if something is wrong on a given channel
 
 Merging
@@ -189,10 +180,9 @@ Converting
 The converting section is::
 
     erase_all      = True      # If False, a prompt will ask you to export if export has already been done
-    sparse_export  = False     # If True, data for phy are exported in a sparse format. Need recent version of phy
+    sparse_export  = True      # If True, data for phy are exported in a sparse format. Need recent version of phy
     export_pcs     = prompt    # Can be prompt [default] or in none, all, some
     export_all     = False     # If True, unfitted spikes will be exported as the last Ne templates
-
 
 Parameters that are most likely to be changed:
     * ``erase_all`` If you want to always erase former export, and skip the prompt

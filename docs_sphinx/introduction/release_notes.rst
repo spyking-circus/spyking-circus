@@ -31,6 +31,40 @@ Code and documentation contributions (ordered by the number of commits):
 * Cyrille Rossant
 
 =============
+Release 0.8.4
+=============
+
+* fix if no spikes are found on some electrodes
+* fix as mean/median-pca methods were broken (albeit not used)
+* fix to prevent a rare crash while loading too sparse overlaps
+* fix a bug with the new dip method in python 2.7
+* add the thresholding method to extract only MUA activity (requested by users)
+* channel lists in probe files can be non sorted
+* memory usage is dynamically adapted to reduce memory footprint
+* hdf5 and npy file format can now work with 3D arrays (x, y, time) or (time, x, y)
+* fix a bug if basis for pos and neg spikes have different sizes
+* add some docstrings (thanks to Jose Guzman)
+* sparse export for phy is now the default
+* comments can now be added in the trigger/dead times files
+
+=============
+Release 0.8.3
+=============
+
+* automatic suppression, during meta merging, of noisy templates (for SpikeToolKit/Forest)
+* during the phy export, we can automatically pre-assign labels to neurons
+* fix a bug when converting to phy with dead channels
+* fix a bug when converting to phy with file formats without data_offset
+* speedup the estimation of the amplitude distribution
+* minor fixes for clusters
+* smoothing of the templates thanks to Savitzky-Golay filtering
+* fix a bug when launching GUIs for file format without data offset
+* can now work with scipy 1.3 and statsmodels 0.10
+* isolation mode is improved, set as default and leading to better performance
+* reducing overclustering with the Hartigan dip-test of unimodality
+* can now set the number of dimensions for local PCA (10 by default)
+
+=============
 Release 0.8.2
 =============
 
