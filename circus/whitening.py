@@ -298,6 +298,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     if ignore_dead_times:
         all_dead_times = get_dead_times(params)
+    data_file.open()
     #################################################################
 
 
