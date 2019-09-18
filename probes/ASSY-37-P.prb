@@ -23,7 +23,7 @@ Every shank contains another dictionary with "channels", "graph" and
 #=========================================================================
 # Skyking-circus parameters
 #=========================================================================
-total_nb_channels = 19 # number of recording sites (3 for TTL)
+total_nb_channels = 35 # number of recording sites (3 for TTL)
 radius = 200 # spatial extent (in um)
 channel_groups = {1: dict(), 2: dict()} # a single shanks
 
