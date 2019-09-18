@@ -1,21 +1,21 @@
 """
-ASSY-77-P.prb
+ASSY-01-P.prb
 
 Author: Jose Guzman, jose.guzman<at>guzman-lab.com
-Created: Mon May  6 12:22:42 CEST 2019
+Created: Wed Sep 18 13:28:33 CEST 2019
 
-The probe file for the silicon probe model ASSY-77 from the P-series
+The probe file for the silicon probe model ASSY-1 from the P-series
 from Cambridge NeuroTech (info<at>cambridgeneurotech.com)
 The P1 has 6 mm long shank, the P2 model 9 mm.
-The probe consists of FOUR 250 um-separated shanks of 16 recording sites. 
+The probe consists of ONE single shank containing 16 recording sites. 
 The 16 recording sites cover a distance of 200 um and are spaced every 
 25 um. The total number of electrodes is 64. The electrode size is 
 11x15 um and the shank thickness 15 um.
 
 The file creates a main python dictionary called channel_groups. The 
-dictionary contains FOUR dictionaries called '0', '1', '2' and '3'
-corresponding to the FOUR schanks of the silicon probe (A,B,C and D). 
-Every shank contains another dictionary with "channels", "graph" and 
+dictionary contains a dictionary called '0'
+corresponding to the single schank of the silicon probe (probe A). 
+The shank contains another dictionary with "channels", "graph" and 
 "geometry" having the channel number.
 
 """
@@ -23,25 +23,19 @@ Every shank contains another dictionary with "channels", "graph" and
 #=========================================================================
 # Skyking-circus parameters
 #=========================================================================
-total_nb_channels = 67 # number of recording sites (3 for TTL)
+total_nb_channels = 19 # number of recording sites (3 for TTL)
 radius = 200 # spatial extent (in um)
-channel_groups = {1: dict(), 2: dict(), 3: dict(), 4: dict()} # four shanks
+channel_groups = {1: dict()} # a single shanks
 
 #=========================================================================
 # "channels" defined from channel mapping
 #=========================================================================
 shankA = range(16)
-shankB = range(16,32)
-shankC = range(32,48)
-shankD = range(48,64)
 
 #=========================================================================
 # Assign "channels" from channel maps 
 #=========================================================================
 channel_groups[1]["channels"] = shankA
-channel_groups[2]["channels"] = shankB
-channel_groups[3]["channels"] = shankC
-channel_groups[4]["channels"] = shankD
 
 #=========================================================================
 # Assign "geometry" for calculated locations 
@@ -79,9 +73,6 @@ def get_locations(xloc = 0, xstep = 22.5, ystep = 25):
 
 # create dictionaries 'zipping' shanks and locations
 channel_groups[1]["geometry"] = dict( zip(shankA, get_locations(xloc=0)))
-channel_groups[2]["geometry"] = dict( zip(shankB, get_locations(xloc=250)))
-channel_groups[3]["geometry"] = dict( zip(shankC, get_locations(xloc=500)))
-channel_groups[4]["geometry"] = dict( zip(shankD, get_locations(xloc=750)))
     
 #=========================================================================
 # Assign "graph" of adjancenct nodes to have phy compatibility
@@ -110,7 +101,4 @@ def get_graph(shank):
     return mygraph
     
 channel_groups[1]["graph"] = get_graph(shankA)
-channel_groups[2]["graph"] = get_graph(shankB)
-channel_groups[3]["graph"] = get_graph(shankC)
-channel_groups[4]["graph"] = get_graph(shankD)
     
