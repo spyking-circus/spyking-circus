@@ -176,7 +176,10 @@ class CircusParser(object):
                         ['detection', 'smoothing', 'bool', 'True'],
                         ['detection', 'smoothing_factor', 'float', '0.25'],
                         ['clustering', 'dip_threshold', 'float', '0.5'],
-                        ['data', 'memory_usage', 'float', '0.1']]
+                        ['data', 'memory_usage', 'float', '0.1'],
+                        ['clustering', 'safety_time', 'string', 'auto'],
+                        ['whitening', 'safety_time', 'string', 'auto'],
+                        ['extracting', 'safety_time', 'string', 'auto']]
 
     def __init__(self, file_name, create_folders=True, **kwargs):
         """
