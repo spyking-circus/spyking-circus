@@ -279,7 +279,19 @@ class CircusParser(object):
         self.parser.set('data', 'file_out_suff', file_out + self.parser.get('data', 'suffix')) # Output file with suffix
         self.parser.set('data', 'data_file_noext', f_next)   # Data file (assuming .filtered at the end)
 
-        self.probe = read_probe(self.parser)
+        # read .prb file
+        try:
+            self.parser.get('detection', 'radius')
+        except Exception: # radius == auto by default
+            self.parser.set('detection', 'radius', 'auto')
+
+        try:
+            self.parser.getint('detection', 'radius')
+        except Exception: # when radius = auto in params file 
+            self.probe = read_probe(self.parser, radius_in_probe = True)
+            self.parser.set('detection', 'radius', str(int(self.probe['radius'])))
+        else:
+            self.probe = read_probe(self.parser, radius_in_probe = False)
 
         dead_channels = self.parser.get('detection', 'dead_channels')
         if dead_channels != '':
