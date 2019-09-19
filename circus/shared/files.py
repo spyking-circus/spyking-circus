@@ -1524,7 +1524,7 @@ def collect_mua(nb_threads, params, erase=False):
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
-    to_write = ["Number of threhsold crossings discovered : %d" %count]
+    to_write = ["Number of threshold crossings : %d" %count]
 
     print_and_log(to_write, 'info', logger)
 
