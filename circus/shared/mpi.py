@@ -65,7 +65,7 @@ def detect_memory(params, whitening=False, filtering=False, fitting=False):
     if whitening or filtering:
         max_size = int(30*data_file.sampling_rate)
     elif fitting:
-        max_size = int(data_file.sampling_rate)
+        max_size = int(0.1*data_file.sampling_rate)
     else:       
         max_size = (data_file.duration//comm.size)
 
