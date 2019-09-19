@@ -82,6 +82,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     processed_chunks          = int(min(nb_chunks, max_chunk))
 
+    comm.Barrier()
     spiketimes_file = open(file_out_suff + '.mua-%d.data' %comm.rank, 'wb')
     comm.Barrier()
     electrodes_file = open(file_out_suff + '.elec-%d.data' %comm.rank, 'wb')
