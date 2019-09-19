@@ -29,6 +29,9 @@ Code and documentation contributions (ordered by the number of commits):
 * Christophe Gardella
 * Olivier Marre
 * Cyrille Rossant
+* Joze Guzman
+* Ariel Burman
+* Ben Acland
 
 =============
 Release 0.8.4
@@ -46,6 +49,7 @@ Release 0.8.4
 * add some docstrings (thanks to Jose Guzman)
 * sparse export for phy is now the default
 * comments can now be added in the trigger/dead times files
+* 4096 channels can now run on a single machine, with low memory consumption
 
 =============
 Release 0.8.3
