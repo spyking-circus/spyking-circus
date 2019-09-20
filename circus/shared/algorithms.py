@@ -539,61 +539,56 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     norm           = N_e * N_t
     decimation     = params.getboolean('clustering', 'decimation')
 
-    result   = []
-    overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
-    overlap.close()
-    filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
+    if cc_merge < 1:
 
-    SHARED_MEMORY = get_shared_memory_flag(params)
+        result   = []
+        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+        overlap.close()
+        filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
-    if not SHARED_MEMORY:
-        over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension='-merging')
-    else:
-        over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+        SHARED_MEMORY = get_shared_memory_flag(params)
 
-    #sub_comm, is_local = get_local_ring(True)
+        if not SHARED_MEMORY:
+            over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension='-merging')
+        else:
+            over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
 
-    #if is_local:
+        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
 
-    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+        to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
 
-    to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
+        for i in to_explore:
 
-    for i in to_explore:
+            idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
+            local_x = over_x[idx] - (i*nb_temp+i+1)
+            data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
+            data[local_x, over_y[idx]] = over_data[idx]
+            distances[i, i+1:] = numpy.max(data, 1)/norm
+            distances[i+1:, i] = distances[i, i+1:]
 
-        idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
-        local_x = over_x[idx] - (i*nb_temp+i+1)
-        data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
-        data[local_x, over_y[idx]] = over_data[idx]
-        distances[i, i+1:] = numpy.max(data, 1)/norm
-        distances[i+1:, i] = distances[i, i+1:]
+        #Now we need to sync everything across nodes
+        distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
+        if comm.rank == 0:
+            distances = distances.reshape(comm.size, nb_temp, nb_temp)
+            distances = numpy.sum(distances, 0)
 
-    #Now we need to sync everything across nodes
-    distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
-    if comm.rank == 0:
-        distances = distances.reshape(comm.size, nb_temp, nb_temp)
-        distances = numpy.sum(distances, 0)
+        if comm.rank == 0:
+            result = load_data(params, 'clusters')
+            to_merge, result = remove(result, distances, cc_merge)
 
-    #sub_comm.Barrier()
-    #sub_comm.Free()
+        to_merge = numpy.array(to_merge)
+        to_merge = comm.bcast(to_merge, root=0)
 
-    if comm.rank == 0:
-        result = load_data(params, 'clusters')
-        to_merge, result = remove(result, distances, cc_merge)
+        if len(to_merge) > 0:
+            slice_templates(params, to_merge=to_merge)
+            slice_clusters(params, result)
 
-    to_merge = numpy.array(to_merge)
-    to_merge = comm.bcast(to_merge, root=0)
+        comm.Barrier()
 
-    if len(to_merge) > 0:
-        slice_templates(params, to_merge=to_merge)
-        slice_clusters(params, result)
+        del result, over_x, over_y, over_data
 
-    comm.Barrier()
-
-    del result, over_x, over_y, over_data
-
-    if comm.rank == 0:
-        os.remove(filename)
+        if comm.rank == 0:
+            os.remove(filename)
 
     return [nb_temp, len(to_merge)]
 
@@ -700,7 +695,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                             if k not in mixtures:
                                 mixtures  += [k]
                                 been_found = True
-                                #print "Template", k, 'is sum of (%d, %g) and (%d,%g)' %(i, a1, j, a2)
                                 break
     sys.stderr.flush()
     #print mixtures

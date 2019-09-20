@@ -348,7 +348,7 @@ but a subset x,y can be done. Steps are:
             print_and_log(['Smart Search should be activated for matched filtering' ], 'info', logger)
 
         if time > 30 and not params.getboolean('clustering', 'smart_search'):
-            print_and_log(['Smart Search could be activated for long recordings' ], 'info', logger)
+            print_and_log(['Smart Search should be activated for long recordings' ], 'info', logger)
 
         n_edges = get_averaged_n_edges(params)
         if n_edges > 100 and not params.getboolean('clustering', 'compress'):
