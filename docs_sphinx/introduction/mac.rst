@@ -5,17 +5,24 @@ Here are some detailed instructions:
 
     1. Install Anaconda_ (Python 2.7 or 3.5)
 
-    2. Install spiking-circus by executing::
+    2. The best is to create a dedicated environment to install the software, and activate it::
+
+        >> conda create -n circus python=3.6
+        >> conda activate circus
+
+    3. Install spiking-circus by executing::
 
         >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
     
-    3. If you prefer, you can use pip (this is equivalent to step 4)::
+    4. If you prefer, you can use pip (this is equivalent to step 3)::
     
         >> pip install spyking-circus
 
-    4. Here you are! Now run the code, for example::
+    5. Here you are! Now run the code, for example::
 
         >> spyking-circus pathtodata/data.dat -c 7
 
+If you want to install phy_ 2.0 as a visulization GUI, you can install it in the same environment (:doc:`see here for detailed instructions <../GUI/launching>` 
 
 .. _Anaconda: https://www.anaconda.com/distribution/
+.. _phy: https://github.com/cortex-lab/phy

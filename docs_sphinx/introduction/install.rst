@@ -30,6 +30,14 @@ As an example for linux, just type::
     >> wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
     >> bash Miniconda-latest-Linux-x86_64.sh
 
+If you want, first, the best is to create a dedicated environment::
+
+    >> conda create -n circus python=3.6
+
+Then activate the environment::
+
+    >> conda activate circus
+
 Then install the software itself::
 
     >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
@@ -102,6 +110,8 @@ If you want to use the phy GUI to visualize your results, you may need to instal
     >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
     >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
     >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
+
+You can see more details on the `phy website <https://phy.readthedocs.io/en/latest/installation/>`_
 
 
 Home Directory
