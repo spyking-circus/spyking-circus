@@ -60,10 +60,25 @@ def get_nodes_and_edges(parser, validating=False):
 
     def get_edges(i, channel_groups):
         edges = []
-        pos_x, pos_y = channel_groups['geometry'][i]
+        position = channel_groups['geometry'][i]
+        if len(position) == 2:
+            pos_x, pos_y, pos_z = position[0], position[1], 0
+        elif len(position) == 1:
+            pos_x, pos_y, pos_z = position[0], 0, 0
+        elif len(position) == 3:
+            pos_x, pos_y, pos_z = position[0], position[1], position[2]
+
         for c2 in channel_groups['channels']:
-            pos_x2, pos_y2 = channel_groups['geometry'][c2]
-            if (((pos_x - pos_x2)**2 + (pos_y - pos_y2)**2) <= radius**2):
+
+            position = channel_groups['geometry'][c2]
+            if len(position) == 2:
+                pos_x2, pos_y2, pos_z2 = position[0], position[1], 0
+            elif len(position) == 1:
+                pos_x2, pos_y2, pos_z2 = position[0], 0, 0
+            elif len(position) == 3:
+                pos_x2, pos_y2, pos_z2 = position[0], position[1], position[2]
+
+            if (((pos_x - pos_x2)**2 + (pos_y - pos_y2)**2 + (pos_z - pos_z2)**2) <= radius**2):
                 edges += [c2]
         return edges
 

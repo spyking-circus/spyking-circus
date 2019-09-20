@@ -15,6 +15,7 @@ Release 0.8.4
 * sparse export for phy is now the default
 * comments can now be added in the trigger/dead times files
 * 4096 channels can now run on a single machine, with low memory consumption
+* basic support for 3d probes, without any visualization
 * cc_merge set to 1 automatically if templates on few channels are detected
 
 =============
