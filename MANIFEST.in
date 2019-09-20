@@ -20,3 +20,6 @@ include probes/kampff_128.prb
 include probes/emilie.prb
 include probes/adrien.prb
 include probes/dan.prb
+include probes/ASSY-01-P.prb
+include probes/ASSY-37-P.prb
+include probes/ASSY-77-P.prb
