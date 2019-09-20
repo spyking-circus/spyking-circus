@@ -1079,7 +1079,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             idx           = numpy.where(gdata4 != 0)[0]
             mean_channels = numpy.mean(gdata4[idx])
             if mean_channels < 3 and params.getfloat('clustering', 'cc_merge') != 1:
-                print_and_log(["Templates on few channels only, cc_merge should be 1"], 'info', logger)
+                print_and_log(["Templates on few channels only, cc_merge set to 1 automatically"], 'info', logger)
+        else:
+            mean_channels = 0
+
+        mean_channels = comm.bcast(numpy.array([int(mean_channels)], dtype=numpy.int32), root=0)[0]
+
+        if mean_channels < 3:
+            params.set('clustering', 'cc_merge', 1)
 
         #We need to gather the sparse arrays
         temp_x    = gather_array(temp_x, comm, dtype='uint32', compress=blosc_compress)
@@ -1171,7 +1178,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if total_nb_clusters > 0:
 
-        if comm.rank == 0:
+        if comm.rank == 0 and (params.getfloat('clustering', 'cc_merge') < 1):
             print_and_log(["Merging similar templates..."], 'default', logger)
 
         merged1 = algo.merging_cc(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)

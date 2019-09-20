@@ -3,13 +3,13 @@
 ### file format. Otherwise, launch the code and a message will tell you what is needed
 
 [data]
-file_format    =                       # Can be raw_binary, openephys, hdf5, ... See >> spyking-circus help -i for more info
-stream_mode    = None                  # None by default. Can be multi-files, or anything depending to the file format
-mapping        =                       # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
-suffix         =                       # Suffix to add to generated files, if needed
-overwrite      = True                  # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
-parallel_hdf5  = True                  # Use the parallel HDF5 feature (if available)
-output_dir     =                       # By default, generated data are in the same folder as the data.
+file_format    =            # Can be raw_binary, openephys, hdf5, ... See >> spyking-circus help -i for more info
+stream_mode    = None       # None by default. Can be multi-files, or anything depending to the file format
+mapping        =            # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+suffix         =            # Suffix to add to generated files, if needed
+overwrite      = True       # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
+parallel_hdf5  = True       # Use the parallel HDF5 feature (if available)
+output_dir     =            # By default, generated data are in the same folder as the data.
 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)
