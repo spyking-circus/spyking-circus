@@ -4,7 +4,23 @@ from mpi import comm
 
 logger = logging.getLogger(__name__)
 
-def read_probe(parser):
+def read_probe(parser, radius_in_probe = True):
+    """
+    Read the probe file 
+
+    Arguments
+    ---------
+    parser :
+        The circur parser object.
+
+    radius_in_probe: bool
+        True (default) if radius is read from the probe.
+        False if is read from params file
+
+    Returns
+    -------
+    The probe
+    """
     probe    = {}
     filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
     if comm.rank == 0:
@@ -23,7 +39,10 @@ def read_probe(parser):
             print_and_log(["Something wrong with the syntax of the probe file:\n" + str(ex)], 'error', logger)
         sys.exit(0)
 
-    key_flags = ['total_nb_channels', 'radius', 'channel_groups']
+    key_flags = ['total_nb_channels', 'channel_groups']
+    if radius_in_probe:
+        key_flags +=['radius']
+    
     for key in key_flags:
         if not probe.has_key(key):
             if comm.rank == 0:
