@@ -662,7 +662,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         print_and_log(['Smart search is actived on channel %d' % ielec], 'debug', logger)
 
                 elif gpass == 1:
-                    if len(result['data_%s_' %p + str(ielec)]) > 1:
+                    if len(result['data_%s_' %p + str(ielec)]) >= 1:
 
                         if result['pca_%s_' %p + str(ielec)] is None:
 
@@ -672,6 +672,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 result['pca_%s_' %p + str(ielec)] = pca.components_.T.astype(numpy.float32)
                                 print_and_log(["The variance explained by local PCA on electrode %s from %d %s spikes is %g with %d dimensions"
                                 %(ielec, len(result['data_%s_' %p + str(ielec)]), p, numpy.sum(pca.explained_variance_ratio_), result['pca_%s_' %p + str(ielec)].shape[1])], 'debug', logger)
+                                if numpy.any(numpy.isnan(result['pca_%s_' %p + str(ielec)])):
+                                    result['pca_%s_' %p + str(ielec)] = numpy.zeros((sub_output_dim, sub_output_dim), dtype=numpy.float32)
+                                    result['pca_%s_' %p + str(ielec)][numpy.arange(sub_output_dim), numpy.arange(sub_output_dim)] = 1
+                                    print_and_log(["Local PCA on electrode %s had NaN, so fixed to Identity"])
                             else:
                                 dimension = result['data_%s_' %p + str(ielec)].shape[1]
                                 result['pca_%s_' %p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
