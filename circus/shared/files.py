@@ -1508,7 +1508,7 @@ def collect_mua(nb_threads, params, erase=False):
 
     # Save results into `<dataset>/<dataset>.result.hdf5`.
     mydata = h5py.File(file_out_suff + '.mua.hdf5', 'w', libver='earliest')
-    keys = ['spiketimes', 'amplitudes']
+    keys = ['spiketimes', 'amplitudes', 'info']
     for key in keys:
         mydata.create_group(key)
         for temp in result[key].keys():
