@@ -106,4 +106,9 @@ You have two ways to deal with channels that you want to discard from the analys
 
 * with the ``dead_channels`` parameter of the configuration file. Coming back to the previous example, you can set such a parameter to {1 : [28, 29]} in order to exclude the last two channels
 
+How do deal with 1D or 3D probes ?
+----------------------------------
+
+Since release 0.8.4, the code is able to work with 1D or 3D coordinates for the positions of the channels. However, currently, none of the visualization GUIs (preview, matlab, phy) will work properly if 3D coordinates are used.
+
 .. _phy: https://github.com/cortex-lab/phy

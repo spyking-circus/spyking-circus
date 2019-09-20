@@ -54,7 +54,7 @@ And to be sure that mpi4py is not installed with precompiled binary that would l
 
 You might want to add the ``--user`` flag, to install SpyKING CIRCUS for the local user only, which means that you don't need administrator privileges for the installation.
 
-In principle, the above command also install SpyKING CIRCUS's dependencies, and CUDA_ support if ``nvcc`` command is found in your environment. Once the install is complete, you need to add the ``PATH`` where SpyKING CIRCUS has been installed into your local ``PATH``, if not already the case. To do so, simply edit your ``$HOME/.bashrc`` and add the following line::
+In principle, the above command also install SpyKING CIRCUS's dependencies. Once the install is complete, you need to add the ``PATH`` where SpyKING CIRCUS has been installed into your local ``PATH``, if not already the case. To do so, simply edit your ``$HOME/.bashrc`` and add the following line::
 
     export PATH=$PATH:$HOME/.local/bin
 
@@ -97,9 +97,9 @@ Or to keep the folder in sync with the install in a develop mode::
 Installing phy 2.0
 ~~~~~~~~~~~~~~~~~~
 
-If you want to use the phy GUI to visualize your results, you may need to install phy 2.0::
+If you want to use the phy GUI to visualize your results, you may need to install phy 2.0 (only compatible with python 3)::
 
-    >> pip install colorcet pyopengl joblib
+    >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
     >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
     >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
 
