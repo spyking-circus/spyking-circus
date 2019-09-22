@@ -43,7 +43,7 @@ Installing phy 2.0
 
 If you want to use the phy GUI to visualize your results, you may need to install phy 2.0::
 
-    >> pip install colorcet pyopengl joblib
+    >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
     >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
     >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
 
