@@ -12,15 +12,15 @@ Here are some detailed instructions:
 
     3. Install spiking-circus by executing::
 
-        >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
+        (circus) >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
     
     4. If you prefer, you can use pip (this is equivalent to step 3)::
     
-        >> pip install spyking-circus
+        (circus) >> pip install spyking-circus
 
     5. Here you are! Now run the code, for example::
 
-        >> spyking-circus pathtodata/data.dat -c 7
+        (circus) >> spyking-circus pathtodata/data.dat -c 7
 
 If you want to install phy_ 2.0 as a visulization GUI, you can install it in the same environment (:doc:`see here for detailed instructions <../GUI/launching>` 
 

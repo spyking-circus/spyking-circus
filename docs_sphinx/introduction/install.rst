@@ -40,7 +40,7 @@ Then activate the environment::
 
 Then install the software itself::
 
-    >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
+    (circus) >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
 
 
 Using pip
@@ -105,11 +105,15 @@ Or to keep the folder in sync with the install in a develop mode::
 Installing phy 2.0
 ~~~~~~~~~~~~~~~~~~
 
-If you want to use the phy GUI to visualize your results, you may need to install phy 2.0 (only compatible with python 3)::
+If you want to use the phy GUI to visualize your results, you may need to install phy_ 2.0 (only compatible with python 3). If you have installed SpyKING CIRCUS within a conda environment, first activate it::
 
-    >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
-    >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
-    >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
+    >> conda activate circus
+
+Once this is done, install phy_ 2.0::
+
+    (circus) >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
+    (circus) >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
+    (circus) >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
 
 You can see more details on the `phy website <https://phy.readthedocs.io/en/latest/installation/>`_
 
@@ -154,3 +158,4 @@ For information, here is the list of all the dependencies required by the SpyKIN
 .. _MPI: https://www.mpich.org/
 .. _Xcode: https://developer.apple.com/xcode/download/
 .. _HDF5: https://www.hdfgroup.org
+.. _phy: https://github.com/cortex-lab/phy

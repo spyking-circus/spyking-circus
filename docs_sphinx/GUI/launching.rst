@@ -41,11 +41,15 @@ To launch the phy_ GUI (pure python based using opengl), you need a valid instal
 Installing phy 2.0
 ~~~~~~~~~~~~~~~~~~
 
-If you want to use the phy GUI to visualize your results, you may need to install phy 2.0::
+If you want to use the phy GUI to visualize your results, you may need to install phy_ 2.0. If you have installed SpyKING CIRCUS within a conda environment, first activate it::
 
-    >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
-    >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
-    >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
+    >> conda activate circus
+
+Then, once you are in the environment, install phy_ 2.0::
+
+    (circus) >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
+    (circus) >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
+    (circus) >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
 
 Launching the phy 2.0 GUI
 ~~~~~~~~~~~~~~~~~~~~~~~~~
