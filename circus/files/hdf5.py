@@ -76,8 +76,10 @@ class H5File(DataFile):
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
-        
-        if nodes is None:
+
+        do_slice = nodes is not None and not numpy.all(nodes == numpy.arange(self.nb_channels))
+
+        if not do_slice:
             if self.time_axis == 0:
                 if not self.grid_ids:
                     local_chunk = self.data[t_start:t_stop, :]

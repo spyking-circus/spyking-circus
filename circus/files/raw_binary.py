@@ -41,16 +41,14 @@ class RawBinaryFile(DataFile):
 
         self._open()
 
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(self.nb_channels)):
-                myslice = numpy.zeros(0, dtype=numpy.int64)
-                for i in range(local_shape):
-                    myslice = numpy.concatenate((myslice, (t_start + i)*self.nb_channels + nodes))
-                local_chunk  = self.data[myslice]
-                local_chunk  = local_chunk.reshape(local_shape, len(nodes))
-            else:
-                local_chunk  = self.data[t_start*self.nb_channels:t_stop*self.nb_channels]
-                local_chunk  = local_chunk.reshape(local_shape, self.nb_channels) 
+        do_slice = nodes is not None and not numpy.all(nodes == numpy.arange(self.nb_channels))
+
+        if do_slice:
+            myslice = numpy.zeros(0, dtype=numpy.int64)
+            for i in range(local_shape):
+                myslice = numpy.concatenate((myslice, (t_start + i)*self.nb_channels + nodes))
+            local_chunk  = self.data[myslice]
+            local_chunk  = local_chunk.reshape(local_shape, len(nodes))
         else:
             local_chunk  = self.data[t_start*self.nb_channels:t_stop*self.nb_channels]
             local_chunk  = local_chunk.reshape(local_shape, self.nb_channels)

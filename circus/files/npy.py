@@ -52,22 +52,29 @@ class NumpyFile(RawBinaryFile):
         self._open()
 
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
+        do_slice = nodes is not None and not numpy.all(nodes == numpy.arange(self.nb_channels))
 
         if self.time_axis == 0:
             if not self.grid_ids:
-                local_chunk = self.data[t_start:t_stop, :].copy()
+                if do_slice:
+                    local_chunk = self.data[t_start:t_stop, nodes].copy()
+                else:
+                    local_chunk = self.data[t_start:t_stop, :].copy()
             else:
                 local_chunk = self.data[t_start:t_stop, :, :].copy().reshape(t_stop-t_start, self.nb_channels)
+                if do_slice:
+                    local_chunk = numpy.take(local_chunk, nodes, axis=1)
         elif self.time_axis == 1:
             if not self.grid_ids:
-                local_chunk = self.data[:, t_start:t_stop].copy().T
+                if do_slice:
+                    local_chunk = self.data[nodes, t_start:t_stop].copy().T
+                else:
+                    local_chunk = self.data[:, t_start:t_stop].copy().T
             else:
                 local_chunk = self.data[:, :, t_start:t_stop].copy().reshape(self.nb_channels, t_stop-t_start).T
+                if do_slice:
+                    local_chunk = numpy.take(local_chunk, nodes, axis=1)
         self._close()
-
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(self.nb_channels)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
 
         return self._scale_data_to_float32(local_chunk)
 
