@@ -63,10 +63,6 @@ class BRWFile(H5File):
         else:
             local_chunk  = self.data[t_start*self.nb_channels:t_stop*self.nb_channels]
             local_chunk  = local_chunk.reshape(local_shape, self.nb_channels)
-        
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(self.nb_channels)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
 
         return self._scale_data_to_float32(local_chunk)
 
