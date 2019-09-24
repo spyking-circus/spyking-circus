@@ -46,9 +46,11 @@ class RawBinaryFile(DataFile):
                 myslice = numpy.zeros(0, dtype=numpy.int64)
                 for i in range(local_shape):
                     myslice = numpy.concatenate((myslice, (t_start + i)*self.nb_channels + nodes))
-
                 local_chunk  = self.data[myslice]
                 local_chunk  = local_chunk.reshape(local_shape, len(nodes))
+            else:
+                local_chunk  = self.data[t_start*self.nb_channels:t_stop*self.nb_channels]
+                local_chunk  = local_chunk.reshape(local_shape, self.nb_channels) 
         else:
             local_chunk  = self.data[t_start*self.nb_channels:t_stop*self.nb_channels]
             local_chunk  = local_chunk.reshape(local_shape, self.nb_channels)

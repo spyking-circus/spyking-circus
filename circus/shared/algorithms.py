@@ -86,7 +86,7 @@ class DistanceMatrix(object):
         delta[rho == numpy.max(rho)] = numpy.max(delta[numpy.logical_not(numpy.isinf(delta))]) # assigns max delta to the max rho
         delta[numpy.isinf(delta)] = 0
 
-        return delta
+        return numpy.nan_to_num(delta)
 
     @property
     def max(self):
@@ -123,7 +123,7 @@ def compute_rho(data, update=None, mratio=0.01):
             else:
                 dist_sorted[i] = data
             rho[i] = numpy.mean(dist_sorted[i])
-        return rho, dist, dist_sorted
+        return numpy.nan_to_num(rho), dist, dist_sorted
     else:
         for i in range(N):
             dist = scipy.spatial.distance.cdist(data[i].reshape(1, len(data[i])), update[0]).flatten()
@@ -133,7 +133,7 @@ def compute_rho(data, update=None, mratio=0.01):
             else:
                 dist_sorted[i] = dist
             rho[i] = numpy.mean(dist_sorted[i])
-        return rho, dist_sorted
+        return numpy.nan_to_num(rho), dist_sorted
 
 def clustering_by_density(rho, dist, n_min, alpha=3):
     distances = DistanceMatrix(len(rho))
