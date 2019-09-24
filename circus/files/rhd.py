@@ -286,6 +286,7 @@ class RHDFile(DataFile):
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
         local_shape     = t_stop - t_start
 
+        do_slice = nodes is not None and not numpy.all(nodes == numpy.arange(self.nb_channels))
         local_chunk = numpy.zeros((self.nb_channels, local_shape), dtype=self.data_dtype)
         data_slice  = self._get_slice_(t_start, t_stop) 
 
@@ -300,9 +301,8 @@ class RHDFile(DataFile):
         local_chunk = local_chunk.T
         self._close()
 
-        if nodes is not None:
-            if not numpy.all(nodes == numpy.arange(self.nb_channels)):
-                local_chunk = numpy.take(local_chunk, nodes, axis=1)
+        if do_slice:
+            local_chunk = numpy.take(local_chunk, nodes, axis=1)
 
         return self._scale_data_to_float32(local_chunk)
 
