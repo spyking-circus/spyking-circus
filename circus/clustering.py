@@ -707,7 +707,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 if gpass == nb_repeats:
 
-                    result.pop('tmp_%s_' %p + str(ielec))
+                    if result.has_key('tmp_%s_' %p + str(ielec)):
+                        result.pop('tmp_%s_' %p + str(ielec))
                     n_data  = len(result['data_%s_' %p + str(ielec)])
                     n_min   = numpy.maximum(n_abs_min, int(nclus_min*n_data))
 
