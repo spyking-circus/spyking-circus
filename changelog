@@ -19,6 +19,7 @@ Release 0.8.4
 * more robust to saturating channels with nan_to_num
 * cc_merge set to 1 automatically if templates on few channels are detected
 * fix a bug if only one artefact type is given
+* fix a bug if only 2 spikes are found on a single electrode
 
 =============
 Release 0.8.3

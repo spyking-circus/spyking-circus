@@ -98,13 +98,19 @@ class DistanceMatrix(object):
 
 def fit_rho_delta(xdata, ydata, alpha=3):
 
-    x = sm.add_constant(xdata)
-    model = sm.RLM(ydata, x)
-    results = model.fit()
-    difference = ydata - results.fittedvalues
-    factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
-    z_score = difference - alpha*factor*(1 + results.fittedvalues)
-    centers = numpy.where(z_score >= 0)[0]
+    if xdata.min() == xdata.max():
+        return numpy.zeros(0, dtype=numpy.int32)
+
+    try:
+        x = sm.add_constant(xdata)
+        model = sm.RLM(ydata, x)
+        results = model.fit()
+        difference = ydata - results.fittedvalues
+        factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
+        z_score = difference - alpha*factor*(1 + results.fittedvalues)
+        centers = numpy.where(z_score >= 0)[0]
+    except Exception:
+        return numpy.zeros(0, dtype=numpy.int32)
     return centers
 
 def compute_rho(data, update=None, mratio=0.01):
@@ -119,7 +125,7 @@ def compute_rho(data, update=None, mratio=0.01):
         for i in range(N):
             data = dist.get_row(i, with_diag=False)
             if len(data) > nb_selec:
-                dist_sorted[i] = data[numpy.argpartition(data, nb_selec)[:nb_selec]]  #numpy.sort(dist.get_row(i, with_diag=False))[:nb_selec]
+                dist_sorted[i] = data[numpy.argpartition(data, nb_selec)[:nb_selec]]
             else:
                 dist_sorted[i] = data
             rho[i] = numpy.mean(dist_sorted[i])
