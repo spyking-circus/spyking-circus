@@ -52,7 +52,7 @@ install:
 build: false  # not a C# project
 
 test_script:
-  - conda install --yes --quiet 'conda=4.7.*' 'conda-pack=0.4.*' 'libarchive=3.3.*'
+  - conda install --yes --quiet conda libarchive
   # Stay with the conda version to avoid a downgrade to 4.3 from conda-forge
   - conda config --set auto_update_conda False
   - conda config --add channels conda-forge

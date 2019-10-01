@@ -230,8 +230,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(['Error in the trigger file: not all artefacts are defined'], 'error', logger)
             sys.exit(0)
 
-        mytest           = len()
-
         all_labels   = artefacts[:, 0]
         all_times    = artefacts[:, 1]
         mask         = (all_times >= 0) & (all_times + numpy.max(windows[:,1]) < data_file.t_stop)
