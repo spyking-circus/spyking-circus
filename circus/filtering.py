@@ -204,10 +204,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         make_plots     = params.get('triggers', 'make_plots')
         plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
-        if len(windows.shape) == 1:
+        if len(windows.shape) == 2:
             windows = windows.reshape(1, 2)
 
-        if len(artefacts.shape) == 1:
+        if len(artefacts.shape) == 2:
             artefacts = artefacts.reshape(1, 2)
 
         if trig_in_ms:
@@ -229,6 +229,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if comm.rank == 0:
                 print_and_log(['Error in the trigger file: not all artefacts are defined'], 'error', logger)
             sys.exit(0)
+
+        mytest           = len()
 
         all_labels   = artefacts[:, 0]
         all_times    = artefacts[:, 1]
@@ -287,10 +289,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         make_plots     = params.get('triggers', 'make_plots')
         plot_path      = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
-        if len(windows.shape) == 1:
+        if len(windows.shape) == 2:
             windows = windows.reshape(1, 2)
 
-        if len(artefacts.shape) == 1:
+        if len(artefacts.shape) == 2:
             artefacts = artefacts.reshape(1, 2)
 
         if trig_in_ms:

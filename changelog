@@ -18,7 +18,7 @@ Release 0.8.4
 * basic support for 3d probes, without any visualization
 * more robust to saturating channels with nan_to_num
 * cc_merge set to 1 automatically if templates on few channels are detected
-* patch a bug if only one artefact type is present in the triggers
+* fix a bug if only one artefact type is given
 
 =============
 Release 0.8.3
