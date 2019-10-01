@@ -247,23 +247,28 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # I guess this is more relevant, to take signals from all over the recordings
         numpy.random.seed(gpass)
         all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int64))
-        rejected   = 0
-        elt_count  = 0
 
         ## This is not easy to read, but during the smart search pass, we need to loop over all chunks, and every nodes should
         ## search spikes for a subset of electrodes, to avoid too many communications.
-        if gpass <= 1:
+        if gpass == 0 or not smart_search:
             nb_elecs           = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_e), comm.size))
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
             if sign_peaks == 'both':
                 loop_max_elts_elec *= 2
             loop_nb_elts       = numpy.int64(params.getfloat('clustering', 'nb_elts') * nb_elecs * loop_max_elts_elec)
             to_explore         = xrange(nb_chunks)
-
+        elif gpass == 1:
+            if elt_count < loop_nb_elts - 1:
+                print_and_log(["Node %d found not enough spikes: searching only %d spikes instead of %d" %(comm.rank, elt_count, loop_nb_elts)], 'debug', logger)
+                loop_nb_elts = elt_count
+            to_explore         = xrange(nb_chunks)
         else:
             loop_max_elts_elec = max_elts_elec
             loop_nb_elts       = nb_elts
             to_explore         = xrange(comm.rank, nb_chunks, comm.size)
+
+        rejected   = 0
+        elt_count  = 0
 
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(to_explore)
