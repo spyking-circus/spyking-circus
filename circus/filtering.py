@@ -223,11 +223,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         windows          = windows.astype(numpy.int64)
 
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
-        mytest           = nb_stimuli == len(windows)
+        mytest           = numpy.all(numpy.in1d(numpy.unique(artefacts[:, 0]), numpy.unique(windows[:, 0])))
 
         if not mytest:
             if comm.rank == 0:
-                print_and_log(['Error in the trigger files'], 'error', logger)
+                print_and_log(['Error in the trigger file: not all artefacts are defined'], 'error', logger)
             sys.exit(0)
 
         mytest           = len()
@@ -307,11 +307,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         artefacts        = artefacts.astype(numpy.int64)
         windows          = windows.astype(numpy.int64)
         nb_stimuli       = len(numpy.unique(artefacts[:, 0]))
-        mytest           = nb_stimuli == len(windows)
+        mytest           = numpy.all(numpy.in1d(numpy.unique(artefacts[:, 0]), numpy.unique(windows[:, 0])))
 
         if not mytest:
             if comm.rank == 0:
-                print_and_log(['Error in the trigger files'], 'error', logger)
+                print_and_log(['Error in the trigger files: not all artefacts are defined'], 'error', logger)
             sys.exit(0)
 
         all_labels   = artefacts[:, 0]
