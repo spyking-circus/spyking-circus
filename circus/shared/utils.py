@@ -873,7 +873,7 @@ def dip_threshold(n, p_value):
 
 
 def dip(X):
-    if len(X) > 0:
+    try:
         X = numpy.sort(X)
         F = numpy.arange(0, 1, 1. / X.shape[0]) + 1. / X.shape[0]
         left = 0
@@ -908,5 +908,5 @@ def dip(X):
                 D = max([D, sup_l, sup_r])
                 left = left_
                 right = right_
-    else:
+    except Exception:
         return numpy.inf

@@ -14,7 +14,9 @@ RUN echo "Installing SpyKING CIRCUS and phy 2.0..."
 ### Spyking Circus
 RUN apt-get update && apt-get install -y libmpich-dev mpich
 RUN pip install spyking-circus
-RUN pip install pyqt5 colorcet joblib vispy pyopengl
+
+### Phy
+RUN pip install pyqt5 colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
 RUN pip install https://github.com/cortex-lab/phylib/archive/master.zip
 RUN pip install https://github.com/cortex-lab/phy/archive/dev.zip
 RUN apt-get update && apt-get install -y libglib2.0-0
