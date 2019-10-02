@@ -16,12 +16,12 @@ environment:
       PYPI_UPLOAD_WHEEL: yes
       platform: x64
 
-    - PYTHON: "C:\\Miniconda35-x64"
-      PYTHON_VERSION: "3.5"
-      PYTHON_ARCH: "64"
-      PYPI_UPLOAD_SOURCE: yes
-      PYPI_UPLOAD_WHEEL: yes
-      platform: x64
+    # - PYTHON: "C:\\Miniconda35-x64"
+    #   PYTHON_VERSION: "3.5"
+    #   PYTHON_ARCH: "64"
+    #   PYPI_UPLOAD_SOURCE: yes
+    #   PYPI_UPLOAD_WHEEL: yes
+    #   platform: x64
 
     - PYTHON: "C:\\Miniconda-x64"
       PYTHON_VERSION: "2.7"
