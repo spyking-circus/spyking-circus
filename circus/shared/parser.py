@@ -533,7 +533,7 @@ class CircusParser(object):
           elif method == 'distance':
             self.parser.set('clustering', 'merging_param', '3')
           elif method == 'folding':
-            self.parser.set('clustering', 'merging_param', '1e-3')
+            self.parser.set('clustering', 'merging_param', '0.05')
 
         has_same_elec = self.parser.has_option('clustering', 'sim_same_elec')
         has_dip_thresh = self.parser.has_option('clustering', 'dip_threshold')

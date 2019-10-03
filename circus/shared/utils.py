@@ -21,6 +21,7 @@ from messages import print_and_log
 logger = logging.getLogger(__name__)
 import circus
 from distutils.version import StrictVersion
+from scipy.optimize import brenth, minimize
 
 def test_patch_for_similarities(params, extension):
     

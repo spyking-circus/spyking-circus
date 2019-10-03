@@ -58,7 +58,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     make_plots     = params.get('clustering', 'make_plots')
     merging_param  = params.getfloat('clustering', 'merging_param')
     merging_method = params.get('clustering', 'merging_method')
-    dip_threshold  = params.getfloat('clustering', 'dip_threshold')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
@@ -552,14 +551,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass != 1:
-                print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
+                print_and_log(["Found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
                 if nb_elements == 0:
                     print_and_log(["No more spikes in the recording, stop searching"], 'info', logger)
             else:
                 if isolation:
-                    print_and_log(["We found %d isolated spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
+                    print_and_log(["Found %d isolated spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
                 else:
-                    print_and_log(["We found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
+                    print_and_log(["Found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
                 if nb_elements < 0.2*nb_total:
                     few_elts = True
 
