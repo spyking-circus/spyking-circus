@@ -243,6 +243,131 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     del fig
 
 
+def view_local_merges(
+        waveforms_data, clusters_data, old_allocation, new_allocation, merge_history,
+        save=False, max_nb_traces=200,
+):
+
+    import matplotlib.colors as clr
+    import matplotlib.pyplot as plt
+
+    marker_size = 10
+    color_map = plt.get_cmap('jet')
+
+    nb_merges = len(merge_history)
+    allocation = np.copy(old_allocation)
+
+    cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
+    colors = {
+        cluster_nb: clr.to_rgb('C{}'.format(k % 10))
+        for k, cluster_nb in enumerate(cluster_nbs)
+    }
+
+    for merge_nb in xrange(0, nb_merges):
+
+        cluster_nb_1, cluster_nb_2 = merge_history[merge_nb]
+
+        fig = plt.figure()
+
+        # Prepare 1st plot.
+        selection = (allocation == cluster_nb_1)
+        selected_nbs = np.where(selection)[0]
+        selected_nbs = np.random.permutation(selected_nbs)
+        selected_nbs = selected_nbs[0:max_nb_traces]
+        # Plot 1st cluster.
+        ax = fig.add_subplot(221)
+        for selected_nb in selected_nbs:
+            color_jitter = numpy.random.uniform(low=-0.05, high=0.0)
+            color = colors[cluster_nb_1]
+            color = tuple([v + color_jitter for v in color])
+            trace = waveforms_data[selected_nb]
+            ax.plot(trace, color=color)
+        ax.set_xlabel("time")
+        ax.set_ylabel("amp.")
+        ax.set_title("cluster {}".format(cluster_nb_1))
+
+        # Prepare 2nd plot.
+        selection = (allocation == cluster_nb_2)
+        selected_nbs = np.where(selection)[0]
+        selected_nbs = np.random.permutation(selected_nbs)
+        selected_nbs = selected_nbs[0:max_nb_traces]
+        # Plot 2nd cluster.
+        ax = fig.add_subplot(222)
+        for selected_nb in selected_nbs:
+            color_jitter = numpy.random.uniform(low=-0.05, high=0.0)
+            color = colors[cluster_nb_2]
+            color = tuple([v + color_jitter for v in color])
+            trace = waveforms_data[selected_nb]
+            ax.plot(trace, color=color)
+        ax.set_xlabel("time")
+        ax.set_ylabel("amp.")
+        ax.set_title(" cluster {}".format(cluster_nb_2))
+
+        # Prepare 3rd plot.
+        selection = numpy.logical_or(
+            allocation == cluster_nb_1,
+            allocation == cluster_nb_2
+        )
+        selected_nbs = np.where(selection)[0]
+        selected_nbs = np.random.permutation(selected_nbs)
+        selected_nbs = selected_nbs[0:max_nb_traces]
+        # Plot merged cluster.
+        ax = fig.add_subplot(223)
+        for selected_nb in selected_nbs:
+            color_jitter = numpy.random.uniform(low=-0.05, high=0.0)
+            color = colors[allocation[selected_nb]]
+            color = tuple([v + color_jitter for v in color])
+            trace = waveforms_data[selected_nb]
+            ax.plot(trace, color=color)
+        ax.set_xlabel("time")
+        ax.set_ylabel("amp.")
+        ax.set_title("cluster {}+{}".format(cluster_nb_1, cluster_nb_2))
+
+        # Prepare 4th plot.
+        pca = PCA(n_components=3)
+        reduced_clusters_data = pca.fit_transform(clusters_data.astype(numpy.double))
+        is_assigned = numpy.where(allocation > -1)[0]
+        is_not_assigned = numpy.where(allocation == -1)[0]
+        # Plot labelled spike projections.
+        ax = fig.add_subplot(224)
+        x = reduced_clusters_data[is_not_assigned, 0]
+        y = reduced_clusters_data[is_not_assigned, 1]
+        ax.scatter(x, y, c='k', linewidth=0, s=marker_size, alpha=0.5)
+        x = reduced_clusters_data[is_assigned, 0]
+        y = reduced_clusters_data[is_assigned, 1]
+        c = np.array([
+            colors[cluster_nb]
+            for cluster_nb in allocation[is_assigned]
+        ])
+        ax.scatter(x, y, c=c, cmap=color_map, linewidth=0, s=marker_size)
+        ax.set_aspect('equal')
+        ax.set_xlabel('dim. 0')
+        ax.set_ylabel('dim. 1')
+        ax.set_title('2D projection')
+
+        fig.tight_layout()
+
+        if save:
+            try:
+                output_filename = 'local_merges_%s_%d.%s' % (save[1], merge_nb, save[2])
+                output_path = os.path.join(save[0], output_filename)
+                plt.savefig(output_path)
+                plt.close(fig)
+            except Exception:
+                pass
+            del fig
+
+        # Update `allocations`.
+        selection = (allocation == cluster_nb_2)
+        allocation[selection] = cluster_nb_1
+
+    assert np.array_equal(allocation, new_allocation)  # check that we inspect all the merges
+
+    if not save:
+        plt.show()
+
+    return
+
 
 def view_rejection(a, b, hist, save=False):
 
@@ -281,7 +406,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     
     nb_templates = templates.shape[1]
     n_panels     = numpy.ceil(numpy.sqrt(nb_templates))
-    mask         = numpy.where(halo > -1)[0]
+    mask         = numpy.where(halo > -1)[0]  # i.e. assigned only
     clust_idx    = numpy.unique(halo[mask])
     fig          = pylab.figure()    
     square       = True

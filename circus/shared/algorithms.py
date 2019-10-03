@@ -248,7 +248,7 @@ def merging(groups, merging_method, merging_param, data):
                     dist = numpy.sqrt((med1 - med2)**2/norm)
 
                 if dist < dmin:
-                    dmin     = dist
+                    dmin = dist
                     to_merge = [ic1, ic2]
 
         if merging_method == 'dip':
@@ -259,26 +259,32 @@ def merging(groups, merging_method, merging_param, data):
             thr = merging_param/0.674
 
         if dmin < thr:
-            groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
-            return True, groups
+            ic1, ic2 = to_merge
+            c1, c2 = clusters[ic1], clusters[ic2]
+            selection = numpy.where(groups == c2)[0]
+            groups[selection] = c1
+            merge = (c1, c2)
+            return True, groups, merge
 
-        return False, groups
+        merge = None
+        return False, groups, merge
 
     has_been_merged = True
-    mask            = numpy.where(groups > -1)[0]
-    clusters        = numpy.unique(groups[mask])
-    merged          = [len(clusters), 0]
+    mask = numpy.where(groups > -1)[0]
+    clusters = numpy.unique(groups[mask])
+    merged = [len(clusters), 0]
+    merge_history = []
 
     while has_been_merged:
-        has_been_merged, groups = perform_merging(groups, merging_method, merging_param, data)
+        has_been_merged, groups, merge = perform_merging(groups, merging_method, merging_param, data)
         if has_been_merged:
             merged[1] += 1
+            merge_history.append(merge)
 
-    return groups, merged
+    return groups, merged, merge_history
 
 
-def slice_templates(params, to_remove=[], to_merge=[], extension='',
-    input_extension=''):
+def slice_templates(params, to_remove=[], to_merge=[], extension='', input_extension=''):
     """Slice templates in HDF5 file.
 
     Arguments:
