@@ -814,7 +814,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         total_mergings    = int(numpy.sum(gdata2))
         total_nb_clusters = int(numpy.sum(gdata3))
         lines = ["Number of clusters found : %d" %total_nb_clusters,
-                 "Number of local merges   : %d" %total_mergings]
+                 "Number of local merges   : %d (method %s, param %g)" %(total_mergings, merging_method, merging_param)]
         if few_elts:
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):

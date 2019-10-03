@@ -227,7 +227,7 @@ def merging(groups, merging_method, merging_param, data):
                     pr_2 = numpy.dot(sd2, v_n)
                 
                 if merging_method == 'folding':
-                    sub_data = numpy.vstack((sd1, sd2)).T[:3, :]
+                    sub_data = numpy.vstack((sd1, sd2)).T[:5, :]
                     unimodal, p_value, phi, _ = batch_folding_test_with_MPA(sub_data, True)
                     if unimodal:
                         dist = p_value

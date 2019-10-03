@@ -1031,7 +1031,7 @@ def batch_folding_test_with_MPA(X, with_markov=False):
         cov_norm = np.cov(X, X_square_norm)[
             :-1, -1].reshape(-1, 1)  # cov(X,|X|²)
         pivot = 0.5 * np.linalg.solve(mat_cov, cov_norm)
-    except np.linalg.linalg.LinAlgError:
+    except numpy.linalg.LinAlgError:
         pivot = minimize(lambda s: np.power(
             X.T - s, 2).sum(axis=1).var(), x0=X.mean(axis=1)).x.reshape(-1, 1)
 
