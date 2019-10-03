@@ -117,7 +117,7 @@ class CircusParser(object):
                           ['clustering', 'nb_repeats', 'int', '3'],
                           ['clustering', 'make_plots', 'string', 'png'],
                           ['clustering', 'test_clusters', 'bool', 'False'],
-                          ['clustering', 'sim_same_elec', 'float', '3'],
+                          ['clustering', 'merging_param', 'float', '3'],
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
@@ -127,6 +127,7 @@ class CircusParser(object):
                           ['clustering', 'n_abs_min', 'int', '20'],
                           ['clustering', 'sensitivity', 'float', '3'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
+                          ['clustering', 'merging_method', 'string', 'distance'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
@@ -518,6 +519,13 @@ class CircusParser(object):
               if comm.rank == 0:
                   print_and_log(["make_plots in [%s] should be in %s" %(section, str(fileformats))], 'error', logger)
               sys.exit(0)
+
+        methods = ['distance', 'dip', 'folding']
+        test = self.parser.get('clustering', 'merging_method').lower() in methods
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["merging_method in [%s] should be in %s" %(section, str(methods))], 'error', logger)
+            sys.exit(0)
 
         dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
         dispersion     = map(float, dispersion)

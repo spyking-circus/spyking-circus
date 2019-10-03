@@ -56,7 +56,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     make_plots     = params.get('clustering', 'make_plots')
-    sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
+    merging_param  = params.getfloat('clustering', 'merging_param')
+    merging_method = params.get('clustering', 'merging_method')
     dip_threshold  = params.getfloat('clustering', 'dip_threshold')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
@@ -732,8 +733,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         
                         # Now we perform a merging step, for clusters that look too similar
                         cluster_results[p][ielec]['groups'], merged = algo.merging(cluster_results[p][ielec]['groups'],
-                                                                            sim_same_elec,
-                                                                            dip_threshold,
+                                                                            merging_method,
+                                                                            merging_param,
                                                                             result['sub_%s_' %p + str(ielec)])
 
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
