@@ -204,20 +204,20 @@ def halo_assign(dist, labels, centers):
 def merging(groups, sim_mad, sim_dip, data):
 
     def perform_merging(groups, sim_mad, sim_dip, data):
-        mask      = numpy.where(groups > -1)[0]
-        clusters  = numpy.unique(groups[mask])
-        dmin      = numpy.inf
-        to_merge  = [None, None]
+        mask = numpy.where(groups > -1)[0]
+        clusters = numpy.unique(groups[mask])
+        dmin = numpy.inf
+        to_merge = [None, None]
 
         for ic1 in xrange(len(clusters)):
             idx1 = numpy.where(groups == clusters[ic1])[0]
-            sd1  = numpy.take(data, idx1, axis=0)
-            m1   = numpy.median(sd1, 0)
+            sd1 = numpy.take(data, idx1, axis=0)
+            m1 = numpy.median(sd1, 0)
             for ic2 in xrange(ic1+1, len(clusters)):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
-                sd2  = numpy.take(data, idx2, axis=0)
-                m2   = numpy.median(sd2, 0)
-                v_n  = (m1 - m2)
+                sd2 = numpy.take(data, idx2, axis=0)
+                m2 = numpy.median(sd2, 0)
+                v_n = (m1 - m2)
                 pr_1 = numpy.dot(sd1, v_n)
                 pr_2 = numpy.dot(sd2, v_n)
 
@@ -236,7 +236,7 @@ def merging(groups, sim_mad, sim_dip, data):
                     dist = numpy.sqrt((med1 - med2)**2/norm)
 
                 if dist < dmin:
-                    dmin     = dist
+                    dmin = dist
                     to_merge = [ic1, ic2]
 
         if sim_dip > 0:
@@ -245,43 +245,32 @@ def merging(groups, sim_mad, sim_dip, data):
             thr = sim_mad/0.674
 
         if dmin < thr:
-            # TODO rewrite and remove the following line.
-            # groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             ic1, ic2 = to_merge
             c1, c2 = clusters[ic1], clusters[ic2]
             selection = numpy.where(groups == c2)[0]
             groups[selection] = c1
-            # TODO rewrite and remove the following line.
-            # return True, groups
             merge = (c1, c2)
             return True, groups, merge
 
-        # TODO rewrite and remove the following line.
-        # return False, groups
         merge = None
         return False, groups, merge
 
     has_been_merged = True
-    mask            = numpy.where(groups > -1)[0]
-    clusters        = numpy.unique(groups[mask])
-    merged          = [len(clusters), 0]
-    merge_history   = []
+    mask = numpy.where(groups > -1)[0]
+    clusters = numpy.unique(groups[mask])
+    merged = [len(clusters), 0]
+    merge_history = []
 
     while has_been_merged:
-        # TODO rewrite and remove the following line.
-        # has_been_merged, groups = perform_merging(groups, sim_mad, sim_dip, data)
         has_been_merged, groups, merge = perform_merging(groups, sim_mad, sim_dip, data)
         if has_been_merged:
             merged[1] += 1
             merge_history.append(merge)
 
-    # TODO rewrite and remove the following line.
-    # return groups, merged
     return groups, merged, merge_history
 
 
-def slice_templates(params, to_remove=[], to_merge=[], extension='',
-    input_extension=''):
+def slice_templates(params, to_remove=[], to_merge=[], extension='', input_extension=''):
     """Slice templates in HDF5 file.
 
     Arguments:

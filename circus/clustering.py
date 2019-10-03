@@ -731,13 +731,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         )
                         
                         # Now we perform a merging step, for clusters that look too similar.
-                        # TODO rewrite and delete the following lines.
-                        # cluster_results[p][ielec]['groups'], merged = algo.merging(
-                        #     cluster_results[p][ielec]['groups'],
-                        #     sim_same_elec,
-                        #     dip_threshold,
-                        #     result['sub_%s_' %p + str(ielec)]
-                        # )
                         old_allocation = np.copy(cluster_results[p][ielec]['groups'])
                         cluster_results[p][ielec]['groups'], merged, merge_history = algo.merging(
                             cluster_results[p][ielec]['groups'],
@@ -779,24 +772,23 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 save=save, alpha=sensitivity
                             )
 
-                        # TODO check the following lines.
                         # Sanity plots for local merges.
                         if make_plots not in ['None', '']:
-                            # TODO extract waveforms data.
-                            n_neighb = len(edges[nodes[ielec]])
+                            # Retrieve waveforms data.
+                            n_neighbors = len(edges[nodes[ielec]])
                             indices = inv_nodes[edges[nodes[ielec]]]
                             data = result['data_%s_' % p + str(ielec)]
-                            data = data.reshape((n_data, basis['proj_%s' % p].shape[1], n_neighb))
+                            data = data.reshape((n_data, basis['proj_%s' % p].shape[1], n_neighbors))
                             idx = numpy.where(indices == ielec)[0][0]
                             sub_data = numpy.take(data, idx, axis=2)
                             waveforms_data = numpy.dot(sub_data, basis['rec_%s' % p])
-                            # TODO extract clusters data.
-                            clusters_data = result['sub_%s' % p + str(ielec)]
-                            # TODO retrieve new allocation.
+                            # Retrieve clusters data.
+                            clusters_data = result['sub_%s_' % p + str(ielec)]
+                            # Retrieve new allocation.
                             new_allocation = cluster_results[p][ielec]['groups']
-                            # TODO define output path.
-                            save = [plot_path, '%s_%d.%s' % (p, ielec, make_plots)]
-                            # TODO call plot function.
+                            # Define output path.
+                            save = [plot_path, '%s_%d' % (p, ielec), make_plots]
+                            # Call plot function.
                             plot.view_local_merges(
                                 waveforms_data,
                                 clusters_data,
