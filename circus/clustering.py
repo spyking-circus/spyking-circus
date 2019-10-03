@@ -58,7 +58,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     make_plots     = params.get('clustering', 'make_plots')
     merging_param  = params.getfloat('clustering', 'merging_param')
     merging_method = params.get('clustering', 'merging_method')
-    dip_threshold  = params.getfloat('clustering', 'dip_threshold')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
