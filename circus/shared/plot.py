@@ -243,6 +243,75 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     del fig
 
 
+def view_local_merges(
+        waveforms_data, clusters_data, old_allocation, new_allocation, merge_history,
+        save=False, max_nb_traces=200
+):
+
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure()  # TODO use figsize?
+    def_size = 10  # TODO rename?
+    my_cmap = pylab.get_cmap('jet')  # TODO rename?
+    # cNorm     = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
+    # scalarMap = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
+    assigned = numpy.where(new_allocation > -1)[0]
+    not_assigned = numpy.where(new_allocation == -1)[0]
+
+    # TODO prepare first plot.
+    pca = PCA(3)
+    visu_data = pca.fit_transform(clusters_data.astype(numpy.double))
+
+    # TODO first plot.
+    ax = fig.add_subplot(121)
+    ax.scatter(
+        visu_data[not_assigned, 0], visu_data[not_assigned, 1],
+        c='k', linewidth=0, s=def_size, alpha=0.5
+    )
+    ax.scatter(
+        visu_data[assigned, 0], visu_data[assigned, 1],
+        c=new_allocation[assigned], cmap=my_cmap, linewidth=0, s=def_size
+    )
+    ax.set_xlabel('dim. 0')
+    ax.set_ylabel('dim. 1')
+
+    # TODO prepare second plot.
+    assigned = numpy.where(new_allocation > -1)[0]
+    cluster_nbs = numpy.unique(new_allocation[assigned])
+    assert len(cluster_nbs) > 0, len(cluster_nbs)  # TODO remove?
+
+    # TODO second plot.
+    ax = fig.add_subplot(122)
+    selection = (new_allocation == cluster_nbs[0])  # TODO iterate over cluster_nbs.
+    selected_indices = np.where(selection)[0]
+    for k in numpy.random.permutation(selected_indices)[:max_nb_traces]:
+        gray_level = numpy.random.uniform(low=0.4, high=0.6)
+        color = '%f' % (gray_level,)
+        # color = '{:f}'.format(gray_level)
+        ax.plot(waveforms_data[k], color=color)
+    ax.set_xlabel("time")
+    ax.set_ylabel("amp.")
+
+    # TODO complete.
+
+    # try:
+    #     pylab.tight_layout()
+    # except Exception:
+    #     pass
+
+    if save:
+        try:
+            plt.savefig(os.path.join(save[0], 'local_merges_%s' %save[1]))
+            plt.close()
+        except Exception:
+            pass
+    else:
+        plt.show()
+
+    del fig
+
+    return
+
 
 def view_rejection(a, b, hist, save=False):
 
@@ -281,7 +350,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     
     nb_templates = templates.shape[1]
     n_panels     = numpy.ceil(numpy.sqrt(nb_templates))
-    mask         = numpy.where(halo > -1)[0]
+    mask         = numpy.where(halo > -1)[0]  # i.e. assigned only
     clust_idx    = numpy.unique(halo[mask])
     fig          = pylab.figure()    
     square       = True

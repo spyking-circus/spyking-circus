@@ -245,22 +245,39 @@ def merging(groups, sim_mad, sim_dip, data):
             thr = sim_mad/0.674
 
         if dmin < thr:
-            groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
-            return True, groups
+            # TODO rewrite and remove the following line.
+            # groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
+            ic1, ic2 = to_merge
+            c1, c2 = clusters[ic1], clusters[ic2]
+            selection = numpy.where(groups == c2)[0]
+            groups[selection] = c1
+            # TODO rewrite and remove the following line.
+            # return True, groups
+            merge = (c1, c2)
+            return True, groups, merge
 
-        return False, groups
+        # TODO rewrite and remove the following line.
+        # return False, groups
+        merge = None
+        return False, groups, merge
 
     has_been_merged = True
     mask            = numpy.where(groups > -1)[0]
     clusters        = numpy.unique(groups[mask])
     merged          = [len(clusters), 0]
+    merge_history   = []
 
     while has_been_merged:
-        has_been_merged, groups = perform_merging(groups, sim_mad, sim_dip, data)
+        # TODO rewrite and remove the following line.
+        # has_been_merged, groups = perform_merging(groups, sim_mad, sim_dip, data)
+        has_been_merged, groups, merge = perform_merging(groups, sim_mad, sim_dip, data)
         if has_been_merged:
             merged[1] += 1
+            merge_history.append(merge)
 
-    return groups, merged
+    # TODO rewrite and remove the following line.
+    # return groups, merged
+    return groups, merged, merge_history
 
 
 def slice_templates(params, to_remove=[], to_merge=[], extension='',
