@@ -936,7 +936,7 @@ def decision_bound(p_value, n, d):
         (PVAL_C + numpy.log(d)) / numpy.sqrt(n)
 
 
-def p_value(phi, n, d, e=1e-16):
+def p_value(phi, n, d):
     """
     Compute the p-value of a test
 
@@ -967,7 +967,7 @@ def diagonal(X):
     X: numpy.ndarray
         a d by n matrix (n observations in dimension d)
     """
-    return np.linalg.norm(X.max(1)-X.min(1))
+    return numpy.linalg.norm(X.max(1)-X.min(1))
 
 
 def markov_coeff(X, X_reduced):

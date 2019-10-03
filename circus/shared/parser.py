@@ -126,7 +126,7 @@ class CircusParser(object):
                           ['clustering', 'n_abs_min', 'int', '20'],
                           ['clustering', 'sensitivity', 'float', '3'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
-                          ['clustering', 'merging_method', 'string', 'distance'],
+                          ['clustering', 'merging_method', 'string', 'dip'],
                           ['clustering', 'merging_param', 'string', 'default'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
@@ -535,11 +535,25 @@ class CircusParser(object):
           elif method == 'folding':
             self.parser.set('clustering', 'merging_param', '1e-3')
 
+        has_same_elec = self.parser.has_option('clustering', 'sim_same_elec')
+        has_dip_thresh = self.parser.has_option('clustering', 'dip_threshold')
 
-        if self.parser.has_option('clustering', 'sim_same_elec'):
+        if has_dip_thresh:
+          dip_threshold = self.parser.getfloat('clustering', 'dip_threshold')
+
+        if has_dip_thresh and (dip_threshold > 0):
+          if comm.rank == 0:
+            print_and_log(["dip_threshold in [clustering] is deprecated in 0.8.4",
+                           "and you should now use merging_method and merging_param",
+                           "Please upgrade your parameter file to a more recent version",
+                           "By default a distance merging method with param 3 is assumed"], 'info', logger)
+          self.parser.set('clustering', 'merging_param', str(3))
+          self.parser.set('clustering', 'merging_method', 'distance')
+        elif has_same_elec:
           sim_same_elec = self.parser.get('clustering', 'sim_same_elec')
           if comm.rank == 0:
-            print_and_log(["sim_same_elec in [clustering] is now deprecated",
+            print_and_log(["sim_same_elec in [clustering] is deprecated in 0.8.4",
+                           "and you should now use merging_method and merging_param",
                            "Please upgrade your parameter file to a more recent version",
                            "Meanwhile a distance merging method with param %s is assumed" %sim_same_elec], 'info', logger)
           self.parser.set('clustering', 'merging_param', sim_same_elec)
