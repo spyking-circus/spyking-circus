@@ -254,7 +254,7 @@ def view_local_merges(
     marker_size = 10
     color_map = plt.get_cmap('jet')
 
-    nb_merges = len(merge_history)
+    nb_merges = len(merge_history['merge'])
     allocation = np.copy(old_allocation)
 
     cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
@@ -265,7 +265,10 @@ def view_local_merges(
 
     for merge_nb in xrange(0, nb_merges):
 
-        cluster_nb_1, cluster_nb_2 = merge_history[merge_nb]
+        cluster_nb_1, cluster_nb_2 = merge_history['merge'][merge_nb]
+        cluster_distance = merge_history['distance'][merge_nb]
+        merging_method = merge_history['method']
+        merging_threshold = merge_history['threshold']
 
         fig = plt.figure()
 
@@ -345,7 +348,14 @@ def view_local_merges(
         ax.set_ylabel('dim. 1')
         ax.set_title('2D projection')
 
-        fig.tight_layout()
+        fig.tight_layout(rect=[0, 0.05, 1, 1])
+
+        ax.annotate(
+            "{} (thr.={:f})\nd={:f}".format(merging_method, merging_threshold, cluster_distance),
+            xy=(0.0, 0.0), xycoords='figure fraction',
+            xytext=(10, 2), textcoords='offset points',
+            horizontalalignment='left', verticalalignment='bottom'
+        )
 
         if save:
             try:
