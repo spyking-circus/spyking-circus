@@ -256,6 +256,7 @@ def view_local_merges(
 
     local_merges = merge_history['merge']
     nb_local_merges = len(local_merges)
+    cluster_distances = merge_history['distance']
     merging_method = merge_history['method']
     merging_threshold = merge_history['threshold']
     allocation = np.copy(old_allocation)
@@ -266,8 +267,10 @@ def view_local_merges(
         # Compute the number of groups of local merges.
         local_merge_groups = {}
         local_merge_flat_groups = {}
-        for local_merge in local_merges:
+        local_merge_distances = {}
+        for local_merge, cluster_distance in zip(local_merges, cluster_distances):
             cluster_nb_1, cluster_nb_2 = local_merge
+            # 1.
             if cluster_nb_1 not in local_merge_groups:
                 group_1 = cluster_nb_1
             else:
@@ -279,7 +282,10 @@ def view_local_merges(
                 group_2 = local_merge_groups[cluster_nb_2]
                 del local_merge_groups[cluster_nb_2]
             local_merge_groups[cluster_nb_1] = (group_1, group_2)
-            # ...
+            # 2.
+            local_merge_distances[cluster_nb_1] = None
+            local_merge_distances[cluster_nb_2] = cluster_distance
+            # 3.
             if cluster_nb_1 not in local_merge_flat_groups:
                 group_1 = [cluster_nb_1]
             else:
@@ -330,9 +336,9 @@ def view_local_merges(
         nb_clusters = len(np.unique(allocation[is_assigned]))
         ax.annotate(
             "{:d} clusters".format(nb_clusters),
-            xy=(1, 0), xycoords='axes fraction',
-            xytext=(-2, 1), textcoords='offset points',
-            horizontalalignment='right', verticalalignment='bottom'
+            xy=(0, 0), xycoords='axes fraction',
+            xytext=(2, 1), textcoords='offset points',
+            horizontalalignment='left', verticalalignment='bottom'
         )
         ax.set_aspect('equal')
         ax.set_xlabel('dim. 0')
@@ -386,6 +392,7 @@ def view_local_merges(
                 nb_waveforms = len(selected_nbs)
                 selected_nbs = np.random.permutation(selected_nbs)
                 selected_nbs = selected_nbs[0:max_nb_traces]
+                distance = local_merge_distances[cluster_nb]
                 # Plot waveforms.
                 ax = axes[row_nb, col_nb]
                 axes[row_nb, 1].get_shared_x_axes().join(axes[row_nb, 1], ax)
@@ -396,11 +403,15 @@ def view_local_merges(
                     color = tuple([v + color_jitter for v in color])
                     trace = waveforms_data[selected_nb]
                     ax.plot(trace, color=color)
+                if distance is None:
+                    annotation_text = "n={:d}".format(nb_waveforms)
+                else:
+                    annotation_text = "n={:d}\nd={:f}".format(nb_waveforms, distance)
                 ax.annotate(
-                    "n={:d}".format(nb_waveforms),
-                    xy=(1, 0), xycoords='axes fraction',
-                    xytext=(-2, 1), textcoords='offset points',
-                    horizontalalignment='right', verticalalignment='bottom'
+                    annotation_text,
+                    xy=(0, 0), xycoords='axes fraction',
+                    xytext=(2, 1), textcoords='offset points',
+                    horizontalalignment='left', verticalalignment='bottom'
                 )
                 ax.set_xticklabels([])
                 ax.set_yticklabels([])
@@ -408,7 +419,6 @@ def view_local_merges(
 
         fig.tight_layout(rect=[0, 0.05, 1, 1])
 
-        # TODO add distances to annotations (c.f. `view_local_merges_backup`).
         ax.annotate(
             "{} (thr.={:f})".format(merging_method, merging_threshold),
             xy=(0.0, 0.0), xycoords='figure fraction',
