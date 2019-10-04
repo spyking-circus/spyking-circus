@@ -195,7 +195,12 @@ def halo_assign(dist, labels, centers):
     dist2cluscent = dist2cent*sameclus_cent # preserves only distances to the corresponding cluster centroid
     nclusmem = numpy.sum(sameclus_cent, axis=1) # number of cluster members
     meandist2cent = numpy.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
-    gt_meandist2cent = numpy.greater(dist2cluscent, meandist2cent[:, None]) # greater than the mean dist to centroid
+    std2cent = numpy.zeros(meandist2cent.shape)
+    for i in range(len(meandist2cent)):
+        idx = numpy.where(dist2cluscent[i] > 0)[0]
+        std2cent[i] = numpy.std(dist2cluscent[i, idx])
+    bounds = meandist2cent[:, None] + std2cent[:, None]
+    gt_meandist2cent = numpy.greater(dist2cluscent, bounds) # greater than the mean dist to centroid
     remids = numpy.sum(gt_meandist2cent, axis=0)
     halolabels[remids > 0] = 0 # setting to 0 the removes points
     return halolabels
@@ -213,20 +218,27 @@ def merging(groups, merging_method, merging_param, data):
             idx1 = numpy.where(groups == clusters[ic1])[0]
             sd1  = numpy.take(data, idx1, axis=0)
 
-            if merging_method in ['distance', 'dip']:
+            if merging_method in ['distance', 'dip', 'folding']:
                 m1   = numpy.median(sd1, 0)
     
             for ic2 in xrange(ic1+1, len(clusters)):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
                 sd2  = numpy.take(data, idx2, axis=0)
                 
-                if merging_method in ['distance', 'dip']:
+                if merging_method in ['distance', 'dip', 'folding']:
                     m2   = numpy.median(sd2, 0)
                     v_n  = (m1 - m2)
                     pr_1 = numpy.dot(sd1, v_n)
                     pr_2 = numpy.dot(sd2, v_n)
                 
                 if merging_method == 'folding':
+                    sub_data = numpy.concatenate([pr_1, pr_2])
+                    unimodal, p_value, phi, _ = batch_folding_test_with_MPA(sub_data, True)
+                    if unimodal:
+                        dist = p_value
+                    else:
+                        dist = numpy.inf
+                elif merging_method == 'nd-folding':
                     sub_data = numpy.vstack((sd1, sd2)).T[:5, :]
                     unimodal, p_value, phi, _ = batch_folding_test_with_MPA(sub_data, True)
                     if unimodal:
@@ -253,7 +265,7 @@ def merging(groups, merging_method, merging_param, data):
 
         if merging_method == 'dip':
             thr = 1
-        elif merging_method == 'folding':
+        elif merging_method in ['folding', 'nd-folding']:
             thr = merging_param
         elif merging_method == 'distance':
             thr = merging_param/0.674

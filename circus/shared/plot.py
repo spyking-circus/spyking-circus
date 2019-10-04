@@ -141,58 +141,47 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
             ax.plot(rho[i], delta[i], 'o', color=colorVal)
     ax.set_xlim(0.98*rmin, 1.02*rmax)
 
-    try:
+    colors = scalarMap.to_rgba(halo[assigned])
 
-        pca = PCA(3)
-        visu_data = pca.fit_transform(data.astype(numpy.double))
-        
-        ax = fig.add_subplot(242)
-        ax.scatter(visu_data[not_assigned,0], visu_data[not_assigned,1], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 1')
+    ax = fig.add_subplot(242)
+    ax.scatter(data[not_assigned,0], data[not_assigned,1], c='k', linewidth=0, s=def_size, alpha=0.5)
+    ax.scatter(data[assigned,0], data[assigned,1], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
+    ax.set_xlabel('Dim 0')
+    ax.set_ylabel('Dim 1')
 
-        ax = fig.add_subplot(243)
-        ax.scatter(visu_data[not_assigned,0], visu_data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(visu_data[assigned,0], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 2')
+    ax = fig.add_subplot(243)
+    ax.scatter(data[not_assigned,0], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
+    ax.scatter(data[assigned,0], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
+    ax.set_xlabel('Dim 0')
+    ax.set_ylabel('Dim 2')
                 
-        ax = fig.add_subplot(244)
-        ax.scatter(visu_data[not_assigned,1], visu_data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(visu_data[assigned,1], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 1')
-        ax.set_ylabel('Dim 2')
-    except Exception:
-        pass
+    ax = fig.add_subplot(244)
+    ax.scatter(data[not_assigned,1], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
+    ax.scatter(data[assigned,1], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
+    ax.set_xlabel('Dim 1')
+    ax.set_ylabel('Dim 2')
 
-    try:
-
-        import matplotlib.colors as colors
-        my_cmap   = pylab.get_cmap('winter')
+    my_cmap   = pylab.get_cmap('winter')
         
-        ax  = fig.add_subplot(247)
-        idx = numpy.argsort(rho[assigned])
-        ax.scatter(visu_data[assigned[idx],0], visu_data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap)
-        ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
-        if injected is not None:
-            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 1')
-        ax.set_title(r'$\rho$')
+    ax  = fig.add_subplot(247)
+    idx = numpy.argsort(rho[assigned])
+    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap)
+    ax.scatter(data[centers, 0], data[centers, 1], c='r')
+    if injected is not None:
+        ax.scatter(data[injected, 0], data[injected, 1], c='b')
+    ax.set_xlabel('Dim 0')
+    ax.set_ylabel('Dim 1')
+    ax.set_title(r'$\rho$')
 
-        ax  = fig.add_subplot(248)
-        idx = numpy.argsort(delta[assigned])
-        ax.scatter(visu_data[assigned[idx],0], visu_data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap)
-        #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
-        if injected is not None:
-            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 1')
-        ax.set_title(r'$\delta$')
-
-    except Exception:
-        pass
+    ax  = fig.add_subplot(248)
+    idx = numpy.argsort(delta[assigned])
+    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap)
+    #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
+    if injected is not None:
+        ax.scatter(data[injected, 0], data[injected, 1], c='b')
+    ax.set_xlabel('Dim 0')
+    ax.set_ylabel('Dim 1')
+    ax.set_title(r'$\delta$')
 
     ax = fig.add_subplot(245)
     ax.set_xlabel(r'$\rho$')
@@ -361,7 +350,7 @@ def view_local_merges(
         selection = (allocation == cluster_nb_2)
         allocation[selection] = cluster_nb_1
 
-    assert np.array_equal(allocation, new_allocation)  # check that we inspect all the merges
+    #assert np.array_equal(allocation, new_allocation)  # check that we inspect all the merges
 
     if not save:
         plt.show()
@@ -404,6 +393,7 @@ def view_rejection(a, b, hist, save=False):
 
 def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves=200, save=False):
     
+    import matplotlib.colors as colors
     nb_templates = templates.shape[1]
     n_panels     = numpy.ceil(numpy.sqrt(nb_templates))
     mask         = numpy.where(halo > -1)[0]  # i.e. assigned only
@@ -411,6 +401,11 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     fig          = pylab.figure()    
     square       = True
     center       = len(data[0] - 1)//2
+
+    my_cmap      = pylab.get_cmap('jet')
+    cNorm        = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
+    scalarMap    = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
+    
     for count, i in enumerate(xrange(nb_templates)):
         if square:
             pylab.subplot(n_panels, n_panels, count + 1)
@@ -421,7 +416,8 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
         
         subcurves = numpy.where(halo == clust_idx[count])[0]
         for k in numpy.random.permutation(subcurves)[:n_curves]:
-            pylab.plot(data[k], '0.5')
+            colorVal = scalarMap.to_rgba(clust_idx[count])
+            pylab.plot(data[k], color=colorVal)
         
         pylab.plot(templates[:, count], 'r')
         pylab.plot(amps_lim[count][0]*templates[:, count], 'b', alpha=0.5)
