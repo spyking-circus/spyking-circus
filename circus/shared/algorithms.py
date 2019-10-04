@@ -281,22 +281,33 @@ def merging(groups, merging_method, merging_param, data):
             selection = numpy.where(groups == c2)[0]
             groups[selection] = c1
             merge = (c1, c2)
-            return True, groups, merge
+            return True, groups, merge, dmin
 
-        merge = None
-        return False, groups, merge
+        return False, groups, None, None
 
     has_been_merged = True
     mask = numpy.where(groups > -1)[0]
     clusters = numpy.unique(groups[mask])
     merged = [len(clusters), 0]
-    merge_history = []
+    if sim_dip > 0:
+        method = "sim. dip"
+        thr = 1
+    else:
+        method = "sim. MAD"
+        thr = sim_mad / 0.674
+    merge_history = {
+        'merge': [],
+        'distance': [],
+        'method': method,
+        'threshold': thr,
+    }
 
     while has_been_merged:
         has_been_merged, groups, merge = perform_merging(groups, merging_method, merging_param, data)
         if has_been_merged:
             merged[1] += 1
-            merge_history.append(merge)
+            merge_history['merge'].append(merge)
+            merge_history['distance'].append(dmin)
 
     return groups, merged, merge_history
 
