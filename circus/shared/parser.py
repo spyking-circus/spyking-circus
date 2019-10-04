@@ -126,7 +126,7 @@ class CircusParser(object):
                           ['clustering', 'n_abs_min', 'int', '20'],
                           ['clustering', 'sensitivity', 'float', '3'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
-                          ['clustering', 'merging_method', 'string', 'dip'],
+                          ['clustering', 'merging_method', 'string', 'distance'],
                           ['clustering', 'merging_param', 'string', 'default'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
@@ -533,7 +533,7 @@ class CircusParser(object):
           elif method == 'distance':
             self.parser.set('clustering', 'merging_param', '3')
           elif method in ['folding', 'nd-folding']:
-            self.parser.set('clustering', 'merging_param', '1e-6')
+            self.parser.set('clustering', 'merging_param', '1e-9')
           elif method == 'bhatta':
             self.parser.set('clustering', 'merging_param', '2')
 
