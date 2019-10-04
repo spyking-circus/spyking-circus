@@ -533,7 +533,7 @@ class CircusParser(object):
           elif method == 'distance':
             self.parser.set('clustering', 'merging_param', '3')
           elif method in ['folding', 'nd-folding']:
-            self.parser.set('clustering', 'merging_param', '1e-3')
+            self.parser.set('clustering', 'merging_param', '1e-6')
           elif method == 'bhatta':
             self.parser.set('clustering', 'merging_param', '2')
 
