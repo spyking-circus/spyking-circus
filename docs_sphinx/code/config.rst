@@ -118,7 +118,7 @@ The clustering section is::
     nb_repeats     = 3          # Number of passes used for the clustering
     make_plots     =            # Generate sanity plots of the clustering
     merging_method = distance   # Method to perform local merges (distance, dip, folding, nd-folding, bhatta)
-    merging_param  = default    # Merging parameter (see docs) (3 if distance, 0.5 if dip, 1e-3 if folding, 2 if bhatta)
+    merging_param  = default    # Merging parameter (see docs) (3 if distance, 0.5 if dip, 1e-6 if folding, 2 if bhatta)
     sensitivity    = 3          # The only parameter to control the cluster. The lower, the more sensitive
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
