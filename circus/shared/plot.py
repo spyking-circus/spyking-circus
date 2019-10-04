@@ -317,12 +317,15 @@ def view_local_merges(
 
         fig, axes = plt.subplots(nrows=nb_rows, ncols=nb_columns, figsize=figsize)
         axes = axes.reshape(nb_rows, nb_columns)
+        for ax in axes.flatten():
+            ax.set_axis_off()
 
         # Prepare 2D projection plot.
         is_assigned = numpy.where(allocation > -1)[0]
         is_not_assigned = numpy.where(allocation == -1)[0]
         # Plot 2D projection.
         ax = axes[0, 0]
+        ax.set_axis_on()
         x = clusters_data[is_not_assigned, 0]
         y = clusters_data[is_not_assigned, 1]
         ax.scatter(x, y, c='k', linewidth=0, s=marker_size, alpha=0.5)
@@ -362,6 +365,7 @@ def view_local_merges(
             merged_median_trace = np.median(traces, axis=0)
             # Plot median waveforms.
             ax = axes[row_nb, col_nb]
+            ax.set_axis_on()
             for cluster_nb, median_trace in median_traces.items():
                 color = colors[cluster_nb]
                 ax.plot(median_trace, color=color)
@@ -395,6 +399,7 @@ def view_local_merges(
                 distance = local_merge_distances[cluster_nb]
                 # Plot waveforms.
                 ax = axes[row_nb, col_nb]
+                ax.set_axis_on()
                 axes[row_nb, 1].get_shared_x_axes().join(axes[row_nb, 1], ax)
                 axes[row_nb, 1].get_shared_y_axes().join(axes[row_nb, 1], ax)
                 for selected_nb in selected_nbs:
