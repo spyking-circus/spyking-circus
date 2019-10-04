@@ -327,6 +327,13 @@ def view_local_merges(
             for cluster_nb in allocation[is_assigned]
         ])
         ax.scatter(x, y, c=c, cmap=color_map, linewidth=0, s=marker_size)
+        nb_clusters = len(np.unique(allocation[is_assigned]))
+        ax.annotate(
+            "{:d} clusters".format(nb_clusters),
+            xy=(1, 0), xycoords='axes fraction',
+            xytext=(-2, 1), textcoords='offset points',
+            horizontalalignment='right', verticalalignment='bottom'
+        )
         ax.set_aspect('equal')
         ax.set_xlabel('dim. 0')
         ax.set_ylabel('dim. 1')
@@ -376,6 +383,7 @@ def view_local_merges(
                 # Prepare waveforms plot.
                 selection = (allocation == cluster_nb)
                 selected_nbs = np.where(selection)[0]
+                nb_waveforms = len(selected_nbs)
                 selected_nbs = np.random.permutation(selected_nbs)
                 selected_nbs = selected_nbs[0:max_nb_traces]
                 # Plot waveforms.
@@ -388,13 +396,19 @@ def view_local_merges(
                     color = tuple([v + color_jitter for v in color])
                     trace = waveforms_data[selected_nb]
                     ax.plot(trace, color=color)
+                ax.annotate(
+                    "n={:d}".format(nb_waveforms),
+                    xy=(1, 0), xycoords='axes fraction',
+                    xytext=(-2, 1), textcoords='offset points',
+                    horizontalalignment='right', verticalalignment='bottom'
+                )
                 ax.set_xticklabels([])
                 ax.set_yticklabels([])
                 ax.set_title("cluster {}".format(cluster_nb))
 
         fig.tight_layout(rect=[0, 0.05, 1, 1])
 
-        # TODO add distances to annotations.
+        # TODO add distances to annotations (c.f. `view_local_merges_backup`).
         ax.annotate(
             "{} (thr.={:f})".format(merging_method, merging_threshold),
             xy=(0.0, 0.0), xycoords='figure fraction',
