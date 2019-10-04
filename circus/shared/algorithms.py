@@ -4,7 +4,7 @@ import shutil, h5py
 import scipy.linalg, scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
-from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA
+from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA, bhatta_dist
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
@@ -218,14 +218,14 @@ def merging(groups, merging_method, merging_param, data):
             idx1 = numpy.where(groups == clusters[ic1])[0]
             sd1  = numpy.take(data, idx1, axis=0)
 
-            if merging_method in ['distance', 'dip', 'folding']:
+            if merging_method in ['distance', 'dip', 'folding', 'bhatta']:
                 m1   = numpy.median(sd1, 0)
     
             for ic2 in xrange(ic1+1, len(clusters)):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
                 sd2  = numpy.take(data, idx2, axis=0)
                 
-                if merging_method in ['distance', 'dip', 'folding']:
+                if merging_method in ['distance', 'dip', 'folding', 'bhatta']:
                     m2   = numpy.median(sd2, 0)
                     v_n  = (m1 - m2)
                     pr_1 = numpy.dot(sd1, v_n)
@@ -258,6 +258,8 @@ def merging(groups, merging_method, merging_param, data):
                     mad2 = numpy.median(numpy.abs(pr_2 - med2))**2
                     norm = mad1 + mad2
                     dist = numpy.sqrt((med1 - med2)**2/norm)
+                elif merging_method == 'bhatta':
+                    dist = bhatta_dist(pr_1, pr_2)
 
                 if dist < dmin:
                     dmin = dist
@@ -265,7 +267,7 @@ def merging(groups, merging_method, merging_param, data):
 
         if merging_method == 'dip':
             thr = 1
-        elif merging_method in ['folding', 'nd-folding']:
+        elif merging_method in ['folding', 'nd-folding', 'bhatta']:
             thr = merging_param
         elif merging_method == 'distance':
             thr = merging_param/0.674

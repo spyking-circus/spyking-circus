@@ -519,7 +519,7 @@ class CircusParser(object):
                   print_and_log(["make_plots in [%s] should be in %s" %(section, str(fileformats))], 'error', logger)
               sys.exit(0)
 
-        methods = ['distance', 'dip', 'folding', 'nd-folding']
+        methods = ['distance', 'dip', 'folding', 'nd-folding', 'bhatta']
         test = self.parser.get('clustering', 'merging_method').lower() in methods
         if not test:
             if comm.rank == 0:
@@ -534,6 +534,8 @@ class CircusParser(object):
             self.parser.set('clustering', 'merging_param', '3')
           elif method in ['folding', 'nd-folding']:
             self.parser.set('clustering', 'merging_param', '1e-3')
+          elif method == ['bhatta']:
+            self.parser.set('clustering', 'merging_param', '2')
 
         has_same_elec = self.parser.has_option('clustering', 'sim_same_elec')
         has_dip_thresh = self.parser.has_option('clustering', 'dip_threshold')
