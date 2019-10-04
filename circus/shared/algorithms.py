@@ -259,7 +259,10 @@ def merging(groups, merging_method, merging_param, data):
                     norm = mad1 + mad2
                     dist = numpy.sqrt((med1 - med2)**2/norm)
                 elif merging_method == 'bhatta':
-                    dist = bhatta_dist(pr_1, pr_2)
+                    try:
+                        dist = bhatta_dist(pr_1, pr_2)
+                    except Exception:
+                        dist = numpy.inf
 
                 if dist < dmin:
                     dmin = dist

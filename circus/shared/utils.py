@@ -1112,7 +1112,7 @@ def bhatta_dist(X1, X2, method='continuous'):
 
     elif method == 'continuous':
         ###Use a continuous density function to calculate the coefficient (This is the most consistent, but also slightly slow):
-        N_STEPS = 200
+        N_STEPS = 500
         #Get density functions:
         d1 = get_density(X1)
         d2 = get_density(X2)
