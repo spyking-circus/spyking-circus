@@ -239,7 +239,7 @@ def merging(groups, merging_method, merging_param, data):
                     else:
                         dist = numpy.inf
                 elif merging_method == 'nd-folding':
-                    sub_data = numpy.vstack((sd1, sd2)).T[:5, :]
+                    sub_data = numpy.vstack((sd1, sd2)).T[:3, :]
                     unimodal, p_value, phi, _ = batch_folding_test_with_MPA(sub_data, True)
                     if unimodal:
                         dist = p_value

@@ -204,7 +204,6 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     ax.fill_between(rho[idx], results.fittedvalues[idx], upper[idx], alpha=0.5, color='r')
     ax.plot(rho[mcenters], delta[mcenters], 'r.')
     
-
     ax2 = fig.add_subplot(246)
     ax2.set_xlabel(r'$\rho$')
     ax2.set_ylabel(r'$\epsilon$')
@@ -350,7 +349,7 @@ def view_local_merges(
         selection = (allocation == cluster_nb_2)
         allocation[selection] = cluster_nb_1
 
-    #assert np.array_equal(allocation, new_allocation)  # check that we inspect all the merges
+    #assert np.array_equal(allocation, new_allocation), (allocation, new_allocation, allocation -new_allocation)  # check that we inspect all the merges
 
     if not save:
         plt.show()
