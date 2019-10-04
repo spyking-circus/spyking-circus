@@ -254,6 +254,180 @@ def view_local_merges(
     marker_size = 10
     color_map = plt.get_cmap('jet')
 
+    local_merges = merge_history['merge']
+    nb_local_merges = len(local_merges)
+    merging_method = merge_history['method']
+    merging_threshold = merge_history['threshold']
+    allocation = np.copy(old_allocation)
+    _ = new_allocation
+
+    if nb_local_merges > 0:
+
+        # Compute the number of groups of local merges.
+        local_merge_groups = {}
+        local_merge_flat_groups = {}
+        for local_merge in local_merges:
+            cluster_nb_1, cluster_nb_2 = local_merge
+            if cluster_nb_1 not in local_merge_groups:
+                group_1 = cluster_nb_1
+            else:
+                group_1 = local_merge_groups[cluster_nb_1]
+                del local_merge_groups[cluster_nb_1]
+            if cluster_nb_2 not in local_merge_groups:
+                group_2 = cluster_nb_2
+            else:
+                group_2 = local_merge_groups[cluster_nb_2]
+                del local_merge_groups[cluster_nb_2]
+            local_merge_groups[cluster_nb_1] = (group_1, group_2)
+            # ...
+            if cluster_nb_1 not in local_merge_flat_groups:
+                group_1 = [cluster_nb_1]
+            else:
+                group_1 = local_merge_flat_groups[cluster_nb_1]
+                del local_merge_flat_groups[cluster_nb_1]
+            if cluster_nb_2 not in local_merge_flat_groups:
+                group_2 = [cluster_nb_2]
+            else:
+                group_2 = local_merge_flat_groups[cluster_nb_2]
+                del local_merge_flat_groups[cluster_nb_2]
+            local_merge_flat_groups[cluster_nb_1] = group_1 + group_2
+        assert len(local_merge_groups) == len(local_merge_flat_groups)
+        nb_local_merge_groups = len(local_merge_groups)
+        # Compute the maximal number of local merges in one of these groups.
+        max_nb_clusters_per_group = 2
+        for cluster_nb in local_merge_flat_groups.keys():
+            max_nb_clusters_per_group = max(max_nb_clusters_per_group, len(local_merge_flat_groups[cluster_nb]))
+
+        nb_rows = nb_local_merge_groups
+        nb_columns = 1 + 1 + max_nb_clusters_per_group
+        fig_width, fig_height = plt.rcParams['figure.figsize']
+        figsize = float(nb_columns) * (0.33 * fig_width), float(nb_rows) * (0.5 * fig_height)
+
+        cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
+        colors = {
+            cluster_nb: clr.to_rgb('C{}'.format(k % 10))
+            for k, cluster_nb in enumerate(cluster_nbs)
+        }
+
+        fig, axes = plt.subplots(nrows=nb_rows, ncols=nb_columns, figsize=figsize)
+        axes = axes.reshape(nb_rows, nb_columns)
+
+        # Prepare 2D projection plot.
+        is_assigned = numpy.where(allocation > -1)[0]
+        is_not_assigned = numpy.where(allocation == -1)[0]
+        # Plot 2D projection.
+        ax = axes[0, 0]
+        x = clusters_data[is_not_assigned, 0]
+        y = clusters_data[is_not_assigned, 1]
+        ax.scatter(x, y, c='k', linewidth=0, s=marker_size, alpha=0.5)
+        x = clusters_data[is_assigned, 0]
+        y = clusters_data[is_assigned, 1]
+        c = np.array([
+            colors[cluster_nb]
+            for cluster_nb in allocation[is_assigned]
+        ])
+        ax.scatter(x, y, c=c, cmap=color_map, linewidth=0, s=marker_size)
+        ax.set_aspect('equal')
+        ax.set_xlabel('dim. 0')
+        ax.set_ylabel('dim. 1')
+        ax.set_title('2D projection')
+
+        for row_nb, final_cluster_nb in enumerate(local_merge_flat_groups.keys()):
+            col_nb = 1
+            # Prepare median waveforms plot.
+            # # Prepare median waveform for each cluster.
+            median_traces = {}
+            for cluster_nb in local_merge_flat_groups[final_cluster_nb]:
+                selection = (allocation == cluster_nb)
+                selected_nbs = np.where(selection)[0]
+                traces = waveforms_data[selected_nbs]
+                median_traces[cluster_nb] = np.median(traces, axis=0)
+            # # Prepare median waveform for merged cluster.
+            selection = np.in1d(allocation, local_merge_flat_groups[final_cluster_nb])
+            selected_nbs = np.where(selection)[0]
+            traces = waveforms_data[selected_nbs]
+            merged_median_trace = np.median(traces, axis=0)
+            # Plot median waveforms.
+            ax = axes[row_nb, col_nb]
+            for cluster_nb, median_trace in median_traces.items():
+                color = colors[cluster_nb]
+                ax.plot(median_trace, color=color)
+            ax.plot(merged_median_trace, color='black')
+            if row_nb == nb_rows - 1:
+                ax.set_xlabel("time")
+                ax.set_ylabel("amp.")
+            if row_nb == 0:
+                group = local_merge_groups[final_cluster_nb]
+                def group_to_title(g):
+                    if isinstance(g, tuple):
+                        t = "(" + group_to_title(g[0]) + "+" + group_to_title(g[1]) + ")"
+                    else:
+                        t = "{:d}".format(g)
+                    return t
+                title = group_to_title(group)
+                if title[0] == '(':
+                    title = title[1:-1]
+                ax.set_title("cluster {}".format(title))
+
+        for row_nb, final_cluster_nb in enumerate(local_merge_flat_groups.keys()):
+            cluster_nbs = local_merge_flat_groups[final_cluster_nb]
+            for k, cluster_nb in enumerate(cluster_nbs):
+                col_nb = 1 + 1 + k
+                # Prepare waveforms plot.
+                selection = (allocation == cluster_nb)
+                selected_nbs = np.where(selection)[0]
+                selected_nbs = np.random.permutation(selected_nbs)
+                selected_nbs = selected_nbs[0:max_nb_traces]
+                # Plot waveforms.
+                ax = axes[row_nb, col_nb]
+                axes[row_nb, 1].get_shared_x_axes().join(axes[row_nb, 1], ax)
+                axes[row_nb, 1].get_shared_y_axes().join(axes[row_nb, 1], ax)
+                for selected_nb in selected_nbs:
+                    color_jitter = numpy.random.uniform(low=-0.05, high=0.0)
+                    color = colors[cluster_nb]
+                    color = tuple([v + color_jitter for v in color])
+                    trace = waveforms_data[selected_nb]
+                    ax.plot(trace, color=color)
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.set_title("cluster {}".format(cluster_nb))
+
+        fig.tight_layout(rect=[0, 0.05, 1, 1])
+
+        # TODO add distances to annotations.
+        ax.annotate(
+            "{} (thr.={:f})".format(merging_method, merging_threshold),
+            xy=(0.0, 0.0), xycoords='figure fraction',
+            xytext=(10, 2), textcoords='offset points',
+            horizontalalignment='left', verticalalignment='bottom'
+        )
+
+        if save:
+            try:
+                output_filename = 'local_merges_%s.%s' % (save[1], save[2])
+                output_path = os.path.join(save[0], output_filename)
+                plt.savefig(output_path)
+                plt.close(fig)
+            except Exception:
+                pass
+            del fig
+        else:
+            plt.show()
+
+    return
+
+
+def view_local_merges_backup(
+        waveforms_data, clusters_data, old_allocation, new_allocation, merge_history,
+        save=False, max_nb_traces=200,
+):
+
+    import matplotlib.colors as clr
+    import matplotlib.pyplot as plt
+
+    marker_size = 10
+    color_map = plt.get_cmap('jet')
+
     nb_merges = len(merge_history['merge'])
     allocation = np.copy(old_allocation)
 
