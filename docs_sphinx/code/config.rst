@@ -117,8 +117,8 @@ The clustering section is::
     nclus_min      = 0.002      # Min number of elements in a cluster (given in percentage)
     nb_repeats     = 3          # Number of passes used for the clustering
     make_plots     =            # Generate sanity plots of the clustering
-    sim_same_elec  = 3          # Distance within clusters under which they are re-merged
-    dip_threshold  = 0.5        # Will replace sim_same_elec in the future. Set it to 0 to keep using sim_same_elec
+    merging_method = distance   # Method to perform local merges (distance, dip, folding, nd-folding, bhatta)
+    merging_param  = default    # Merging parameter (see doc) (3 if distance, 0.5 if dip, 1e-3 if folding, 2 if bhatta)
     sensitivity    = 3          # The only parameter to control the cluster. The lower, the more sensitive
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
@@ -138,6 +138,8 @@ Parameters that are most likely to be changed:
     * ``nb_repeats`` The number of passes performed by the algorithm to refine the density landscape
     * ``smart_search`` By default, the code will collect only a subset of spikes, randomly, on all electrodes. However, for long recordings, or if you have low thresholds, you may want to select them in a smarter manner, in order to avoid missing the large ones, under represented. If the smart search is activated, the code will first sample the distribution of amplitudes, on all channels, and then implement a rejection algorithm such that it will try to select spikes in order to make the distribution of amplitudes more uniform.
     * ``cc_merge`` After local merging per electrode, this step will make sure that you do not have duplicates in your templates, that may have been spread on several electrodes. All templates with a correlation coefficient higher than that parameter are merged. Remember that the more you merge, the faster is the fit
+    * ``merging_method`` Several methods can be used to perform greedy local merges on each electrodes. Each of the method has a parameter, defined
+    by ``merge_param``. This replaces former parameters ``sim_same_elec`` and ``dip_threshold``
     * ``dispersion`` The spread of the amplitudes allowed, for every templates, around the centroid.
     * ``remove_mixture`` By default, any template that can be explained as sum of two others is deleted. 
     * ``cc_mixtures`` The CC threshold above which mixtures are considered to be valid, and thus removed

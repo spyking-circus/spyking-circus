@@ -534,7 +534,7 @@ class CircusParser(object):
             self.parser.set('clustering', 'merging_param', '3')
           elif method in ['folding', 'nd-folding']:
             self.parser.set('clustering', 'merging_param', '1e-3')
-          elif method == ['bhatta']:
+          elif method == 'bhatta':
             self.parser.set('clustering', 'merging_param', '2')
 
         has_same_elec = self.parser.has_option('clustering', 'sim_same_elec')
