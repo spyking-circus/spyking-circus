@@ -371,8 +371,6 @@ def view_local_merges(
         selection = (allocation == cluster_nb_2)
         allocation[selection] = cluster_nb_1
 
-    assert np.array_equal(allocation, new_allocation)  # check that we inspect all the merges
-
     if not save:
         plt.show()
 
