@@ -768,10 +768,15 @@ def load_data(params, data, extension=''):
     elif data == 'spatial_whitening':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile  = h5py.File(filename, 'r', libver='earliest')
-            spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
-            myfile.close()
-            return spatial
+            try:
+                myfile  = h5py.File(filename, 'r', libver='earliest')
+                spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
+                myfile.close()
+                return spatial
+            except Exception:
+                if comm.rank == 0:
+                    print_and_log(["The whitening step should be launched first!"], 'error', logger)
+                sys.exit(0)
         else:
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)
@@ -779,10 +784,15 @@ def load_data(params, data, extension=''):
     elif data == 'temporal_whitening':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile   = h5py.File(filename, 'r', libver='earliest')
-            temporal = myfile.get('temporal')[:]
-            myfile.close()
-            return temporal
+            try:
+                myfile   = h5py.File(filename, 'r', libver='earliest')
+                temporal = myfile.get('temporal')[:]
+                myfile.close()
+                return temporal
+            except Exception:
+                if comm.rank == 0:
+                    print_and_log(["The whitening step should be launched first!"], 'error', logger)
+                sys.exit(0)
         else:
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)
@@ -790,11 +800,16 @@ def load_data(params, data, extension=''):
     elif data == 'basis':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
-            basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
-            myfile.close()
-            return basis_proj, basis_rec
+            try:
+                myfile     = h5py.File(filename, 'r', libver='earliest')
+                basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
+                basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
+                myfile.close()
+                return basis_proj, basis_rec
+            except Exception:
+                if comm.rank == 0:
+                    print_and_log(["The whitening step should be launched first!"], 'error', logger)
+                sys.exit(0)
         else:
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)
@@ -802,11 +817,16 @@ def load_data(params, data, extension=''):
     elif data == 'basis-pos':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
-            basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
-            myfile.close()
-            return basis_proj, basis_rec
+            try:
+                myfile     = h5py.File(filename, 'r', libver='earliest')
+                basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
+                basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
+                myfile.close()
+                return basis_proj, basis_rec
+            except Exception:
+                if comm.rank == 0:
+                    print_and_log(["The whitening step should be launched first!"], 'error', logger)
+                sys.exit(0)
         else:
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)

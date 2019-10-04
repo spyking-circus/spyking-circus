@@ -19,13 +19,21 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2019
 ~~~~
 
+* Buccino A. P. and Einevoll G. T., *MEArec: a fast and customizable testbench simulator for ground-truth extracellular spiking activity*, bioRxiv, 691642
+
+* Wouters J., Kloosterman F., et Bertrand, A., *SHYBRID: A graphical tool for generating hybrid ground-truth spiking data for evaluating spike sorting performance*, bioRxiv, 734061
+
+* Boi F., Perentos N., Lecomte A., Schwesig G., Zordan S., Sirota A. et Angotzi, G. N., *Multi-shanks SiNAPS Active Pixel Sensor CMOSprobe: 1024 simultaneously recording channels for high-density intracortical brain mapping*, bioRxiv, 749911
+
+* Weineck K., García-Rosales F. & Hechavarría, J. C., *Fronto-striatal oscillations predict vocal output in bats*, bioRxiv, 724112
+
 * Bolding K. A., Nagappan S., Han B.-X., Wang F., Franks K. M., *Pattern recovery by recurrent circuits in piriform cortex*, biooRxiv 694331; doi: https://doi.org/10.1101/694331
 
 * Reinhard K., Li C., Do Q., Burke E., Heynderickx S., Farrow K.,*A projection specific logic to sampling visual inputs in mouse superior colliculus*, bioRxiv 272914; doi: https://doi.org/10.1101/272914
 
-* Fiáth, Richárd, et al., *Fine-scale mapping of cortical laminar activity during sleep slow oscillations using high-density linear silicon probes*, Journal of neuroscience methods 316: 58-70
+* Fiáth R., et al., *Fine-scale mapping of cortical laminar activity during sleep slow oscillations using high-density linear silicon probes*, Journal of neuroscience methods 316: 58-70
 
-* Heiney, Kristine, et al. *µSpikeHunter: An advanced computational tool for the analysis of neuronal communication and action potential propagation in microfluidic platforms*, Scientific reports 9.1: 5777
+* Heiney K., et al. *µSpikeHunter: An advanced computational tool for the analysis of neuronal communication and action potential propagation in microfluidic platforms*, Scientific reports 9.1: 5777
 
 * Angotzi, Gian Nicola, et al. *SiNAPS: An implantable active pixel sensor CMOS-probe for simultaneous large-scale neural recordings*, Biosensors and Bioelectronics 126: 355-364.
 

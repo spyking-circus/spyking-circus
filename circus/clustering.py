@@ -56,8 +56,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     make_plots     = params.get('clustering', 'make_plots')
-    sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
-    dip_threshold  = params.getfloat('clustering', 'dip_threshold')
+    merging_param  = params.getfloat('clustering', 'merging_param')
+    merging_method = params.get('clustering', 'merging_method')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
@@ -551,14 +551,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass != 1:
-                print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
+                print_and_log(["Found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
                 if nb_elements == 0:
                     print_and_log(["No more spikes in the recording, stop searching"], 'info', logger)
             else:
                 if isolation:
-                    print_and_log(["We found %d isolated spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
+                    print_and_log(["Found %d isolated spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
                 else:
-                    print_and_log(["We found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
+                    print_and_log(["Found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
                 if nb_elements < 0.2*nb_total:
                     few_elts = True
 
@@ -730,14 +730,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity
                         )
                         
-                        # Now we perform a merging step, for clusters that look too similar.
+                        # Now we perform a merging step, for clusters that look too similar
                         old_allocation = np.copy(cluster_results[p][ielec]['groups'])
-                        cluster_results[p][ielec]['groups'], merged, merge_history = algo.merging(
-                            cluster_results[p][ielec]['groups'],
-                            sim_same_elec,
-                            dip_threshold,
-                            result['sub_%s_' %p + str(ielec)]
-                        )
+                        cluster_results[p][ielec]['groups'], merged, merge_history = algo.merging(cluster_results[p][ielec]['groups'],
+                                                                            merging_method,
+                                                                            merging_param,
+                                                                            result['sub_%s_' %p + str(ielec)])
 
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
                         count = 0
@@ -845,7 +843,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         total_mergings    = int(numpy.sum(gdata2))
         total_nb_clusters = int(numpy.sum(gdata3))
         lines = ["Number of clusters found : %d" %total_nb_clusters,
-                 "Number of local merges   : %d" %total_mergings]
+                 "Number of local merges   : %d (method %s, param %g)" %(total_mergings, merging_method, merging_param)]
         if few_elts:
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):

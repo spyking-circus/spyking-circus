@@ -21,6 +21,7 @@ from messages import print_and_log
 logger = logging.getLogger(__name__)
 import circus
 from distutils.version import StrictVersion
+from scipy.optimize import brenth, minimize
 
 def test_patch_for_similarities(params, extension):
     
@@ -873,7 +874,7 @@ def dip_threshold(n, p_value):
 
 
 def dip(X):
-    if len(X) > 0:
+    try:
         X = numpy.sort(X)
         F = numpy.arange(0, 1, 1. / X.shape[0]) + 1. / X.shape[0]
         left = 0
@@ -908,5 +909,226 @@ def dip(X):
                 D = max([D, sup_l, sup_r])
                 left = left_
                 right = right_
-    else:
+    except Exception:
         return numpy.inf
+
+
+PVAL_A = 0.4785
+PVAL_B = 0.1946
+PVAL_C = 2.0287
+
+
+def decision_bound(p_value, n, d):
+    """
+    Compute the decision bound q according to the desired p-value. The test would
+    be significant if |phi-1|>q.
+
+    Parameters
+    ----------
+
+    p_value: float
+        between 0 and 1 (this is the probability to be in the uniform case)
+    n: int
+        the number of observations
+    d: int
+        the dimension
+    """
+    return PVAL_A * (p_value - PVAL_B * numpy.log(1 - p_value)) * \
+        (PVAL_C + numpy.log(d)) / numpy.sqrt(n)
+
+
+def p_value(phi, n, d):
+    """
+    Compute the p-value of a test
+
+    Parameters
+    ----------
+
+    phi: float
+        the folding statistics
+    n: int
+        the number of observations
+    d: int
+        the dimension
+    """
+    try:
+        def obj_fun(p): return (numpy.abs(phi - 1.) - decision_bound(1 - p, n, d))
+        p_val = brenth(obj_fun, 0., 1.)
+    except BaseException:
+        p_val = numpy.exp(-numpy.abs(phi - 1.) * numpy.sqrt(n) / (PVAL_C + numpy.log(d)))
+    return p_val
+
+def diagonal(X):
+    """
+    Returns the diagonal of the smallest hypercube including the dataset X
+
+    Parameters
+    ----------
+
+    X: numpy.ndarray
+        a d by n matrix (n observations in dimension d)
+    """
+    return numpy.linalg.norm(X.max(1)-X.min(1))
+
+
+def markov_coeff(X, X_reduced):
+    """
+    Computes the Markov coefficient
+
+    Parameters
+    ----------
+
+    X: numpy.ndarray
+        a d by n matrix (n observations in dimension d)
+    X_reduced: numpy.ndarray
+        the 1 by n matrix equals to ||X-s*(X)||
+    """
+    return (X_reduced/diagonal(X)).mean()
+
+def markov_bound(d):
+    """
+    Returns the bound on the Markov coefficient
+
+    Parameters
+    ----------
+
+    d: int
+        dimension of the feature space
+    """
+    return numpy.sqrt(d) / (2. * (d + 1.))
+
+
+def batch_folding_test_with_MPA(X, with_markov=False):
+    """
+    Perform statically the folding test of unimodality (pure python) with a
+    Markov Ex Post Analysis
+
+    Parameters
+    ----------
+
+    X: numpy.ndarray
+        a d by n matrix (n observations in dimension d)
+    """
+    try:
+        n, p = X.shape
+    except BaseException:
+        X = X.reshape(1, len(X))
+        n, p = X.shape
+
+    if n > p:  # if lines are observations, we transpose it
+        X = X.T
+        dim = p
+        n_obs = n
+    else:
+        dim = n
+        n_obs = p
+
+    X_square_norm = (X * X).sum(axis=0)  # |X|²
+    mat_cov = np.cov(X).reshape(dim, dim)  # cov(X)
+    trace = np.trace(mat_cov)  # Tr(cov(X))
+
+
+    try:
+        cov_norm = np.cov(X, X_square_norm)[
+            :-1, -1].reshape(-1, 1)  # cov(X,|X|²)
+        pivot = 0.5 * np.linalg.solve(mat_cov, cov_norm)
+    except numpy.linalg.LinAlgError:
+        pivot = minimize(lambda s: np.power(
+            X.T - s, 2).sum(axis=1).var(), x0=X.mean(axis=1)).x.reshape(-1, 1)
+
+    X_reduced = np.linalg.norm(X-pivot, axis=0)  # |X-s*|
+    phi = pow(1. + dim, 2) * X_reduced.var(ddof=1) / trace
+    unimodal = (phi >= 1.)
+    if not with_markov:
+        return unimodal, p_value(phi, n_obs, dim), phi, None
+    else:
+        if unimodal:
+            mc = markov_coeff(X, X_reduced)
+            if mc>markov_bound(dim):
+                unimodal = False
+        else:
+            mc = None
+        return unimodal, p_value(phi, n_obs, dim), phi, mc
+
+import numpy as np
+from math import sqrt
+from scipy.stats import gaussian_kde
+
+def bhatta_dist(X1, X2, method='continuous'):
+    #Calculate the Bhattacharyya distance between X1 and X2. X1 and X2 should be 1D numpy arrays representing the same
+    # feature in two separate classes. 
+
+    def get_density(x, cov_factor=0.1):
+        #Produces a continuous density function for the data in 'x'. Some benefit may be gained from adjusting the cov_factor.
+        density = gaussian_kde(x)
+        density.covariance_factor = lambda:cov_factor
+        density._compute_covariance()
+        return density
+
+    #Combine X1 and X2, we'll use it later:
+    cX = np.concatenate((X1,X2))
+
+    if method == 'noiseless':
+        ###This method works well when the feature is qualitative (rather than quantitative). Each unique value is
+        ### treated as an individual bin.
+        uX = np.unique(cX)
+        A1 = len(X1) * (max(cX)-min(cX)) / len(uX)
+        A2 = len(X2) * (max(cX)-min(cX)) / len(uX)
+        bht = 0
+        for x in uX:
+            p1 = (X1==x).sum() / A1
+            p2 = (X2==x).sum() / A2
+            bht += sqrt(p1*p2) * (max(cX)-min(cX))/len(uX)
+
+    elif method == 'hist':
+        ###Bin the values into a hardcoded number of bins (This is sensitive to N_BINS)
+        N_BINS = 10
+        #Bin the values:
+        h1 = np.histogram(X1,bins=N_BINS,range=(min(cX),max(cX)), density=True)[0]
+        h2 = np.histogram(X2,bins=N_BINS,range=(min(cX),max(cX)), density=True)[0]
+        #Calc coeff from bin densities:
+        bht = 0
+        for i in range(N_BINS):
+            p1 = h1[i]
+            p2 = h2[i]
+            bht += sqrt(p1*p2) * (max(cX)-min(cX))/N_BINS
+
+    elif method == 'autohist':
+        ###Bin the values into bins automatically set by np.histogram:
+        #Create bins from the combined sets:
+        # bins = np.histogram(cX, bins='fd')[1]
+        bins = np.histogram(cX, bins='doane')[1] #Seems to work best
+        # bins = np.histogram(cX, bins='auto')[1]
+
+        h1 = np.histogram(X1,bins=bins, density=True)[0]
+        h2 = np.histogram(X2,bins=bins, density=True)[0]
+
+        #Calc coeff from bin densities:
+        bht = 0
+        for i in range(len(h1)):
+            p1 = h1[i]
+            p2 = h2[i]
+            bht += sqrt(p1*p2) * (max(cX)-min(cX))/len(h1)
+
+    elif method == 'continuous':
+        ###Use a continuous density function to calculate the coefficient (This is the most consistent, but also slightly slow):
+        N_STEPS = 50
+        #Get density functions:
+        d1 = get_density(X1)
+        d2 = get_density(X2)
+        #Calc coeff:
+        xs = np.linspace(min(cX),max(cX),N_STEPS)
+        bht = 0
+        for x in xs:
+            p1 = d1(x)
+            p2 = d2(x)
+            bht += sqrt(p1*p2)*(max(cX)-min(cX))/N_STEPS
+
+    else:
+        raise ValueError("The value of the 'method' parameter does not match any known method")
+
+    ###Lastly, convert the coefficient into distance:
+    if bht==0:
+        return float('Inf')
+    else:
+        return -np.log(bht)

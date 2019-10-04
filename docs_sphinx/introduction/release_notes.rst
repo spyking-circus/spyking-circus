@@ -51,7 +51,12 @@ Release 0.8.4
 * comments can now be added in the trigger/dead times files
 * 4096 channels can now run on a single machine, with low memory consumption
 * basic support for 3d probes, without any visualization
+* more robust to saturating channels with nan_to_num
 * cc_merge set to 1 automatically if templates on few channels are detected
+* fix a bug if only one artefact type is given
+* fix a bug if only 2 spikes are found on a single electrode
+* former parameters sim_same_elec and dip_threshold renamed into merge_method and merge_param
+* sanity plots for local merges are now produced during clustering
 
 =============
 Release 0.8.3

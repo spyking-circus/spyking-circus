@@ -130,7 +130,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             to_write = []
             if do_filtering:
-                to_write += ["Filtering the signal with a Butterworth filter (order %d) in (%g, %g) Hz" %(butter_order, cut_off[0],cut_off[1])]
+                to_write += ["Filtering with a Butterworth filter (order %d) in [%g, %g] Hz" %(butter_order, cut_off[0],cut_off[1])]
             if do_remove_median:
                 to_write += ["Median over all channels is subtracted to each channels"]
             if do_remove_ground:
