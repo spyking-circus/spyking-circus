@@ -56,8 +56,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     make_plots     = params.get('clustering', 'make_plots')
-    sim_same_elec  = params.getfloat('clustering', 'sim_same_elec')
-    dip_threshold  = params.getfloat('clustering', 'dip_threshold')
+    debug_plots    = params.get('clustering', 'debug_plots')
+    merging_param  = params.getfloat('clustering', 'merging_param')
+    merging_method = params.get('clustering', 'merging_method')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
@@ -551,14 +552,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass != 1:
-                print_and_log(["We found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
+                print_and_log(["Found %d spikes over %d requested" %(nb_elements, nb_total)], 'default', logger)
                 if nb_elements == 0:
                     print_and_log(["No more spikes in the recording, stop searching"], 'info', logger)
             else:
                 if isolation:
-                    print_and_log(["We found %d isolated spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
+                    print_and_log(["Found %d isolated spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
                 else:
-                    print_and_log(["We found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
+                    print_and_log(["Found %d spikes over %d requested (%d rejected)" %(nb_elements, nb_total, nb_rejected)], 'default', logger)
                 if nb_elements < 0.2*nb_total:
                     few_elts = True
 
@@ -726,14 +727,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         dist     = tmp_h5py.get('dist_%s_' %p + str(ielec))[:]
                         result['rho_%s_' %p + str(ielec)]  = -result['rho_%s_' %p + str(ielec)] + result['rho_%s_' %p + str(ielec)].max()
 
-                        cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(result['rho_%s_' %p + str(ielec)], dist,
-                                                                                      n_min=n_min, alpha=sensitivity)                        
-
+                        cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(
+                            result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity
+                        )
                         
                         # Now we perform a merging step, for clusters that look too similar
-                        cluster_results[p][ielec]['groups'], merged = algo.merging(cluster_results[p][ielec]['groups'],
-                                                                            sim_same_elec,
-                                                                            dip_threshold,
+                        old_allocation = np.copy(cluster_results[p][ielec]['groups'])
+                        cluster_results[p][ielec]['groups'], merged, merge_history = algo.merging(cluster_results[p][ielec]['groups'],
+                                                                            merging_method,
+                                                                            merging_param,
                                                                             result['sub_%s_' %p + str(ielec)])
 
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
@@ -748,8 +750,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         c = numpy.delete(c, to_remove)
 
+                        # Sanity plots for clusters.
                         if make_plots not in ['None', '']:
-                            save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
+                            save = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
                             injected = None
                             if test_clusters:
                                 injected = numpy.zeros(len(result['data_%s_' %p + str(ielec)]), dtype=numpy.bool)
@@ -762,9 +765,37 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             if icount < (len(injected) - 1):
                                                 injected[icount] = True
 
-                            plot.view_clusters(result['sub_%s_' %p + str(ielec)], r, d, c,
-                                                   cluster_results[p][ielec]['groups'], injected=injected,
-                                                   save=save, alpha=sensitivity)
+                            plot.view_clusters(
+                                result['sub_%s_' %p + str(ielec)], r, d, c,
+                                cluster_results[p][ielec]['groups'], injected=injected,
+                                save=save, alpha=sensitivity
+                            )
+
+                        # Sanity plots for local merges.
+                        if debug_plots not in ['None', '']:
+                            # Retrieve waveforms data.
+                            n_neighbors = len(edges[nodes[ielec]])
+                            indices = inv_nodes[edges[nodes[ielec]]]
+                            data = result['data_%s_' % p + str(ielec)]
+                            data = data.reshape((n_data, basis['proj_%s' % p].shape[1], n_neighbors))
+                            idx = numpy.where(indices == ielec)[0][0]
+                            sub_data = numpy.take(data, idx, axis=2)
+                            waveforms_data = numpy.dot(sub_data, basis['rec_%s' % p])
+                            # Retrieve clusters data.
+                            clusters_data = result['sub_%s_' % p + str(ielec)]
+                            # Retrieve new allocation.
+                            new_allocation = cluster_results[p][ielec]['groups']
+                            # Define output path.
+                            save = [plot_path, '%s_%d' % (p, ielec), debug_plots]
+                            # Call plot function.
+                            plot.view_local_merges(
+                                waveforms_data,
+                                clusters_data,
+                                old_allocation,
+                                new_allocation,
+                                merge_history,
+                                save=save
+                            )
 
                         keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec)]
                         for key in keys:
@@ -813,7 +844,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         total_mergings    = int(numpy.sum(gdata2))
         total_nb_clusters = int(numpy.sum(gdata3))
         lines = ["Number of clusters found : %d" %total_nb_clusters,
-                 "Number of local merges   : %d" %total_mergings]
+                 "Number of local merges   : %d (method %s, param %g)" %(total_mergings, merging_method, merging_param)]
         if few_elts:
             lines += ["Not enough spikes gathered: -put safety_space=False?"]
             if numpy.any(sdata > 0):
@@ -1021,6 +1052,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     count_templates += 1
                     g_count         += 1
 
+                # Sanity plots of the waveforms.
                 if make_plots not in ['None', '']:
                     if n_data > 1:
                         save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
@@ -1031,9 +1063,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
                         sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
                         sub_tmp  = sub_tmp[ielec, :, :]
-                        plot.view_waveforms_clusters(numpy.dot(sub_data, basis['rec_%s' %p]), cluster_results[p][ielec]['groups'],
-                            thresholds[ielec], sub_tmp,
-                            numpy.array(myamps), save=save)
+                        plot.view_waveforms_clusters(
+                            numpy.dot(sub_data, basis['rec_%s' %p]), cluster_results[p][ielec]['groups'],
+                            thresholds[ielec], sub_tmp, numpy.array(myamps), save=save
+                        )
 
                 nb_dim_found = result['sub_%s_' %p + str(ielec)].shape[1]
 

@@ -141,58 +141,47 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
             ax.plot(rho[i], delta[i], 'o', color=colorVal)
     ax.set_xlim(0.98*rmin, 1.02*rmax)
 
-    try:
+    colors = scalarMap.to_rgba(halo[assigned])
 
-        pca = PCA(3)
-        visu_data = pca.fit_transform(data.astype(numpy.double))
-        
-        ax = fig.add_subplot(242)
-        ax.scatter(visu_data[not_assigned,0], visu_data[not_assigned,1], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(visu_data[assigned,0], visu_data[assigned,1], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 1')
+    ax = fig.add_subplot(242)
+    ax.scatter(data[not_assigned,0], data[not_assigned,1], c='k', linewidth=0, s=def_size, alpha=0.5)
+    ax.scatter(data[assigned,0], data[assigned,1], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
+    ax.set_xlabel('Dim 0')
+    ax.set_ylabel('Dim 1')
 
-        ax = fig.add_subplot(243)
-        ax.scatter(visu_data[not_assigned,0], visu_data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(visu_data[assigned,0], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 2')
+    ax = fig.add_subplot(243)
+    ax.scatter(data[not_assigned,0], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
+    ax.scatter(data[assigned,0], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
+    ax.set_xlabel('Dim 0')
+    ax.set_ylabel('Dim 2')
                 
-        ax = fig.add_subplot(244)
-        ax.scatter(visu_data[not_assigned,1], visu_data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(visu_data[assigned,1], visu_data[assigned,2], c=halo[assigned], cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 1')
-        ax.set_ylabel('Dim 2')
-    except Exception:
-        pass
+    ax = fig.add_subplot(244)
+    ax.scatter(data[not_assigned,1], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
+    ax.scatter(data[assigned,1], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
+    ax.set_xlabel('Dim 1')
+    ax.set_ylabel('Dim 2')
 
-    try:
-
-        import matplotlib.colors as colors
-        my_cmap   = pylab.get_cmap('winter')
+    my_cmap   = pylab.get_cmap('winter')
         
-        ax  = fig.add_subplot(247)
-        idx = numpy.argsort(rho[assigned])
-        ax.scatter(visu_data[assigned[idx],0], visu_data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap)
-        ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
-        if injected is not None:
-            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 1')
-        ax.set_title(r'$\rho$')
+    ax  = fig.add_subplot(247)
+    idx = numpy.argsort(rho[assigned])
+    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap)
+    ax.scatter(data[centers, 0], data[centers, 1], c='r')
+    if injected is not None:
+        ax.scatter(data[injected, 0], data[injected, 1], c='b')
+    ax.set_xlabel('Dim 0')
+    ax.set_ylabel('Dim 1')
+    ax.set_title(r'$\rho$')
 
-        ax  = fig.add_subplot(248)
-        idx = numpy.argsort(delta[assigned])
-        ax.scatter(visu_data[assigned[idx],0], visu_data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap)
-        #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
-        if injected is not None:
-            ax.scatter(visu_data[injected, 0], visu_data[injected, 1], c='b')
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 1')
-        ax.set_title(r'$\delta$')
-
-    except Exception:
-        pass
+    ax  = fig.add_subplot(248)
+    idx = numpy.argsort(delta[assigned])
+    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap)
+    #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
+    if injected is not None:
+        ax.scatter(data[injected, 0], data[injected, 1], c='b')
+    ax.set_xlabel('Dim 0')
+    ax.set_ylabel('Dim 1')
+    ax.set_title(r'$\delta$')
 
     ax = fig.add_subplot(245)
     ax.set_xlabel(r'$\rho$')
@@ -215,7 +204,6 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     ax.fill_between(rho[idx], results.fittedvalues[idx], upper[idx], alpha=0.5, color='r')
     ax.plot(rho[mcenters], delta[mcenters], 'r.')
     
-
     ax2 = fig.add_subplot(246)
     ax2.set_xlabel(r'$\rho$')
     ax2.set_ylabel(r'$\epsilon$')
@@ -242,6 +230,342 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
         pylab.show()
     del fig
 
+
+def view_local_merges(
+        waveforms_data, clusters_data, old_allocation, new_allocation, merge_history,
+        save=False, max_nb_traces=200,
+):
+
+    import matplotlib.colors as clr
+    import matplotlib.pyplot as plt
+
+    marker_size = 10
+    color_map = plt.get_cmap('jet')
+
+    local_merges = merge_history['merge']
+    nb_local_merges = len(local_merges)
+    cluster_distances = merge_history['distance']
+    merging_method = merge_history['method']
+    merging_threshold = merge_history['threshold']
+    allocation = np.copy(old_allocation)
+    _ = new_allocation
+
+    if nb_local_merges > 0:
+
+        # Compute the number of groups of local merges.
+        local_merge_groups = {}
+        local_merge_flat_groups = {}
+        local_merge_distances = {}
+        for local_merge, cluster_distance in zip(local_merges, cluster_distances):
+            cluster_nb_1, cluster_nb_2 = local_merge
+            # 1.
+            if cluster_nb_1 not in local_merge_groups:
+                group_1 = cluster_nb_1
+            else:
+                group_1 = local_merge_groups[cluster_nb_1]
+                del local_merge_groups[cluster_nb_1]
+            if cluster_nb_2 not in local_merge_groups:
+                group_2 = cluster_nb_2
+            else:
+                group_2 = local_merge_groups[cluster_nb_2]
+                del local_merge_groups[cluster_nb_2]
+            local_merge_groups[cluster_nb_1] = (group_1, group_2)
+            # 2.
+            local_merge_distances[cluster_nb_1] = None
+            local_merge_distances[cluster_nb_2] = cluster_distance
+            # 3.
+            if cluster_nb_1 not in local_merge_flat_groups:
+                group_1 = [cluster_nb_1]
+            else:
+                group_1 = local_merge_flat_groups[cluster_nb_1]
+                del local_merge_flat_groups[cluster_nb_1]
+            if cluster_nb_2 not in local_merge_flat_groups:
+                group_2 = [cluster_nb_2]
+            else:
+                group_2 = local_merge_flat_groups[cluster_nb_2]
+                del local_merge_flat_groups[cluster_nb_2]
+            local_merge_flat_groups[cluster_nb_1] = group_1 + group_2
+        assert len(local_merge_groups) == len(local_merge_flat_groups)
+        nb_local_merge_groups = len(local_merge_groups)
+        # Compute the maximal number of local merges in one of these groups.
+        max_nb_clusters_per_group = 2
+        for cluster_nb in local_merge_flat_groups.keys():
+            max_nb_clusters_per_group = max(max_nb_clusters_per_group, len(local_merge_flat_groups[cluster_nb]))
+
+        nb_rows = nb_local_merge_groups
+        nb_columns = 1 + 1 + max_nb_clusters_per_group
+        fig_width, fig_height = plt.rcParams['figure.figsize']
+        figsize = float(nb_columns) * (0.33 * fig_width), float(nb_rows) * (0.5 * fig_height)
+
+        cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
+        colors = {
+            cluster_nb: clr.to_rgb('C{}'.format(k % 10))
+            for k, cluster_nb in enumerate(cluster_nbs)
+        }
+
+        fig, axes = plt.subplots(nrows=nb_rows, ncols=nb_columns, figsize=figsize)
+        axes = axes.reshape(nb_rows, nb_columns)
+        for ax in axes.flatten():
+            ax.set_axis_off()
+
+        # Prepare 2D projection plot.
+        is_assigned = numpy.where(allocation > -1)[0]
+        is_not_assigned = numpy.where(allocation == -1)[0]
+        # Plot 2D projection.
+        ax = axes[0, 0]
+        ax.set_axis_on()
+        x = clusters_data[is_not_assigned, 0]
+        y = clusters_data[is_not_assigned, 1]
+        ax.scatter(x, y, c='k', linewidth=0, s=marker_size, alpha=0.5)
+        x = clusters_data[is_assigned, 0]
+        y = clusters_data[is_assigned, 1]
+        c = np.array([
+            colors[cluster_nb]
+            for cluster_nb in allocation[is_assigned]
+        ])
+        ax.scatter(x, y, c=c, cmap=color_map, linewidth=0, s=marker_size)
+        nb_clusters = len(np.unique(allocation[is_assigned]))
+        ax.annotate(
+            "{:d} clusters".format(nb_clusters),
+            xy=(0, 0), xycoords='axes fraction',
+            xytext=(2, 1), textcoords='offset points',
+            horizontalalignment='left', verticalalignment='bottom'
+        )
+        ax.set_aspect('equal')
+        ax.set_xlabel('dim. 0')
+        ax.set_ylabel('dim. 1')
+        ax.set_title('2D projection')
+
+        for row_nb, final_cluster_nb in enumerate(local_merge_flat_groups.keys()):
+            col_nb = 1
+            # Prepare median waveforms plot.
+            # # Prepare median waveform for each cluster.
+            median_traces = {}
+            for cluster_nb in local_merge_flat_groups[final_cluster_nb]:
+                selection = (allocation == cluster_nb)
+                selected_nbs = np.where(selection)[0]
+                traces = waveforms_data[selected_nbs]
+                median_traces[cluster_nb] = np.median(traces, axis=0)
+            # # Prepare median waveform for merged cluster.
+            selection = np.in1d(allocation, local_merge_flat_groups[final_cluster_nb])
+            selected_nbs = np.where(selection)[0]
+            traces = waveforms_data[selected_nbs]
+            merged_median_trace = np.median(traces, axis=0)
+            # Plot median waveforms.
+            ax = axes[row_nb, col_nb]
+            ax.set_axis_on()
+            for cluster_nb, median_trace in median_traces.items():
+                color = colors[cluster_nb]
+                ax.plot(median_trace, color=color)
+            ax.plot(merged_median_trace, color='black')
+            if row_nb == nb_rows - 1:
+                ax.set_xlabel("time")
+                ax.set_ylabel("amp.")
+            if row_nb == 0:
+                group = local_merge_groups[final_cluster_nb]
+                def group_to_title(g):
+                    if isinstance(g, tuple):
+                        t = "(" + group_to_title(g[0]) + "+" + group_to_title(g[1]) + ")"
+                    else:
+                        t = "{:d}".format(g)
+                    return t
+                title = group_to_title(group)
+                if title[0] == '(':
+                    title = title[1:-1]
+                ax.set_title("cluster {}".format(title))
+
+        for row_nb, final_cluster_nb in enumerate(local_merge_flat_groups.keys()):
+            cluster_nbs = local_merge_flat_groups[final_cluster_nb]
+            for k, cluster_nb in enumerate(cluster_nbs):
+                col_nb = 1 + 1 + k
+                # Prepare waveforms plot.
+                selection = (allocation == cluster_nb)
+                selected_nbs = np.where(selection)[0]
+                nb_waveforms = len(selected_nbs)
+                selected_nbs = np.random.permutation(selected_nbs)
+                selected_nbs = selected_nbs[0:max_nb_traces]
+                distance = local_merge_distances[cluster_nb]
+                # Plot waveforms.
+                ax = axes[row_nb, col_nb]
+                ax.set_axis_on()
+                axes[row_nb, 1].get_shared_x_axes().join(axes[row_nb, 1], ax)
+                axes[row_nb, 1].get_shared_y_axes().join(axes[row_nb, 1], ax)
+                for selected_nb in selected_nbs:
+                    color_jitter = numpy.random.uniform(low=-0.05, high=0.0)
+                    color = colors[cluster_nb]
+                    color = tuple([v + color_jitter for v in color])
+                    trace = waveforms_data[selected_nb]
+                    ax.plot(trace, color=color)
+                if distance is None:
+                    annotation_text = "n={:d}".format(nb_waveforms)
+                else:
+                    annotation_text = "n={:d}\nd={:f}".format(nb_waveforms, distance)
+                ax.annotate(
+                    annotation_text,
+                    xy=(0, 0), xycoords='axes fraction',
+                    xytext=(2, 1), textcoords='offset points',
+                    horizontalalignment='left', verticalalignment='bottom'
+                )
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.set_title("cluster {}".format(cluster_nb))
+
+        fig.tight_layout(rect=[0, 0.05, 1, 1])
+
+        ax.annotate(
+            "{} (thr.={:f})".format(merging_method, merging_threshold),
+            xy=(0.0, 0.0), xycoords='figure fraction',
+            xytext=(10, 2), textcoords='offset points',
+            horizontalalignment='left', verticalalignment='bottom'
+        )
+
+        if save:
+            try:
+                output_filename = 'local_merges_%s.%s' % (save[1], save[2])
+                output_path = os.path.join(save[0], output_filename)
+                plt.savefig(output_path)
+                plt.close(fig)
+            except Exception:
+                pass
+            del fig
+        else:
+            plt.show()
+
+    return
+
+
+def view_local_merges_backup(
+        waveforms_data, clusters_data, old_allocation, new_allocation, merge_history,
+        save=False, max_nb_traces=200,
+):
+
+    import matplotlib.colors as clr
+    import matplotlib.pyplot as plt
+
+    marker_size = 10
+    color_map = plt.get_cmap('jet')
+
+    nb_merges = len(merge_history['merge'])
+    allocation = np.copy(old_allocation)
+
+    cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
+    colors = {
+        cluster_nb: clr.to_rgb('C{}'.format(k % 10))
+        for k, cluster_nb in enumerate(cluster_nbs)
+    }
+
+    for merge_nb in xrange(0, nb_merges):
+
+        cluster_nb_1, cluster_nb_2 = merge_history['merge'][merge_nb]
+        cluster_distance = merge_history['distance'][merge_nb]
+        merging_method = merge_history['method']
+        merging_threshold = merge_history['threshold']
+
+        fig = plt.figure()
+
+        # Prepare 1st plot.
+        selection = (allocation == cluster_nb_1)
+        selected_nbs = np.where(selection)[0]
+        selected_nbs = np.random.permutation(selected_nbs)
+        selected_nbs = selected_nbs[0:max_nb_traces]
+        # Plot 1st cluster.
+        ax = fig.add_subplot(221)
+        for selected_nb in selected_nbs:
+            color_jitter = numpy.random.uniform(low=-0.05, high=0.0)
+            color = colors[cluster_nb_1]
+            color = tuple([v + color_jitter for v in color])
+            trace = waveforms_data[selected_nb]
+            ax.plot(trace, color=color)
+        ax.set_xlabel("time")
+        ax.set_ylabel("amp.")
+        ax.set_title("cluster {}".format(cluster_nb_1))
+
+        # Prepare 2nd plot.
+        selection = (allocation == cluster_nb_2)
+        selected_nbs = np.where(selection)[0]
+        selected_nbs = np.random.permutation(selected_nbs)
+        selected_nbs = selected_nbs[0:max_nb_traces]
+        # Plot 2nd cluster.
+        ax = fig.add_subplot(222)
+        for selected_nb in selected_nbs:
+            color_jitter = numpy.random.uniform(low=-0.05, high=0.0)
+            color = colors[cluster_nb_2]
+            color = tuple([v + color_jitter for v in color])
+            trace = waveforms_data[selected_nb]
+            ax.plot(trace, color=color)
+        ax.set_xlabel("time")
+        ax.set_ylabel("amp.")
+        ax.set_title(" cluster {}".format(cluster_nb_2))
+
+        # Prepare 3rd plot.
+        selection = numpy.logical_or(
+            allocation == cluster_nb_1,
+            allocation == cluster_nb_2
+        )
+        selected_nbs = np.where(selection)[0]
+        selected_nbs = np.random.permutation(selected_nbs)
+        selected_nbs = selected_nbs[0:max_nb_traces]
+        # Plot merged cluster.
+        ax = fig.add_subplot(223)
+        for selected_nb in selected_nbs:
+            color_jitter = numpy.random.uniform(low=-0.05, high=0.0)
+            color = colors[allocation[selected_nb]]
+            color = tuple([v + color_jitter for v in color])
+            trace = waveforms_data[selected_nb]
+            ax.plot(trace, color=color)
+        ax.set_xlabel("time")
+        ax.set_ylabel("amp.")
+        ax.set_title("cluster {}+{}".format(cluster_nb_1, cluster_nb_2))
+
+        # Prepare 4th plot.
+        pca = PCA(n_components=3)
+        reduced_clusters_data = pca.fit_transform(clusters_data.astype(numpy.double))
+        is_assigned = numpy.where(allocation > -1)[0]
+        is_not_assigned = numpy.where(allocation == -1)[0]
+        # Plot labelled spike projections.
+        ax = fig.add_subplot(224)
+        x = reduced_clusters_data[is_not_assigned, 0]
+        y = reduced_clusters_data[is_not_assigned, 1]
+        ax.scatter(x, y, c='k', linewidth=0, s=marker_size, alpha=0.5)
+        x = reduced_clusters_data[is_assigned, 0]
+        y = reduced_clusters_data[is_assigned, 1]
+        c = np.array([
+            colors[cluster_nb]
+            for cluster_nb in allocation[is_assigned]
+        ])
+        ax.scatter(x, y, c=c, cmap=color_map, linewidth=0, s=marker_size)
+        ax.set_aspect('equal')
+        ax.set_xlabel('dim. 0')
+        ax.set_ylabel('dim. 1')
+        ax.set_title('2D projection')
+
+        fig.tight_layout(rect=[0, 0.05, 1, 1])
+
+        ax.annotate(
+            "{} (thr.={:f})\nd={:f}".format(merging_method, merging_threshold, cluster_distance),
+            xy=(0.0, 0.0), xycoords='figure fraction',
+            xytext=(10, 2), textcoords='offset points',
+            horizontalalignment='left', verticalalignment='bottom'
+        )
+
+        if save:
+            try:
+                output_filename = 'local_merges_%s_%d.%s' % (save[1], merge_nb, save[2])
+                output_path = os.path.join(save[0], output_filename)
+                plt.savefig(output_path)
+                plt.close(fig)
+            except Exception:
+                pass
+            del fig
+
+        # Update `allocations`.
+        selection = (allocation == cluster_nb_2)
+        allocation[selection] = cluster_nb_1
+
+    if not save:
+        plt.show()
+
+    return
 
 
 def view_rejection(a, b, hist, save=False):
@@ -279,13 +603,19 @@ def view_rejection(a, b, hist, save=False):
 
 def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves=200, save=False):
     
+    import matplotlib.colors as colors
     nb_templates = templates.shape[1]
     n_panels     = numpy.ceil(numpy.sqrt(nb_templates))
-    mask         = numpy.where(halo > -1)[0]
+    mask         = numpy.where(halo > -1)[0]  # i.e. assigned only
     clust_idx    = numpy.unique(halo[mask])
     fig          = pylab.figure()    
     square       = True
     center       = len(data[0] - 1)//2
+
+    my_cmap      = pylab.get_cmap('jet')
+    cNorm        = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
+    scalarMap    = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
+    
     for count, i in enumerate(xrange(nb_templates)):
         if square:
             pylab.subplot(n_panels, n_panels, count + 1)
@@ -296,7 +626,8 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
         
         subcurves = numpy.where(halo == clust_idx[count])[0]
         for k in numpy.random.permutation(subcurves)[:n_curves]:
-            pylab.plot(data[k], '0.5')
+            colorVal = scalarMap.to_rgba(clust_idx[count])
+            pylab.plot(data[k], color=colorVal)
         
         pylab.plot(templates[:, count], 'r')
         pylab.plot(amps_lim[count][0]*templates[:, count], 'b', alpha=0.5)

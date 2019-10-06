@@ -101,7 +101,7 @@ class CircusParser(object):
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
-                          ['triggers', 'make_plots', 'string', 'png'],
+                          ['triggers', 'make_plots', 'string', ''],
                           ['triggers', 'trig_file', 'string', ''],
                           ['triggers', 'trig_windows', 'string', ''],
                           ['triggers', 'trig_unit', 'string', 'ms'],
@@ -115,9 +115,9 @@ class CircusParser(object):
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['filtering', 'common_ground', 'string', ''],
                           ['clustering', 'nb_repeats', 'int', '3'],
-                          ['clustering', 'make_plots', 'string', 'png'],
+                          ['clustering', 'make_plots', 'string', ''],
+                          ['clustering', 'debug_plots', 'string', ''],
                           ['clustering', 'test_clusters', 'bool', 'False'],
-                          ['clustering', 'sim_same_elec', 'float', '3'],
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
@@ -127,6 +127,8 @@ class CircusParser(object):
                           ['clustering', 'n_abs_min', 'int', '20'],
                           ['clustering', 'sensitivity', 'float', '3'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
+                          ['clustering', 'merging_method', 'string', 'distance'],
+                          ['clustering', 'merging_param', 'string', 'default'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
@@ -175,7 +177,6 @@ class CircusParser(object):
                         ['detection', 'jitter_range', 'float', '0.1'],
                         ['detection', 'smoothing', 'bool', 'True'],
                         ['detection', 'smoothing_factor', 'float', '0.25'],
-                        ['clustering', 'dip_threshold', 'float', '0.5'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
                         ['whitening', 'safety_time', 'string', 'auto'],
@@ -518,6 +519,56 @@ class CircusParser(object):
               if comm.rank == 0:
                   print_and_log(["make_plots in [%s] should be in %s" %(section, str(fileformats))], 'error', logger)
               sys.exit(0)
+
+        fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
+        for section in ['clustering']:
+          test = self.parser.get('clustering', 'debug_plots').lower() in fileformats
+          if not test:
+              if comm.rank == 0:
+                  print_and_log(["debug_plots in [%s] should be in %s" %(section, str(fileformats))], 'error', logger)
+              sys.exit(0)
+
+        methods = ['distance', 'dip', 'folding', 'nd-folding', 'bhatta']
+        test = self.parser.get('clustering', 'merging_method').lower() in methods
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["merging_method in [%s] should be in %s" %(section, str(methods))], 'error', logger)
+            sys.exit(0)
+
+        if self.parser.get('clustering', 'merging_param').lower() == 'default':
+          method = self.parser.get('clustering', 'merging_method').lower()
+          if method == 'dip':
+            self.parser.set('clustering', 'merging_param', '0.5')
+          elif method == 'distance':
+            self.parser.set('clustering', 'merging_param', '3')
+          elif method in ['folding', 'nd-folding']:
+            self.parser.set('clustering', 'merging_param', '1e-9')
+          elif method == 'bhatta':
+            self.parser.set('clustering', 'merging_param', '2')
+
+        has_same_elec = self.parser.has_option('clustering', 'sim_same_elec')
+        has_dip_thresh = self.parser.has_option('clustering', 'dip_threshold')
+
+        if has_dip_thresh:
+          dip_threshold = self.parser.getfloat('clustering', 'dip_threshold')
+
+        if has_dip_thresh and (dip_threshold > 0):
+          if comm.rank == 0:
+            print_and_log(["dip_threshold in [clustering] is deprecated in 0.8.4",
+                           "and you should now use merging_method and merging_param",
+                           "Please upgrade your parameter file to a more recent version",
+                           "By default a distance merging method with param 3 is assumed"], 'info', logger)
+          self.parser.set('clustering', 'merging_param', str(3))
+          self.parser.set('clustering', 'merging_method', 'distance')
+        elif has_same_elec:
+          sim_same_elec = self.parser.get('clustering', 'sim_same_elec')
+          if comm.rank == 0:
+            print_and_log(["sim_same_elec in [clustering] is deprecated in 0.8.4",
+                           "and you should now use merging_method and merging_param",
+                           "Please upgrade your parameter file to a more recent version",
+                           "Meanwhile a distance merging method with param %s is assumed" %sim_same_elec], 'info', logger)
+          self.parser.set('clustering', 'merging_param', sim_same_elec)
+          self.parser.set('clustering', 'merging_method', 'distance')
 
         dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
         dispersion     = map(float, dispersion)

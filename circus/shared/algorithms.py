@@ -4,7 +4,7 @@ import shutil, h5py
 import scipy.linalg, scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
-from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold
+from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA, bhatta_dist
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
@@ -195,15 +195,20 @@ def halo_assign(dist, labels, centers):
     dist2cluscent = dist2cent*sameclus_cent # preserves only distances to the corresponding cluster centroid
     nclusmem = numpy.sum(sameclus_cent, axis=1) # number of cluster members
     meandist2cent = numpy.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
-    gt_meandist2cent = numpy.greater(dist2cluscent, meandist2cent[:, None]) # greater than the mean dist to centroid
+    std2cent = numpy.zeros(meandist2cent.shape)
+    for i in range(len(meandist2cent)):
+        idx = numpy.where(dist2cluscent[i] > 0)[0]
+        std2cent[i] = numpy.std(dist2cluscent[i, idx])
+    bounds = meandist2cent[:, None] + std2cent[:, None]
+    gt_meandist2cent = numpy.greater(dist2cluscent, bounds) # greater than the mean dist to centroid
     remids = numpy.sum(gt_meandist2cent, axis=0)
     halolabels[remids > 0] = 0 # setting to 0 the removes points
     return halolabels
     
 
-def merging(groups, sim_mad, sim_dip, data):
+def merging(groups, merging_method, merging_param, data):
 
-    def perform_merging(groups, sim_mad, sim_dip, data):
+    def perform_merging(groups, merging_method, merging_param, data):
         mask      = numpy.where(groups > -1)[0]
         clusters  = numpy.unique(groups[mask])
         dmin      = numpy.inf
@@ -212,59 +217,104 @@ def merging(groups, sim_mad, sim_dip, data):
         for ic1 in xrange(len(clusters)):
             idx1 = numpy.where(groups == clusters[ic1])[0]
             sd1  = numpy.take(data, idx1, axis=0)
-            m1   = numpy.median(sd1, 0)
+
+            if merging_method in ['distance', 'dip', 'folding', 'bhatta']:
+                m1   = numpy.median(sd1, 0)
+    
             for ic2 in xrange(ic1+1, len(clusters)):
                 idx2 = numpy.where(groups == clusters[ic2])[0]
                 sd2  = numpy.take(data, idx2, axis=0)
-                m2   = numpy.median(sd2, 0)
-                v_n  = (m1 - m2)
-                pr_1 = numpy.dot(sd1, v_n)
-                pr_2 = numpy.dot(sd2, v_n)
-
-                if sim_dip > 0:
+                
+                if merging_method in ['distance', 'dip', 'folding', 'bhatta']:
+                    m2   = numpy.median(sd2, 0)
+                    v_n  = (m1 - m2)
+                    pr_1 = numpy.dot(sd1, v_n)
+                    pr_2 = numpy.dot(sd2, v_n)
+                
+                if merging_method == 'folding':
                     sub_data = numpy.concatenate([pr_1, pr_2])
-                    if len(sub_data) > 5:
-                        dist = dip(sub_data)/dip_threshold(len(sub_data), sim_dip)
+                    unimodal, p_value, phi, _ = batch_folding_test_with_MPA(sub_data, True)
+                    if unimodal:
+                        dist = p_value
                     else:
                         dist = numpy.inf
-                else:
+                elif merging_method == 'nd-folding':
+                    sub_data = numpy.vstack((sd1, sd2))[:, :3]
+                    unimodal, p_value, phi, _ = batch_folding_test_with_MPA(sub_data, True)
+                    if unimodal:
+                        dist = p_value
+                    else:
+                        dist = numpy.inf
+                elif merging_method == 'dip':
+                    sub_data = numpy.concatenate([pr_1, pr_2])
+                    if len(sub_data) > 5:
+                        dist = dip(sub_data)/dip_threshold(len(sub_data), merging_param)
+                    else:
+                        dist = numpy.inf
+                elif merging_method == 'distance':
                     med1 = numpy.median(pr_1)
                     med2 = numpy.median(pr_2)
                     mad1 = numpy.median(numpy.abs(pr_1 - med1))**2
                     mad2 = numpy.median(numpy.abs(pr_2 - med2))**2
                     norm = mad1 + mad2
                     dist = numpy.sqrt((med1 - med2)**2/norm)
+                elif merging_method == 'bhatta':
+                    try:
+                        dist = bhatta_dist(pr_1, pr_2)
+                    except Exception:
+                        dist = numpy.inf
 
                 if dist < dmin:
-                    dmin     = dist
+                    dmin = dist
                     to_merge = [ic1, ic2]
 
-        if sim_dip > 0:
+        if merging_method == 'dip':
             thr = 1
-        else:
-            thr = sim_mad/0.674
+        elif merging_method in ['folding', 'nd-folding', 'bhatta']:
+            thr = merging_param
+        elif merging_method == 'distance':
+            thr = merging_param/0.674
 
         if dmin < thr:
-            groups[numpy.where(groups == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
-            return True, groups
+            ic1, ic2 = to_merge
+            c1, c2 = clusters[ic1], clusters[ic2]
+            selection = numpy.where(groups == c2)[0]
+            groups[selection] = c1
+            merge = (c1, c2)
+            return True, groups, merge, dmin
 
-        return False, groups
+        return False, groups, None, None
 
     has_been_merged = True
-    mask            = numpy.where(groups > -1)[0]
-    clusters        = numpy.unique(groups[mask])
-    merged          = [len(clusters), 0]
+    mask = numpy.where(groups > -1)[0]
+    clusters = numpy.unique(groups[mask])
+    merged = [len(clusters), 0]
+
+    if merging_method == 'dip':
+        thr = 1
+    elif merging_method in ['folding', 'nd-folding', 'bhatta']:
+        thr = merging_param
+    elif merging_method == 'distance':
+        thr = merging_param/0.674
+
+    merge_history = {
+        'merge': [],
+        'distance': [],
+        'method': merging_method,
+        'threshold': thr,
+    }
 
     while has_been_merged:
-        has_been_merged, groups = perform_merging(groups, sim_mad, sim_dip, data)
+        has_been_merged, groups, merge, dmin = perform_merging(groups, merging_method, merging_param, data)
         if has_been_merged:
             merged[1] += 1
+            merge_history['merge'].append(merge)
+            merge_history['distance'].append(dmin)
 
-    return groups, merged
+    return groups, merged, merge_history
 
 
-def slice_templates(params, to_remove=[], to_merge=[], extension='',
-    input_extension=''):
+def slice_templates(params, to_remove=[], to_merge=[], extension='', input_extension=''):
     """Slice templates in HDF5 file.
 
     Arguments:
