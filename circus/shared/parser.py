@@ -101,7 +101,7 @@ class CircusParser(object):
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
-                          ['triggers', 'make_plots', 'string', 'png'],
+                          ['triggers', 'make_plots', 'string', ''],
                           ['triggers', 'trig_file', 'string', ''],
                           ['triggers', 'trig_windows', 'string', ''],
                           ['triggers', 'trig_unit', 'string', 'ms'],
@@ -115,7 +115,8 @@ class CircusParser(object):
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['filtering', 'common_ground', 'string', ''],
                           ['clustering', 'nb_repeats', 'int', '3'],
-                          ['clustering', 'make_plots', 'string', 'png'],
+                          ['clustering', 'make_plots', 'string', ''],
+                          ['clustering', 'debug_plots', 'string', ''],
                           ['clustering', 'test_clusters', 'bool', 'False'],
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
@@ -517,6 +518,14 @@ class CircusParser(object):
           if not test:
               if comm.rank == 0:
                   print_and_log(["make_plots in [%s] should be in %s" %(section, str(fileformats))], 'error', logger)
+              sys.exit(0)
+
+        fileformats = ['png', 'pdf', 'eps', 'jpg', '', 'None']
+        for section in ['clustering']:
+          test = self.parser.get('clustering', 'debug_plots').lower() in fileformats
+          if not test:
+              if comm.rank == 0:
+                  print_and_log(["debug_plots in [%s] should be in %s" %(section, str(fileformats))], 'error', logger)
               sys.exit(0)
 
         methods = ['distance', 'dip', 'folding', 'nd-folding', 'bhatta']

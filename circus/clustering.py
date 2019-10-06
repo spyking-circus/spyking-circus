@@ -56,6 +56,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats     = params.getint('clustering', 'nb_repeats')
     nclus_min      = params.getfloat('clustering', 'nclus_min')
     make_plots     = params.get('clustering', 'make_plots')
+    debug_plots    = params.get('clustering', 'debug_plots')
     merging_param  = params.getfloat('clustering', 'merging_param')
     merging_method = params.get('clustering', 'merging_method')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
@@ -771,7 +772,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             )
 
                         # Sanity plots for local merges.
-                        if make_plots not in ['None', '']:
+                        if debug_plots not in ['None', '']:
                             # Retrieve waveforms data.
                             n_neighbors = len(edges[nodes[ielec]])
                             indices = inv_nodes[edges[nodes[ielec]]]
@@ -785,7 +786,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             # Retrieve new allocation.
                             new_allocation = cluster_results[p][ielec]['groups']
                             # Define output path.
-                            save = [plot_path, '%s_%d' % (p, ielec), make_plots]
+                            save = [plot_path, '%s_%d' % (p, ielec), debug_plots]
                             # Call plot function.
                             plot.view_local_merges(
                                 waveforms_data,

@@ -289,21 +289,23 @@ def merging(groups, merging_method, merging_param, data):
     mask = numpy.where(groups > -1)[0]
     clusters = numpy.unique(groups[mask])
     merged = [len(clusters), 0]
-    if sim_dip > 0:
-        method = "sim. dip"
+
+    if merging_method == 'dip':
         thr = 1
-    else:
-        method = "sim. MAD"
-        thr = sim_mad / 0.674
+    elif merging_method in ['folding', 'nd-folding', 'bhatta']:
+        thr = merging_param
+    elif merging_method == 'distance':
+        thr = merging_param/0.674
+
     merge_history = {
         'merge': [],
         'distance': [],
-        'method': method,
+        'method': merging_method,
         'threshold': thr,
     }
 
     while has_been_merged:
-        has_been_merged, groups, merge = perform_merging(groups, merging_method, merging_param, data)
+        has_been_merged, groups, merge, dmin = perform_merging(groups, merging_method, merging_param, data)
         if has_been_merged:
             merged[1] += 1
             merge_history['merge'].append(merge)
