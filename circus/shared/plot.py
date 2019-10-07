@@ -361,7 +361,7 @@ def view_local_merges(
             if row_nb == nb_rows - 1:
                 ax.set_xlabel("time")
                 ax.set_ylabel("amp.")
-            if row_nb == 0:
+            if col_nb == 1:
                 group = local_merge_groups[final_cluster_nb]
                 def group_to_title(g):
                     if isinstance(g, tuple):

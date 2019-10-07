@@ -31,6 +31,18 @@ On the 4 plots on the rights, this is a 3D projection of all the spikes collecte
 
     If, in those plots, you see clusters that you would have rather split, and that do not have different color, then this is likely that the clustering algorithm had wrong parameters. Remember that in the configuration file ``max_clusters`` controls the maximal number of clusters per electrodes that will be searched (so you may want to increase it if clustering is not accurate enough), and that ``sim_same_elec`` will control how much similar clusters will be merged. So again, decrease it if you think you are losing some obvious clusters.
 
+
+Views of the Local Merges
+-------------------------
+
+During the clustering, if you set the parameter ``debug_plots`` to ``True`` in the ``clustering`` section, the code will produce (since 0.8.4) sanity plots for the local merges, to show you groups of clusters that were merged together. The method used to compute the distances between cluster can be distance (normalized distance between clusters, assuming they are Gaussian), dip-test of unimodality, folding test, or the Bhatta distance.
+
+.. figure::  local_merges.png
+   :align:   center
+
+   A view on the local merges that have been made given the selected distance, on a given electrode
+
+
 Views of the waveforms
 ----------------------
 
