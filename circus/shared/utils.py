@@ -1050,6 +1050,25 @@ def batch_folding_test_with_MPA(X, with_markov=False):
             mc = None
         return unimodal, p_value(phi, n_obs, dim), phi, mc
 
+
+def nd_bhatta_dist(X1, X2):
+
+    mu_1 = numpy.mean(X1, 1)
+    mu_2 = numpy.mean(X2, 1)
+    ms   = mu_1 - mu_2
+
+    cov_1 = numpy.cov(X1)
+    cov_2 = numpy.cov(X2)
+    cov   = (cov_1 + cov_2)/2
+
+    det_1 = numpy.linalg.det(cov_1)
+    det_2 = numpy.linalg.det(cov_2)
+    det   = numpy.linalg.det(cov)
+
+    dist = (1/8.)*numpy.dot(numpy.dot(ms.T, cov), ms) + 0.5*numpy.log(det/numpy.sqrt(det_1*det_2))
+    return dist
+
+
 import numpy as np
 from math import sqrt
 from scipy.stats import gaussian_kde

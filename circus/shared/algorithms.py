@@ -4,7 +4,7 @@ import shutil, h5py
 import scipy.linalg, scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
-from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA, bhatta_dist
+from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
@@ -263,6 +263,11 @@ def merging(groups, merging_method, merging_param, data):
                         dist = bhatta_dist(pr_1, pr_2)
                     except Exception:
                         dist = numpy.inf
+                elif merging_method == 'nd-bhatta':
+                    try:
+                        dist = nd_bhatta_dist(sd1[:, :3].T, sd2[:, :3].T)
+                    except Exception:
+                        dist = numpy.inf
 
                 if dist < dmin:
                     dmin = dist
@@ -270,7 +275,7 @@ def merging(groups, merging_method, merging_param, data):
 
         if merging_method == 'dip':
             thr = 1
-        elif merging_method in ['folding', 'nd-folding', 'bhatta']:
+        elif merging_method in ['folding', 'nd-folding', 'bhatta', 'nd-bhatta']:
             thr = merging_param
         elif merging_method == 'distance':
             thr = merging_param/0.674
@@ -292,7 +297,7 @@ def merging(groups, merging_method, merging_param, data):
 
     if merging_method == 'dip':
         thr = 1
-    elif merging_method in ['folding', 'nd-folding', 'bhatta']:
+    elif merging_method in ['folding', 'nd-folding', 'bhatta', 'nd-bhatta']:
         thr = merging_param
     elif merging_method == 'distance':
         thr = merging_param/0.674
