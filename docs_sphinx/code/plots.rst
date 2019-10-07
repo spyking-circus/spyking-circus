@@ -35,7 +35,7 @@ On the 4 plots on the rights, this is a 3D projection of all the spikes collecte
 Views of the Local Merges
 -------------------------
 
-During the clustering, if you set the parameter ``debug_plots`` to ``True`` in the ``clustering`` section, the code will produce (since 0.8.4) sanity plots for the local merges, to show you groups of clusters that were merged together. The method used to compute the distances between cluster can be distance (normalized distance between clusters, assuming they are Gaussian), dip-test of unimodality, folding test, or the Bhatta distance.
+During the clustering, if you set the parameter ``debug_plots`` to ``True`` in the ``clustering`` section, the code will produce (since 0.8.4) sanity plots for the local merges, to show you groups of clusters that were merged together. The method used to compute the distances between cluster can be distance (normalized distance between clusters, assuming they are Gaussian), `dip-test of unimodality <http://www.nicprice.net/diptest/Hartigan_1985_AnnalStat.pdf>`_, `folding test <https://hal.archives-ouvertes.fr/hal-01951676/document>`_, or the `Bhattacharyya distance <https://en.wikipedia.org/wiki/Bhattacharyya_distance>`_.
 
 .. figure::  local_merges.png
    :align:   center
