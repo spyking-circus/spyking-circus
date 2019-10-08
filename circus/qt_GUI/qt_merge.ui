@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>978</width>
-    <height>625</height>
+    <height>654</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -302,6 +302,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Dip-threshold</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QDoubleSpinBox" name="get_suggest_value">
          <property name="decimals">
           <number>3</number>
@@ -317,6 +324,36 @@
          </property>
          <property name="value">
           <double>0.750000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_suggest_drifts">
+         <property name="text">
+          <string>Suggest Drifts</string>
+         </property>
+         <property name="icon">
+          <iconset theme="help-about"/>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>Bhattacharyya distance</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="get_suggest_value_bhatta">
+         <property name="minimum">
+          <double>0.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.100000000000000</double>
+         </property>
+         <property name="value">
+          <double>1.000000000000000</double>
          </property>
         </widget>
        </item>
@@ -391,6 +428,19 @@
          <property name="icon">
           <iconset theme="help-about">
            <normaloff>.</normaloff>.</iconset>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="get_suggest_value_template">
+         <property name="minimum">
+          <double>1.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.100000000000000</double>
+         </property>
+         <property name="value">
+          <double>1.100000000000000</double>
          </property>
         </widget>
        </item>

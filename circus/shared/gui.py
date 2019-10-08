@@ -41,7 +41,7 @@ from algorithms import slice_templates, slice_clusters
 from mpi import comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
-from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag
+from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag, bhatta_dist
 
 logger = logging.getLogger(__name__)
 
@@ -244,8 +244,12 @@ class MergeWindow(QMainWindow):
 
         if self.app is not None:
             self.suggest_value = self.get_suggest_value.value()
+            self.suggest_value_template = self.get_suggest_value_template.value()
+            self.suggest_value_bhatta = self.get_suggest_value_bhatta.value()
         else:
             self.suggest_value = self.auto_mode
+            self.suggest_value_template = 1.1
+            self.suggest_value_bhatta = 1
 
         if self.app is not None:
             self.rect_selectors = [widgets.RectangleSelector(ax,
@@ -285,8 +289,12 @@ class MergeWindow(QMainWindow):
             self.ui.btn_delete.clicked.connect(self.remove_templates)
             self.ui.btn_suggest_templates.clicked.connect(self.suggest_templates)
             self.ui.btn_suggest_pairs.clicked.connect(self.suggest_pairs)
+            self.ui.btn_suggest_drifts.clicked.connect(self.suggest_drifts)
             self.ui.get_suggest_value.valueChanged.connect(self.update_suggest_value)
+            self.ui.get_suggest_value_template.valueChanged.connect(self.update_suggest_value_template)
+            self.ui.get_suggest_value_bhatta.valueChanged.connect(self.update_suggest_value_bhatta)
             self.ui.btn_unselect_template.clicked.connect(self.remove_selection_templates)
+
 
             self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
             self.ui.btn_merge.clicked.connect(self.do_merge)
@@ -318,6 +326,7 @@ class MergeWindow(QMainWindow):
             while perform_merges:
 
                 self.suggest_pairs(None)
+                self.suggest_drifts(None)
                 self.add_to_selection(None)
 
                 if len(self.selected_points) == 0:
@@ -340,8 +349,22 @@ class MergeWindow(QMainWindow):
     def update_suggest_value(self):
         self.suggest_value = self.get_suggest_value.value()
         if self.app is not None:
-            self.decision_boundary.set_xdata([0, self.score_z.max()])
+            self.decision_boundary.set_xdata([0, 1])
             self.decision_boundary.set_ydata([self.suggest_value, self.suggest_value])
+            self.ui.score_1.draw_idle()
+
+    def update_suggest_value_template(self):
+        self.suggest_value_template = self.get_suggest_value_template.value()
+        if self.app is not None:
+            self.decision_boundary2.set_xdata([self.suggest_value_template, self.suggest_value_template])
+            self.decision_boundary2.set_ydata([0, self.rates[self.to_consider].max()])
+            self.ui.score_2.draw_idle()
+
+    def update_suggest_value_bhatta(self):
+        self.suggest_value_bhatta = self.get_suggest_value_bhatta.value()
+        if self.app is not None:
+            self.decision_boundary3.set_xdata([0, 1])
+            self.decision_boundary3.set_ydata([self.suggest_value_bhatta, self.suggest_value_bhatta])
             self.ui.score_3.draw_idle()
 
     def closeEvent(self, event):
@@ -415,6 +438,7 @@ class MergeWindow(QMainWindow):
         self.raw_data    = numpy.zeros((0, n_size), dtype=numpy.float32)
         self.raw_control = numpy.zeros(0, dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
+        self.bhattas     = numpy.zeros(0, dtype=numpy.float32)
 
         to_explore       = xrange(comm.rank, len(self.to_consider), comm.size)
 
@@ -441,11 +465,13 @@ class MergeWindow(QMainWindow):
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
+                    self.bhattas     = numpy.concatenate((self.bhattas, numpy.array([bhatta_dist(spikes1, spikes2)], dtype=numpy.float32)))
 
         sys.stderr.flush()
         self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, comm)
         self.raw_data    = gather_array(self.raw_data, comm, 0, 1)
+        self.bhattas     = gather_array(self.bhattas, comm, 0, 1)
         self.sort_idcs   = numpy.arange(len(self.pairs))
         comm.Barrier()
 
@@ -454,7 +480,7 @@ class MergeWindow(QMainWindow):
         control = self.raw_control
         score  = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
         score2 = numpy.maximum(1 - data.mean(axis=1)/control, 0)
-        score3 = control
+        score3 = self.bhattas
         return score, score2, score3
 
     def plot_scores(self):
@@ -466,17 +492,19 @@ class MergeWindow(QMainWindow):
                 self.collections = []
                 for ax, x, y in [(self.score_ax1, self.score_x, self.score_y),
                                  (self.score_ax2, self.norms[self.to_consider], self.rates[self.to_consider]),
-                                 (self.score_ax3, self.score_z, self.score_y)]:
+                                 (self.score_ax3, self.score_x, self.score_z)]:
                     self.collections.append(ax.scatter(x, y,
                                                        facecolor=['black' for _ in x]))
                 #self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
-                self.decision_boundary = self.score_ax3.plot([0, self.score_z.max()], [self.suggest_value, self.suggest_value], 'r--', alpha=0.5)[0]
+                self.decision_boundary  = self.score_ax1.plot([0, 1], [self.suggest_value, self.suggest_value], 'r--', alpha=0.5)[0]
+                self.decision_boundary2 = self.score_ax2.plot([self.suggest_value_template, self.suggest_value_template], [0, self.rates[self.to_consider].max()], 'r--', alpha=0.5)[0]
+                self.decision_boundary3 = self.score_ax3.plot([0, 1], [self.suggest_value_bhatta, self.suggest_value_bhatta], 'r--', alpha=0.5)[0]
                 self.score_ax1.set_ylabel('CC metric')
                 self.score_ax1.set_xlabel('Template similarity')
                 self.score_ax2.set_xlabel('Template Norm')
                 self.score_ax2.set_ylabel('Nb spikes')
-                self.score_ax3.set_xlabel('Expected CC')
-                self.score_ax3.set_ylabel('CC metric')
+                self.score_ax3.set_xlabel('Template similarity')
+                self.score_ax3.set_ylabel('Bhatta distance')
                 self.waveforms_ax.set_xticks([])
                 self.waveforms_ax.set_yticks([])
                 #self.waveforms_ax.set_xlabel('Time [ms]')
@@ -485,13 +513,13 @@ class MergeWindow(QMainWindow):
             else:
                 for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
                                                                      (self.norms[self.to_consider], self.rates[self.to_consider]),
-                                                                     (self.score_z, self.score_y)]):
+                                                                     (self.score_x, self.score_z)]):
                     collection.set_offsets(np.hstack([x[np.newaxis, :].T,
                                                       y[np.newaxis, :].T]))
 
             for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
                                          (self.score_ax2, self.rates[self.to_consider], self.norms[self.to_consider]),
-                                         (self.score_ax3, self.score_y, self.score_z)]:
+                                         (self.score_ax3, self.score_z, self.score_x)]:
                 if len(score_y) > 0:
                     ymin, ymax = min(score_y), max(score_y)
                 else:
@@ -578,7 +606,7 @@ class MergeWindow(QMainWindow):
         elif self.score_ax == self.score_ax2:
             score_x, score_y = self.norms[self.to_consider], self.rates[self.to_consider]
         elif self.score_ax == self.score_ax3:
-            score_x, score_y = self.score_z, self.score_y
+            score_x, score_y = self.score_x, self.score_z
 
         in_selection = ((score_x >= xmin) &
                         (score_x <= xmax) &
@@ -600,13 +628,13 @@ class MergeWindow(QMainWindow):
         if event.inaxes == self.score_ax1:
             x = self.score_x
             y = self.score_y
-            link_with_x = None
-            link_with_y = self.score_ax3.set_ylim
+            link_with_x = self.score_ax1.set_xlim
+            link_with_y = None
         elif event.inaxes == self.score_ax3:
-            x = self.score_z
-            y = self.score_y
-            link_with_x = None
-            link_with_y = self.score_ax1.set_ylim
+            x = self.score_x
+            y = self.score_z
+            link_with_x = self.score_ax3.set_xlim
+            link_with_y = None
         elif event.inaxes == self.score_ax2:
             x = self.norms[self.to_consider]
             y = self.rates[self.to_consider]
@@ -667,7 +695,7 @@ class MergeWindow(QMainWindow):
         if self.app is not None:
             self.points = [zip(self.score_x, self.score_y),
                            zip(self.norms[self.to_consider], self.rates[self.to_consider]),
-                           zip(self.score_z, self.score_y)]
+                           zip(self.score_x, self.score_z)]
             self.line_lag1.set_xdata((lag, lag))
             self.line_lag2.set_xdata((-lag, -lag))
             self.data_ax.set_xlabel('lag (ms) -- cutoff: %.2fms' % self.use_lag)
@@ -900,8 +928,19 @@ class MergeWindow(QMainWindow):
 
     def suggest_pairs(self, event):
         self.inspect_points = set()
-        #indices  = numpy.where(self.score_y > self.suggest_value+self.score_z/self.score_z.max())[0]
         indices  = numpy.where(self.score_y > self.suggest_value)[0]
+        if self.app is not None:
+            self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
+
+        self.update_inspect(indices, add_or_remove='add')
+        
+        if self.app is not None:
+            self.app.restoreOverrideCursor()
+
+    def suggest_drifts(self, event):
+        self.inspect_points = set()
+        #indices  = numpy.where(self.score_y > self.suggest_value+self.score_z/self.score_z.max())[0]
+        indices  = numpy.where(self.score_z > self.suggest_value_bhatta)[0]
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
@@ -912,7 +951,7 @@ class MergeWindow(QMainWindow):
 
     def suggest_templates(self, event):
         self.inspect_templates = set()
-        indices = numpy.where(self.norms[self.to_consider] <= 1.1)[0]
+        indices = numpy.where(self.norms[self.to_consider] <= self.suggest_value_template)[0]
         self.update_inspect_template(indices, add_or_remove='add')
 
     def on_mouse_press(self, event):
@@ -932,8 +971,8 @@ class MergeWindow(QMainWindow):
                     x = self.norms[self.to_consider]
                     y = self.rates[self.to_consider]
                 elif event.inaxes == self.score_ax3:
-                    x = self.score_z
-                    y = self.score_y
+                    x = self.score_x
+                    y = self.score_z
                 elif event.inaxes == self.waveforms_ax:
                     pass
                 else:
