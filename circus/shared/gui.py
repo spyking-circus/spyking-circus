@@ -248,7 +248,7 @@ class MergeWindow(QMainWindow):
             self.suggest_value_bhatta = self.get_suggest_value_bhatta.value()
         else:
             self.suggest_value = self.auto_mode
-            self.suggest_value_template = 1.1
+            self.suggest_value_template = 1.5
             self.suggest_value_bhatta = 1
 
         if self.app is not None:
@@ -411,11 +411,13 @@ class MergeWindow(QMainWindow):
 
                 x_cc /= self.nb_bins
 
-                r1 = len(spike_1)/self.duration
-                r2 = len(spike_2)/self.duration
+                t_min = min(numpy.percentile(spike_1, 5), numpy.percentile(spike_2, 5))
+                t_max = max(numpy.percentile(spike_1, 95), numpy.percentile(spike_2, 95))
+                duration = (t_max - t_min)/self.sampling_rate
+                r1 = len(spike_1)/duration
+                r2 = len(spike_2)/duration
 
                 control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
-                control2 = r1 * r2 * self.duration * self.cc_bin * 1e-3
 
             return x_cc*1e6, control*1e6
 
@@ -842,7 +844,7 @@ class MergeWindow(QMainWindow):
         indices = self.to_consider[list(indices)]
 
         for i in xrange(len(indices)):
-            indices[i] -= [numpy.sum(self.to_delete <= indices[i])]
+            indices[i] -= numpy.sum(self.to_delete <= indices[i])
 
         if add_or_remove is 'add':
             indices = set(self.inspect_templates) | set(indices)
