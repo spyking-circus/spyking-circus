@@ -318,7 +318,7 @@ class MergeWindow(QMainWindow):
             self.suggest_templates(None)
             self.remove_templates(None)
 
-        if self.auto_mode > 0:
+        if self.auto_mode < 1:
             perform_merges = True
             self.update_lag(self.default_lag)
             self.current_order = 0
@@ -334,7 +334,7 @@ class MergeWindow(QMainWindow):
                 else:
                     self.do_merge(None)
 
-            self.finalize(None)
+        self.finalize(None)
 
     def listen(self):
 
@@ -431,7 +431,7 @@ class MergeWindow(QMainWindow):
         self.indices     = comm.bcast(self.indices, root=0)
         self.to_delete   = comm.bcast(self.to_delete, root=0)
 
-        to_consider      = set(self.indices) - set(self.to_delete)
+        to_consider      = sorted(set(self.indices) - set(self.to_delete))
         self.to_consider = numpy.array(list(to_consider), dtype=numpy.int32)
         real_indices     = self.to_consider[comm.rank::comm.size]
 
@@ -916,7 +916,7 @@ class MergeWindow(QMainWindow):
             self.update_data_sort_order()
 
     def add_to_selection(self, event):
-        to_add = set(self.inspect_points)
+        to_add = sorted(set(self.inspect_points))
         self.inspect_points = set()
         self.update_selection(to_add, add_or_remove='add')
 
@@ -1171,8 +1171,9 @@ class MergeWindow(QMainWindow):
         if comm.rank == 0:
             new_result = {'spiketimes' : {}, 'amplitudes' : {}}
 
-            to_keep = set(numpy.unique(self.indices)) - set(self.to_delete)
+            to_keep = sorted(set(numpy.unique(self.indices)) - set(self.to_delete))
             to_keep = numpy.array(list(to_keep))
+
             # nb_templates = self.nb_templates - len(self.to_delete) - len(self.all_merges) 
             print_and_log(['We kept %d templates out of %d after merging' %(len(to_keep), self.nb_templates),
                            'As meta merging is still experimental, you need',
