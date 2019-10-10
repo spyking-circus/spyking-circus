@@ -248,7 +248,7 @@ class MergeWindow(QMainWindow):
             self.suggest_value_bhatta = self.get_suggest_value_bhatta.value()
         else:
             self.suggest_value = self.auto_mode
-            self.suggest_value_template = 1.1
+            self.suggest_value_template = 1.05
             self.suggest_value_bhatta = 1
 
         if self.app is not None:
@@ -318,7 +318,7 @@ class MergeWindow(QMainWindow):
             self.suggest_templates(None)
             self.remove_templates(None)
 
-        if self.auto_mode < 1:
+        if self.auto_mode > 0:
             perform_merges = True
             self.update_lag(self.default_lag)
             self.current_order = 0
@@ -334,7 +334,7 @@ class MergeWindow(QMainWindow):
                 else:
                     self.do_merge(None)
 
-        self.finalize(None)
+            self.finalize(None)
 
     def listen(self):
 
