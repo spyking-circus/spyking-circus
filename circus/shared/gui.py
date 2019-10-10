@@ -248,7 +248,7 @@ class MergeWindow(QMainWindow):
             self.suggest_value_bhatta = self.get_suggest_value_bhatta.value()
         else:
             self.suggest_value = self.auto_mode
-            self.suggest_value_template = 1.5
+            self.suggest_value_template = 1.1
             self.suggest_value_bhatta = 1
 
         if self.app is not None:
@@ -467,7 +467,11 @@ class MergeWindow(QMainWindow):
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
-                    self.bhattas     = numpy.concatenate((self.bhattas, numpy.array([bhatta_dist(spikes1, spikes2)], dtype=numpy.float32)))
+                    if (len(spikes1) > 2) and (len(spikes2) > 2):
+                        dist = bhatta_dist(spikes1, spikes2)
+                    else:
+                        dist = 0
+                    self.bhattas     = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
 
         sys.stderr.flush()
         self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
