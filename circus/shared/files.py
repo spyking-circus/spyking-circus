@@ -1568,9 +1568,9 @@ def get_duration(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
     result               = {}
     myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='earliest')
-    duration = myfile['info']['duration']
+    duration = myfile['info']['duration'][0]
     myfile.close()
-    return result
+    return duration
 
 def get_garbage(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')

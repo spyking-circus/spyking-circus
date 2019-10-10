@@ -48,8 +48,8 @@ If you want to use the phy GUI to visualize your results, you may need to instal
 Then, once you are in the environment, install phy_ 2.0::
 
     (circus) >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
-    (circus) >> pip install --upgrade http://github.com/cortex-lab/phy/archive/dev.zip
-    (circus) >> pip install --upgrade http://github.com/cortex-lab/phylib/archive/master.zip
+    (circus) >> pip install --upgrade https://github.com/cortex-lab/phy/archive/dev.zip
+    (circus) >> pip install --upgrade https://github.com/cortex-lab/phylib/archive/master.zip
 
 Launching the phy 2.0 GUI
 ~~~~~~~~~~~~~~~~~~~~~~~~~

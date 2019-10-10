@@ -150,7 +150,7 @@ class MergeWindow(QMainWindow):
         self.default_lag = params.getint('merging', 'default_lag')
         self.remove_noise = params.getboolean('merging', 'remove_noise')
 
-        self.duration   = io.data_stats(params, show=False)
+        self.duration   = io.load_data(params, 'duration')
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
 
@@ -411,11 +411,11 @@ class MergeWindow(QMainWindow):
 
                 x_cc /= self.nb_bins
 
-                t_min = min(numpy.percentile(spike_1, 5), numpy.percentile(spike_2, 5))
-                t_max = max(numpy.percentile(spike_1, 95), numpy.percentile(spike_2, 95))
-                duration = (t_max - t_min)/self.sampling_rate
-                r1 = len(spike_1)/duration
-                r2 = len(spike_2)/duration
+                #t_min = min(numpy.percentile(spike_1, 5), numpy.percentile(spike_2, 5))
+                #t_max = max(numpy.percentile(spike_1, 95), numpy.percentile(spike_2, 95))
+                #duration = (t_max - t_min)/self.sampling_rate
+                r1 = len(spike_1)/self.duration
+                r2 = len(spike_2)/self.duration
 
                 control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
 
