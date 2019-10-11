@@ -196,7 +196,7 @@ class MergeWindow(QMainWindow):
         for idx in self.indices:
             tmp = self.templates[:, idx]
             tmp = tmp.toarray().reshape(self.N_e, self.N_t)
-            self.rates[idx] = len(self.result['spiketimes']['temp_' + str(idx)])
+            self.rates[idx] = len(self.result['spiketimes']['temp_' + str(idx)])/self.duration
             if sign_peaks == 'negative':
                 elec = numpy.argmin(numpy.min(tmp, 1))
                 thr = self.thresholds[elec]
@@ -528,7 +528,7 @@ class MergeWindow(QMainWindow):
                 self.score_ax1.set_ylabel('CC metric')
                 self.score_ax1.set_xlabel('Template similarity')
                 self.score_ax2.set_xlabel('Template Norm')
-                self.score_ax2.set_ylabel('Nb spikes')
+                self.score_ax2.set_ylabel('Rate [Hz]')
                 self.score_ax3.set_xlabel('Template similarity')
                 self.score_ax3.set_ylabel('Bhatta distance')
                 self.waveforms_ax.set_xticks([])
@@ -756,21 +756,29 @@ class MergeWindow(QMainWindow):
             for count, idx in enumerate(indices):
 
                 n1, n2 = self.pairs[idx]
-                spikes1 = self.result['spiketimes']['temp_' + str(n1)].astype('int64')/self.sampling_rate
-                spikes2 = self.result['spiketimes']['temp_' + str(n2)].astype('int64')/self.sampling_rate
-                x, y    = numpy.histogram(spikes1, bins=numpy.linspace(0, self.duration, 100), density=True)
-                cidx    = numpy.where(temp_indices == n1)[0][0]
-                data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
-                x, y    = numpy.histogram(spikes2, bins=numpy.linspace(0, self.duration, 100), density=True)
-                cidx    = numpy.where(temp_indices == n2)[0][0]
-                data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
+                spikes1 = self.result['spiketimes']['temp_' + str(n1)].astype('int64')
+                spikes2 = self.result['spiketimes']['temp_' + str(n2)].astype('int64')
+                if self.correct_lag:
+                    spikes2 += self.lag[temp_id1, temp_id2]
 
-            self.detail_2_ax.set_xticks(self.data_ax.get_xticks())
-            self.detail_2_ax.set_xticklabels([])
-            self.ui.detail_2.draw_idle()
+                spikes1 = spikes1/self.sampling_rate
+                spikes2 = spikes2/self.sampling_rate
+
+                try:
+                    x, y    = numpy.histogram(spikes1, bins=numpy.linspace(0, self.duration, 100), density=True)
+                    cidx    = numpy.where(temp_indices == n1)[0][0]
+                    data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
+                    x, y    = numpy.histogram(spikes2, bins=numpy.linspace(0, self.duration, 100), density=True)
+                    cidx    = numpy.where(temp_indices == n2)[0][0]
+                    data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
+                except Exception:
+                    pass
+
+            self.detail_2_ax.set_xticks(numpy.linspace(0, self.duration, 5))
             self.detail_2_ax.set_xlabel('Time [s]')
-            self.detail_2_ax.set_ylabel('Density')
+            self.detail_2_ax.set_ylabel('Spike density')
             self.detail_2_ax.set_xlim(0, self.duration)
+            self.ui.detail_2.draw_idle()
 
     def update_sort_idcs(self):
         # The selected points are sorted before all the other points -- an easy
