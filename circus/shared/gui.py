@@ -147,12 +147,17 @@ class MergeWindow(QMainWindow):
         self.cc_overlap = params.getfloat('merging', 'cc_overlap')
         self.cc_bin     = params.getfloat('merging', 'cc_bin')
         self.auto_mode  = params.getfloat('merging', 'auto_mode')
+        self.merge_drifts = params.getboolean('merging', 'merge_drifts')
+        self.drift_limit = params.getfloat('merging', 'drift_limit')
         self.default_lag = params.getint('merging', 'default_lag')
         self.remove_noise = params.getboolean('merging', 'remove_noise')
+        self.noise_limit = params.getfloat('merging', 'noise_limit')
 
         self.duration   = io.load_data(params, 'duration')
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
+        self.time_rpv   = params.getfloat('merging', 'time_rpv')
+        self.rpv_threshold = params.getfloat('merging', 'rpv_threshold')
 
         self.result     = io.load_data(params, 'results', self.ext_in)
 
@@ -242,14 +247,14 @@ class MergeWindow(QMainWindow):
         self.inspect_colors = []
         self.lasso_selector = None
 
+        self.suggest_value_template = self.noise_limit
+        self.suggest_value_bhatta = self.drift_limit
+
         if self.app is not None:
             self.suggest_value = self.get_suggest_value.value()
-            self.suggest_value_template = self.get_suggest_value_template.value()
             self.suggest_value_bhatta = self.get_suggest_value_bhatta.value()
         else:
             self.suggest_value = self.auto_mode
-            self.suggest_value_template = 1.05
-            self.suggest_value_bhatta = 1
 
         if self.app is not None:
             self.rect_selectors = [widgets.RectangleSelector(ax,
@@ -276,7 +281,7 @@ class MergeWindow(QMainWindow):
         #
             # # Connect matplotlib events
             for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3,
-                        self.ui.detail, self.ui.data_overview, self.ui.waveforms]:
+                        self.ui.detail, self.ui.data_overview, self.ui.waveforms, self.ui.detail_2]:
                 fig.mpl_connect('scroll_event', self.zoom)
                 fig.mpl_connect('button_press_event', self.on_mouse_press)
 
@@ -326,7 +331,8 @@ class MergeWindow(QMainWindow):
             while perform_merges:
 
                 self.suggest_pairs(None)
-                self.suggest_drifts(None)
+                if self.merge_drifts:
+                    self.suggest_drifts(None)
                 self.add_to_selection(None)
 
                 if len(self.selected_points) == 0:
@@ -384,6 +390,7 @@ class MergeWindow(QMainWindow):
             self.score_ax3 = self.ui.score_3.axes
             self.waveforms_ax  = self.ui.waveforms.axes
             self.detail_ax     = self.ui.detail.axes
+            self.detail_2_ax   = self.ui.detail_2.axes
             self.data_ax       = self.ui.data_overview.axes
             self.current_order = self.ui.cmb_sorting.currentIndex()
             self.mpl_toolbar = NavigationToolbar(self.ui.waveforms, None)
@@ -411,8 +418,8 @@ class MergeWindow(QMainWindow):
 
                 x_cc /= self.nb_bins
 
-                #t_min = min(numpy.percentile(spike_1, 5), numpy.percentile(spike_2, 5))
-                #t_max = max(numpy.percentile(spike_1, 95), numpy.percentile(spike_2, 95))
+                #t_min = min(numpy.percentile(spike_1, 10), numpy.percentile(spike_2, 10))
+                #t_max = max(numpy.percentile(spike_1, 90), numpy.percentile(spike_2, 90))
                 #duration = (t_max - t_min)/self.sampling_rate
                 r1 = len(spike_1)/self.duration
                 r2 = len(spike_2)/self.duration
@@ -420,6 +427,16 @@ class MergeWindow(QMainWindow):
                 control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
 
             return x_cc*1e6, control*1e6
+
+        def get_rpv(spike_1, spike_2, threshold):
+
+            all_spikes = numpy.sort(numpy.concatenate((spike_1, spike_2))/self.sampling_rate)
+            isi = numpy.diff(all_spikes)
+            nb_rpv = numpy.where(isi < threshold*1e-3)
+
+            return len(nb_rpv)/len(all_spikes)
+
+
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
 
@@ -441,6 +458,7 @@ class MergeWindow(QMainWindow):
         self.raw_control = numpy.zeros(0, dtype=numpy.float32)
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
         self.bhattas     = numpy.zeros(0, dtype=numpy.float32)
+        self.rpvs        = numpy.zeros(0, dtype=numpy.float32)
 
         to_explore       = xrange(comm.rank, len(self.to_consider), comm.size)
 
@@ -468,16 +486,18 @@ class MergeWindow(QMainWindow):
                     self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
                     if (len(spikes1) > 2) and (len(spikes2) > 2):
-                        dist = bhatta_dist(spikes1, spikes2)
+                        dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration))
                     else:
                         dist = 0
                     self.bhattas     = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
+                    self.rpvs        = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
 
         sys.stderr.flush()
         self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, comm)
         self.raw_data    = gather_array(self.raw_data, comm, 0, 1)
         self.bhattas     = gather_array(self.bhattas, comm, 0, 1)
+        self.rpvs        = gather_array(self.rpvs, comm, 0, 1)
         self.sort_idcs   = numpy.arange(len(self.pairs))
         comm.Barrier()
 
@@ -727,6 +747,31 @@ class MergeWindow(QMainWindow):
             self.detail_ax.set_xticklabels([])
             self.ui.detail.draw_idle()
 
+    def update_detail_2_plot(self):
+        indices      = self.inspect_points
+        temp_indices = self.to_consider[list(self.inspect_templates)]
+
+        if self.app is not None:
+            self.detail_2_ax.clear()
+            for count, idx in enumerate(indices):
+
+                n1, n2 = self.pairs[idx]
+                spikes1 = self.result['spiketimes']['temp_' + str(n1)].astype('int64')/self.sampling_rate
+                spikes2 = self.result['spiketimes']['temp_' + str(n2)].astype('int64')/self.sampling_rate
+                x, y    = numpy.histogram(spikes1, bins=numpy.linspace(0, self.duration, 100), density=True)
+                cidx    = numpy.where(temp_indices == n1)[0][0]
+                data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
+                x, y    = numpy.histogram(spikes2, bins=numpy.linspace(0, self.duration, 100), density=True)
+                cidx    = numpy.where(temp_indices == n2)[0][0]
+                data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
+
+            self.detail_2_ax.set_xticks(self.data_ax.get_xticks())
+            self.detail_2_ax.set_xticklabels([])
+            self.ui.detail_2.draw_idle()
+            self.detail_2_ax.set_xlabel('Time [s]')
+            self.detail_2_ax.set_ylabel('Density')
+            self.detail_2_ax.set_xlim(0, self.duration)
+
     def update_sort_idcs(self):
         # The selected points are sorted before all the other points -- an easy
         # way to achieve this is to add the maximum score to their score
@@ -869,8 +914,11 @@ class MergeWindow(QMainWindow):
             self.update_inspect(is_selected, 'add', False)
 
         if self.app is not None:
+            self.ui.label_pairs_selected.setText("# pairs selected: %d" %len(self.inspect_points))
+            self.ui.label_temp_selected.setText("# templates selected: %d" %len(self.inspect_templates))
             self.update_score_plot()
             self.update_detail_plot()
+            self.update_detail_2_plot()
             self.update_data_plot()
             self.update_waveforms()
 
@@ -900,8 +948,11 @@ class MergeWindow(QMainWindow):
             self.update_inspect_template(indices, 'add', False)
 
         if self.app is not None:
+            self.ui.label_pairs_selected.setText("# pairs selected: %d" %len(self.inspect_points))
+            self.ui.label_temp_selected.setText("# templates selected: %d" %len(self.inspect_templates))
             self.update_score_plot()
             self.update_detail_plot()
+            self.update_detail_2_plot()
             self.update_data_plot()
             self.update_waveforms()
 
@@ -913,10 +964,13 @@ class MergeWindow(QMainWindow):
             self.selected_points.difference_update(set(indices))
         else:
             self.selected_points.update(set(indices))
-    
+
         if self.app is not None:
+            self.ui.label_pairs_selected.setText("# pairs selected: %d" %len(self.inspect_points))
+            self.ui.label_temp_selected.setText("# templates selected: %d" %len(self.inspect_templates))
             self.update_score_plot()
             self.update_detail_plot()
+            self.update_detail_2_plot()
             self.update_data_sort_order()
 
     def add_to_selection(self, event):
@@ -934,7 +988,17 @@ class MergeWindow(QMainWindow):
 
     def suggest_pairs(self, event):
         self.inspect_points = set()
-        indices  = numpy.where(self.score_y > self.suggest_value)[0]
+
+        if self.app is not None:
+            test = self.ui.prevent_rpv.isChecked()
+        else:
+            test = True
+
+        if test:
+            indices = numpy.where((self.score_y > self.suggest_value) & (self.rpvs < self.rpv_threshold))[0]
+        else:
+            indices = numpy.where(self.score_y > self.suggest_value)[0]
+
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
@@ -945,8 +1009,16 @@ class MergeWindow(QMainWindow):
 
     def suggest_drifts(self, event):
         self.inspect_points = set()
-        #indices  = numpy.where(self.score_y > self.suggest_value+self.score_z/self.score_z.max())[0]
-        indices  = numpy.where(self.score_z > self.suggest_value_bhatta)[0]
+        
+        if self.app is not None:
+            test = self.ui.prevent_rpv.isChecked()
+        else:
+            test = True
+
+        if test:
+            indices = numpy.where((self.score_z > self.suggest_value_bhatta) & (self.rpvs < self.rpv_threshold))[0]
+        else:
+            indices  = numpy.where(self.score_z > self.suggest_value_bhatta)[0]
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 
@@ -1069,6 +1141,7 @@ class MergeWindow(QMainWindow):
                 self.score_ax3.clear()
                 self.update_data_sort_order()
                 self.update_detail_plot()
+                self.update_detail_2_plot()
                 self.update_waveforms()
                 self.plot_scores()
             # do lengthy process
@@ -1148,6 +1221,7 @@ class MergeWindow(QMainWindow):
                 self.score_ax3.clear()                
                 self.update_data_sort_order()
                 self.update_detail_plot()
+                self.update_detail_2_plot()
                 self.update_waveforms()
                 self.plot_scores()
 

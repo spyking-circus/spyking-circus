@@ -1073,7 +1073,7 @@ import numpy as np
 from math import sqrt
 from scipy.stats import gaussian_kde
 
-def bhatta_dist(X1, X2, method='continuous'):
+def bhatta_dist(X1, X2, method='continuous', n_steps=50, bounds=None):
     #Calculate the Bhattacharyya distance between X1 and X2. X1 and X2 should be 1D numpy arrays representing the same
     # feature in two separate classes. 
 
@@ -1131,17 +1131,19 @@ def bhatta_dist(X1, X2, method='continuous'):
 
     elif method == 'continuous':
         ###Use a continuous density function to calculate the coefficient (This is the most consistent, but also slightly slow):
-        N_STEPS = 50
         #Get density functions:
         d1 = get_density(X1)
         d2 = get_density(X2)
         #Calc coeff:
-        xs = np.linspace(min(cX),max(cX),N_STEPS)
+        if bounds is None:
+            bounds = (min(cX), max(cX))
+
+        xs = np.linspace(bounds[0], bounds[1], n_steps)
         bht = 0
         for x in xs:
-            p1 = d1(x)
-            p2 = d2(x)
-            bht += sqrt(p1*p2)*(max(cX)-min(cX))/N_STEPS
+            bht += sqrt(d1(x)*d2(x))
+
+        bht *= (bounds[1]-bounds[0])/n_steps
 
     else:
         raise ValueError("The value of the 'method' parameter does not match any known method")
