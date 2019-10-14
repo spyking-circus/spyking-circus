@@ -1012,15 +1012,25 @@ class MergeWindow(QMainWindow):
     def suggest_pairs(self, event):
         self.inspect_points = set()
 
-        if self.app is not None:
-            test = self.ui.prevent_rpv.isChecked()
-        else:
-            test = True
+        all_indices = (self.score_y > self.suggest_value)
 
-        if test:
-            indices = numpy.where((self.score_y > self.suggest_value) & (self.rpvs < self.rpv_threshold) & (self.overlapping == 1))[0]
+        if self.app is not None:
+            test1 = self.ui.prevent_rpv.isChecked()
         else:
-            indices = numpy.where((self.score_y > self.suggest_value) & (self.overlapping == 1))[0]
+            test1 = True
+
+        if test1:
+            all_indices = all_indices & (self.rpvs < self.rpv_threshold)
+
+        if self.app is not None:
+            test2 = self.ui.prevent_min_spikes.isChecked()
+        else:
+            test2 = True
+
+        if test2:
+            all_indices = all_indices & (self.overlapping == 1)
+
+        indices = numpy.where(all_indices)[0]
 
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
@@ -1033,15 +1043,18 @@ class MergeWindow(QMainWindow):
     def suggest_drifts(self, event):
         self.inspect_points = set()
         
-        if self.app is not None:
-            test = self.ui.prevent_rpv.isChecked()
-        else:
-            test = True
+        all_indices = (self.score_z > self.suggest_value_bhatta)
 
-        if test:
-            indices = numpy.where((self.score_z > self.suggest_value_bhatta) & (self.rpvs < self.rpv_threshold))[0]
+        if self.app is not None:
+            test1 = self.ui.prevent_rpv.isChecked()
         else:
-            indices  = numpy.where(self.score_z > self.suggest_value_bhatta)[0]
+            test1 = True
+
+        if test1:
+            all_indices = all_indices & (self.rpvs < self.rpv_threshold)
+
+        indices = numpy.where(all_indices)[0]
+
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
 

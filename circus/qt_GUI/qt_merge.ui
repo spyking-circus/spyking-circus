@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>978</width>
-    <height>763</height>
+    <height>807</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -314,7 +314,17 @@
        <item>
         <widget class="QCheckBox" name="prevent_rpv">
          <property name="text">
-          <string>Prevent RPV violations</string>
+          <string>Skip if RPV violations</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="prevent_min_spikes">
+         <property name="text">
+          <string>Skip if not enough spikes</string>
          </property>
          <property name="checked">
           <bool>true</bool>
