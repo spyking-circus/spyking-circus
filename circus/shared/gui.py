@@ -407,7 +407,7 @@ class MergeWindow(QMainWindow):
             size    = 2*max_delay+1
             x_cc    = numpy.zeros(size, dtype=numpy.float32)
             control = 0
-            control2 = 0
+            overlap = False
 
             if (len(spike_1) > 0) and (len(spike_2) > 0):
 
