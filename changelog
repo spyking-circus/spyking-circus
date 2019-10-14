@@ -2,6 +2,10 @@
 Release 0.8.5
 =============
 
+* fix a bug while removing noisy templates in meta merging
+* refactoring of the meta merging GUI, addition of bhatta distances
+* meta merging more robust for non stationary recordings
+
 =============
 Release 0.8.4
 =============
