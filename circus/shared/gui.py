@@ -152,6 +152,7 @@ class MergeWindow(QMainWindow):
         self.default_lag = params.getint('merging', 'default_lag')
         self.remove_noise = params.getboolean('merging', 'remove_noise')
         self.noise_limit = params.getfloat('merging', 'noise_limit')
+        self.min_spikes  = params.getint('merging', 'min_spikes')
 
         self.duration   = io.load_data(params, 'duration')
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
@@ -418,15 +419,26 @@ class MergeWindow(QMainWindow):
 
                 x_cc /= self.nb_bins
 
-                #t_min = min(numpy.percentile(spike_1, 10), numpy.percentile(spike_2, 10))
-                #t_max = max(numpy.percentile(spike_1, 90), numpy.percentile(spike_2, 90))
-                #duration = (t_max - t_min)/self.sampling_rate
-                r1 = len(spike_1)/self.duration
-                r2 = len(spike_2)/self.duration
+                nspike_1 = spike_1/self.sampling_rate
+                nspike_2 = spike_2/self.sampling_rate
+                xaxis = bins=numpy.arange(0, self.duration, 1)
 
+                is_active_1, _ = numpy.histogram(nspike_1, xaxis)
+                is_active_2, _ = numpy.histogram(nspike_2, xaxis)
+
+                is_active = is_active_1 + is_active_2
+                duration = len(numpy.where(is_active > 0)[0])
+                r1 = len(spike_1)/duration
+                r2 = len(spike_2)/duration
                 control = len(spike_1)*len(spike_2)/float((self.nb_bins**2))
 
-            return x_cc*1e6, control*1e6
+                is_overlapping = is_active_1 * is_active_2
+                duration = numpy.where(is_overlapping == 0)[0]
+                is_active_1[duration] = 0
+                is_active_2[duration] = 0
+                overlap = (is_active_1.sum() > self.min_spikes) and (is_active_2.sum() > self.min_spikes)
+
+            return x_cc*1e6, control*1e6, overlap
 
         def get_rpv(spike_1, spike_2, threshold):
 
@@ -459,6 +471,7 @@ class MergeWindow(QMainWindow):
         self.pairs       = numpy.zeros((0, 2), dtype=numpy.int32)
         self.bhattas     = numpy.zeros(0, dtype=numpy.float32)
         self.rpvs        = numpy.zeros(0, dtype=numpy.float32)
+        self.overlapping = numpy.zeros(0, dtype=numpy.int32)
 
         to_explore       = xrange(comm.rank, len(self.to_consider), comm.size)
 
@@ -481,7 +494,7 @@ class MergeWindow(QMainWindow):
                     spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
                     if self.correct_lag:
                         spikes2 += self.lag[temp_id1, temp_id2]
-                    a, b    = reversed_corr(spikes1, spikes2, self.max_delay)
+                    a, b, overlap    = reversed_corr(spikes1, spikes2, self.max_delay)
                     self.raw_data    = numpy.vstack((self.raw_data, a))
                     self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                     self.pairs       = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
@@ -491,9 +504,11 @@ class MergeWindow(QMainWindow):
                         dist = 0
                     self.bhattas     = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
                     self.rpvs        = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
+                    self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
 
         sys.stderr.flush()
         self.pairs       = gather_array(self.pairs, comm, 0, 1, dtype='int32')
+        self.overlapping = gather_array(self.overlapping, comm, 0, 1, dtype='int32')
         self.raw_control = gather_array(self.raw_control, comm)
         self.raw_data    = gather_array(self.raw_data, comm, 0, 1)
         self.bhattas     = gather_array(self.bhattas, comm, 0, 1)
@@ -759,7 +774,7 @@ class MergeWindow(QMainWindow):
                 spikes1 = self.result['spiketimes']['temp_' + str(n1)].astype('int64')
                 spikes2 = self.result['spiketimes']['temp_' + str(n2)].astype('int64')
                 if self.correct_lag:
-                    spikes2 += self.lag[temp_id1, temp_id2]
+                    spikes2 += self.lag[n1, n2]
 
                 spikes1 = spikes1/self.sampling_rate
                 spikes2 = spikes2/self.sampling_rate
@@ -1003,9 +1018,9 @@ class MergeWindow(QMainWindow):
             test = True
 
         if test:
-            indices = numpy.where((self.score_y > self.suggest_value) & (self.rpvs < self.rpv_threshold))[0]
+            indices = numpy.where((self.score_y > self.suggest_value) & (self.rpvs < self.rpv_threshold) & (self.overlapping == 1))[0]
         else:
-            indices = numpy.where(self.score_y > self.suggest_value)[0]
+            indices = numpy.where((self.score_y > self.suggest_value) & (self.overlapping == 1))[0]
 
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
