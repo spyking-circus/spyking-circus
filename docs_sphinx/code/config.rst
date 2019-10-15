@@ -169,7 +169,9 @@ The merging section is::
     default_lag    = 5         # Default length of the period to compute dip in the CC [ms]
     auto_mode      = 0.75      # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
     remove_noise   = False     # If True, meta merging will remove obvious noise templates (weak amplitudes)
-
+    noise_limit    = 1.05      # Amplitude at which templates are classified as noise
+    time_rpv       = 5         # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
+    rpv_threshold  = 0.02      # Percentage of RPV allowed while merging
 
 To know more about how those merges are performed and how to use this option, see :doc:`Automatic Merging <../code/merging>`. Parameters that are most likely to be changed:
     * ``correct_lag`` By default, in the meta-merging GUI, when two templates are merged, the spike times of the one removed are simply added to the one kept, without modification. However, it is more accurate to shift those spike, in times, by the temporal shift that may exist between those two templates. This will lead to a better visualization in phy, with more aligned spikes

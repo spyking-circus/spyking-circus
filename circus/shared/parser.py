@@ -133,12 +133,18 @@ class CircusParser(object):
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['extracting', 'noise_thr', 'float', '1.'],
-                          ['merging', 'cc_overlap', 'float', '0.5'],
+                          ['merging', 'cc_overlap', 'float', '0.85'],
                           ['merging', 'cc_bin', 'float', '2'],
                           ['merging', 'correct_lag', 'bool', 'False'],
                           ['merging', 'auto_mode', 'float', '0'],
                           ['merging', 'default_lag', 'int', '5'],
                           ['merging', 'remove_noise', 'bool', 'False'],
+                          ['merging', 'noise_limit', 'float', '1.05'],
+                          ['merging', 'merge_drifts', 'bool', 'False'],
+                          ['merging', 'drift_limit', 'float', '0.5'],
+                          ['merging', 'time_rpv', 'float', '5'],
+                          ['merging', 'rpv_threshold', 'float', '0.02'],
+                          ['merging', 'min_spikes', 'int', '100'],
                           ['converting', 'export_pcs', 'string', 'prompt'],
                           ['converting', 'erase_all', 'bool', 'True'],
                           ['converting', 'export_all', 'bool', 'False'],
@@ -494,10 +500,16 @@ class CircusParser(object):
                 print_and_log(["memory_usage in [data] should be in ]0,1]"], 'error', logger)
             sys.exit(0)
 
-        test = (self.parser.getfloat('merging', 'auto_mode') >= 0) and (self.parser.getfloat('merging', 'auto_mode') < 1)
+        test = (self.parser.getfloat('merging', 'auto_mode') >= 0) and (self.parser.getfloat('merging', 'auto_mode') <= 1)
         if not test:
             if comm.rank == 0:
                 print_and_log(["auto_mode in [merging] should be in [0, 1]"], 'error', logger)
+            sys.exit(0)
+
+        test = (self.parser.getfloat('merging', 'noise_limit') >= 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["noise_limit in [merging] should be > 1"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getint('detection', 'oversampling_factor') >= 0)

@@ -368,6 +368,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
 
         positions = numpy.arange(len(to_keep))
 
+
         # Initialize new HDF5 file for templates.
         local_keep = to_keep[positions]
         templates  = scipy.sparse.lil_matrix((N_e*N_t, 2*len(to_keep)), dtype=numpy.float32)
@@ -375,6 +376,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
         hfile      = h5py.File(hfilename, 'w', libver='earliest')
         norms      = hfile.create_dataset('norms', shape=(2*len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
+
         # For each index to keep.
         for count, keep in zip(positions, local_keep):
             # Copy template.

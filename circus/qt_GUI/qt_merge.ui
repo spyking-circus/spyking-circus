@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>978</width>
-    <height>625</height>
+    <height>807</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,6 +18,16 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2" columnstretch="2,0,0,0">
+    <item row="2" column="2">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string/>
+      </property>
+      <property name="pixmap">
+       <pixmap>../icons/logo.jpg</pixmap>
+      </property>
+     </widget>
+    </item>
     <item row="0" column="0">
      <widget class="QGroupBox" name="groupBox">
       <property name="minimumSize">
@@ -223,7 +233,7 @@
     </item>
     <item row="1" column="3">
      <widget class="QWidget" name="verticalWidget" native="true">
-      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0">
+      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0,0">
        <property name="spacing">
         <number>10</number>
        </property>
@@ -259,17 +269,17 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="MplCanvas" name="detail_2" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
       </layout>
-     </widget>
-    </item>
-    <item row="2" column="2">
-     <widget class="QLabel" name="label_2">
-      <property name="text">
-       <string/>
-      </property>
-      <property name="pixmap">
-       <pixmap>../icons/logo.jpg</pixmap>
-      </property>
      </widget>
     </item>
     <item row="1" column="2">
@@ -302,6 +312,33 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="prevent_rpv">
+         <property name="text">
+          <string>Skip if RPV violations</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="prevent_min_spikes">
+         <property name="text">
+          <string>Skip if not enough spikes</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Dip-threshold</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QDoubleSpinBox" name="get_suggest_value">
          <property name="decimals">
           <number>3</number>
@@ -313,10 +350,41 @@
           <double>1.000000000000000</double>
          </property>
          <property name="singleStep">
-          <double>0.010000000000000</double>
+          <double>0.050000000000000</double>
          </property>
          <property name="value">
           <double>0.750000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_suggest_drifts">
+         <property name="text">
+          <string>Suggest Drifts</string>
+         </property>
+         <property name="icon">
+          <iconset theme="help-about">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>Bhattacharyya distance</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="get_suggest_value_bhatta">
+         <property name="minimum">
+          <double>0.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.050000000000000</double>
+         </property>
+         <property name="value">
+          <double>1.000000000000000</double>
          </property>
         </widget>
        </item>
@@ -361,6 +429,20 @@
         </widget>
        </item>
        <item>
+        <widget class="QLabel" name="label_pairs_selected">
+         <property name="text">
+          <string># pairs selected : 0</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_temp_selected">
+         <property name="text">
+          <string># templates selected : 0</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="verticalSpacer_2">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -391,6 +473,19 @@
          <property name="icon">
           <iconset theme="help-about">
            <normaloff>.</normaloff>.</iconset>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="get_suggest_value_template">
+         <property name="minimum">
+          <double>1.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.050000000000000</double>
+         </property>
+         <property name="value">
+          <double>1.050000000000000</double>
          </property>
         </widget>
        </item>

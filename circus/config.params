@@ -64,10 +64,14 @@ collect_all    = False      # If True, one garbage template per electrode is cre
 [merging]
 cc_overlap     = 0.85       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2          # Bin size for computing CC [in ms]
-correct_lag    = True       # If spikes are aligned when merging. May be better for phy usage
 default_lag    = 5          # Default length of the period to compute dip in the CC [ms]
 auto_mode      = 0.75       # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
 remove_noise   = False      # If True, meta merging will remove obvious noise templates (weak amplitudes)
+noise_limit    = 1.05       # Amplitude at which templates are classified as noise
+time_rpv       = 5          # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
+rpv_threshold  = 0.02       # Percentage of RPV allowed while merging
+merge_drifts   = False      # Try to automatically merge drifts, i.e. non overlapping spiking neurons
+drift_limit    = 0.1        # Distance for drifts. The higher, the more non-overlapping the activities should be
 
 [converting]
 erase_all      = True       # If False, a prompt will ask you to export if export has already been done
