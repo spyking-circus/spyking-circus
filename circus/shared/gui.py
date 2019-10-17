@@ -149,7 +149,7 @@ class MergeWindow(QMainWindow):
         self.auto_mode  = params.getfloat('merging', 'auto_mode')
         self.merge_drifts = params.getboolean('merging', 'merge_drifts')
         self.drift_limit = params.getfloat('merging', 'drift_limit')
-        self.default_lag = params.getint('merging', 'default_lag')
+        self.default_lag = params.getfloat('merging', 'default_lag')
         self.remove_noise = params.getboolean('merging', 'remove_noise')
         self.noise_limit = params.getfloat('merging', 'noise_limit')
         self.min_spikes  = params.getint('merging', 'min_spikes')
@@ -757,7 +757,9 @@ class MergeWindow(QMainWindow):
                                                  all_raw_data[idx, :].T, lw=2, color=self.inspect_colors[count])
                 self.detail_ax.plot(self.raw_lags, all_raw_control[idx]*numpy.ones(all_raw_data.shape[1]), ':',
                                     color=self.inspect_colors[count], lw=2)
-            #self.detail_ax.set_ylim(0, 3)
+            ymin,ymax = self.detail_ax.get_ylim()
+            self.detail_ax.plot([-self.use_lag, -self.use_lag], [0, ymax], 'k')
+            self.detail_ax.plot([self.use_lag, self.use_lag], [0, ymax], 'k')
             self.detail_ax.set_xticks(self.data_ax.get_xticks())
             self.detail_ax.set_xticklabels([])
             self.ui.detail.draw_idle()
@@ -1119,6 +1121,7 @@ class MergeWindow(QMainWindow):
             if self.lag_selector.active:
                 # Update lag
                 self.update_lag(abs(event.xdata))
+                self.update_detail_plot()
                 self.lag_selector.active = False
                 self.plot_scores()
                 self.update_data_plot()
