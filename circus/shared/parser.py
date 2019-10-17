@@ -626,8 +626,12 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
-
-        return self.parser.get(section, data)
+        try:
+          return self.parser.get(section, data)
+        except Exception:
+          if comm.rank == 0:
+            print_and_log(["Parameter %s is missing in section [%s]" %(data, section)], 'error', logger)
+          sys.exit(0)
 
     def getboolean(self, section, data):
         """
@@ -647,8 +651,12 @@ class CircusParser(object):
             if the variable data is applied or not.    
         
         """
-
-        return self.parser.getboolean(section, data)
+        try:
+          return self.parser.getboolean(section, data)
+        except Exception:
+          if comm.rank == 0:
+            print_and_log(["Parameter %s is missing in section [%s]" %(data, section)], 'error', logger)
+          sys.exit(0)
 
     def getfloat(self, section, data):
         """
@@ -668,8 +676,12 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
-
-        return self.parser.getfloat(section, data)
+        try:
+          return self.parser.getfloat(section, data)
+        except Exception:
+          if comm.rank == 0:
+            print_and_log(["Parameter %s is missing in section [%s]" %(data, section)], 'error', logger)
+          sys.exit(0)
 
     def getint(self, section, data):
         """
@@ -689,8 +701,12 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
-
-        return self.parser.getint(section, data)
+        try:
+          return self.parser.getint(section, data)
+        except Exception:
+          if comm.rank == 0:
+            print_and_log(["Parameter %s is missing in section [%s]" %(data, section)], 'error', logger)
+          sys.exit(0)
 
     def set(self, section, data, value):
         """
