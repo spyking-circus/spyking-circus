@@ -265,7 +265,7 @@ def merging(groups, merging_method, merging_param, data):
                         dist = numpy.inf
                 elif merging_method == 'nd-bhatta':
                     try:
-                        dist = nd_bhatta_dist(sd1[:, :3].T, sd2[:, :3].T)
+                        dist = nd_bhatta_dist(sd1.T, sd2.T)
                     except Exception:
                         dist = numpy.inf
 
