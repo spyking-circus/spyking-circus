@@ -531,11 +531,16 @@ class MergeWindow(QMainWindow):
                 # It is important to set one facecolor per point so that we can change
                 # it later
                 self.collections = []
+                self.collections_inspected = []  # used to visualize inspected points in front of all the points
                 for ax, x, y in [(self.score_ax1, self.score_x, self.score_y),
                                  (self.score_ax2, self.norms[self.to_consider], self.rates[self.to_consider]),
                                  (self.score_ax3, self.score_x, self.score_z)]:
-                    self.collections.append(ax.scatter(x, y,
-                                                       facecolor=['black' for _ in x]))
+                    self.collections.append(
+                        ax.scatter(x, y, facecolor=['black' for _ in x])
+                    )
+                    self.collections_inspected.append(
+                        ax.scatter(x, y, s=[0.0 for _ in x], facecolor=['black' for _ in x])
+                    )
                 #self.score_ax3.plot([0, 1], [0, 1], 'k--', alpha=0.5)
                 self.decision_boundary  = self.score_ax1.plot([0, 1], [self.suggest_value, self.suggest_value], 'r--', alpha=0.5)[0]
                 self.decision_boundary2 = self.score_ax2.plot([self.suggest_value_template, self.suggest_value_template], [0, self.rates[self.to_consider].max()], 'r--', alpha=0.5)[0]
@@ -550,13 +555,16 @@ class MergeWindow(QMainWindow):
                 self.waveforms_ax.set_yticks([])
                 #self.waveforms_ax.set_xlabel('Time [ms]')
                 #self.waveforms_ax.set_ylabel('Amplitude')
-
             else:
-                for collection, (x, y) in zip(self.collections, [(self.score_x, self.score_y),
-                                                                     (self.norms[self.to_consider], self.rates[self.to_consider]),
-                                                                     (self.score_x, self.score_z)]):
-                    collection.set_offsets(np.hstack([x[np.newaxis, :].T,
-                                                      y[np.newaxis, :].T]))
+                xys = [
+                    (self.score_x, self.score_y),
+                    (self.norms[self.to_consider], self.rates[self.to_consider]),
+                    (self.score_x, self.score_z)
+                ]
+                for collection, (x, y) in zip(self.collections, xys):
+                    collection.set_offsets(np.hstack([x[np.newaxis, :].T, y[np.newaxis, :].T]))
+                for collection_inspected, (x, y) in zip(self.collections_inspected, xys):
+                    collection_inspected.set_offsets(np.hstack([x[np.newaxis, :].T, y[np.newaxis, :].T]))
 
             for ax, score_y, score_x in [(self.score_ax1, self.score_y, self.score_x),
                                          (self.score_ax2, self.rates[self.to_consider], self.norms[self.to_consider]),
@@ -880,11 +888,10 @@ class MergeWindow(QMainWindow):
             for fig in [self.ui.waveforms]:
                 fig.draw_idle()
 
-
     def update_score_plot(self):
         if self.app is not None:
             for collection in self.collections:
-                if collection.axes == self.score_ax2:
+                if collection.axes == self.score_ax2:  # i.e. template rate v.s. template norm
                     fcolors = collection.get_facecolors()
                     colorin = colorConverter.to_rgba('black', alpha=0.5)
                     colorout = colorConverter.to_rgba('black')
@@ -902,10 +909,40 @@ class MergeWindow(QMainWindow):
                         fcolors[p] = colorin
                     for idx, p in enumerate(self.inspect_points):
                         fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+            for collection_inspected in self.collections_inspected:
+                if collection_inspected.axes == self.score_ax2:  # i.e. template rate v.s. template norm
+                    # Change colors of selected templates.
+                    fcolors = collection_inspected.get_facecolors()
+                    colorin = colorConverter.to_rgba('black', alpha=0.5)
+                    colorout = colorConverter.to_rgba('black')
+                    fcolors[:] = colorout
+                    for p in self.selected_templates:
+                        fcolors[p] = colorin
+                    for idx, p in enumerate(self.inspect_templates):
+                        fcolors[p] = colorConverter.to_rgba(self.inspect_colors_templates[idx])
+                    # Make unselected templates not visible.
+                    sizes = np.copy(collection_inspected.get_sizes())
+                    sizes[:] = 0
+                    sizes[self.inspect_templates] = mpl.rcParams['lines.markersize'] ** 2
+                    collection_inspected.set_sizes(sizes)
+                else:
+                    # Change colors to selected points.
+                    fcolors = collection_inspected.get_facecolors()
+                    colorin = colorConverter.to_rgba('black', alpha=0.5)
+                    colorout = colorConverter.to_rgba('black')
+                    fcolors[:] = colorout
+                    for p in self.selected_points:
+                        fcolors[p] = colorin
+                    for idx, p in enumerate(self.inspect_points):
+                        fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+                    #  Make unselected points not visible.
+                    sizes = np.copy(collection_inspected.get_sizes())
+                    sizes[:] = 0
+                    sizes[self.inspect_points] = mpl.rcParams['lines.markersize'] ** 2
+                    collection_inspected.set_sizes(sizes)
 
             for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3]:
                 fig.draw_idle()
-
 
     def update_inspect_template(self, indices, add_or_remove=None, link=True):
         if MPL_VERSION:
@@ -1167,6 +1204,7 @@ class MergeWindow(QMainWindow):
             self.generate_data()
             self.update_lag(self.use_lag)
             self.collections        = None
+            self.collections_inspected = None
             self.selected_points    = set()
             self.selected_templates = set()
             self.inspect_points     = set()
@@ -1247,6 +1285,7 @@ class MergeWindow(QMainWindow):
             self.generate_data()
             self.update_lag(self.use_lag)
             self.collections = None
+            self.collections_inspected = None
             self.selected_points    = set()
             self.selected_templates = set()
             self.inspect_points     = set()
