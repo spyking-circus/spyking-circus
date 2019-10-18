@@ -952,7 +952,7 @@ class MergeWindow(QMainWindow):
                     # Make unselected templates not visible.
                     sizes = np.copy(collection_inspected.get_sizes())
                     sizes[:] = 0
-                    sizes[self.inspect_templates] = mpl.rcParams['lines.markersize'] ** 2
+                    sizes[numpy.array(list(self.inspect_templates), dtype='int32')] = mpl.rcParams['lines.markersize'] ** 2
                     collection_inspected.set_sizes(sizes)
                 else:
                     # Change colors to selected points.
@@ -967,7 +967,7 @@ class MergeWindow(QMainWindow):
                     #  Make unselected points not visible.
                     sizes = np.copy(collection_inspected.get_sizes())
                     sizes[:] = 0
-                    sizes[self.inspect_points] = mpl.rcParams['lines.markersize'] ** 2
+                    sizes[numpy.array(list(self.inspect_points), dtype='int32')] = mpl.rcParams['lines.markersize'] ** 2
                     collection_inspected.set_sizes(sizes)
 
             for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3]:
