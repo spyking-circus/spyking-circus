@@ -193,20 +193,20 @@ class MergeWindow(QMainWindow):
         self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
         self.to_delete  = numpy.zeros(0, dtype=numpy.int32)
 
-        sign_peaks      = params.get('detection', 'peaks')
+        self.sign_peaks = params.get('detection', 'peaks')
         for idx in self.indices:
             tmp = self.templates[:, idx]
             tmp = tmp.toarray().reshape(self.N_e, self.N_t)
             self.rates[idx] = len(self.result['spiketimes']['temp_' + str(idx)])/self.duration
-            if sign_peaks == 'negative':
+            if self.sign_peaks == 'negative':
                 elec = numpy.argmin(numpy.min(tmp, 1))
                 thr = self.thresholds[elec]
                 self.norms[idx] = -tmp.min()/thr
-            elif sign_peaks == 'positive':
+            elif self.sign_peaks == 'positive':
                 elec = numpy.argmax(numpy.max(tmp, 1))
                 thr = self.thresholds[elec]
                 self.norms[idx] = tmp.max()/thr
-            elif sign_peaks == 'both':
+            elif self.sign_peaks == 'both':
                 elec = numpy.argmax(numpy.max(numpy.abs(tmp), 1))
                 thr = self.thresholds[elec]
                 self.norms[idx] = numpy.abs(tmp).max()/thr
@@ -312,6 +312,7 @@ class MergeWindow(QMainWindow):
             self.ui.btn_set_lag.clicked.connect(lambda event: setattr(self.lag_selector,
                                                                       'active', True))
             self.ui.show_peaks.clicked.connect(self.update_waveforms)
+            self.ui.show_thresholds.clicked.connect(self.update_waveforms)
 
             # TODO: Tooltips
             # self.electrode_ax.format_coord = lambda x, y: 'template similarity: %.2f  cross-correlation metric %.2f' % (x, y)
@@ -871,6 +872,8 @@ class MergeWindow(QMainWindow):
         if self.app is not None:
             self.waveforms_ax.clear()
 
+            all_channels = []
+
             for idx, p in enumerate(self.to_consider[list(self.inspect_templates)]):
                 tmp   = self.templates[:, p]
                 tmp   = tmp.toarray().reshape(self.N_e, self.N_t)
@@ -879,13 +882,26 @@ class MergeWindow(QMainWindow):
 
                 if self.ui.show_peaks.isChecked():
                     indices = [self.inv_nodes[self.nodes[elec]]]
+                    all_channels += indices
                 else:
                     indices = self.inv_nodes[self.edges[self.nodes[elec]]]
+                    all_channels += list(indices)
 
                 for sidx in indices:
                     xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
                     self.waveforms_ax.plot(xaxis, self.y_position[sidx] + tmp[sidx], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
-                    #self.waveforms_ax.plot([0, xaxis[-1]], [-thr, -thr], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]), linestyle='--')
+            
+            if self.ui.show_thresholds.isChecked():
+                for sidx in numpy.unique(all_channels):
+                    thr   = self.thresholds[sidx]
+                    xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
+                    if self.sign_peaks in ['negative', 'both']:
+                        self.waveforms_ax.plot([xaxis[0], xaxis[-1]], [self.y_position[sidx]-thr, self.y_position[sidx]-thr], c='k', linestyle='--')
+                    if self.sign_peaks in ['positive', 'both']:
+                        self.waveforms_ax.plot([xaxis[0], xaxis[-1]], [self.y_position[sidx]+thr, self.y_position[sidx]+thr], c='k', linestyle='--')
+                    self.waveforms_ax.plot([xaxis[0], xaxis[-1]], [self.y_position[sidx], self.y_position[sidx]], c='0.5', linestyle='--')
+
+
 
             self.waveforms_ax.set_xlabel('Probe Space')
             self.waveforms_ax.set_ylabel('Probe Space')

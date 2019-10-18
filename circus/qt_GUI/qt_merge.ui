@@ -530,6 +530,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="show_thresholds">
+         <property name="text">
+          <string>Show thresholds</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="btn_suggest_templates">
          <property name="text">
           <string>Suggest Templates</string>
