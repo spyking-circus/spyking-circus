@@ -1444,12 +1444,17 @@ class PreviewGUI(QMainWindow):
         self.get_data()
         self.x_position = []
         self.y_position = []
+        self.label      = []
         self.order      = []
         for key in self.probe['channel_groups'].keys():
             for item in self.probe['channel_groups'][key]['geometry'].keys():
                 if item in self.probe['channel_groups'][key]['channels']:
                     self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
                     self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
+                    if len(self.probe['channel_groups'].keys()) == 1:
+                        self.label += ["%d" %item]
+                    else:
+                        self.label += ["%s-%d" %(key, item)]
 
 
         self.points = zip(self.x_position, self.y_position)
@@ -1481,6 +1486,7 @@ class PreviewGUI(QMainWindow):
         self.get_time.valueChanged.connect(self.update_time)
         self.get_threshold.valueChanged.connect(self.update_threshold)
         self.show_residuals.clicked.connect(self.update_data_plot)
+        self.show_labels.clicked.connect(self.update_electrode_plot)
         self.show_unfitted.clicked.connect(self.update_data_plot)
         self.btn_write_threshold.clicked.connect(self.write_threshold)
         if self.show_fit:
@@ -1610,9 +1616,11 @@ class PreviewGUI(QMainWindow):
             self.electrode_ax.set_xticklabels([])
             self.electrode_ax.set_ylabel('Space [um]')
             self.electrode_ax.set_yticklabels([])
+            self.electrode_labels = [self.electrode_ax.text(x, y, l) for (x, y, l) in zip(self.x_position, self.y_position, self.label)]
         else:
             self.electrode_collection.set_offsets(np.hstack([self.x_position[np.newaxis, :].T,
                                                              self.y_position[np.newaxis, :].T]))
+
         ax, x, y = self.electrode_ax, self.y_position, self.x_position
         ymin, ymax = min(x), max(x)
         yrange = (ymax - ymin)*0.5 * 1.05  # stretch everything a bit
@@ -1731,6 +1739,12 @@ class PreviewGUI(QMainWindow):
             fcolors[p] = colorin
         for idx, p in enumerate(self.inspect_points):
             fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
+
+        for l in self.electrode_labels:
+            if self.ui.show_labels.isChecked():
+                l.set_visible(True)
+            else:
+                l.set_visible(False)
 
         self.ui.electrodes.draw_idle()
 
