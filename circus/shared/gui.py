@@ -253,11 +253,15 @@ class MergeWindow(QMainWindow):
 
         if self.app is not None:
             self.suggest_value = self.get_suggest_value.value()
-            self.suggest_value_bhatta = self.get_suggest_value_bhatta.value()
         else:
             self.suggest_value = self.auto_mode
 
         if self.app is not None:
+            # Update suggested values visible in the GUI.
+            self.get_suggest_value_template.setValue(self.suggest_value_template)
+            self.get_suggest_value_bhatta.setValue(self.suggest_value_bhatta)
+            self.get_suggest_value.setValue(self.suggest_value)
+
             self.rect_selectors = [widgets.RectangleSelector(ax,
                                                          onselect=self.callback_rect,
                                                          button=1,
@@ -279,7 +283,7 @@ class MergeWindow(QMainWindow):
             
             self.plot_data()
             self.plot_scores()
-        #
+
             # # Connect matplotlib events
             for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3,
                         self.ui.detail, self.ui.data_overview, self.ui.waveforms, self.ui.detail_2]:
@@ -300,7 +304,6 @@ class MergeWindow(QMainWindow):
             self.ui.get_suggest_value_template.valueChanged.connect(self.update_suggest_value_template)
             self.ui.get_suggest_value_bhatta.valueChanged.connect(self.update_suggest_value_bhatta)
             self.ui.btn_unselect_template.clicked.connect(self.remove_selection_templates)
-
 
             self.ui.cmb_sorting.currentIndexChanged.connect(self.update_data_sort_order)
             self.ui.btn_merge.clicked.connect(self.do_merge)
