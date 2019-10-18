@@ -149,17 +149,18 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     ax.set_xlabel('Dim 0')
     ax.set_ylabel('Dim 1')
 
-    ax = fig.add_subplot(243)
-    ax.scatter(data[not_assigned,0], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-    ax.scatter(data[assigned,0], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 2')
-                
-    ax = fig.add_subplot(244)
-    ax.scatter(data[not_assigned,1], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-    ax.scatter(data[assigned,1], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-    ax.set_xlabel('Dim 1')
-    ax.set_ylabel('Dim 2')
+    if data.shape[1] > 2:
+        ax = fig.add_subplot(243)
+        ax.scatter(data[not_assigned,0], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
+        ax.scatter(data[assigned,0], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
+        ax.set_xlabel('Dim 0')
+        ax.set_ylabel('Dim 2')
+                    
+        ax = fig.add_subplot(244)
+        ax.scatter(data[not_assigned,1], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
+        ax.scatter(data[assigned,1], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
+        ax.set_xlabel('Dim 1')
+        ax.set_ylabel('Dim 2')
 
     my_cmap   = pylab.get_cmap('winter')
         
