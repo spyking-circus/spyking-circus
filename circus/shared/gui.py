@@ -224,12 +224,17 @@ class MergeWindow(QMainWindow):
         self.probe      = self.params.probe
         self.x_position = []
         self.y_position = []
+        self.label      = []
         self.order      = []
         for key in self.probe['channel_groups'].keys():
             for item in self.probe['channel_groups'][key]['geometry'].keys():
                 if item in self.probe['channel_groups'][key]['channels']:
                     self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
                     self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
+                    if len(self.probe['channel_groups'].keys()) == 1:
+                        self.label += ["%d" %item]
+                    else:
+                        self.label += ["%s-%d" %(key, item)]
 
         if self.auto_mode > 0:
             print_and_log(['Automatic merging with a threshold of %g' %self.auto_mode], 'info', logger)
@@ -312,6 +317,7 @@ class MergeWindow(QMainWindow):
             self.ui.btn_set_lag.clicked.connect(lambda event: setattr(self.lag_selector,
                                                                       'active', True))
             self.ui.show_peaks.clicked.connect(self.update_waveforms)
+            self.ui.show_labels.clicked.connect(self.update_waveforms)
             self.ui.show_thresholds.clicked.connect(self.update_waveforms)
 
             # TODO: Tooltips
@@ -901,7 +907,9 @@ class MergeWindow(QMainWindow):
                         self.waveforms_ax.plot([xaxis[0], xaxis[-1]], [self.y_position[sidx]+thr, self.y_position[sidx]+thr], c='k', linestyle='--')
                     self.waveforms_ax.plot([xaxis[0], xaxis[-1]], [self.y_position[sidx], self.y_position[sidx]], c='0.5', linestyle='--')
 
-
+            if self.ui.show_labels.isChecked():
+                for sidx in numpy.unique(all_channels):
+                    self.waveforms_ax.text(self.x_position[sidx], self.y_position[sidx], self.label[sidx])
 
             self.waveforms_ax.set_xlabel('Probe Space')
             self.waveforms_ax.set_ylabel('Probe Space')

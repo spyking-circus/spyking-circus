@@ -537,6 +537,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="show_labels">
+         <property name="text">
+          <string>Show probes labels</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="btn_suggest_templates">
          <property name="text">
           <string>Suggest Templates</string>
