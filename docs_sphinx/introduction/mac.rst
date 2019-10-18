@@ -1,9 +1,9 @@
-Installation for Mac OS 10.10.5
-===============================
+Installation for Mac OS
+=======================
 
 Here are some detailed instructions:
 
-    1. Install Anaconda_ (Python 2.7 or 3.5)
+    1. Install Anaconda_ (Python 2 or 3)
 
     2. The best is to create a dedicated environment to install the software, and activate it::
 

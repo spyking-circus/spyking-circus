@@ -608,7 +608,7 @@ class CircusParser(object):
             if comm.rank == 0:
                 print_and_log(["Hanning filtering is activated"], 'debug', logger)
 
-    def get(self, section, data):
+    def get(self, section, data, check=True):
         """
         Gets the value of the  variable data in a section as a string.
 
@@ -626,6 +626,9 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
+        if check is False:
+          return self.parser.get(section, data)
+
         try:
           return self.parser.get(section, data)
         except Exception:
@@ -633,7 +636,7 @@ class CircusParser(object):
             print_and_log(["Parameter %s is missing in section [%s]" %(data, section)], 'error', logger)
           sys.exit(0)
 
-    def getboolean(self, section, data):
+    def getboolean(self, section, data, check=True):
         """
         Gets the boolean variable from the variable data in a section
 
@@ -651,6 +654,9 @@ class CircusParser(object):
             if the variable data is applied or not.    
         
         """
+        if check is False:
+          return self.parser.getboolean(section, data)
+
         try:
           return self.parser.getboolean(section, data)
         except Exception:
@@ -658,7 +664,7 @@ class CircusParser(object):
             print_and_log(["Parameter %s is missing in section [%s]" %(data, section)], 'error', logger)
           sys.exit(0)
 
-    def getfloat(self, section, data):
+    def getfloat(self, section, data, check=True):
         """
         Gets the value of the  variable data in a section
 
@@ -676,6 +682,9 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
+        if check is False:
+          return self.parser.getfloat(section, data)
+
         try:
           return self.parser.getfloat(section, data)
         except Exception:
@@ -683,7 +692,7 @@ class CircusParser(object):
             print_and_log(["Parameter %s is missing in section [%s]" %(data, section)], 'error', logger)
           sys.exit(0)
 
-    def getint(self, section, data):
+    def getint(self, section, data, check=True):
         """
         Gets the value of the  variable data in a section
 
@@ -701,6 +710,9 @@ class CircusParser(object):
             The value of the variable data.    
         
         """
+        if check is False:
+          return self.parser.getint(section, data)
+
         try:
           return self.parser.getint(section, data)
         except Exception:
@@ -749,13 +761,7 @@ class CircusParser(object):
                 print_and_log(['Changing all values in the param depending on the rate'], 'debug', logger)
 
             value = self.get('detection', 'N_t')
-            try:
-                self._N_t = self.getfloat('detection', 'N_t')
-            except Exception:
-                if comm.rank == 0:
-                    print_and_log(['N_t is not found in [detection]'], 
-                        'error', logger)
-                sys.exit(0)
+            self._N_t = self.getfloat('detection', 'N_t')
 
             # template width from milisecond to sampling points
             self._N_t = int(self.rate * self._N_t * 1e-3) 

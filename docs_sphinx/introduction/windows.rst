@@ -3,7 +3,7 @@ Installation for Windows
 
 Here are some detailed instructions:
 
-    1. Install Anaconda_ (Python 2.7 or 3.5)
+    1. Install Anaconda_ (Python 2 or 3)
     2. Launched Anaconda's command line
     3. The best is to create a dedicated environment to install the software, and activate it::
 

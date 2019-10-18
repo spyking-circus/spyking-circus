@@ -73,7 +73,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges   = get_nodes_and_edges(params)
     #################################################################
 
-
     def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median, do_remove_ground):
         """
         Performs a high-pass and low-pass Butterworth filter on the data file.
@@ -93,10 +92,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         """
 
         try:
-            cut_off    = params.getfloat('filtering', 'cut_off')
+            cut_off    = params.getfloat('filtering', 'cut_off', check=False)
             cut_off    = [cut_off, 0.95*(params.rate/2.)] # Nyquist 
         except Exception:
-            cut_off        = params.get('filtering', 'cut_off')
+            cut_off        = params.get('filtering', 'cut_off', check=False)
             cut_off        = cut_off.split(',')
             try:
                 cut_off[0] = float(cut_off[0])
@@ -347,7 +346,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
         sys.stderr.flush()
-
 
     if comm.rank == 0:
         print_and_log(['Initializing the filtering step...'], 'debug', logger)
