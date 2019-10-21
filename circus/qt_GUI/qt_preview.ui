@@ -395,7 +395,7 @@
            <property name="geometry">
             <rect>
              <x>0</x>
-             <y>90</y>
+             <y>110</y>
              <width>151</width>
              <height>27</height>
             </rect>
@@ -433,6 +433,25 @@
             <string>Show probes labels</string>
            </property>
            <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="show_mua">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>80</y>
+             <width>101</width>
+             <height>23</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Show MUA</string>
+           </property>
+           <property name="checkable">
             <bool>true</bool>
            </property>
           </widget>
