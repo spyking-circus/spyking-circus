@@ -1483,7 +1483,6 @@ class PreviewGUI(QMainWindow):
                 else:
                     self.sizes = 30 + 170*(self.sizes - s_min)/(s_max - s_min)
 
-                print self.sizes
                 self.has_mua = True
             except Exception:
                 print_and_log(["MUA results not found!"], 'info', logger)
