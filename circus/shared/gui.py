@@ -1452,6 +1452,7 @@ class PreviewGUI(QMainWindow):
         self.thresholds       = io.load_data(self.params, 'thresholds')
         self.t_start          = self.data_file.t_start/self.data_file.sampling_rate
         self.t_stop           = self.t_start + 1
+        self.has_mua = False
 
         if self.show_fit:
             try:
@@ -1469,6 +1470,27 @@ class PreviewGUI(QMainWindow):
                     self.has_garbage = False
             except Exception:
                 self.has_garbage = False
+
+            try:
+                self.mua     = io.load_data(self.params, 'mua')
+                count        = 0
+                self.sizes   = []
+                for key in self.probe['channel_groups'].keys():
+                    for item in self.probe['channel_groups'][key]['geometry'].keys():
+                        if item in self.probe['channel_groups'][key]['channels']:
+                            self.sizes += [len(self.mua['spiketimes']['elec_%d' %count])]
+                            count += 1
+                self.sizes = numpy.array(self.sizes)
+                s_min = self.sizes.min()
+                s_max = self.sizes.max()
+                if s_max == s_min:
+                    self.sizes = 30*numpy.ones(len(self.sizes))
+                else:
+                    self.sizes = 30 + 170*(self.sizes - s_min)/(s_max - s_min)
+
+                self.has_mua = True
+            except Exception:
+                print_and_log(["MUA results not found!"], 'info', logger)
 
         self.get_data()
         self.x_position = []
@@ -1516,6 +1538,7 @@ class PreviewGUI(QMainWindow):
         self.get_threshold.valueChanged.connect(self.update_threshold)
         self.show_residuals.clicked.connect(self.update_data_plot)
         self.show_labels.clicked.connect(self.update_electrode_plot)
+        self.show_mua.clicked.connect(self.update_electrode_plot)
         self.show_unfitted.clicked.connect(self.update_data_plot)
         self.btn_write_threshold.clicked.connect(self.write_threshold)
         if self.show_fit:
@@ -1527,6 +1550,9 @@ class PreviewGUI(QMainWindow):
             self.threshold_box.setEnabled(True)
         self.get_time.setValue(self.t_start)
         self.get_threshold.setValue(self.spike_thresh)
+
+        if self.has_mua:
+            self.show_mua.setEnabled(True)
 
         # Select the most central point at start
         idx = np.argmin((self.x_position - np.mean(self.x_position)) ** 2 +
@@ -1769,11 +1795,19 @@ class PreviewGUI(QMainWindow):
         for idx, p in enumerate(self.inspect_points):
             fcolors[p] = colorConverter.to_rgba(self.inspect_colors[idx])
 
+        if self.ui.show_mua.isChecked():
+            collection.set_sizes(self.sizes)
+        else:
+            collection.set_sizes(30*numpy.ones(len(fcolors)))
+
         for l in self.electrode_labels:
             if self.ui.show_labels.isChecked():
                 l.set_visible(True)
             else:
                 l.set_visible(False)
+
+        # if self.show_mua:
+        #     collection
 
         self.ui.electrodes.draw_idle()
 

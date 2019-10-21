@@ -1018,6 +1018,11 @@ def load_data(params, data, extension=''):
             return get_results(params, extension)
         except Exception:
             raise Exception('No results found! Check suffix or run the fitting?')
+    elif data == 'mua':
+        try:
+            return get_mua(params, extension)
+        except Exception:
+            raise Exception('No MUA found! Check suffix or run the fitting?')
     elif data == 'duration':
         try:
             return get_duration(params, extension)
@@ -1557,6 +1562,17 @@ def get_results(params, extension=''):
     file_out_suff        = params.get('data', 'file_out_suff')
     result               = {}
     myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='earliest')
+    for key in ['spiketimes', 'amplitudes']:
+        result[str(key)] = {}
+        for temp in myfile.get(key).keys():
+            result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
+    myfile.close()
+    return result
+
+def get_mua(params, extension=''):
+    file_out_suff        = params.get('data', 'file_out_suff')
+    result               = {}
+    myfile               = h5py.File(file_out_suff + '.mua%s.hdf5' %extension, 'r', libver='earliest')
     for key in ['spiketimes', 'amplitudes']:
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
