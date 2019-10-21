@@ -600,8 +600,13 @@ class MergeWindow(QMainWindow):
         # Right: raw data
         if self.app is not None:
             all_raw_data = self.raw_data
-            cmax         = 0.5*all_raw_data.max()
-            cmin         = 0.5*all_raw_data.min()
+            all_raw_data /= (1 + all_raw_data.mean(1)[:, np.newaxis])
+            if len(all_raw_data) > 0:
+                cmax = 0.5*all_raw_data.max()
+                cmin = 0.5*all_raw_data.min()
+            else:
+                cmin = 0
+                cmax = 1
             self.update_sort_idcs()
             all_raw_data = all_raw_data[self.sort_idcs, :]
 
