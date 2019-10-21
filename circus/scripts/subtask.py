@@ -7,6 +7,7 @@ import sys
 import circus
 import logging
 from circus.shared.messages import print_and_log
+from circus.shared.mpi import test_mpi_ring
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,9 @@ def main():
     filename = sys.argv[2]
     nb_cpu   = int(sys.argv[3])
     nb_gpu   = int(sys.argv[4])
+
+    test_mpi_ring(nb_cpu)
+
     use_gpu  = (sys.argv[5].lower() == 'true')
     print_and_log(['Launching subtask %s with params %s' %(task, sys.argv[2:])], 'debug', logger)
     if task == 'benchmarking':

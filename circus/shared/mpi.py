@@ -12,6 +12,14 @@ logger = logging.getLogger(__name__)
 MPI_VENDOR = MPI.get_vendor()
 SHARED_MEMORY = (hasattr(MPI.Win, 'Allocate_shared') and callable(getattr(MPI.Win, 'Allocate_shared')))
 
+
+def test_mpi_ring(nb_nodes):
+    if comm.size != nb_nodes:
+        if comm.rank == 0:
+            print_and_log(['The MPI install does not seems to be correct!',
+                           'Be sure mpi4py has been compiled for your default version!'], 'warning', logger)
+        sys.exit()
+
 def check_if_cluster():
     from uuid import getnode as get_mac
     myip = numpy.array([numpy.int64(get_mac()) % 100000], dtype='int64')
