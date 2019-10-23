@@ -9,7 +9,7 @@ Contains the class to read *param files
 import ConfigParser as configparser
 from messages import print_and_log
 from circus.shared.probes import read_probe, parse_dead_channels
-from circus.shared.mpi import comm, check_if_cluster
+from circus.shared.mpi import comm, check_if_cluster, check_valid_path
 from circus.files import __supported_data_files__
 
 import os, sys, copy, numpy, logging
@@ -211,6 +211,11 @@ class CircusParser(object):
         self.file_params  = f_next + '.params'
         self.do_folders   = create_folders
         self.parser       = configparser.ConfigParser()
+
+        valid_path = check_valid_path(self.file_params)
+        if not valid_path:
+          print_and_log(["Not all nodes can read/write the data file. Check path?"], 'error', logger)
+          sys.exit(0)
 
         ## First, we remove all tabulations from the parameter file, in order
         ## to secure the parser
