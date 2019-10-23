@@ -78,12 +78,6 @@ def main(argv=None):
         extension = '-' + extension
 
     try:
-        import vispy 
-    except ImportError:
-        print_and_log(['The package vispy required by phy is not installed'], 'error', logger)
-        sys.exit(1)
-
-    try:
         import traitlets 
     except ImportError:
         print_and_log(['The package traitlets required by phy is not installed'], 'error', logger)
