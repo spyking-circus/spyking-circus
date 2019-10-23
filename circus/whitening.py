@@ -284,7 +284,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges   = get_nodes_and_edges(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    chunk_size       = detect_memory(params)
+    chunk_size       = detect_memory(params, whitening=True)
     safety_time      = params.getint('whitening', 'safety_time')
     max_elts_elec    = params.getint('whitening', 'max_elts')
     output_dim       = params.getfloat('whitening', 'output_dim')
