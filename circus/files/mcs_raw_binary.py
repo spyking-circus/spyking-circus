@@ -10,7 +10,6 @@ class RawMCSFile(RawBinaryFile):
     extension      = [".raw", ".dat"]
 
     _required_fields = {
-        'sampling_rate' : float,
         'data_dtype'    : str,
     }
 
@@ -74,6 +73,7 @@ class RawMCSFile(RawBinaryFile):
         header['nb_channels']  = c
         #header['dtype_offset'] = int(header['ADC zero'])
         header['gain']         = float(re.findall("\d+\.\d+", header['El'])[0])
+        header['sampling_rate']=float(header['Sample rate'])
         header['data_dtype']   = self.params['data_dtype']
 
         self.data   = numpy.memmap(self.file_name, offset=header['data_offset'], dtype=header['data_dtype'], mode='r')
