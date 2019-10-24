@@ -100,6 +100,7 @@ class CircusParser(object):
                           ['detection', 'N_t', 'string', '3'],
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],
+                          ['detection', 'spike_width', 'float', '0.25'],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
                           ['triggers', 'make_plots', 'string', ''],
                           ['triggers', 'trig_file', 'string', ''],
@@ -767,14 +768,16 @@ class CircusParser(object):
 
             value = self.get('detection', 'N_t')
             self._N_t = self.getfloat('detection', 'N_t')
+            spike_width = self.getfloat('detection', 'spike_width')
 
             # template width from milisecond to sampling points
             self._N_t = int(self.rate * self._N_t * 1e-3) 
             if numpy.mod(self._N_t, 2) == 0:
                 self._N_t += 1
-            self.set('detection', 'N_t',self._N_t )
+            self.set('detection', 'N_t', self._N_t )
             self.set('detection', 'dist_peaks', self._N_t )
             self.set('detection', 'template_shift', (self._N_t-1)//2 )
+            self.set('detection', 'spike_width', self.rate*spike_width*1e-3)
 
             # jitter_range form milisecond sampling points
             jitter = self.getfloat('detection', 'jitter_range')

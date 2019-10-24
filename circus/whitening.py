@@ -26,6 +26,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    spike_width    = params.getfloat('detection', 'spike_width')
     matched_filter = params.getboolean('detection', 'matched-filter')
     matched_thresh = params.getfloat('detection', 'matched_thresh')
     sign_peaks     = params.get('detection', 'peaks')
@@ -104,7 +105,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         #print "Extracting the peaks..."
         local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
         for i in xrange(N_e):
-            peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
+            peaktimes       = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks)[0]
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
         local_peaktimes = numpy.unique(local_peaktimes)
@@ -379,11 +380,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
 
                 if sign_peaks == 'negative':
-                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks)[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False, mpd=dist_peaks)
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks)[0]
                 elif sign_peaks == 'both':
-                    peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks)[0]
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
