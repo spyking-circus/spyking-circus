@@ -610,11 +610,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         if sign_peaks in ['negative', 'both']:
-            waveform_neg  = io.load_data(params, 'waveform')
-            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
+            waveform_neg  = io.load_data(params, 'waveform')[::-1]
+            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))*len(waveform_neg))
         if sign_peaks in ['positive', 'both']:
-            waveform_pos  = io.load_data(params, 'waveform-pos')
-            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
+            waveform_pos  = io.load_data(params, 'waveform-pos')[::-1]
+            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))*len(waveform_pos))
 
         for gidx in [all_chunks[comm.rank]]:
             local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
