@@ -938,13 +938,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     elif extraction == 'median-raw':                
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
-                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, auto_align=False)
                         first_component = numpy.median(sub_data, 0)
                         tmp_templates   = first_component
                     elif extraction == 'mean-raw':                
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
-                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, auto_align=False)
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
 
@@ -997,7 +997,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_x     = numpy.concatenate((temp_x, dx))
                         temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
                         temp_data  = numpy.concatenate((temp_data, templates[dx]))
-
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/(N_e*N_t))
 
                         x, y, z          = sub_data.shape
@@ -1005,16 +1004,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat       = first_component.reshape(y*z, 1)
                         amplitudes       = numpy.dot(sub_data_flat, first_flat)
                         amplitudes      /= numpy.sum(first_flat**2)
-
-                        variation        = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                        variation        = numpy.median(numpy.abs(amplitudes - 1))
 
                         if p == 'neg':
                             physical_limit = -noise_thr*thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min()
                         elif p == 'pos':
                             physical_limit = noise_thr*thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max()
 
-                        amp_min          = max(physical_limit, numpy.median(amplitudes) - dispersion[0]*variation)
-                        amp_max          = numpy.median(amplitudes) + dispersion[1]*variation
+                        amp_min          = max(physical_limit, 1 - dispersion[0]*variation)
+                        amp_max          = 1 + (1 - amp_min)
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]
 
