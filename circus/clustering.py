@@ -303,25 +303,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if sign_peaks in ['positive', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                         for i in xrange(N_e):
-                            peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i], width=spike_width, distance=dist_peaks)[0]
+                            peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                             all_peaktimes   = numpy.concatenate((all_peaktimes, peaktimes))
                             all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                     if sign_peaks in ['negative', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                         for i in xrange(N_e):
-                            peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i], width=spike_width, distance=dist_peaks)[0]
+                            peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                             all_peaktimes   = numpy.concatenate((all_peaktimes, peaktimes))
                             all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                 else:
                     for i in xrange(N_e):
                         if sign_peaks == 'negative':
-                            peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks)[0]
+                            peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         elif sign_peaks == 'positive':
-                            peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks)[0]
+                            peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         elif sign_peaks == 'both':
-                            peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks)[0]
+                            peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                         all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 

@@ -11,6 +11,7 @@ Release 0.8.5
 * conda install overwrites the old parameter file
 * raw dispay of the MUA in the result GUI (to be improved)
 * display an error if not all nodes on a cluster can read the datafiles
+* new methods to detect the peaks, more robust when low thresholds are fixed
 
 =============
 Release 0.8.4
