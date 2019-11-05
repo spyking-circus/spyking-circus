@@ -122,7 +122,7 @@ class CircusParser(object):
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
-                          ['clustering', 'noise_thr', 'float', '0.8'],
+                          ['clustering', 'noise_thr', 'float', '1'],
                           ['clustering', 'cc_merge', 'float', '0.975'],
                           ['clustering', 'cc_mixtures', 'float', '0.75'],
                           ['clustering', 'n_abs_min', 'int', '20'],
