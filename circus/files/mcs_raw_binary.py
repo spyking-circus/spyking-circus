@@ -29,7 +29,6 @@ class RawMCSFile(RawBinaryFile):
             stop        = False
             fid         = open(self.file_name, 'rb')
             header_text = ''
-            regexp      = re.compile('El_\d*')
 
             while ((stop is False) and (header <= 5000)):
                 header      += 1
@@ -59,6 +58,11 @@ class RawMCSFile(RawBinaryFile):
                         full_header[item.split(' = ')[0]] = item.split(' = ')[1]
             f.close()
 
+            if full_header.has_key('El'):
+                regexp = re.compile('El_\d*')
+            elif full_header.has_key('Fi'):
+                regexp = re.compile('Fi_\d*')
+
             return full_header, header, len(regexp.findall(full_header['Streams']))
         except Exception:
             print_and_log(["Wrong MCS header: file is not exported with MCRack"], 'error', logger)
@@ -72,7 +76,10 @@ class RawMCSFile(RawBinaryFile):
         header['data_offset']  = b
         header['nb_channels']  = c
         #header['dtype_offset'] = int(header['ADC zero'])
-        header['gain']         = float(re.findall("\d+\.\d+", header['El'])[0])
+        if header.has_key('El'):
+            header['gain']     = float(re.findall("\d+\.\d+", header['El'])[0])
+        elif header.has_key('Fi'):
+            header['gain']     = float(re.findall("\d+\.\d+", header['Fi'])[0])
         header['sampling_rate']=float(header['Sample rate'])
         header['data_dtype']   = self.params['data_dtype']
 

@@ -571,7 +571,7 @@ class CircusParser(object):
 
         if has_dip_thresh and (dip_threshold > 0):
           if comm.rank == 0:
-            print_and_log(["dip_threshold in [clustering] is deprecated in 0.8.4",
+            print_and_log(["dip_threshold in [clustering] is deprecated since 0.8.4",
                            "and you should now use merging_method and merging_param",
                            "Please upgrade your parameter file to a more recent version",
                            "By default a distance merging method with param 3 is assumed"], 'info', logger)
@@ -580,7 +580,7 @@ class CircusParser(object):
         elif has_same_elec:
           sim_same_elec = self.parser.get('clustering', 'sim_same_elec')
           if comm.rank == 0:
-            print_and_log(["sim_same_elec in [clustering] is deprecated in 0.8.4",
+            print_and_log(["sim_same_elec in [clustering] is deprecated since 0.8.4",
                            "and you should now use merging_method and merging_param",
                            "Please upgrade your parameter file to a more recent version",
                            "Meanwhile a distance merging method with param %s is assumed" %sim_same_elec], 'info', logger)
