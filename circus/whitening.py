@@ -399,7 +399,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_peaktimes = numpy.unique(all_peaktimes)
 
             if ignore_dead_times:
-                indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
+                dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
                 if indices[0] != indices[1]:
                     is_included = numpy.in1d(local_peaktimes + t_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
                     local_peaktimes = local_peaktimes[~is_included]
