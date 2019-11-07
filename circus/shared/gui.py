@@ -455,10 +455,10 @@ class MergeWindow(QMainWindow):
             all_spikes = numpy.sort(numpy.concatenate((spike_1, spike_2))/self.sampling_rate)
             isi = numpy.diff(all_spikes)
             nb_rpv = numpy.where(isi < threshold*1e-3)
-
-            return len(nb_rpv)/len(all_spikes)
-
-
+            if len(all_spikes) > 0:
+                return len(nb_rpv)/len(all_spikes)
+            else:
+                return 1.
 
         self.raw_lags    = numpy.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
 
