@@ -11,6 +11,7 @@ Release 0.8.5
 * conda install overwrites the old parameter file
 * raw dispay of the MUA in the result GUI (to be improved)
 * display an error if not all nodes on a cluster can read the datafiles
+* fix a bug for thresholding method using dead times
 
 =============
 Release 0.8.4

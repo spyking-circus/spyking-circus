@@ -264,7 +264,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if ignore_dead_times:
             dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + chunk_size])
             if dead_indices[0] != dead_indices[1]:
-                local_peaktimes = numpy.array(list(set(local_peaktimes + g_offset).difference(all_dead_times[dead_indices[0]:dead_indices[1]])), dtype=numpy.uint32) - g_offset
+                is_included = numpy.in1d(local_peaktimes + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
+                local_peaktimes = local_peaktimes[~is_included]
                 local_peaktimes = numpy.sort(local_peaktimes)
 
         #print "Removing the useless borders..."
