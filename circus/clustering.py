@@ -46,8 +46,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     safety_time    = params.getint('clustering', 'safety_time')
     safety_space   = params.getboolean('clustering', 'safety_space')
     comp_templates = params.getboolean('clustering', 'compress')
-    dispersion     = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
-    dispersion     = map(float, dispersion)
+    dispersion     = params.getfloat('clustering', 'dispersion')
     nodes, edges   = get_nodes_and_edges(params)
     chunk_size     = detect_memory(params)
     max_elts_elec  = params.getint('clustering', 'max_elts')
@@ -1011,7 +1010,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         elif p == 'pos':
                             physical_limit = noise_thr*thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max()
 
-                        amp_min          = max(physical_limit, 1 - dispersion[0]*variation)
+                        amp_min          = max(physical_limit, 1 - dispersion*variation)
                         amp_max          = 1 + (1 - amp_min)
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]

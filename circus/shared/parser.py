@@ -100,7 +100,7 @@ class CircusParser(object):
                           ['detection', 'N_t', 'string', '3'],
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],
-                          ['detection', 'spike_width', 'float', '0.1'],
+                          ['detection', 'spike_width', 'float', '0'],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
                           ['triggers', 'make_plots', 'string', ''],
                           ['triggers', 'trig_file', 'string', ''],
@@ -131,7 +131,7 @@ class CircusParser(object):
                           ['clustering', 'merging_method', 'string', 'distance'],
                           ['clustering', 'merging_param', 'string', 'default'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
-                          ['clustering', 'dispersion', 'string', '(5, 5)'],
+                          ['clustering', 'dispersion', 'float', '5'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['extracting', 'noise_thr', 'float', '1.'],
                           ['merging', 'cc_overlap', 'float', '0.85'],
@@ -248,6 +248,13 @@ class CircusParser(object):
                     self.parser.set(section, key, value.split('#')[0].rstrip())
             else:
                 self.parser.add_section(section)
+
+        try:
+          dispersion = self.parser.getfloat('clustering', 'dispersion')
+        except Exception:
+          if comm.rank == 0:
+              print_and_log(["Dispersion in [clustering] should be a single value (default 5)"], 'error', logger)
+          sys.exit(0)
 
         for item in self.__default_values__ + self.__extra_values__:
             section, name, val_type, value = item
@@ -588,12 +595,11 @@ class CircusParser(object):
           self.parser.set('clustering', 'merging_param', sim_same_elec)
           self.parser.set('clustering', 'merging_method', 'distance')
 
-        dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
-        dispersion     = map(float, dispersion)
-        test =  (0 < dispersion[0]) and (0 < dispersion[1])
+        dispersion     = self.parser.getfloat('clustering', 'dispersion')
+        test =  (0 < dispersion)
         if not test:
             if comm.rank == 0:
-                print_and_log(["min and max dispersions in [clustering] should be positive"], 'error', logger)
+                print_and_log(["dispersions in [clustering] should be positive"], 'error', logger)
             sys.exit(0)
 
         pcs_export = ['prompt', 'none', 'all', 'some']
