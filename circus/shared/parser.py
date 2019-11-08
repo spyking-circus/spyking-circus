@@ -253,8 +253,8 @@ class CircusParser(object):
           dispersion = self.parser.getfloat('clustering', 'dispersion')
         except Exception:
           if comm.rank == 0:
-              print_and_log(["Dispersion in [clustering] should be a single value (default 5)"], 'error', logger)
-          sys.exit(0)
+              print_and_log(["Dispersion in [clustering] should be a single value (default 5)"], 'warning', logger)
+          self.parser.set('clustering', 'dispersion', '5')
 
         for item in self.__default_values__ + self.__extra_values__:
             section, name, val_type, value = item

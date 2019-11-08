@@ -293,6 +293,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         local_chunk = numpy.dot(local_chunk, spatial_whitening)
                 if do_temporal_whitening:
                     local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+
+                local_chunk /= thresholds
+
                 #print "Extracting the peaks..."
                 all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
                 all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
@@ -316,11 +319,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     for i in xrange(N_e):
                         if sign_peaks == 'negative':
-                            peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                            peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         elif sign_peaks == 'positive':
-                            peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                            peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         elif sign_peaks == 'both':
-                            peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                            peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                         all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
@@ -622,7 +625,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if matched_filter:
                                 bound = matched_tresholds_pos[ielec]
                             else:
-                                bound = thresholds[ielec]
+                                bound = 1
                             if bound < ampmax:
                                 bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
@@ -632,7 +635,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if matched_filter:
                                 bound = -matched_tresholds_neg[ielec]
                             else:
-                                bound = -thresholds[ielec]
+                                bound = -1
                             if ampmin < bound:
                                 bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:

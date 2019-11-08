@@ -115,7 +115,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
-        local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
+        local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)
         len_chunk             = len(local_chunk)
 
         if do_spatial_whitening:
@@ -126,6 +126,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+
+        local_chunk /= thresholds
 
         #print "Extracting the peaks..."
 
@@ -151,11 +153,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             for i in xrange(N_e):
                 if sign_peaks == 'negative':
-                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
                 local_elecs = numpy.concatenate((local_elecs, i*numpy.ones(len(peaktimes), dtype='uint32')))
                 local_amps = numpy.concatenate((local_amps, local_chunk[peaktimes, i]))
