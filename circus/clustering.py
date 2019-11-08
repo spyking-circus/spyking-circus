@@ -33,6 +33,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    spike_width    = params.getfloat('detection', 'spike_width')
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     if params.getboolean('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
@@ -45,8 +46,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     safety_time    = params.getint('clustering', 'safety_time')
     safety_space   = params.getboolean('clustering', 'safety_space')
     comp_templates = params.getboolean('clustering', 'compress')
-    dispersion     = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
-    dispersion     = map(float, dispersion)
+    dispersion     = params.getfloat('clustering', 'dispersion')
     nodes, edges   = get_nodes_and_edges(params)
     chunk_size     = detect_memory(params)
     max_elts_elec  = params.getint('clustering', 'max_elts')
@@ -120,11 +120,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if matched_filter:
         if sign_peaks in ['negative', 'both']:
-            waveform_neg  = io.load_data(params, 'waveform')
+            waveform_neg  = io.load_data(params, 'waveform')[::-1]
             waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
             matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
         if sign_peaks in ['positive', 'both']:
-            waveform_pos  = io.load_data(params, 'waveform-pos')
+            waveform_pos  = io.load_data(params, 'waveform-pos')[::-1]
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
@@ -293,6 +293,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         local_chunk = numpy.dot(local_chunk, spatial_whitening)
                 if do_temporal_whitening:
                     local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
+
+                local_chunk /= thresholds
+
                 #print "Extracting the peaks..."
                 all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
                 all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
@@ -302,25 +305,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if sign_peaks in ['positive', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                         for i in xrange(N_e):
-                            peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i], mpd=dist_peaks)
+                            peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                             all_peaktimes   = numpy.concatenate((all_peaktimes, peaktimes))
                             all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                     if sign_peaks in ['negative', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                         for i in xrange(N_e):
-                            peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i], mpd=dist_peaks)
+                            peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                             all_peaktimes   = numpy.concatenate((all_peaktimes, peaktimes))
                             all_extremas    = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                 else:
                     for i in xrange(N_e):
                         if sign_peaks == 'negative':
-                            peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
+                            peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         elif sign_peaks == 'positive':
-                            peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False, mpd=dist_peaks)
+                            peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         elif sign_peaks == 'both':
-                            peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
+                            peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
                         all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                         all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
@@ -623,7 +626,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if matched_filter:
                                 bound = matched_tresholds_pos[ielec]
                             else:
-                                bound = thresholds[ielec]
+                                bound = 1
                             if bound < ampmax:
                                 bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
@@ -633,7 +636,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if matched_filter:
                                 bound = -matched_tresholds_neg[ielec]
                             else:
-                                bound = -thresholds[ielec]
+                                bound = -1
                             if ampmin < bound:
                                 bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
@@ -938,13 +941,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     elif extraction == 'median-raw':                
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
-                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, auto_align=False)
                         first_component = numpy.median(sub_data, 0)
                         tmp_templates   = first_component
                     elif extraction == 'mean-raw':                
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
-                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, auto_align=False)
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
 
@@ -997,7 +1000,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_x     = numpy.concatenate((temp_x, dx))
                         temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
                         temp_data  = numpy.concatenate((temp_data, templates[dx]))
-
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/(N_e*N_t))
 
                         x, y, z          = sub_data.shape
@@ -1005,12 +1007,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat       = first_component.reshape(y*z, 1)
                         amplitudes       = numpy.dot(sub_data_flat, first_flat)
                         amplitudes      /= numpy.sum(first_flat**2)
+                        variation        = numpy.median(numpy.abs(amplitudes - 1))
 
-                        variation        = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+                        if p == 'neg':
+                            physical_limit = -noise_thr*thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min()
+                        elif p == 'pos':
+                            physical_limit = noise_thr*thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max()
 
-                        physical_limit   = noise_thr*(-thresholds[indices[tmpidx[0]]])/tmp_templates.min()
-                        amp_min          = min(0.8, max(physical_limit, numpy.median(amplitudes) - dispersion[0]*variation))
-                        amp_max          = max(1.2, numpy.median(amplitudes) + dispersion[1]*variation)
+                        amp_min          = max(physical_limit, 1 - dispersion*variation)
+                        amp_max          = 1 + (1 - amp_min)
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]
 

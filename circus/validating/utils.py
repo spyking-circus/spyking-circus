@@ -231,6 +231,7 @@ def extract_extra_spikes_(params):
     data_file.open()
     dist_peaks     = params.getint('detection', 'dist_peaks')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    spike_width    = params.getfloat('detection', 'spike_width')
     template_shift = params.getint('detection', 'template_shift')
     alignment      = params.getboolean('detection', 'alignment')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -299,7 +300,10 @@ def extract_extra_spikes_(params):
         for e in xrange(N_elec):
             # Extract the peaks of the current chunk.
             threshold = extra_thresh * extra_mads[e]
-            peak_times[e] = algo.detect_peaks(loc_chunk[:, e], threshold, valley=valley, mpd=dist_peaks)
+            if valley is True:
+                peak_times[e] = scipy.signal.find_peaks(-loc_chunk[:, e], height=threshold, width=spike_width, distance=dist_peaks)[0]
+            else:
+                peak_times[e] = scipy.signal.find_peaks(loc_chunk[:, e], height=threshold, width=spike_width, distance=dist_peaks)[0]
             peak_channels[e] = e * numpy.ones(peak_times[e].size, dtype='int64')
             
             peak_values = loc_chunk[peak_times[e], e]
@@ -563,7 +567,10 @@ def extract_juxta_spikes_(params):
         
         # Detect juxta spike times.
         threshold = juxta_thresh * juxta_mad
-        juxta_spike_times = algo.detect_peaks(juxta_data, threshold, valley=juxta_valley, mpd=dist_peaks)
+        if juxta_valley is True:
+            juxta_spike_times = scipy.signal.find_peaks(-juxta_data, height=threshold, distance=dist_peaks)[0]
+        else:
+            juxta_spike_times = scipy.signal.find_peaks(juxta_data, height=threshold, distance=dist_peaks)[0]
 
         # Remove juxta spike times in the borders.
         juxta_spike_times = juxta_spike_times[template_shift <= juxta_spike_times]
