@@ -34,6 +34,21 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 0.8.5
+=============
+
+* fix a bug while removing noisy templates in meta merging
+* refactoring of the meta merging GUI, addition of bhatta distances
+* meta merging more robust for non stationary recordings
+* enhance logging if parameters are missing and/or not defined
+* can now display the electrode labels in preview GUI
+* detects if a wrong install of MPI is present (linking with mpi4py)
+* conda install overwrites the old parameter file
+* raw dispay of the MUA in the result GUI (to be improved)
+* display an error if not all nodes on a cluster can read the datafiles
+* fix a bug for thresholding method using dead times
+
+=============
 Release 0.8.4
 =============
 
