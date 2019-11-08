@@ -34,7 +34,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     spike_width    = params.getfloat('detection', 'spike_width')
-    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor') * (1./spike_thresh)**2
     if params.getboolean('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     else:
@@ -452,9 +452,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                             ydata = numpy.arange(len(indices))
                                             if len(ydata) == 1:
-                                                #if False:
-                                                #    smoothing_factor = smoothing_factor*xdata.size*mads[elec]**2
-                                                #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
+                                                #if smoothing:
+                                                #    factor = smoothing_factor*xdata.size
+                                                #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=factor, k=3)
                                                 #else:
                                                 f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
                                                 if negative_peak:
@@ -465,9 +465,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                             else:
                                                 idx = elec_positions[elec]
-                                                #if False:
-                                                #    smoothing_factor = smoothing_factor*zdata.size*numpy.median(mads[indices])**2
-                                                #    f = scipy.interpolate.RectBivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
+                                                #if smoothing:
+                                                #    factor = smoothing_factor*zdata.size
+                                                #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=factor, kx=3, ky=1)
                                                 #else:
                                                 f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
                                                 if negative_peak:
