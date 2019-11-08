@@ -100,7 +100,6 @@ class CircusParser(object):
                           ['detection', 'N_t', 'string', '3'],
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],
-                          ['detection', 'spike_width', 'float', '0'],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
                           ['triggers', 'make_plots', 'string', ''],
                           ['triggers', 'trig_file', 'string', ''],
@@ -122,7 +121,7 @@ class CircusParser(object):
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
-                          ['clustering', 'noise_thr', 'float', '1'],
+                          ['clustering', 'noise_thr', 'float', '0.8'],
                           ['clustering', 'cc_merge', 'float', '0.975'],
                           ['clustering', 'cc_mixtures', 'float', '0.75'],
                           ['clustering', 'n_abs_min', 'int', '20'],
@@ -131,7 +130,7 @@ class CircusParser(object):
                           ['clustering', 'merging_method', 'string', 'distance'],
                           ['clustering', 'merging_param', 'string', 'default'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
-                          ['clustering', 'dispersion', 'float', '5'],
+                          ['clustering', 'dispersion', 'string', '(5, 5)'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['extracting', 'noise_thr', 'float', '1.'],
                           ['merging', 'cc_overlap', 'float', '0.85'],
@@ -248,13 +247,6 @@ class CircusParser(object):
                     self.parser.set(section, key, value.split('#')[0].rstrip())
             else:
                 self.parser.add_section(section)
-
-        try:
-          dispersion = self.parser.getfloat('clustering', 'dispersion')
-        except Exception:
-          if comm.rank == 0:
-              print_and_log(["Dispersion in [clustering] should be a single value (default 5)"], 'warning', logger)
-          self.parser.set('clustering', 'dispersion', '5')
 
         for item in self.__default_values__ + self.__extra_values__:
             section, name, val_type, value = item
@@ -595,11 +587,12 @@ class CircusParser(object):
           self.parser.set('clustering', 'merging_param', sim_same_elec)
           self.parser.set('clustering', 'merging_method', 'distance')
 
-        dispersion     = self.parser.getfloat('clustering', 'dispersion')
-        test =  (0 < dispersion)
+        dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
+        dispersion     = map(float, dispersion)
+        test =  (0 < dispersion[0]) and (0 < dispersion[1])
         if not test:
             if comm.rank == 0:
-                print_and_log(["dispersions in [clustering] should be positive"], 'error', logger)
+                print_and_log(["min and max dispersions in [clustering] should be positive"], 'error', logger)
             sys.exit(0)
 
         pcs_export = ['prompt', 'none', 'all', 'some']
@@ -774,16 +767,14 @@ class CircusParser(object):
 
             value = self.get('detection', 'N_t')
             self._N_t = self.getfloat('detection', 'N_t')
-            spike_width = self.getfloat('detection', 'spike_width')
 
             # template width from milisecond to sampling points
             self._N_t = int(self.rate * self._N_t * 1e-3) 
             if numpy.mod(self._N_t, 2) == 0:
                 self._N_t += 1
-            self.set('detection', 'N_t', self._N_t )
+            self.set('detection', 'N_t',self._N_t )
             self.set('detection', 'dist_peaks', self._N_t )
             self.set('detection', 'template_shift', (self._N_t-1)//2 )
-            self.set('detection', 'spike_width', self.rate*spike_width*1e-3)
 
             # jitter_range form milisecond sampling points
             jitter = self.getfloat('detection', 'jitter_range')

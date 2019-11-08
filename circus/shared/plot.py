@@ -731,7 +731,6 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    spike_with       = params.getfloat('detection', 'spike_width')
     file_out_suff    = params.get('data', 'file_out_suff')
     N_t              = params.getint('detection', 'N_t')
     nodes, edges     = get_nodes_and_edges(params)
@@ -755,7 +754,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     if do_temporal_whitening: 
         for i in xrange(N_e):
             data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i]   = scipy.signal.find_peaks(-data[:, i], height=thresholds[i], width=spike_width)[0]
+            peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
             n_spikes  += len(peaks[i])
 
     curve = numpy.zeros((n_spikes, N_t-1), dtype=numpy.float32)
@@ -1024,7 +1023,6 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    spike_width      = params.getfloat('detection', 'spike_width')
     file_out_suff    = params.get('data', 'file_out_suff')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
@@ -1051,7 +1049,7 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
     for i in xrange(N_e):
-        peaks[i]   = scipy.signal.find_peaks(-data[:, i], height=thresholds[i], width=spike_width)[0]
+        peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
 
 
     pylab.figure()
@@ -1086,7 +1084,6 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    spike_width      = params.getfloat('detection', 'spike_width')
     file_out_suff    = params.get('data', 'file_out_suff')
     nodes, edges     = get_nodes_and_edges(params)
     chunk_size       = (t_stop - t_start)*sampling_rate
@@ -1110,7 +1107,7 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
     for i in xrange(N_e):
-        peaks[i]   = scipy.signal.find_peaks(-data[:, i], height=thresholds[i], width=spike_width)[0]
+        peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
 
     if not numpy.iterable(n_elec):
         if square:

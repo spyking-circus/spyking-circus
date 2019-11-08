@@ -83,11 +83,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if matched_filter:
         if sign_peaks in ['negative', 'both']:
-            waveform_neg  = io.load_data(params, 'waveform')[::-1]
+            waveform_neg  = io.load_data(params, 'waveform')
             waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
             matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
         if sign_peaks in ['positive', 'both']:
-            waveform_pos  = io.load_data(params, 'waveform-pos')[::-1]
+            waveform_pos  = io.load_data(params, 'waveform-pos')
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
@@ -234,25 +234,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                 for i in xrange(N_e):
-                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i])[0]
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 for i in xrange(N_e):
-                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i])[0]
+                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
         else:
             for i in xrange(N_e):
                 if sign_peaks == 'negative':
-                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i])[0]
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i])[0]
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
+                    peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
                 if collect_all:
                     all_found_spikes[i] += peaktimes.tolist()
