@@ -190,6 +190,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         peak_nbs_debug_file = open(file_out_suff + '.peak_nbs_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
+        peak_time_steps_debug_file = open(file_out_suff + '.peak_time_steps_debug_%d.data' % comm.rank, mode='wb')
+        comm.Barrier()
         template_nbs_debug_file = open(file_out_suff + '.template_nbs_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
         success_flags_debug_file = open(file_out_suff + '.success_flags_debug_%d.data' % comm.rank, mode='wb')
@@ -198,6 +200,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         chunk_nbs_debug_file = None
         iteration_nbs_debug_file = None
         peak_nbs_debug_file = None
+        peak_time_steps_debug_file = None
         template_nbs_debug_file = None
         success_flags_debug_file = None
 
@@ -225,8 +228,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             padding = (-temp_2_shift, temp_2_shift)
 
-        result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
-        result_debug = {'chunk_nbs': [], 'iteration_nbs': [], 'peak_nbs': [], 'template_nbs': [], 'success_flags': []}
+        result = {
+            'spiketimes': [],
+            'amplitudes': [],
+            'templates': [],
+        }
+        result_debug = {
+            'chunk_nbs': [],
+            'iteration_nbs': [],
+            'peak_nbs': [],
+            'peak_time_steps': [],
+            'template_nbs': [],
+            'success_flags': [],
+        }
 
         local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
         len_chunk             = len(local_chunk)
@@ -438,11 +452,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['templates']  += [best_template_index]
                         # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
-                        # ...  # TODO correct!
+                        # Save debug data.
                         if debug:
                             result_debug['chunk_nbs'] += [gidx]
                             result_debug['iteration_nbs'] += [iteration_nb]
                             result_debug['peak_nbs'] += [peak_index]
+                            result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                             result_debug['template_nbs'] += [best_template_index]
                             result_debug['success_flags'] += [True]
                     else:
@@ -454,11 +469,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             mask[:, peak_index] = 0
                         else:
                             mask[best_template_index, peak_index] = 0
-                        # ...  # TODO correct!
+                        # Save debug data.
                         if debug:
                             result_debug['chunk_nbs'] += [gidx]
                             result_debug['iteration_nbs'] += [iteration_nb]
                             result_debug['peak_nbs'] += [peak_index]
+                            result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                             result_debug['template_nbs'] += [best_template_index]
                             result_debug['success_flags'] += [False]
 
@@ -518,6 +534,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ('chunk_nbs', numpy.uint32, chunk_nbs_debug_file),
                     ('iteration_nbs', numpy.uint32, iteration_nbs_debug_file),
                     ('peak_nbs', numpy.uint32, peak_nbs_debug_file),
+                    ('peak_time_steps', numpy.uint32, peak_time_steps_debug_file),
                     ('template_nbs', numpy.uint32, template_nbs_debug_file),
                     ('success_flags', numpy.bool, success_flags_debug_file),
                 ]:
