@@ -3,6 +3,7 @@ Release 0.8.6
 =============
 
 * Export from manual sorting with MATLAB to phy is now possible
+* Modification to pass SpikeSorters test suite
 
 =============
 Release 0.8.5

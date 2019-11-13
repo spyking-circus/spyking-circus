@@ -62,6 +62,7 @@ amp_auto       = True       # True if amplitudes are adjusted automatically for 
 collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
 
 [merging]
+erase_all      = True       # If False, a prompt will ask you to remerge if merged has already been done
 cc_overlap     = 0.85       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2          # Bin size for computing CC [in ms]
 default_lag    = 5          # Default length of the period to compute dip in the CC [ms]
