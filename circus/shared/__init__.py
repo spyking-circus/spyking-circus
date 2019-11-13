@@ -1,6 +1,6 @@
 import matplotlib
 import os
-if 'DISPLAY' in os.environ and os.environ['DISPLAY'] == ":0":
+if 'DISPLAY' in os.environ and os.environ['DISPLAY'] in [":0", ":1"]:
     try:
         import PyQt5
         matplotlib.use('Qt5Agg', warn=False)

@@ -174,6 +174,7 @@ class CircusParser(object):
     __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
                         ['fitting', 'max_chunk', 'float', 'inf'],
                         ['fitting', 'chunk_size', 'int', '1'],
+                        ['fitting', 'debug', 'bool', 'False'],
                         ['filtering', 'butter_order', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '10'],

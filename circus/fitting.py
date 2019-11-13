@@ -34,6 +34,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_chunk      = params.getfloat('fitting', 'max_chunk')
     noise_thr      = params.getfloat('clustering', 'noise_thr')
     collect_all    = params.getboolean('fitting', 'collect_all')
+    debug          = params.getboolean('fitting', 'debug')
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes]  = numpy.arange(len(nodes))
@@ -182,6 +183,23 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         garbage_temp_file  = open(file_out_suff + '.gtemplates-%d.data' %comm.rank, 'wb')
         comm.Barrier()
 
+    if debug:
+        chunk_nbs_debug_file = open(file_out_suff + '.chunk_nbs_debug_%d.data' % comm.rank, mode='wb')
+        comm.Barrier()
+        iteration_nbs_debug_file = open(file_out_suff + '.iteration_nbs_debug_%d.data' % comm.rank, mode='wb')
+        comm.Barrier()
+        peak_nbs_debug_file = open(file_out_suff + '.peak_nbs_debug_%d.data' % comm.rank, mode='wb')
+        comm.Barrier()
+        template_nbs_debug_file = open(file_out_suff + '.template_nbs_debug_%d.data' % comm.rank, mode='wb')
+        comm.Barrier()
+        success_flags_debug_file = open(file_out_suff + '.success_flags_debug_%d.data' % comm.rank, mode='wb')
+        comm.Barrier()
+    else:
+        chunk_nbs_debug_file = None
+        iteration_nbs_debug_file = None
+        peak_nbs_debug_file = None
+        template_nbs_debug_file = None
+        success_flags_debug_file = None
 
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
@@ -208,6 +226,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             padding = (-temp_2_shift, temp_2_shift)
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
+        result_debug = {'chunk_nbs': [], 'iteration_nbs': [], 'peak_nbs': [], 'template_nbs': [], 'success_flags': []}
 
         local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
         len_chunk             = len(local_chunk)
@@ -346,7 +365,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = numpy.minimum(numpy.arange(len_chunk) + template_shift + 1, len_chunk)
                 for i in xrange(N_e):
                     c_all_times[all_found_spikes[i], i] = True
-                    
+
+            iteration_nb = 0
             while (numpy.mean(failure) < nb_chances):
 
                 if full_gpu:
@@ -418,6 +438,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['templates']  += [best_template_index]
                         # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
+                        # ...  # TODO correct!
+                        if debug:
+                            result_debug['chunk_nbs'] += [gidx]
+                            result_debug['iteration_nbs'] += [iteration_nb]
+                            result_debug['peak_nbs'] += [peak_index]
+                            result_debug['template_nbs'] += [best_template_index]
+                            result_debug['success_flags'] += [True]
                     else:
                         # Reject the matching.
                         # Update failure counter of the peak.
@@ -427,6 +454,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             mask[:, peak_index] = 0
                         else:
                             mask[best_template_index, peak_index] = 0
+                        # ...  # TODO correct!
+                        if debug:
+                            result_debug['chunk_nbs'] += [gidx]
+                            result_debug['iteration_nbs'] += [iteration_nb]
+                            result_debug['peak_nbs'] += [peak_index]
+                            result_debug['template_nbs'] += [best_template_index]
+                            result_debug['success_flags'] += [False]
+
+                iteration_nb += 1
 
             spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
@@ -475,7 +511,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 garbage_times_file.write(gspikes_to_write.tostring())
                 garbage_temp_file.write(gtemplates_to_write.tostring())
-            
+
+            if debug:
+
+                for field_label, field_dtype, field_file in [
+                    ('chunk_nbs', numpy.uint32, chunk_nbs_debug_file),
+                    ('iteration_nbs', numpy.uint32, iteration_nbs_debug_file),
+                    ('peak_nbs', numpy.uint32, peak_nbs_debug_file),
+                    ('template_nbs', numpy.uint32, template_nbs_debug_file),
+                    ('success_flags', numpy.bool, success_flags_debug_file),
+                ]:
+                    field_to_write = numpy.array(result_debug[field_label], dtype=field_dtype)
+                    field_file.write(field_to_write.tostring())
 
             if full_gpu:
                 del gpu_mask, b, data
@@ -504,9 +551,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         os.fsync(garbage_times_file.fileno())
         garbage_times_file.close()
 
+    if debug:
+
+        for field_file in [
+            chunk_nbs_debug_file,
+            iteration_nbs_debug_file,
+            peak_nbs_debug_file,
+            template_nbs_debug_file,
+            success_flags_debug_file,
+        ]:
+            field_file.flush()
+            os.fsync(field_file.fileno())
+            field_file.close()
 
     comm.Barrier()
-    
+
     if comm.rank == 0:
         io.collect_data(comm.size, params, erase=True)
 

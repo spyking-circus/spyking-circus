@@ -1322,6 +1322,8 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     refractory     = params.getint('fitting', 'refractory')
     N_tm           = len(templates)
     collect_all    = params.getboolean('fitting', 'collect_all')
+    debug          = params.getboolean('fitting', 'debug')
+
     print_and_log(["Gathering spikes from %d nodes..." %nb_threads], 'default', logger)
 
     # Initialize data collection.
@@ -1345,6 +1347,17 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if collect_all:
         for i in xrange(N_e):
             result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0, dtype=numpy.uint32)
+
+    if debug:
+        result_debug = {
+            'chunk_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
+            'iteration_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
+            'peak_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
+            'template_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
+            'success_flags': numpy.empty(shape=0, dtype=numpy.bool),
+        }
+    else:
+        result_debug = None
 
     to_explore = xrange(nb_threads)
 
@@ -1401,8 +1414,21 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                     idx = numpy.where(gtemps == j)[0]
                     result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx]))
 
+        if debug:
+            for (key, filename_formatter, dtype) in [
+                ('chunk_nbs', '.chunk_nbs_debug_%d.data', numpy.uint32),
+                ('iteration_nbs', '.iteration_nbs_debug_%d.data', numpy.uint32),
+                ('peak_nbs', '.peak_nbs_debug_%d.data', numpy.uint32),
+                ('template_nbs', '.template_nbs_debug_%d.data', numpy.uint32),
+                ('success_flags', '.success_flags_debug_%d.data', numpy.bool),
+            ]:
+                filename = file_out_suff + filename_formatter % node
+                data = numpy.fromfile(filename, dtype=dtype)
+                result_debug[key] = numpy.concatenate((result_debug[key], data))
+            # TODO avoid multiple concatenations (copies).
+
     sys.stderr.flush()
-    # TODO: find a programmer comment.
+
     for key in result['spiketimes']:
         result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
         idx                       = numpy.argsort(result['spiketimes'][key])
@@ -1438,7 +1464,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         keys += ['gspikes']
 
     # Save results into `<dataset>/<dataset>.result.hdf5`.
-    mydata = h5py.File(file_out_suff + '.result.hdf5', 'w', libver='earliest')
+    mydata = h5py.File(file_out_suff + '.result.hdf5', mode='w', libver='earliest')
     for key in keys:
         mydata.create_group(key)
         for temp in result[key].keys():
@@ -1449,29 +1475,34 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                 mydata.create_dataset(tmp_path, data=result[key][temp])
     mydata.close()
 
-    # Count and print the number of spikes.
+    if debug:
+        file = h5py.File(file_out_suff + '.result_debug.hdf5', mode='w', libver='earliest')
+        names = ['chunk_nbs', 'iteration_nbs', 'peak_nbs', 'template_nbs', 'success_flags']
+        for name in names:
+            data = result_debug[name]
+            compression = 'gzip' if hdf5_compress else None  # TODO check!
+            file.create_dataset(name, data=data, compression=compression)
+        file.close()
+
+    # Count the number of spikes.
     count = 0
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
-
     if collect_all:
         gcount = 0
         for item in result['gspikes'].keys():
             gcount += len(result['gspikes'][item])
 
+    # Print log message.
     if benchmark:
         to_print = "injected"
     else:
         to_print = "fitted"
-
-    to_write = ["Number of spikes %s : %d" %(to_print, count)]
-
+    to_write = ["Number of spikes %s : %d" % (to_print, count)]
     if collect_all:
-        to_write += ["Number of spikes not fitted (roughly): %d [%g percent]" %(gcount, 100*gcount/float(count))]
-
+        to_write += ["Number of spikes not fitted (roughly): %d [%g percent]" % (gcount, 100 * gcount / float(count))]
     print_and_log(to_write, 'info', logger)
 
-    # TODO: find a programmer comment
     if erase:
         purge(file_out_suff, '.data')
 
