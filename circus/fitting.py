@@ -574,6 +574,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             chunk_nbs_debug_file,
             iteration_nbs_debug_file,
             peak_nbs_debug_file,
+            peak_time_steps_debug_file,
             template_nbs_debug_file,
             success_flags_debug_file,
         ]:
