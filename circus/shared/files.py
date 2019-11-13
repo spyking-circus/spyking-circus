@@ -1008,7 +1008,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.clusters%s.hdf5' %extension
         if os.path.exists(filename):
             myfile     = h5py.File(filename, 'r', libver='earliest')
-            electrodes = myfile.get('electrodes')[:]
+            electrodes = myfile.get('electrodes')[:].ravel().astype(numpy.int32)
             myfile.close()
             return electrodes
         else:
