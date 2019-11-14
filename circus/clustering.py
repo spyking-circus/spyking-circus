@@ -33,7 +33,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
+    spike_width    = params.getfloat('detection', 'spike_width')
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor') * (1./spike_thresh)**2
     if params.getboolean('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     else:
@@ -449,9 +450,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                             ydata = numpy.arange(len(indices))
                                             if len(ydata) == 1:
-                                                #if False:
-                                                #    smoothing_factor = smoothing_factor*xdata.size*mads[elec]**2
-                                                #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
+                                                #if smoothing:
+                                                #    factor = smoothing_factor*xdata.size
+                                                #    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=factor, k=3)
                                                 #else:
                                                 f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
                                                 if negative_peak:
@@ -462,9 +463,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                             else:
                                                 idx = elec_positions[elec]
-                                                #if False:
-                                                #    smoothing_factor = smoothing_factor*zdata.size*numpy.median(mads[indices])**2
-                                                #    f = scipy.interpolate.RectBivariateSpline(xdata, zdata, s=smoothing_factor, k=3)
+                                                #if smoothing:
+                                                #    factor = smoothing_factor*zdata.size
+                                                #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=factor, kx=3, ky=1)
                                                 #else:
                                                 f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
                                                 if negative_peak:
@@ -1054,20 +1055,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     g_count         += 1
 
                 # Sanity plots of the waveforms.
-                if make_plots not in ['None', '']:
-                    if n_data > 1:
-                        save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
-                        idx      = numpy.where(indices == ielec)[0][0]
-                        sub_data = numpy.take(data, idx, axis=2)
-                        nb_temp  = cluster_results[p][ielec]['n_clus']
-                        vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
-                        sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
-                        sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
-                        sub_tmp  = sub_tmp[ielec, :, :]
-                        plot.view_waveforms_clusters(
-                            numpy.dot(sub_data, basis['rec_%s' %p]), cluster_results[p][ielec]['groups'],
-                            thresholds[ielec], sub_tmp, numpy.array(myamps), save=save
-                        )
+                # if make_plots not in ['None', '']:
+                #     if n_data > 1:
+                #         save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
+                #         idx      = numpy.where(indices == ielec)[0][0]
+                #         sub_data = numpy.take(data, idx, axis=2)
+                #         nb_temp  = cluster_results[p][ielec]['n_clus']
+                #         vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
+                #         sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
+                #         sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
+                #         sub_tmp  = sub_tmp[ielec, :, :]
+                #         plot.view_waveforms_clusters(
+                #             numpy.dot(sub_data, basis['rec_%s' %p]), cluster_results[p][ielec]['groups'],
+                #             thresholds[ielec], sub_tmp, numpy.array(myamps), save=save
+                #         )
 
                 nb_dim_found = result['sub_%s_' %p + str(ielec)].shape[1]
 

@@ -1,4 +1,11 @@
 =============
+Release 0.8.7
+=============
+
+* new methods to detect the peaks, more robust when low thresholds are fixed
+* all channels are now normalized before whitening and clustering
+
+=============
 Release 0.8.6
 =============
 
