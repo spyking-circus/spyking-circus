@@ -311,6 +311,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
 
+            #snippet_norm = numpy.sum(sub_mat**2, 0)/n_scalar
+            #sub_mat /= snippet_norm
+
             del local_chunk
 
             if use_gpu: 
