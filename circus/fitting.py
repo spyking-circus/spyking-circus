@@ -61,6 +61,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         x, N_tm    = templates.shape
 
     temp_2_shift   = 2*template_shift
+    temp_3_shift   = 3*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
     n_scalar       = N_e*N_t
@@ -207,7 +208,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elif is_first:
             padding = (0, temp_2_shift)
         else:
-            padding = (-temp_2_shift, temp_2_shift)
+            padding = (-temp_3_shift, temp_3_shift)
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
@@ -250,11 +251,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             for i in xrange(N_e):
                 if sign_peaks == 'negative':
-                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, wlen=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, wlen=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
                 if collect_all:
                     all_found_spikes[i] += peaktimes.tolist()

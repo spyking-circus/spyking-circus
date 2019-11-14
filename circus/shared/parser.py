@@ -767,7 +767,7 @@ class CircusParser(object):
             if comm.rank == 0:
                 print_and_log(['Changing all values in the param depending on the rate'], 'debug', logger)
 
-            value = self.get('detection', 'N_t')
+            spike_width = self.getfloat('detection', 'spike_width')
             self._N_t = self.getfloat('detection', 'N_t')
 
             # template width from milisecond to sampling points
@@ -777,6 +777,7 @@ class CircusParser(object):
             self.set('detection', 'N_t',self._N_t )
             self.set('detection', 'dist_peaks', self._N_t )
             self.set('detection', 'template_shift', (self._N_t-1)//2 )
+            self.set('detection', 'spike_width', int(self.rate*spike_width*1e-3))
 
             # jitter_range form milisecond sampling points
             jitter = self.getfloat('detection', 'jitter_range')
