@@ -21,6 +21,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     logger = init_logging(params.logfile)
     logger = logging.getLogger('circus.merging')
     file_out_suff = params.get('data', 'file_out_suff')
+    erase_all     = params.getboolean('merging', 'erase_all')
     extension_in = extension
     extension_out = '-merged'
 
@@ -42,7 +43,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             if os.path.isdir(directory_path)
         ]
         if len(existing_file_paths) > 0 or len(existing_directory_path) > 0:
-            erase = query_yes_no("Merging already done! Do you want to erase previous merging results?", default=None)
+            if not erase_all:
+                erase = query_yes_no("Merging already done! Do you want to erase previous merging results?", default=None)
+            else:
+                erase = True
             if erase:
                 for path in existing_file_paths:
                     os.remove(path)

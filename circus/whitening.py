@@ -26,7 +26,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    spike_width    = params.getfloat('detection', 'spike_width')
     matched_filter = params.getboolean('detection', 'matched-filter')
     matched_thresh = params.getfloat('detection', 'matched_thresh')
     sign_peaks     = params.get('detection', 'peaks')
@@ -105,7 +104,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         #print "Extracting the peaks..."
         local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
         for i in xrange(N_e):
-            peaktimes       = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+            peaktimes       = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
         local_peaktimes = numpy.unique(local_peaktimes)
@@ -373,8 +372,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-            local_chunk /= thresholds
-
             #print "Extracting the peaks..."
             all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
             all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
@@ -382,11 +379,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
 
                 if sign_peaks == 'negative':
-                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True, mpd=dist_peaks)
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False, mpd=dist_peaks)
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                    peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False, mpd=dist_peaks)
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
@@ -485,16 +482,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 # sub_mat = f[ddata]
 
                             if isolation:
-                                to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= 1)
+                                to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
                             else:
                                 to_accept = True
 
                             if alignment:
                                 if negative_peak:
-                                    if numpy.min(sub_mat) >= -1:
+                                    if numpy.min(sub_mat) >= -thresholds[elec]:
                                         to_accept = False
                                 else:
-                                    if numpy.max(sub_mat) <= 1:
+                                    if numpy.max(sub_mat) <= thresholds[elec]:
                                         to_accept = False
 
                             if to_accept:
@@ -613,11 +610,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             temporal_whitening = io.load_data(params, 'temporal_whitening')
 
         if sign_peaks in ['negative', 'both']:
-            waveform_neg  = io.load_data(params, 'waveform')[::-1]
-            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))*len(waveform_neg))
+            waveform_neg  = io.load_data(params, 'waveform')
+            waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
         if sign_peaks in ['positive', 'both']:
-            waveform_pos  = io.load_data(params, 'waveform-pos')[::-1]
-            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))*len(waveform_pos))
+            waveform_pos  = io.load_data(params, 'waveform-pos')
+            waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
 
         for gidx in [all_chunks[comm.rank]]:
             local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)

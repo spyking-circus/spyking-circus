@@ -882,7 +882,7 @@ def load_data(params, data, extension=''):
             temp_x = myfile.get('temp_x')[:].ravel()
             temp_y = myfile.get('temp_y')[:].ravel()
             temp_data = myfile.get('temp_data')[:].ravel()
-            N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
+            N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel().astype(numpy.int32)
             myfile.close()
             return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
         else:
@@ -1008,7 +1008,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.clusters%s.hdf5' %extension
         if os.path.exists(filename):
             myfile     = h5py.File(filename, 'r', libver='earliest')
-            electrodes = myfile.get('electrodes')[:]
+            electrodes = myfile.get('electrodes')[:].ravel().astype(numpy.int32)
             myfile.close()
             return electrodes
         else:
@@ -1566,6 +1566,9 @@ def get_results(params, extension=''):
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
             result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
+            # Files has been saved with MATLAB and we need to be compatible with the default format
+            if extension not in ['', '-merged'] and key == "spiketimes":
+                result[str(key)][str(temp)] = result[str(key)][str(temp)].flatten()
     myfile.close()
     return result
 

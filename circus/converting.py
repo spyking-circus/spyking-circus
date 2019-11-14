@@ -197,8 +197,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             nb_templates = N_tm
 
         pc_features_ind = numpy.zeros((nb_templates, max_loc_channel), dtype=numpy.int32)            
-        clusters        = io.load_data(params, 'clusters', extension)
-        best_elec       = clusters['electrodes']
+        best_elec        = io.load_data(params, 'electrodes', extension)
         if export_all:
             best_elec = numpy.concatenate((best_elec, numpy.arange(N_e)))
         inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)

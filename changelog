@@ -1,9 +1,16 @@
 =============
-Release 0.8.6
+Release 0.8.7
 =============
 
 * new methods to detect the peaks, more robust when low thresholds are fixed
 * all channels are now normalized before whitening and clustering
+
+=============
+Release 0.8.6
+=============
+
+* Export from manual sorting with MATLAB to phy is now possible
+* Modification to pass SpikeSorters test suite
 
 =============
 Release 0.8.5
