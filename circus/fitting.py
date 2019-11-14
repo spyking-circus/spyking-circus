@@ -337,7 +337,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 data     = cmt.empty(mask.shape)
                 patch_gpu= b.shape[1] == 1
             else:
-                mask     = numpy.ones((n_tm, n_t), dtype=numpy.float32)
+                mask     = numpy.ones((n_tm, n_t), dtype=numpy.bool)
                 sub_b    = b[:n_tm, :]
 
             if collect_all:
@@ -393,8 +393,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             b_lines  = b.get_col_slice(is_neighbor[0], is_neighbor[-1]+1)
  
-                        tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp[keep])
-                        tmp2 = cmt.sparse_dot(c_overs[best_template2_index], indices, mult=-best_amp2[keep])
+                        tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp)
+                        tmp2 = cmt.sparse_dot(c_overs[best_template2_index], indices, mult=-best_amp2)
                         b_lines.add(tmp1.add(tmp2))
                         del tmp1, tmp2
                     else:
@@ -410,16 +410,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                         result['templates']  += [best_template_index]
                     # Mark current matching as tried.
-                    mask[best_template_index, peak_index] = 0
+                    mask[best_template_index, peak_index] = False
                 else:
                     # Reject the matching.
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                     if failure[peak_index] == nb_chances:
-                        mask[:, peak_index] = 0
+                        mask[:, peak_index] = False
                     else:
-                        mask[best_template_index, peak_index] = 0
+                        mask[best_template_index, peak_index] = False
 
             spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
