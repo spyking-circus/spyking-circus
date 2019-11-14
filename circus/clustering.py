@@ -360,7 +360,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if gpass > 1:
                         for elec in xrange(N_e):
-                            subset  = result['all_times_' + str(elec)] - local_offset
+                            subset  = (result['all_times_' + str(elec)] - local_offset).astype(numpy.int32)
                             peaks   = numpy.compress((subset >= 0) & (subset < (local_shape)), subset)
                             inter   = numpy.in1d(local_peaktimes, peaks)
                             indices = numpy.take(inv_nodes, edges[nodes[elec]])
@@ -966,9 +966,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         tmp_templates = to_filter
 
                     if p == 'neg':
-                        tmpidx = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+                        tmpidx = numpy.unravel_index(tmp_templates.argmin(), tmp_templates.shape)
                     elif p == 'pos':
-                        tmpidx = divmod(tmp_templates.argmax(), tmp_templates.shape[1])
+                        tmpidx = numpy.unravel_index(tmp_templates.argmax(), tmp_templates.shape)
 
                     shift     = template_shift - tmpidx[1]
 
