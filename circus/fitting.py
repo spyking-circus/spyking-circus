@@ -541,7 +541,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ('iteration_nbs', numpy.uint32, iteration_nbs_debug_file),
                     ('peak_nbs', numpy.uint32, peak_nbs_debug_file),
                     ('peak_time_steps', numpy.uint32, peak_time_steps_debug_file),
-                    ('peak_scalar_products', numpy.float32, peak_time_steps_debug_file),
+                    ('peak_scalar_products', numpy.float32, peak_scalar_products_debug_file),
                     ('template_nbs', numpy.uint32, template_nbs_debug_file),
                     ('success_flags', numpy.bool, success_flags_debug_file),
                 ]:
