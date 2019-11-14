@@ -183,7 +183,7 @@ class CircusParser(object):
                         ['clustering', 'nb_ss_bins', 'int', '50'],
                         ['clustering', 'savgol', 'bool', 'True'],
                         ['detection', 'jitter_range', 'float', '0.1'],
-                        ['detection', 'smoothing', 'bool', 'True'],
+                        ['detection', 'smoothing', 'bool', 'False'],
                         ['detection', 'smoothing_factor', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],

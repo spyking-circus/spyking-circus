@@ -122,11 +122,11 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             idx   = numpy.where(neighs == src)[0]
             ydata = numpy.arange(len(neighs))
             if len(ydata) == 1:
-                #if smoothing:
-                #    factor = smoothing_factor*xdata.size
-                #    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
-                #else:
-                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+                if smoothing:
+                    factor = smoothing_factor*xdata.size
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
+                else:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
@@ -134,11 +134,11 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
-                #if smoothing:
-                #    factor = smoothing_factor*local_chunk.size
-                #    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
-                #else:
-                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+                if smoothing:
+                    factor = smoothing_factor*local_chunk.size
+                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
+                else:
+                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 elif pos == 'pos':
