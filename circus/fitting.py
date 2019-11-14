@@ -311,6 +311,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
 
+            #snippet_norm = numpy.sum(sub_mat**2, 0)/n_scalar
+            #sub_mat /= snippet_norm
+
             del local_chunk
 
             if use_gpu: 
@@ -349,16 +352,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     
             while (numpy.mean(failure) < nb_chances):
 
-                # Is there a way to update sub_b * mask at the same time?
-                data        = sub_b * mask
-                peak_index  = numpy.argmax(numpy.max(data, 0))
-
                 if full_gpu:
                     b_array = b.asarray()
                     sub_b   = b_array[:n_tm, :]
 
-                peak_scalar_products = np.take(sub_b, peak_index, axis=1)
-                best_template_index  = np.argmax(peak_scalar_products, axis=0)
+                # Is there a way to update sub_b * mask at the same time?
+                data        = sub_b * mask
+                best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
                 best_template2_index = best_template_index + n_tm
 
                 if full_gpu:
