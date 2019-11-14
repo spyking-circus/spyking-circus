@@ -962,9 +962,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         tmp_templates = to_filter
 
                     if p == 'neg':
-                        tmpidx = divmod(tmp_templates.argmin(), tmp_templates.shape[1])
+                        tmpidx = numpy.unravel_index(tmp_templates.argmin(), tmp_templates.shape[1])
                     elif p == 'pos':
-                        tmpidx = divmod(tmp_templates.argmax(), tmp_templates.shape[1])
+                        tmpidx = numpy.unravel_index(tmp_templates.argmax(), tmp_templates.shape[1])
 
                     shift     = template_shift - tmpidx[1]
 
