@@ -194,6 +194,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         peak_scalar_products_debug_file = open(file_out_suff + '.peak_scalar_products_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
+        peak_solved_flags_debug_file = open(file_out_suff + '.peak_solved_flags_debug_%d.data' % comm.rank, mode='wb')
+        comm.Barrier()
         template_nbs_debug_file = open(file_out_suff + '.template_nbs_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
         success_flags_debug_file = open(file_out_suff + '.success_flags_debug_%d.data' % comm.rank, mode='wb')
@@ -204,6 +206,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         peak_nbs_debug_file = None
         peak_time_steps_debug_file = None
         peak_scalar_products_debug_file = None
+        peak_solved_flags_debug_file = None
         template_nbs_debug_file = None
         success_flags_debug_file = None
 
@@ -242,6 +245,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             'peak_nbs': [],
             'peak_time_steps': [],
             'peak_scalar_products': [],
+            'peak_solved_flags': [],
             'template_nbs': [],
             'success_flags': [],
         }
@@ -376,6 +380,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             else:
                 mask     = numpy.ones((n_tm, n_t), dtype=numpy.float32)
                 sub_b    = b[:n_tm, :]
+            # TODO remove the following lines.
+            if gidx == 4930:
+                print("mask: {}".format(mask))
+                print("mask.shape: {}".format(mask.shape))
+                print("(n_tm, n_t): ({}, {})".format(n_tm, n_t))
 
             if collect_all:
                 c_all_times = numpy.zeros((len_chunk, N_e), dtype=numpy.bool)
@@ -387,6 +396,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             iteration_nb = 0
             while (numpy.mean(failure) < nb_chances):
 
+                # TODO remove the following line.
+                if gidx == 4930:
+                    print("iteration_nb: {}".format(iteration_nb))
+
                 if full_gpu:
                     gpu_mask    = cmt.CUDAMatrix(mask, copy_on_host=False)
                     b.mult(gpu_mask, data)
@@ -397,15 +410,36 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     data        = sub_b * mask
                     argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
 
+                    # TODO remove the following line.
+                    if gidx == 4930:
+                        psp = np.take(data, 131, axis=1)
+                        bti = np.argsort(psp, axis=0)
+                        print("psp: {}".format(psp))
+                        print("psp.shape: {}".format(psp.shape))
+                        print("bti: {}".format(bti))
+                        print("bti.shape: {}".format(bti.shape))
+                        print("psp[bti]".format(psp[bti]))
+
                 for peak_index in argmax_bi:
+
+                    # TODO remove the following line.
+                    if gidx == 4930 and peak_index == 131:
+                        print("iteration_nb: {}".format(iteration_nb))
+                        print("peak_index: {}".format(peak_index))
 
                     if full_gpu:
                         b_array = b.asarray()
                         sub_b   = b_array[:n_tm, :]
 
-                    peak_scalar_products = np.take(sub_b, peak_index, axis=1)
+                    # peak_scalar_products = np.take(sub_b, peak_index, axis=1)
+                    peak_scalar_products = np.take(sub_b * mask, peak_index, axis=1)  # TODO ?
+                    # peak_scalar_products = np.take(data, peak_index, axis=1)  # TODO ? (incorrect, data is not a view)
                     best_template_index  = np.argmax(peak_scalar_products, axis=0)
                     best_template2_index = best_template_index + n_tm
+
+                    # TODO remove the following lines.
+                    if gidx == 4930 and peak_index == 131:
+                        print("best_template_index: {}".format(best_template_index))
 
                     if full_gpu:
                         best_amp  = sub_b[best_template_index, peak_index]/n_scalar
@@ -455,7 +489,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                             result['templates']  += [best_template_index]
                         # Mark current matching as tried.
+
+                        # # TODO remove the following lines.
+                        # if gidx == 4930:
+                        #     print("mask[best_template_index, peak_index] (before): {}".format(mask[best_template_index, peak_index]))
+
                         mask[best_template_index, peak_index] = 0
+
+                        # # TODO remove the following lines.
+                        # if gidx == 4930:
+                        #     print("mask[best_template_index, peak_index] (after): {}".format(mask[best_template_index, peak_index]))
+
                         # Save debug data.
                         if debug:
                             result_debug['chunk_nbs'] += [gidx]
@@ -463,6 +507,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result_debug['peak_nbs'] += [peak_index]
                             result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                             result_debug['peak_scalar_products'] += [peak_scalar_products[best_template_index]]
+                            result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
                             result_debug['template_nbs'] += [best_template_index]
                             result_debug['success_flags'] += [True]
                     else:
@@ -471,9 +516,29 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         failure[peak_index] += 1
                         # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                         if failure[peak_index] == nb_chances:
+
+                            # # TODO remove the following lines.
+                            # if gidx == 4930:
+                            #     print("mask[:, peak_index] (before): {}".format(mask[:, peak_index]))
+
                             mask[:, peak_index] = 0
+
+                            # # TODO remove the following lines.
+                            # if gidx == 4930:
+                            #     print("mask[:, peak_index] (after): {}".format(mask[:, peak_index]))
+
                         else:
+
+                            # # TODO remove the following lines.
+                            # if gidx == 4930:
+                            #     print("mask[best_template_index, peak_index] (before): {}".format(mask[best_template_index, peak_index]))
+
                             mask[best_template_index, peak_index] = 0
+
+                            # # TODO remove the following lines.
+                            # if gidx == 4930:
+                            #     print("mask[best_template_index, peak_index] (after): {}".format(mask[best_template_index, peak_index]))
+
                         # Save debug data.
                         if debug:
                             result_debug['chunk_nbs'] += [gidx]
@@ -481,6 +546,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result_debug['peak_nbs'] += [peak_index]
                             result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                             result_debug['peak_scalar_products'] += [peak_scalar_products[best_template_index]]
+                            result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
                             result_debug['template_nbs'] += [best_template_index]
                             result_debug['success_flags'] += [False]
 
@@ -542,6 +608,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ('peak_nbs', numpy.uint32, peak_nbs_debug_file),
                     ('peak_time_steps', numpy.uint32, peak_time_steps_debug_file),
                     ('peak_scalar_products', numpy.float32, peak_scalar_products_debug_file),
+                    ('peak_solved_flags', numpy.float32, peak_solved_flags_debug_file),
                     ('template_nbs', numpy.uint32, template_nbs_debug_file),
                     ('success_flags', numpy.bool, success_flags_debug_file),
                 ]:
@@ -583,6 +650,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             peak_nbs_debug_file,
             peak_time_steps_debug_file,
             peak_scalar_products_debug_file,
+            peak_solved_flags_debug_file,
             template_nbs_debug_file,
             success_flags_debug_file,
         ]:

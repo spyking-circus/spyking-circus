@@ -1355,6 +1355,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             'peak_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
             'peak_time_steps': numpy.empty(shape=0, dtype=numpy.uint32),
             'peak_scalar_products': numpy.empty(shape=0, dtype=numpy.float32),
+            'peak_solved_flags': numpy.empty(shape=0, dtype=numpy.float32),
             'template_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
             'success_flags': numpy.empty(shape=0, dtype=numpy.bool),
         }
@@ -1423,6 +1424,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                 ('peak_nbs', '.peak_nbs_debug_%d.data', numpy.uint32),
                 ('peak_time_steps', '.peak_time_steps_debug_%d.data', numpy.uint32),
                 ('peak_scalar_products', '.peak_scalar_products_debug_%d.data', numpy.float32),
+                ('peak_solved_flags', '.peak_solved_flags_debug_%d.data', numpy.float32),
                 ('template_nbs', '.template_nbs_debug_%d.data', numpy.uint32),
                 ('success_flags', '.success_flags_debug_%d.data', numpy.bool),
             ]:
@@ -1487,6 +1489,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             'peak_nbs',
             'peak_time_steps',
             'peak_scalar_products',
+            'peak_solved_flags',
             'template_nbs',
             'success_flags',
         ]
