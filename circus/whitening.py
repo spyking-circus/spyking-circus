@@ -619,6 +619,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
+            local_chunk /= thresholds
+
             if sign_peaks in ['negative', 'both']:
                 tmp_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 thresholds = numpy.zeros(N_e, dtype=numpy.float32)

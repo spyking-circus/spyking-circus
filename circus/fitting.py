@@ -237,14 +237,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                 for i in xrange(N_e):
-                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
+                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i])[0]
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 for i in xrange(N_e):
-                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
+                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i])[0]
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
