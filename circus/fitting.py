@@ -257,6 +257,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
         len_chunk             = len(local_chunk)
 
+        # TODO remove the following lines.
+        if debug and gidx == 4930:
+            print("padding: {}".format(padding))
+            print("temp_2_shift: {}".format(temp_2_shift))
+
         if do_spatial_whitening:
             if use_gpu:
                 local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
@@ -318,6 +323,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes)
 
+        # TODO remove the following lines.
+        if debug and gidx == 4930:
+            print("template_shift: {}".format(template_shift))
+            print("len_chunk: {}".format(len_chunk))
+            print("local_borders: {}".format(local_borders))
+
         if collect_all:
             for i in xrange(N_e):
                 all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.uint32)
@@ -369,6 +380,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_restriction = (t_offset, t_offset + chunk_size)
             all_spikes   = local_peaktimes + g_offset
 
+            # TODO remove the following lines.
+            if debug and gidx == 4930:
+                print("t_offset: {}".format(t_offset))
+                print("chunk_size: {}".format(chunk_size))
+                print("local_restriction: {}".format(local_restriction))
+                print("g_offset: {}".format(g_offset))
+
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
             if use_gpu and not full_gpu:
@@ -384,8 +402,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             else:
                 mask     = numpy.ones((n_tm, n_t), dtype=numpy.float32)
                 sub_b    = b[:n_tm, :]
+
             # TODO remove the following lines.
-            if gidx == 4930:
+            if debug and gidx == 4930:
                 print("mask: {}".format(mask))
                 print("mask.shape: {}".format(mask.shape))
                 print("(n_tm, n_t): ({}, {})".format(n_tm, n_t))
@@ -401,7 +420,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             while (numpy.mean(failure) < nb_chances):
 
                 # TODO remove the following line.
-                if gidx == 4930:
+                if debug and gidx == 4930:
                     print("iteration_nb: {}".format(iteration_nb))
 
                 if full_gpu:
@@ -415,7 +434,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
 
                     # TODO remove the following line.
-                    if gidx == 4930:
+                    if debug and gidx == 4930:
                         psp = np.take(data, 131, axis=1)
                         bti = np.argsort(psp, axis=0)
                         print("psp: {}".format(psp))
@@ -426,8 +445,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 for peak_index in argmax_bi:
 
+                    if failure[peak_index] >= nb_chances:
+                        continue  # i.e. skip peak index
+
                     # TODO remove the following line.
-                    if gidx == 4930 and peak_index == 131:
+                    if debug and gidx == 4930 and peak_index == 131:
                         print("iteration_nb: {}".format(iteration_nb))
                         print("peak_index: {}".format(peak_index))
 
@@ -442,7 +464,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     best_template2_index = best_template_index + n_tm
 
                     # TODO remove the following lines.
-                    if gidx == 4930 and peak_index == 131:
+                    if debug and gidx == 4930 and peak_index == 131:
                         print("best_template_index: {}".format(best_template_index))
 
                     if full_gpu:
@@ -458,25 +480,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     # Verify amplitude constraint.
                     a_min = amp_limits[best_template_index, 0]
                     a_max = amp_limits[best_template_index, 1]
-                
+
                     if (a_min <= best_amp_n) & (best_amp_n <= a_max):
                         # Keep the matching.
                         peak_time_step = local_peaktimes[peak_index]
-                        
+
                         data         = (local_peaktimes - peak_time_step).astype(np.int32)
                         is_neighbor  = np.where(np.abs(data) <= temp_2_shift)[0]
                         idx_neighbor = data[is_neighbor] + temp_2_shift
                         nb_neighbors = len(is_neighbor)
                         indices      = np.zeros((S_over, nb_neighbors), dtype=np.int32)
                         indices[idx_neighbor, np.arange(nb_neighbors)] = 1
-                        
-                        if full_gpu: 
+
+                        if full_gpu:
                             indices  = cmt.CUDAMatrix(indices, copy_on_host=False)
                             if patch_gpu:
                                  b_lines  = b.get_col_slice(0, b.shape[0])
                             else:
                                  b_lines  = b.get_col_slice(is_neighbor[0], is_neighbor[-1]+1)
- 
+
                             tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp[keep])
                             tmp2 = cmt.sparse_dot(c_overs[best_template2_index], indices, mult=-best_amp2[keep])
                             b_lines.add(tmp1.add(tmp2))
@@ -492,16 +514,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['spiketimes'] += [t_spike]
                             result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                             result['templates']  += [best_template_index]
+                        else:
+                            # TODO remove the following lines.
+                            if debug and gidx == 4930:
+                                print("# Spike not kept...")
+                                print("peak_index: {}".format(peak_index))
+                                print("local_peak_times[peak_index]: {}".format(local_peaktimes[peak_index]))
+                                print("all_spikes[peak_index]: {}".format(all_spikes[peak_index]))
+
                         # Mark current matching as tried.
 
                         # # TODO remove the following lines.
-                        # if gidx == 4930:
+                        # if debug and gidx == 4930:
                         #     print("mask[best_template_index, peak_index] (before): {}".format(mask[best_template_index, peak_index]))
 
                         mask[best_template_index, peak_index] = 0
 
                         # # TODO remove the following lines.
-                        # if gidx == 4930:
+                        # if debug and gidx == 4930:
                         #     print("mask[best_template_index, peak_index] (after): {}".format(mask[best_template_index, peak_index]))
 
                         # Save debug data.
@@ -523,25 +553,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if failure[peak_index] == nb_chances:
 
                             # # TODO remove the following lines.
-                            # if gidx == 4930:
+                            # if debug and gidx == 4930:
                             #     print("mask[:, peak_index] (before): {}".format(mask[:, peak_index]))
 
                             mask[:, peak_index] = 0
 
                             # # TODO remove the following lines.
-                            # if gidx == 4930:
+                            # if debug and gidx == 4930:
                             #     print("mask[:, peak_index] (after): {}".format(mask[:, peak_index]))
 
                         else:
 
                             # # TODO remove the following lines.
-                            # if gidx == 4930:
+                            # if debug and gidx == 4930:
                             #     print("mask[best_template_index, peak_index] (before): {}".format(mask[best_template_index, peak_index]))
 
                             mask[best_template_index, peak_index] = 0
 
                             # # TODO remove the following lines.
-                            # if gidx == 4930:
+                            # if debug and gidx == 4930:
                             #     print("mask[best_template_index, peak_index] (after): {}".format(mask[best_template_index, peak_index]))
 
                         # Save debug data.
