@@ -61,7 +61,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         x, N_tm    = templates.shape
 
     temp_2_shift   = 2*template_shift
-    temp_3_shift   = 3*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
     n_scalar       = N_e*N_t
@@ -208,7 +207,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elif is_first:
             padding = (0, temp_2_shift)
         else:
-            padding = (-temp_3_shift, temp_3_shift)
+            padding = (-temp_2_shift, temp_2_shift)
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
@@ -344,7 +343,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 patch_gpu= b.shape[1] == 1
             else:
                 mask     = numpy.ones((n_tm, n_t), dtype=numpy.bool)
-                sub_b    = b[:n_tm, :]
 
             if collect_all:
                 c_all_times = numpy.zeros((len_chunk, N_e), dtype=numpy.bool)
@@ -355,40 +353,33 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     
             while (numpy.mean(failure) < nb_chances):
 
-                if full_gpu:
-                    b_array = b.asarray()
-                    sub_b   = b_array[:n_tm, :]
-
                 # Is there a way to update sub_b * mask at the same time?
-                data        = sub_b * mask
+                data        = b[:n_tm, :] * mask
                 best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
                 best_template2_index = best_template_index + n_tm
 
                 if full_gpu:
-                    best_amp  = sub_b[best_template_index, peak_index]/n_scalar
-                    best_amp2 = b_array[best_template_index, peak_index]/n_scalar
+                    best_amp, best_amp2  = b_array[[best_template_index, best_template2_index], peak_index]/n_scalar
                 else:
-                    best_amp  = sub_b[best_template_index, peak_index]/n_scalar
-                    best_amp2 = b[best_template2_index, peak_index]/n_scalar
+                    best_amp, best_amp2  = b[[best_template_index, best_template2_index], peak_index]/n_scalar
 
                 best_amp_n   = best_amp/norm_templates[best_template_index]
                 best_amp2_n  = best_amp2/norm_templates[best_template2_index]
 
                 # Verify amplitude constraint.
-                a_min = amp_limits[best_template_index, 0]
-                a_max = amp_limits[best_template_index, 1]
+                a_min, a_max = amp_limits[best_template_index]
                 
                 if (a_min <= best_amp_n) & (best_amp_n <= a_max):
                     # Keep the matching.
                     peak_time_step = local_peaktimes[peak_index]
                      
                     mydata       = (local_peaktimes - peak_time_step).astype(numpy.int32)
-                    is_neighbor  = np.where(np.abs(mydata) <= temp_2_shift)[0]
+                    is_neighbor  = np.where(np.abs(mydata) <= template_shift)[0]
                     idx_neighbor = mydata[is_neighbor] + temp_2_shift
                     nb_neighbors = len(is_neighbor)
                     indices      = np.zeros((S_over, nb_neighbors), dtype=np.int32)
                     indices[idx_neighbor, np.arange(nb_neighbors)] = 1
-                        
+
                     if full_gpu: 
                         indices  = cmt.CUDAMatrix(indices, copy_on_host=False)
                         if patch_gpu:
