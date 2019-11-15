@@ -190,6 +190,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         peak_nbs_debug_file = open(file_out_suff + '.peak_nbs_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
+        peak_local_time_steps_debug_file = open(file_out_suff + '.peak_local_time_steps_debug_%d.data' % comm.rank, mode='wb')
+        comm.Barrier()
         peak_time_steps_debug_file = open(file_out_suff + '.peak_time_steps_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
         peak_scalar_products_debug_file = open(file_out_suff + '.peak_scalar_products_debug_%d.data' % comm.rank, mode='wb')
@@ -204,6 +206,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         chunk_nbs_debug_file = None
         iteration_nbs_debug_file = None
         peak_nbs_debug_file = None
+        peak_local_time_steps_debug_file = None
         peak_time_steps_debug_file = None
         peak_scalar_products_debug_file = None
         peak_solved_flags_debug_file = None
@@ -243,6 +246,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             'chunk_nbs': [],
             'iteration_nbs': [],
             'peak_nbs': [],
+            'peak_local_time_steps': [],
             'peak_time_steps': [],
             'peak_scalar_products': [],
             'peak_solved_flags': [],
@@ -505,6 +509,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result_debug['chunk_nbs'] += [gidx]
                             result_debug['iteration_nbs'] += [iteration_nb]
                             result_debug['peak_nbs'] += [peak_index]
+                            result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
                             result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                             result_debug['peak_scalar_products'] += [peak_scalar_products[best_template_index]]
                             result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
@@ -544,6 +549,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result_debug['chunk_nbs'] += [gidx]
                             result_debug['iteration_nbs'] += [iteration_nb]
                             result_debug['peak_nbs'] += [peak_index]
+                            result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
                             result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                             result_debug['peak_scalar_products'] += [peak_scalar_products[best_template_index]]
                             result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
@@ -606,6 +612,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ('chunk_nbs', numpy.uint32, chunk_nbs_debug_file),
                     ('iteration_nbs', numpy.uint32, iteration_nbs_debug_file),
                     ('peak_nbs', numpy.uint32, peak_nbs_debug_file),
+                    ('peak_local_time_steps', numpy.uint32, peak_local_time_steps_debug_file),
                     ('peak_time_steps', numpy.uint32, peak_time_steps_debug_file),
                     ('peak_scalar_products', numpy.float32, peak_scalar_products_debug_file),
                     ('peak_solved_flags', numpy.float32, peak_solved_flags_debug_file),
@@ -648,6 +655,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             chunk_nbs_debug_file,
             iteration_nbs_debug_file,
             peak_nbs_debug_file,
+            peak_local_time_steps_debug_file,
             peak_time_steps_debug_file,
             peak_scalar_products_debug_file,
             peak_solved_flags_debug_file,
