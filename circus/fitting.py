@@ -61,6 +61,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         x, N_tm    = templates.shape
 
     temp_2_shift   = 2*template_shift
+    temp_3_shift   = 3*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
     n_scalar       = N_e*N_t
@@ -203,11 +204,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         is_last  = data_file.is_last_chunk(gidx, nb_chunks)
 
         if is_last:
-            padding = (-temp_2_shift, 0)
+            padding = (-temp_3_shift, 0)
         elif is_first:
-            padding = (0, temp_2_shift)
+            padding = (0, temp_3_shift)
         else:
-            padding = (-temp_2_shift, temp_2_shift)
+            padding = (-temp_3_shift, temp_3_shift)
 
         result       = {'spiketimes' : [], 'amplitudes' : [], 'templates' : []}
 
@@ -374,7 +375,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peak_time_step = local_peaktimes[peak_index]
                      
                     mydata       = (local_peaktimes - peak_time_step).astype(numpy.int32)
-                    is_neighbor  = np.where(np.abs(mydata) <= template_shift)[0]
+                    is_neighbor  = np.where(np.abs(mydata) <= temp_2_shift)[0]
                     idx_neighbor = mydata[is_neighbor] + temp_2_shift
                     nb_neighbors = len(is_neighbor)
                     indices      = np.zeros((S_over, nb_neighbors), dtype=np.int32)
