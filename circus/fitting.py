@@ -170,20 +170,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     processed_chunks          = int(min(nb_chunks, max_chunk))
 
     comm.Barrier()
-    spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' %comm.rank, 'wb')
+    spiketimes_file = open(file_out_suff + '.spiketimes-%d.data' % comm.rank, 'wb')
     comm.Barrier()
-    amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' %comm.rank, 'wb')
+    amplitudes_file = open(file_out_suff + '.amplitudes-%d.data' % comm.rank, 'wb')
     comm.Barrier()
-    templates_file  = open(file_out_suff + '.templates-%d.data' %comm.rank, 'wb')
+    templates_file  = open(file_out_suff + '.templates-%d.data' % comm.rank, 'wb')
     comm.Barrier()
 
     if collect_all:
-        garbage_times_file = open(file_out_suff + '.gspiketimes-%d.data' %comm.rank, 'wb')
+        garbage_times_file = open(file_out_suff + '.gspiketimes-%d.data' % comm.rank, 'wb')
         comm.Barrier()
-        garbage_temp_file  = open(file_out_suff + '.gtemplates-%d.data' %comm.rank, 'wb')
+        garbage_temp_file  = open(file_out_suff + '.gtemplates-%d.data' % comm.rank, 'wb')
         comm.Barrier()
 
     if debug:
+        # Open debug files.
         chunk_nbs_debug_file = open(file_out_suff + '.chunk_nbs_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
         iteration_nbs_debug_file = open(file_out_suff + '.iteration_nbs_debug_%d.data' % comm.rank, mode='wb')
@@ -257,11 +258,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
         len_chunk             = len(local_chunk)
 
-        # TODO remove the following lines.
-        if debug and gidx == 4930:
-            print("padding: {}".format(padding))
-            print("temp_2_shift: {}".format(temp_2_shift))
-
         if do_spatial_whitening:
             if use_gpu:
                 local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
@@ -323,12 +319,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes)
 
-        # TODO remove the following lines.
-        if debug and gidx == 4930:
-            print("template_shift: {}".format(template_shift))
-            print("len_chunk: {}".format(len_chunk))
-            print("local_borders: {}".format(local_borders))
-
         if collect_all:
             for i in xrange(N_e):
                 all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.uint32)
@@ -380,13 +370,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_restriction = (t_offset, t_offset + chunk_size)
             all_spikes   = local_peaktimes + g_offset
 
-            # TODO remove the following lines.
-            if debug and gidx == 4930:
-                print("t_offset: {}".format(t_offset))
-                print("chunk_size: {}".format(chunk_size))
-                print("local_restriction: {}".format(local_restriction))
-                print("g_offset: {}".format(g_offset))
-
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
             if use_gpu and not full_gpu:
@@ -403,12 +386,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 mask     = numpy.ones((n_tm, n_t), dtype=numpy.float32)
                 sub_b    = b[:n_tm, :]
 
-            # TODO remove the following lines.
-            if debug and gidx == 4930:
-                print("mask: {}".format(mask))
-                print("mask.shape: {}".format(mask.shape))
-                print("(n_tm, n_t): ({}, {})".format(n_tm, n_t))
-
             if collect_all:
                 c_all_times = numpy.zeros((len_chunk, N_e), dtype=numpy.bool)
                 c_min_times = numpy.maximum(numpy.arange(len_chunk) - template_shift, 0)
@@ -418,10 +395,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             iteration_nb = 0
             while (numpy.mean(failure) < nb_chances):
-
-                # TODO remove the following line.
-                if debug and gidx == 4930:
-                    print("iteration_nb: {}".format(iteration_nb))
 
                 if full_gpu:
                     gpu_mask    = cmt.CUDAMatrix(mask, copy_on_host=False)
@@ -433,39 +406,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     data        = sub_b * mask
                     argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
 
-                    # TODO remove the following line.
-                    if debug and gidx == 4930:
-                        psp = np.take(data, 131, axis=1)
-                        bti = np.argsort(psp, axis=0)
-                        print("psp: {}".format(psp))
-                        print("psp.shape: {}".format(psp.shape))
-                        print("bti: {}".format(bti))
-                        print("bti.shape: {}".format(bti.shape))
-                        print("psp[bti]".format(psp[bti]))
-
                 for peak_index in argmax_bi:
 
                     if failure[peak_index] >= nb_chances:
                         continue  # i.e. skip peak index
 
-                    # TODO remove the following line.
-                    if debug and gidx == 4930 and peak_index == 131:
-                        print("iteration_nb: {}".format(iteration_nb))
-                        print("peak_index: {}".format(peak_index))
-
                     if full_gpu:
                         b_array = b.asarray()
                         sub_b   = b_array[:n_tm, :]
 
-                    # peak_scalar_products = np.take(sub_b, peak_index, axis=1)
-                    peak_scalar_products = np.take(sub_b * mask, peak_index, axis=1)  # TODO ?
-                    # peak_scalar_products = np.take(data, peak_index, axis=1)  # TODO ? (incorrect, data is not a view)
+                    peak_scalar_products = np.take(sub_b * mask, peak_index, axis=1)
                     best_template_index  = np.argmax(peak_scalar_products, axis=0)
                     best_template2_index = best_template_index + n_tm
-
-                    # TODO remove the following lines.
-                    if debug and gidx == 4930 and peak_index == 131:
-                        print("best_template_index: {}".format(best_template_index))
 
                     if full_gpu:
                         best_amp  = sub_b[best_template_index, peak_index]/n_scalar
@@ -514,26 +466,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['spiketimes'] += [t_spike]
                             result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                             result['templates']  += [best_template_index]
-                        else:
-                            # TODO remove the following lines.
-                            if debug and gidx == 4930:
-                                print("# Spike not kept...")
-                                print("peak_index: {}".format(peak_index))
-                                print("local_peak_times[peak_index]: {}".format(local_peaktimes[peak_index]))
-                                print("all_spikes[peak_index]: {}".format(all_spikes[peak_index]))
-
                         # Mark current matching as tried.
-
-                        # # TODO remove the following lines.
-                        # if debug and gidx == 4930:
-                        #     print("mask[best_template_index, peak_index] (before): {}".format(mask[best_template_index, peak_index]))
-
                         mask[best_template_index, peak_index] = 0
-
-                        # # TODO remove the following lines.
-                        # if debug and gidx == 4930:
-                        #     print("mask[best_template_index, peak_index] (after): {}".format(mask[best_template_index, peak_index]))
-
                         # Save debug data.
                         if debug:
                             result_debug['chunk_nbs'] += [gidx]
@@ -551,29 +485,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         failure[peak_index] += 1
                         # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                         if failure[peak_index] == nb_chances:
-
-                            # # TODO remove the following lines.
-                            # if debug and gidx == 4930:
-                            #     print("mask[:, peak_index] (before): {}".format(mask[:, peak_index]))
-
+                            # Mark all the matching associated to the current peak as tried.
                             mask[:, peak_index] = 0
-
-                            # # TODO remove the following lines.
-                            # if debug and gidx == 4930:
-                            #     print("mask[:, peak_index] (after): {}".format(mask[:, peak_index]))
-
                         else:
-
-                            # # TODO remove the following lines.
-                            # if debug and gidx == 4930:
-                            #     print("mask[best_template_index, peak_index] (before): {}".format(mask[best_template_index, peak_index]))
-
+                            # Mark current matching as tried.
                             mask[best_template_index, peak_index] = 0
-
-                            # # TODO remove the following lines.
-                            # if debug and gidx == 4930:
-                            #     print("mask[best_template_index, peak_index] (after): {}".format(mask[best_template_index, peak_index]))
-
                         # Save debug data.
                         if debug:
                             result_debug['chunk_nbs'] += [gidx]
@@ -637,7 +553,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 garbage_temp_file.write(gtemplates_to_write.tostring())
 
             if debug:
-
+                # Write debug data to debug files.
                 for field_label, field_dtype, field_file in [
                     ('chunk_nbs', numpy.uint32, chunk_nbs_debug_file),
                     ('iteration_nbs', numpy.uint32, iteration_nbs_debug_file),
@@ -680,7 +596,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         garbage_times_file.close()
 
     if debug:
-
+        # Close debug files.
         for field_file in [
             chunk_nbs_debug_file,
             iteration_nbs_debug_file,

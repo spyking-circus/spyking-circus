@@ -1433,7 +1433,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                 filename = file_out_suff + filename_formatter % node
                 data = numpy.fromfile(filename, dtype=dtype)
                 result_debug[key] = numpy.concatenate((result_debug[key], data))
-                # TODO avoid multiple concatenations (copies)?
+                # TODO avoid multiple concatenations (i.e. copies)?
 
     sys.stderr.flush()
 
@@ -1484,6 +1484,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     mydata.close()
 
     if debug:
+        # Save debug data to debug HDF5 files.
         file = h5py.File(file_out_suff + '.result_debug.hdf5', mode='w', libver='earliest')
         names = [
             'chunk_nbs',
