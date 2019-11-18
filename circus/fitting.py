@@ -378,13 +378,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 
             if full_gpu:
-                mask     = numpy.zeros((2*n_tm, n_t), dtype=numpy.float32)
+                mask = numpy.zeros((2*n_tm, n_t), dtype=numpy.float32)
                 mask[:n_tm, :] = 1
-                data     = cmt.empty(mask.shape)
-                patch_gpu= b.shape[1] == 1
+                data = cmt.empty(mask.shape)
+                patch_gpu = b.shape[1] == 1
             else:
-                mask     = numpy.ones((n_tm, n_t), dtype=numpy.float32)
-                sub_b    = b[:n_tm, :]
+                mask = numpy.ones((n_tm, n_t), dtype=numpy.float32)
+                patch_gpu = None
 
             if collect_all:
                 c_all_times = numpy.zeros((len_chunk, N_e), dtype=numpy.bool)
@@ -394,119 +394,106 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     c_all_times[all_found_spikes[i], i] = True
 
             iteration_nb = 0
-            while (numpy.mean(failure) < nb_chances):
+            while numpy.mean(failure) < nb_chances:
 
                 if full_gpu:
-                    gpu_mask    = cmt.CUDAMatrix(mask, copy_on_host=False)
-                    b.mult(gpu_mask, data)
-                    tmp_mat     = data.max(0)
-                    argmax_bi   = numpy.argsort(tmp_mat.asarray()[0, :])[::-1]
-                    del tmp_mat
+                    b_array = b.asarray()
                 else:
-                    data        = sub_b * mask
-                    argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
+                    b_array = None
 
-                for peak_index in argmax_bi:
+                data = b[:n_tm, :] * mask
+                peak_scalar_product = data.max()
+                best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
+                best_template2_index = best_template_index + n_tm
 
-                    if failure[peak_index] >= nb_chances:
-                        continue  # i.e. skip peak index
+                if full_gpu:
+                    best_amp = b_array[best_template_index, peak_index] / n_scalar
+                    best_amp2 = b_array[best_template2_index, peak_index] / n_scalar
+                else:
+                    best_amp = b[best_template_index, peak_index] / n_scalar
+                    best_amp2 = b[best_template2_index, peak_index] / n_scalar
+
+                best_amp_n = best_amp / norm_templates[best_template_index]
+                best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+
+                # Verify amplitude constraint.
+                a_min, a_max = amp_limits[best_template_index, :]
+
+                if (a_min <= best_amp_n) & (best_amp_n <= a_max):
+                    # Keep the matching.
+                    peak_time_step = local_peaktimes[peak_index]
+
+                    peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
+                    is_neighbor = np.where(np.abs(peak_data) <= temp_2_shift)[0]
+                    idx_neighbor = peak_data[is_neighbor] + temp_2_shift
+                    nb_neighbors = len(is_neighbor)
+                    indices = np.zeros((S_over, nb_neighbors), dtype=np.int32)
+                    indices[idx_neighbor, np.arange(nb_neighbors)] = 1
 
                     if full_gpu:
-                        b_array = b.asarray()
-                        sub_b   = b_array[:n_tm, :]
-
-                    peak_scalar_products = np.take(sub_b * mask, peak_index, axis=1)
-                    best_template_index  = np.argmax(peak_scalar_products, axis=0)
-                    best_template2_index = best_template_index + n_tm
-
-                    if full_gpu:
-                        best_amp  = sub_b[best_template_index, peak_index]/n_scalar
-                        best_amp2 = b_array[best_template_index, peak_index]/n_scalar
-                    else:
-                        best_amp  = sub_b[best_template_index, peak_index]/n_scalar
-                        best_amp2 = b[best_template2_index, peak_index]/n_scalar
-
-                    best_amp_n   = best_amp/norm_templates[best_template_index]
-                    best_amp2_n  = best_amp2/norm_templates[best_template2_index]
-
-                    # Verify amplitude constraint.
-                    a_min = amp_limits[best_template_index, 0]
-                    a_max = amp_limits[best_template_index, 1]
-
-                    if (a_min <= best_amp_n) & (best_amp_n <= a_max):
-                        # Keep the matching.
-                        peak_time_step = local_peaktimes[peak_index]
-
-                        data         = (local_peaktimes - peak_time_step).astype(np.int32)
-                        is_neighbor  = np.where(np.abs(data) <= temp_2_shift)[0]
-                        idx_neighbor = data[is_neighbor] + temp_2_shift
-                        nb_neighbors = len(is_neighbor)
-                        indices      = np.zeros((S_over, nb_neighbors), dtype=np.int32)
-                        indices[idx_neighbor, np.arange(nb_neighbors)] = 1
-
-                        if full_gpu:
-                            indices  = cmt.CUDAMatrix(indices, copy_on_host=False)
-                            if patch_gpu:
-                                 b_lines  = b.get_col_slice(0, b.shape[0])
-                            else:
-                                 b_lines  = b.get_col_slice(is_neighbor[0], is_neighbor[-1]+1)
-
-                            tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp[keep])
-                            tmp2 = cmt.sparse_dot(c_overs[best_template2_index], indices, mult=-best_amp2[keep])
-                            b_lines.add(tmp1.add(tmp2))
-                            del tmp1, tmp2
+                        indices = cmt.CUDAMatrix(indices, copy_on_host=False)
+                        if patch_gpu:
+                            b_lines = b.get_col_slice(0, b.shape[0])
                         else:
-                            tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                            tmp2 = c_overs[best_template2_index].multiply(-best_amp2)
-                            b[:, is_neighbor] += (tmp1 + tmp2).dot(indices)
-                        # Add matching to the result.
-                        t_spike               = all_spikes[peak_index]
-                        if (t_spike >= local_restriction[0]) and (t_spike < local_restriction[1]):
-                            #print "Accept spikes", t_spike, local_restriction, type(t_spike), t_spike > local_restriction[0], t_spike < local_restriction[1]
-                            result['spiketimes'] += [t_spike]
-                            result['amplitudes'] += [(best_amp_n, best_amp2_n)]
-                            result['templates']  += [best_template_index]
+                            b_lines = b.get_col_slice(is_neighbor[0], is_neighbor[-1]+1)
+
+                        tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp)
+                        tmp2 = cmt.sparse_dot(c_overs[best_template2_index], indices, mult=-best_amp2)
+                        b_lines.add(tmp1.add(tmp2))
+                        del tmp1, tmp2
+                    else:
+                        tmp1 = c_overs[best_template_index].multiply(-best_amp)
+                        tmp2 = c_overs[best_template2_index].multiply(-best_amp2)
+                        b[:, is_neighbor] += (tmp1 + tmp2).dot(indices)
+
+                    # Add matching to the result.
+                    t_spike = all_spikes[peak_index]
+
+                    if (t_spike >= local_restriction[0]) and (t_spike < local_restriction[1]):
+                        result['spiketimes'] += [t_spike]
+                        result['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                        result['templates'] += [best_template_index]
+                    # Mark current matching as tried.
+                    mask[best_template_index, peak_index] = 0
+                    # Save debug data.
+                    if debug:
+                        result_debug['chunk_nbs'] += [gidx]
+                        result_debug['iteration_nbs'] += [iteration_nb]
+                        result_debug['peak_nbs'] += [peak_index]
+                        result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
+                        result_debug['peak_time_steps'] += [all_spikes[peak_index]]
+                        result_debug['peak_scalar_products'] += [peak_scalar_product]
+                        result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
+                        result_debug['template_nbs'] += [best_template_index]
+                        result_debug['success_flags'] += [True]
+                else:
+                    # Reject the matching.
+                    # Update failure counter of the peak.
+                    failure[peak_index] += 1
+                    # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
+                    if failure[peak_index] == nb_chances:
+                        # Mark all the matching associated to the current peak as tried.
+                        mask[:, peak_index] = 0
+                    else:
                         # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
-                        # Save debug data.
-                        if debug:
-                            result_debug['chunk_nbs'] += [gidx]
-                            result_debug['iteration_nbs'] += [iteration_nb]
-                            result_debug['peak_nbs'] += [peak_index]
-                            result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
-                            result_debug['peak_time_steps'] += [all_spikes[peak_index]]
-                            result_debug['peak_scalar_products'] += [peak_scalar_products[best_template_index]]
-                            result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
-                            result_debug['template_nbs'] += [best_template_index]
-                            result_debug['success_flags'] += [True]
-                    else:
-                        # Reject the matching.
-                        # Update failure counter of the peak.
-                        failure[peak_index] += 1
-                        # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
-                        if failure[peak_index] == nb_chances:
-                            # Mark all the matching associated to the current peak as tried.
-                            mask[:, peak_index] = 0
-                        else:
-                            # Mark current matching as tried.
-                            mask[best_template_index, peak_index] = 0
-                        # Save debug data.
-                        if debug:
-                            result_debug['chunk_nbs'] += [gidx]
-                            result_debug['iteration_nbs'] += [iteration_nb]
-                            result_debug['peak_nbs'] += [peak_index]
-                            result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
-                            result_debug['peak_time_steps'] += [all_spikes[peak_index]]
-                            result_debug['peak_scalar_products'] += [peak_scalar_products[best_template_index]]
-                            result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
-                            result_debug['template_nbs'] += [best_template_index]
-                            result_debug['success_flags'] += [False]
+                    # Save debug data.
+                    if debug:
+                        result_debug['chunk_nbs'] += [gidx]
+                        result_debug['iteration_nbs'] += [iteration_nb]
+                        result_debug['peak_nbs'] += [peak_index]
+                        result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
+                        result_debug['peak_time_steps'] += [all_spikes[peak_index]]
+                        result_debug['peak_scalar_products'] += [peak_scalar_product]
+                        result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
+                        result_debug['template_nbs'] += [best_template_index]
+                        result_debug['success_flags'] += [False]
 
                 iteration_nb += 1
 
-            spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
+            spikes_to_write = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
-            templates_to_write  = numpy.array(result['templates'], dtype=numpy.uint32)
+            templates_to_write = numpy.array(result['templates'], dtype=numpy.uint32)
 
             spiketimes_file.write(spikes_to_write.tostring())
             amplitudes_file.write(amplitudes_to_write.tostring())
@@ -517,8 +504,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 for temp, spike in zip(templates_to_write, spikes_to_write - g_offset):
                     c_all_times[c_min_times[spike]:c_max_times[spike], neighbors[temp]] = False
 
-                gspikes       = numpy.where(numpy.sum(c_all_times, 1) > 0)[0]
-                c_all_times   = numpy.take(c_all_times, gspikes, axis=0)
+                gspikes = numpy.where(numpy.sum(c_all_times, 1) > 0)[0]
+                c_all_times = numpy.take(c_all_times, gspikes, axis=0)
                 c_local_chunk = numpy.take(c_local_chunk, gspikes, axis=0) * c_all_times                
 
                 if sign_peaks == 'negative':
@@ -527,14 +514,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         threshs = -matched_tresholds_neg[bestlecs]
                     else:
                         threshs = -thresholds[bestlecs]
-                    idx      = numpy.where(numpy.min(c_local_chunk, 1) < threshs)[0]
+                    idx = numpy.where(numpy.min(c_local_chunk, 1) < threshs)[0]
                 elif sign_peaks == 'positive':
                     bestlecs = numpy.argmax(c_local_chunk, 1)
                     if matched_filter:
                         threshs = matched_tresholds_pos[bestlecs]
                     else:
                         threshs = thresholds[bestlecs]
-                    idx      = numpy.where(numpy.max(c_local_chunk, 1) > threshs)[0]
+                    idx = numpy.where(numpy.max(c_local_chunk, 1) > threshs)[0]
                 elif sign_peaks == 'both':
                     c_local_chunk = numpy.abs(c_local_chunk)
                     bestlecs = numpy.argmax(c_local_chunk, 1)
@@ -542,12 +529,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         threshs = numpy.minimum(matched_tresholds_neg[bestlecs], matched_tresholds_pos[bestlecs])
                     else:
                         threshs = thresholds[bestlecs]
-                    idx      = numpy.where(numpy.max(c_local_chunk, 1) > threshs)[0]
-                
-                gspikes  = numpy.take(gspikes, idx)
+                    idx = numpy.where(numpy.max(c_local_chunk, 1) > threshs)[0]
+
+                gspikes = numpy.take(gspikes, idx)
                 bestlecs = numpy.take(bestlecs, idx)
-                gspikes_to_write     = numpy.array(gspikes + g_offset, dtype=numpy.uint32)
-                gtemplates_to_write  = numpy.array(bestlecs, dtype=numpy.uint32)
+                gspikes_to_write = numpy.array(gspikes + g_offset, dtype=numpy.uint32)
+                gtemplates_to_write = numpy.array(bestlecs, dtype=numpy.uint32)
 
                 garbage_times_file.write(gspikes_to_write.tostring())
                 garbage_temp_file.write(gtemplates_to_write.tostring())
@@ -569,7 +556,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     field_file.write(field_to_write.tostring())
 
             if full_gpu:
-                del gpu_mask, b, data
+                del b, data
 
     sys.stderr.flush()
 
