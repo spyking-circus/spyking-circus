@@ -214,13 +214,19 @@ class MergeWindow(QMainWindow):
                 thr = self.thresholds[elec]
                 self.norms[idx] = numpy.abs(tmp).max()/thr
 
-            best_elec = self.electrodes[idx]
+            best_elec = nodes[self.electrodes[idx]]
             nb_channels = len(numpy.where(tmp.sum(1) != 0)[0])
-            self.sparsities[idx] = 1 - float(nb_channels) / len(edges[best_elec])
+            max_nb_channels = len(edges[best_elec])
+            if max_nb_channels < 1:
+                raise ValueError(max_nb_channels)
+            elif max_nb_channels == 1:
+                self.sparsities[idx] = 1.0 - 0.0
+            else:
+                self.sparsities[idx] = 1.0 - float(nb_channels - 1) / float(max_nb_channels - 1)
 
-        self.overlap   /= self.shape[0] * self.shape[1]
+        self.overlap /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
-        self.mpi_wait   = numpy.array([0], dtype=numpy.int32)
+        self.mpi_wait = numpy.array([0], dtype=numpy.int32)
 
         if comm.rank > 0:
             self.listen()
