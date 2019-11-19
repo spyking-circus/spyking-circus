@@ -141,11 +141,7 @@ class CircusParser(object):
                           ['merging', 'auto_mode', 'float', '0'],
                           ['merging', 'default_lag', 'float', '5'],
                           ['merging', 'remove_noise', 'bool', 'False'],
-<<<<<<< HEAD
                           ['merging', 'noise_limit', 'float', '1.1'],
-=======
-                          ['merging', 'noise_limit', 'float', '1.05'],
->>>>>>> aaa19837e96657d50f5656efdc869e52cb035b32
                           ['merging', 'sparsity_limit', 'float', '0.75'],
                           ['merging', 'merge_drifts', 'bool', 'False'],
                           ['merging', 'drift_limit', 'float', '0.5'],
@@ -523,6 +519,12 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["noise_limit in [merging] should be > 1"], 'error', logger)
+            sys.exit(0)
+
+        test = (self.parser.getfloat('merging', 'sparsity_limit') <= 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["sparsity_limit in [merging] should be < 1"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getint('detection', 'oversampling_factor') >= 0)
