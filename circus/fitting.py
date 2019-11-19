@@ -22,6 +22,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    spike_width    = params.getfloat('detection', 'spike_width')
+    dist_peaks     = params.getint('detection', 'dist_peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     chunk_size     = detect_memory(params, fitting=True)
@@ -60,6 +62,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         x, N_tm    = templates.shape
 
     temp_2_shift   = 2*template_shift
+    temp_3_shift   = 3*template_shift
     full_gpu       = use_gpu and gpu_only
     n_tm           = N_tm//2
     n_scalar       = N_e*N_t
@@ -75,7 +78,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         amp_limits       = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
-    
+
     if not SHARED_MEMORY:
         for idx in xrange(templates.shape[1]):
             myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
@@ -84,11 +87,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if matched_filter:
         if sign_peaks in ['negative', 'both']:
-            waveform_neg  = io.load_data(params, 'waveform')
+            waveform_neg  = io.load_data(params, 'waveform')[::-1]
             waveform_neg /= (numpy.abs(numpy.sum(waveform_neg))* len(waveform_neg))
             matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
         if sign_peaks in ['positive', 'both']:
-            waveform_pos  = io.load_data(params, 'waveform-pos')
+            waveform_pos  = io.load_data(params, 'waveform-pos')[::-1]
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos))* len(waveform_pos))
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
@@ -232,11 +235,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         is_last  = data_file.is_last_chunk(gidx, nb_chunks)
 
         if is_last:
-            padding = (-temp_2_shift, 0)
+            padding = (-temp_3_shift, 0)
         elif is_first:
-            padding = (0, temp_2_shift)
+            padding = (0, temp_3_shift)
         else:
-            padding = (-temp_2_shift, temp_2_shift)
+            padding = (-temp_3_shift, temp_3_shift)
 
         result = {
             'spiketimes': [],
@@ -280,25 +283,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                 for i in xrange(N_e):
-                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_pos[i])
+                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i])[0]
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 for i in xrange(N_e):
-                    peaktimes = algo.detect_peaks(filter_chunk[:, i], matched_tresholds_neg[i])
+                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i])[0]
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
         else:
             for i in xrange(N_e):
                 if sign_peaks == 'negative':
-                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=True)
+                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = algo.detect_peaks(local_chunk[:, i], thresholds[i], valley=False)
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'both':
-                    peaktimes = algo.detect_peaks(numpy.abs(local_chunk[:, i]), thresholds[i], valley=False)                    
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
                 local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
                 if collect_all:
                     all_found_spikes[i] += peaktimes.tolist()
@@ -357,6 +360,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
 
+            #snippet_norm = numpy.sum(sub_mat**2, 0)/n_scalar
+            #sub_mat /= snippet_norm
+
             del local_chunk
 
             if use_gpu: 
@@ -383,7 +389,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 data = cmt.empty(mask.shape)
                 patch_gpu = b.shape[1] == 1
             else:
-                mask = numpy.ones((n_tm, n_t), dtype=numpy.float32)
+                mask     = numpy.ones((n_tm, n_t), dtype=numpy.bool)
                 patch_gpu = None
 
             if collect_all:
@@ -395,6 +401,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             iteration_nb = 0
             while numpy.mean(failure) < nb_chances:
+
+                # Is there a way to update sub_b * mask at the same time?
+                data        = b[:n_tm, :] * mask
+                best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
+                best_template2_index = best_template_index + n_tm
 
                 if full_gpu:
                     b_array = b.asarray()
@@ -436,7 +447,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             b_lines = b.get_col_slice(0, b.shape[0])
                         else:
                             b_lines = b.get_col_slice(is_neighbor[0], is_neighbor[-1]+1)
-
                         tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp)
                         tmp2 = cmt.sparse_dot(c_overs[best_template2_index], indices, mult=-best_amp2)
                         b_lines.add(tmp1.add(tmp2))
@@ -454,7 +464,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                         result['templates'] += [best_template_index]
                     # Mark current matching as tried.
-                    mask[best_template_index, peak_index] = 0
+                    mask[best_template_index, peak_index] = False
                     # Save debug data.
                     if debug:
                         result_debug['chunk_nbs'] += [gidx]
@@ -473,10 +483,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                     if failure[peak_index] == nb_chances:
                         # Mark all the matching associated to the current peak as tried.
-                        mask[:, peak_index] = 0
+                        mask[:, peak_index] = False
                     else:
                         # Mark current matching as tried.
-                        mask[best_template_index, peak_index] = 0
+                        mask[best_template_index, peak_index] = False
                     # Save debug data.
                     if debug:
                         result_debug['chunk_nbs'] += [gidx]
@@ -491,7 +501,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 iteration_nb += 1
 
-            spikes_to_write = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
             templates_to_write = numpy.array(result['templates'], dtype=numpy.uint32)
 

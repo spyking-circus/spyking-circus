@@ -754,7 +754,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     if do_temporal_whitening: 
         for i in xrange(N_e):
             data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
+            peaks[i]   = juxta_spike_times = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
             n_spikes  += len(peaks[i])
 
     curve = numpy.zeros((n_spikes, N_t-1), dtype=numpy.float32)
@@ -1049,7 +1049,7 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
     for i in xrange(N_e):
-        peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
+        peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
 
 
     pylab.figure()
@@ -1107,7 +1107,7 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
     for i in xrange(N_e):
-        peaks[i]   = algo.detect_peaks(data[:, i], thresholds[i], valley=True, mpd=0)
+        peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
 
     if not numpy.iterable(n_elec):
         if square:
