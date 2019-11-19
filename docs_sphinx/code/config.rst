@@ -163,20 +163,31 @@ Merging
 
 The merging section is::
 
-    cc_overlap     = 0.85      # Only templates with CC higher than cc_overlap may be merged
-    cc_bin         = 2         # Bin size for computing CC [in ms]
-    correct_lag    = True      # If spikes are aligned when merging. May be better for phy usage
-    default_lag    = 5         # Default length of the period to compute dip in the CC [ms]
-    auto_mode      = 0.75      # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
-    remove_noise   = False     # If True, meta merging will remove obvious noise templates (weak amplitudes)
-    noise_limit    = 1.05      # Amplitude at which templates are classified as noise
-    time_rpv       = 5         # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
-    rpv_threshold  = 0.02      # Percentage of RPV allowed while merging
+    erase_all      = True       # If False, a prompt will ask you to remerge if merged has already been done
+    cc_overlap     = 0.85       # Only templates with CC higher than cc_overlap may be merged
+    cc_bin         = 2          # Bin size for computing CC [in ms]
+    default_lag    = 5          # Default length of the period to compute dip in the CC [ms]
+    auto_mode      = 0.75       # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
+    remove_noise   = False      # If True, meta merging will remove obvious noise templates (weak amplitudes)
+    noise_limit    = 1.05       # Amplitude at which templates are classified as noise
+    sparsity_limit = 0.75       # Sparsity level (in percentage) for selecting templates as putative noise (in [0, 1])
+    time_rpv       = 5          # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
+    rpv_threshold  = 0.02       # Percentage of RPV allowed while merging
+    merge_drifts   = False      # Try to automatically merge drifts, i.e. non overlapping spiking neurons
+    drift_limit    = 0.1        # Distance for drifts. The higher, the more non-overlapping the activities should be
 
 To know more about how those merges are performed and how to use this option, see :doc:`Automatic Merging <../code/merging>`. Parameters that are most likely to be changed:
-    * ``correct_lag`` By default, in the meta-merging GUI, when two templates are merged, the spike times of the one removed are simply added to the one kept, without modification. However, it is more accurate to shift those spike, in times, by the temporal shift that may exist between those two templates. This will lead to a better visualization in phy, with more aligned spikes
+    * ``erase_all`` If you want to always erase former merging, and skip the prompt
     * ``auto_mode`` If your recording is stationary, you can try to perform a fully automated merging. By setting a positive value, you control the level of merging performed by the software. Values such as 0.75 should be a good start, but see see :doc:`Automatic Merging <../code/merging>` for more details. The lower, the more the merging will be aggressive.
     * ``remove_noise`` If you want to automatically get rid of noise templates (very weak ones), just set this value to True.
+    * ``noise_limit`` normalized amplitude (with respect to the detection threshold) below which templates are considered as noise
+    * ``sparsity_limit`` To be considered as noisy templates, sparsity level that must be achieved by the templates. Internally, the code sets to 0 channels without any useful
+    information. So the sparsity is the ratio between the number of channels with non-zero values divided by the number of channels that should have had a signal. Usually, noise tends
+    to only be defined on few channels (if not only one)
+    * ``time_rpv`` When performing merges, the code wil check if the merged unit has a valid ISI without any RPV. If yes, then merge is performed, and otherwise this is avoided. This is the default
+    time using to compute RPV. If you want to disable this feature, set this value to 0.
+    * ``rpv_threshold`` Percentage of RPV allowed while merging, you can increase it if you want to be less stringent.
+    * ``drift_limit`` To assess if a unit is drifting or not, we compute distances between the histograms of the spike times, for a given pair of cells, and assess how much do they overlap. For drifting units, they should not overlap by much, and the threshold can be set by this value. The higher, the more histograms should be distinct to be merged.
 
 Converting
 ----------
