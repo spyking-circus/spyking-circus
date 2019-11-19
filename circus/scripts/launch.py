@@ -57,10 +57,7 @@ def main(argv=None):
         'merging', 'validating', 'thresholding'
     ]
 
-    if os.path.exists(pjoin(user_path, 'config.params')):
-        config_file = os.path.abspath(pjoin(user_path, 'config.params'))
-    else:
-        config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
+    config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
     header  = get_colored_header()
     header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(psutil.cpu_count()) + '\n'
