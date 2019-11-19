@@ -501,8 +501,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 iteration_nb += 1
 
+            spikes_to_write     = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
-            templates_to_write = numpy.array(result['templates'], dtype=numpy.uint32)
+            templates_to_write  = numpy.array(result['templates'], dtype=numpy.uint32)
 
             spiketimes_file.write(spikes_to_write.tostring())
             amplitudes_file.write(amplitudes_to_write.tostring())
