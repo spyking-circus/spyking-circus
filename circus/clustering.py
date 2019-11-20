@@ -295,8 +295,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if do_temporal_whitening:
                     local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-                local_chunk /= thresholds
-
                 #print "Extracting the peaks..."
                 all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
                 all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
@@ -320,11 +318,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     for i in xrange(N_e):
                         if sign_peaks == 'negative':
-                            peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=N_t)[0]
+                            peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=N_t)[0]
                         elif sign_peaks == 'positive':
-                            peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=N_t)[0]
+                            peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=N_t)[0]
                         elif sign_peaks == 'both':
-                            peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=1, width=spike_width, distance=dist_peaks, wlen=N_t)[0]
+                            peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=N_t)[0]
                         all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                         all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
@@ -627,7 +625,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if matched_filter:
                                 bound = matched_tresholds_pos[ielec]
                             else:
-                                bound = 1
+                                bound = thresholds[ielec]
                             if bound < ampmax:
                                 bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
@@ -637,7 +635,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if matched_filter:
                                 bound = -matched_tresholds_neg[ielec]
                             else:
-                                bound = -1
+                                bound = -thresholds[ielec]
                             if ampmin < bound:
                                 bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
@@ -1061,21 +1059,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     count_templates += 1
                     g_count         += 1
 
-                # Sanity plots of the waveforms.
-                # if make_plots not in ['None', '']:
-                #     if n_data > 1:
-                #         save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
-                #         idx      = numpy.where(indices == ielec)[0][0]
-                #         sub_data = numpy.take(data, idx, axis=2)
-                #         nb_temp  = cluster_results[p][ielec]['n_clus']
-                #         vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
-                #         sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
-                #         sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
-                #         sub_tmp  = sub_tmp[ielec, :, :]
-                #         plot.view_waveforms_clusters(
-                #             numpy.dot(sub_data, basis['rec_%s' %p]), cluster_results[p][ielec]['groups'],
-                #             thresholds[ielec], sub_tmp, numpy.array(myamps), save=save
-                #         )
+                #Sanity plots of the waveforms.
+                if make_plots not in ['None', '']:
+                    if n_data > 1:
+                        save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
+                        idx      = numpy.where(indices == ielec)[0][0]
+                        sub_data = numpy.take(data, idx, axis=2)
+                        nb_temp  = cluster_results[p][ielec]['n_clus']
+                        vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
+                        sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
+                        sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
+                        sub_tmp  = sub_tmp[ielec, :, :]
+                        plot.view_waveforms_clusters(
+                            numpy.dot(sub_data, basis['rec_%s' %p]), cluster_results[p][ielec]['groups'],
+                            thresholds[ielec], sub_tmp, numpy.array(myamps), save=save
+                        )
 
                 nb_dim_found = result['sub_%s_' %p + str(ielec)].shape[1]
 
