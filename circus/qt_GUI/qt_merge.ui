@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>981</width>
-    <height>867</height>
+    <height>1003</height>
    </rect>
   </property>
   <property name="palette">
@@ -558,6 +558,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QLabel" name="label_5">
+         <property name="text">
+          <string>Noise limit</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QDoubleSpinBox" name="get_suggest_value_template">
          <property name="minimum">
           <double>1.000000000000000</double>
@@ -567,6 +574,26 @@
          </property>
          <property name="value">
           <double>1.050000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_6">
+         <property name="text">
+          <string>Sparsity limit</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="get_sparsity_limit">
+         <property name="maximum">
+          <double>1.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.050000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.750000000000000</double>
          </property>
         </widget>
        </item>

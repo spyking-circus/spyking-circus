@@ -1,4 +1,15 @@
 =============
+Release 0.8.7
+=============
+
+* new methods to detect the peaks, more robust when low thresholds are fixed
+* all channels are now normalized before whitening and clustering
+* more accurate fitting procedure, slightly slower
+* minor bug fixes
+* addition of a sparsity_limit parameter in the meta merging GUI, to remove noise more precisely
+* new parameter file is properly copied
+
+=============
 Release 0.8.6
 =============
 

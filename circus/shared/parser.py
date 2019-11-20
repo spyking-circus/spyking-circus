@@ -100,6 +100,7 @@ class CircusParser(object):
                           ['detection', 'N_t', 'string', '3'],
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],
+                          ['detection', 'spike_width', 'float', '0'],
                           ['triggers', 'clean_artefact', 'bool', 'False'],
                           ['triggers', 'make_plots', 'string', ''],
                           ['triggers', 'trig_file', 'string', ''],
@@ -140,7 +141,8 @@ class CircusParser(object):
                           ['merging', 'auto_mode', 'float', '0'],
                           ['merging', 'default_lag', 'float', '5'],
                           ['merging', 'remove_noise', 'bool', 'False'],
-                          ['merging', 'noise_limit', 'float', '1.05'],
+                          ['merging', 'noise_limit', 'float', '1.1'],
+                          ['merging', 'sparsity_limit', 'float', '0.75'],
                           ['merging', 'merge_drifts', 'bool', 'False'],
                           ['merging', 'drift_limit', 'float', '0.5'],
                           ['merging', 'time_rpv', 'float', '5'],
@@ -174,6 +176,7 @@ class CircusParser(object):
     __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
                         ['fitting', 'max_chunk', 'float', 'inf'],
                         ['fitting', 'chunk_size', 'int', '1'],
+                        ['fitting', 'debug', 'bool', 'False'],
                         ['filtering', 'butter_order', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'sub_dim', 'int', '10'],
@@ -182,8 +185,8 @@ class CircusParser(object):
                         ['clustering', 'nb_ss_bins', 'int', '50'],
                         ['clustering', 'savgol', 'bool', 'True'],
                         ['detection', 'jitter_range', 'float', '0.1'],
-                        ['detection', 'smoothing', 'bool', 'True'],
-                        ['detection', 'smoothing_factor', 'float', '0.25'],
+                        ['detection', 'smoothing', 'bool', 'False'],
+                        ['detection', 'smoothing_factor', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
                         ['whitening', 'safety_time', 'string', 'auto'],
@@ -518,6 +521,12 @@ class CircusParser(object):
                 print_and_log(["noise_limit in [merging] should be > 1"], 'error', logger)
             sys.exit(0)
 
+        test = (self.parser.getfloat('merging', 'sparsity_limit') <= 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["sparsity_limit in [merging] should be < 1"], 'error', logger)
+            sys.exit(0)
+
         test = (self.parser.getint('detection', 'oversampling_factor') >= 0)
         if not test:
             if comm.rank == 0:
@@ -766,7 +775,7 @@ class CircusParser(object):
             if comm.rank == 0:
                 print_and_log(['Changing all values in the param depending on the rate'], 'debug', logger)
 
-            value = self.get('detection', 'N_t')
+            spike_width = self.getfloat('detection', 'spike_width')
             self._N_t = self.getfloat('detection', 'N_t')
 
             # template width from milisecond to sampling points
@@ -776,6 +785,7 @@ class CircusParser(object):
             self.set('detection', 'N_t',self._N_t )
             self.set('detection', 'dist_peaks', self._N_t )
             self.set('detection', 'template_shift', (self._N_t-1)//2 )
+            self.set('detection', 'spike_width', int(self.rate*spike_width*1e-3))
 
             # jitter_range form milisecond sampling points
             jitter = self.getfloat('detection', 'jitter_range')

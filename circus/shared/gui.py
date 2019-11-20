@@ -152,6 +152,7 @@ class MergeWindow(QMainWindow):
         self.default_lag = params.getfloat('merging', 'default_lag')
         self.remove_noise = params.getboolean('merging', 'remove_noise')
         self.noise_limit = params.getfloat('merging', 'noise_limit')
+        self.sparsity_limit = params.getfloat('merging', 'sparsity_limit')
         self.min_spikes  = params.getint('merging', 'min_spikes')
 
         self.duration   = io.load_data(params, 'duration')
@@ -189,6 +190,8 @@ class MergeWindow(QMainWindow):
         self.inv_nodes  = numpy.zeros(self.N_total, dtype=numpy.int32)
         self.inv_nodes[nodes] = numpy.arange(len(nodes))
 
+        self.sparsities = numpy.zeros(self.shape[2]//2, dtype=numpy.float32)
+
         self.norms      = numpy.zeros(len(self.indices), dtype=numpy.float32)
         self.rates      = numpy.zeros(len(self.indices), dtype=numpy.float32)
         self.to_delete  = numpy.zeros(0, dtype=numpy.int32)
@@ -211,9 +214,19 @@ class MergeWindow(QMainWindow):
                 thr = self.thresholds[elec]
                 self.norms[idx] = numpy.abs(tmp).max()/thr
 
-        self.overlap   /= self.shape[0] * self.shape[1]
+            best_elec = nodes[self.electrodes[idx]]
+            nb_channels = len(numpy.where(tmp.sum(1) != 0)[0])
+            max_nb_channels = len(edges[best_elec])
+            if max_nb_channels < 1:
+                raise ValueError(max_nb_channels)
+            elif max_nb_channels == 1:
+                self.sparsities[idx] = 1.0 - 0.0
+            else:
+                self.sparsities[idx] = 1.0 - float(nb_channels - 1) / float(max_nb_channels - 1)
+
+        self.overlap /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
-        self.mpi_wait   = numpy.array([0], dtype=numpy.int32)
+        self.mpi_wait = numpy.array([0], dtype=numpy.int32)
 
         if comm.rank > 0:
             self.listen()
@@ -266,6 +279,7 @@ class MergeWindow(QMainWindow):
             self.get_suggest_value_template.setValue(self.suggest_value_template)
             self.get_suggest_value_bhatta.setValue(self.suggest_value_bhatta)
             self.get_suggest_value.setValue(self.suggest_value)
+            self.get_sparsity_limit.setValue(self.sparsity_limit)
 
             self.rect_selectors = [widgets.RectangleSelector(ax,
                                                          onselect=self.callback_rect,
@@ -307,6 +321,7 @@ class MergeWindow(QMainWindow):
             self.ui.btn_suggest_drifts.clicked.connect(self.suggest_drifts)
             self.ui.get_suggest_value.valueChanged.connect(self.update_suggest_value)
             self.ui.get_suggest_value_template.valueChanged.connect(self.update_suggest_value_template)
+            self.ui.get_sparsity_limit.valueChanged.connect(self.update_sparsity_limit)
             self.ui.get_suggest_value_bhatta.valueChanged.connect(self.update_suggest_value_bhatta)
             self.ui.btn_unselect_template.clicked.connect(self.remove_selection_templates)
 
@@ -376,6 +391,9 @@ class MergeWindow(QMainWindow):
             self.decision_boundary2.set_xdata([self.suggest_value_template, self.suggest_value_template])
             self.decision_boundary2.set_ydata([0, self.rates[self.to_consider].max()])
             self.ui.score_2.draw_idle()
+
+    def update_sparsity_limit(self):
+        self.sparsity_limit = self.get_sparsity_limit.value()
 
     def update_suggest_value_bhatta(self):
         self.suggest_value_bhatta = self.get_suggest_value_bhatta.value()
@@ -1136,7 +1154,7 @@ class MergeWindow(QMainWindow):
 
     def suggest_templates(self, event):
         self.inspect_templates = set()
-        indices = numpy.where(self.norms[self.to_consider] <= self.suggest_value_template)[0]
+        indices = numpy.where((self.norms[self.to_consider] <= self.suggest_value_template) & (self.sparsities[self.to_consider] >= self.sparsity_limit))[0]
         self.update_inspect_template(indices, add_or_remove='add')
 
     def on_mouse_press(self, event):
