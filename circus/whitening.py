@@ -105,7 +105,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         #print "Extracting the peaks..."
         local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
         for i in xrange(N_e):
-            peaktimes       = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=dist_peaks)[0]  
+            peaktimes       = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t)[0]  
             local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
 
         local_peaktimes = numpy.unique(local_peaktimes)
@@ -382,11 +382,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for i in xrange(N_e):
 
                 if sign_peaks == 'negative':
-                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=1, width=spike_width, distance=dist_peaks, wlen=N_t)[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=1, width=spike_width, wlen=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=1, width=spike_width, wlen=N_t)[0]
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=1, width=spike_width, wlen=dist_peaks)[0]  
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=1, width=spike_width, wlen=N_t)[0]  
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
                 all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
