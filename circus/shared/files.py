@@ -91,18 +91,24 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     jitter_range          = params.getint('detection', 'jitter_range')
     template_shift_2      = template_shift + jitter_range
     duration              = 2 * template_shift_2 + 1
-    mads                  = load_data(params, 'mads')
-    smoothing_factor      = params.getfloat('detection', 'smoothing_factor') * numpy.median(mads)**2
+    stds                  = load_data(params, 'stds')
+    smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
+    idx   = numpy.where(neighs == src)[0]
+    ydata = numpy.arange(len(neighs))
+
     if alignment:
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
+        smoothing_factor *= duration*numpy.mean(stds[neighs])
+    else:
+        smoothing_factor *= N_t*numpy.mean(stds[neighs])
 
     count = 0
     for lb, time in zip(labels_i, times_i):
@@ -119,12 +125,13 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
-            idx   = numpy.where(neighs == src)[0]
-            ydata = numpy.arange(len(neighs))
+            
             if len(ydata) == 1:
                 if smoothing:
-                    factor = smoothing_factor*xdata.size
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
+                    try:
+                        f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=smoothing_factor, k=3)
+                    except Exception:
+                        f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
                 else:
                     f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
                 if pos == 'neg':
@@ -135,8 +142,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 if smoothing:
-                    factor = smoothing_factor*local_chunk.size
-                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
+                    try:
+                        f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=smoothing_factor, kx=3, ky=1)
+                    except Exception:
+                        f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
                 else:
                     f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
                 if pos == 'neg':
@@ -735,6 +744,17 @@ def load_data(params, data, extension=''):
         if os.path.exists(filename):
             myfile     = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]
+            myfile.close()
+            return thresholds
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
+    elif data == 'stds':
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            thresholds = myfile.get('thresholds')[:]/0.674
             myfile.close()
             return thresholds
         else:
