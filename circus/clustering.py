@@ -27,7 +27,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
-    alignment      = params.getboolean('detection', 'alignment')
     smoothing      = params.getboolean('detection', 'smoothing')
     isolation      = params.getboolean('detection', 'isolation')
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
@@ -151,11 +150,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
-
-    if alignment:
-        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
-        xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
-        xoff  = len(cdata)/2.
 
     if isolation:
         yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
@@ -327,10 +321,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                 #print "Removing the useless borders..."
-                if alignment:
-                    local_borders = (template_shift_2, local_shape - template_shift_2)
-                else:
-                    local_borders = (template_shift, local_shape - template_shift)
+                local_borders = (template_shift, local_shape - template_shift)
                 idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
                 all_peaktimes   = numpy.compress(idx, all_peaktimes)
                 all_extremas    = numpy.compress(idx, all_extremas)
@@ -447,36 +438,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     if len(to_update) < loop_max_elts_elec:
 
-                                        if alignment:
-                                            zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
-                                            ydata = numpy.arange(len(indices))
-                                            if len(ydata) == 1:
-                                                if smoothing:
-                                                    factor = smoothing_factor*xdata.size
-                                                    f = scipy.interpolate.UnivariateSpline(xdata, zdata, s=factor, k=3)
-                                                else:
-                                                    f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
-                                                if negative_peak:
-                                                    rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
-                                                else:
-                                                    rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
-                                                ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
-                                                sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
-                                            else:
-                                                idx = elec_positions[elec]
-                                                if smoothing:
-                                                    factor = smoothing_factor*zdata.size
-                                                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, s=factor, kx=3, ky=1)
-                                                else:
-                                                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
-                                                if negative_peak:
-                                                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
-                                                else:
-                                                    rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
-                                                ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
-                                                sub_mat  = f(ddata, ydata).astype(numpy.float32)
-                                        else:
-                                            sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
+                                        sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
 
                                         if use_hanning:
                                             sub_mat = (sub_mat.T*hanning_filter).T
