@@ -294,7 +294,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
-    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor') * (1./spike_thresh)**2
     if sign_peaks == 'both':
        max_elts_elec *= 2
     nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
@@ -341,7 +341,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     thresholds = io.load_data(params, 'thresholds')
     mads = io.load_data(params, 'mads')
-    stds = io.load_data(params, 'stds')
 
     if alignment:
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
@@ -459,11 +458,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
 
                                 if smoothing:
-                                    try:
-                                        factor = smoothing_factor*xdata.size*(stds[elec]**2)
-                                        f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=factor, k=3)
-                                    except Exception:
-                                        f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
+                                    factor = smoothing_factor*xdata.size
+                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=factor, k=3)
                                 else:
                                     f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
                                 if negative_peak:
