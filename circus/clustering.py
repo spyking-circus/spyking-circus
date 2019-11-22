@@ -27,13 +27,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
-    smoothing      = params.getboolean('detection', 'smoothing')
     isolation      = params.getboolean('detection', 'isolation')
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     spike_width    = params.getfloat('detection', 'spike_width')
-    smoothing_factor = params.getfloat('detection', 'smoothing_factor') * (1./spike_thresh)**2
     if params.getboolean('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     else:
@@ -82,7 +80,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift_2 = template_shift + jitter_range
     nb_ss_bins        = params.getint('clustering', 'nb_ss_bins')
     use_hanning      = params.getboolean('detection', 'hanning')
-    use_savgol       = params.getboolean('clustering', 'savgol')
     data_file.open()
     #################################################################
 
@@ -100,11 +97,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     basis = {}
 
     if use_hanning:
-        hanning_filter = numpy.hanning(N_t)
-
-    if use_savgol:
-        savgol_window = params.getint('clustering', 'savgol_window')
-        savgol_filter = numpy.hanning(N_t)**3
+        hanning_filter = numpy.hanning(N_t)[:, numpy.newaxis]
 
     if sign_peaks in ['negative', 'both']:
         basis['proj_neg'], basis['rec_neg'] = io.load_data(params, 'basis')
@@ -113,6 +106,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     thresholds = io.load_data(params, 'thresholds')
     mads = io.load_data(params, 'mads')
+    stds = io.load_data(params, 'stds')
+    n_scalar = N_e*N_t
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
@@ -440,9 +435,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                         sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
 
-                                        if use_hanning:
-                                            sub_mat = (sub_mat.T*hanning_filter).T
-
                                         if gpass == 0:
                                             to_accept  = True
                                             ext_amp    = sub_mat[template_shift]
@@ -465,12 +457,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 to_accept = True
 
                                             if to_accept:
+
+                                                if use_hanning:
+                                                    sub_mat *= hanning_filter
+
                                                 sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
                                                 nx, ny     = sub_mat.shape
                                                 sub_mat    = sub_mat.reshape((1, nx * ny))
                                                 result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
 
                                         else:
+
+                                            if use_hanning:
+                                                sub_mat *= hanning_filter
 
                                             sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
                                             nx, ny     = sub_mat.shape
@@ -817,8 +816,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
-        if use_savgol:
-            print_and_log(["Templates will be smoothed by Savitzky Golay Filtering ..."], 'debug', logger)
 
     if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
 
@@ -912,33 +909,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
 
-                    if use_savgol: 
-                        if extraction in ['median-raw', 'mean-raw']:
-                            to_filter = first_component
-                        elif extraction in ['median-pca', 'mean-pca']:
-                            to_filter = tmp_templates
-
-                        if savgol_window > 3:
-                            for i in range(len(to_filter)):
-                                tmp = scipy.signal.savgol_filter(to_filter[i], savgol_window, 3)
-                                to_filter[i] = savgol_filter*to_filter[i] + (1 - savgol_filter)*tmp
-
-                        tmp_templates = to_filter
-
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(tmp_templates.argmin(), tmp_templates.shape)
+                        ratio = -tmp_templates[tmpidx[0]].min()/thresholds[tmpidx[0]]
                     elif p == 'pos':
                         tmpidx = numpy.unravel_index(tmp_templates.argmax(), tmp_templates.shape)
+                        ratio = tmp_templates[tmpidx[0]].max()/thresholds[tmpidx[0]]
 
                     shift     = template_shift - tmpidx[1]
 
                     if np.abs(shift) > template_shift / 4:
-
                         shifted_templates = numpy.concatenate((shifted_templates, numpy.array([count_templates], dtype='int32')))
                         myamps           += [[0, 10]]
-
                     else:
-
                         templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                         if shift > 0:
                             templates[indices, shift:] = tmp_templates[:, :-shift]
@@ -950,8 +933,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         mean_channels += len(indices)
                         if comp_templates:
                             to_delete  = []
-                            stds = numpy.std(templates[indices], 1)
-                            to_delete = numpy.where(stds < (sparsify*(thresholds[indices]/spike_thresh)/0.674))[0]
+                            local_stds = numpy.std(templates[indices], 1)
+                            to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
                             templates[indices[to_delete], :] = 0
                             mean_channels -= len(to_delete)
 
@@ -962,7 +945,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
                         temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
-                        norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/(N_e*N_t))
+                        norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/n_scalar)
 
                         x, y, z          = sub_data.shape
                         sub_data_flat    = sub_data.reshape(x, y*z)
@@ -971,12 +954,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         amplitudes      /= numpy.sum(first_flat**2)
 
                         variation        = numpy.median(numpy.abs(amplitudes - 1))
-
-                        if p == 'neg':
-                            physical_limit = -noise_thr*thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min()
-                        elif p == 'pos':
-                            physical_limit = noise_thr*thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max()
-
+                        physical_limit   = noise_thr*ratio
                         amp_min          = max(physical_limit, 1 - dispersion[0]*variation)
                         amp_max          = 1 + dispersion[1]*variation
                         amps_lims[g_count] = [amp_min, amp_max]
@@ -1016,7 +994,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_y     = numpy.concatenate((temp_y, offset*numpy.ones(len(dx), dtype=numpy.uint32)))
                         temp_data  = numpy.concatenate((temp_data, sub_templates[dx]))
 
-                        norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.ravel()**2)/(N_e*N_t))
+                        norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.ravel()**2)/n_scalar)
 
                     count_templates += 1
                     g_count         += 1
@@ -1029,7 +1007,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_data = numpy.take(data, idx, axis=2)
                         nb_temp  = cluster_results[p][ielec]['n_clus']
                         vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
-                        sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(N_e*N_t, nb_temp))
+                        sub_tmp  = scipy.sparse.csr_matrix((temp_data[vidx], (temp_x[vidx], temp_y[vidx]-loc_pad)), shape=(n_scalar, nb_temp))
                         sub_tmp  = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
                         sub_tmp  = sub_tmp[ielec, :, :]
                         plot.view_waveforms_clusters(

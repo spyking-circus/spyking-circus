@@ -92,7 +92,7 @@ class CircusParser(object):
                           ['data', 'shared_memory', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'hanning', 'bool', 'True'],
-                          ['detection', 'oversampling_factor', 'int', '5'],
+                          ['detection', 'oversampling_factor', 'int', '10'],
                           ['detection', 'matched-filter', 'bool', 'False'],
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
@@ -183,9 +183,7 @@ class CircusParser(object):
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.25'],
                         ['clustering', 'nb_ss_bins', 'int', '50'],
-                        ['clustering', 'savgol', 'bool', 'True'],
                         ['detection', 'jitter_range', 'float', '0.25'],
-                        ['detection', 'smoothing', 'bool', 'False'],
                         ['detection', 'smoothing_factor', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
@@ -791,13 +789,6 @@ class CircusParser(object):
             jitter = self.getfloat('detection', 'jitter_range')
             jitter_range = int(self.rate * jitter * 1e-3)
             self.set('detection', 'jitter_range', jitter_range )
-
-            # savgol from milisecond to sampling points
-            self._savgol = int(self.rate * 0.5 * 1e-3)
-            if numpy.mod(self._savgol, 2) == 0:
-                self._savgol += 1
-
-            self.set('clustering', 'savgol_window', self._savgol)
 
             if self.parser._sections['fitting'].has_key('chunk'):
                 self.parser.set('fitting', 'chunk_size', 
