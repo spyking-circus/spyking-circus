@@ -469,18 +469,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                 sub_mat = f(ddata).astype(numpy.float32)
 
+                            if alignment:
+                                if negative_peak:
+                                    if numpy.min(sub_mat) >= -thresholds[elec]:
+                                        to_accept = False
+                                else:
+                                    if numpy.max(sub_mat) <= thresholds[elec]:
+                                        to_accept = False
+
                             if isolation:
                                 to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
                             else:
                                 to_accept = True
-
-                            if alignment:
-                                if negative_peak:
-                                    if numpy.min(sub_mat) >= -1:
-                                        to_accept = False
-                                else:
-                                    if numpy.max(sub_mat) <= 1:
-                                        to_accept = False
 
                             if to_accept:
                                 if negative_peak:
