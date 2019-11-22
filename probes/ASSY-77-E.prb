@@ -77,7 +77,7 @@ def get_locations(xloc = 0):
     
     for electrode in mycorr:
         electrode[0] =+ xloc # shift x-direction
-    return mycoor    
+    return mycorr    
 
 # create dictionaries 'zipping' shanks and locations
 channel_groups[1]["geometry"] = dict( zip(shankA, get_locations(xloc=0)))
