@@ -80,7 +80,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift_2 = template_shift + jitter_range
     nb_ss_bins        = params.getint('clustering', 'nb_ss_bins')
     use_hanning      = params.getboolean('detection', 'hanning')
-    use_savgol       = params.getboolean('clustering', 'savgol')
     data_file.open()
     #################################################################
 
@@ -99,10 +98,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if use_hanning:
         hanning_filter = numpy.hanning(N_t)[:, numpy.newaxis]
-
-    if use_savgol:
-        savgol_window = params.getint('clustering', 'savgol_window')
-        savgol_filter = numpy.hanning(N_t)**3
 
     if sign_peaks in ['negative', 'both']:
         basis['proj_neg'], basis['rec_neg'] = io.load_data(params, 'basis')
@@ -150,9 +145,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
-
-    if isolation:
-        yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
 
     comm.Barrier()
 
@@ -823,9 +815,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
 
-        if use_savgol:
-            print_and_log(["Templates will be smoothed by Savitzky Golay Filtering ..."], 'debug', logger)
-
     if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
 
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
@@ -918,25 +907,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
 
-                    if use_savgol: 
-                        if extraction in ['median-raw', 'mean-raw']:
-                            to_filter = first_component
-                        elif extraction in ['median-pca', 'mean-pca']:
-                            to_filter = tmp_templates
-
-                        if savgol_window > 3:
-                            for i in range(len(to_filter)):
-                                tmp = scipy.signal.savgol_filter(to_filter[i], savgol_window, 3)
-                                to_filter[i] = savgol_filter*to_filter[i] + (1 - savgol_filter)*tmp
-
-                        tmp_templates = to_filter
-
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(tmp_templates.argmin(), tmp_templates.shape)
-                        ratio = -tmp_templates[tmpidx[0]].min()/thresholds[tmpidx[0]]
+                        ratio = -thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min()
                     elif p == 'pos':
                         tmpidx = numpy.unravel_index(tmp_templates.argmax(), tmp_templates.shape)
-                        ratio = tmp_templates[tmpidx[0]].max()/thresholds[tmpidx[0]]
+                        ratio = thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max()
 
                     shift     = template_shift - tmpidx[1]
 
