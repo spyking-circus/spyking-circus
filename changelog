@@ -8,6 +8,7 @@ Release 0.8.7
 * minor bug fixes
 * addition of a sparsity_limit parameter in the meta merging GUI, to remove noise more precisely
 * new parameter file is properly copied
+* enhancement of the smoothing/alignement procedure, more accurate estimation of noisy templates
 
 =============
 Release 0.8.6

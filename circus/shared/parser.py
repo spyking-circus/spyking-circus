@@ -92,7 +92,7 @@ class CircusParser(object):
                           ['data', 'shared_memory', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'hanning', 'bool', 'True'],
-                          ['detection', 'oversampling_factor', 'int', '10'],
+                          ['detection', 'oversampling_factor', 'int', '5'],
                           ['detection', 'matched-filter', 'bool', 'False'],
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
@@ -132,6 +132,7 @@ class CircusParser(object):
                           ['clustering', 'merging_param', 'string', 'default'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
+                          ['clustering', 'savgol', 'bool', 'True'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['extracting', 'noise_thr', 'float', '1.'],
                           ['merging', 'erase_all', 'bool', 'True'],
@@ -793,6 +794,13 @@ class CircusParser(object):
             if self.parser._sections['fitting'].has_key('chunk'):
                 self.parser.set('fitting', 'chunk_size', 
                     self.parser._sections['fitting']['chunk'])
+
+            # savgol from milisecond to sampling points
+            self._savgol = int(self.rate * 0.5 * 1e-3)
+            if numpy.mod(self._savgol, 2) == 0:
+                self._savgol += 1
+
+            self.set('clustering', 'savgol_window', self._savgol)
 
             # chunck_size from second to sampling points
             for section in ['data', 'whitening', 'fitting']:
