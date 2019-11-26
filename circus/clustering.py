@@ -901,10 +901,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(tmp_templates.argmin(), tmp_templates.shape)
-                        ratio = max(1, -thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min())
+                        ratio = -thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min()
                     elif p == 'pos':
                         tmpidx = numpy.unravel_index(tmp_templates.argmax(), tmp_templates.shape)
-                        ratio = max(1, thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max())
+                        ratio = thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max()
 
                     shift     = template_shift - tmpidx[1]
 
@@ -945,9 +945,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         center           = numpy.median(amplitudes)
                         variation        = numpy.median(numpy.abs(amplitudes - center))
-                        physical_limit   = noise_thr*ratio
-                        amp_min          = max(physical_limit, center - dispersion[0]*variation)
-                        amp_max          = center + dispersion[1]*variation
+
+                        # If ratio < 1, this is a clear template, otherwise this is likely to be noise, since
+                        # median waveform is below the threshold.
+                        if ratio < 1:
+                            physical_limit = noise_thr*ratio
+                            amp_min = max(physical_limit, center - dispersion[0]*variation)
+                            amp_max = center + dispersion[1]*variation
+                        else:
+                            amp_min = 0.8
+                            amp_max = 1.2
+
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]
 
