@@ -815,7 +815,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
 
-    if extraction in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca']:
+    if extraction in ['median-raw', 'mean-raw']:
 
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
         offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
@@ -886,33 +886,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     electrodes[g_count] = ielec
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
                     
-                    if extraction == 'median-pca':
-                        sub_data        = numpy.take(data, myslice, axis=0)
-                        first_component = numpy.median(sub_data, axis=0)
-                        tmp_templates   = numpy.dot(first_component.T, basis['rec_%s' %p])
-                    elif extraction == 'mean-pca':
-                        sub_data        = numpy.take(data, myslice, axis=0)
-                        first_component = numpy.mean(sub_data, axis=0)
-                        tmp_templates   = numpy.dot(first_component.T, basis['rec_%s' %p])
-                    elif extraction == 'median-raw':                
+                    if extraction == 'median-raw':
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
-                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
                         first_component = numpy.median(sub_data, 0)
                         tmp_templates   = first_component
                     elif extraction == 'mean-raw':                
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
-                        sub_data        = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(tmp_templates.argmin(), tmp_templates.shape)
-                        ratio = -thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min()
+                        ratio = max(1, -thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min())
                     elif p == 'pos':
                         tmpidx = numpy.unravel_index(tmp_templates.argmax(), tmp_templates.shape)
-                        ratio = thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max()
+                        ratio = max(1, thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max())
 
                     shift     = template_shift - tmpidx[1]
 
@@ -946,15 +938,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/n_scalar)
 
                         x, y, z          = sub_data.shape
-                        sub_data_flat    = sub_data.reshape(x, y*z)
+                        sub_data_flat    = sub_data_raw.reshape(x, y*z)
                         first_flat       = first_component.reshape(y*z, 1)
                         amplitudes       = numpy.dot(sub_data_flat, first_flat)
                         amplitudes      /= numpy.sum(first_flat**2)
 
-                        variation        = numpy.median(numpy.abs(amplitudes - 1))
+                        center           = numpy.median(amplitudes)
+                        variation        = numpy.median(numpy.abs(amplitudes - center))
                         physical_limit   = noise_thr*ratio
-                        amp_min          = max(physical_limit, 1 - dispersion[0]*variation)
-                        amp_max          = 1 + dispersion[1]*variation
+                        amp_min          = max(physical_limit, center - dispersion[0]*variation)
+                        amp_max          = center + dispersion[1]*variation
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]
 
@@ -968,9 +961,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
-                        if extraction in ['median-pca', 'mean-pca']:
-                            tmp_templates = numpy.dot(second_component.T, basis['rec_%s' %p])
-                        elif extraction in ['median-raw', 'mean-raw']:
+                        if extraction in ['median-raw', 'mean-raw']:
                             tmp_templates = second_component
 
                         offset        = total_nb_clusters + count_templates
