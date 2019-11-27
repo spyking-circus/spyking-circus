@@ -938,9 +938,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/n_scalar)
 
                         x, y, z          = sub_data.shape
-                        sub_data_flat    = sub_data_raw.reshape(x, y*z)
+                        sub_data_flat    = sub_data.reshape(x, y*z)
+                        sub_data_flat_raw= sub_data_raw.reshape(x, y*z)
                         first_flat       = first_component.reshape(y*z, 1)
-                        amplitudes       = numpy.dot(sub_data_flat, first_flat)
+                        amplitudes       = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes      /= numpy.sum(first_flat**2)
 
                         center           = numpy.median(amplitudes)

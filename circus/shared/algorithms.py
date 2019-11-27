@@ -696,6 +696,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     nb_temp        = int(N_tm//2)
     merged         = [nb_temp, 0]
 
+    supports = {}
+    for t in range(N_e):
+        elecs = numpy.take(inv_nodes, edges[nodes[t]])
+        supports[t] = elecs
+
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
 
@@ -703,7 +708,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         data = c_overs[i].toarray()
         distances[i, i+1:] = numpy.argmax(data[i+1:, :], 1)
         distances[i+1:, i] = distances[i, i+1:]
-        overlap_0[i] = data[i, N_t]
+        overlap_0[i] = data[i, N_t - 1]
 
     all_temp    = numpy.arange(comm.rank, nb_temp, comm.size)
     sorted_temp = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
@@ -719,7 +724,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         k             = sorted_temp[k]
         electrodes    = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
         overlap_k     = c_overs[k]
-        is_in_area    = numpy.in1d(best_elec, electrodes)
+        is_in_area    = [numpy.any(numpy.in1d(supports[best_elec[t]], electrodes)) for t in range(nb_temp)]
         all_idx       = numpy.arange(len(best_elec))[is_in_area]
         been_found    = False
         t_k           = None

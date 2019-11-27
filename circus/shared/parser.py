@@ -420,10 +420,10 @@ class CircusParser(object):
             sys.exit(0)
           self.parser.set('triggers', 'dead_file', myfile)
 
-        test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
+        test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'mean-raw'])
         if not test:
             if comm.rank == 0:
-                print_and_log(["Only 4 extraction modes in [clustering]: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
+                print_and_log(["Only 4 extraction modes in [clustering]: median-raw, mean-raw!"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.get('detection', 'peaks').lower() in ['negative', 'positive', 'both'])
