@@ -84,7 +84,7 @@ channel_groups[3]["geometry"] = dict( zip(shankC, get_locations(xloc=500)))
 channel_groups[4]["geometry"] = dict( zip(shankD, get_locations(xloc=750)))
     
 #=========================================================================
-# Assign "graph" of adjancenct nodes to have phy compatibility
+# Assign "graph" of adjancenct nodes to have klusta compatibility
 #=========================================================================
 def get_graph(shank):
     """
