@@ -27,6 +27,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
     sign_peaks     = params.get('detection', 'peaks')
+    alignment      = params.getboolean('detection', 'alignment')
     isolation      = params.getboolean('detection', 'isolation')
     over_factor    = float(params.getint('detection', 'oversampling_factor'))
     matched_filter = params.getboolean('detection', 'matched-filter')
@@ -80,6 +81,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift_2 = template_shift + jitter_range
     nb_ss_bins        = params.getint('clustering', 'nb_ss_bins')
     use_hanning      = params.getboolean('detection', 'hanning')
+    use_savgol       = params.getboolean('clustering', 'savgol')
     data_file.open()
     #################################################################
 
@@ -98,6 +100,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if use_hanning:
         hanning_filter = numpy.hanning(N_t)[:, numpy.newaxis]
+
+    if use_savgol:
+        savgol_window = params.getint('clustering', 'savgol_window')
+        savgol_filter = numpy.hanning(N_t)**3
+
+    if alignment:
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
+        xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
+        xoff  = len(cdata)/2.
 
     if sign_peaks in ['negative', 'both']:
         basis['proj_neg'], basis['rec_neg'] = io.load_data(params, 'basis')
@@ -313,7 +324,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                 #print "Removing the useless borders..."
-                local_borders = (template_shift, local_shape - template_shift)
+                if alignment:
+                    local_borders = (template_shift_2, local_shape - template_shift_2)
+                else:
+                    local_borders = (template_shift, local_shape - template_shift)
                 idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
                 all_peaktimes   = numpy.compress(idx, all_peaktimes)
                 all_extremas    = numpy.compress(idx, all_extremas)
@@ -431,18 +445,41 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     if len(to_update) < loop_max_elts_elec:
 
-                                        sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
+                                        if alignment:
+                                            zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
+                                            ydata = numpy.arange(len(indices))
+                                            if len(ydata) == 1:
+                                                f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
+                                                if negative_peak:
+                                                    rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
+                                                else:
+                                                    rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                                                ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                                                sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+                                            else:
+                                                idx = elec_positions[elec]
+                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
+                                                if negative_peak:
+                                                    rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                                                else:
+                                                    rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                                                ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                                                sub_mat  = f(ddata, ydata).astype(numpy.float32)
+                                        else:
+                                            sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
+
+                                        if gpass > 0:
+                                            max_test = numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
 
                                         if gpass == 0:
                                             to_accept  = True
                                             ext_amp    = sub_mat[template_shift]
                                             result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
-                                        elif gpass == 1:
+                                        elif gpass == 1 and max_test:
 
                                             if smart_searches[loc_peak][elec] > 0:
 
-                                                idx     = elec_positions[elec]
-                                                ext_amp = sub_mat[template_shift, idx]
+                                                ext_amp = sub_mat[template_shift, elec_positions[elec]]
                                                 idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp, 'right') - 1
                                                 to_keep = result['hist_%s_' %loc_peak + str(elec)][idx] < numpy.random.rand()
 
@@ -456,6 +493,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                             if to_accept:
 
+                                                if comp_templates:
+                                                    local_stds = numpy.std(sub_mat, 0)
+                                                    to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
+                                                    sub_mat[:, to_delete] = 0
+
                                                 if use_hanning:
                                                     sub_mat *= hanning_filter
 
@@ -464,7 +506,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 sub_mat    = sub_mat.reshape((1, nx * ny))
                                                 result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
 
-                                        else:
+                                        elif max_test:
+
+                                            if comp_templates:
+                                                local_stds = numpy.std(sub_mat, 0)
+                                                to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
+                                                sub_mat[:, to_delete] = 0
+
 
                                             if use_hanning:
                                                 sub_mat *= hanning_filter
@@ -814,6 +862,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         print_and_log(lines, 'info', logger)
         print_and_log(["Estimating the templates with the %s procedure ..." %extraction], 'default', logger)
+        if use_savgol:
+            print_and_log(["Templates will be smoothed by Savitzky Golay Filtering ..."], 'debug', logger)
 
     if extraction in ['median-raw', 'mean-raw']:
 
@@ -898,6 +948,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
                         first_component = numpy.mean(sub_data, 0)
                         tmp_templates   = first_component
+
+                    if use_savgol:
+                        if extraction in ['median-raw', 'mean-raw']:
+                            to_filter = first_component
+
+                        if savgol_window > 3:
+                            for i in range(len(to_filter)):
+                                tmp = scipy.signal.savgol_filter(to_filter[i], savgol_window, 3)
+                                to_filter[i] = savgol_filter*to_filter[i] + (1 - savgol_filter)*tmp
+
+                        tmp_templates = to_filter
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(tmp_templates.argmin(), tmp_templates.shape)

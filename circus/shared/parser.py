@@ -187,6 +187,7 @@ class CircusParser(object):
                         ['detection', 'smoothing_factor', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
+                        ['clustering', 'savgol', 'bool', 'True'],
                         ['whitening', 'safety_time', 'string', 'auto'],
                         ['extracting', 'safety_time', 'string', 'auto']]
 
@@ -792,6 +793,13 @@ class CircusParser(object):
             if self.parser._sections['fitting'].has_key('chunk'):
                 self.parser.set('fitting', 'chunk_size', 
                     self.parser._sections['fitting']['chunk'])
+
+            # savgol from milisecond to sampling points
+            self._savgol = int(self.rate * 0.5 * 1e-3)
+            if numpy.mod(self._savgol, 2) == 0:
+                self._savgol += 1
+
+            self.set('clustering', 'savgol_window', self._savgol)
 
             # chunck_size from second to sampling points
             for section in ['data', 'whitening', 'fitting']:
