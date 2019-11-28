@@ -988,24 +988,28 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             templates[indices[to_delete], :] = 0
                             mean_channels -= len(to_delete)
 
+                        if p == 'neg':
+                            tmpidx = numpy.unravel_index(templates.argmin(), templates.shape)
+                            ratio = -thresholds[tmpidx[0]]/templates[tmpidx[0]].min()
+                        elif p == 'pos':
+                            tmpidx = numpy.unravel_index(templates.argmax(), templates.shape)
+                            ratio = thresholds[tmpidx[0]]/templates[tmpidx[0]].max()
+
+                        x, y, z           = sub_data.shape
+                        sub_data_flat_raw = sub_data_raw.reshape(x, y*z)
+                        first_flat        = first_component.reshape(y*z, 1)
+                        amplitudes        = numpy.dot(sub_data_flat_raw, first_flat)
+                        amplitudes       /= numpy.sum(first_flat**2)
+                        center            = numpy.median(amplitudes)
+                        variation         = numpy.median(numpy.abs(amplitudes - center))
+
                         templates  = templates.ravel()
                         dx         = templates.nonzero()[0].astype(numpy.uint32)
-
                         temp_x     = numpy.concatenate((temp_x, dx))
                         temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
                         temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/n_scalar)
-
-                        x, y, z          = sub_data.shape
-                        sub_data_flat    = sub_data.reshape(x, y*z)
-                        sub_data_flat_raw= sub_data_raw.reshape(x, y*z)
-                        first_flat       = first_component.reshape(y*z, 1)
-                        amplitudes       = numpy.dot(sub_data_flat_raw, first_flat)
-                        amplitudes      /= numpy.sum(first_flat**2)
-
-                        center           = numpy.median(amplitudes)
-                        variation        = numpy.median(numpy.abs(amplitudes - center))
 
                         # If ratio < 1, this is a clear template, otherwise this is likely to be noise, since
                         # median waveform is below the threshold.
@@ -1021,13 +1025,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         myamps            += [[amp_min, amp_max]]
 
                         for i in xrange(x):
-                            sub_data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
+                            sub_data_flat_raw[i, :] -= amplitudes[i]*first_flat[:, 0]
 
-                        if len(sub_data_flat) > 1:
+                        if len(sub_data_flat_raw) > 1:
                             pca              = PCA(1)
-                            pca.fit(sub_data_flat)
+                            pca.fit(sub_data_flat_raw)
                             second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
                         else:
+                            sub_data_flat_raw = sub_data_raw.reshape(x, y*z)
+                            sub_data_flat = sub_data.reshape(x, y*z)
                             second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
 
                         if extraction in ['median-raw', 'mean-raw']:

@@ -44,7 +44,7 @@ output_dim     = 5          # Can be in percent of variance explain, or num of d
 [clustering]
 extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw
 sub_dim        = 10         # Number of dimensions to keep for local PCA per electrode
-max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
+max_elts       = 1000      # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
 nclus_min      = 0.005      # Min number of elements in a cluster (given in percentage) [0-1]
 nb_repeats     = 3          # Number of passes used for the clustering
