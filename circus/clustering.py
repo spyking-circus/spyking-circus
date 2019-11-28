@@ -493,10 +493,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                             if to_accept:
 
-                                                if comp_templates:
-                                                    local_stds = numpy.std(sub_mat, 0)
-                                                    to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
-                                                    sub_mat[:, to_delete] = 0
+                                                # if comp_templates:
+                                                #     local_stds = numpy.std(sub_mat, 0)
+                                                #     to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
+                                                #     sub_mat[:, to_delete] = 0
 
                                                 if use_hanning:
                                                     sub_mat *= hanning_filter
@@ -508,11 +508,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                         elif max_test:
 
-                                            if comp_templates:
-                                                local_stds = numpy.std(sub_mat, 0)
-                                                to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
-                                                sub_mat[:, to_delete] = 0
-
+                                            # if comp_templates:
+                                            #     local_stds = numpy.std(sub_mat, 0)
+                                            #     to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
+                                            #     sub_mat[:, to_delete] = 0
 
                                             if use_hanning:
                                                 sub_mat *= hanning_filter
