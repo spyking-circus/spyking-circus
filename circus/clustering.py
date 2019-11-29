@@ -493,11 +493,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                             if to_accept:
 
-                                                # if comp_templates:
-                                                #     local_stds = numpy.std(sub_mat, 0)
-                                                #     to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
-                                                #     sub_mat[:, to_delete] = 0
-
                                                 if use_hanning:
                                                     sub_mat *= hanning_filter
 
@@ -507,11 +502,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
 
                                         elif max_test:
-
-                                            # if comp_templates:
-                                            #     local_stds = numpy.std(sub_mat, 0)
-                                            #     to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
-                                            #     sub_mat[:, to_delete] = 0
 
                                             if use_hanning:
                                                 sub_mat *= hanning_filter
@@ -940,31 +930,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         times_i         = numpy.take(loc_times, labels_i)
                         sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
                         first_component = numpy.median(sub_data, 0)
-                        tmp_templates   = first_component
                     elif extraction == 'mean-raw':                
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
                         sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
                         first_component = numpy.mean(sub_data, 0)
-                        tmp_templates   = first_component
 
                     if use_savgol:
-                        if extraction in ['median-raw', 'mean-raw']:
-                            to_filter = first_component
 
                         if savgol_window > 3:
-                            for i in range(len(to_filter)):
-                                tmp = scipy.signal.savgol_filter(to_filter[i], savgol_window, 3)
-                                to_filter[i] = savgol_filter*to_filter[i] + (1 - savgol_filter)*tmp
-
-                        tmp_templates = to_filter
+                            for i in range(len(first_component)):
+                                tmp = scipy.signal.savgol_filter(first_component[i], savgol_window, 3)
+                                first_component[i] = savgol_filter*first_component[i] + (1 - savgol_filter)*tmp
 
                     if p == 'neg':
-                        tmpidx = numpy.unravel_index(tmp_templates.argmin(), tmp_templates.shape)
-                        ratio = -thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].min()
+                        tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
+                        ratio = -thresholds[indices[tmpidx[0]]]/first_component[tmpidx[0]].min()
                     elif p == 'pos':
-                        tmpidx = numpy.unravel_index(tmp_templates.argmax(), tmp_templates.shape)
-                        ratio = thresholds[tmpidx[0]]/tmp_templates[tmpidx[0]].max()
+                        tmpidx = numpy.unravel_index(first_component.argmax(), first_component.shape)
+                        ratio = thresholds[indices[tmpidx[0]]]/first_component[tmpidx[0]].max()
 
                     shift     = template_shift - tmpidx[1]
 
@@ -972,36 +956,41 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         shifted_templates = numpy.concatenate((shifted_templates, numpy.array([count_templates], dtype='int32')))
                         myamps           += [[0, 10]]
                     else:
-                        templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-                        if shift > 0:
-                            templates[indices, shift:] = tmp_templates[:, :-shift]
-                        elif shift < 0:
-                            templates[indices, :shift] = tmp_templates[:, -shift:]
-                        else:
-                            templates[indices, :] = tmp_templates
 
                         mean_channels += len(indices)
                         if comp_templates:
                             to_delete  = []
-                            local_stds = numpy.std(templates[indices], 1)
-                            to_delete = numpy.where(local_stds < sparsify*stds[indices])[0]
-                            templates[indices[to_delete], :] = 0
+                            local_stds = numpy.std(first_component, 1)
+                            to_delete = numpy.where(local_stds/stds[indices] < sparsify)[0]
+                            first_component[to_delete, :] = 0
                             mean_channels -= len(to_delete)
 
-                        if p == 'neg':
-                            tmpidx = numpy.unravel_index(templates.argmin(), templates.shape)
-                            ratio = -thresholds[tmpidx[0]]/templates[tmpidx[0]].min()
-                        elif p == 'pos':
-                            tmpidx = numpy.unravel_index(templates.argmax(), templates.shape)
-                            ratio = thresholds[tmpidx[0]]/templates[tmpidx[0]].max()
-
                         x, y, z           = sub_data.shape
+                        sub_data_raw[:, to_delete, :] = 0
                         sub_data_flat_raw = sub_data_raw.reshape(x, y*z)
                         first_flat        = first_component.reshape(y*z, 1)
                         amplitudes        = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes       /= numpy.sum(first_flat**2)
                         center            = numpy.median(amplitudes)
-                        variation         = numpy.median(numpy.abs(amplitudes - center))
+
+                        # We are rescaling the template such that median amplitude is exactly 1
+                        # This is changed because of the smoothing
+                        first_component  *= center
+                        ratio /= center
+
+                        templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                        if shift > 0:
+                            templates[indices, shift:] = first_component[:, :-shift]
+                        elif shift < 0:
+                            templates[indices, :shift] = first_component[:, -shift:]
+                        else:
+                            templates[indices, :] = first_component
+
+                        first_flat = first_component.reshape(y*z, 1)
+                        amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
+                        amplitudes/= numpy.sum(first_flat**2)
+                        center     = numpy.median(amplitudes)
+                        variation  = numpy.median(numpy.abs(amplitudes - 1))
 
                         templates  = templates.ravel()
                         dx         = templates.nonzero()[0].astype(numpy.uint32)
@@ -1015,8 +1004,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         # median waveform is below the threshold.
                         if ratio < 1:
                             physical_limit = noise_thr*ratio
-                            amp_min = max(physical_limit, center - dispersion[0]*variation)
-                            amp_max = center + dispersion[1]*variation
+                            amp_min = max(physical_limit, 1 - dispersion[0]*variation)
+                            amp_max = 1 + dispersion[1]*variation
                         else:
                             amp_min = 0.8
                             amp_max = 1.2
@@ -1024,8 +1013,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]
 
-                        for i in xrange(x):
-                            sub_data_flat_raw[i, :] -= amplitudes[i]*first_flat[:, 0]
+                        sub_data_flat_raw -= amplitudes*first_flat[:, 0]
 
                         if len(sub_data_flat_raw) > 1:
                             pca              = PCA(1)
@@ -1033,20 +1021,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
                         else:
                             sub_data_flat_raw = sub_data_raw.reshape(x, y*z)
-                            sub_data_flat = sub_data.reshape(x, y*z)
-                            second_component = sub_data_flat.reshape(y, z)/numpy.sum(sub_data_flat**2)
-
-                        if extraction in ['median-raw', 'mean-raw']:
-                            tmp_templates = second_component
+                            second_component = sub_data_flat_raw.reshape(y, z)/numpy.sum(sub_data_flat_raw**2)
 
                         offset        = total_nb_clusters + count_templates
                         sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                         if shift > 0:
-                            sub_templates[indices, shift:] = tmp_templates[:, :-shift]
+                            sub_templates[indices, shift:] = second_component[:, :-shift]
                         elif shift < 0:
-                            sub_templates[indices, :shift] = tmp_templates[:, -shift:]
+                            sub_templates[indices, :shift] = second_component[:, -shift:]
                         else:
-                            sub_templates[indices, :] = tmp_templates
+                            sub_templates[indices, :] = second_component
 
                         if comp_templates:
                             sub_templates[indices[to_delete], :] = 0
