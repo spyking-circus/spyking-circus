@@ -711,11 +711,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         overlap_0[i] = data[i, N_t - 1]
 
     all_temp    = numpy.arange(comm.rank, nb_temp, comm.size)
-    sorted_temp = numpy.argsort(norm_templates[:nb_temp])[::-1][comm.rank::comm.size]
+    sorted_temp = numpy.argsort(norm_templates[:nb_temp])[::-1]
     M           = numpy.zeros((2, 2), dtype=numpy.float32)
     V           = numpy.zeros((2, 1), dtype=numpy.float32)
 
-    to_explore = xrange(comm.rank, len(sorted_temp), comm.size)
+    to_explore = xrange(comm.rank, nb_temp, comm.size)
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
 
@@ -765,7 +765,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                                 been_found = True
                                 break
     sys.stderr.flush()
-    #print mixtures
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
 
