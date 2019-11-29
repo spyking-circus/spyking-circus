@@ -514,10 +514,10 @@ class CircusParser(object):
                 print_and_log(["auto_mode in [merging] should be in [0, 1]"], 'error', logger)
             sys.exit(0)
 
-        test = (self.parser.getfloat('merging', 'noise_limit') >= 1)
+        test = (self.parser.getfloat('merging', 'noise_limit') >= 0)
         if not test:
             if comm.rank == 0:
-                print_and_log(["noise_limit in [merging] should be > 1"], 'error', logger)
+                print_and_log(["noise_limit in [merging] should be > 0"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('merging', 'sparsity_limit') <= 1)
