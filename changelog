@@ -9,6 +9,7 @@ Release 0.8.7
 * addition of a sparsity_limit parameter in the meta merging GUI, to remove noise more precisely
 * new parameter file is properly copied
 * optimization while removing mixtures and important bug fixes
+* fix a bug in the thresholding method
 
 =============
 Release 0.8.6
