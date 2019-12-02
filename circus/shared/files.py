@@ -143,6 +143,9 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 elif pos =='pos':
                     rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                if return_raw:
+                    g = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+                    local_chunk_raw = g(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 ddata = xdata
             local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
@@ -157,6 +160,9 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 elif pos == 'pos':
                     rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                if return_raw:
+                    g = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+                    local_chunk_raw = g(ddata, ydata).astype(numpy.float32)
             else:
                 ddata = xdata
             local_chunk = f(ddata, ydata).astype(numpy.float32)
