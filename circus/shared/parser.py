@@ -133,7 +133,6 @@ class CircusParser(object):
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
-                          ['extracting', 'noise_thr', 'float', '1.'],
                           ['merging', 'erase_all', 'bool', 'True'],
                           ['merging', 'cc_overlap', 'float', '0.85'],
                           ['merging', 'cc_bin', 'float', '2'],
@@ -476,12 +475,6 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["nclus_min in [clustering] should be in [0,1["], 'error', logger)
-            sys.exit(0)
-
-        test = (self.parser.getfloat('clustering', 'noise_thr') >= 0) and (self.parser.getfloat('clustering', 'noise_thr') <= 1)
-        if not test:
-            if comm.rank == 0:
-                print_and_log(["noise_thr in [clustering] should be in [0,1]"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)

@@ -58,7 +58,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     debug_plots    = params.get('clustering', 'debug_plots')
     merging_param  = params.getfloat('clustering', 'merging_param')
     merging_method = params.get('clustering', 'merging_method')
-    noise_thr      = params.getfloat('clustering', 'noise_thr')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction     = params.get('clustering', 'extraction')
     smart_search   = params.getboolean('clustering', 'smart_search')
@@ -1003,15 +1002,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         # If ratio < 1, this is a clear template, otherwise this is likely to be noise, since
                         # median waveform is below the threshold.
                         if ratio < 1:
-                            physical_limit = noise_thr*ratio
-                            amp_min = max(physical_limit, 1 - dispersion[0]*variation)
+                            amp_min = 1 - dispersion[0]*variation
                             amp_max = 1 + dispersion[1]*variation
                         else:
                             amp_min = 0.8
                             amp_max = 1.2
 
-                        #amp_min = max(0, 1 - dispersion[0] * variation)
-                        #amp_max = 1 + dispersion[1]*variation
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]
 
