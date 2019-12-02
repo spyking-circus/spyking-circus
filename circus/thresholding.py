@@ -171,13 +171,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_amps = local_amps[~is_included]
 
         #print "Removing the useless borders..."
-        local_borders   = (0, len_chunk - dist_peaks)
+        local_borders   = (dist_peaks, len_chunk - dist_peaks)
         idx             = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes) + g_offset
         local_elecs     = numpy.compress(idx, local_elecs)
         local_amps      = numpy.compress(idx, local_amps)
 
-        spiketimes_file.write(local_peaktimes.tostring())
+        spiketimes_file.write(local_peaktimes.astype(numpy.uint32).tostring())
         electrodes_file.write(local_elecs.tostring())
         amplitudes_file.write(local_amps.tostring())
 

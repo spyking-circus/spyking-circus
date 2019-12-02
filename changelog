@@ -10,6 +10,8 @@ Release 0.8.7
 * enhancement of the smoothing/alignement procedure, more accurate estimation of noisy templates
 * better estimation of the amplitudes boundaries used during fitting
 * optimization while removing mixtures and important bug fixes
+* fix a bug in the thresholding method
+
 
 =============
 Release 0.8.6
