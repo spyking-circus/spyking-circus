@@ -1002,23 +1002,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         # If ratio < 1, this is a clear template, otherwise this is likely to be noise, since
                         # median waveform is below the threshold.
-                        # if ratio < 1:
-                        #     physical_limit = noise_thr*ratio
-                        #     amp_min = max(physical_limit, 1 - dispersion[0]*variation)
-                        #     amp_max = 1 + dispersion[1]*variation
-                        # else:
-                        #     amp_min = 0.8
-                        #     amp_max = 1.2
+                        if ratio < 1:
+                            physical_limit = noise_thr*ratio
+                            amp_min = max(physical_limit, 1 - dispersion[0]*variation)
+                            amp_max = 1 + dispersion[1]*variation
+                        else:
+                            amp_min = 0.8
+                            amp_max = 1.2
 
-                        amp_min = max(0, 1 - dispersion[0] * variation)
-                        amp_max = 1 + dispersion[1]*variation
-
+                        #amp_min = max(0, 1 - dispersion[0] * variation)
+                        #amp_max = 1 + dispersion[1]*variation
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]
 
                         offset        = total_nb_clusters + count_templates
                         sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-
                         sub_templates[:, :-1] = numpy.diff(templates.reshape(N_e, N_t), 1)
 
                         sub_templates = sub_templates.ravel()
