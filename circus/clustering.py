@@ -988,7 +988,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat = first_component.reshape(y*z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes/= numpy.sum(first_flat**2)
-                        center     = numpy.median(amplitudes)
                         variation  = numpy.median(numpy.abs(amplitudes - 1))
 
                         templates  = templates.ravel()
@@ -999,13 +998,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/n_scalar)
 
-                        if ratio > 1:
-                            distance = numpy.abs(first_component[tmpidx[0], tmpidx[1]]).max() - thresholds[indices[tmpidx[0]]]
-                            noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
-                            amp_min = 1 - min([dispersion[0]*variation, noise_limit])
-                        else:
-                            amp_min = 1 - dispersion[0]*variation
-
+                        distance = min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
+                        noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
+                        amp_min = 1 - min([dispersion[0]*variation, noise_limit])
                         amp_max = 1 + dispersion[1]*variation
 
                         amps_lims[g_count] = [amp_min, amp_max]
