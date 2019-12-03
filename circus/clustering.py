@@ -999,14 +999,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/n_scalar)
 
-                        # If ratio < 1, this is a clear template, otherwise this is likely to be noise, since
-                        # median waveform is below the threshold.
-                        if ratio < 1:
-                            amp_min = 1 - dispersion[0]*variation
-                            amp_max = 1 + dispersion[1]*variation
+                        if ratio > 1:
+                            distance = numpy.abs(first_component[tmpidx[0], tmpidx[1]]).max() - thresholds[indices[tmpidx[0]]]
+                            noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
+                            amp_min = 1 - min([dispersion[0]*variation, noise_limit])
                         else:
-                            amp_min = 0.8
-                            amp_max = 1.2
+                            amp_min = 1 - dispersion[0]*variation
+
+                        amp_max = 1 + dispersion[1]*variation
 
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps            += [[amp_min, amp_max]]
