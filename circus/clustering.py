@@ -275,11 +275,26 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         for gcount, gidx in enumerate(to_explore):
 
+            is_first = data_file.is_first_chunk(gidx, nb_chunks)
+            is_last  = data_file.is_last_chunk(gidx, nb_chunks)
+
+            if alignment:
+                duration = template_shift_2
+            else:
+                duration = template_shift
+
+            if is_last:
+                padding = (-duration, 0)
+            elif is_first:
+                padding = (0, duration)
+            else:
+                padding = (-duration, duration)
+
             gidx = all_chunks[gidx]
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
-                local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
+                local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)
                 local_shape           = len(local_chunk)
                 if do_spatial_whitening:
                     if use_gpu:
@@ -322,16 +337,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
                 #print "Removing the useless borders..."
-                if alignment:
-                    local_borders = (template_shift_2, local_shape - template_shift_2)
-                else:
-                    local_borders = (template_shift, local_shape - template_shift)
+                local_borders = (duration, local_shape - duration)
+
                 idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
                 all_peaktimes   = numpy.compress(idx, all_peaktimes)
                 all_extremas    = numpy.compress(idx, all_extremas)
 
                 local_peaktimes = numpy.unique(all_peaktimes)
-                local_offset    = t_offset
+                local_offset    = t_offset + padding[0]
 
                 if ignore_dead_times:
                     dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
@@ -927,12 +940,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
                         sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
-                        first_component = numpy.median(sub_data, 0)
+                        first_component = numpy.nanmedian(sub_data, 0)
                     elif extraction == 'mean-raw':                
                         labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
                         times_i         = numpy.take(loc_times, labels_i)
                         sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
-                        first_component = numpy.mean(sub_data, 0)
+                        first_component = numpy.nanmean(sub_data, 0)
 
                     if use_savgol:
 
