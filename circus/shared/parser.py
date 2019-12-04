@@ -125,7 +125,7 @@ class CircusParser(object):
                           ['clustering', 'noise_thr', 'float', '0.8'],
                           ['clustering', 'cc_merge', 'float', '0.975'],
                           ['clustering', 'cc_mixtures', 'float', '0.95'],
-                          ['clustering', 'n_abs_min', 'int', '20'],
+                          ['clustering', 'n_abs_min', 'int', '10'],
                           ['clustering', 'sensitivity', 'float', '3'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
                           ['clustering', 'merging_method', 'string', 'distance'],
@@ -471,12 +471,6 @@ class CircusParser(object):
                     print_and_log(["nb_elts in [%s] should be in [0,1]" %section], 'error', logger)
                 sys.exit(0)
 
-        test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
-        if not test:
-            if comm.rank == 0:
-                print_and_log(["nclus_min in [clustering] should be in [0,1["], 'error', logger)
-            sys.exit(0)
-
         test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)
         if not test:
             if comm.rank == 0:
@@ -487,12 +481,6 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["cc_merge in [validating] should be in [0,1]"], 'error', logger)
-            sys.exit(0)
-
-        test = (self.parser.getfloat('clustering', 'nclus_min') >= 0) and (self.parser.getfloat('clustering', 'nclus_min') < 1)
-        if not test:
-            if comm.rank == 0:
-                print_and_log(["nclus_min in [validating] should be in [0,1["], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('data', 'memory_usage') > 0) and (self.parser.getfloat('data', 'memory_usage') <= 1)
