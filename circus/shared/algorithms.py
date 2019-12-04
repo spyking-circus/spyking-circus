@@ -729,13 +729,13 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         been_found    = False
         t_k           = None
 
-        for i in all_idx:
+        for l, i in enumerate(all_idx):
             t_i = None
             if not been_found:
                 overlap_i = c_overs[i]
                 M[0, 0]   = overlap_0[i]
                 V[0, 0]   = overlap_k[i, distances[k, i]]
-                for j in all_idx[i+1:]:
+                for j in all_idx[l+1:]:
                     t_j = None
                     M[1, 1]  = overlap_0[j]
                     M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
