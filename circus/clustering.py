@@ -55,7 +55,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
        max_elts_elec *= 2
     nb_elts        = int(params.getfloat('clustering', 'nb_elts')*N_e*max_elts_elec)
     nb_repeats     = params.getint('clustering', 'nb_repeats')
-    nclus_min      = params.getfloat('clustering', 'nclus_min')
     make_plots     = params.get('clustering', 'make_plots')
     debug_plots    = params.get('clustering', 'debug_plots')
     merging_param  = params.getfloat('clustering', 'merging_param')
@@ -73,7 +72,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
-    m_ratio        = nclus_min
+    m_ratio        = params.getfloat('clustering', 'm_ratio')
     sub_output_dim = params.getint('clustering', 'sub_dim')
     inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes]  = numpy.arange(len(nodes))
@@ -719,7 +718,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if result.has_key('tmp_%s_' %p + str(ielec)):
                         result.pop('tmp_%s_' %p + str(ielec))
                     n_data  = len(result['data_%s_' %p + str(ielec)])
-                    n_min   = numpy.maximum(n_abs_min, int(nclus_min*n_data))
+                    n_min   = n_abs_min
 
                     if p == 'pos':
                         flag = 'positive'
@@ -745,7 +744,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         count = 0
                         to_remove = []
                         for label, cluster_size in zip(idx_clusters, counts):
-                            if (label > -1) and (cluster_size < n_min/2):
+                            if (label > -1) and (cluster_size < n_min):
                                 tmp = cluster_results[p][ielec]['groups'] == label
                                 cluster_results[p][ielec]['groups'][tmp] = -1
                                 to_remove += [count]
