@@ -278,7 +278,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
-    smoothing      = params.getboolean('detection', 'smoothing')
     isolation      = params.getboolean('detection', 'isolation')
     over_factor    = params.getint('detection', 'oversampling_factor')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
@@ -294,7 +293,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
-    smoothing_factor = params.getfloat('detection', 'smoothing_factor') * (1./spike_thresh)**2
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     if sign_peaks == 'both':
        max_elts_elec *= 2
     nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
@@ -341,11 +340,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     thresholds = io.load_data(params, 'thresholds')
     mads = io.load_data(params, 'mads')
+    stds = io.load_data(params, 'stds')
 
     if alignment:
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
+        snippet_duration = template_shift_2
+    else:
+        snippet_duration = template_shift
+        xdata = numpy.arange(-template_shift, template_shift+1)
 
     if isolation:
         yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
@@ -389,10 +393,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
 
             #print "Removing the useless borders..."
-            if alignment:
-                local_borders = (template_shift_2, local_shape - template_shift_2)
-            else:
-                local_borders = (template_shift, local_shape - template_shift)
+            local_borders = (snippet_duration, local_shape - snippet_duration)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
             all_peaktimes   = numpy.compress(idx, all_peaktimes)
             all_extremas    = numpy.compress(idx, all_extremas)
@@ -451,23 +452,23 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if groups[elec] < upper_bounds:
 
-                            if not alignment:
-                                sub_mat = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+                            sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
-                            elif alignment:
-                                ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
-
-                                if smoothing:
-                                    factor = smoothing_factor*xdata.size
-                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=factor, k=3)
-                                else:
-                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
+                            try:
+                                factor = xdata.size*((smoothing_factor*mads[elec])**2)
+                                f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
+                            except Exception:
+                                f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
+                            if alignment:
                                 if negative_peak:
                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                 else:
                                     rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
-                                ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                sub_mat = f(ddata).astype(numpy.float32)
+                                ddata   = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                            else:
+                                ddata   = xdata 
+                            
+                            sub_mat = f(ddata).astype(numpy.float32)
 
                             if alignment:
                                 if negative_peak:

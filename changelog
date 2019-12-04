@@ -3,13 +3,15 @@ Release 0.8.7
 =============
 
 * new methods to detect the peaks, more robust when low thresholds are fixed
-* all channels are now normalized before whitening and clustering
 * more accurate fitting procedure, slightly slower
 * minor bug fixes
 * addition of a sparsity_limit parameter in the meta merging GUI, to remove noise more precisely
 * new parameter file is properly copied
+* enhancement of the smoothing/alignement procedure, more accurate estimation of noisy templates
+* better estimation of the amplitudes boundaries used during fitting
 * optimization while removing mixtures and important bug fixes
 * fix a bug in the thresholding method
+
 
 =============
 Release 0.8.6

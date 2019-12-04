@@ -92,7 +92,7 @@ class CircusParser(object):
                           ['data', 'shared_memory', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'hanning', 'bool', 'True'],
-                          ['detection', 'oversampling_factor', 'int', '5'],
+                          ['detection', 'oversampling_factor', 'int', '10'],
                           ['detection', 'matched-filter', 'bool', 'False'],
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
@@ -133,7 +133,6 @@ class CircusParser(object):
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
-                          ['extracting', 'noise_thr', 'float', '1.'],
                           ['merging', 'erase_all', 'bool', 'True'],
                           ['merging', 'cc_overlap', 'float', '0.85'],
                           ['merging', 'cc_bin', 'float', '2'],
@@ -183,12 +182,11 @@ class CircusParser(object):
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.25'],
                         ['clustering', 'nb_ss_bins', 'int', '50'],
-                        ['clustering', 'savgol', 'bool', 'True'],
-                        ['detection', 'jitter_range', 'float', '0.1'],
-                        ['detection', 'smoothing', 'bool', 'False'],
+                        ['detection', 'jitter_range', 'float', '0.25'],
                         ['detection', 'smoothing_factor', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
+                        ['clustering', 'savgol', 'bool', 'True'],
                         ['whitening', 'safety_time', 'string', 'auto'],
                         ['extracting', 'safety_time', 'string', 'auto']]
 
@@ -422,10 +420,10 @@ class CircusParser(object):
             sys.exit(0)
           self.parser.set('triggers', 'dead_file', myfile)
 
-        test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'median-pca', 'mean-raw', 'mean-pca'])
+        test = (self.parser.get('clustering', 'extraction').lower() in ['median-raw', 'mean-raw'])
         if not test:
             if comm.rank == 0:
-                print_and_log(["Only 4 extraction modes in [clustering]: median-raw, median-pca, mean-raw or mean-pca!"], 'error', logger)
+                print_and_log(["Only 4 extraction modes in [clustering]: median-raw, mean-raw!"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.get('detection', 'peaks').lower() in ['negative', 'positive', 'both'])
@@ -473,12 +471,6 @@ class CircusParser(object):
                     print_and_log(["nb_elts in [%s] should be in [0,1]" %section], 'error', logger)
                 sys.exit(0)
 
-        test = (self.parser.getfloat('clustering', 'noise_thr') >= 0) and (self.parser.getfloat('clustering', 'noise_thr') <= 1)
-        if not test:
-            if comm.rank == 0:
-                print_and_log(["noise_thr in [clustering] should be in [0,1]"], 'error', logger)
-            sys.exit(0)
-
         test = (self.parser.getfloat('validating', 'test_size') > 0) and (self.parser.getfloat('validating', 'test_size') < 1)
         if not test:
             if comm.rank == 0:
@@ -503,10 +495,10 @@ class CircusParser(object):
                 print_and_log(["auto_mode in [merging] should be in [0, 1]"], 'error', logger)
             sys.exit(0)
 
-        test = (self.parser.getfloat('merging', 'noise_limit') >= 1)
+        test = (self.parser.getfloat('merging', 'noise_limit') >= 0)
         if not test:
             if comm.rank == 0:
-                print_and_log(["noise_limit in [merging] should be > 1"], 'error', logger)
+                print_and_log(["noise_limit in [merging] should be > 0"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('merging', 'sparsity_limit') <= 1)
@@ -752,7 +744,6 @@ class CircusParser(object):
         - minimal distance between peaks (dist_peaks) in [detection]
         - the template shift (template_shift) in [detection]
         - the jitter range (jitter_range) in [detection]
-        - the (savgol_window) in [clustering]
         - the (chunk_size) in [data, whitening, fitting]
         - the (safety_time) in [clustering, whitening, extracting]
         - the (refractory) in [fitting]
@@ -780,16 +771,16 @@ class CircusParser(object):
             jitter_range = int(self.rate * jitter * 1e-3)
             self.set('detection', 'jitter_range', jitter_range )
 
+            if self.parser._sections['fitting'].has_key('chunk'):
+                self.parser.set('fitting', 'chunk_size', 
+                    self.parser._sections['fitting']['chunk'])
+
             # savgol from milisecond to sampling points
             self._savgol = int(self.rate * 0.5 * 1e-3)
             if numpy.mod(self._savgol, 2) == 0:
                 self._savgol += 1
 
             self.set('clustering', 'savgol_window', self._savgol)
-
-            if self.parser._sections['fitting'].has_key('chunk'):
-                self.parser.set('fitting', 'chunk_size', 
-                    self.parser._sections['fitting']['chunk'])
 
             # chunck_size from second to sampling points
             for section in ['data', 'whitening', 'fitting']:

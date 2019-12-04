@@ -123,9 +123,6 @@ The clustering section is::
     cc_merge       = 0.975      # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
     smart_search   = True       # Parameter to activate the smart search mode
-    noise_thr      = 0.8        # Minimal amplitudes are such than amp*min(templates) < noise_thr*threshold
-    remove_mixture = True       # At the end of the clustering, we remove mixtures of templates
-    cc_mixtures    = 0.75       # If CC between a sum of two templates and a template is higher, it is removed
 
 .. note::
 
@@ -141,8 +138,6 @@ Parameters that are most likely to be changed:
     * ``merging_method`` Several methods can be used to perform greedy local merges on each electrodes. Each of the method has a parameter, defined
     by ``merge_param``. This replaces former parameters ``sim_same_elec`` and ``dip_threshold``
     * ``dispersion`` The spread of the amplitudes allowed, for every templates, around the centroid.
-    * ``remove_mixture`` By default, any template that can be explained as sum of two others is deleted. 
-    * ``cc_mixtures`` The CC threshold above which mixtures are considered to be valid, and thus removed
     * ``make_plots`` By default, the code generates sanity plots of the clustering, one per electrode.
 
 Fitting

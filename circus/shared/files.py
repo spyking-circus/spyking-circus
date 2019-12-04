@@ -67,7 +67,7 @@ def data_stats(params, show=True, export_times=False):
 
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True, return_raw=False):
 
     data_file    = params.data_file
     data_file.open()
@@ -81,8 +81,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         nb_labels = numpy.unique(labels_i)
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
+    if return_raw:
+        stas_raw = numpy.zeros(stas.shape, dtype=numpy.float32)
+
     alignment     = params.getboolean('detection', 'alignment') and auto_align
-    smoothing     = params.getboolean('detection', 'smoothing')
     over_factor   = float(params.getint('detection', 'oversampling_factor'))
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -92,7 +94,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     template_shift_2      = template_shift + jitter_range
     duration              = 2 * template_shift_2 + 1
     mads                  = load_data(params, 'mads')
-    smoothing_factor      = params.getfloat('detection', 'smoothing_factor') * numpy.median(mads)**2
+    smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -103,6 +105,13 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
+        factor = len(neighs)*duration*(smoothing_factor*numpy.median(mads[neighs]))**2
+    else:
+        xdata = numpy.arange(-template_shift, template_shift + 1)
+        factor = len(neighs)*N_t*(smoothing_factor*numpy.median(mads[neighs]))**2
+
+    idx   = numpy.where(neighs == src)[0]
+    ydata = numpy.arange(len(neighs))
 
     count = 0
     for lb, time in zip(labels_i, times_i):
@@ -118,47 +127,68 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
-        if alignment:
-            idx   = numpy.where(neighs == src)[0]
-            ydata = numpy.arange(len(neighs))
-            if len(ydata) == 1:
-                if smoothing:
-                    factor = smoothing_factor*xdata.size
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
-                else:
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+        if return_raw:
+            local_chunk_raw = local_chunk.copy()
+            if alignment:
+                local_chunk_raw = local_chunk_raw[jitter_range:-jitter_range]
+
+        if len(ydata) == 1:
+            try:
+                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
+            except Exception:
+                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+            if alignment:
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
                     rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+                if return_raw:
+                    g = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+                    local_chunk_raw = g(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
-                if smoothing:
-                    factor = smoothing_factor*local_chunk.size
-                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
-                else:
-                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+                ddata = xdata
+            local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+        else:
+            try:
+                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
+            except Exception:
+                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+            if alignment:
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 elif pos == 'pos':
                     rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
-                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata, ydata).astype(numpy.float32)
+                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                if return_raw:
+                    g = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+                    local_chunk_raw = g(ddata, ydata).astype(numpy.float32)
+            else:
+                ddata = xdata
+            local_chunk = f(ddata, ydata).astype(numpy.float32)
 
         if all_labels:
             lc        = numpy.where(nb_labels == lb)[0]
             stas[lc] += local_chunk.T
+            if return_raw:
+                stas_raw[lc] += local_chunk_raw.T
         else:
             if not mean_mode:
                 stas[count, :, :] = local_chunk.T
+                if return_raw:
+                    stas_raw[count, :, :] = local_chunk_raw.T
                 count            += 1
             else:
                 stas += local_chunk.T
+                if return_raw:
+                    stas_raw += local_chunk_raw.T
 
     data_file.close()
 
-    return stas
+    if return_raw:
+        return stas, stas_raw
+    else:
+        return stas
 
 
 def get_dead_times(params):
@@ -735,6 +765,17 @@ def load_data(params, data, extension=''):
         if os.path.exists(filename):
             myfile     = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]
+            myfile.close()
+            return thresholds
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
+    elif data == 'stds':
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            thresholds = myfile.get('thresholds')[:]/0.674
             myfile.close()
             return thresholds
         else:

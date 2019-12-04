@@ -42,7 +42,7 @@ nb_elts        = 0.8        # Fraction of max_elts that should be obtained per e
 output_dim     = 5          # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 
 [clustering]
-extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw
+extraction     = median-raw # Can be either median-raw (default) or mean-raw
 sub_dim        = 10         # Number of dimensions to keep for local PCA per electrode
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
@@ -66,7 +66,7 @@ cc_overlap     = 0.85       # Only templates with CC higher than cc_overlap may 
 cc_bin         = 2          # Bin size for computing CC [in ms]
 default_lag    = 5          # Default length of the period to compute dip in the CC [ms]
 auto_mode      = 0.75       # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
-remove_noise   = False      # If True, meta merging will remove obvious noise templates (weak amplitudes)
+remove_noise   = True       # If True, meta merging will remove obvious noise templates (weak amplitudes)
 noise_limit    = 1.1        # Amplitude at which templates are classified as noise
 sparsity_limit = 0.75       # Sparsity level (in percentage) for selecting templates as putative noise (in [0, 1])
 time_rpv       = 5          # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
