@@ -45,6 +45,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     jitter_range     = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
     use_hanning      = params.getboolean('detection', 'hanning')
+    rejection_threshold = params.getfloat('detection', 'rejection_threshold')
     data_file.open()
     #################################################################
 
@@ -354,6 +355,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if isolation:
         yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
 
+    if rejection_threshold > 0:
+        reject_noise = True
+    else:
+        reject_noise = False
+
     to_explore = xrange(comm.rank, nb_chunks, comm.size)
 
     if comm.rank == 0:
@@ -448,51 +454,59 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     myslice = all_times[indices, min_times[midx]:max_times[midx]]
                     is_local_extrema = elec in all_extremas[all_peaktimes == peak]
                     if is_local_extrema and not myslice.any():
+
                         upper_bounds = max_elts_elec
 
                         if groups[elec] < upper_bounds:
 
                             sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
-                            try:
-                                factor = xdata.size*((smoothing_factor*mads[elec])**2)
-                                f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
-                            except Exception:
-                                f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
-                            if alignment:
-                                if negative_peak:
-                                    rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
-                                else:
-                                    rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
-                                ddata   = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                            if reject_noise:
+                                is_noise = numpy.std(sub_mat) < rejection_threshold*mads[elec]
                             else:
-                                ddata   = xdata 
-                            
-                            sub_mat = f(ddata).astype(numpy.float32)
+                                is_noise = False
 
-                            if alignment:
-                                if negative_peak:
-                                    if numpy.min(sub_mat) >= -thresholds[elec]:
-                                        to_accept = False
+                            if not is_noise:
+
+                                try:
+                                    factor = xdata.size*((smoothing_factor*mads[elec])**2)
+                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
+                                except Exception:
+                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
+                                if alignment:
+                                    if negative_peak:
+                                        rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
+                                    else:
+                                        rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                                    ddata   = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                 else:
-                                    if numpy.max(sub_mat) <= thresholds[elec]:
-                                        to_accept = False
+                                    ddata   = xdata 
+                                
+                                sub_mat = f(ddata).astype(numpy.float32)
 
-                            if isolation:
-                                to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
-                            else:
-                                to_accept = True
+                                if alignment:
+                                    if negative_peak:
+                                        if numpy.min(sub_mat) >= -thresholds[elec]:
+                                            to_accept = False
+                                    else:
+                                        if numpy.max(sub_mat) <= thresholds[elec]:
+                                            to_accept = False
 
-                            if to_accept:
-                                if negative_peak:
-                                    elts_neg[:, elt_count_neg] = sub_mat
+                                if isolation:
+                                    to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
                                 else:
-                                    elts_pos[:, elt_count_pos] = sub_mat
+                                    to_accept = True
 
-                                if negative_peak:
-                                    elt_count_neg += 1
-                                else:
-                                    elt_count_pos += 1
+                                if to_accept:
+                                    if negative_peak:
+                                        elts_neg[:, elt_count_neg] = sub_mat
+                                    else:
+                                        elts_pos[:, elt_count_pos] = sub_mat
+
+                                    if negative_peak:
+                                        elt_count_neg += 1
+                                    else:
+                                        elt_count_pos += 1
 
                         groups[elec] += 1
                         all_times[indices, min_times[midx]:max_times[midx]] = True
