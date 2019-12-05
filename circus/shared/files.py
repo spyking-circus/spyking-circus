@@ -92,7 +92,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     template_shift        = params.getint('detection', 'template_shift')
     jitter_range          = params.getint('detection', 'jitter_range')
     template_shift_2      = template_shift + jitter_range
-    duration              = 2 * template_shift_2 + 1
     mads                  = load_data(params, 'mads')
     smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
 
@@ -105,20 +104,20 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
-        factor = len(neighs)*duration*(smoothing_factor*numpy.median(mads[neighs]))**2
+        duration = 2 * template_shift_2 + 1
     else:
         xdata = numpy.arange(-template_shift, template_shift + 1)
-        factor = len(neighs)*N_t*(smoothing_factor*numpy.median(mads[neighs]))**2
-
+        duration = N_t
+    
+    factor = len(neighs)*duration*(smoothing_factor*numpy.median(mads[neighs]))**2
+    offset = duration // 2
     idx   = numpy.where(neighs == src)[0]
     ydata = numpy.arange(len(neighs))
 
     count = 0
     for lb, time in zip(labels_i, times_i):
-        if alignment:
-            local_chunk = data_file.get_snippet(time - template_shift_2, duration, nodes=nodes)
-        else:
-            local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
+
+        local_chunk = data_file.get_snippet(time - offset, duration, nodes=nodes)
 
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -129,8 +128,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
         if return_raw:
             local_chunk_raw = local_chunk.copy()
-            if alignment:
-                local_chunk_raw = local_chunk_raw[jitter_range:-jitter_range]
 
         if len(ydata) == 1:
             try:
