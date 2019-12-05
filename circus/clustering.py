@@ -282,9 +282,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_last  = data_file.is_last_chunk(gidx, nb_chunks)
 
             if is_last:
-                padding = (-duration, 0)
+                padding = (-duration, -duration)
             elif is_first:
-                padding = (0, duration)
+                padding = (duration, duration)
             else:
                 padding = (-duration, duration)
 
