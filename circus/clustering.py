@@ -107,6 +107,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
+        duration = template_shift_2
+    else:
+        duration = template_shift
 
     if sign_peaks in ['negative', 'both']:
         basis['proj_neg'], basis['rec_neg'] = io.load_data(params, 'basis')
@@ -278,15 +281,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_first = data_file.is_first_chunk(gidx, nb_chunks)
             is_last  = data_file.is_last_chunk(gidx, nb_chunks)
 
-            if alignment:
-                duration = template_shift_2
-            else:
-                duration = template_shift
-
             if is_last:
-                padding = (-duration, 0)
+                padding = (-duration, -duration)
             elif is_first:
-                padding = (0, duration)
+                padding = (duration, duration)
             else:
                 padding = (-duration, duration)
 
@@ -456,11 +454,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     if len(to_update) < loop_max_elts_elec:
 
+                                        sub_mat = numpy.take(local_chunk[peak - duration:peak + duration + 1], indices, axis=1)
+
                                         if alignment:
-                                            zdata = numpy.take(local_chunk[peak - template_shift_2:peak + template_shift_2 + 1], indices, axis=1)
                                             ydata = numpy.arange(len(indices))
                                             if len(ydata) == 1:
-                                                f = scipy.interpolate.UnivariateSpline(xdata, zdata, k=3, s=0)
+                                                f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
                                                 if negative_peak:
                                                     rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                                 else:
@@ -469,15 +468,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                             else:
                                                 idx = elec_positions[elec]
-                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, zdata, kx=3, ky=1, s=0)
+                                                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, sub_mat, kx=3, ky=1, s=0)
                                                 if negative_peak:
                                                     rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                                 else:
                                                     rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
                                                 ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                                 sub_mat  = f(ddata, ydata).astype(numpy.float32)
-                                        else:
-                                            sub_mat = numpy.take(local_chunk[peak - template_shift:peak + template_shift+1], indices, axis=1)
 
                                         if gpass > 0:
                                             max_test = numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
@@ -891,7 +888,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         temp_x     = numpy.zeros(0, dtype=numpy.uint32)
         temp_y     = numpy.zeros(0, dtype=numpy.uint32)
         temp_data  = numpy.zeros(0, dtype=numpy.float32)
-        shifted_templates = numpy.zeros(0, dtype=numpy.int32)
+        templates_to_remove = numpy.zeros(0, dtype=numpy.int32)
 
         comm.Barrier()
         cfile           = h5py.File(file_out_suff + '.clusters-%d.hdf5' %comm.rank, 'w', libver='earliest')
@@ -937,15 +934,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
                     
                     if extraction == 'median-raw':
-                        labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
+                        labels_i        = numpy.random.permutation(myslice)[:250]
                         times_i         = numpy.take(loc_times, labels_i)
                         sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
                         first_component = numpy.nanmedian(sub_data, 0)
                     elif extraction == 'mean-raw':                
-                        labels_i        = numpy.random.permutation(myslice)[:min(len(myslice), 250)]
+                        labels_i        = numpy.random.permutation(myslice)[:250]
                         times_i         = numpy.take(loc_times, labels_i)
                         sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
                         first_component = numpy.nanmean(sub_data, 0)
+
+                    # Since we have aligned on the max, we need to compensate for the artefactual value in 0
+                    # if alignment:
+                    #     i_ref = N_t // 2
+                    #     numpy.save('test_%d' %g_count, first_component)
+                    #     first_component[:, i_ref] = (first_component[:, i_ref-1] + first_component[:, i_ref+1])/2
+
 
                     if use_savgol:
 
@@ -954,6 +958,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 tmp = scipy.signal.savgol_filter(first_component[i], savgol_window, 3)
                                 first_component[i] = savgol_filter*first_component[i] + (1 - savgol_filter)*tmp
 
+                    mean_channels += len(indices)
+                    if comp_templates:
+                        to_delete  = []
+                        local_stds = numpy.std(first_component, 1)
+                        to_delete = numpy.where(local_stds/stds[indices] < sparsify)[0]
+                        first_component[to_delete, :] = 0
+                        mean_channels -= len(to_delete)
+
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
                         ratio = -thresholds[indices[tmpidx[0]]]/first_component[tmpidx[0]].min()
@@ -961,20 +973,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         tmpidx = numpy.unravel_index(first_component.argmax(), first_component.shape)
                         ratio = thresholds[indices[tmpidx[0]]]/first_component[tmpidx[0]].max()
 
-                    shift     = template_shift - tmpidx[1]
+                    shift = template_shift - tmpidx[1]
+                    is_noise = len(indices) == len(to_delete)
 
-                    if np.abs(shift) > template_shift / 4:
-                        shifted_templates = numpy.concatenate((shifted_templates, numpy.array([count_templates], dtype='int32')))
+                    if is_noise or (np.abs(shift) > template_shift / 4):
+                        templates_to_remove = numpy.concatenate((templates_to_remove, numpy.array([count_templates], dtype='int32')))
                         myamps           += [[0, 10]]
                     else:
-
-                        mean_channels += len(indices)
-                        if comp_templates:
-                            to_delete  = []
-                            local_stds = numpy.std(first_component, 1)
-                            to_delete = numpy.where(local_stds/stds[indices] < sparsify)[0]
-                            first_component[to_delete, :] = 0
-                            mean_channels -= len(to_delete)
 
                         x, y, z           = sub_data.shape
                         sub_data_raw[:, to_delete, :] = 0
@@ -982,7 +987,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat        = first_component.reshape(y*z, 1)
                         amplitudes        = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes       /= numpy.sum(first_flat**2)
-                        center            = numpy.median(amplitudes)
+                        center            = numpy.nanmedian(amplitudes)
 
                         # We are rescaling the template such that median amplitude is exactly 1
                         # This is changed because of the smoothing
@@ -1000,9 +1005,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat = first_component.reshape(y*z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes/= numpy.sum(first_flat**2)
-                        variation  = numpy.median(numpy.abs(amplitudes - 1))
+                        variation  = numpy.nanmedian(numpy.abs(amplitudes - 1))
 
                         templates  = templates.ravel()
+
+                        if numpy.any(numpy.isnan(templates)):
+                            print comm.rank, templates.flatten(), "Error"
                         dx         = templates.nonzero()[0].astype(numpy.uint32)
                         temp_x     = numpy.concatenate((temp_x, dx))
                         temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
@@ -1094,7 +1102,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         gdata4 = gather_array(numpy.array([mean_channels], dtype=numpy.float32), comm)
 
-        shifted_templates = all_gather_array(shifted_templates, comm, 0, dtype='int32')
+        templates_to_remove = all_gather_array(templates_to_remove, comm, 0, dtype='int32')
 
         if comm.rank == 0:
             idx           = numpy.where(gdata4 != 0)[0]
@@ -1178,18 +1186,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    if len(shifted_templates) > 0:
+    if len(templates_to_remove) > 0:
 
         if comm.rank == 0:
-            print_and_log(["Removing %d strongly shifted templates..." %len(shifted_templates)], 'default', logger)
+            print_and_log(["Removing %d strongly shifted or noisy templates..." %len(templates_to_remove)], 'default', logger)
 
         if comm.rank == 0:
             result = io.load_data(params, 'clusters')
         else:
             result = []
 
-        algo.slice_templates(params, to_remove=shifted_templates)
-        algo.slice_clusters(params, to_remove=shifted_templates, result=result)
+        algo.slice_templates(params, to_remove=templates_to_remove)
+        algo.slice_clusters(params, to_remove=templates_to_remove, result=result)
 
         del result
 

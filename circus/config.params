@@ -16,7 +16,6 @@ radius         = auto       # Radius [in um] (if auto, read from the prb file)
 N_t            = 3          # Width of the templates [in ms]
 spike_thresh   = 6          # Threshold for spike detection
 peaks          = negative   # Can be negative (default), positive or both
-alignment      = True       # Realign the waveforms by oversampling
 dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
 
 [filtering]
