@@ -676,7 +676,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     decimation       = params.getboolean('clustering', 'decimation')
 
 
-    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -687,7 +687,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         c_overs    = load_data(params, 'overlaps', extension='-mixtures')
 
     if SHARED_MEMORY:
-        templates  = load_data_memshared(params, 'templates', normalize=False)
+        templates  = load_data_memshared(params, 'templates', normalize=True)
     else:
         templates  = load_data(params, 'templates')
 

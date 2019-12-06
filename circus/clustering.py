@@ -285,17 +285,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         for gcount, gidx in enumerate(to_explore):
 
+            gidx = all_chunks[gidx]
             is_first = data_file.is_first_chunk(gidx, nb_chunks)
             is_last  = data_file.is_last_chunk(gidx, nb_chunks)
 
             if is_last:
-                padding = (-duration, -duration)
+                padding = (-duration, 0)
             elif is_first:
-                padding = (duration, duration)
+                padding = (0, duration)
             else:
                 padding = (-duration, duration)
-
-            gidx = all_chunks[gidx]
 
             if (elt_count < loop_nb_elts):
                 #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -465,7 +464,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                         ## test if the sample is pure Gaussian noise
                                         if reject_noise:
-                                            is_noise = numpy.all(numpy.std(sub_mat, axis=0) < rejection_threshold * mads[indices])
+                                            is_noise = numpy.all(numpy.std(sub_mat, axis=0) < rejection_threshold * stds[indices])
                                         else:
                                             is_noise = False
 
