@@ -777,7 +777,7 @@ class CircusParser(object):
                     self.parser._sections['fitting']['chunk'])
 
             # savgol from milisecond to sampling points
-            self._savgol = int(self.rate * 0.5 * 1e-3)
+            self._savgol = int(self.rate * 0.25 * 1e-3)
             if numpy.mod(self._savgol, 2) == 0:
                 self._savgol += 1
 

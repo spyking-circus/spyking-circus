@@ -108,7 +108,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if use_savgol:
         savgol_window = params.getint('clustering', 'savgol_window')
-        savgol_filter = numpy.hanning(N_t)**3
 
     if alignment:
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
@@ -966,11 +965,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
                     if use_savgol:
-
-                        if savgol_window > 3:
-                            for i in range(len(first_component)):
-                                tmp = scipy.signal.savgol_filter(first_component[i], savgol_window, 3)
-                                first_component[i] = savgol_filter*first_component[i] + (1 - savgol_filter)*tmp
+                        first_component = scipy.signal.savgol_filter(first_component, savgol_window, savgol_window-1, axis=1)
 
                     mean_channels += len(indices)
                     if comp_templates:
