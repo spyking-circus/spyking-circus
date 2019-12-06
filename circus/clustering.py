@@ -963,9 +963,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     #     numpy.save('test_%d' %g_count, first_component)
                     #     first_component[:, i_ref] = (first_component[:, i_ref-1] + first_component[:, i_ref+1])/2
 
-
                     if use_savgol:
-                        first_component = scipy.signal.savgol_filter(first_component, savgol_window, savgol_window-1, axis=1)
+                        first_component = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
 
                     mean_channels += len(indices)
                     if comp_templates:

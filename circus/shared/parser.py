@@ -182,7 +182,7 @@ class CircusParser(object):
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.25'],
                         ['clustering', 'nb_ss_bins', 'int', '50'],
-                        ['detection', 'jitter_range', 'float', '0.25'],
+                        ['detection', 'jitter_range', 'float', '0.1'],
                         ['detection', 'smoothing_factor', 'float', '1'],
                         ['detection', 'rejection_threshold', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
@@ -777,7 +777,7 @@ class CircusParser(object):
                     self.parser._sections['fitting']['chunk'])
 
             # savgol from milisecond to sampling points
-            self._savgol = int(self.rate * 0.25 * 1e-3)
+            self._savgol = int(self.rate * 0.2 * 1e-3)
             if numpy.mod(self._savgol, 2) == 0:
                 self._savgol += 1
 
