@@ -490,7 +490,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat  = f(ddata, ydata).astype(numpy.float32)
 
                                             if gpass > 0:
-                                                max_test = numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
+                                                if negative_peak:
+                                                    max_test = numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
+                                                else:
+                                                    max_test = numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
 
                                             if gpass == 0:
                                                 to_accept  = True
@@ -956,12 +959,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         times_i         = numpy.take(loc_times, labels_i)
                         sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
                         first_component = numpy.nanmean(sub_data, 0)
-
-                    # Since we have aligned on the max, we need to compensate for the artefactual value in 0
-                    # if alignment:
-                    #     i_ref = N_t // 2
-                    #     numpy.save('test_%d' %g_count, first_component)
-                    #     first_component[:, i_ref] = (first_component[:, i_ref-1] + first_component[:, i_ref+1])/2
 
                     if use_savgol:
                         first_component = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
