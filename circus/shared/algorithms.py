@@ -3,7 +3,7 @@ import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 import shutil, h5py
 import scipy.linalg, scipy.sparse
 
-from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
+from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_intersection_norm
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
@@ -601,10 +601,12 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     norm           = N_e * N_t
     decimation     = params.getboolean('clustering', 'decimation')
 
+    intersection_norms = get_intersection_norm(params)
+
     if cc_merge < 1:
 
         result   = []
-        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
         overlap.close()
         filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
@@ -625,7 +627,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_x = over_x[idx] - (i*nb_temp+i+1)
             data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i+1:] = numpy.max(data, 1)/norm
+            distances[i, i+1:] = numpy.max(data, 1)/intersection_norms[i]
             distances[i+1:, i] = distances[i, i+1:]
 
         #Now we need to sync everything across nodes

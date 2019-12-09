@@ -1690,6 +1690,35 @@ def get_garbage(params, extension=''):
     myfile.close()
     return result
 
+def get_intersection_norm(params, extension=''):
+    templates = load_data(params, 'templates', extension)
+    best_elec = load_data(params, 'electrodes', extension)
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total        = params.nb_channels
+    nodes, edges = get_nodes_and_edges(params)
+    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
+    res = {}
+    nb_temp = templates.shape[1]//2
+    for i in range(nb_temp):
+        res[i]  = numpy.zeros(nb_temp - (i+1), dtype=numpy.float32)
+        t_i     = templates[:, i].toarray().reshape(N_e, N_t)
+        indices = inv_nodes[numpy.array(edges[best_elec[i]], dtype=numpy.int32)]
+        for count, j in enumerate(range(i+1, nb_temp)):
+            mask = numpy.in1d(indices, inv_nodes[edges[best_elec[j]]])
+            mask = indices[mask]
+            N_common = len(mask)
+            if N_common > 0:
+                t_j = templates[:, j].toarray().reshape(N_e, N_t)
+                norm_i = numpy.sqrt(numpy.sum(t_i[mask]**2))
+                norm_j = numpy.sqrt(numpy.sum(t_j[mask]**2))
+                res[i][count] = norm_i * norm_j
+                if res[i][count] == 0:
+                    res[i][count] = numpy.inf
+            else:
+                res[i][count] = numpy.inf
+    return res
 
 def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0, decimation=False):
 
@@ -1732,7 +1761,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     N,        N_tm = templates.shape
 
     if not SHARED_MEMORY and normalize:
-        norm_templates = load_data(params, 'norm-templates')[:N_tm]
+        norm_templates = load_data(params, 'norm-templates')
         for idx in xrange(N_tm):
             myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
             templates.data[myslice] /= norm_templates[idx]
