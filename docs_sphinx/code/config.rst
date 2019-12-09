@@ -37,7 +37,6 @@ The detection section is::
     N_t            = 5          # Width of the templates [in ms]
     spike_thresh   = 6          # Threshold for spike detection
     peaks          = negative   # Can be negative (default), positive or both
-    alignment      = True       # Realign the waveforms by oversampling
     dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
 
 Parameters that are most likely to be changed:
@@ -45,7 +44,6 @@ Parameters that are most likely to be changed:
     * ``radius`` The spatial width of the templates. By default, this value is read from the probe file. However, if you want to specify a larger or a smaller value [in um], you can do it here
     * ``spike_thresh`` The threshold for spike detection. 6-7 are good values
     * ``peaks`` By default, the code detects only negative peaks, but you can search for positive peaks, or both
-    * ``alignment`` By default, during clustering, the waveforms are realigned by oversampling at 5 times the sampling rate and using bicubic spline interpolation
     * ``dead_channels`` You can exclude dead channels either directly in the probe file, with the ``channels`` list, or with this ``dead_channels`` parameter. To do so, you must enter a dictionary of the following form {channel_group : [list_of_valid_ids]}
     
 Filtering
@@ -114,7 +112,6 @@ The clustering section is::
     extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw, or quadratic
     max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
-    nclus_min      = 0.002      # Min number of elements in a cluster (given in percentage)
     nb_repeats     = 3          # Number of passes used for the clustering
     make_plots     =            # Generate sanity plots of the clustering
     merging_method = distance   # Method to perform local merges (distance, dip, folding, nd-folding, bhatta)
@@ -131,7 +128,6 @@ The clustering section is::
 Parameters that are most likely to be changed:
     * ``extraction`` The method to estimate the templates. ``Raw`` methods are slower, but more accurate, as data are read from the files. ``PCA`` methods are faster, but less accurate, and may lead to some distorted templates. ``Quadratic`` is slower, and should not be used.
     * ``max_elts`` The number of elements that every electrode will try to collect, in order to perform the clustering
-    * ``nclus_min`` If you have too many clusters with few elements, you can increase this value. This is expressed in percentage of collected spike per electrode. So one electrode collecting *max_elts* spikes will keep clusters with more than *nclus_min.max_elts*. Otherwise, they are discarded
     * ``nb_repeats`` The number of passes performed by the algorithm to refine the density landscape
     * ``smart_search`` By default, the code will collect only a subset of spikes, randomly, on all electrodes. However, for long recordings, or if you have low thresholds, you may want to select them in a smarter manner, in order to avoid missing the large ones, under represented. If the smart search is activated, the code will first sample the distribution of amplitudes, on all channels, and then implement a rejection algorithm such that it will try to select spikes in order to make the distribution of amplitudes more uniform.
     * ``cc_merge`` After local merging per electrode, this step will make sure that you do not have duplicates in your templates, that may have been spread on several electrodes. All templates with a correlation coefficient higher than that parameter are merged. Remember that the more you merge, the faster is the fit

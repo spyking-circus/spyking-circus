@@ -11,7 +11,8 @@ Release 0.8.7
 * better estimation of the amplitudes boundaries used during fitting
 * optimization while removing mixtures and important bug fixes
 * fix a bug in the thresholding method
-
+* minor updates to get more refined spikes during whitening and clustering
+* tests with SpikeInterface, showing clear increase in performance
 
 =============
 Release 0.8.6

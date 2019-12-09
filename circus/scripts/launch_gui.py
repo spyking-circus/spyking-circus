@@ -304,8 +304,10 @@ class LaunchGUI(QDialog):
             self.update_gui_command()
 
         self.update_result_tab()
-        if not os.path.exists(self.params):
-            self.create_params_file(self.params)
+
+        if self.params is not None:
+            if not os.path.exists(self.params):
+                self.create_params_file(self.params)
 
     def update_params(self):
         f = open(self.params, 'r')
