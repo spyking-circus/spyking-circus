@@ -494,7 +494,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         to_accept = False
 
                                 if isolation:
-                                    to_accept *= numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
+                                    to_accept *= numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec]
 
                                 if to_accept:
                                     if negative_peak:
