@@ -390,6 +390,15 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
             else:
                 subset     = numpy.where(to_merge[:, 0] == keep)[0]
                 if len(subset) > 0:
+                    # pylab.subplot(211)
+                    # pylab.plot(templates[:, count].toarray().flatten())
+                    # ymin, ymax = pylab.ylim()
+                    # pylab.subplot(212)
+                    # for i in to_merge[subset]:
+                    #     pylab.plot(old_templates[:, i[1]].toarray().flatten())
+                    # pylab.ylim(ymin, ymax)
+                    # pylab.savefig('merge_%d.png' %count)
+                    # pylab.close()
                     # Index to keep is involved in merge(s) and limits need to
                     # be updated.
                     idx        = numpy.unique(to_merge[subset].flatten())

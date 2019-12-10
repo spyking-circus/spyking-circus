@@ -1695,8 +1695,8 @@ def get_intersection_norm(params, extension=''):
     best_elec = load_data(params, 'electrodes', extension)
     N_e = params.getint('data', 'N_e')
     N_t = params.getint('detection', 'N_t')
-    N_total        = params.nb_channels
-    nodes, edges = get_nodes_and_edges(params)
+    N_total          = params.nb_channels
+    nodes, edges     = get_nodes_and_edges(params)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     res = {}
