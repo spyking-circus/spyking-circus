@@ -1702,22 +1702,20 @@ def get_intersection_norm(params, extension=''):
     res = {}
     nb_temp = templates.shape[1]//2
     for i in range(nb_temp):
-        res[i]  = numpy.zeros(nb_temp - (i+1), dtype=numpy.float32)
+        res[i]  = numpy.inf * numpy.ones(nb_temp - (i+1), dtype=numpy.float32)
         t_i     = templates[:, i].toarray().reshape(N_e, N_t)
-        indices = inv_nodes[numpy.array(edges[best_elec[i]], dtype=numpy.int32)]
+        indices = numpy.array(edges[nodes[best_elec[i]]], dtype=numpy.int32)
         for count, j in enumerate(range(i+1, nb_temp)):
-            mask = numpy.in1d(indices, inv_nodes[edges[best_elec[j]]])
-            mask = indices[mask]
+            mask = numpy.in1d(indices, edges[nodes[best_elec[j]]])
+            mask = inv_nodes[indices[mask]]
             N_common = len(mask)
             if N_common > 0:
                 t_j = templates[:, j].toarray().reshape(N_e, N_t)
                 norm_i = numpy.sqrt(numpy.sum(t_i[mask]**2))
                 norm_j = numpy.sqrt(numpy.sum(t_j[mask]**2))
-                res[i][count] = norm_i * norm_j
-                if res[i][count] == 0:
-                    res[i][count] = numpy.inf
-            else:
-                res[i][count] = numpy.inf
+                product = norm_i * norm_j
+                if product != 0:
+                    res[i][count] = product
     return res
 
 def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0, decimation=False):

@@ -686,8 +686,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes[nodes] = numpy.arange(len(nodes))
     decimation       = params.getboolean('clustering', 'decimation')
 
-
-    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -761,19 +760,28 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                     is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
                         if t_k is None:
-                            t_k = templates[:, k].toarray().ravel()
+                            t_k = templates[:, k].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
                         if t_i is None:
-                            t_i = templates[:, i].toarray().ravel()
+                            t_i = templates[:, i].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
                         if t_j is None:
-                            t_j = templates[:, j].toarray().ravel()
+                            t_j = templates[:, j].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
                         new_template = (a1*t_i + a2*t_j)
                         similarity   = numpy.corrcoef(t_k, new_template)[0, 1]
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
                         if similarity > cc_merge and local_overlap < cc_merge:
                             if k not in mixtures:
+                                # pylab.subplot(211)
+                                # pylab.plot(new_template)
+                                # ymin, ymax = pylab.ylim()
+                                # pylab.subplot(212)
+                                # pylab.plot(t_k)
+                                # pylab.ylim(ymin, ymax)
+                                # pylab.savefig('merge_%d.png' %count)
+                                # pylab.close()
                                 mixtures  += [k]
                                 been_found = True
                                 break
+
     sys.stderr.flush()
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
