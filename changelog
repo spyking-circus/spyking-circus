@@ -13,6 +13,7 @@ Release 0.8.7
 * fix a bug in the thresholding method
 * minor updates to get more refined spikes during whitening and clustering
 * tests with SpikeInterface, showing clear increase in performance
+* some cleaning in the parameter file
 
 =============
 Release 0.8.6

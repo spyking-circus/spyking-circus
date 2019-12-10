@@ -697,7 +697,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         c_overs    = load_data(params, 'overlaps', extension='-mixtures')
 
     if SHARED_MEMORY:
-        templates  = load_data_memshared(params, 'templates', normalize=True)
+        templates  = load_data_memshared(params, 'templates', normalize=False)
     else:
         templates  = load_data(params, 'templates')
 
