@@ -76,7 +76,7 @@ def get_locations(xloc = 0):
     [35, 260], [35, 285] ]
     
     for electrode in mycorr:
-        electrode[0] =+ xloc # shift x-direction
+        electrode[0] += xloc # shift x-direction
     return mycorr    
 
 # create dictionaries 'zipping' shanks and locations
