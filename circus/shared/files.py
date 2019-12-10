@@ -1690,18 +1690,26 @@ def get_garbage(params, extension=''):
     myfile.close()
     return result
 
-def get_intersection_norm(params, extension=''):
-    templates = load_data(params, 'templates', extension)
-    best_elec = load_data(params, 'electrodes', extension)
-    N_e = params.getint('data', 'N_e')
-    N_t = params.getint('detection', 'N_t')
+def get_intersection_norm(params, to_explore):
+
+    SHARED_MEMORY = get_shared_memory_flag(params)
+
+    if SHARED_MEMORY:
+        templates  = load_data_memshared(params, 'templates', normalize=False)
+    else:
+        templates  = load_data(params, 'templates')
+
+    best_elec        = load_data(params, 'electrodes')
+    N_e              = params.getint('data', 'N_e')
+    N_t              = params.getint('detection', 'N_t')
     N_total          = params.nb_channels
     nodes, edges     = get_nodes_and_edges(params)
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     res = {}
     nb_temp = templates.shape[1]//2
-    for i in range(nb_temp):
+
+    for i in to_explore:
         res[i]  = numpy.inf * numpy.ones(nb_temp - (i+1), dtype=numpy.float32)
         t_i     = templates[:, i].toarray().reshape(N_e, N_t)
         indices = numpy.array(edges[nodes[best_elec[i]]], dtype=numpy.int32)

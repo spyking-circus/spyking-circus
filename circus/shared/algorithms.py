@@ -610,8 +610,6 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     norm           = N_e * N_t
     decimation     = params.getboolean('clustering', 'decimation')
 
-    intersection_norms = get_intersection_norm(params)
-
     if cc_merge < 1:
 
         result   = []
@@ -629,6 +627,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
 
         to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
+
+        intersection_norms = get_intersection_norm(params, to_explore)
 
         for i in to_explore:
 
