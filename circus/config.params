@@ -50,7 +50,7 @@ smart_search   = True       # Activate the smart search mode
 merging_method = distance   # Method to perform local merges (distance, dip, folding, nd-folding, bhatta)
 merging_param  = default    # Merging parameter (see docs) (3 if distance, 0.5 if dip, 1e-9 if folding, 2 if bhatta)
 sensitivity    = 3          # Single parameter for clustering sensitivity. The lower the more sensitive
-cc_merge       = 0.95       # If CC between two templates is higher, they are merged
+cc_merge       = 0.975      # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 

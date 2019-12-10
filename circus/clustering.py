@@ -107,6 +107,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         hanning_filter = numpy.hanning(N_t)[:, numpy.newaxis]
 
     if use_savgol:
+        savgol_filter = numpy.hanning(N_t)**3
         savgol_window = params.getint('clustering', 'savgol_window')
 
     if alignment:
@@ -961,7 +962,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_component = numpy.nanmean(sub_data, 0)
 
                     if use_savgol:
-                        first_component = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
+                        tmp_fast = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
+                        tmp_slow = scipy.signal.savgol_filter(first_component, 3*savgol_window, 3, axis=1)
+                        first_component = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
 
                     mean_channels += len(indices)
                     if comp_templates:

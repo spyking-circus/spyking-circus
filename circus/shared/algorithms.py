@@ -770,14 +770,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
                         if similarity > cc_merge and local_overlap < cc_merge:
                             if k not in mixtures:
-                                # pylab.subplot(211)
-                                # pylab.plot(new_template)
-                                # ymin, ymax = pylab.ylim()
-                                # pylab.subplot(212)
-                                # pylab.plot(t_k)
-                                # pylab.ylim(ymin, ymax)
-                                # pylab.savefig('merge_%d.png' %count)
-                                # pylab.close()
                                 mixtures  += [k]
                                 been_found = True
                                 break
