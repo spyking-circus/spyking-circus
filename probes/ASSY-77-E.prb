@@ -30,10 +30,10 @@ channel_groups = {1: dict(), 2: dict(), 3: dict(), 4: dict()} # four shanks
 #=========================================================================
 # "channels" defined from channel mapping
 #=========================================================================
-shankA = range(16) 
-shankB = range(16,32) 
-shankC = range(32,48)
-shankD = range(48,64)
+shankA = list( reversed( range(16) ))
+shankB = list( reversed( range(16,32) ))
+shankC = list( reversed( range(32,48) ))
+shankD = list( reversed( range(48,64) ))
 
 #=========================================================================
 # Assign "channels" from channel maps 
@@ -66,14 +66,14 @@ def get_locations(xloc = 0):
     """
 
     mycoor = [
-    [35, -285], [35, -260],
-    [40, -245], [30, -220],
-    [45, -205], [25, -180],
-    [50, -165], [20, -160],
-    [55, -125], [15, -120],
-    [60,  -85], [10,  -80],
-    [65,  -45], [ 5,  -40],
-    [70,   -5], [ 0,    0] ]
+    [ 0,    0], [70,  -25],
+    [ 5,  -40], [65,  -65],
+    [10,  -80], [60, -105],
+    [15, -120], [55, -145],
+    [20, -160], [50, -185],
+    [25, -200], [45, -225],
+    [30, -240], [40, -265],
+    [35, -280], [35, -305]]
 
     for electrode in mycoor:
         electrode[0] += xloc # shift x-coordinate
