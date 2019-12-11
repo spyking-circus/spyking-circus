@@ -139,7 +139,7 @@ class CircusParser(object):
                           ['merging', 'auto_mode', 'float', '0'],
                           ['merging', 'default_lag', 'float', '5'],
                           ['merging', 'remove_noise', 'bool', 'False'],
-                          ['merging', 'noise_limit', 'float', '1.1'],
+                          ['merging', 'noise_limit', 'float', '0.75'],
                           ['merging', 'sparsity_limit', 'float', '0.75'],
                           ['merging', 'merge_drifts', 'bool', 'False'],
                           ['merging', 'drift_limit', 'float', '0.5'],
