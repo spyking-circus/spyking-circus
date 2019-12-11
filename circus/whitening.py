@@ -22,6 +22,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
+    isolation      = params.getboolean('detection', 'isolation')
     dist_peaks     = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -54,6 +55,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', logger)
+
+    if isolation:
+        yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
 
     if use_gpu:
         import cudamat as cmt
@@ -279,7 +283,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
-    isolation      = params.getboolean('detection', 'isolation')
     over_factor    = params.getint('detection', 'oversampling_factor')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     nodes, edges   = get_nodes_and_edges(params)
@@ -351,9 +354,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         snippet_duration = template_shift
         xdata = numpy.arange(-template_shift, template_shift+1)
-
-    if isolation:
-        yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
 
     if rejection_threshold > 0:
         reject_noise = True
@@ -487,10 +487,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 to_accept = True
 
                                 if negative_peak:
-                                    if (numpy.min(sub_mat) >= -thresholds[elec]) or (numpy.argmin(sub_mat) != template_shift):
+                                    if (numpy.min(sub_mat) >= -thresholds[elec]):
                                         to_accept = False
                                 else:
-                                    if (numpy.max(sub_mat) <= thresholds[elec]) or (numpy.argmax(sub_mat) != template_shift):
+                                    if (numpy.max(sub_mat) <= thresholds[elec]):
                                         to_accept = False
 
                                 if isolation:
@@ -512,10 +512,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     sys.stderr.flush()
 
-    if isolation:
-        print_and_log(["Node %d has collected %d isolated waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
-    else:
-        print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
+    print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
 
     if sign_peaks in ['negative', 'both']:
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
@@ -535,10 +532,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_waveforms = all_gather_array(numpy.array([nb_waveforms], dtype=numpy.float32), comm, 0)[0]
 
     if comm.rank == 0:
-        if isolation:
-            print_and_log(["Found %d isolated waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
-        else:
-            print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
+        print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
 
         if nb_waveforms == 0:
             print_and_log(['No waveforms found! Are the data properly loaded??'], 'error', logger)

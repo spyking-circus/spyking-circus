@@ -124,7 +124,6 @@ class CircusParser(object):
                           ['clustering', 'compress', 'bool', 'True'],
                           ['clustering', 'noise_thr', 'float', '0.8'],
                           ['clustering', 'cc_merge', 'float', '0.975'],
-                          ['clustering', 'cc_mixtures', 'float', '0.975'],
                           ['clustering', 'n_abs_min', 'int', '10'],
                           ['clustering', 'sensitivity', 'float', '3'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
@@ -188,6 +187,7 @@ class CircusParser(object):
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
                         ['clustering', 'savgol', 'bool', 'True'],
+                        ['clustering', 'savgol_time', 'float', '0.2'],
                         ['whitening', 'safety_time', 'string', 'auto'],
                         ['extracting', 'safety_time', 'string', 'auto']]
 
@@ -777,7 +777,8 @@ class CircusParser(object):
                     self.parser._sections['fitting']['chunk'])
 
             # savgol from milisecond to sampling points
-            self._savgol = int(self.rate * 0.2 * 1e-3)
+            savgol_time = self.getfloat('clustering', 'savgol_time')
+            self._savgol = int(self.rate * savgol_time * 1e-3)
             if numpy.mod(self._savgol, 2) == 0:
                 self._savgol += 1
 

@@ -109,6 +109,51 @@ def get_nodes_and_edges(parser, validating=False):
     return numpy.array(nodes, dtype=numpy.int32), edges
 
 
+def get_central_electrode(parser, node_i, node_j):
+
+    for key in parser.probe['channel_groups'].keys():
+        if node_i in parser.probe['channel_groups'][key]['channels']:
+            shank = key
+            break
+
+    if node_j not in parser.probe['channel_groups'][shank]['channels']:
+        return node_i
+
+    position = parser.probe['channel_groups'][shank]['geometry']
+    channels = parser.probe['channel_groups'][shank]['channels']
+
+    pos_i = position[node_i]
+    pos_j = position[node_j]
+
+    if len(pos_i) == 2:
+        pos_i = pos_i[0], pos_i[1], 0
+        pos_j = pos_j[0], pos_j[1], 0
+    elif len(pos_i) == 1:
+        pos_i = pos_i[0], 0, 0
+        pos_j = pos_j[0], 0, 0
+
+    pos_mean = numpy.array([(pos_i[0] + pos_j[0])/2, (pos_i[1] + pos_j[1])/2, (pos_i[2] + pos_j[2])/2])
+    min_distance = numpy.inf
+    best_elec = -1
+
+    for c2 in channels:
+
+        pos = position[c2]
+        if len(pos) == 2:
+            pos = pos[0], pos[1], 0
+        elif len(pos) == 1:
+            pos = pos[0], 0, 0
+
+        pos = numpy.array(pos)
+        distance = numpy.sum((pos_mean - pos)**2)
+
+        if distance <= min_distance:
+            best_elec = c2
+            min_distance = distance
+    return best_elec
+
+
+
 def get_averaged_n_edges(parser):
     nodes, edges = get_nodes_and_edges(parser)
     n = 0

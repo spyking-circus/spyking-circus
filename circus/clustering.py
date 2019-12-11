@@ -107,7 +107,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         hanning_filter = numpy.hanning(N_t)[:, numpy.newaxis]
 
     if use_savgol:
-        savgol_filter = numpy.hanning(N_t)**3
+        savgol_filter = numpy.hanning(N_t)
         savgol_window = params.getint('clustering', 'savgol_window')
 
     if alignment:
