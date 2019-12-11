@@ -484,17 +484,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 
                                 sub_mat = f(ddata).astype(numpy.float32)
 
-                                to_accept = True
-
-                                if negative_peak:
-                                    if (numpy.min(sub_mat) >= -thresholds[elec]):
-                                        to_accept = False
-                                else:
-                                    if (numpy.max(sub_mat) <= thresholds[elec]):
-                                        to_accept = False
-
                                 if isolation:
-                                    to_accept *= numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec]
+                                    to_accept = numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec]
 
                                 if to_accept:
                                     if negative_peak:
