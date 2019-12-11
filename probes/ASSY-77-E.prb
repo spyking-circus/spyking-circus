@@ -30,10 +30,10 @@ channel_groups = {1: dict(), 2: dict(), 3: dict(), 4: dict()} # four shanks
 #=========================================================================
 # "channels" defined from channel mapping
 #=========================================================================
-shankA = range(16)
-shankB = range(16,32)
-shankC = range(32,48)
-shankD = range(48,64)
+shankA = list( reversed( range(16) ) )
+shankB = list( reversed( range(16,32) ) )
+shankC = list( reversed( range(32,48) ) )
+shankD = list( reversed( range(48,64) ) )
 
 #=========================================================================
 # Assign "channels" from channel maps 
@@ -58,26 +58,25 @@ def get_locations(xloc = 0):
 
     Return:
     -------
-    A list with (x,y) coordinates for 16 electrodes in the shank
+    A list with (x,y) coordinates for 16 electrodes in the shank.
 
     Example:
     --------
     get_geometry(xloc = 250) # return coord shank B
     """
 
-    mycorr = [
-    [ 0,   0], [70,   5],
-    [ 5,  40], [65,  45],
-    [10,  80], [60,  85],
-    [15, 120], [55, 125],
-    [20, 160], [50, 165],
-    [25, 180], [45, 205],
-    [30, 220], [40, 245],
-    [35, 260], [35, 285] ]
+    mycoor = [
+    [ 0,    0], [35, -260],
+    [40, -245], [30, -220],
+    [45, -205], [25, -180],
+    [50, -165], [20, -160],
+    [55, -125], [15, -120],
+    [60,  -85], [10,  -80],
+    [65,  -45], [ 5,  -40],
+    [70,   -5], [35, -285] ]
     
-    for electrode in mycorr:
-        electrode[0] += xloc # shift x-direction
-    return mycorr    
+    for electrode in mycoor:
+        electrode[0] += xloc # shift x-coordinate
 
 # create dictionaries 'zipping' shanks and locations
 channel_groups[1]["geometry"] = dict( zip(shankA, get_locations(xloc=0)))
