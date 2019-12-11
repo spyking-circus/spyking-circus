@@ -1714,16 +1714,18 @@ def get_intersection_norm(params, to_explore):
         t_i       = templates[:, i].toarray().reshape(N_e, N_t)
         indices_i = numpy.array(edges[nodes[best_elec[i]]], dtype=numpy.int32)
         for count, j in enumerate(range(i+1, nb_temp)):
-            indices_j = edges[nodes[best_elec[j]]]
+            indices_j = numpy.array(edges[nodes[best_elec[j]]], dtype=numpy.int32)
             mask = numpy.in1d(indices_i, indices_j)
             mask = inv_nodes[indices_i[mask]]
+            N_common = len(mask)
+            ratio = N_common / len(numpy.unique(numpy.concatenate((indices_i, indices_j))))
             #mean_elec = get_central_electrode(params, nodes[best_elec[i]], nodes[best_elec[j]])
             #mask = inv_nodes[edges[mean_elec]]
             t_j = templates[:, j].toarray().reshape(N_e, N_t)
             norm_i = numpy.sqrt(numpy.sum(t_i[mask]**2))
             norm_j = numpy.sqrt(numpy.sum(t_j[mask]**2))
             product = norm_i * norm_j
-            if product != 0:
+            if product != 0 and ratio > 0.25:
                 res[i][count] = product
     return res
 
