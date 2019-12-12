@@ -439,10 +439,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     if len(to_consider) > 0:
                                         if negative_peak:
-                                            if numpy.all(to_consider < local_chunk[peak, elec]):
+                                            if numpy.any(to_consider < local_chunk[peak, elec]):
                                                 is_isolated = False
                                         else:
-                                            if numpy.all(to_consider > local_chunk[peak, elec]):
+                                            if numpy.any(to_consider > local_chunk[peak, elec]):
                                                 is_isolated = False
 
                                 if is_isolated:
