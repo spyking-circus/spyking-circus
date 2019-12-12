@@ -418,7 +418,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if (((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank))):
 
-                            is_local_extrema = (elec in all_extremas[all_peaktimes == peak])
                             indices = numpy.take(inv_nodes, edges[nodes[elec]])
 
                             if safety_space:
@@ -426,7 +425,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 myslice = all_times[elec, min_times[midx]:max_times[midx]]
 
-                            if is_local_extrema and not myslice.any():
+                            if not myslice.any():
 
                                 if isolation and gpass == 1:
 
