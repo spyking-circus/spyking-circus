@@ -22,7 +22,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
-    isolation      = params.getboolean('detection', 'isolation')
     dist_peaks     = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff  = params.get('data', 'file_out_suff')
@@ -55,9 +54,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', logger)
-
-    if isolation:
-        yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
 
     if use_gpu:
         import cudamat as cmt
@@ -385,25 +381,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             #print "Extracting the peaks..."
             all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
-            all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
 
             for i in xrange(N_e):
 
                 if sign_peaks == 'negative':
-                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=N_t)[0]
+                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], distance=dist_peaks)[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, wlen=N_t)[0]
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t)[0]
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
-                all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
+
 
             #print "Removing the useless borders..."
             local_borders = (snippet_duration, local_shape - snippet_duration)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
             all_peaktimes   = numpy.compress(idx, all_peaktimes)
-            all_extremas    = numpy.compress(idx, all_extremas)
-
             local_peaktimes = numpy.unique(all_peaktimes)
 
             if ignore_dead_times:
@@ -452,8 +445,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     indices = numpy.take(inv_nodes, edges[nodes[elec]])
                     myslice = all_times[indices, min_times[midx]:max_times[midx]]
-                    is_local_extrema = elec in all_extremas[all_peaktimes == peak]
-                    if is_local_extrema and not myslice.any():
+                    if not myslice.any():
 
                         upper_bounds = max_elts_elec
 
@@ -465,7 +457,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 is_noise = numpy.std(sub_mat) < rejection_threshold*stds[elec]
                             else:
                                 is_noise = False
-
+                            
                             if not is_noise:
 
                                 try:
@@ -484,19 +476,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 
                                 sub_mat = f(ddata).astype(numpy.float32)
 
-                                if isolation:
-                                    to_accept = numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec]
+                                if negative_peak:
+                                    elts_neg[:, elt_count_neg] = sub_mat
+                                else:
+                                    elts_pos[:, elt_count_pos] = sub_mat
 
-                                if to_accept:
-                                    if negative_peak:
-                                        elts_neg[:, elt_count_neg] = sub_mat
-                                    else:
-                                        elts_pos[:, elt_count_pos] = sub_mat
-
-                                    if negative_peak:
-                                        elt_count_neg += 1
-                                    else:
-                                        elt_count_pos += 1
+                                if negative_peak:
+                                    elt_count_neg += 1
+                                else:
+                                    elt_count_pos += 1
 
                         groups[elec] += 1
                         all_times[indices, min_times[midx]:max_times[midx]] = True
