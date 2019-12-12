@@ -435,14 +435,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     extremas = local_chunk[vicinity_peaks, vicinity_extremas]
 
                                     nearby = numpy.in1d(vicinity_extremas, indices)
-                                    to_consider = extremas[nearby]/thresholds[vicinity_extremas[nearby]]
+                                    to_consider = extremas[nearby]
 
                                     if len(to_consider) > 0:
                                         if negative_peak:
-                                            if numpy.min(to_consider) < local_chunk[peak, elec]/thresholds[elec]:
+                                            if numpy.all(to_consider < local_chunk[peak, elec]):
                                                 is_isolated = False
                                         else:
-                                            if numpy.max(to_consider) > local_chunk[peak, elec]/thresholds[elec]:
+                                            if numpy.all(to_consider > local_chunk[peak, elec]):
                                                 is_isolated = False
 
                                 if is_isolated:

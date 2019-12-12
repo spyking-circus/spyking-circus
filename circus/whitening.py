@@ -381,6 +381,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             #print "Extracting the peaks..."
             all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
+            #all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
 
             for i in xrange(N_e):
 
@@ -397,6 +398,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_borders = (snippet_duration, local_shape - snippet_duration)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
             all_peaktimes   = numpy.compress(idx, all_peaktimes)
+            #all_extremas    = numpy.compress(idx, all_extremas)
+
             local_peaktimes = numpy.unique(all_peaktimes)
 
             if ignore_dead_times:

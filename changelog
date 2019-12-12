@@ -16,6 +16,7 @@ Release 0.8.7
 * some cleaning in the parameter file
 * default value for cc_merge is now 0.95, since merging functions are more robust
 * noisy templates are removed by default while meta merging with a lower threshold (0.75)
+* speeding up whitening and clustering steps
 
 =============
 Release 0.8.6
