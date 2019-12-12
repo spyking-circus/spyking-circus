@@ -1712,19 +1712,21 @@ def get_intersection_norm(params, to_explore):
     for i in to_explore:
         res[i]    = numpy.inf * numpy.ones(nb_temp - (i+1), dtype=numpy.float32)
         t_i       = templates[:, i].toarray().reshape(N_e, N_t)
+        full_norm_i = numpy.sqrt(numpy.sum(t_i**2))
         indices_i = numpy.array(edges[nodes[best_elec[i]]], dtype=numpy.int32)
         for count, j in enumerate(range(i+1, nb_temp)):
             indices_j = numpy.array(edges[nodes[best_elec[j]]], dtype=numpy.int32)
+            full_norm_j = numpy.sqrt(numpy.sum(t_j**2))
             mask = numpy.in1d(indices_i, indices_j)
             mask = inv_nodes[indices_i[mask]]
-            N_common = len(mask)
-            ratio = N_common / len(numpy.unique(numpy.concatenate((indices_i, indices_j))))
-            #mean_elec = get_central_electrode(params, nodes[best_elec[i]], nodes[best_elec[j]])
-            #mask = inv_nodes[edges[mean_elec]]
             t_j = templates[:, j].toarray().reshape(N_e, N_t)
             norm_i = numpy.sqrt(numpy.sum(t_i[mask]**2))
             norm_j = numpy.sqrt(numpy.sum(t_j[mask]**2))
             product = norm_i * norm_j
+            N_common = len(mask)
+            ratio = N_common / len(numpy.unique(numpy.concatenate((indices_i, indices_j))))
+            #ratio = min((norm_i/full_norm_i), (norm_j/full_norm_j))
+
             if product != 0 and ratio > 0.25:
                 res[i][count] = product
     return res
