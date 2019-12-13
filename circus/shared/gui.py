@@ -156,11 +156,11 @@ class MergeWindow(QMainWindow):
         self.min_spikes  = params.getint('merging', 'min_spikes')
 
         self.duration   = io.load_data(params, 'duration')
+        self.supports   = io.load_data(params, 'supports', self.ext_in)
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
         self.time_rpv   = params.getfloat('merging', 'time_rpv')
         self.rpv_threshold = params.getfloat('merging', 'rpv_threshold')
-
         self.result     = io.load_data(params, 'results', self.ext_in)
 
         self.nb_bins    = int(self.duration/(self.cc_bin*1e-3))
@@ -185,11 +185,10 @@ class MergeWindow(QMainWindow):
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices    = numpy.arange(self.shape[2]//2)
         nodes, edges    = get_nodes_and_edges(params)
-        self.nodes      = nodes
-        self.edges      = edges
         self.inv_nodes  = numpy.zeros(self.N_total, dtype=numpy.int32)
         self.inv_nodes[nodes] = numpy.arange(len(nodes))
-
+        self.nodes      = nodes
+        self.edges      = edges
         self.sparsities = numpy.zeros(self.shape[2]//2, dtype=numpy.float32)
 
         self.norms      = numpy.zeros(len(self.indices), dtype=numpy.float32)
@@ -214,12 +213,10 @@ class MergeWindow(QMainWindow):
                 thr = self.thresholds[elec]
                 self.norms[idx] = numpy.abs(tmp).max()/thr
 
-            best_elec = nodes[self.electrodes[idx]]
-            nb_channels = len(numpy.where(tmp.sum(1) != 0)[0])
-            max_nb_channels = len(edges[best_elec])
-            if max_nb_channels < 1:
-                raise ValueError(max_nb_channels)
-            elif max_nb_channels == 1:
+            support = numpy.where(self.supports[idx])[0]
+            nb_channels = len(support)
+            max_nb_channels = self.N_e
+            if max_nb_channels == 1:
                 self.sparsities[idx] = 1.0 - 0.0
             else:
                 self.sparsities[idx] = 1.0 - float(nb_channels - 1) / float(max_nb_channels - 1)
@@ -913,7 +910,7 @@ class MergeWindow(QMainWindow):
                     indices = [self.inv_nodes[self.nodes[elec]]]
                     all_channels += indices
                 else:
-                    indices = self.inv_nodes[self.edges[self.nodes[elec]]]
+                    indices = numpy.where(self.supports[p])[0]
                     all_channels += list(indices)
 
                 for sidx in indices:
