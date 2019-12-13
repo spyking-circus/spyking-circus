@@ -2,6 +2,7 @@
 Release 0.8.8
 =============
 
+* fix a regression introduced in 0.8.7 for non contiguous probe indices
 
 =============
 Release 0.8.7
