@@ -351,6 +351,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
         print_and_log(['Node 0 is slicing templates'], 'debug', logger)
         old_templates  = load_data(params, 'templates', extension=input_extension)
         old_limits     = load_data(params, 'limits', extension=input_extension)
+        old_supports   = load_data(params, 'supports', extension=input_extension)
         _, N_tm        = old_templates.shape
         norm_templates = load_data(params, 'norm-templates', extension=input_extension)
 
@@ -375,7 +376,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
         hfile      = h5py.File(hfilename, 'w', libver='earliest')
         norms      = hfile.create_dataset('norms', shape=(2*len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
-
+        supports   = hfile.create_dataset('supports', shape=(len(to_keep), N_e), dtype=numpy.bool, chunks=True)
         # For each index to keep.
         for count, keep in zip(positions, local_keep):
             # Copy template.
@@ -384,6 +385,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
             # Copy norm.
             norms[count]                       = norm_templates[keep]
             norms[count + len(to_keep)]        = norm_templates[keep + N_tm//2]
+            supports[count]                    = old_supports[keep]
             # Copy limits.
             if to_merge == []:
                 new_limits = old_limits[keep]

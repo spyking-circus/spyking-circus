@@ -1006,7 +1006,17 @@ def load_data(params, data, extension=''):
             return norms
         else:
             if comm.rank == 0:
-                print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
+                print_and_log(["No norms found! Check suffix?"], 'error', logger)
+            sys.exit(0)
+    elif data == 'supports':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
+            norms  = myfile.get('supports')[:]
+            myfile.close()
+            return norms
+        else:
+            if comm.rank == 0:
+                print_and_log(["No supports found! Check suffix?"], 'error', logger)
             sys.exit(0)
     elif data == 'spike-cluster':
         filename = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'

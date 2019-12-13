@@ -891,6 +891,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+            supports   = hfile.create_dataset('supports', shape=(total_nb_clusters, N_e), dtype=numpy.bool, chunks=True)
             g_count    = node_pad
             g_offset   = total_nb_clusters
         else:
@@ -898,6 +899,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms      = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims  = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+            supports   = hfile.create_dataset('supports', shape=(local_nb_clusters, N_e), dtype=numpy.bool, chunks=True)
             g_count    = 0
             g_offset   = local_nb_clusters
 
@@ -924,7 +926,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 nb_dim_kept = min(nb_dim_kept, result['pca_%s_' %p + str(ielec)].shape[1])
 
             result['data_' + str(ielec)] = numpy.zeros((0, nb_dim_kept), dtype=numpy.float32)
-
             indices  = inv_nodes[nodes]
             sindices = nodes_indices[ielec]
             n_neighb = len(sindices)
@@ -1004,11 +1005,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                         if shift > 0:
-                            templates[indices, shift:] = first_component[:, :-shift]
+                            templates[:, shift:] = first_component[:, :-shift]
                         elif shift < 0:
-                            templates[indices, :shift] = first_component[:, -shift:]
+                            templates[:, :shift] = first_component[:, -shift:]
                         else:
-                            templates[indices, :] = first_component
+                            templates[:, :] = first_component
 
                         first_flat = first_component.reshape(y*z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
@@ -1021,6 +1022,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.uint32)))
                         temp_data  = numpy.concatenate((temp_data, templates[dx]))
 
+                        supports[g_count] = ~numpy.in1d(indices, to_delete)
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel()**2)/n_scalar)
 
                         distance = min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
@@ -1151,6 +1153,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
                 norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
                 amplitudes = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+                supports   = hfile.create_dataset('supports', shape=(total_nb_clusters, N_e), dtype=numpy.bool, chunks=True)
                 count      = 0
                 for i in xrange(comm.size):
                     loc_norms   = ts[i].get('norms')
@@ -1159,6 +1162,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')
                     amplitudes[count:count+middle] = ts[i].get('limits')
+                    supports[count:count+middle] = ts[i].get('supports')
                     count      += middle
                     for j in range(i, N_e, comm.size):
                         io.write_datasets(cfile, to_write, rs[i], j, compression=hdf5_compress)
