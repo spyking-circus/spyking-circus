@@ -45,6 +45,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     jitter_range     = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
     use_hanning      = params.getboolean('detection', 'hanning')
+    rejection_threshold = params.getfloat('detection', 'rejection_threshold')
     data_file.open()
     #################################################################
 
@@ -53,6 +54,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', logger)
+
+    nodes_indices = {}
+    for elec in nodes:
+        nodes_indices[elec] = inv_nodes[edges[nodes[elec]]]
 
     if use_gpu:
         import cudamat as cmt
@@ -127,7 +132,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             #print "Selection of the peaks with spatio-temporal masks..."
             for idx, peak in zip(argmax_peak, all_idx):
                 elec    = numpy.argmax(numpy.abs(local_chunk[peak]))
-                indices = numpy.take(inv_nodes, edges[nodes[elec]])
+                indices = nodes_indices[elec]
                 if safety_space:
                     all_times[indices, min_times[idx]:max_times[idx]] = True
                 else:
@@ -142,7 +147,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         for elec in all_electrodes[numpy.arange(comm.rank, nb_temp_white, comm.size)]:
             res            = numpy.zeros((0, N_t), dtype=numpy.float32)
             scount         = 0
-            indices        = numpy.take(inv_nodes, edges[nodes[elec]])
+            indices        = nodes_indices[elec]
             all_times_elec = numpy.any(numpy.take(all_times, indices, axis=0), 0)
             esubset        = numpy.where(all_times_elec == False)[0]
             bound          = len(esubset) - N_t
@@ -171,7 +176,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_silences = []
 
         for elec in numpy.arange(comm.rank, N_e, comm.size):
-            indices        = numpy.take(inv_nodes, edges[nodes[elec]])
+            indices        = nodes_indices[elec]
             all_times_elec = numpy.any(numpy.take(all_times, indices, axis=0), 0)
             esubset        = numpy.where(all_times_elec == False)[0]
             local_data     = local_chunk[esubset][:, indices]
@@ -278,8 +283,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
     file_out       = params.get('data', 'file_out')
     alignment      = params.getboolean('detection', 'alignment')
-    smoothing      = params.getboolean('detection', 'smoothing')
-    isolation      = params.getboolean('detection', 'isolation')
     over_factor    = params.getint('detection', 'oversampling_factor')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     nodes, edges   = get_nodes_and_edges(params)
@@ -294,7 +297,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     output_dim       = params.getfloat('whitening', 'output_dim')
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
-    smoothing_factor = params.getfloat('detection', 'smoothing_factor') * (1./spike_thresh)**2
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     if sign_peaks == 'both':
        max_elts_elec *= 2
     nb_elts          = int(params.getfloat('whitening', 'nb_elts')*N_e*max_elts_elec)
@@ -341,16 +344,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     thresholds = io.load_data(params, 'thresholds')
     mads = io.load_data(params, 'mads')
+    stds = io.load_data(params, 'stds')
 
     if alignment:
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
+        snippet_duration = template_shift_2
+    else:
+        snippet_duration = template_shift
+        xdata = numpy.arange(-template_shift, template_shift+1)
 
-    if isolation:
-        yoff  = numpy.array(range(0, N_t//4) + range(3*N_t//4, N_t))
+    if rejection_threshold > 0:
+        reject_noise = True
+    else:
+        reject_noise = False
 
     to_explore = xrange(comm.rank, nb_chunks, comm.size)
+
+    upper_bounds = max_elts_elec
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
@@ -375,28 +387,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             #print "Extracting the peaks..."
             all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
-            all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
 
             for i in xrange(N_e):
 
                 if sign_peaks == 'negative':
-                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=N_t)[0]
+                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], distance=dist_peaks)[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i], width=spike_width, wlen=N_t)[0]
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t)[0]
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
                 all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
-                all_extremas  = numpy.concatenate((all_extremas, i*numpy.ones(len(peaktimes), dtype=numpy.uint32)))
+
 
             #print "Removing the useless borders..."
-            if alignment:
-                local_borders = (template_shift_2, local_shape - template_shift_2)
-            else:
-                local_borders = (template_shift, local_shape - template_shift)
+            local_borders = (snippet_duration, local_shape - snippet_duration)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
             all_peaktimes   = numpy.compress(idx, all_peaktimes)
-            all_extremas    = numpy.compress(idx, all_extremas)
-
             local_peaktimes = numpy.unique(all_peaktimes)
 
             if ignore_dead_times:
@@ -443,46 +449,38 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 elec = numpy.argmin(local_chunk[peak])
                                 negative_peak = True
 
-                    indices = numpy.take(inv_nodes, edges[nodes[elec]])
-                    myslice = all_times[indices, min_times[midx]:max_times[midx]]
-                    is_local_extrema = elec in all_extremas[all_peaktimes == peak]
-                    if is_local_extrema and not myslice.any():
-                        upper_bounds = max_elts_elec
+                    if groups[elec] < upper_bounds:
 
-                        if groups[elec] < upper_bounds:
+                        indices = nodes_indices[elec]
+                        myslice = all_times[indices, min_times[midx]:max_times[midx]]
 
-                            if not alignment:
-                                sub_mat = local_chunk[peak - template_shift:peak + template_shift + 1, elec]
+                        if not myslice.any():
 
-                            elif alignment:
-                                ydata    = local_chunk[peak - template_shift_2:peak + template_shift_2 + 1, elec]
+                            sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
-                                if smoothing:
-                                    factor = smoothing_factor*xdata.size
-                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, s=factor, k=3)
+                            if reject_noise:
+                                is_noise = numpy.std(sub_mat) < rejection_threshold*stds[elec]
+                            else:
+                                is_noise = False
+                            
+                            if not is_noise:
+
+                                try:
+                                    factor = xdata.size*((smoothing_factor*mads[elec])**2)
+                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
+                                except Exception:
+                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
+                                if alignment:
+                                    if negative_peak:
+                                        rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
+                                    else:
+                                        rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                                    ddata   = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                 else:
-                                    f = scipy.interpolate.UnivariateSpline(xdata, ydata, k=3, s=0)
-                                if negative_peak:
-                                    rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
-                                else:
-                                    rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
-                                ddata    = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                                    ddata   = xdata 
+                                
                                 sub_mat = f(ddata).astype(numpy.float32)
 
-                            if alignment:
-                                if negative_peak:
-                                    if numpy.min(sub_mat) >= -thresholds[elec]:
-                                        to_accept = False
-                                else:
-                                    if numpy.max(sub_mat) <= thresholds[elec]:
-                                        to_accept = False
-
-                            if isolation:
-                                to_accept = numpy.all(numpy.max(numpy.abs(sub_mat[yoff])) <= thresholds[elec])
-                            else:
-                                to_accept = True
-
-                            if to_accept:
                                 if negative_peak:
                                     elts_neg[:, elt_count_neg] = sub_mat
                                 else:
@@ -493,15 +491,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 else:
                                     elt_count_pos += 1
 
-                        groups[elec] += 1
-                        all_times[indices, min_times[midx]:max_times[midx]] = True
+                                groups[elec] += 1
+                                all_times[indices, min_times[midx]:max_times[midx]] = True
 
     sys.stderr.flush()
 
-    if isolation:
-        print_and_log(["Node %d has collected %d isolated waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
-    else:
-        print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
+    print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
 
     if sign_peaks in ['negative', 'both']:
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
@@ -521,10 +516,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_waveforms = all_gather_array(numpy.array([nb_waveforms], dtype=numpy.float32), comm, 0)[0]
 
     if comm.rank == 0:
-        if isolation:
-            print_and_log(["Found %d isolated waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
-        else:
-            print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
+        print_and_log(["Found %d waveforms over %d requested" %(nb_waveforms, int(nb_elts*comm.size))], 'default', logger)
 
         if nb_waveforms == 0:
             print_and_log(['No waveforms found! Are the data properly loaded??'], 'error', logger)

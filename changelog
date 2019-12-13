@@ -3,13 +3,20 @@ Release 0.8.7
 =============
 
 * new methods to detect the peaks, more robust when low thresholds are fixed
-* all channels are now normalized before whitening and clustering
 * more accurate fitting procedure, slightly slower
 * minor bug fixes
 * addition of a sparsity_limit parameter in the meta merging GUI, to remove noise more precisely
 * new parameter file is properly copied
+* enhancement of the smoothing/alignement procedure, more accurate estimation of noisy templates
+* better estimation of the amplitudes boundaries used during fitting
 * optimization while removing mixtures and important bug fixes
 * fix a bug in the thresholding method
+* minor updates to get more refined spikes during whitening and clustering
+* tests with SpikeInterface, showing clear increase in performance
+* some cleaning in the parameter file
+* default value for cc_merge is now 0.95, since merging functions are more robust
+* noisy templates are removed by default while meta merging with a lower threshold (0.75)
+* speeding up whitening and clustering steps
 
 =============
 Release 0.8.6

@@ -3,7 +3,7 @@ import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 import shutil, h5py
 import scipy.linalg, scipy.sparse
 
-from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
+from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_intersection_norm
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
@@ -145,18 +145,17 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     distances = DistanceMatrix(len(rho))
     distances.distances = dist
     delta = compute_delta(distances, rho)
-    nclus, labels, centers = find_centroids_and_cluster(distances, rho, delta, n_min, alpha)
-    halolabels = halo_assign(distances, labels, centers)
+    nclus, labels, centers = find_centroids_and_cluster(distances, rho, delta, alpha)
+    halolabels = halo_assign(distances, labels, centers, n_min)
     halolabels -= 1
     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
-
     del distances
     return halolabels, rho, delta, centers
 
 def compute_delta(dist, rho):
     return dist.get_deltas(rho)
 
-def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
+def find_centroids_and_cluster(dist, rho, delta, alpha=3):
 
     npnts = len(rho)    
     centers = numpy.zeros(npnts)
@@ -175,18 +174,10 @@ def find_centroids_and_cluster(dist, rho, delta, n_min, alpha=3):
         labels = numpy.argmin(dist2cent, axis=0) + 1
         _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
 
-        small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
-
-        if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
-            id2rem = centersx[numpy.in1d(centersx, small_clusters)] # ids to remove
-            centers[numpy.in1d(centers, id2rem) ] = 0
-            labels[numpy.in1d(labels, id2rem) ] = 0
-            nclus -= len(id2rem)
-
     return nclus, labels, centers
     
 
-def halo_assign(dist, labels, centers):
+def halo_assign(dist, labels, centers, n_min):
 
     halolabels = labels.copy()
     sameclusmat = numpy.equal(labels, labels[:, None]) #
@@ -195,14 +186,22 @@ def halo_assign(dist, labels, centers):
     dist2cluscent = dist2cent*sameclus_cent # preserves only distances to the corresponding cluster centroid
     nclusmem = numpy.sum(sameclus_cent, axis=1) # number of cluster members
     meandist2cent = numpy.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
-    std2cent = numpy.zeros(meandist2cent.shape)
+    mad2cent = numpy.zeros(meandist2cent.shape)
+    gt_meandist2cent = numpy.zeros(dist2cluscent.shape, dtype=numpy.bool)
+
     for i in range(len(meandist2cent)):
         idx = numpy.where(dist2cluscent[i] > 0)[0]
-        std2cent[i] = numpy.std(dist2cluscent[i, idx])
-    bounds = meandist2cent[:, None] + std2cent[:, None]
-    gt_meandist2cent = numpy.greater(dist2cluscent, bounds) # greater than the mean dist to centroid
+        mean_i = numpy.mean(dist2cluscent[i, idx])
+        mad_i = numpy.median(numpy.abs(dist2cluscent[i, idx] - numpy.median(dist2cluscent[i, idx])))
+        bound = mean_i + mad_i
+        gt_meandist2cent[i] = dist2cluscent[i] > bound
+
+        if numpy.sum(gt_meandist2cent[i]) - len(idx) < n_min:
+            gt_meandist2cent[i] = False
+
     remids = numpy.sum(gt_meandist2cent, axis=0)
     halolabels[remids > 0] = 0 # setting to 0 the removes points
+
     return halolabels
     
 
@@ -391,6 +390,15 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
             else:
                 subset     = numpy.where(to_merge[:, 0] == keep)[0]
                 if len(subset) > 0:
+                    # pylab.subplot(211)
+                    # pylab.plot(templates[:, count].toarray().flatten())
+                    # ymin, ymax = pylab.ylim()
+                    # pylab.subplot(212)
+                    # for i in to_merge[subset]:
+                    #     pylab.plot(old_templates[:, i[1]].toarray().flatten())
+                    # pylab.ylim(ymin, ymax)
+                    # pylab.savefig('merge_%d.png' %count)
+                    # pylab.close()
                     # Index to keep is involved in merge(s) and limits need to
                     # be updated.
                     idx        = numpy.unique(to_merge[subset].flatten())
@@ -605,7 +613,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     if cc_merge < 1:
 
         result   = []
-        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
         overlap.close()
         filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
@@ -620,13 +628,15 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
 
+        intersection_norms = get_intersection_norm(params, to_explore)
+
         for i in to_explore:
 
             idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
             local_x = over_x[idx] - (i*nb_temp+i+1)
             data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i+1:] = numpy.max(data, 1)/norm
+            distances[i, i+1:] = numpy.max(data, 1)/intersection_norms[i]
             distances[i+1:, i] = distances[i, i+1:]
 
         #Now we need to sync everything across nodes
@@ -663,7 +673,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     N_total        = params.nb_channels
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
-    cc_merge       = params.getfloat('clustering', 'cc_mixtures')
+    cc_merge       = params.getfloat('clustering', 'cc_merge')
     mixtures       = []
     to_remove      = []
 
@@ -675,7 +685,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     decimation       = params.getboolean('clustering', 'decimation')
-
 
     overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
@@ -751,11 +760,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                     is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
                         if t_k is None:
-                            t_k = templates[:, k].toarray().ravel()
+                            t_k = templates[:, k].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
                         if t_i is None:
-                            t_i = templates[:, i].toarray().ravel()
+                            t_i = templates[:, i].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
                         if t_j is None:
-                            t_j = templates[:, j].toarray().ravel()
+                            t_j = templates[:, j].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
                         new_template = (a1*t_i + a2*t_j)
                         similarity   = numpy.corrcoef(t_k, new_template)[0, 1]
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
@@ -764,6 +773,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                                 mixtures  += [k]
                                 been_found = True
                                 break
+
     sys.stderr.flush()
     to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))
     to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')

@@ -13,7 +13,7 @@ with warnings.catch_warnings():
 
 from colorama import Fore
 from mpi import all_gather_array, gather_array, comm, get_local_ring, MPI
-from circus.shared.probes import get_nodes_and_edges
+from circus.shared.probes import get_nodes_and_edges, get_central_electrode
 from circus.shared.messages import print_and_log
 from circus.shared.utils import purge, get_parallel_hdf5_flag, indices_for_dead_times, get_shared_memory_flag
 import circus
@@ -67,7 +67,7 @@ def data_stats(params, show=True, export_times=False):
 
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True, return_raw=False):
 
     data_file    = params.data_file
     data_file.open()
@@ -81,8 +81,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         nb_labels = numpy.unique(labels_i)
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
+    if return_raw:
+        stas_raw = numpy.zeros(stas.shape, dtype=numpy.float32)
+
     alignment     = params.getboolean('detection', 'alignment') and auto_align
-    smoothing     = params.getboolean('detection', 'smoothing')
     over_factor   = float(params.getint('detection', 'oversampling_factor'))
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -90,9 +92,8 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     template_shift        = params.getint('detection', 'template_shift')
     jitter_range          = params.getint('detection', 'jitter_range')
     template_shift_2      = template_shift + jitter_range
-    duration              = 2 * template_shift_2 + 1
     mads                  = load_data(params, 'mads')
-    smoothing_factor      = params.getfloat('detection', 'smoothing_factor') * numpy.median(mads)**2
+    smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -103,13 +104,20 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
+        duration = 2 * template_shift_2 + 1
+    else:
+        xdata = numpy.arange(-template_shift, template_shift + 1)
+        duration = N_t
+    
+    factor = len(neighs)*duration*(smoothing_factor*numpy.median(mads[neighs]))**2
+    offset = duration // 2
+    idx   = numpy.where(neighs == src)[0]
+    ydata = numpy.arange(len(neighs))
 
     count = 0
     for lb, time in zip(labels_i, times_i):
-        if alignment:
-            local_chunk = data_file.get_snippet(time - template_shift_2, duration, nodes=nodes)
-        else:
-            local_chunk = data_file.get_snippet(time - template_shift, N_t, nodes=nodes)
+
+        local_chunk = data_file.get_snippet(time - offset, duration, nodes=nodes)
 
         if do_spatial_whitening:
             local_chunk = numpy.dot(local_chunk, spatial_whitening)
@@ -118,47 +126,66 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
-        if alignment:
-            idx   = numpy.where(neighs == src)[0]
-            ydata = numpy.arange(len(neighs))
-            if len(ydata) == 1:
-                if smoothing:
-                    factor = smoothing_factor*xdata.size
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
-                else:
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+        if return_raw:
+            local_chunk_raw = local_chunk.copy()
+
+        if len(ydata) == 1:
+            try:
+                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
+            except Exception:
+                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+            if alignment:
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
                     rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+                if return_raw:
+                    g = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+                    local_chunk_raw = g(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
-                if smoothing:
-                    factor = smoothing_factor*local_chunk.size
-                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
-                else:
-                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+                ddata = xdata
+            local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+        else:
+            try:
+                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
+            except Exception:
+                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+            if alignment:
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 elif pos == 'pos':
                     rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
-                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                local_chunk = f(ddata, ydata).astype(numpy.float32)
+                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                if return_raw:
+                    g = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+                    local_chunk_raw = g(ddata, ydata).astype(numpy.float32)
+            else:
+                ddata = xdata
+            local_chunk = f(ddata, ydata).astype(numpy.float32)
 
         if all_labels:
             lc        = numpy.where(nb_labels == lb)[0]
             stas[lc] += local_chunk.T
+            if return_raw:
+                stas_raw[lc] += local_chunk_raw.T
         else:
             if not mean_mode:
                 stas[count, :, :] = local_chunk.T
+                if return_raw:
+                    stas_raw[count, :, :] = local_chunk_raw.T
                 count            += 1
             else:
                 stas += local_chunk.T
+                if return_raw:
+                    stas_raw += local_chunk_raw.T
 
     data_file.close()
 
-    return stas
+    if return_raw:
+        return stas, stas_raw
+    else:
+        return stas
 
 
 def get_dead_times(params):
@@ -735,6 +762,17 @@ def load_data(params, data, extension=''):
         if os.path.exists(filename):
             myfile     = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]
+            myfile.close()
+            return thresholds
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
+    elif data == 'stds':
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            thresholds = myfile.get('thresholds')[:]/0.674
             myfile.close()
             return thresholds
         else:
@@ -1652,6 +1690,46 @@ def get_garbage(params, extension=''):
     myfile.close()
     return result
 
+def get_intersection_norm(params, to_explore):
+
+    SHARED_MEMORY = get_shared_memory_flag(params)
+
+    if SHARED_MEMORY:
+        templates  = load_data_memshared(params, 'templates', normalize=False)
+    else:
+        templates  = load_data(params, 'templates')
+
+    best_elec        = load_data(params, 'electrodes')
+    N_e              = params.getint('data', 'N_e')
+    N_t              = params.getint('detection', 'N_t')
+    N_total          = params.nb_channels
+    nodes, edges     = get_nodes_and_edges(params)
+    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
+    res = {}
+    nb_temp = templates.shape[1]//2
+
+    for i in to_explore:
+        res[i]    = numpy.inf * numpy.ones(nb_temp - (i+1), dtype=numpy.float32)
+        t_i       = templates[:, i].toarray().reshape(N_e, N_t)
+        #full_norm_i = numpy.sqrt(numpy.sum(t_i**2))
+        indices_i = numpy.array(edges[nodes[best_elec[i]]], dtype=numpy.int32)
+        for count, j in enumerate(range(i+1, nb_temp)):
+            indices_j = numpy.array(edges[nodes[best_elec[j]]], dtype=numpy.int32)
+            mask = numpy.in1d(indices_i, indices_j)
+            mask = inv_nodes[indices_i[mask]]
+            t_j = templates[:, j].toarray().reshape(N_e, N_t)
+            norm_i = numpy.sqrt(numpy.sum(t_i[mask]**2))
+            norm_j = numpy.sqrt(numpy.sum(t_j[mask]**2))
+            product = norm_i * norm_j
+            N_common = len(mask)
+            ratio = N_common / len(numpy.unique(numpy.concatenate((indices_i, indices_j))))
+            #full_norm_j = numpy.sqrt(numpy.sum(t_j**2))
+            #ratio = min((norm_i/full_norm_i), (norm_j/full_norm_j))
+
+            if product != 0 and ratio > 0.25:
+                res[i][count] = product
+    return res
 
 def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0, decimation=False):
 
@@ -1694,7 +1772,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     N,        N_tm = templates.shape
 
     if not SHARED_MEMORY and normalize:
-        norm_templates = load_data(params, 'norm-templates')[:N_tm]
+        norm_templates = load_data(params, 'norm-templates')
         for idx in xrange(N_tm):
             myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
             templates.data[myslice] /= norm_templates[idx]
