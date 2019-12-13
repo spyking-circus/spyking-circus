@@ -392,6 +392,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             break
 
                         is_isolated = True
+                        to_accept  = False
 
                         if sign_peaks == 'negative':
                             elec = numpy.argmin(local_chunk[peak])
@@ -420,58 +421,53 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     negative_peak = True
                                     loc_peak      = 'neg'
 
+                        if gpass == 1:
+                            to_update = result['data_%s_' %loc_peak + str(elec)]
+                        else:
+                            to_update = result['tmp_%s_' %loc_peak + str(elec)]
+
                         if (((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank))):
 
-                            indices = nodes_indices[elec]
+                            if len(to_update) < loop_max_elts_elec:
 
-                            if safety_space:
-                                myslice = all_times[indices, min_times[midx]:max_times[midx]]
-                            else:
-                                myslice = all_times[elec, min_times[midx]:max_times[midx]]
+                                indices = nodes_indices[elec]
 
-                            if not myslice.any():
+                                if safety_space:
+                                    myslice = all_times[indices, min_times[midx]:max_times[midx]]
+                                else:
+                                    myslice = all_times[elec, min_times[midx]:max_times[midx]]
 
-                                if isolation and gpass == 1:
+                                if not myslice.any():
 
-                                    nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
-                                    vicinity_peaks = all_peaktimes[nearby_peaks]
-                                    vicinity_extremas = all_extremas[nearby_peaks]
-                                    extremas = local_chunk[vicinity_peaks, vicinity_extremas]
+                                    sub_mat = numpy.take(local_chunk[peak - duration:peak + duration + 1], indices, axis=1)
 
-                                    nearby = numpy.in1d(vicinity_extremas, indices)
-                                    to_consider = extremas[nearby]
-
-                                    if len(to_consider) > 0:
-                                        if negative_peak:
-                                            if numpy.any(to_consider < local_chunk[peak, elec]):
-                                                is_isolated = False
-                                        else:
-                                            if numpy.any(to_consider > local_chunk[peak, elec]):
-                                                is_isolated = False
-
-                                if is_isolated:
-
-                                    to_accept  = False
-    
-                                    if gpass == 0:
-                                        indices = elec_positions[elec]
-
-                                    if gpass == 1:
-                                        to_update = result['data_%s_' %loc_peak + str(elec)]
+                                    ## test if the sample is pure Gaussian noise
+                                    if reject_noise:
+                                        is_noise = numpy.all(numpy.std(sub_mat, axis=0) < rejection_threshold * stds[indices])
                                     else:
-                                        to_update = result['tmp_%s_' %loc_peak + str(elec)]
+                                        is_noise = False
 
-                                    if len(to_update) < loop_max_elts_elec:
+                                    if not is_noise:
 
-                                        sub_mat = numpy.take(local_chunk[peak - duration:peak + duration + 1], indices, axis=1)
+                                        if isolation and gpass == 1:
 
-                                        ## test if the sample is pure Gaussian noise
-                                        if reject_noise:
-                                            is_noise = numpy.all(numpy.std(sub_mat, axis=0) < rejection_threshold * stds[indices])
-                                        else:
-                                            is_noise = False
+                                            nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
+                                            vicinity_peaks = all_peaktimes[nearby_peaks]
+                                            vicinity_extremas = all_extremas[nearby_peaks]
+                                            extremas = local_chunk[vicinity_peaks, vicinity_extremas]
 
-                                        if not is_noise:
+                                            nearby = numpy.in1d(vicinity_extremas, indices)
+                                            to_consider = extremas[nearby]
+
+                                            if len(to_consider) > 0:
+                                                if negative_peak:
+                                                    if numpy.any(to_consider < local_chunk[peak, elec]):
+                                                        is_isolated = False
+                                                else:
+                                                    if numpy.any(to_consider > local_chunk[peak, elec]):
+                                                        is_isolated = False
+
+                                        if is_isolated:
 
                                             if alignment:
                                                 ydata = numpy.arange(len(indices))

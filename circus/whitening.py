@@ -362,6 +362,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     to_explore = xrange(comm.rank, nb_chunks, comm.size)
 
+    upper_bounds = max_elts_elec
+
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
 
@@ -385,7 +387,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             #print "Extracting the peaks..."
             all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
-            #all_extremas  = numpy.zeros(0, dtype=numpy.uint32)
 
             for i in xrange(N_e):
 
@@ -402,8 +403,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_borders = (snippet_duration, local_shape - snippet_duration)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
             all_peaktimes   = numpy.compress(idx, all_peaktimes)
-            #all_extremas    = numpy.compress(idx, all_extremas)
-
             local_peaktimes = numpy.unique(all_peaktimes)
 
             if ignore_dead_times:
@@ -450,13 +449,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 elec = numpy.argmin(local_chunk[peak])
                                 negative_peak = True
 
-                    indices = nodes_indices[elec]
-                    myslice = all_times[indices, min_times[midx]:max_times[midx]]
-                    if not myslice.any():
+                    if groups[elec] < upper_bounds:
 
-                        upper_bounds = max_elts_elec
+                        indices = nodes_indices[elec]
+                        myslice = all_times[indices, min_times[midx]:max_times[midx]]
 
-                        if groups[elec] < upper_bounds:
+                        if not myslice.any():
 
                             sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
@@ -493,8 +491,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 else:
                                     elt_count_pos += 1
 
-                        groups[elec] += 1
-                        all_times[indices, min_times[midx]:max_times[midx]] = True
+                                groups[elec] += 1
+                                all_times[indices, min_times[midx]:max_times[midx]] = True
 
     sys.stderr.flush()
 
