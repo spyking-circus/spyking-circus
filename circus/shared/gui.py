@@ -218,7 +218,7 @@ class MergeWindow(QMainWindow):
             if self.N_e == 1:
                 self.sparsities[idx] = 1.0
             else:
-                self.sparsities[idx] = 1.0 - float(nb_channels - 1) / float(max_nb_channels - 1)
+                self.sparsities[idx] = 1.0 - float(nb_channels - 1) / float(self.N_e - 1)
 
         self.overlap /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
