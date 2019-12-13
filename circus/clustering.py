@@ -98,7 +98,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         search_peaks = ['neg', 'pos']
 
     nodes_indices = {}
-    for elec in nodes:
+    for elec in numpy.arange(N_e):
         nodes_indices[elec] = inv_nodes[edges[nodes[elec]]]
 
     smart_searches = {}
