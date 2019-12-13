@@ -613,7 +613,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     if cc_merge < 1:
 
         result   = []
-        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
         overlap.close()
         filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
@@ -628,15 +628,13 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
 
-        intersection_norms = get_intersection_norm(params, to_explore)
-
         for i in to_explore:
 
             idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
             local_x = over_x[idx] - (i*nb_temp+i+1)
             data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i+1:] = numpy.max(data, 1)/intersection_norms[i]
+            distances[i, i+1:] = numpy.max(data, 1)/norm
             distances[i+1:, i] = distances[i, i+1:]
 
         #Now we need to sync everything across nodes
@@ -686,7 +684,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes[nodes] = numpy.arange(len(nodes))
     decimation       = params.getboolean('clustering', 'decimation')
 
-    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -697,7 +695,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         c_overs    = load_data(params, 'overlaps', extension='-mixtures')
 
     if SHARED_MEMORY:
-        templates  = load_data_memshared(params, 'templates', normalize=False)
+        templates  = load_data_memshared(params, 'templates', normalize=True)
     else:
         templates  = load_data(params, 'templates')
 
@@ -760,11 +758,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                     is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
                         if t_k is None:
-                            t_k = templates[:, k].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
+                            t_k = templates[:, k].toarray().ravel()
                         if t_i is None:
-                            t_i = templates[:, i].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
+                            t_i = templates[:, i].toarray().ravel()
                         if t_j is None:
-                            t_j = templates[:, j].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
+                            t_j = templates[:, j].toarray().ravel()
                         new_template = (a1*t_i + a2*t_j)
                         similarity   = numpy.corrcoef(t_k, new_template)[0, 1]
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]

@@ -925,8 +925,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             result['data_' + str(ielec)] = numpy.zeros((0, nb_dim_kept), dtype=numpy.float32)
 
-            indices  = nodes_indices[ielec]
-            n_neighb = len(indices)
+            indices  = inv_nodes[nodes]
+            sindices = nodes_indices[ielec]
+            n_neighb = len(sindices)
 
             for p in search_peaks:
 
@@ -1050,7 +1051,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if make_plots not in ['None', '']:
                     if n_data > 1:
                         save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
-                        idx      = numpy.where(indices == ielec)[0][0]
+                        idx      = numpy.where(sindices == ielec)[0][0]
                         sub_data = numpy.take(data, idx, axis=2)
                         nb_temp  = cluster_results[p][ielec]['n_clus']
                         vidx     = numpy.where((temp_y >= loc_pad) & (temp_y < loc_pad+nb_temp))[0]
