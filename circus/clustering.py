@@ -97,6 +97,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     elif sign_peaks == 'both':
         search_peaks = ['neg', 'pos']
 
+    nodes_indices = {}
+    for elec in nodes:
+        nodes_indices[elec] = inv_nodes[edges[nodes[elec]]]
+
     smart_searches = {}
     for p in search_peaks:
         smart_searches[p] = numpy.ones(N_e, dtype=numpy.float32)*int(smart_search)
@@ -180,7 +184,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.uint32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
-        indices = numpy.take(inv_nodes, edges[nodes[i]])
+        indices = nodes_indices[i]
         elec_positions[i] = numpy.where(indices == i)[0]
 
     max_elts_elec //= comm.size
@@ -373,7 +377,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             subset  = (result['all_times_' + str(elec)] - local_offset).astype(numpy.int32)
                             peaks   = numpy.compress((subset >= 0) & (subset < (local_shape)), subset)
                             inter   = numpy.in1d(local_peaktimes, peaks)
-                            indices = numpy.take(inv_nodes, edges[nodes[elec]])
+                            indices = nodes_indices[elec]
                             remove  = numpy.where(inter == True)[0]
                             for t in remove:
                                 if safety_space:
@@ -418,7 +422,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if (((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank))):
 
-                            indices = numpy.take(inv_nodes, edges[nodes[elec]])
+                            indices = nodes_indices[elec]
 
                             if safety_space:
                                 myslice = all_times[indices, min_times[midx]:max_times[midx]]
@@ -798,7 +802,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if debug_plots not in ['None', '']:
                             # Retrieve waveforms data.
                             n_neighbors = len(edges[nodes[ielec]])
-                            indices = inv_nodes[edges[nodes[ielec]]]
+                            indices = nodes_indices[ielec]
                             data = result['data_%s_' % p + str(ielec)]
                             data = data.reshape((n_data, basis['proj_%s' % p].shape[1], n_neighbors))
                             idx = numpy.where(indices == ielec)[0][0]
@@ -925,8 +929,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             result['data_' + str(ielec)] = numpy.zeros((0, nb_dim_kept), dtype=numpy.float32)
 
-            n_neighb = len(edges[nodes[ielec]])
-            indices  = inv_nodes[edges[nodes[ielec]]]
+            indices  = nodes_indices[ielec]
+            n_neighb = len(indices)
 
             for p in search_peaks:
 
