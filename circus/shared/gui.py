@@ -215,9 +215,8 @@ class MergeWindow(QMainWindow):
 
             support = numpy.where(self.supports[idx])[0]
             nb_channels = len(support)
-            max_nb_channels = self.N_e
-            if max_nb_channels == 1:
-                self.sparsities[idx] = 1.0 - 0.0
+            if self.N_e == 1:
+                self.sparsities[idx] = 1.0
             else:
                 self.sparsities[idx] = 1.0 - float(nb_channels - 1) / float(max_nb_channels - 1)
 
