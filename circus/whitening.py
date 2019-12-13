@@ -56,7 +56,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', logger)
 
     nodes_indices = {}
-    for elec in nodes:
+    for elec in numpy.arange(N_e):
         nodes_indices[elec] = inv_nodes[edges[nodes[elec]]]
 
     if use_gpu:
