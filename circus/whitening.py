@@ -52,6 +52,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if use_hanning:
         hanning_filter = numpy.hanning(N_t)
 
+    nodes_indices = {}
+    for elec in nodes:
+        nodes_indices[elec] = inv_nodes[edges[nodes[elec]]]
+
     if comm.rank == 0:
         print_and_log(["Analyzing data to get whitening matrices and thresholds..."], 'default', logger)
 
@@ -128,7 +132,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             #print "Selection of the peaks with spatio-temporal masks..."
             for idx, peak in zip(argmax_peak, all_idx):
                 elec    = numpy.argmax(numpy.abs(local_chunk[peak]))
-                indices = numpy.take(inv_nodes, edges[nodes[elec]])
+                indices = nodes_indices[elec]
                 if safety_space:
                     all_times[indices, min_times[idx]:max_times[idx]] = True
                 else:
@@ -143,7 +147,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         for elec in all_electrodes[numpy.arange(comm.rank, nb_temp_white, comm.size)]:
             res            = numpy.zeros((0, N_t), dtype=numpy.float32)
             scount         = 0
-            indices        = numpy.take(inv_nodes, edges[nodes[elec]])
+            indices        = nodes_indices[elec]
             all_times_elec = numpy.any(numpy.take(all_times, indices, axis=0), 0)
             esubset        = numpy.where(all_times_elec == False)[0]
             bound          = len(esubset) - N_t
@@ -172,7 +176,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_silences = []
 
         for elec in numpy.arange(comm.rank, N_e, comm.size):
-            indices        = numpy.take(inv_nodes, edges[nodes[elec]])
+            indices        = nodes_indices[elec]
             all_times_elec = numpy.any(numpy.take(all_times, indices, axis=0), 0)
             esubset        = numpy.where(all_times_elec == False)[0]
             local_data     = local_chunk[esubset][:, indices]
@@ -446,7 +450,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 elec = numpy.argmin(local_chunk[peak])
                                 negative_peak = True
 
-                    indices = numpy.take(inv_nodes, edges[nodes[elec]])
+                    indices = nodes_indices[elec]
                     myslice = all_times[indices, min_times[midx]:max_times[midx]]
                     if not myslice.any():
 
@@ -468,6 +472,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
                                 except Exception:
                                     f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
+
                                 if alignment:
                                     if negative_peak:
                                         rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
@@ -489,8 +494,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 else:
                                     elt_count_pos += 1
 
-                        groups[elec] += 1
-                        all_times[indices, min_times[midx]:max_times[midx]] = True
+                                groups[elec] += 1
+                                all_times[indices, min_times[midx]:max_times[midx]] = True
 
     sys.stderr.flush()
 

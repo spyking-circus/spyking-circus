@@ -90,6 +90,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         reject_noise = False
 
+    nodes_indices = {}
+    for elec in nodes:
+        nodes_indices[elec] = inv_nodes[edges[nodes[elec]]]
+
     if sign_peaks == 'negative':
         search_peaks = ['neg']
     elif sign_peaks == 'positive':
@@ -180,7 +184,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         result['peaks_' + str(i)]     = numpy.zeros(0, dtype=numpy.uint32)
         for p in search_peaks:
             result['pca_%s_' %p + str(i)] = None
-        indices = numpy.take(inv_nodes, edges[nodes[i]])
+        indices = nodes_indices[i]
         elec_positions[i] = numpy.where(indices == i)[0]
 
     max_elts_elec //= comm.size
@@ -373,21 +377,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             subset  = (result['all_times_' + str(elec)] - local_offset).astype(numpy.int32)
                             peaks   = numpy.compress((subset >= 0) & (subset < (local_shape)), subset)
                             inter   = numpy.in1d(local_peaktimes, peaks)
-                            indices = numpy.take(inv_nodes, edges[nodes[elec]])
+                            indices = nodes_indices[elec]
                             remove  = numpy.where(inter == True)[0]
                             for t in remove:
-                                if safety_space:
-                                    all_times[indices, min_times[t]:max_times[t]] = True
-                                else:
-                                    all_times[elec, min_times[t]:max_times[t]] = True
+                                #if safety_space:
+                                all_times[indices, min_times[t]:max_times[t]] = True
+                                #else:
+                                #    all_times[elec, min_times[t]:max_times[t]] = True
 
                     #print "Selection of the peaks with spatio-temporal masks..."
                     for midx, peak in zip(argmax_peak, all_idx):
 
                         if elt_count == loop_nb_elts:
                             break
-
-                        is_isolated = True
 
                         if sign_peaks == 'negative':
                             elec = numpy.argmin(local_chunk[peak])
@@ -418,8 +420,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if (((gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank))):
 
-                            indices = numpy.take(inv_nodes, edges[nodes[elec]])
-
+                            indices = nodes_indices[elec]
                             if safety_space:
                                 myslice = all_times[indices, min_times[midx]:max_times[midx]]
                             else:
@@ -427,47 +428,48 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             if not myslice.any():
 
-                                if isolation and gpass == 1:
+                                if gpass == 0:
+                                    indices = [elec_positions[elec]]
 
-                                    nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
-                                    vicinity_peaks = all_peaktimes[nearby_peaks]
-                                    vicinity_extremas = all_extremas[nearby_peaks]
-                                    extremas = local_chunk[vicinity_peaks, vicinity_extremas]
+                                if gpass == 1:
+                                    to_update = result['data_%s_' %loc_peak + str(elec)]
+                                else:
+                                    to_update = result['tmp_%s_' %loc_peak + str(elec)]
 
-                                    nearby = numpy.in1d(vicinity_extremas, indices)
-                                    to_consider = extremas[nearby]
+                                if len(to_update) < loop_max_elts_elec:
 
-                                    if len(to_consider) > 0:
-                                        if negative_peak:
-                                            if numpy.any(to_consider < local_chunk[peak, elec]):
-                                                is_isolated = False
-                                        else:
-                                            if numpy.any(to_consider > local_chunk[peak, elec]):
-                                                is_isolated = False
+                                    to_accept  = True
+                                    is_isolated = True
 
-                                if is_isolated:
+                                    sub_mat = numpy.take(local_chunk[peak - duration:peak + duration + 1], indices, axis=1)
 
-                                    to_accept  = False
-    
-                                    if gpass == 0:
-                                        indices = elec_positions[elec]
-
-                                    if gpass == 1:
-                                        to_update = result['data_%s_' %loc_peak + str(elec)]
+                                    ## test if the sample is pure Gaussian noise
+                                    if reject_noise:
+                                        is_noise = numpy.all(numpy.std(sub_mat, axis=0) < rejection_threshold * stds[indices])
                                     else:
-                                        to_update = result['tmp_%s_' %loc_peak + str(elec)]
+                                        is_noise = False
 
-                                    if len(to_update) < loop_max_elts_elec:
+                                    if not is_noise:
 
-                                        sub_mat = numpy.take(local_chunk[peak - duration:peak + duration + 1], indices, axis=1)
+                                        if isolation and gpass == 1:
 
-                                        ## test if the sample is pure Gaussian noise
-                                        if reject_noise:
-                                            is_noise = numpy.all(numpy.std(sub_mat, axis=0) < rejection_threshold * stds[indices])
-                                        else:
-                                            is_noise = False
+                                            nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
+                                            vicinity_peaks = all_peaktimes[nearby_peaks]
+                                            vicinity_extremas = all_extremas[nearby_peaks]
+                                            extremas = local_chunk[vicinity_peaks, vicinity_extremas]
 
-                                        if not is_noise:
+                                            nearby = numpy.in1d(vicinity_extremas, indices)
+                                            to_consider = extremas[nearby]
+
+                                            if len(to_consider) > 0:
+                                                if negative_peak:
+                                                    if numpy.any(to_consider < local_chunk[peak, elec]):
+                                                        is_isolated = False
+                                                else:
+                                                    if numpy.any(to_consider > local_chunk[peak, elec]):
+                                                        is_isolated = False
+
+                                        if is_isolated:
 
                                             if alignment:
                                                 ydata = numpy.arange(len(indices))
@@ -496,7 +498,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     max_test = numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
 
                                             if gpass == 0:
-                                                to_accept  = True
                                                 ext_amp    = sub_mat[template_shift]
                                                 result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
                                             elif gpass == 1 and max_test:
@@ -507,13 +508,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp, 'right') - 1
                                                     to_keep = result['hist_%s_' %loc_peak + str(elec)][idx] < numpy.random.rand()
 
-                                                    if to_keep:
-                                                        to_accept = True
-                                                    else:
+                                                    if not to_keep:
+                                                        to_accept = False
                                                         rejected += 1
-
-                                                else:
-                                                    to_accept = True
 
                                                 if to_accept:
 
@@ -544,10 +541,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 result['loc_times_' + str(elec)] = numpy.concatenate((result['loc_times_' + str(elec)], to_add))
                                             if gpass == 1:
                                                 result['peaks_' + str(elec)] = numpy.concatenate((result['peaks_' + str(elec)], [int(negative_peak)]))
-                                            if safety_space:
-                                                all_times[indices, min_times[midx]:max_times[midx]] = True
-                                            else:
-                                                all_times[elec, min_times[midx]:max_times[midx]] = True
+                                            #if safety_space:
+                                            all_times[indices, min_times[midx]:max_times[midx]] = True
+                                            #else:
+                                            #    all_times[elec, min_times[midx]:max_times[midx]] = True
 
                 if gpass == 0:
                     for i in xrange(comm.rank, N_e, comm.size):
@@ -798,7 +795,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if debug_plots not in ['None', '']:
                             # Retrieve waveforms data.
                             n_neighbors = len(edges[nodes[ielec]])
-                            indices = inv_nodes[edges[nodes[ielec]]]
+                            indices = nodes_indices[ielec]
                             data = result['data_%s_' % p + str(ielec)]
                             data = data.reshape((n_data, basis['proj_%s' % p].shape[1], n_neighbors))
                             idx = numpy.where(indices == ielec)[0][0]
@@ -925,8 +922,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             result['data_' + str(ielec)] = numpy.zeros((0, nb_dim_kept), dtype=numpy.float32)
 
-            n_neighb = len(edges[nodes[ielec]])
-            indices  = inv_nodes[edges[nodes[ielec]]]
+            indices  = nodes_indices[ielec]
+            n_neighb = len(indices)
 
             for p in search_peaks:
 
