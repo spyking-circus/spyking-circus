@@ -98,8 +98,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if ignore_dead_times:
         all_dead_times = get_dead_times(params)
 
-    thresholds = io.load_data(params, 'thresholds')
-
+    thresholds = io.get_accurate_thresholds(params)
 
     if collect_all:
         neighbors = {}
