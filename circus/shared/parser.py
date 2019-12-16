@@ -97,6 +97,7 @@ class CircusParser(object):
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
                           ['detection', 'spike_thresh', 'float', '6'],
+                          ['detection', 'min_spike_thresh', 'float', '4'],
                           ['detection', 'N_t', 'string', '3'],
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],

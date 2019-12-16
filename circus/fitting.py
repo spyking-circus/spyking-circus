@@ -22,6 +22,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    m_spike_thresh = params.getfloat('detection', 'min_spike_thresh')
     spike_width    = params.getfloat('detection', 'spike_width')
     dist_peaks     = params.getint('detection', 'dist_peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -98,7 +99,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if ignore_dead_times:
         all_dead_times = get_dead_times(params)
 
-    thresholds = io.get_accurate_thresholds(params)
+    thresholds = io.get_accurate_thresholds(params, m_spike_thresh)
 
     if collect_all:
         neighbors = {}
