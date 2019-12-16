@@ -22,7 +22,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks     = params.get('detection', 'peaks')
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
-    m_spike_thresh = params.getfloat('detection', 'min_spike_thresh')
+    m_spike_thresh = params.getfloat('detection', 'spike_thresh_min')
     spike_width    = params.getfloat('detection', 'spike_width')
     dist_peaks     = params.getint('detection', 'dist_peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
