@@ -95,6 +95,11 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     mads                  = load_data(params, 'mads')
     smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
 
+    # if pos == 'neg':
+    #     weights = load_data(params, 'weights')
+    # elif pos == 'pos':
+    #     weights = load_data(params, 'weights-pos')
+
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
@@ -909,6 +914,28 @@ def load_data(params, data, extension=''):
             waveforms  = myfile.get('waveforms_pos')[:]
             myfile.close()
             return waveforms
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
+    elif data == 'weights':
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            waveforms  = myfile.get('waveforms')[:]
+            myfile.close()
+            return numpy.std(waveforms, 0)
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
+    elif data == 'weights-pos':
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            waveforms  = myfile.get('waveforms_pos')[:]
+            myfile.close()
+            return numpy.std(waveforms, 0)
         else:
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)

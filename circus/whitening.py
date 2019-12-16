@@ -529,6 +529,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         pca = None
         pca_pos = None
         pca_neg = None
+        warning_n_t = False
         if sign_peaks in ['negative', 'both']:
             if len(gdata_neg) > 0:
                 pca          = PCA(output_dim)
@@ -542,6 +543,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 res['proj']  = numpy.identity(int(output_dim), dtype=numpy.float32)
             res['rec']       = res['proj'].T
             res['waveform']  = numpy.median(gdata_neg, 0)
+            dispersion       = numpy.std(gdata_neg, 0)/numpy.median(stds)
+            ratio = numpy.sum(dispersion > 1.1)/float(len(dispersion))
+            if ratio < 0.4:
+                print_and_log(["Time window N_t in [detection] is too large!"], 'info', logger)
+                warning_n_t = True
+            elif ratio == 1:
+                print_and_log(["Time window N_t in [detection] is too small!"], 'info', logger)
+                warning_n_t = True
             idx              = numpy.random.permutation(numpy.arange(gdata_neg.shape[0]))[:1000]
             res['waveforms'] = gdata_neg[idx, :]
         if sign_peaks in ['positive', 'both']:
@@ -557,6 +566,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 res['proj_pos'] = numpy.identity(int(output_dim), dtype=numpy.float32)
             res['rec_pos']       = res['proj_pos'].T
             res['waveform_pos']  = numpy.median(gdata_pos, 0)
+            dispersion       = numpy.std(gdata_pos, 0)/numpy.median(stds)
+            ratio = numpy.sum(dispersion > 1.1)/float(len(dispersion))
+            if ratio < 0.4 and not warning_n_t:
+                print_and_log(["Time window N_t in [detection] is too large!"], 'info', logger)
+            elif ratio == 1 and not warning_n_t:
+                print_and_log(["Time window N_t in [detection] is too small!"], 'info', logger)
             idx                  = numpy.random.permutation(numpy.arange(gdata_pos.shape[0]))[:1000]
             res['waveforms_pos'] = gdata_pos[idx, :]
 
