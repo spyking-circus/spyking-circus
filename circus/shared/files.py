@@ -1574,11 +1574,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         purge(file_out_suff, '.data')
 
 
-def get_accurate_thresholds(params, spike_thresh_min=-1):
+def get_accurate_thresholds(params, spike_thresh_min=1):
 
     thresholds = load_data(params, 'thresholds')
 
-    if spike_thresh_min > 0:
+    if spike_thresh_min < 1:
         mads       = load_data(params, 'mads')
         templates  = load_data(params, 'templates')
         sign       = params.get('detection', 'peaks')
@@ -1586,6 +1586,7 @@ def get_accurate_thresholds(params, spike_thresh_min=-1):
         N_t        = params.getint('detection', 'N_t')
         amplitudes = load_data(params, 'limits')
         nb_temp    = templates.shape[1]//2
+        spike_thresh = params.getfloat('detection', 'spike_thresh') * spike_thresh_min
 
         for idx in range(nb_temp):
             template = templates[:, idx].toarray().ravel().reshape(N_e, N_t)
@@ -1600,7 +1601,8 @@ def get_accurate_thresholds(params, spike_thresh_min=-1):
                 value = numpy.abs(template)[a, b]
 
             if thresholds[a] > value:
-                thresholds[a] = max(spike_thresh_min * mads[a], value)
+                print a, thresholds[a] / value
+                thresholds[a] = max(spike_thresh * mads[a], value)
 
     return thresholds
 
