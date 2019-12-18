@@ -80,6 +80,7 @@ class CircusParser(object):
                           ['fitting', 'refractory', 'float', '0.5'],
                           ['fitting', 'collect_all', 'bool', 'False'],
                           ['fitting', 'gpu_only', 'bool', 'False'],
+                          ['fitting', 'ratio_thresh', 'float', '1'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],
@@ -97,7 +98,6 @@ class CircusParser(object):
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
                           ['detection', 'spike_thresh', 'float', '6'],
-                          ['detection', 'spike_thresh_min', 'float', '1'],
                           ['detection', 'N_t', 'string', '3'],
                           ['detection', 'isolation', 'bool', 'True'],
                           ['detection', 'dead_channels', 'string', ''],
@@ -477,6 +477,12 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["test_size in [validating] should be in ]0,1["], 'error', logger)
+            sys.exit(0)
+
+        test = (self.parser.getfloat('fitting', 'ratio_thresh') > 0) and (self.parser.getfloat('fitting', 'ratio_thresh') <= 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["ratio_thresh in [fitting] should be in ]0,1]"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'cc_merge') >= 0) and (self.parser.getfloat('clustering', 'cc_merge') <= 1)
