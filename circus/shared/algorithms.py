@@ -689,7 +689,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     decimation       = params.getboolean('clustering', 'decimation')
-    has_support      = test_if_support(params)
+    has_support      = test_if_support(params, '')
 
     overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
