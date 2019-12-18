@@ -489,33 +489,43 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                                     sub_mat  = f(ddata, ydata).astype(numpy.float32)
 
-                                            if gpass > 0:
-                                                if negative_peak:
-                                                    max_test = numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
-                                                else:
-                                                    max_test = numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
+                                            if negative_peak:
+                                                max_test = numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
+                                            else:
+                                                max_test = numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
 
-                                            if gpass == 0:
-                                                to_accept  = True
-                                                ext_amp    = sub_mat[template_shift, elec_positions[elec]]
-                                                result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
-                                            elif gpass == 1 and max_test:
+                                            if max_test:
+                                                if gpass == 0:
+                                                    to_accept  = True
+                                                    ext_amp    = sub_mat[template_shift, elec_positions[elec]]
+                                                    result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
+                                                elif gpass == 1:
 
-                                                if smart_searches[loc_peak][elec] > 0:
+                                                    if smart_searches[loc_peak][elec] > 0:
 
-                                                    ext_amp = sub_mat[template_shift, elec_positions[elec]]
-                                                    idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp, 'right') - 1
-                                                    to_keep = result['hist_%s_' %loc_peak + str(elec)][idx] < numpy.random.rand()
+                                                        ext_amp = sub_mat[template_shift, elec_positions[elec]]
+                                                        idx     = numpy.searchsorted(result['bounds_%s_' %loc_peak + str(elec)], ext_amp, 'right') - 1
+                                                        to_keep = result['hist_%s_' %loc_peak + str(elec)][idx] < numpy.random.rand()
 
-                                                    if to_keep:
-                                                        to_accept = True
+                                                        if to_keep:
+                                                            to_accept = True
+                                                        else:
+                                                            rejected += 1
+
                                                     else:
-                                                        rejected += 1
+                                                        to_accept = True
+
+                                                    if to_accept:
+
+                                                        if use_hanning:
+                                                            sub_mat *= hanning_filter
+
+                                                        sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
+                                                        nx, ny     = sub_mat.shape
+                                                        sub_mat    = sub_mat.reshape((1, nx * ny))
+                                                        result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
 
                                                 else:
-                                                    to_accept = True
-
-                                                if to_accept:
 
                                                     if use_hanning:
                                                         sub_mat *= hanning_filter
@@ -523,19 +533,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
                                                     nx, ny     = sub_mat.shape
                                                     sub_mat    = sub_mat.reshape((1, nx * ny))
-                                                    result['data_%s_' %loc_peak + str(elec)] = numpy.vstack((result['data_%s_' %loc_peak + str(elec)], sub_mat))
-
-                                            elif max_test:
-
-                                                if use_hanning:
-                                                    sub_mat *= hanning_filter
-
-                                                sub_mat    = numpy.dot(basis['rec_%s' %loc_peak], sub_mat)
-                                                nx, ny     = sub_mat.shape
-                                                sub_mat    = sub_mat.reshape((1, nx * ny))
-                                                sub_mat    = numpy.dot(sub_mat, result['pca_%s_' %loc_peak + str(elec)])
-                                                to_accept  = True
-                                                result['tmp_%s_' %loc_peak + str(elec)] = numpy.vstack((result['tmp_%s_' %loc_peak + str(elec)], sub_mat))
+                                                    sub_mat    = numpy.dot(sub_mat, result['pca_%s_' %loc_peak + str(elec)])
+                                                    to_accept  = True
+                                                    result['tmp_%s_' %loc_peak + str(elec)] = numpy.vstack((result['tmp_%s_' %loc_peak + str(elec)], sub_mat))
 
                                         if to_accept:
                                             elt_count += 1
