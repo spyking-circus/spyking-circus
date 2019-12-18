@@ -497,7 +497,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                             if gpass == 0:
                                                 to_accept  = True
-                                                ext_amp    = sub_mat[template_shift]
+                                                ext_amp    = sub_mat[template_shift, elec_positions[elec]]
                                                 result['tmp_%s_' %loc_peak + str(elec)] = numpy.concatenate((result['tmp_%s_' %loc_peak + str(elec)], ext_amp))
                                             elif gpass == 1 and max_test:
 
