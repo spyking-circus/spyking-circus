@@ -1,7 +1,7 @@
 import importlib
 import logging
 
-__version__ = '0.8.9'
+__version__ = '0.9.0'
 
 def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None, extension='', sim_same_elec=None):
 

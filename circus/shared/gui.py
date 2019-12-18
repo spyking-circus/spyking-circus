@@ -41,7 +41,7 @@ from algorithms import slice_templates, slice_clusters
 from mpi import comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
-from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag, bhatta_dist
+from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag, bhatta_dist, test_if_support
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +156,9 @@ class MergeWindow(QMainWindow):
         self.min_spikes  = params.getint('merging', 'min_spikes')
 
         self.duration   = io.load_data(params, 'duration')
-        self.supports   = io.load_data(params, 'supports', self.ext_in)
+        self.has_support= test_if_support(params, self.ext_in)
+        if self.has_support:
+            self.supports   = io.load_data(params, 'supports', self.ext_in)
         self.bin_size   = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay  = 50
         self.time_rpv   = params.getfloat('merging', 'time_rpv')
@@ -213,8 +215,13 @@ class MergeWindow(QMainWindow):
                 thr = self.thresholds[elec]
                 self.norms[idx] = numpy.abs(tmp).max()/thr
 
-            support = numpy.where(self.supports[idx])[0]
-            nb_channels = len(support)
+            if self.has_support:
+                support = numpy.where(self.supports[idx])[0]
+                nb_channels = len(support)
+            else:
+                best_elec = self.nodes[self.electrodes[idx]]
+                nb_channels = len(numpy.where(tmp.sum(1) != 0)[0])
+                max_nb_channels = len(self.edges[best_elec])
             if self.N_e == 1:
                 self.sparsities[idx] = 1.0
             else:
@@ -909,7 +916,10 @@ class MergeWindow(QMainWindow):
                     indices = [self.inv_nodes[self.nodes[elec]]]
                     all_channels += indices
                 else:
-                    indices = numpy.where(self.supports[p])[0]
+                    if self.has_support:
+                        indices = numpy.where(self.supports[p])[0]
+                    else:
+                        indices = self.inv_nodes[self.edges[self.nodes[elec]]]
                     all_channels += list(indices)
 
                 for sidx in indices:

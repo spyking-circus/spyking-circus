@@ -1,10 +1,16 @@
 =============
+Release 0.9.0
+=============
+
+* can now fit spikes below detection threshold (with spike_thresh_min)
+* templates are now estimated without any spatial restrictions
+* display a warning if N_t is not optimally chosen
+
+=============
 Release 0.8.9
 =============
 
-* fix a small bug in the smart search
-* can now fit spikes below detection threshold (with spike_thresh_min)
-* templates are now estimated without any spatial restrictions
+* fix a small bug in the smart search, introduced while refactoring in 0.8.7
 
 =============
 Release 0.8.8

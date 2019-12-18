@@ -1628,7 +1628,6 @@ def get_accurate_thresholds(params, spike_thresh_min=1):
                 value = numpy.abs(template)[a, b]
 
             if thresholds[a] > value:
-                print a, thresholds[a] / value
                 thresholds[a] = max(spike_thresh * mads[a], value)
 
     return thresholds
