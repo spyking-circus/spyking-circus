@@ -19,6 +19,18 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2019
 ~~~~
 
+* Frazzini V. et al., *In vivo interictal signatures of human periventricular heterotopia*, bioRxiv, 816173
+
+* Abbasi A et al., *Sensorimotor neuronal learning requires cortical topography*, bioRxiv 873794
+
+* González-Palomares E. et al., *Enhanced representation of natural sound sequences in the ventral auditory midbrain*, bioRxiv 846485
+
+* Chong E. et al., *Manipulating synthetic optogenetic odors reveals the coding logic of olfactory perception*, bioRxiv 841916
+
+* Bolding K. et al., *Robust odor coding across states in piriform cortex requires recurrent circuitry: evidence for pattern completion in an associative network*, bioRxiv 694331
+
+* Szőnyi1 A. et al., *Median raphe controls acquisition of negative experience in the mouse*, Science Vol 366, Issue 6469
+
 * Buccino A. P. and Einevoll G. T., *MEArec: a fast and customizable testbench simulator for ground-truth extracellular spiking activity*, bioRxiv, 691642
 
 * Wouters J., Kloosterman F., et Bertrand, A., *SHYBRID: A graphical tool for generating hybrid ground-truth spiking data for evaluating spike sorting performance*, bioRxiv, 734061
