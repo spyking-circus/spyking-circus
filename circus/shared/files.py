@@ -67,7 +67,7 @@ def data_stats(params, show=True, export_times=False):
 
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True, return_raw=False):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
     data_file    = params.data_file
     data_file.open()
@@ -81,9 +81,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         nb_labels = numpy.unique(labels_i)
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
-    if return_raw:
-        stas_raw = numpy.zeros(stas.shape, dtype=numpy.float32)
-
     alignment     = params.getboolean('detection', 'alignment') and auto_align
     over_factor   = float(params.getint('detection', 'oversampling_factor'))
 
@@ -92,13 +89,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     template_shift        = params.getint('detection', 'template_shift')
     jitter_range          = params.getint('detection', 'jitter_range')
     template_shift_2      = template_shift + jitter_range
-    mads                  = load_data(params, 'mads')
-    smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
-
-    # if pos == 'neg':
-    #     weights = load_data(params, 'weights')
-    # elif pos == 'pos':
-    #     weights = load_data(params, 'weights-pos')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -114,7 +104,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
     
-    factor = len(neighs)*duration*(smoothing_factor*numpy.median(mads[neighs]))**2
     offset = duration // 2
     idx   = numpy.where(neighs == src)[0]
     ydata = numpy.arange(len(neighs))
@@ -131,40 +120,25 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
-        if return_raw:
-            local_chunk_raw = local_chunk.copy()
-
         if len(ydata) == 1:
-            try:
-                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
-            except Exception:
-                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
+            f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0, k=3)
             if alignment:
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
                     rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                if return_raw:
-                    g = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
-                    local_chunk_raw = g(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 ddata = xdata
             local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
         else:
-            try:
-                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
-            except Exception:
-                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
+            f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, kx=3, ky=1)
             if alignment:
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 elif pos == 'pos':
                     rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
                 ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                if return_raw:
-                    g = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
-                    local_chunk_raw = g(ddata, ydata).astype(numpy.float32)
             else:
                 ddata = xdata
             local_chunk = f(ddata, ydata).astype(numpy.float32)
@@ -172,25 +146,16 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         if all_labels:
             lc        = numpy.where(nb_labels == lb)[0]
             stas[lc] += local_chunk.T
-            if return_raw:
-                stas_raw[lc] += local_chunk_raw.T
         else:
             if not mean_mode:
                 stas[count, :, :] = local_chunk.T
-                if return_raw:
-                    stas_raw[count, :, :] = local_chunk_raw.T
                 count            += 1
             else:
                 stas += local_chunk.T
-                if return_raw:
-                    stas_raw += local_chunk_raw.T
 
     data_file.close()
 
-    if return_raw:
-        return stas, stas_raw
-    else:
-        return stas
+    return stas
 
 
 def get_dead_times(params):
@@ -924,7 +889,8 @@ def load_data(params, data, extension=''):
             myfile     = h5py.File(filename, 'r', libver='earliest')
             waveforms  = myfile.get('waveforms')[:]
             myfile.close()
-            return numpy.std(waveforms, 0)
+            u = numpy.median(waveforms, 0)
+            return numpy.median(numpy.abs(waveforms - u), 0)
         else:
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)
@@ -935,7 +901,8 @@ def load_data(params, data, extension=''):
             myfile     = h5py.File(filename, 'r', libver='earliest')
             waveforms  = myfile.get('waveforms_pos')[:]
             myfile.close()
-            return numpy.std(waveforms, 0)
+            u = numpy.median(waveforms, 0)
+            return numpy.median(numpy.abs(waveforms - u), 0)
         else:
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)

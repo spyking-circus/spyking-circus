@@ -955,15 +955,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
                     
                     if extraction == 'median-raw':
-                        labels_i        = numpy.random.permutation(myslice)[:250]
-                        times_i         = numpy.take(loc_times, labels_i)
-                        sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
-                        first_component = numpy.nanmedian(sub_data, 0)
+                        labels_i     = numpy.random.permutation(myslice)[:250]
+                        times_i      = numpy.take(loc_times, labels_i)
+                        sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        first_component = numpy.median(sub_data_raw, 0)
                     elif extraction == 'mean-raw':                
-                        labels_i        = numpy.random.permutation(myslice)[:250]
-                        times_i         = numpy.take(loc_times, labels_i)
-                        sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, return_raw=True)
-                        first_component = numpy.nanmean(sub_data, 0)
+                        labels_i     = numpy.random.permutation(myslice)[:250]
+                        times_i      = numpy.take(loc_times, labels_i)
+                        sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                        first_component = numpy.mean(sub_data_raw, 0)
 
                     if use_savgol:
                         tmp_fast = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
@@ -993,7 +993,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         myamps           += [[0, 10]]
                     else:
 
-                        x, y, z           = sub_data.shape
+                        x, y, z           = sub_data_raw.shape
                         sub_data_raw[:, to_delete, :] = 0
                         sub_data_flat_raw = sub_data_raw.reshape(x, y*z)
                         first_flat        = first_component.reshape(y*z, 1)
