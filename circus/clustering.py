@@ -235,7 +235,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if gpass == 0:
                 for p in search_peaks:
                     result['tmp_%s_' %p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
-                    result['nb_chunks_%s_' %p + str(i)] = 1
+                    result['nb_chunks_%s_' %p + str(i)] = 0
 
             # If not the first pass, we sync all the detected times among nodes and give all nodes the w/pca
             result['all_times_' + str(i)] = numpy.concatenate((result['all_times_' + str(i)], all_gather_array(result['loc_times_' + str(i)], comm, dtype='uint32', compress=blosc_compress)))
@@ -360,6 +360,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         is_included = numpy.in1d(local_peaktimes + t_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
                         local_peaktimes = local_peaktimes[~is_included]
                         local_peaktimes = numpy.sort(local_peaktimes)
+
+                if gpass == 0:
+                    for i in xrange(comm.rank, N_e, comm.size):
+                        for p in search_peaks:
+                            if len(result['tmp_%s_' %p + str(i)]) < loop_max_elts_elec:
+                                result['nb_chunks_%s_' %p + str(i)] += 1
 
                 if len(local_peaktimes) > 0:
 
@@ -549,12 +555,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             else:
                                                 all_times[elec, min_times[midx]:max_times[midx]] = True
 
-                if gpass == 0:
-                    for i in xrange(comm.rank, N_e, comm.size):
-                        for p in search_peaks:
-                            if len(result['tmp_%s_' %p + str(i)]) < loop_max_elts_elec:
-                                result['nb_chunks_%s_' %p + str(i)] += 1
-
         comm.Barrier()
         sys.stderr.flush()
 
@@ -647,9 +647,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = thresholds[ielec]
                             if bound < ampmax:
-                                bins =  [-numpy.inf] + numpy.linspace(bound, ampmax, nb_ss_bins - 1).tolist() + [numpy.inf]
+                                bins =  [-numpy.inf] + numpy.linspace(bound, 1.5*ampmax, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
-                                bins =  [-numpy.inf] + numpy.linspace(bound, bound*5, nb_ss_bins - 1).tolist() + [numpy.inf]
+                                bins =  [-numpy.inf] + numpy.linspace(bound, bound*10, nb_ss_bins - 1).tolist() + [numpy.inf]
 
                         elif p == 'neg':
                             if matched_filter:
@@ -657,9 +657,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = -thresholds[ielec]
                             if ampmin < bound:
-                                bins  = [-numpy.inf] + numpy.linspace(ampmin, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
+                                bins  = [-numpy.inf] + numpy.linspace(1.5*ampmin, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
                             else:
-                                bins  = [-numpy.inf] + numpy.linspace(5*bound, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
+                                bins  = [-numpy.inf] + numpy.linspace(10*bound, bound, nb_ss_bins - 1).tolist() + [numpy.inf]
 
                         a, b  = numpy.histogram(result['tmp_%s_' %p + str(ielec)], bins)
                         nb_spikes = numpy.sum(a)
@@ -673,6 +673,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         twist  = numpy.sum(a*d)
                         factor = twist*c
                         rejection_curve = numpy.minimum(0.95, factor*a)
+
+                        numpy.save('amp_%d' %ielec, result['tmp_%s_' %p + str(ielec)])
+
                         if ratio > 1:
                             target_max = 1 - (1 - rejection_curve.max())/ratio
                             rejection_curve *= target_max/(rejection_curve.max())
@@ -680,9 +683,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['hist_%s_'%p + str(ielec) ]   = rejection_curve
                         result['bounds_%s_' %p + str(ielec)] = b
 
-                        # if make_plots not in ['None', '']:
-                        #     save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
-                        #     plot.view_rejection(a, b[1:], result['hist_%s_'%p + str(ielec)], save=save)
+                        #if make_plots not in ['None', '']:
+                        #    save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
+                        #    plot.view_rejection(a, b[1:], result['hist_%s_'%p + str(ielec)], save=save)
 
                     else:
                         smart_searches[p][ielec] = 0
