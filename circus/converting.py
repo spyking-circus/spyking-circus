@@ -268,10 +268,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             elif mode == 0:
                 idx  = numpy.where(labels == target)[0]
 
+            elec    = best_elec[target]
+
             if has_support:
                 indices = numpy.where(supports[target])[0]
             else:
-                elec    = best_elec[target]
                 indices = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
             times_i  = numpy.take(spikes, idx).astype(numpy.int64)
