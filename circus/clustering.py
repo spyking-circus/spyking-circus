@@ -81,6 +81,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     use_hanning      = params.getboolean('detection', 'hanning')
     use_savgol       = params.getboolean('clustering', 'savgol')
     rejection_threshold = params.getfloat('detection', 'rejection_threshold')
+    smoothing_factor    = params.getfloat('detection', 'smoothing_factor')
     data_file.open()
     #################################################################
 
@@ -478,20 +479,32 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             if alignment:
                                                 ydata = numpy.arange(len(indices))
                                                 if len(ydata) == 1:
-                                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
+                                                    smoothed = True
+                                                    try:
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
+                                                    except Exception:
+                                                        smoothed = False
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
                                                     if negative_peak:
                                                         rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                                     else:
                                                         rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                                                    if smoothed:
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=0)
                                                     ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                                     sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                                 else:
                                                     idx = elec_positions[elec]
-                                                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, sub_mat, kx=3, ky=1, s=0)
+                                                    factor = duration*(smoothing_factor*numpy.median(mads[elec]))**2
+                                                    try:
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], s=factor, k=3)
+                                                    except Exception:
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], k=3, s=0)
                                                     if negative_peak:
-                                                        rmin = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                                                        rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                                     else:
-                                                        rmin = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                                                        rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                                                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, sub_mat, s=0, kx=3, ky=1)
                                                     ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                                     sub_mat  = f(ddata, ydata).astype(numpy.float32)
 

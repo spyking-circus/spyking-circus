@@ -182,7 +182,7 @@ class CircusParser(object):
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.25'],
                         ['clustering', 'nb_ss_bins', 'int', '200'],
-                        ['detection', 'jitter_range', 'float', '0.1'],
+                        ['detection', 'jitter_range', 'float', '0.2'],
                         ['detection', 'smoothing_factor', 'float', '1'],
                         ['detection', 'rejection_threshold', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],

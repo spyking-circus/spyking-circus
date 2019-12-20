@@ -88,7 +88,9 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     template_shift        = params.getint('detection', 'template_shift')
     jitter_range          = params.getint('detection', 'jitter_range')
+    smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
     template_shift_2      = template_shift + jitter_range
+    mads                  = load_data(params, 'mads')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -104,6 +106,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
     
+    factor = duration*(smoothing_factor*numpy.median(mads[src]))**2
     offset = duration // 2
     idx   = numpy.where(neighs == src)[0]
     ydata = numpy.arange(len(neighs))
@@ -120,28 +123,34 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
-        if len(ydata) == 1:
-            f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0, k=3)
-            if alignment:
+        if alignment:
+            if len(ydata) == 1:
+                smoothed = True
+                try:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
+                except Exception:
+                    smoothed = False
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
                     rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                if smoothed:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=0)
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
-                ddata = xdata
-            local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
-        else:
-            f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, kx=3, ky=1)
-            if alignment:
+                try:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk[:, idx], s=factor, k=3)
+                except Exception:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk[:, idx], k=3, s=0)
                 if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                    rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos == 'pos':
-                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                    rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-            else:
-                ddata = xdata
-            local_chunk = f(ddata, ydata).astype(numpy.float32)
+                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, kx=3, ky=1)
+                local_chunk = f(ddata, ydata).astype(numpy.float32)
 
         if all_labels:
             lc        = numpy.where(nb_labels == lb)[0]
