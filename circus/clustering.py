@@ -687,8 +687,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         factor = twist*c
                         rejection_curve = numpy.minimum(0.95, factor*a)
 
-                        numpy.save('amp_%d' %ielec, result['tmp_%s_' %p + str(ielec)])
-
                         if ratio > 1:
                             target_max = 1 - (1 - rejection_curve.max())/ratio
                             rejection_curve *= target_max/(rejection_curve.max())
@@ -1030,7 +1028,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat = first_component.reshape(y*z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes/= numpy.sum(first_flat**2)
-                        variation  = numpy.nanmedian(numpy.abs(amplitudes - 1))
+                        variation  = numpy.median(numpy.abs(amplitudes - 1))
 
                         templates  = templates.ravel()
                         dx         = templates.nonzero()[0].astype(numpy.uint32)
