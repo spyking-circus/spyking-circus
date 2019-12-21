@@ -976,7 +976,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component = numpy.mean(sub_data_raw, 0)
 
-                    if use_savgol:
+                    if use_savgol and savgol_window > 3:
                         tmp_fast = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
                         tmp_slow = scipy.signal.savgol_filter(first_component, 3*savgol_window, 3, axis=1)
                         first_component = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
