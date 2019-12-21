@@ -364,6 +364,7 @@ but a subset x,y can be done. Steps are:
                     elif command == 'mpirun':
                         # Use mpirun to make the call
                         mpi_args = gather_mpi_arguments(hostfile, params)
+                        one_cpu = False
 
                         if subtask in ['filtering', 'benchmarking'] and not is_writable:
                             if not preview and overwrite:
@@ -376,6 +377,7 @@ but a subset x,y can be done. Steps are:
                         if subtask in ['filtering'] and not support_parallel_write and (args.cpu > 1):
                             print_and_log(['No parallel writes for %s: only 1 node used for %s' %(file_format, subtask)], 'info', logger)
                             nb_tasks = str(1)
+                            one_cpu = True
 
                         else:
                             if subtask != 'fitting':
@@ -413,7 +415,7 @@ but a subset x,y can be done. Steps are:
                             mpi_args += [
                                 '-np', nb_tasks, 'spyking-circus-subtask',
                                 subtask, filename, str(nb_cpu), str(nb_gpu),
-                                use_gpu
+                                use_gpu, str(one_cpu)
                             ]
 
                         print_and_log(['Launching task %s' %subtask], 'debug', logger)

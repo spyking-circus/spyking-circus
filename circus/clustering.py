@@ -33,6 +33,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     spike_width    = params.getfloat('detection', 'spike_width')
+    noise_thresh   = params.getfloat('clustering', 'noise_thr')
     if params.getboolean('data', 'global_tmp'):
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     else:
@@ -997,7 +998,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ratio = thresholds[indices[tmpidx[0]]]/first_component[tmpidx[0]].max()
 
                     shift = template_shift - tmpidx[1]
-                    is_noise = len(indices) == len(to_delete)
+                    is_noise = len(indices) == len(to_delete) or (1/ratio) < noise_thresh
 
                     if is_noise or (np.abs(shift) > template_shift / 4):
                         templates_to_remove = numpy.concatenate((templates_to_remove, numpy.array([count_templates], dtype='int32')))
