@@ -205,15 +205,18 @@ class MergeWindow(QMainWindow):
             if self.sign_peaks == 'negative':
                 elec = numpy.argmin(numpy.min(tmp, 1))
                 thr = self.thresholds[elec]
-                self.norms[idx] = -tmp.min()/thr
+                if thr > 0:
+                    self.norms[idx] = -tmp.min()/thr
             elif self.sign_peaks == 'positive':
                 elec = numpy.argmax(numpy.max(tmp, 1))
                 thr = self.thresholds[elec]
-                self.norms[idx] = tmp.max()/thr
+                if thr > 0:
+                    self.norms[idx] = tmp.max()/thr
             elif self.sign_peaks == 'both':
                 elec = numpy.argmax(numpy.max(numpy.abs(tmp), 1))
                 thr = self.thresholds[elec]
-                self.norms[idx] = numpy.abs(tmp).max()/thr
+                if thr > 0:
+                    self.norms[idx] = numpy.abs(tmp).max()/thr
 
             if self.has_support:
                 support = numpy.where(self.supports[idx])[0]
