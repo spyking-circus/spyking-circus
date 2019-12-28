@@ -34,6 +34,53 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 0.9.0
+=============
+
+* can now fit spikes below detection threshold (with spike_thresh_min)
+* templates are now estimated without any spatial restrictions
+* display a warning if N_t is not optimally chosen
+
+=============
+Release 0.8.9
+=============
+
+* fix a small bug in the smart search, introduced while refactoring in 0.8.7
+
+=============
+Release 0.8.8
+=============
+
+* fix a regression introduced in 0.8.7 for non contiguous probe indices
+
+=============
+Release 0.8.7
+=============
+
+* new methods to detect the peaks, more robust when low thresholds are fixed
+* more accurate fitting procedure, slightly slower
+* minor bug fixes
+* addition of a sparsity_limit parameter in the meta merging GUI, to remove noise more precisely
+* new parameter file is properly copied
+* enhancement of the smoothing/alignement procedure, more accurate estimation of noisy templates
+* better estimation of the amplitudes boundaries used during fitting
+* optimization while removing mixtures and important bug fixes
+* fix a bug in the thresholding method
+* minor updates to get more refined spikes during whitening and clustering
+* tests with SpikeInterface, showing clear increase in performance
+* some cleaning in the parameter file
+* default value for cc_merge is now 0.95, since merging functions are more robust
+* noisy templates are removed by default while meta merging with a lower threshold (0.75)
+* speeding up whitening and clustering steps
+
+=============
+Release 0.8.6
+=============
+
+* Export from manual sorting with MATLAB to phy is now possible
+* Modification to pass SpikeSorters test suite
+
+=============
 Release 0.8.5
 =============
 

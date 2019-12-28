@@ -41,6 +41,14 @@ def test_patch_for_similarities(params, extension):
         return False
 
 
+def test_if_support(params, extension):
+    file_out_suff  = params.get('data', 'file_out_suff')
+    if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+        myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
+        return myfile.has_key('supports')
+    else:
+        return False
+
 def indices_for_dead_times(start, end):
     lens = end - start
     np.cumsum(lens, out=lens)

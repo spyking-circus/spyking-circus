@@ -47,7 +47,7 @@ max_elts       = 10000      # Max number of events per electrode (should be comp
 nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
 nb_repeats     = 3          # Number of passes used for the clustering
 smart_search   = True       # Activate the smart search mode
-merging_method = distance   # Method to perform local merges (distance, dip, folding, nd-folding, bhatta)
+merging_method = distance   # Method to perform local merges (distance, dip, folding, nd-folding, bhatta, nd-bhatta)
 merging_param  = default    # Merging parameter (see docs) (3 if distance, 0.5 if dip, 1e-9 if folding, 2 if bhatta)
 sensitivity    = 3          # Single parameter for clustering sensitivity. The lower the more sensitive
 cc_merge       = 0.95       # If CC between two templates is higher, they are merged
@@ -58,6 +58,7 @@ make_plots     =            # Generate sanity plots of the clustering [Nothing o
 amp_limits     = (0.3, 5)   # Amplitudes for the templates during spike detection [if not auto]
 amp_auto       = True       # True if amplitudes are adjusted automatically for every templates
 collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
+ratio_thresh   = 0.8        # Ratio of the spike_threshold used while fitting [0-1]. The lower the slower
 
 [merging]
 erase_all      = True       # If False, a prompt will ask you to remerge if merged has already been done

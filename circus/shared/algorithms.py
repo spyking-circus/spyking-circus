@@ -4,7 +4,7 @@ import shutil, h5py
 import scipy.linalg, scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_intersection_norm
-from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist
+from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
@@ -346,11 +346,14 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
+    has_support    = test_if_support(params, input_extension)
 
     if comm.rank == 0:
         print_and_log(['Node 0 is slicing templates'], 'debug', logger)
         old_templates  = load_data(params, 'templates', extension=input_extension)
         old_limits     = load_data(params, 'limits', extension=input_extension)
+        if has_support:
+            old_supports   = load_data(params, 'supports', extension=input_extension)
         _, N_tm        = old_templates.shape
         norm_templates = load_data(params, 'norm-templates', extension=input_extension)
 
@@ -375,7 +378,8 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
         hfile      = h5py.File(hfilename, 'w', libver='earliest')
         norms      = hfile.create_dataset('norms', shape=(2*len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits     = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
-
+        if has_support:
+            supports   = hfile.create_dataset('supports', shape=(len(to_keep), N_e), dtype=numpy.bool, chunks=True)
         # For each index to keep.
         for count, keep in zip(positions, local_keep):
             # Copy template.
@@ -384,6 +388,8 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
             # Copy norm.
             norms[count]                       = norm_templates[keep]
             norms[count + len(to_keep)]        = norm_templates[keep + N_tm//2]
+            if has_support:
+                supports[count]                = old_supports[keep]
             # Copy limits.
             if to_merge == []:
                 new_limits = old_limits[keep]
@@ -613,7 +619,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     if cc_merge < 1:
 
         result   = []
-        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+        overlap  = get_overlaps(params, extension='-merging', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
         overlap.close()
         filename = params.get('data', 'file_out_suff') + '.overlap-merging.hdf5'
 
@@ -628,15 +634,13 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
 
-        intersection_norms = get_intersection_norm(params, to_explore)
-
         for i in to_explore:
 
             idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
             local_x = over_x[idx] - (i*nb_temp+i+1)
             data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i+1:] = numpy.max(data, 1)/intersection_norms[i]
+            distances[i, i+1:] = numpy.max(data, 1)/norm
             distances[i+1:, i] = distances[i, i+1:]
 
         #Now we need to sync everything across nodes
@@ -685,8 +689,9 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     decimation       = params.getboolean('clustering', 'decimation')
+    has_support      = test_if_support(params, '')
 
-    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=False, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
+    overlap = get_overlaps(params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation)
     overlap.close()
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -697,7 +702,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         c_overs    = load_data(params, 'overlaps', extension='-mixtures')
 
     if SHARED_MEMORY:
-        templates  = load_data_memshared(params, 'templates', normalize=False)
+        templates  = load_data_memshared(params, 'templates', normalize=True)
     else:
         templates  = load_data(params, 'templates')
 
@@ -705,10 +710,13 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     nb_temp        = int(N_tm//2)
     merged         = [nb_temp, 0]
 
-    supports = {}
-    for t in range(N_e):
-        elecs = numpy.take(inv_nodes, edges[nodes[t]])
-        supports[t] = elecs
+    if has_support:
+        supports = load_data(params, 'supports')
+    else:
+        supports = {}
+        for t in range(N_e):
+            elecs = numpy.take(inv_nodes, edges[nodes[t]])
+            supports[t] = elecs
 
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
@@ -731,10 +739,14 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     for count, k in enumerate(to_explore):
 
         k             = sorted_temp[k]
-        electrodes    = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
         overlap_k     = c_overs[k]
-        is_in_area    = [numpy.any(numpy.in1d(supports[best_elec[t]], electrodes)) for t in range(nb_temp)]
-        all_idx       = numpy.arange(len(best_elec))[is_in_area]
+        if has_support:
+            electrodes= numpy.where(supports[k])[0]
+            all_idx   = [numpy.any(numpy.in1d(numpy.where(supports[t])[0], electrodes)) for t in range(nb_temp)]
+        else:
+            electrodes= numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
+            all_idx   = [numpy.any(numpy.in1d(supports[best_elec[t]], electrodes)) for t in range(nb_temp)]
+        all_idx       = numpy.arange(nb_temp)[all_idx]
         been_found    = False
         t_k           = None
 
@@ -760,11 +772,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                     is_a2    = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
                         if t_k is None:
-                            t_k = templates[:, k].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
+                            t_k = templates[:, k].toarray().ravel()
                         if t_i is None:
-                            t_i = templates[:, i].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
+                            t_i = templates[:, i].toarray().ravel()
                         if t_j is None:
-                            t_j = templates[:, j].toarray().ravel().reshape(N_e, N_t)[electrodes, :].flatten()
+                            t_j = templates[:, j].toarray().ravel()
                         new_template = (a1*t_i + a2*t_j)
                         similarity   = numpy.corrcoef(t_k, new_template)[0, 1]
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]

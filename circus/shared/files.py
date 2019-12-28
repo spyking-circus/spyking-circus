@@ -67,7 +67,7 @@ def data_stats(params, show=True, export_times=False):
 
 
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True, return_raw=False):
+def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
 
     data_file    = params.data_file
     data_file.open()
@@ -81,9 +81,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         nb_labels = numpy.unique(labels_i)
         stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
-    if return_raw:
-        stas_raw = numpy.zeros(stas.shape, dtype=numpy.float32)
-
     alignment     = params.getboolean('detection', 'alignment') and auto_align
     over_factor   = float(params.getint('detection', 'oversampling_factor'))
 
@@ -91,9 +88,9 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
     do_spatial_whitening  = params.getboolean('whitening', 'spatial')
     template_shift        = params.getint('detection', 'template_shift')
     jitter_range          = params.getint('detection', 'jitter_range')
+    smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
     template_shift_2      = template_shift + jitter_range
     mads                  = load_data(params, 'mads')
-    smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
 
     if do_spatial_whitening:
         spatial_whitening  = load_data(params, 'spatial_whitening')
@@ -109,7 +106,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
     
-    factor = len(neighs)*duration*(smoothing_factor*numpy.median(mads[neighs]))**2
+    factor = duration*(smoothing_factor*numpy.median(mads[src]))**2
     offset = duration // 2
     idx   = numpy.where(neighs == src)[0]
     ydata = numpy.arange(len(neighs))
@@ -126,66 +123,48 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
 
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
-        if return_raw:
-            local_chunk_raw = local_chunk.copy()
-
-        if len(ydata) == 1:
-            try:
-                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
-            except Exception:
-                f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
-            if alignment:
+        if alignment:
+            if len(ydata) == 1:
+                smoothed = True
+                try:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=3)
+                except Exception:
+                    smoothed = False
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
                 if pos == 'neg':
                     rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos =='pos':
                     rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                if smoothed:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=0)
                 ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                if return_raw:
-                    g = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
-                    local_chunk_raw = g(ddata).astype(numpy.float32).reshape(N_t, 1)
+                local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
-                ddata = xdata
-            local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
-        else:
-            try:
-                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=factor, kx=3, ky=1)
-            except Exception:
-                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
-            if alignment:
+                try:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk[:, idx], s=factor, k=3)
+                except Exception:
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk[:, idx], k=3, s=0)
                 if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                    rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos == 'pos':
-                    rmin    = (numpy.argmax(f(cdata, idx)[:, 0]) - xoff)/over_factor
+                    rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                if return_raw:
-                    g = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, kx=3, ky=1, s=0)
-                    local_chunk_raw = g(ddata, ydata).astype(numpy.float32)
-            else:
-                ddata = xdata
-            local_chunk = f(ddata, ydata).astype(numpy.float32)
+                f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, kx=3, ky=1)
+                local_chunk = f(ddata, ydata).astype(numpy.float32)
 
         if all_labels:
             lc        = numpy.where(nb_labels == lb)[0]
             stas[lc] += local_chunk.T
-            if return_raw:
-                stas_raw[lc] += local_chunk_raw.T
         else:
             if not mean_mode:
                 stas[count, :, :] = local_chunk.T
-                if return_raw:
-                    stas_raw[count, :, :] = local_chunk_raw.T
                 count            += 1
             else:
                 stas += local_chunk.T
-                if return_raw:
-                    stas_raw += local_chunk_raw.T
 
     data_file.close()
 
-    if return_raw:
-        return stas, stas_raw
-    else:
-        return stas
+    return stas
 
 
 def get_dead_times(params):
@@ -913,6 +892,30 @@ def load_data(params, data, extension=''):
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)
             sys.exit(0)
+    elif data == 'weights':
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            waveforms  = myfile.get('waveforms')[:]
+            myfile.close()
+            u = numpy.median(waveforms, 0)
+            return numpy.median(numpy.abs(waveforms - u), 0)
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
+    elif data == 'weights-pos':
+        filename = file_out_suff + '.basis.hdf5'
+        if os.path.exists(filename):
+            myfile     = h5py.File(filename, 'r', libver='earliest')
+            waveforms  = myfile.get('waveforms_pos')[:]
+            myfile.close()
+            u = numpy.median(waveforms, 0)
+            return numpy.median(numpy.abs(waveforms - u), 0)
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'templates':
         filename = file_out_suff + '.templates%s.hdf5' %extension
         if os.path.exists(filename):
@@ -1006,7 +1009,17 @@ def load_data(params, data, extension=''):
             return norms
         else:
             if comm.rank == 0:
-                print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
+                print_and_log(["No norms found! Check suffix?"], 'error', logger)
+            sys.exit(0)
+    elif data == 'supports':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
+            norms  = myfile.get('supports')[:]
+            myfile.close()
+            return norms
+        else:
+            if comm.rank == 0:
+                print_and_log(["No supports found! Check suffix?"], 'error', logger)
             sys.exit(0)
     elif data == 'spike-cluster':
         filename = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
@@ -1563,6 +1576,37 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if erase:
         purge(file_out_suff, '.data')
 
+
+def get_accurate_thresholds(params, spike_thresh_min=1):
+
+    thresholds = load_data(params, 'thresholds')
+
+    if spike_thresh_min < 1:
+        mads       = load_data(params, 'mads')
+        templates  = load_data(params, 'templates')
+        sign       = params.get('detection', 'peaks')
+        N_e        = params.getint('data', 'N_e')
+        N_t        = params.getint('detection', 'N_t')
+        amplitudes = load_data(params, 'limits')
+        nb_temp    = templates.shape[1]//2
+        spike_thresh = params.getfloat('detection', 'spike_thresh') * spike_thresh_min
+
+        for idx in range(nb_temp):
+            template = templates[:, idx].toarray().ravel().reshape(N_e, N_t)
+            if sign == 'negative':
+                a, b = numpy.unravel_index(template.argmin(), template.shape)
+                value = -template[a, b]
+            elif sign == 'positive':
+                a, b = numpy.unravel_index(template.argmax(), template.shape)
+                value = template[a, b]
+            elif sign == 'both':
+                a, b = numpy.unravel_index(numpy.abs(template).argmax(), template.shape)
+                value = numpy.abs(template)[a, b]
+
+            if thresholds[a] > value:
+                thresholds[a] = max(spike_thresh * mads[a], value)
+
+    return thresholds
 
 def collect_mua(nb_threads, params, erase=False):
 

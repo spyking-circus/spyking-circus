@@ -23,7 +23,13 @@ def main():
     nb_cpu   = int(sys.argv[3])
     nb_gpu   = int(sys.argv[4])
 
-    test_mpi_ring(nb_cpu)
+    if task == 'filtering':
+        one_cpu = (sys.argv[-1].lower() == 'true')
+    else:
+        one_cpu = False
+
+    if not one_cpu:
+        test_mpi_ring(nb_cpu)
 
     use_gpu  = (sys.argv[5].lower() == 'true')
     print_and_log(['Launching subtask %s with params %s' %(task, sys.argv[2:])], 'debug', logger)

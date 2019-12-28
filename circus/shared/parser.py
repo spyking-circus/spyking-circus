@@ -80,6 +80,7 @@ class CircusParser(object):
                           ['fitting', 'refractory', 'float', '0.5'],
                           ['fitting', 'collect_all', 'bool', 'False'],
                           ['fitting', 'gpu_only', 'bool', 'False'],
+                          ['fitting', 'ratio_thresh', 'float', '1'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],
@@ -122,7 +123,7 @@ class CircusParser(object):
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
-                          ['clustering', 'noise_thr', 'float', '0.8'],
+                          ['clustering', 'noise_thr', 'float', '0.5'],
                           ['clustering', 'cc_merge', 'float', '0.975'],
                           ['clustering', 'n_abs_min', 'int', '10'],
                           ['clustering', 'sensitivity', 'float', '3'],
@@ -180,8 +181,8 @@ class CircusParser(object):
                         ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.25'],
-                        ['clustering', 'nb_ss_bins', 'int', '50'],
-                        ['detection', 'jitter_range', 'float', '0.1'],
+                        ['clustering', 'nb_ss_bins', 'int', '200'],
+                        ['detection', 'jitter_range', 'float', '0.2'],
                         ['detection', 'smoothing_factor', 'float', '1'],
                         ['detection', 'rejection_threshold', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
@@ -476,6 +477,12 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["test_size in [validating] should be in ]0,1["], 'error', logger)
+            sys.exit(0)
+
+        test = (self.parser.getfloat('fitting', 'ratio_thresh') > 0) and (self.parser.getfloat('fitting', 'ratio_thresh') <= 1)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["ratio_thresh in [fitting] should be in ]0,1]"], 'error', logger)
             sys.exit(0)
 
         test = (self.parser.getfloat('clustering', 'cc_merge') >= 0) and (self.parser.getfloat('clustering', 'cc_merge') <= 1)

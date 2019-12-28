@@ -12,7 +12,7 @@ with warnings.catch_warnings():
 from circus.shared.probes import get_nodes_and_edges
 from colorama import Fore
 from circus.shared.messages import print_and_log, init_logging
-from circus.shared.utils import query_yes_no, apply_patch_for_similarities
+from circus.shared.utils import query_yes_no, apply_patch_for_similarities, test_if_support
 
 def get_rpv(spikes, sampling_rate, duration=5e-3):
     idx = numpy.where(numpy.diff(spikes) < int(duration*sampling_rate))[0]
@@ -55,12 +55,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         shanks = numpy.array(shanks)
         return positions, shanks
 
-    def get_max_loc_channel(params):
-        nodes, edges    = get_nodes_and_edges(params)
-        max_loc_channel = 0
-        for key in edges.keys():
-            if len(edges[key]) > max_loc_channel:
-                max_loc_channel = len(edges[key])
+    def get_max_loc_channel(params, extension):
+        if test_if_support(params, extension):
+            supports = io.load_data(params, 'supports', extension)
+            max_loc_channel = numpy.sum(supports, 1).max()
+        else:
+            nodes, edges    = get_nodes_and_edges(params)
+            max_loc_channel = 0
+            for key in edges.keys():
+                if len(edges[key]) > max_loc_channel:
+                    max_loc_channel = len(edges[key])
         return max_loc_channel
 
     def write_results(path, params, extension):
@@ -122,7 +126,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     def write_templates(path, params, extension):
 
-        max_loc_channel = get_max_loc_channel(params)
+        max_loc_channel = get_max_loc_channel(params, extension)
         templates       = io.load_data(params, 'templates', extension)
         N_tm            = templates.shape[1]//2
         nodes, edges    = get_nodes_and_edges(params)
@@ -185,11 +189,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         spikes          = numpy.load(os.path.join(output_path, 'spike_times.npy'))
         labels          = numpy.load(os.path.join(output_path, 'spike_templates.npy'))
-        max_loc_channel = get_max_loc_channel(params)
+        max_loc_channel = get_max_loc_channel(params, extension)
         nb_features     = params.getint('whitening', 'output_dim')
         sign_peaks      = params.get('detection', 'peaks')
         nodes, edges    = get_nodes_and_edges(params)
         N_total         = params.getint('data', 'N_total')
+        has_support     = test_if_support(params, extension)
+        if has_support:
+            supports    = io.load_data(params, 'supports', extension)
+        else:
+            inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+            inv_nodes[nodes] = numpy.arange(len(nodes))
 
         if export_all:
             nb_templates = N_tm + N_e
@@ -200,12 +210,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         best_elec        = io.load_data(params, 'electrodes', extension)
         if export_all:
             best_elec = numpy.concatenate((best_elec, numpy.arange(N_e)))
-        inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-        inv_nodes[nodes] = numpy.arange(len(nodes))
 
-        for count, elec in enumerate(best_elec):
-            nb_loc                = len(edges[nodes[elec]])
-            pc_features_ind[count, numpy.arange(nb_loc)] = inv_nodes[edges[nodes[elec]]]
+        if has_support:
+            for count, support in enumerate(supports):
+                nb_loc                = numpy.sum(support)
+                pc_features_ind[count, numpy.arange(nb_loc)] = numpy.where(support == True)[0]
+        else:
+            for count, elec in enumerate(best_elec):
+                nb_loc                = len(edges[nodes[elec]])
+                pc_features_ind[count, numpy.arange(nb_loc)] = inv_nodes[edges[nodes[elec]]]
 
         if sign_peaks in ['negative', 'both']:
             basis_proj, basis_rec = io.load_data(params, 'basis')
@@ -255,8 +268,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             elif mode == 0:
                 idx  = numpy.where(labels == target)[0]
 
-            elec     = best_elec[target]
-            indices  = inv_nodes[edges[nodes[elec]]]
+            elec    = best_elec[target]
+
+            if has_support:
+                indices = numpy.where(supports[target])[0]
+            else:
+                indices = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
             times_i  = numpy.take(spikes, idx).astype(numpy.int64)
             sub_data = io.get_stas(params, times_i, labels_i, elec, neighs=indices, nodes=nodes, auto_align=False)
