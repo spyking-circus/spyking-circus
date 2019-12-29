@@ -117,7 +117,7 @@ The clustering section is::
     merging_method = distance   # Method to perform local merges (distance, dip, folding, nd-folding, bhatta)
     merging_param  = default    # Merging parameter (see docs) (3 if distance, 0.5 if dip, 1e-9 if folding, 2 if bhatta)
     sensitivity    = 3          # The only parameter to control the cluster. The lower, the more sensitive
-    cc_merge       = 0.975      # If CC between two templates is higher, they are merged
+    cc_merge       = 0.95       # If CC between two templates is higher, they are merged
     dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
     smart_search   = True       # Parameter to activate the smart search mode
 
@@ -143,11 +143,13 @@ The fitting section is::
 
     amp_limits     = (0.3, 30) # Amplitudes for the templates during spike detection
     amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
-    collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
-
-
+    collect_all    = False     # If True, one garbage template per electrode is created, to store unfitted spikes
+    ratio_thresh   = 0.8       # Ratio of the spike_threshold used while fitting [0-1]. The lower the slower
+    
 Parameters that are most likely to be changed:
     * ``collect_all`` If you want to also collect all the spike times at which no templates were fitted. This is particularly useful to debug the algorithm, and understand if something is wrong on a given channel
+    * ``ratio_thresh`` If you want to get more spikes for the low amplitudes templates, you can decrease this value. It will slow down the fitting procedure, but collect more spikes for the templates with
+    an amplitude close to threshold
 
 Merging
 -------
@@ -160,7 +162,7 @@ The merging section is::
     default_lag    = 5          # Default length of the period to compute dip in the CC [ms]
     auto_mode      = 0.75       # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
     remove_noise   = False      # If True, meta merging will remove obvious noise templates (weak amplitudes)
-    noise_limit    = 1.1        # Amplitude at which templates are classified as noise
+    noise_limit    = 0.75       # Amplitude at which templates are classified as noise
     sparsity_limit = 0.75       # Sparsity level (in percentage) for selecting templates as putative noise (in [0, 1])
     time_rpv       = 5          # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
     rpv_threshold  = 0.02       # Percentage of RPV allowed while merging
