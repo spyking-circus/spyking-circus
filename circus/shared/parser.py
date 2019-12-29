@@ -128,7 +128,7 @@ class CircusParser(object):
                           ['clustering', 'n_abs_min', 'int', '10'],
                           ['clustering', 'sensitivity', 'float', '3'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
-                          ['clustering', 'merging_method', 'string', 'nd-bhatta'],
+                          ['clustering', 'merging_method', 'string', 'distance'],
                           ['clustering', 'merging_param', 'string', 'default'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
@@ -572,9 +572,9 @@ class CircusParser(object):
             print_and_log(["dip_threshold in [clustering] is deprecated since 0.8.4",
                            "and you should now use merging_method and merging_param",
                            "Please upgrade your parameter file to a more recent version",
-                           "By default a nd-bhatta merging method with param 2 is assumed"], 'info', logger)
-          self.parser.set('clustering', 'merging_param', str(2))
-          self.parser.set('clustering', 'merging_method', 'nd-bhatta')
+                           "By default a nd-bhatta merging method with param 3 is assumed"], 'info', logger)
+          self.parser.set('clustering', 'merging_param', str(3))
+          self.parser.set('clustering', 'merging_method', 'distance')
         elif has_same_elec:
           sim_same_elec = self.parser.get('clustering', 'sim_same_elec')
           if comm.rank == 0:
