@@ -106,7 +106,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
     
-    factor = duration*(smoothing_factor*numpy.median(mads[src]))**2
+    factor = duration*(smoothing_factor*mads[src])**2
     offset = duration // 2
     idx   = numpy.where(neighs == src)[0]
     ydata = numpy.arange(len(neighs))
