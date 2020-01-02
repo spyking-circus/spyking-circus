@@ -121,6 +121,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
         duration = template_shift_2
+        # if sign_peaks in ['negative', 'both']:
+        #     weights_neg = 1/io.load_data(params, 'weights')
+        # if sign_peaks in ['positive', 'both']:
+        #     weights_pos = 1/io.load_data(params, 'weights-pos')
+        #factor = duration*smoothing_factor
     else:
         duration = template_shift
 
@@ -478,6 +483,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         if is_isolated:
 
                                             if alignment:
+
+                                                # if loc_peak == 'neg':
+                                                #     weights = weights_neg
+                                                # elif loc_peak == 'pos':
+                                                #     weights = weights_pos
+                                                factor = duration*(smoothing_factor*mads[elec])**2
+
                                                 ydata = numpy.arange(len(indices))
                                                 if len(ydata) == 1:
                                                     smoothed = True
@@ -491,12 +503,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     else:
                                                         rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
                                                     if smoothed:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, k=0)
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0, k=3)
                                                     ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                                     sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                                 else:
                                                     idx = elec_positions[elec]
-                                                    factor = duration*(smoothing_factor*mads[elec])**2
                                                     try:
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], s=factor, k=3)
                                                     except Exception:

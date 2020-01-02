@@ -464,7 +464,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 is_noise = False
                             
                             if not is_noise:
-
                                 try:
                                     factor = xdata.size*((smoothing_factor*mads[elec])**2)
                                     f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
@@ -478,7 +477,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     ddata   = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                 else:
                                     ddata   = xdata 
-                                
                                 sub_mat = f(ddata).astype(numpy.float32)
 
                                 if negative_peak:
