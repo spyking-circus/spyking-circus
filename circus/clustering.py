@@ -496,7 +496,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                                 else:
                                                     idx = elec_positions[elec]
-                                                    factor = duration*(smoothing_factor*numpy.median(mads[elec]))**2
+                                                    factor = duration*(smoothing_factor*mads[elec])**2
                                                     try:
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], s=factor, k=3)
                                                     except Exception:
