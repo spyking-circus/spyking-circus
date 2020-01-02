@@ -121,11 +121,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
         duration = template_shift_2
-        # if sign_peaks in ['negative', 'both']:
-        #     weights_neg = 1/io.load_data(params, 'weights')
-        # if sign_peaks in ['positive', 'both']:
-        #     weights_pos = 1/io.load_data(params, 'weights-pos')
-        #factor = duration*smoothing_factor
+        if sign_peaks in ['negative', 'both']:
+            weights_neg = 1/io.load_data(params, 'weights')
+        if sign_peaks in ['positive', 'both']:
+            weights_pos = 1/io.load_data(params, 'weights-pos')
+        factor = duration*smoothing_factor
     else:
         duration = template_shift
 
@@ -484,16 +484,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                             if alignment:
 
-                                                # if loc_peak == 'neg':
-                                                #     weights = weights_neg
-                                                # elif loc_peak == 'pos':
-                                                #     weights = weights_pos
-                                                factor = len(sub_mat)*(smoothing_factor*mads[elec])**2
+                                                if loc_peak == 'neg':
+                                                    weights = weights_neg
+                                                elif loc_peak == 'pos':
+                                                    weights = weights_pos
+                                                #factor = len(sub_mat)*(smoothing_factor*mads[elec])**2
                                                 ydata = numpy.arange(len(indices))
                                                 if len(ydata) == 1:
                                                     smoothed = True
                                                     try:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, w=weights, s=factor, k=3)
                                                     except Exception:
                                                         smoothed = False
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)

@@ -464,10 +464,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 is_noise = False
                             
                             if not is_noise:
+                                smoothed = True
                                 try:
                                     factor = xdata.size*((smoothing_factor*mads[elec])**2)
                                     f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
                                 except Exception:
+                                    smoothed = False
                                     f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
                                 if alignment:
                                     if negative_peak:
@@ -476,7 +478,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
                                     ddata   = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                                 else:
-                                    ddata   = xdata 
+                                    ddata   = xdata
+
+                                if smoothed:
+                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=0, k=3)
                                 sub_mat = f(ddata).astype(numpy.float32)
 
                                 if negative_peak:
