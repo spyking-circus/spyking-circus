@@ -126,7 +126,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['positive', 'both']:
             weights_pos = 1/io.load_data(params, 'weights-pos')
         m_size = (2*template_shift_2 + 1)
-        factor = (m_size - numpy.sqrt(2*m_size))*smoothing_factor
+        factor = m_size*smoothing_factor
     else:
         duration = template_shift
 
@@ -509,7 +509,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 else:
                                                     idx = elec_positions[elec]
                                                     try:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], s=factor, k=3)
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], w=weights, s=factor, k=3)
                                                     except Exception:
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], k=3, s=0)
                                                     if negative_peak:

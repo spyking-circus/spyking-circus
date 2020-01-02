@@ -352,7 +352,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         xoff  = len(cdata)/2.
         snippet_duration = template_shift_2
         m_size = 2*template_shift_2 + 1
-        factor = (m_size - numpy.sqrt(2*m_size))
+        factor = m_size
     else:
         snippet_duration = template_shift
         xdata = numpy.arange(-template_shift, template_shift+1)
