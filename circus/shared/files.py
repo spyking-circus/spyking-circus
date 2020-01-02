@@ -106,7 +106,6 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             weights = 1/load_data(params, 'weights')
         elif pos == 'pos':
             weights = 1/load_data(params, 'weights-pos')
-        #factor = duration*(smoothing_factor*mads[src])**2
         factor = duration*smoothing_factor
     else:
         xdata = numpy.arange(-template_shift, template_shift + 1)

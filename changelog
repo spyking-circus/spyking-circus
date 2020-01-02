@@ -4,7 +4,6 @@ Release 0.9.0
 
 * can now fit spikes below detection threshold (with ratio_thresh in [fitting], 0.9 as default)
 * templates are now estimated without any spatial restrictions
-* display a warning if N_t is not optimally chosen
 * optimization of the smart search for small recording
 * spline regularization was not stable for all probe geometry
 

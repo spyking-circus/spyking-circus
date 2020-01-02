@@ -125,7 +125,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             weights_neg = 1/io.load_data(params, 'weights')
         if sign_peaks in ['positive', 'both']:
             weights_pos = 1/io.load_data(params, 'weights-pos')
-        factor = duration*smoothing_factor
+        factor = (2*template_shift_2 + 1)*smoothing_factor
     else:
         duration = template_shift
 
@@ -488,7 +488,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     weights = weights_neg
                                                 elif loc_peak == 'pos':
                                                     weights = weights_pos
-                                                #factor = len(sub_mat)*(smoothing_factor*mads[elec])**2
+
                                                 ydata = numpy.arange(len(indices))
                                                 if len(ydata) == 1:
                                                     smoothed = True
