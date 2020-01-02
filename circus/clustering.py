@@ -488,8 +488,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 #     weights = weights_neg
                                                 # elif loc_peak == 'pos':
                                                 #     weights = weights_pos
-                                                factor = duration*(smoothing_factor*mads[elec])**2
-
+                                                factor = len(sub_mat)*(smoothing_factor*mads[elec])**2
                                                 ydata = numpy.arange(len(indices))
                                                 if len(ydata) == 1:
                                                     smoothed = True
@@ -503,7 +502,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     else:
                                                         rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
                                                     if smoothed:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0, k=3)
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=0, k=3)
                                                     ddata    = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
                                                     sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                                 else:
