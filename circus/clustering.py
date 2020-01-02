@@ -125,7 +125,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             weights_neg = 1/io.load_data(params, 'weights')
         if sign_peaks in ['positive', 'both']:
             weights_pos = 1/io.load_data(params, 'weights-pos')
-        factor = (2*template_shift_2 + 1)*smoothing_factor
+        m_size = (2*template_shift_2 + 1)
+        factor = (m_size - numpy.sqrt(2*m_size))*smoothing_factor
     else:
         duration = template_shift
 

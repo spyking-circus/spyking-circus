@@ -351,6 +351,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata)/2.
         snippet_duration = template_shift_2
+        m_size = 2*template_shift_2 + 1
+        factor = (m_size - numpy.sqrt(2*m_size))
     else:
         snippet_duration = template_shift
         xdata = numpy.arange(-template_shift, template_shift+1)
@@ -466,8 +468,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if not is_noise:
                                 smoothed = True
                                 try:
-                                    factor = xdata.size*((smoothing_factor*mads[elec])**2)
-                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor, k=3)
+                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor*((smoothing_factor*mads[elec])**2), k=3)
                                 except Exception:
                                     smoothed = False
                                     f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
