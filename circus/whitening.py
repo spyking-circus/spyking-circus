@@ -467,8 +467,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             
                             if not is_noise:
                                 smoothed = True
+                                local_factor = factor*((smoothing_factor*mads[elec])**2)
                                 try:
-                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=factor*((smoothing_factor*mads[elec])**2), k=3)
+                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=local_factor, k=3)
                                 except Exception:
                                     smoothed = False
                                     f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)

@@ -490,8 +490,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 elif loc_peak == 'pos':
                                                     weights = weights_pos
 
-                                                ydata = numpy.arange(len(indices))
-                                                if len(ydata) == 1:
+                                                if len(indices) == 1:
                                                     smoothed = True
                                                     try:
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, w=weights, s=factor, k=3)
@@ -508,6 +507,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat  = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                                 else:
                                                     idx = elec_positions[elec]
+                                                    ydata = numpy.arange(len(indices))
                                                     try:
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], w=weights, s=factor, k=3)
                                                     except Exception:
