@@ -466,25 +466,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 is_noise = False
                             
                             if not is_noise:
-                                smoothed = True
-                                local_factor = factor*(mads[elec]**2)
-                                try:
-                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=local_factor, k=3)
-                                except Exception:
-                                    smoothed = False
-                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
                                 if alignment:
+                                    smoothed = True
+                                    local_factor = factor*(mads[elec]**2)
+                                    try:
+                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=local_factor, k=3)
+                                    except Exception:
+                                        smoothed = False
+                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
+                                
                                     if negative_peak:
                                         rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                                     else:
                                         rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
                                     ddata   = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
-                                else:
-                                    ddata   = xdata
 
-                                if smoothed:
-                                    f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=0, k=3)
-                                sub_mat = f(ddata).astype(numpy.float32)
+                                    if smoothed:
+                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=0, k=3)
+
+                                    sub_mat = f(ddata).astype(numpy.float32)
 
                                 if negative_peak:
                                     elts_neg[:, elt_count_neg] = sub_mat
