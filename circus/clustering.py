@@ -122,11 +122,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         xoff  = len(cdata)/2.
         duration = template_shift_2
         if sign_peaks in ['negative', 'both']:
-            weights_neg = 1/io.load_data(params, 'weights')
+            weights_neg = 1.48/io.load_data(params, 'weights')
         if sign_peaks in ['positive', 'both']:
-            weights_pos = 1/io.load_data(params, 'weights-pos')
+            weights_pos = 1.48/io.load_data(params, 'weights-pos')
         m_size = (2*template_shift_2 + 1)
-        factor = m_size*smoothing_factor
+        align_factor = m_size + numpy.sqrt(smoothing_factor*m_size)
     else:
         duration = template_shift
 
@@ -493,7 +493,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 if len(indices) == 1:
                                                     smoothed = True
                                                     try:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, w=weights, s=factor, k=3)
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, w=weights, s=align_factor, k=3)
                                                     except Exception:
                                                         smoothed = False
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
@@ -509,7 +509,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     idx = elec_positions[elec]
                                                     ydata = numpy.arange(len(indices))
                                                     try:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], w=weights, s=factor, k=3)
+                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], w=weights, s=align_factor, k=3)
                                                     except Exception:
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], k=3, s=0)
                                                     if negative_peak:

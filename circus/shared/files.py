@@ -103,10 +103,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         xoff  = len(cdata) / 2.
         duration = 2 * template_shift_2 + 1
         if pos  == 'neg':
-            weights = 1/load_data(params, 'weights')
+            weights = 1.48/load_data(params, 'weights')
         elif pos == 'pos':
-            weights = 1/load_data(params, 'weights-pos')
-        factor = duration*smoothing_factor
+            weights = 1.48/load_data(params, 'weights-pos')
+        align_factor = duration + numpy.sqrt(smoothing_factor*duration)
     else:
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
@@ -131,7 +131,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             if len(ydata) == 1:
                 smoothed = True
                 try:
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=factor, w=weights, k=3)
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=align_factor, w=weights, k=3)
                 except Exception:
                     smoothed = False
                     f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
@@ -145,7 +145,7 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 try:
-                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk[:, idx], s=factor, w=weights, k=3)
+                    f = scipy.interpolate.UnivariateSpline(xdata, local_chunk[:, idx], s=align_factor, w=weights, k=3)
                 except Exception:
                     f = scipy.interpolate.UnivariateSpline(xdata, local_chunk[:, idx], k=3, s=0)
                 if pos == 'neg':
