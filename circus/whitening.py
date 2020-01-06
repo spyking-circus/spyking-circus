@@ -467,7 +467,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             
                             if not is_noise:
                                 smoothed = True
-                                local_factor = factor*((smoothing_factor*mads[elec])**2)
+                                local_factor = factor*(mads[elec]**2)
                                 try:
                                     f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=local_factor, k=3)
                                 except Exception:
@@ -556,7 +556,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             #elif ratio == 1:
             #    print_and_log(["Time window N_t in [detection] seems too small!"], 'info', logger)
             #    warning_n_t = True
-            idx              = numpy.random.permutation(numpy.arange(gdata_neg.shape[0]))[:1000]
+            idx              = numpy.random.permutation(numpy.arange(gdata_neg.shape[0]))[:2500]
             res['waveforms'] = gdata_neg[idx, :]
         if sign_peaks in ['positive', 'both']:
             if len(gdata_pos) > 0:
@@ -577,7 +577,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             #    print_and_log(["Time window N_t in [detection] seems too large!"], 'info', logger)
             #elif ratio == 1 and not warning_n_t:
             #    print_and_log(["Time window N_t in [detection] seems too small!"], 'info', logger)
-            idx                  = numpy.random.permutation(numpy.arange(gdata_pos.shape[0]))[:1000]
+            idx                  = numpy.random.permutation(numpy.arange(gdata_pos.shape[0]))[:2500]
             res['waveforms_pos'] = gdata_pos[idx, :]
 
         bfile    = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
