@@ -183,7 +183,7 @@ class CircusParser(object):
                         ['clustering', 'sparsify', 'float', '0.25'],
                         ['clustering', 'nb_ss_bins', 'int', '200'],
                         ['detection', 'jitter_range', 'float', '0.2'],
-                        ['detection', 'smoothing_factor', 'float', '0'],
+                        ['detection', 'smoothing_factor', 'float', '1.48'],
                         ['detection', 'rejection_threshold', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
@@ -519,6 +519,12 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["oversampling_factor in [detection] should be positive["], 'error', logger)
+            sys.exit(0)
+
+        test = (self.parser.getfloat('detection', 'smoothing_factor') >= 0)
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["smoothing_factor in [detection] should be positive["], 'error', logger)
             sys.exit(0)
 
         test = (not self.parser.getboolean('data', 'overwrite') and not self.parser.getboolean('filtering', 'filter'))

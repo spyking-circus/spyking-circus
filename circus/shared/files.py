@@ -103,10 +103,10 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
         xoff  = len(cdata) / 2.
         duration = 2 * template_shift_2 + 1
         if pos  == 'neg':
-            weights = 1.48/load_data(params, 'weights')
+            weights = smoothing_factor/load_data(params, 'weights')
         elif pos == 'pos':
-            weights = 1.48/load_data(params, 'weights-pos')
-        align_factor = duration + numpy.sqrt(smoothing_factor*duration)
+            weights = smoothing_factor/load_data(params, 'weights-pos')
+        align_factor = duration
     else:
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t

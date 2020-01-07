@@ -352,7 +352,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         xoff  = len(cdata)/2.
         snippet_duration = template_shift_2
         m_size = 2*template_shift_2 + 1
-        align_factor = m_size + numpy.sqrt(smoothing_factor*m_size)
+        align_factor = m_size
     else:
         snippet_duration = template_shift
         xdata = numpy.arange(-template_shift, template_shift+1)
@@ -468,7 +468,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if not is_noise:
                                 if alignment:
                                     smoothed = True
-                                    local_factor = align_factor*((1.48*mads[elec])**2)
+                                    local_factor = align_factor*((smoothing_factor*mads[elec])**2)
                                     try:
                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=local_factor, k=3)
                                     except Exception:

@@ -122,11 +122,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         xoff  = len(cdata)/2.
         duration = template_shift_2
         if sign_peaks in ['negative', 'both']:
-            weights_neg = 1.48/io.load_data(params, 'weights')
+            weights_neg = smoothing_factor/io.load_data(params, 'weights')
         if sign_peaks in ['positive', 'both']:
-            weights_pos = 1.48/io.load_data(params, 'weights-pos')
+            weights_pos = smoothing_factor/io.load_data(params, 'weights-pos')
         m_size = (2*template_shift_2 + 1)
-        align_factor = m_size + numpy.sqrt(smoothing_factor*m_size)
+        align_factor = m_size
     else:
         duration = template_shift
 
