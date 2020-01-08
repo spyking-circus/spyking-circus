@@ -110,11 +110,12 @@ Clustering
 The clustering section is::
 
     extraction     = median-raw # Can be either median-raw (default), median-pca, mean-pca, mean-raw, or quadratic
+    sub_dim        = 10         # Number of dimensions to keep for local PCA per electrode
     max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
     nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
     nb_repeats     = 3          # Number of passes used for the clustering
     make_plots     =            # Generate sanity plots of the clustering
-    merging_method = distance   # Method to perform local merges (distance, dip, folding, nd-folding, bhatta)
+    merging_method = nd-bhatta  # Method to perform local merges (distance, dip, folding, nd-folding, bhatta)
     merging_param  = default    # Merging parameter (see docs) (3 if distance, 0.5 if dip, 1e-9 if folding, 2 if bhatta)
     sensitivity    = 3          # The only parameter to control the cluster. The lower, the more sensitive
     cc_merge       = 0.95       # If CC between two templates is higher, they are merged
