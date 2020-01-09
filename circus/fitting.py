@@ -403,18 +403,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             while numpy.mean(failure) < nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
-                data        = b[:n_tm, :] * mask
-                best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
-                best_template2_index = best_template_index + n_tm
-
                 if full_gpu:
                     b_array = b.asarray()
                 else:
                     b_array = None
 
                 data = b[:n_tm, :] * mask
-                peak_scalar_product = data.max()
                 best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
+                peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
                 if full_gpu:
