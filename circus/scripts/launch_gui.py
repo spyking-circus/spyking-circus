@@ -512,7 +512,7 @@ class LaunchGUI(QDialog):
         format.setFontWeight(QFont.Bold)
         format.setForeground(Qt.red)
         self.ui.edit_stdout.setCurrentCharFormat(format)
-        self.ui.edit_stdout.appendPlainText('Process exited with exit code' % exit_code)
+        self.ui.edit_stdout.appendPlainText('Process exited with exit code %s' % exit_code)
         self.restore_gui()
         self.ui.edit_stdout.setTextInteractionFlags(Qt.TextSelectableByMouse |
                                                     Qt.TextSelectableByKeyboard)
