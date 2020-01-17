@@ -192,7 +192,7 @@ class CircusParser(object):
                         ['whitening', 'safety_time', 'string', 'auto'],
                         ['extracting', 'safety_time', 'string', 'auto']]
 
-    def __init__(self, file_name, create_folders=True, **kwargs):
+    def __init__(self, file_name, create_folders=True, params_only=False, **kwargs):
         """
         Parameters:
         ----------
@@ -209,7 +209,20 @@ class CircusParser(object):
         a CircusParser object. 
 
         """ 
-        self.file_name    = os.path.abspath(file_name)
+        if not params_only:
+          print "toto"
+          parser         = configparser.ConfigParser()
+          parser.read(os.path.abspath(file_name))
+          if "data" not in parser.sections():
+            print_and_log(["No data section in the .params file!"], 'error', logger)
+            sys.exit(0)
+          #try:
+          self.file_name = parser['data']['file_name'] 
+          print self.file_name
+          #except Exception:
+          #  print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
+          #  sys.exit(0)
+
         f_next, extension = os.path.splitext(self.file_name)
         file_path         = os.path.dirname(self.file_name)
         self.file_params  = f_next + '.params'

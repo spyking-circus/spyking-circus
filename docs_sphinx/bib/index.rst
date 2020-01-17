@@ -16,6 +16,15 @@ Publications refering to SpyKING CIRCUS
 
 Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to send us a mail in order update this list, the more the merrier
 
+2020
+~~~~
+
+* Magland J. et al, *SpikeForest: reproducible web-facing ground-truth validation of automated neural spike sorters*, bioRxiv, 900688
+
+* Park I. Y., et al. *Deep Learning-Based Template Matching Spike Classification for Extracellular Recordings*, Applied Sciences 10.1 (2020): 301
+
+* Cantu D. A., et al. *EZcalcium: Open Source Toolbox for Analysis of Calcium Imaging Data*, bioRxiv, 893198
+
 2019
 ~~~~
 

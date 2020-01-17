@@ -172,7 +172,6 @@ def find_centroids_and_cluster(dist, rho, delta, alpha=3):
         centersx = numpy.where(centers)[0] # index of centroids
         dist2cent = dist.get_rows(centersx)
         labels = numpy.argmin(dist2cent, axis=0) + 1
-        _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
 
     return nclus, labels, centers
     

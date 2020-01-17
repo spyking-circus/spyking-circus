@@ -134,6 +134,10 @@ but a subset x,y can be done. Steps are:
 
     f_next, extens = os.path.splitext(filename)
 
+    if extens == '.params':
+        params = CircusParser(filename, params_only=True)
+        print params
+
     if info:
         if args.datafile.lower() in __supported_data_files__:
             filename = 'tmp'
