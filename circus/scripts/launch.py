@@ -134,9 +134,9 @@ but a subset x,y can be done. Steps are:
 
     f_next, extens = os.path.splitext(filename)
 
-    if extens == '.params':
-        params = CircusParser(filename, params_only=True)
-        print params
+    params = CircusParser(real_file)
+    filename = os.path.abspath(params.get('data', 'file_name'))
+    params_only = params.params_only
 
     if info:
         if args.datafile.lower() in __supported_data_files__:
@@ -150,7 +150,7 @@ but a subset x,y can be done. Steps are:
             print_and_log(list_all_file_format())
         sys.exit(0)
 
-    if extens == '.params':
+    if extens == '.params' and not params_only:
         print_error(['You should launch the code on the data file!'])
         sys.exit(0)
 
@@ -214,7 +214,7 @@ but a subset x,y can be done. Steps are:
             os.remove(logfile)
 
         logger       = init_logging(logfile)
-        params       = CircusParser(filename)
+        params       = CircusParser(real_file, params_only=params_only)
         data_file    = params.get_data_file(source=True, has_been_created=False)
         overwrite    = params.getboolean('data', 'overwrite')
         file_format  = params.get('data', 'file_format')
@@ -289,10 +289,10 @@ but a subset x,y can be done. Steps are:
     else:
 
         print_and_log(['Config file: %s' %(f_next + '.params')], 'debug', logger)
-        print_and_log(['Data file  : %s' %filename], 'debug', logger)
+        print_and_log(['Data file  : %s' %data_file], 'debug', logger)
 
         print get_colored_header()
-        print Fore.GREEN + "File          :", Fore.CYAN + real_file
+        print Fore.GREEN + "File          :", Fore.CYAN + filename
         if preview:
             print Fore.GREEN + "Steps         :", Fore.CYAN + "preview mode"
         elif result:
