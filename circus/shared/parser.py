@@ -81,6 +81,7 @@ class CircusParser(object):
                           ['fitting', 'collect_all', 'bool', 'False'],
                           ['fitting', 'gpu_only', 'bool', 'False'],
                           ['fitting', 'ratio_thresh', 'float', '0.9'],
+                          ['fitting', 'two_components', 'bool', 'True'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],

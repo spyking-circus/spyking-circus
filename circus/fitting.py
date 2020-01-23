@@ -23,6 +23,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     matched_filter = params.getboolean('detection', 'matched-filter')
     spike_thresh   = params.getfloat('detection', 'spike_thresh')
     ratio_thresh   = params.getfloat('fitting', 'ratio_thresh')
+    two_components = params.getboolean('fitting', 'two_components')
     spike_width    = params.getfloat('detection', 'spike_width')
     dist_peaks     = params.getint('detection', 'dist_peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -418,7 +419,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     best_amp2 = b_array[best_template2_index, peak_index] / n_scalar
                 else:
                     best_amp = b[best_template_index, peak_index] / n_scalar
-                    best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                    if two_components:
+                        best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                    else:
+                        best_amp2 = 0
 
                 best_amp_n = best_amp / norm_templates[best_template_index]
                 best_amp2_n = best_amp2 / norm_templates[best_template2_index]
