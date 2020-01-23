@@ -1480,7 +1480,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
             for j in local_temp:
                 idx = numpy.where(templates == j)[0]
-                result['amplitudes']['temp_' + str(j)] = numpy.concatenate((amplitudes[idx], result['amplitudes']['temp_' + str(j)]))
+                result['amplitudes']['temp_' + str(j)] = numpy.concatenate((result['amplitudes']['temp_' + str(j)], amplitudes[idx]))
                 result['spiketimes']['temp_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx]))
                 if with_real_amps:
                     result['real_amps']['temp_' + str(j)] = numpy.concatenate((result['real_amps']['temp_' + str(j)], real_amps[idx]))

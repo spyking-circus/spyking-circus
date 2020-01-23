@@ -50,6 +50,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges   = get_nodes_and_edges(params)
     chunk_size     = detect_memory(params)
     max_elts_elec  = params.getint('clustering', 'max_elts')
+    two_components = params.getboolean('clustering', 'two_components')
     if sign_peaks == 'both':
        max_elts_elec *= 2
     nb_elts        = int(params.getfloat('clustering', 'nb_elts')*N_e*max_elts_elec)
@@ -1063,27 +1064,30 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         offset        = total_nb_clusters + count_templates
                         sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
-                        for i in xrange(x):
-                            sub_data_flat_raw[i, :] -= amplitudes[i]*first_flat[:, 0]
 
-                        if len(sub_data_flat_raw) > 1:
-                            pca              = PCA(1)
-                            pca.fit(sub_data_flat_raw)
-                            second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
-                        else:
-                            second_component = sub_data_flat_raw.reshape(y, z)/numpy.sum(sub_data_flat_raw**2)
+                        if two_components:
+                            # for i in xrange(x):
+                            #     sub_data_flat_raw[i, :] -= amplitudes[i]*first_flat[:, 0]
 
-                        if use_savgol and savgol_window > 3:
-                            tmp_fast = scipy.signal.savgol_filter(second_component, savgol_window, 3, axis=1)
-                            tmp_slow = scipy.signal.savgol_filter(second_component, 3*savgol_window, 3, axis=1)
-                            second_component = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
+                            # if len(sub_data_flat_raw) > 1:
+                            #     pca              = PCA(1)
+                            #     pca.fit(sub_data_flat_raw)
+                            #     second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
+                            # else:
+                            #     second_component = sub_data_flat_raw.reshape(y, z)/numpy.sum(sub_data_flat_raw**2)
 
-                        if shift > 0:
-                            sub_templates[indices, shift:] = second_component[:, :-shift]
-                        elif shift < 0:
-                            sub_templates[indices, :shift] = second_component[:, -shift:]
-                        else:
-                            sub_templates[indices, :] = second_component
+                            # if use_savgol and savgol_window > 3:
+                            #     tmp_fast = scipy.signal.savgol_filter(second_component, savgol_window, 3, axis=1)
+                            #     tmp_slow = scipy.signal.savgol_filter(second_component, 3*savgol_window, 3, axis=1)
+                            #     second_component = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
+
+                            # if shift > 0:
+                            #     sub_templates[indices, shift:] = second_component[:, :-shift]
+                            # elif shift < 0:
+                            #     sub_templates[indices, :shift] = second_component[:, -shift:]
+                            # else:
+                            #     sub_templates[indices, :] = second_component
+                            sub_templates[:, :-1] = numpy.diff(templates.reshape(N_e, N_t))
 
                         sub_templates = sub_templates.ravel()
                         dx            = sub_templates.nonzero()[0].astype(numpy.uint32)
