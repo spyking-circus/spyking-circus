@@ -34,6 +34,14 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 0.9.1
+=============
+
+* Minor bug fixes in spyking-circus-launcher
+* fix a bug in the amplitude display. Values were shuffled when several CPU were used
+* add the option to ignore second component [clustering]->two_components
+
+=============
 Release 0.9.0
 =============
 

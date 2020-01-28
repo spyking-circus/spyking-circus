@@ -180,6 +180,7 @@ class CircusParser(object):
                         ['fitting', 'debug', 'bool', 'False'],
                         ['filtering', 'butter_order', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
+                        ['clustering', 'debug', 'bool', 'False'],
                         ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.25'],

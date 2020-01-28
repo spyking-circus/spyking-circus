@@ -464,6 +464,7 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
     hdf5_compress  = params.getboolean('data', 'hdf5_compress')
     N_t            = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
+    debug          = params.getboolean('clustering', 'debug')
 
     if comm.rank == 0:
 
@@ -499,6 +500,9 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
                 result['times_' + str(elec)]    = numpy.delete(result['times_' + str(elec)], all_elements[elec])
                 result['peaks_' + str(elec)]    = numpy.delete(result['peaks_' + str(elec)], all_elements[elec])
+                if debug:
+                    result['rho_' + str(elec)]   = numpy.delete(result['rho_' + str(elec)], all_elements[elec])
+                    result['delta_' + str(elec)] = numpy.delete(result['delta_' + str(elec)], all_elements[elec])
             else:
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
                 data   = myfile.get('data_' + str(elec))[:]
@@ -507,6 +511,11 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
                 result['times_' + str(elec)] = numpy.delete(data, all_elements[elec])
                 data   = myfile.get('peaks_' + str(elec))[:]
                 result['peaks_' + str(elec)] = numpy.delete(data, all_elements[elec])
+                if debug:
+                    data   = myfile.get('rho_' + str(elec))[:]
+                    result['rho_' + str(elec)] = numpy.delete(data, all_elements[elec])
+                    data   = myfile.get('delta_' + str(elec))[:]
+                    result['delta_' + str(elec)] = numpy.delete(data, all_elements[elec])
 
         myfile.close()
         if method == 'safe':
@@ -519,6 +528,8 @@ def slice_clusters(params, result, to_remove=[], to_merge=[], extension='',
         cfilename = file_out_suff + '.clusters{}.hdf5'.format('-new')
         cfile    = h5py.File(cfilename, 'w', libver='earliest')
         to_write = ['data_', 'clusters_', 'times_', 'peaks_']
+        if debug:
+            to_write += ['rho_', 'delta_']
         for ielec in xrange(N_e):
             write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
         write_datasets(cfile, ['electrodes'], result)
