@@ -107,11 +107,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         thresholds  = io.load_data(params, 'thresholds')
 
-        #print "Extracting the peaks..."
-        local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
+        # Extracting the peaks.
+        local_peaktimes = [np.empty(0, dtype=numpy.uint32)]
         for i in xrange(N_e):
-            peaktimes       = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t)[0]  
-            local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+            peaktimes = scipy.signal.find_peaks(
+                numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t
+            )[0]
+            peaktimes = peaktimes.astype(numpy.uint32)
+            local_peaktimes.append(peaktimes)
+        local_peaktimes = numpy.concatenate(local_peaktimes)
 
         local_peaktimes = numpy.unique(local_peaktimes)
 
@@ -270,12 +274,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 bfile.close()
             comm.Barrier()
 
-    #if comm.rank == 0:
-        #if not os.path.exists(plot_path):
-        #    os.makedirs(plot_path)
-        #N_elec = min(int(numpy.sqrt(data_file.N_e)), 5)
-        #plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True,
-        #              n_elec=N_elec, save=[plot_path, 'electrodes'])
+    # if comm.rank == 0:
+    #     if not os.path.exists(plot_path):
+    #         os.makedirs(plot_path)
+    #     N_elec = min(int(numpy.sqrt(data_file.N_e)), 5)
+    #     plot.view_fit(filename, t_start=0, t_stop=1, fit_on=False, square=True,
+    #                   n_elec=N_elec, save=[plot_path, 'electrodes'])
 
     # Part 2: Basis
     numpy.random.seed(422)
@@ -373,8 +377,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         gidx = all_chunks[gidx]
 
-        if ((elt_count_pos + elt_count_neg) < nb_elts):
-            #print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
+        if (elt_count_pos + elt_count_neg) < nb_elts:
+            # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
             local_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
             local_shape = len(local_chunk)
 
@@ -387,21 +391,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if do_temporal_whitening:
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-            #print "Extracting the peaks..."
-            all_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
-
+            # Extracting the peaks.
+            all_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
             for i in xrange(N_e):
-
+                height = thresholds[i]
                 if sign_peaks == 'negative':
-                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], distance=dist_peaks)[0]
+                    peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=height, distance=dist_peaks)[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i])[0]
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=height)[0]
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
-                all_peaktimes = numpy.concatenate((all_peaktimes, peaktimes))
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=height)[0]
+                else:
+                    peaktimes = numpy.empty(0, dtype=numpy.uint32)
+                peaktimes = peaktimes.astype(numpy.uint32)
+                all_peaktimes.append(peaktimes)
+            all_peaktimes = np.concatenate(all_peaktimes)
 
 
-            #print "Removing the useless borders..."
+            # print "Removing the useless borders..."
             local_borders = (snippet_duration, local_shape - snippet_duration)
             idx             = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
             all_peaktimes   = numpy.compress(idx, all_peaktimes)
@@ -425,7 +432,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 argmax_peak     = numpy.random.permutation(numpy.arange(n_times))
                 all_idx         = numpy.take(local_peaktimes, argmax_peak)
 
-                #print "Selection of the peaks with spatio-temporal masks..."
+                # print "Selection of the peaks with spatio-temporal masks..."
                 for midx, peak in zip(argmax_peak, all_idx):
                     if (elt_count_neg + elt_count_pos) == nb_elts:
                         break
@@ -511,7 +518,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_waveforms = 0
 
     if comm.rank == 0:
-        #DO PCA on elts and store the basis obtained.
+        # DO PCA on elts and store the basis obtained.
 
         if sign_peaks in ['negative', 'both']:
             nb_waveforms += gdata_neg.shape[0]
