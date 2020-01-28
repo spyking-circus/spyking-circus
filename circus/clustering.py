@@ -68,6 +68,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     blosc_compress = params.getboolean('data', 'blosc_compress')
     test_clusters  = params.getboolean('clustering', 'test_clusters')
     sparsify       = params.getfloat('clustering', 'sparsify')
+    debug          = params.getboolean('clustering', 'debug')
     tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     amp_limits     = map(float, tmp_limits)
     elt_count      = 0
@@ -76,6 +77,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes         = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes]  = numpy.arange(len(nodes))
     to_write          = ['clusters_', 'times_', 'data_', 'peaks_']
+    if debug:
+        to_write += ['rho_', 'delta_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     jitter_range     = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
@@ -782,6 +785,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity
                         )
                         
+                        result['delta_%s_' %p + str(ielec)] = d
                         # Now we perform a merging step, for clusters that look too similar
                         old_allocation = np.copy(cluster_results[p][ielec]['groups'])
                         cluster_results[p][ielec]['groups'], merged, merge_history = algo.merging(cluster_results[p][ielec]['groups'],
@@ -817,7 +821,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 injected[icount] = True
 
                             plot.view_clusters(
-                                result['sub_%s_' %p + str(ielec)], r, d, c,
+                                result['sub_%s_' %p + str(ielec)], result['rho_%s_' %p + str(ielec)], result['delta_%s_' %p + str(ielec)], c,
                                 cluster_results[p][ielec]['groups'], injected=injected,
                                 save=save, alpha=sensitivity
                             )
@@ -848,7 +852,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 save=save
                             )
 
-                        keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec), 'rho_%s_' %p + str(ielec)]
+                        keys = ['loc_times_' + str(ielec), 'all_times_' + str(ielec)]
+                        if not debug: 
+                            keys += ['rho_%s_' %p + str(ielec), 'delta_%s_' %p + str(ielec)]
+
                         for key in keys:
                             if result.has_key(key):
                                 result.pop(key)
@@ -856,13 +863,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         cluster_results[p][ielec]['n_clus'] = len(numpy.unique(cluster_results[p][ielec]['groups'][mask]))
                         n_clusters                          = []
                         result['clusters_%s_' %p + str(ielec)] = cluster_results[p][ielec]['groups']
+
                         for i in numpy.unique(cluster_results[p][ielec]['groups'][mask]):
                             n_clusters += [numpy.sum(cluster_results[p][ielec]['groups'][mask] == i)]
 
                         line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" %(comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
                         print_and_log(line, 'debug', logger)
                         local_mergings += merged[1]
-                        del dist, r, d, c
+                        del dist, d, c
                     else:
                         cluster_results[p][ielec]['groups'] = numpy.zeros(0, dtype=numpy.int32)
                         cluster_results[p][ielec]['n_clus'] = 0
@@ -954,6 +962,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 nb_dim_kept = min(nb_dim_kept, result['pca_%s_' %p + str(ielec)].shape[1])
 
             result['data_' + str(ielec)] = numpy.zeros((0, nb_dim_kept), dtype=numpy.float32)
+            if debug:
+                result['rho_' + str(ielec)] = numpy.zeros(0 , dtype=numpy.float32)
+                result['delta_' + str(ielec)] = numpy.zeros(0, dtype=numpy.float32)
             indices  = inv_nodes[nodes]
             sindices = nodes_indices[ielec]
             n_neighb = len(sindices)
@@ -1127,6 +1138,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     max_offset = numpy.int32(numpy.max(result['clusters_' + str(ielec)]) + 1)
                 else:
                     max_offset = numpy.int32(0)
+
+                if debug:
+                    result['rho_' + str(ielec)] = numpy.concatenate((result['rho_' + str(ielec)], result['rho_%s_' %p + str(ielec)]))
+                    result['delta_' + str(ielec)] = numpy.concatenate((result['delta_' + str(ielec)], result['delta_%s_' %p + str(ielec)]))
 
                 mask = result['clusters_%s_' %p + str(ielec)] > -1
                 result['clusters_%s_' %p + str(ielec)][mask] += max_offset
