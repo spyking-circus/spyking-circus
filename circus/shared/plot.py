@@ -1,10 +1,13 @@
+import matplotlib.colors as mcolors
 import numpy, scipy, pylab, os
+import statsmodels.api as sm
 from circus.shared.files import load_data, get_results, get_results
 import numpy, pylab
 from circus.shared import algorithms as algo
 from circus.shared.utils import *
 from parser import CircusParser
 from probes import get_nodes_and_edges
+
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
@@ -114,122 +117,159 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
 
 
 def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, alpha=3):
+    """Sanity plot of the clusters (per electrode)."""
 
-    import matplotlib.colors as colors
+    marker_size = 3 ** 2
+    my_cmap = pylab.get_cmap('jet')
+    c_norm = mcolors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
+    scalar_map = pylab.cm.ScalarMappable(norm=c_norm, cmap=my_cmap)
+    assigned = numpy.where(halo > -1)[0]
+    not_assigned = numpy.where(halo == -1)[0]
+    colors = scalar_map.to_rgba(halo[assigned])
 
     fig = pylab.figure(figsize=(15, 10))
-    def_size  = 10
-    my_cmap   = pylab.get_cmap('jet')
-    cNorm     = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
-    scalarMap = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
-    assigned  = numpy.where(halo > -1)[0]
-    not_assigned = numpy.where(halo == -1)[0]
 
-    ax  = fig.add_subplot(241)
-    ax.set_xlabel(r'$\rho$')
-    ax.set_ylabel(r'$\delta$')
-    ax.scatter(rho, delta, color='k', s=def_size, linewidth=0)
+    # Centroids plot.
+    ax = fig.add_subplot(241)
+    # # Plot points.
+    ax.scatter(rho, delta, s=marker_size, c='k', linewidths=0)
+    # # Highlight the centroids.
+    for i in centers:
+        if halo[i] > -1:
+            color_val = scalar_map.to_rgba(halo[i])
+            ax.scatter([rho[i]], [delta[i]], s=marker_size, c=color_val, linewidths=0)
+    # # Adjust axis.
+    rho_min, rho_max = ax.get_xlim()
     try:
         ax.set_yscale('log')
     except Exception:
         pass
-    ax.set_title('Centroids')
-    rmin, rmax = ax.get_xlim()
-    for i in centers:
-        if halo[i] > -1:
-            colorVal = scalarMap.to_rgba(halo[i])
-            ax.plot(rho[i], delta[i], 'o', color=colorVal)
-    ax.set_xlim(0.98*rmin, 1.02*rmax)
+    # # Add labels.
+    ax.set_xlim(rho_min, rho_max)
+    ax.set_xlabel(r"$\rho$")
+    ax.set_ylabel(r"$\delta$")
+    ax.set_title("Centroids")
 
-    colors = scalarMap.to_rgba(halo[assigned])
-
+    # Plot PC 1 vs PC 0.
     ax = fig.add_subplot(242)
-    ax.scatter(data[not_assigned,0], data[not_assigned,1], c='k', linewidth=0, s=def_size, alpha=0.5)
-    ax.scatter(data[assigned,0], data[assigned,1], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
+    ax.scatter(data[not_assigned, 0], data[not_assigned, 1], s=marker_size, c='k', alpha=0.5, linewidths=0)
+    ax.scatter(data[assigned, 0], data[assigned, 1], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
 
     if data.shape[1] > 2:
+
+        # Plot PC 2 vs PC 0.
         ax = fig.add_subplot(243)
-        ax.scatter(data[not_assigned,0], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(data[assigned,0], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 2')
-                    
+        ax.scatter(data[not_assigned, 0], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
+        ax.scatter(data[assigned, 0], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+        ax.set_xlabel("dim. 0")
+        ax.set_ylabel("dim. 2")
+
+        # Plot PC 2 vs PC 1.
         ax = fig.add_subplot(244)
-        ax.scatter(data[not_assigned,1], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(data[assigned,1], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 1')
-        ax.set_ylabel('Dim 2')
+        ax.scatter(data[not_assigned, 1], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
+        ax.scatter(data[assigned, 1], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+        ax.set_xlabel("dim. 1")
+        ax.set_ylabel("dim. 2")
 
-    my_cmap   = pylab.get_cmap('winter')
-        
-    ax  = fig.add_subplot(247)
+    my_cmap = pylab.get_cmap('winter')
+
+    # Rho plot.
+    ax = fig.add_subplot(247)
     idx = numpy.argsort(rho[assigned])
-    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap)
-    ax.scatter(data[centers, 0], data[centers, 1], c='r')
+    ax.scatter(
+        data[assigned[idx], 0], data[assigned[idx], 1], s=marker_size, c=rho[assigned[idx]], cmap=my_cmap, linewidths=0
+    )
+    ax.scatter(data[centers, 0], data[centers, 1], s=marker_size, c='r', linewidths=0)
     if injected is not None:
-        ax.scatter(data[injected, 0], data[injected, 1], c='b')
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
-    ax.set_title(r'$\rho$')
+        ax.scatter(data[injected, 0], data[injected, 1], s=marker_size, c='b', linewidths=0)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
+    ax.set_title(r"$\rho$")
 
-    ax  = fig.add_subplot(248)
+    # Delta plot.
+    ax = fig.add_subplot(248)
     idx = numpy.argsort(delta[assigned])
-    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap)
-    #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
+    ax.scatter(
+        data[assigned[idx], 0], data[assigned[idx], 1], s=marker_size,
+        c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap, linewidths=0
+    )
+    ax.scatter(data[centers, 0], data[centers, 1], s=marker_size, c='r', linewidths=0)
     if injected is not None:
-        ax.scatter(data[injected, 0], data[injected, 1], c='b')
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
-    ax.set_title(r'$\delta$')
+        ax.scatter(data[injected, 0], data[injected, 1], c='b', linewidths=0)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
+    ax.set_title(r"$\delta$")
 
-    ax = fig.add_subplot(245)
-    ax.set_xlabel(r'$\rho$')
-    ax.set_ylabel(r'$\delta$')
-    ax.set_title('Putative Centroids')
-
-    ax.scatter(rho, delta, c='k', s=def_size, linewidth=0)
-
-    idx = numpy.argsort(rho)
-            
-    import statsmodels.api as sm
+    # Preliminary computations.
     x = sm.add_constant(rho)
     model = sm.RLM(delta, x)
     results = model.fit()
     difference = delta - results.fittedvalues
     factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
-    upper = results.fittedvalues + alpha*factor*(1 + results.fittedvalues)
-    z_score = difference - alpha*factor*(1 + results.fittedvalues)
-    mcenters = numpy.where(z_score >= 0)[0]
-    ax.fill_between(rho[idx], results.fittedvalues[idx], upper[idx], alpha=0.5, color='r')
-    ax.plot(rho[mcenters], delta[mcenters], 'r.')
-    
-    ax2 = fig.add_subplot(246)
-    ax2.set_xlabel(r'$\rho$')
-    ax2.set_ylabel(r'$\epsilon$')
-    ax2.scatter(rho, z_score, c='k', s=def_size, linewidth=0)
-    ax2.scatter(rho[centers], z_score[centers], c='r', s=def_size, linewidth=0)
-    ax2.set_xlim(0.98*rmin, 1.02*rmax)
-    
+    upper = results.fittedvalues + alpha * factor * (1 + results.fittedvalues)
+    z_score = difference - alpha * factor * (1 + results.fittedvalues)
+
+    # Putative centroids plot.
+    ax = fig.add_subplot(245)
+    # # Plot points.
+    ax.scatter(rho, delta, s=marker_size, c='k', linewidths=0)
+    # # Plot excluded region.
+    idx = numpy.argsort(rho)
+    ax.fill_between(rho[idx], results.fittedvalues[idx], y2=upper[idx], alpha=0.5, color='r')
+    # TODO remove the following commented block (deprecated)?
+    # # # Highlight the centroids.
+    # m_centers = numpy.where(z_score >= 0)[0]
+    # ax.plot(rho[m_centers], delta[m_centers], 'r.')
+    # # Highlight the centroids.
+    for i in centers:
+        if halo[i] > -1:
+            color_val = scalar_map.to_rgba(halo[i])
+            ax.scatter([rho[i]], [delta[i]], s=marker_size, c=color_val, linewidths=0)
+    # # Adjust axis.
     try:
         ax.set_yscale('log')
     except Exception:
         pass
-    ax.set_xlim(0.98*rmin, 1.02*rmax)
+    ax.set_xlim(rho_min, rho_max)
+    # # Add labels.
+    ax.set_xlabel(r"$\rho$")
+    ax.set_ylabel(r"$\delta$")
+    ax.set_title("Putative centroids")
+
+    # Putative centroids plot.
+    ax = fig.add_subplot(246)
+    ax.scatter(rho, z_score, s=marker_size, c='k', linewidths=0)
+    # # Highlight the centroids.
+    for i in centers:
+        if halo[i] > -1:
+            color_val = scalar_map.to_rgba(halo[i])
+            ax.scatter([rho[i]], [delta[i]], s=marker_size, c=color_val, linewidths=0)
+    # # Adjust axis.
+    ax.set_xlim(rho_min, rho_max)
+    # # Add labels.
+    ax.set_xlabel(r"$\rho$")
+    ax.set_ylabel(r"$\epsilon$")
+    ax.set_title("Putative centroids")
+
     try:
         pylab.tight_layout()
     except Exception:
         pass
+
     if save:
         try:
-            pylab.savefig(os.path.join(save[0], 'cluster_%s' %save[1]))
+            pylab.savefig(os.path.join(save[0], 'cluster_%s' % save[1]))
             pylab.close()
         except Exception:
             pass
     else:
         pylab.show()
+
     del fig
+
+    return
 
 
 def view_local_merges(
@@ -237,7 +277,6 @@ def view_local_merges(
         save=False, max_nb_traces=200,
 ):
 
-    import matplotlib.colors as clr
     import matplotlib.pyplot as plt
 
     marker_size = 10
@@ -300,7 +339,7 @@ def view_local_merges(
 
         cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
         colors = {
-            cluster_nb: clr.to_rgb('C{}'.format(k % 10))
+            cluster_nb: mcolors.to_rgb('C{}'.format(k % 10))
             for k, cluster_nb in enumerate(cluster_nbs)
         }
 
@@ -440,7 +479,6 @@ def view_local_merges_backup(
         save=False, max_nb_traces=200,
 ):
 
-    import matplotlib.colors as clr
     import matplotlib.pyplot as plt
 
     marker_size = 10
@@ -451,7 +489,7 @@ def view_local_merges_backup(
 
     cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
     colors = {
-        cluster_nb: clr.to_rgb('C{}'.format(k % 10))
+        cluster_nb: mcolors.to_rgb('C{}'.format(k % 10))
         for k, cluster_nb in enumerate(cluster_nbs)
     }
 
@@ -571,8 +609,6 @@ def view_local_merges_backup(
 
 def view_rejection(a, b, hist, save=False):
 
-    import matplotlib.colors as colors
-
     fig = pylab.figure(figsize=(15, 10))
     ax  = fig.add_subplot(211)
     ax.plot(b, a)
@@ -603,8 +639,7 @@ def view_rejection(a, b, hist, save=False):
 
 
 def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves=200, save=False):
-    
-    import matplotlib.colors as colors
+
     nb_templates = templates.shape[1]
     n_panels     = numpy.ceil(numpy.sqrt(nb_templates))
     mask         = numpy.where(halo > -1)[0]  # i.e. assigned only
@@ -614,7 +649,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     center       = len(data[0] - 1)//2
 
     my_cmap      = pylab.get_cmap('jet')
-    cNorm        = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
+    cNorm        = mcolors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
     scalarMap    = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
     
     for count, i in enumerate(xrange(nb_templates)):
@@ -970,9 +1005,8 @@ def view_raw_templates(file_name, n_temp=2, square=True):
     else:
         idx = n_temp
 
-    import matplotlib.colors as colors
     my_cmap   = pylab.get_cmap('winter')
-    cNorm     = colors.Normalize(vmin=0, vmax=N_e)
+    cNorm     = mcolors.Normalize(vmin=0, vmax=N_e)
     scalarMap = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
 
     pylab.figure()
