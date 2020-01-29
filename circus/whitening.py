@@ -37,6 +37,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges     = get_nodes_and_edges(params)
     safety_time      = params.getint('whitening', 'safety_time')
     safety_space     = params.getboolean('whitening', 'safety_space')
+    noise_window     = params.getint('detection', 'noise_window')
     nb_temp_white    = min(max(20, comm.size), N_e)
     max_silence_1    = int(20*params.rate // comm.size)
     max_silence_2    = 5000
@@ -463,7 +464,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
                             if reject_noise:
-                                noise_slice = sub_mat[snippet_duration - safety_time:snippet_duration + safety_time]
+                                noise_slice = sub_mat[snippet_duration - noise_window:snippet_duration + noise_window]
                                 is_noise = numpy.std(noise_slice)/stds[elec] < rejection_threshold
                             else:
                                 is_noise = False
