@@ -362,6 +362,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         reject_noise = False
 
+    nb_noise = 0
+
     to_explore = xrange(comm.rank, nb_chunks, comm.size)
 
     upper_bounds = max_elts_elec
@@ -461,7 +463,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
                             if reject_noise:
-                                is_noise = numpy.std(sub_mat) < rejection_threshold*stds[elec]
+                                is_noise = numpy.std(sub_mat)/stds[elec] < rejection_threshold
                             else:
                                 is_noise = False
                             
@@ -498,9 +500,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                 groups[elec] += 1
                                 all_times[indices, min_times[midx]:max_times[midx]] = True
+                            else:
+                                nb_noise += 1
 
     sys.stderr.flush()
 
+    print_and_log(["Node %d has rejected %d noisy waveforms" %(comm.rank, nb_noise)], 'debug', logger)
     print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
 
     if sign_peaks in ['negative', 'both']:

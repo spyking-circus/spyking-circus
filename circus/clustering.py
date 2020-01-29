@@ -142,6 +142,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     thresholds = io.load_data(params, 'thresholds')
     mads = io.load_data(params, 'mads')
     stds = io.load_data(params, 'stds')
+
+    waveforms = io.load_data(params, 'waveforms')
+    std_waveform = numpy.median(numpy.std(waveforms, 1))
+
     n_scalar = N_e*N_t
     if do_spatial_whitening:
         spatial_whitening  = io.load_data(params, 'spatial_whitening')
@@ -298,6 +302,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
         ## Random selection of spikes
+
+        nb_noise = 0
 
         for gcount, gidx in enumerate(to_explore):
 
@@ -461,7 +467,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     ## test if the sample is pure Gaussian noise
                                     if reject_noise:
-                                        is_noise = numpy.all(numpy.std(sub_mat, axis=0) < rejection_threshold * stds[indices])
+                                        is_noise = numpy.all(numpy.std(sub_mat, 0)/std_waveform < rejection_threshold)
                                     else:
                                         is_noise = False
 
@@ -585,10 +591,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             else:
                                                 all_times[elec, min_times[midx]:max_times[midx]] = True
 
+                                    else:
+                                        nb_noise += 1
+                                    #     import pylab
+                                    #     pylab.plot(sub_mat)
+                                    #     pylab.plot([0, N_t], [-thresholds[elec], -thresholds[elec]], 'k--')
+                                    #     pylab.plot([0, N_t], [-stds[elec], -stds[elec]], 'k--')
+                                    #     pylab.show()
+
         comm.Barrier()
         sys.stderr.flush()
 
         print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', logger)
+        print_and_log(["Node %d has rejected %d noisy waveforms" %(comm.rank, nb_noise)], 'info', logger)
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = numpy.int64(numpy.sum(gdata))
