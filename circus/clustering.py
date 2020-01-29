@@ -827,7 +827,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['sdist_%s_' % p + str(ielec)] = sdist
                         del rho
 
-                if gpass == nb_repeats:
+                if gpass == nb_repeats:  # i.e. last pass (during which clustering is done)
 
                     if result.has_key('tmp_%s_' % p + str(ielec)):
                         result.pop('tmp_%s_' % p + str(ielec))
@@ -843,18 +843,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         dist = tmp_h5py.get('dist_%s_' % p + str(ielec))[:]
                         result['rho_%s_' % p + str(ielec)] = -result['rho_%s_' % p + str(ielec)] + result['rho_%s_' % p + str(ielec)].max()
 
+                        # TODO check the following lines.
+                        # Now we perform the clustering.
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(
                             result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity
                         )
+                        result['delta_%s_' % p + str(ielec)] = d  # i.e. save delta values
 
-                        result['delta_%s_' % p + str(ielec)] = d
-                        # Now we perform a merging step, for clusters that look too similar
+                        # TODO check the following lines.
+                        # Now we perform a merging step, for clusters that look too similar.
                         old_allocation = np.copy(cluster_results[p][ielec]['groups'])
                         cluster_results[p][ielec]['groups'], merged, merge_history = algo.merging(
                             cluster_results[p][ielec]['groups'], merging_method,
                             merging_param, result['sub_%s_' % p + str(ielec)]
                         )
 
+                        # Remove clusters without a sufficient number of points.
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
                         count = 0
                         to_remove = []
@@ -864,8 +868,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 cluster_results[p][ielec]['groups'][tmp] = -1
                                 to_remove += [count]
                             count += 1
-
-                        c = numpy.delete(c, to_remove)
+                        c = numpy.delete(c, to_remove)  # update the cluster labels
 
                         # Sanity plots for clusters.
                         if make_plots not in ['None', '']:
@@ -938,7 +941,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         for i in numpy.unique(cluster_results[p][ielec]['groups'][mask]):
                             n_clusters += [numpy.sum(cluster_results[p][ielec]['groups'][mask] == i)]
 
-                        line = ["Node %d: %d-%d %s templates on channel %d from %d spikes: %s" % (comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))]
+                        line = [
+                            "Node %d: %d-%d %s templates on channel %d from %d spikes: %s"
+                            % (comm.rank, merged[0], merged[1], flag, ielec, n_data, str(n_clusters))
+                        ]
                         print_and_log(line, 'debug', logger)
                         local_mergings += merged[1]
                         del dist, d, c
@@ -991,6 +997,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if use_savgol:
             print_and_log(["Templates will be smoothed by Savitzky Golay Filtering ..."], 'debug', logger)
 
+    # Now we perform the extraction of the templates.
     if extraction in ['median-raw', 'mean-raw']:
 
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
