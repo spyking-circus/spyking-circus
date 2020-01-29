@@ -467,7 +467,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     ## test if the sample is pure Gaussian noise
                                     if reject_noise:
-                                        is_noise = numpy.all(numpy.std(sub_mat, 0)/std_waveform < rejection_threshold)
+                                        noise_slice = sub_mat[duration - safety_time:duration + safety_time]
+                                        is_noise = numpy.all(numpy.std(noise_slice, 0)/stds[indices] < rejection_threshold)
                                     else:
                                         is_noise = False
 
@@ -603,7 +604,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         sys.stderr.flush()
 
         print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', logger)
-        print_and_log(["Node %d has rejected %d noisy waveforms" %(comm.rank, nb_noise)], 'info', logger)
+        print_and_log(["Node %d has rejected %d noisy waveforms" %(comm.rank, nb_noise)], 'debug', logger)
         gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = numpy.int64(numpy.sum(gdata))

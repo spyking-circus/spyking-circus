@@ -463,7 +463,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
                             if reject_noise:
-                                is_noise = numpy.std(sub_mat)/stds[elec] < rejection_threshold
+                                noise_slice = sub_mat[snippet_duration - safety_time:snippet_duration + safety_time]
+                                is_noise = numpy.std(noise_slice)/stds[elec] < rejection_threshold
                             else:
                                 is_noise = False
                             
