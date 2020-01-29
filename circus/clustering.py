@@ -144,7 +144,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     stds = io.load_data(params, 'stds')
 
     waveforms = io.load_data(params, 'waveforms')
-    std_waveform = numpy.median(numpy.std(waveforms, 1))
+    std_waveform = numpy.mean(numpy.std(waveforms, 1))
 
     n_scalar = N_e*N_t
     if do_spatial_whitening:
@@ -467,8 +467,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     ## test if the sample is pure Gaussian noise
                                     if reject_noise:
-                                        noise_slice = sub_mat[duration - noise_window:duration + noise_window]
-                                        is_noise = numpy.all(numpy.std(noise_slice, 0)/stds[indices] < rejection_threshold)
+                                        noise_slice = sub_mat[duration - noise_window:duration + noise_window, elec_positions[elec]]
+                                        is_noise = numpy.std(noise_slice)/stds[elec] < rejection_threshold
                                     else:
                                         is_noise = False
 
@@ -596,14 +596,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         nb_noise += 1
                                         # import pylab
                                         # pylab.subplot(121)
-                                        # noise_slice = sub_mat[duration - noise_window:duration + noise_window]
-                                        # pylab.plot(noise_slice)
-                                        # pylab.plot([0, len(noise_slice)], [-thresholds[elec], -thresholds[elec]], 'k--')
-                                        # pylab.plot([0, len(noise_slice)], [-stds[elec], -stds[elec]], 'k--')
+                                        # #sub_mat = sub_mat[duration - noise_window:duration + noise_window]
+                                        # #sub_mat = scipy.ndimage.filters.convolve1d(sub_mat, waveform_neg, axis=0, mode='constant')
+                                        # pylab.plot(sub_mat)
+                                        # pylab.plot([0, len(sub_mat)], [-thresholds[elec], -thresholds[elec]], 'k--')
+                                        # pylab.plot([0, len(sub_mat)], [-stds[elec], -stds[elec]], 'k--')
                                         # #pylab.plot([duration - noise_window, duration - noise_window], [-thresholds[elec], thresholds[elec]], 'k--')
                                         # #pylab.plot([duration + noise_window, duration + noise_window], [-thresholds[elec], thresholds[elec]], 'k--')
                                         # pylab.subplot(122)
-                                        # pylab.plot(numpy.std(noise_slice)/stds[indices])
+                                        # pylab.plot(numpy.std(sub_mat, 0)/std_waveform)
                                         # pylab.plot([0, len(indices)], [rejection_threshold, rejection_threshold], 'k--')
                                         # pylab.show()
 
