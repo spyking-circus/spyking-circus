@@ -37,6 +37,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges     = get_nodes_and_edges(params)
     safety_time      = params.getint('whitening', 'safety_time')
     safety_space     = params.getboolean('whitening', 'safety_space')
+    noise_window     = params.getint('detection', 'noise_window')
     nb_temp_white    = min(max(20, comm.size), N_e)
     max_silence_1    = int(20*params.rate // comm.size)
     max_silence_2    = 5000
@@ -366,6 +367,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         reject_noise = False
 
+    nb_noise = 0
+
     to_explore = xrange(comm.rank, nb_chunks, comm.size)
 
     upper_bounds = max_elts_elec
@@ -468,7 +471,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
                             if reject_noise:
-                                is_noise = numpy.std(sub_mat) < rejection_threshold*stds[elec]
+                                noise_slice = sub_mat[snippet_duration - noise_window:snippet_duration + noise_window]
+                                is_noise = numpy.std(noise_slice)/stds[elec] < rejection_threshold
                             else:
                                 is_noise = False
                             
@@ -505,9 +509,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                 groups[elec] += 1
                                 all_times[indices, min_times[midx]:max_times[midx]] = True
+                            else:
+                                nb_noise += 1
 
     sys.stderr.flush()
 
+    print_and_log(["Node %d has rejected %d noisy waveforms" %(comm.rank, nb_noise)], 'debug', logger)
     print_and_log(["Node %d has collected %d waveforms" %(comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
 
     if sign_peaks in ['negative', 'both']:

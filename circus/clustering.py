@@ -66,13 +66,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     sensitivity = params.getfloat('clustering', 'sensitivity')
     hdf5_compress = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
-    test_clusters = params.getboolean('clustering', 'test_clusters')
-    sparsify = params.getfloat('clustering', 'sparsify')
-    debug = params.getboolean('clustering', 'debug')
-    tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
-    amp_limits = map(float, tmp_limits)
-    elt_count = 0
-    m_ratio = params.getfloat('clustering', 'm_ratio')
+    test_clusters  = params.getboolean('clustering', 'test_clusters')
+    sparsify       = params.getfloat('clustering', 'sparsify')
+    debug          = params.getboolean('clustering', 'debug')
+    noise_window   = params.getint('detection', 'noise_window')
+    tmp_limits     = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
+    amp_limits     = map(float, tmp_limits)
+    elt_count      = 0
+    m_ratio        = params.getfloat('clustering', 'm_ratio')
     sub_output_dim = params.getint('clustering', 'sub_dim')
     inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
@@ -143,7 +144,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     thresholds = io.load_data(params, 'thresholds')
     mads = io.load_data(params, 'mads')
     stds = io.load_data(params, 'stds')
-    n_scalar = N_e * N_t
+
+    waveforms = io.load_data(params, 'waveforms')
+    std_waveform = numpy.mean(numpy.std(waveforms, 1))
+
+    n_scalar = N_e*N_t
+
     if do_spatial_whitening:
         spatial_whitening = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
@@ -318,6 +324,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
         # # Random selection of spikes
+
+        nb_noise = 0
 
         for gcount, gidx in enumerate(to_explore):
 
@@ -515,9 +523,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     # # test if the sample is pure Gaussian noise
                                     if reject_noise:
-                                        is_noise = numpy.all(
-                                            numpy.std(sub_mat, axis=0) < rejection_threshold * stds[indices]
-                                        )
+                                        noise_slice = sub_mat[duration - noise_window:duration + noise_window, elec_positions[elec]]
+                                        is_noise = numpy.std(noise_slice)/stds[elec] < rejection_threshold
                                     else:
                                         is_noise = False
 
@@ -644,13 +651,29 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             else:
                                                 all_times[elec, min_times[midx]:max_times[midx]] = True
 
+                                    else:
+                                        nb_noise += 1
+                                        # import pylab
+                                        # pylab.subplot(121)
+                                        # #sub_mat = sub_mat[duration - noise_window:duration + noise_window]
+                                        # #sub_mat = scipy.ndimage.filters.convolve1d(sub_mat, waveform_neg, axis=0, mode='constant')
+                                        # pylab.plot(sub_mat)
+                                        # pylab.plot([0, len(sub_mat)], [-thresholds[elec], -thresholds[elec]], 'k--')
+                                        # pylab.plot([0, len(sub_mat)], [-stds[elec], -stds[elec]], 'k--')
+                                        # #pylab.plot([duration - noise_window, duration - noise_window], [-thresholds[elec], thresholds[elec]], 'k--')
+                                        # #pylab.plot([duration + noise_window, duration + noise_window], [-thresholds[elec], thresholds[elec]], 'k--')
+                                        # pylab.subplot(122)
+                                        # pylab.plot(numpy.std(sub_mat, 0)/std_waveform)
+                                        # pylab.plot([0, len(indices)], [rejection_threshold, rejection_threshold], 'k--')
+                                        # pylab.show()
+
         comm.Barrier()
         sys.stderr.flush()
 
-        lines = ['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)]
-        print_and_log(lines, 'debug', logger)
-        gdata = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
-        gdata2 = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
+        print_and_log(['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected)], 'debug', logger)
+        print_and_log(["Node %d has rejected %d noisy waveforms" %(comm.rank, nb_noise)], 'info', logger)
+        gdata       = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
+        gdata2      = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = numpy.int64(numpy.sum(gdata))
         nb_rejected = numpy.int64(numpy.sum(gdata2))
         nb_total = numpy.int64(nb_elts * comm.size)
