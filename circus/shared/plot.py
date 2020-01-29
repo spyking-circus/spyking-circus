@@ -152,79 +152,55 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
 
     # Plot PC 1 vs PC 0.
     ax = fig.add_subplot(242)
-
-    ax.scatter(data[not_assigned,0], data[not_assigned,1], c='k', linewidth=0, s=def_size, alpha=0.5)
-    ax.scatter(data[assigned,0], data[assigned,1], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
-    xmin, xmax = ax.get_xlim()
-    ymin, ymax = ax.get_ylim()
-    ax.plot([xmin, xmax], [0, 0], 'k--', alpha=0.5)
-    ax.plot([0, 0], [ymin, ymax], 'k--', alpha=0.5)
+    ax.scatter(data[not_assigned, 0], data[not_assigned, 1], s=marker_size, c='k', alpha=0.5, linewidths=0)
+    ax.scatter(data[assigned, 0], data[assigned, 1], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
 
     if data.shape[1] > 2:
 
         # Plot PC 2 vs PC 0.
         ax = fig.add_subplot(243)
-        ax.scatter(data[not_assigned,0], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(data[assigned,0], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 2')
-        xmin, xmax = ax.get_xlim()
-        ymin, ymax = ax.get_ylim()
-        ax.plot([xmin, xmax], [0, 0], 'k--', alpha=0.5)
-        ax.plot([0, 0], [ymin, ymax], 'k--', alpha=0.5)
-                    
+        ax.scatter(data[not_assigned, 0], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
+        ax.scatter(data[assigned, 0], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+        ax.set_xlabel("dim. 0")
+        ax.set_ylabel("dim. 2")
+
+        # Plot PC 2 vs PC 1.
         ax = fig.add_subplot(244)
-        ax.scatter(data[not_assigned,1], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(data[assigned,1], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 1')
-        ax.set_ylabel('Dim 2')
-        xmin, xmax = ax.get_xlim()
-        ymin, ymax = ax.get_ylim()
-        ax.plot([xmin, xmax], [0, 0], 'k--', alpha=0.5)
-        ax.plot([0, 0], [ymin, ymax], 'k--', alpha=0.5)
+        ax.scatter(data[not_assigned, 1], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
+        ax.scatter(data[assigned, 1], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+        ax.set_xlabel("dim. 1")
+        ax.set_ylabel("dim. 2")
 
     my_cmap = pylab.get_cmap('winter')
 
     # Rho plot.
     ax = fig.add_subplot(247)
     idx = numpy.argsort(rho[assigned])
-
-    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap, s=def_size)
-    ax.scatter(data[centers, 0], data[centers, 1], c='r')
+    ax.scatter(
+        data[assigned[idx], 0], data[assigned[idx], 1], s=marker_size, c=rho[assigned[idx]], cmap=my_cmap, linewidths=0
+    )
+    ax.scatter(data[centers, 0], data[centers, 1], s=marker_size, c='r', linewidths=0)
     if injected is not None:
-        ax.scatter(data[injected, 0], data[injected, 1], c='b')
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
-    ax.set_title(r'$\rho$')
-    xmin, xmax = ax.get_xlim()
-    ymin, ymax = ax.get_ylim()
-    ax.plot([xmin, xmax], [0, 0], 'k--', alpha=0.5)
-    ax.plot([0, 0], [ymin, ymax], 'k--', alpha=0.5)
+        ax.scatter(data[injected, 0], data[injected, 1], s=marker_size, c='b', linewidths=0)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
+    ax.set_title(r"$\rho$")
 
     # Delta plot.
     ax = fig.add_subplot(248)
     idx = numpy.argsort(delta[assigned])
-    
-    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap, s=def_size)
-    #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
+    ax.scatter(
+        data[assigned[idx], 0], data[assigned[idx], 1], s=marker_size,
+        c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap, linewidths=0
+    )
+    ax.scatter(data[centers, 0], data[centers, 1], s=marker_size, c='r', linewidths=0)
     if injected is not None:
-        ax.scatter(data[injected, 0], data[injected, 1], c='b')
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
-    ax.set_title(r'$\delta$')
-    xmin, xmax = ax.get_xlim()
-    ymin, ymax = ax.get_ylim()
-    ax.plot([xmin, xmax], [0, 0], 'k--', alpha=0.5)
-    ax.plot([0, 0], [ymin, ymax], 'k--', alpha=0.5)
-
-    ax = fig.add_subplot(245)
-    ax.set_xlabel(r'$\rho$')
-    ax.set_ylabel(r'$\delta$')
-    ax.set_title('Putative Centroids')
-
-    ax.scatter(rho, delta, c='k', s=def_size, linewidth=0)
+        ax.scatter(data[injected, 0], data[injected, 1], c='b', linewidths=0)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
+    ax.set_title(r"$\delta$")
 
     # Preliminary computations.
     x = sm.add_constant(rho)
