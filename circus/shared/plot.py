@@ -117,7 +117,19 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
 
 
 def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, alpha=3):
-    """Sanity plot of the clusters (per electrode)."""
+    """Sanity plot of the clusters (per electrode).
+
+    Arguments:
+        data
+        rho
+        delta
+        centers
+            Indices of the points which correspond to the centroids.
+        halo
+        injected (optional)
+        save: (optional)
+        alpha: (optional)
+    """
 
     marker_size = 3 ** 2
     my_cmap = pylab.get_cmap('jet')
@@ -154,6 +166,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     ax = fig.add_subplot(242)
     ax.scatter(data[not_assigned, 0], data[not_assigned, 1], s=marker_size, c='k', alpha=0.5, linewidths=0)
     ax.scatter(data[assigned, 0], data[assigned, 1], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+    ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
     ax.set_xlabel("dim. 0")
     ax.set_ylabel("dim. 1")
 
@@ -163,6 +177,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
         ax = fig.add_subplot(243)
         ax.scatter(data[not_assigned, 0], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
         ax.scatter(data[assigned, 0], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+        ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+        ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
         ax.set_xlabel("dim. 0")
         ax.set_ylabel("dim. 2")
 
@@ -170,6 +186,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
         ax = fig.add_subplot(244)
         ax.scatter(data[not_assigned, 1], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
         ax.scatter(data[assigned, 1], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+        ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+        ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
         ax.set_xlabel("dim. 1")
         ax.set_ylabel("dim. 2")
 
@@ -184,6 +202,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     ax.scatter(data[centers, 0], data[centers, 1], s=marker_size, c='r', linewidths=0)
     if injected is not None:
         ax.scatter(data[injected, 0], data[injected, 1], s=marker_size, c='b', linewidths=0)
+    ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
     ax.set_xlabel("dim. 0")
     ax.set_ylabel("dim. 1")
     ax.set_title(r"$\rho$")
@@ -198,6 +218,8 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     ax.scatter(data[centers, 0], data[centers, 1], s=marker_size, c='r', linewidths=0)
     if injected is not None:
         ax.scatter(data[injected, 0], data[injected, 1], c='b', linewidths=0)
+    ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
     ax.set_xlabel("dim. 0")
     ax.set_ylabel("dim. 1")
     ax.set_title(r"$\delta$")
@@ -245,7 +267,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     for i in centers:
         if halo[i] > -1:
             color_val = scalar_map.to_rgba(halo[i])
-            ax.scatter([rho[i]], [delta[i]], s=marker_size, c=color_val, linewidths=0)
+            ax.scatter([rho[i]], [z_score[i]], s=marker_size, c=color_val, linewidths=0)
     # # Adjust axis.
     ax.set_xlim(rho_min, rho_max)
     # # Add labels.
