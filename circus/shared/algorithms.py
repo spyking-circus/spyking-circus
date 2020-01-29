@@ -3,7 +3,7 @@ import logging
 import sys
 import scipy.optimize
 import numpy
-import pylab
+# import pylab
 import scipy.spatial.distance
 import scipy.stats
 import shutil
@@ -11,12 +11,14 @@ import h5py
 import scipy.linalg
 import scipy.sparse
 
-from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_intersection_norm
+from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared
+# from circus.shared.files import get_intersection_norm  # TODO remove (not used)?
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
     batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
-from circus.shared.mpi import all_gather_array, comm, gather_array, get_local_ring
+from circus.shared.mpi import all_gather_array, comm, gather_array
+# from circus.shared.mpi import get_local_ring  # TODO remove (not used)?
 
 import scipy.linalg
 import scipy.sparse
@@ -85,7 +87,7 @@ class DistanceMatrix(object):
     def get_deltas(self, rho):
         rho_sort_id = numpy.argsort(rho)  # index to sort
         rho_sort_id = (rho_sort_id[::-1])  # reversing sorting indexes
-        sort_rho = rho[rho_sort_id]  # sorting rho in ascending order
+        # sort_rho = rho[rho_sort_id]  # sorting rho in ascending order  # TODO remove (not used)?
         auxdelta = numpy.zeros(self.size, dtype=numpy.float32)
 
         for count, i in enumerate(rho_sort_id):
@@ -209,7 +211,7 @@ def halo_assign(dist, labels, centers, n_min):
     dist2cluscent = dist2cent * sameclus_cent  # preserves only distances to the corresponding cluster centroid
     nclusmem = numpy.sum(sameclus_cent, axis=1)  # number of cluster members
     meandist2cent = numpy.sum(dist2cluscent, axis=1) / nclusmem  # mean distance to corresponding centroid
-    mad2cent = numpy.zeros(meandist2cent.shape)
+    # mad2cent = numpy.zeros(meandist2cent.shape)  # TODO remove (not used)?
     gt_meandist2cent = numpy.zeros(dist2cluscent.shape, dtype=numpy.bool)
 
     for i in range(len(meandist2cent)):
@@ -230,26 +232,26 @@ def halo_assign(dist, labels, centers, n_min):
 
 def merging(groups, merging_method, merging_param, data):
 
-    def perform_merging(groups, merging_method, merging_param, data):
-        mask = numpy.where(groups > -1)[0]
-        clusters = numpy.unique(groups[mask])
-        dmin = numpy.inf
+    def perform_merging(groups_, merging_method_, merging_param_, data_):
+        mask_ = numpy.where(groups_ > -1)[0]
+        clusters_ = numpy.unique(groups_[mask_])
+        dmin_ = numpy.inf
         to_merge = [None, None]
 
-        for ic1 in xrange(len(clusters)):
-            idx1 = numpy.where(groups == clusters[ic1])[0]
-            sd1 = numpy.take(data, idx1, axis=0)
+        for ic1 in xrange(len(clusters_)):
+            idx1 = numpy.where(groups_ == clusters_[ic1])[0]
+            sd1 = numpy.take(data_, idx1, axis=0)
 
-            if merging_method in ['distance', 'dip', 'folding', 'bhatta']:
+            if merging_method_ in ['distance', 'dip', 'folding', 'bhatta']:
                 m1 = numpy.median(sd1, 0)
             else:
                 m1 = None  # default assignment
 
-            for ic2 in xrange(ic1+1, len(clusters)):
-                idx2 = numpy.where(groups == clusters[ic2])[0]
-                sd2 = numpy.take(data, idx2, axis=0)
+            for ic2 in xrange(ic1+1, len(clusters_)):
+                idx2 = numpy.where(groups_ == clusters_[ic2])[0]
+                sd2 = numpy.take(data_, idx2, axis=0)
 
-                if merging_method in ['distance', 'dip', 'folding', 'bhatta']:
+                if merging_method_ in ['distance', 'dip', 'folding', 'bhatta']:
                     m2 = numpy.median(sd2, 0)
                     v_n = (m1 - m2)
                     pr_1 = numpy.dot(sd1, v_n)
@@ -258,66 +260,68 @@ def merging(groups, merging_method, merging_param, data):
                     pr_1 = None  # default assignment
                     pr_2 = None  # default assignment
 
-                if merging_method == 'folding':
+                if merging_method_ == 'folding':
                     sub_data = numpy.concatenate([pr_1, pr_2])
                     unimodal, p_value, phi, _ = batch_folding_test_with_MPA(sub_data, True)
                     if unimodal:
                         dist = p_value
                     else:
                         dist = numpy.inf
-                elif merging_method == 'nd-folding':
+                elif merging_method_ == 'nd-folding':
                     sub_data = numpy.vstack((sd1, sd2))[:, :3]
                     unimodal, p_value, phi, _ = batch_folding_test_with_MPA(sub_data, True)
                     if unimodal:
                         dist = p_value
                     else:
                         dist = numpy.inf
-                elif merging_method == 'dip':
+                elif merging_method_ == 'dip':
                     sub_data = numpy.concatenate([pr_1, pr_2])
                     if len(sub_data) > 5:
-                        dist = dip(sub_data)/dip_threshold(len(sub_data), merging_param)
+                        dist = dip(sub_data) / dip_threshold(len(sub_data), merging_param_)
                     else:
                         dist = numpy.inf
-                elif merging_method == 'distance':
+                elif merging_method_ == 'distance':
                     med1 = numpy.median(pr_1)
                     med2 = numpy.median(pr_2)
                     mad1 = numpy.median(numpy.abs(pr_1 - med1))**2
                     mad2 = numpy.median(numpy.abs(pr_2 - med2))**2
                     norm = mad1 + mad2
                     dist = numpy.sqrt((med1 - med2)**2/norm)
-                elif merging_method == 'bhatta':
+                elif merging_method_ == 'bhatta':
                     try:
                         dist = bhatta_dist(pr_1, pr_2)
                     except Exception:
                         dist = numpy.inf
-                elif merging_method == 'nd-bhatta':
+                elif merging_method_ == 'nd-bhatta':
                     try:
                         dist = nd_bhatta_dist(sd1.T, sd2.T)
                     except Exception:
                         dist = numpy.inf
+                else:
+                    raise ValueError("unexpected value: %s" % merging_method)
 
-                if dist < dmin:
-                    dmin = dist
+                if dist < dmin_:
+                    dmin_ = dist
                     to_merge = [ic1, ic2]
 
-        if merging_method == 'dip':
-            thr = 1
-        elif merging_method in ['folding', 'nd-folding', 'bhatta', 'nd-bhatta']:
-            thr = merging_param
-        elif merging_method == 'distance':
-            thr = merging_param / 0.674
+        if merging_method_ == 'dip':
+            thr_ = 1
+        elif merging_method_ in ['folding', 'nd-folding', 'bhatta', 'nd-bhatta']:
+            thr_ = merging_param_
+        elif merging_method_ == 'distance':
+            thr_ = merging_param_ / 0.674
         else:
-            raise ValueError("unexpected value: %s" % merging_method)
+            raise ValueError("unexpected value: %s" % merging_method_)
 
-        if dmin < thr:
+        if dmin_ < thr_:
             ic1, ic2 = to_merge
-            c1, c2 = clusters[ic1], clusters[ic2]
-            selection = numpy.where(groups == c2)[0]
-            groups[selection] = c1
-            merge = (c1, c2)
-            return True, groups, merge, dmin
+            c1, c2 = clusters_[ic1], clusters_[ic2]
+            selection = numpy.where(groups_ == c2)[0]
+            groups_[selection] = c1
+            merge_ = (c1, c2)
+            return True, groups_, merge_, dmin_
 
-        return False, groups, None, None
+        return False, groups_, None, None
 
     has_been_merged = True
     mask = numpy.where(groups > -1)[0]
@@ -350,18 +354,18 @@ def merging(groups, merging_method, merging_param, data):
     return groups, merged, merge_history
 
 
-def slice_templates(params, to_remove=[], to_merge=[], extension='', input_extension=''):
+def slice_templates(params, to_remove=None, to_merge=None, extension='', input_extension=''):
     """Slice templates in HDF5 file.
 
     Arguments:
         params
-        to_remove: list (optional)
+        to_remove: none | list (optional)
             An array of template indices to remove.
-            The default value is [].
-        to_merge: list | numpy.ndarray (optional)
+            The default value is None.
+        to_merge: none | list | numpy.ndarray (optional)
             An array of pair of template indices to merge
             (i.e. shape = (nb_merges, 2)).
-            The default value is [].
+            The default value is None.
         extension: string (optional)
             The extension to use as output.
             The default value is ''.
@@ -370,13 +374,18 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
             The default value is ''.
     """
 
+    if to_remove is None:
+        to_remove = []
+    if to_merge is None:
+        to_merge = []
+
     file_out_suff = params.get('data', 'file_out_suff')
 
     data_file = params.data_file
-    N_e = params.getint('data', 'N_e')
-    N_total = params.nb_channels
+    n_e = params.getint('data', 'N_e')
+    n_total = params.nb_channels
     hdf5_compress = params.getboolean('data', 'hdf5_compress')
-    N_t = params.getint('detection', 'N_t')
+    n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
     has_support = test_if_support(params, input_extension)
 
@@ -386,43 +395,47 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
         old_limits = load_data(params, 'limits', extension=input_extension)
         if has_support:
             old_supports = load_data(params, 'supports', extension=input_extension)
-        _, N_tm = old_templates.shape
+        else:
+            old_supports = None  # default assignment
+        _, n_tm = old_templates.shape
         norm_templates = load_data(params, 'norm-templates', extension=input_extension)
 
         # Determine the template indices to delete.
         to_delete = list(to_remove)  # i.e. copy
-        if to_merge != []:
+        if len(to_merge) > 0:
             for count in xrange(len(to_merge)):
                 remove = to_merge[count][1]
                 to_delete += [remove]
 
         # Determine the indices to keep.
-        all_templates = set(numpy.arange(N_tm // 2))
+        all_templates = set(numpy.arange(n_tm // 2))
         to_keep = numpy.array(list(all_templates.difference(to_delete)))
 
         positions = numpy.arange(len(to_keep))
 
         # Initialize new HDF5 file for templates.
         local_keep = to_keep[positions]
-        templates = scipy.sparse.lil_matrix((N_e * N_t, 2 * len(to_keep)), dtype=numpy.float32)
+        templates = scipy.sparse.lil_matrix((n_e * n_t, 2 * len(to_keep)), dtype=numpy.float32)
         hfilename = file_out_suff + '.templates{}.hdf5'.format('-new')
         hfile = h5py.File(hfilename, 'w', libver='earliest')
         norms = hfile.create_dataset('norms', shape=(2 * len(to_keep), ), dtype=numpy.float32, chunks=True)
         limits = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         if has_support:
-            supports = hfile.create_dataset('supports', shape=(len(to_keep), N_e), dtype=numpy.bool, chunks=True)
+            supports = hfile.create_dataset('supports', shape=(len(to_keep), n_e), dtype=numpy.bool, chunks=True)
+        else:
+            supports = None  # default assignment
         # For each index to keep.
         for count, keep in zip(positions, local_keep):
             # Copy template.
             templates[:, count] = old_templates[:, keep]
-            templates[:, count + len(to_keep)] = old_templates[:, keep + N_tm // 2]
+            templates[:, count + len(to_keep)] = old_templates[:, keep + n_tm // 2]
             # Copy norm.
             norms[count] = norm_templates[keep]
-            norms[count + len(to_keep)] = norm_templates[keep + N_tm // 2]
+            norms[count + len(to_keep)] = norm_templates[keep + n_tm // 2]
             if has_support:
                 supports[count] = old_supports[keep]
             # Copy limits.
-            if to_merge == []:
+            if len(to_merge) == 0:
                 new_limits = old_limits[keep]
             else:
                 subset = numpy.where(to_merge[:, 0] == keep)[0]
@@ -458,7 +471,7 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
             hfile.create_dataset('temp_x', data=templates.row)
             hfile.create_dataset('temp_y', data=templates.col)
             hfile.create_dataset('temp_data', data=templates.data)
-        hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2*len(to_keep)], dtype=numpy.int32))
+        hfile.create_dataset('temp_shape', data=numpy.array([n_e, n_t, 2 * len(to_keep)], dtype=numpy.int32))
         hfile.close()
 
         # Rename output filename.
@@ -474,15 +487,15 @@ def slice_templates(params, to_remove=[], to_merge=[], extension='', input_exten
 
 
 def slice_clusters(
-        params, result, to_remove=[], to_merge=[], extension='', input_extension='', light=False, method='safe'
+        params, result, to_remove=None, to_merge=None, extension='', input_extension='', light=False, method='safe'
 ):
     """Slice clusters in HDF5 templates.
 
     Arguments:
         params
         result
-        to_remove: list (optional)
-        to_merge: list | numpy.ndarray (optional)
+        to_remove: none | list (optional)
+        to_merge: none | list | numpy.ndarray (optional)
         extension: string (optional)
             The default value is ''.
         input_extension: string (optional)
@@ -491,12 +504,17 @@ def slice_clusters(
         method: string (optional)
     """
 
+    if to_remove is None:
+        to_remove = []
+    if to_merge is None:
+        to_merge = []
+
     file_out_suff = params.get('data', 'file_out_suff')
     data_file = params.data_file
-    N_e = params.getint('data', 'N_e')
-    N_total = params.nb_channels
+    n_e = params.getint('data', 'N_e')
+    n_total = params.nb_channels
     hdf5_compress = params.getboolean('data', 'hdf5_compress')
-    N_t = params.getint('detection', 'N_t')
+    n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
     debug = params.getboolean('clustering', 'debug')
 
@@ -504,20 +522,20 @@ def slice_clusters(
 
         print_and_log(['Node 0 is slicing clusters'], 'debug', logger)
         old_templates = load_data(params, 'templates', extension=input_extension)
-        _, N_tm = old_templates.shape
+        _, n_tm = old_templates.shape
 
         # Determine the template indices to delete.
         to_delete = list(to_remove)
-        if to_merge != []:
+        if len(to_merge) > 0:
             for count in xrange(len(to_merge)):
                 remove = to_merge[count][1]
                 to_delete += [remove]
 
         # Determine the indices to keep.
-        all_templates = set(numpy.arange(N_tm//2))
+        all_templates = set(numpy.arange(n_tm // 2))
         to_keep = numpy.array(list(all_templates.difference(to_delete)))
 
-        all_elements = [[] for i in xrange(N_e)]
+        all_elements = [[] for _ in xrange(n_e)]
         for target in numpy.unique(to_delete):
             elec = result['electrodes'][target]
             nic = target - numpy.where(result['electrodes'] == elec)[0][0]
@@ -528,7 +546,7 @@ def slice_clusters(
         myfilename = file_out_suff + '.clusters{}.hdf5'.format(input_extension)
         myfile = h5py.File(myfilename, 'r', libver='earliest')
 
-        for elec in xrange(N_e):
+        for elec in xrange(n_e):
             if not light:
                 result['data_' + str(elec)] = numpy.delete(result['data_' + str(elec)], all_elements[elec], axis=0)
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
@@ -564,7 +582,7 @@ def slice_clusters(
         to_write = ['data_', 'clusters_', 'times_', 'peaks_']
         if debug:
             to_write += ['rho_', 'delta_']
-        for ielec in xrange(N_e):
+        for ielec in xrange(n_e):
             write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
         write_datasets(cfile, ['electrodes'], result)
         cfile.close()
@@ -583,7 +601,7 @@ def slice_result(result, times):
 
     sub_results = []
 
-    nb_temp = len(result['spiketimes'])
+    # nb_temp = len(result['spiketimes'])  # TODO remove (not used)?
     for t in times:
         sub_result = {'spiketimes': {}, 'amplitudes': {}}
         for key in result['spiketimes'].keys():
@@ -601,28 +619,28 @@ def slice_result(result, times):
 
 def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
-    def remove(result, distances, cc_merge):
+    def remove(result_, distances_, cc_merge_):
         do_merge = True
-        to_merge = numpy.zeros((0, 2), dtype=numpy.int32)
-        g_idx = range(len(distances))
+        to_merge_ = numpy.zeros((0, 2), dtype=numpy.int32)
+        g_idx = range(len(distances_))
         while do_merge:
-            dmax = distances.max()
-            idx = numpy.where(distances == dmax)
-            one_merge = [idx[0][0], idx[1][0]]
-            do_merge = dmax >= cc_merge
+            dmax = distances_.max()
+            idx_ = numpy.where(distances_ == dmax)
+            one_merge = [idx_[0][0], idx_[1][0]]
+            do_merge = dmax >= cc_merge_
 
             if do_merge:
 
-                elec_ic1 = result['electrodes'][one_merge[0]]
-                elec_ic2 = result['electrodes'][one_merge[1]]
-                nic1 = one_merge[0] - numpy.where(result['electrodes'] == elec_ic1)[0][0]
-                nic2 = one_merge[1] - numpy.where(result['electrodes'] == elec_ic2)[0][0]
-                mask1 = result['clusters_' + str(elec_ic1)] > -1
-                mask2 = result['clusters_' + str(elec_ic2)] > -1
-                tmp1 = numpy.unique(result['clusters_' + str(elec_ic1)][mask1])
-                tmp2 = numpy.unique(result['clusters_' + str(elec_ic2)][mask2])
-                elements1 = numpy.where(result['clusters_' + str(elec_ic1)] == tmp1[nic1])[0]
-                elements2 = numpy.where(result['clusters_' + str(elec_ic2)] == tmp2[nic2])[0]
+                elec_ic1 = result_['electrodes'][one_merge[0]]
+                elec_ic2 = result_['electrodes'][one_merge[1]]
+                nic1 = one_merge[0] - numpy.where(result_['electrodes'] == elec_ic1)[0][0]
+                nic2 = one_merge[1] - numpy.where(result_['electrodes'] == elec_ic2)[0][0]
+                mask1 = result_['clusters_' + str(elec_ic1)] > -1
+                mask2 = result_['clusters_' + str(elec_ic2)] > -1
+                tmp1 = numpy.unique(result_['clusters_' + str(elec_ic1)][mask1])
+                tmp2 = numpy.unique(result_['clusters_' + str(elec_ic2)][mask2])
+                elements1 = numpy.where(result_['clusters_' + str(elec_ic1)] == tmp1[nic1])[0]
+                elements2 = numpy.where(result_['clusters_' + str(elec_ic2)] == tmp2[nic2])[0]
 
                 if len(elements1) > len(elements2):
                     to_remove = one_merge[1]
@@ -635,30 +653,30 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                     elec = elec_ic1
                     elements = elements1
 
-                result['data_' + str(elec)] = numpy.delete(result['data_' + str(elec)], elements, axis=0)
-                result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], elements)
-                result['times_' + str(elec)] = numpy.delete(result['times_' + str(elec)], elements)
-                result['peaks_' + str(elec)] = numpy.delete(result['peaks_' + str(elec)], elements)
-                result['electrodes'] = numpy.delete(result['electrodes'], to_remove)
-                distances = numpy.delete(distances, to_remove, axis=0)
-                distances = numpy.delete(distances, to_remove, axis=1)
-                to_merge  = numpy.vstack((to_merge, numpy.array([g_idx[to_keep], g_idx[to_remove]])))
+                result_['data_' + str(elec)] = numpy.delete(result_['data_' + str(elec)], elements, axis=0)
+                result_['clusters_' + str(elec)] = numpy.delete(result_['clusters_' + str(elec)], elements)
+                result_['times_' + str(elec)] = numpy.delete(result_['times_' + str(elec)], elements)
+                result_['peaks_' + str(elec)] = numpy.delete(result_['peaks_' + str(elec)], elements)
+                result_['electrodes'] = numpy.delete(result_['electrodes'], to_remove)
+                distances_ = numpy.delete(distances_, to_remove, axis=0)
+                distances_ = numpy.delete(distances_, to_remove, axis=1)
+                to_merge_ = numpy.vstack((to_merge_, numpy.array([g_idx[to_keep], g_idx[to_remove]])))
                 g_idx.pop(to_remove)
 
-        return to_merge, result
+        return to_merge_, result_
 
     data_file = params.data_file
-    N_e = params.getint('data', 'N_e')
-    N_total = params.nb_channels
-    N_t = params.getint('detection', 'N_t')
+    n_e = params.getint('data', 'N_e')
+    n_total = params.nb_channels
+    n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
     blosc_compress = params.getboolean('data', 'blosc_compress')
 
-    N_tm = load_data(params, 'nb_templates')
-    nb_temp = int(N_tm // 2)
+    n_tm = load_data(params, 'nb_templates')
+    nb_temp = int(n_tm // 2)
     to_merge = []
     cc_merge = params.getfloat('clustering', 'cc_merge')
-    norm = N_e * N_t
+    norm = n_e * n_t
     decimation = params.getboolean('clustering', 'decimation')
 
     if cc_merge < 1:
@@ -688,12 +706,12 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         for i in to_explore:
 
-            idx = numpy.where((over_x >= i*nb_temp+i+1) & (over_x < ((i+1)*nb_temp)))[0]
-            local_x = over_x[idx] - (i*nb_temp+i+1)
+            idx = numpy.where((over_x >= i * nb_temp + i + 1) & (over_x < ((i + 1) * nb_temp)))[0]
+            local_x = over_x[idx] - (i * nb_temp + i + 1)
             data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i+1:] = numpy.max(data, 1)/norm
-            distances[i+1:, i] = distances[i, i+1:]
+            distances[i, i + 1:] = numpy.max(data, 1) / norm
+            distances[i + 1:, i] = distances[i, i + 1:]
 
         # Now we need to sync everything across nodes.
         distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
@@ -725,20 +743,20 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     data_file = params.data_file
-    N_e = params.getint('data', 'N_e')
-    N_total = params.nb_channels
-    N_t = params.getint('detection', 'N_t')
+    n_e = params.getint('data', 'N_e')
+    n_total = params.nb_channels
+    n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
     cc_merge = params.getfloat('clustering', 'cc_merge')
     mixtures = []
-    to_remove = []
+    # to_remove = []  # TODO remove (not used)?
 
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
     norm_templates = load_data(params, 'norm-templates')
     best_elec = load_data(params, 'electrodes')
     limits = load_data(params, 'limits')
     nodes, edges = get_nodes_and_edges(params)
-    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     decimation = params.getboolean('clustering', 'decimation')
     has_support = test_if_support(params, '')
@@ -765,15 +783,15 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     else:
         templates = load_data(params, 'templates')
 
-    x, N_tm = templates.shape
-    nb_temp = int(N_tm // 2)
-    merged = [nb_temp, 0]
+    x, n_tm = templates.shape
+    nb_temp = int(n_tm // 2)
+    # merged = [nb_temp, 0]  # TODO remove (not used)?
 
     if has_support:
         supports = load_data(params, 'supports')
     else:
         supports = {}
-        for t in range(N_e):
+        for t in range(n_e):
             elecs = numpy.take(inv_nodes, edges[nodes[t]])
             supports[t] = elecs
 
@@ -784,7 +802,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         data = c_overs[i].toarray()
         distances[i, i + 1:] = numpy.argmax(data[i + 1:, :], 1)
         distances[i + 1:, i] = distances[i, i + 1:]
-        overlap_0[i] = data[i, N_t - 1]
+        overlap_0[i] = data[i, n_t - 1]
 
     all_temp = numpy.arange(comm.rank, nb_temp, comm.size)
     sorted_temp = numpy.argsort(norm_templates[:nb_temp])[::-1]
@@ -809,13 +827,13 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         been_found = False
         t_k = None
 
-        for l, i in enumerate(all_idx):
+        for n, i in enumerate(all_idx):
             t_i = None
             if not been_found:
                 overlap_i = c_overs[i]
                 M[0, 0] = overlap_0[i]
                 V[0, 0] = overlap_k[i, distances[k, i]]
-                for j in all_idx[l+1:]:
+                for j in all_idx[n+1:]:
                     t_j = None
                     M[1, 1] = overlap_0[j]
                     M[1, 0] = overlap_i[j, distances[k, i] - distances[k, j]]
