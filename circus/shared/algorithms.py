@@ -348,7 +348,7 @@ def halo_assign(dist, labels, centers, n_min):
         # if nb_outliers - nb_points < n_min:  # TODO remove (incorrect)?
         #     gt_mean_dist2cent[i] = False
         if nb_points - nb_outliers < n_min:  # TODO keep (correct)?
-            gt_mean_dist2cent[i, idx] = True  # unassign all the points associated to this cluster
+            gt_mean_dist2cent[i, idx] = False  # unassign all the points associated to this cluster
     selection = numpy.sum(gt_mean_dist2cent, axis=0) > 0
     halolabels[selection] = 0  # set to 0 <=> unassign
 
