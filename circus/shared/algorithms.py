@@ -117,7 +117,7 @@ class DistanceMatrix(object):
             numpy.max(delta[numpy.logical_not(numpy.isinf(delta))])  # assigns max delta to the max rho
         delta[numpy.isinf(delta)] = 0
 
-        return numpy.nan_to_num(delta, copy=False)
+        return delta
 
     def get_deltas_and_neighbors(self, rho):
         """Find the distance to and the index of the nearest point with a higher density.
@@ -192,7 +192,7 @@ def compute_rho(data, update=None, mratio=0.01):
             else:
                 dist_sorted[i] = data
             rho[i] = numpy.mean(dist_sorted[i])
-        answer = numpy.nan_to_num(rho, copy=False), dist, dist_sorted
+        answer = rho, dist, dist_sorted
     else:
         for i in range(nb_points):
             dist = scipy.spatial.distance.cdist(data[i].reshape(1, len(data[i])), update[0]).flatten()
@@ -202,7 +202,7 @@ def compute_rho(data, update=None, mratio=0.01):
             else:
                 dist_sorted[i] = dist
             rho[i] = numpy.mean(dist_sorted[i])
-        answer = numpy.nan_to_num(rho, copy=False), dist_sorted
+        answer = rho, dist_sorted
 
     return answer
 

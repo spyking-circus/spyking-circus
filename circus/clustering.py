@@ -515,9 +515,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     # # test if the sample is pure Gaussian noise
                                     if reject_noise:
-                                        is_noise = numpy.all(
-                                            numpy.std(sub_mat, axis=0) < rejection_threshold * stds[indices]
-                                        )
+                                        is_noise = numpy.std(sub_mat[:, elec_positions[elec]])/stds[elec] < rejection_threshold
                                     else:
                                         is_noise = False
 
