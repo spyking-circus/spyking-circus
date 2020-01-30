@@ -1884,9 +1884,9 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         to_explore = get_tqdm_progressbar(to_explore)
 
 
-    over_x    = numpy.zeros(0, dtype=numpy.uint32)
-    over_y    = numpy.zeros(0, dtype=numpy.uint32)
-    over_data = numpy.zeros(0, dtype=numpy.float32)
+    over_x    = [numpy.zeros(0, dtype=numpy.uint32)]
+    over_y    = [numpy.zeros(0, dtype=numpy.uint32)]
+    over_data = [numpy.zeros(0, dtype=numpy.float32)]
     rows      = numpy.arange(N_e*N_t)
     _srows    = {'left' : {}, 'right' : {}}
 
@@ -1898,7 +1898,6 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     for idelay in all_delays:
         _srows['left'][idelay]  = numpy.where(rows % N_t < idelay)[0]
         _srows['right'][idelay] = numpy.where(rows % N_t >= (N_t - idelay))[0]
-
 
     for ielec in to_explore:
 
@@ -1933,13 +1932,17 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 ddx        = numpy.take(local_idx, dx).astype(numpy.uint32)
                 ddy        = numpy.take(to_consider, dy).astype(numpy.uint32)
                 ones       = numpy.ones(len(dx), dtype=numpy.uint32)
-                over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
-                over_y     = numpy.concatenate((over_y, (idelay - 1)*ones))
-                over_data  = numpy.concatenate((over_data, data.data))
+                over_x.append(ddx*N_tm + ddy)
+                over_y.append((idelay - 1)*ones)
+                over_data.append(data.data)
                 if idelay < N_t:
-                    over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
-                    over_y     = numpy.concatenate((over_y, (duration - idelay)*ones))
-                    over_data  = numpy.concatenate((over_data, data.data))
+                    over_x.append(ddy*N_tm + ddx)
+                    over_y.append((duration - idelay)*ones)
+                    over_data.append(data.data)
+
+    over_x = numpy.concatenate(over_x)
+    over_y = numpy.concatenate(over_y)
+    over_data = numpy.concatenate(over_data)
 
     sys.stderr.flush()
     if comm.rank == 0:
