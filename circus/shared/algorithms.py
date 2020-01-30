@@ -306,7 +306,7 @@ def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='ne
             labels = numpy.copy(centroids)
             indices = numpy.argsort(-rho)  # sort indices by decreasing density
             for index in indices:
-                if labels == 0:
+                if labels[index] == 0:
                     labels[index] = labels[neighbors[index]]
     else:
         raise ValueError("unexpected value %s" % method)
