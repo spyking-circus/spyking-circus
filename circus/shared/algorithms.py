@@ -342,7 +342,7 @@ def halo_assign(dist, labels, centers, n_min):
         median_i = numpy.median(dist2cluscent[i, idx])
         mad_i = numpy.median(numpy.abs(dist2cluscent[i, idx] - median_i))
         bound = mean_i + mad_i
-        # bound = median_i + 42.0 * mad_i  # TODO better solution?
+
         gt_mean_dist2cent[i] = dist2cluscent[i] > bound
         nb_outliers = numpy.sum(gt_mean_dist2cent[i])
         # if nb_outliers - nb_points < n_min:  # TODO remove (incorrect)?

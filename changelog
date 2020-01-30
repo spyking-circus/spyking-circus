@@ -2,12 +2,16 @@
 Release 0.9.2
 =============
 
+* speeding up whitening,clustering and fitting steps
+* fixing a bug in the clustering
+* better detection of noise snippets during the clustering
+* cosmetic changes in the sanity plots (clusters)
 
 =============
 Release 0.9.1
 =============
 
-* Minor bug fixes in spyking-circus-launcher
+* minor bug fixes in spyking-circus-launcher
 * fix a bug in the amplitude display. Values were shuffled when several CPU were used
 * add the option to ignore second component [clustering]->two_components
 

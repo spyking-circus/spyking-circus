@@ -516,7 +516,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     # # test if the sample is pure Gaussian noise
                                     if reject_noise:
                                         slice_window = sub_mat[duration - noise_window: duration + noise_window]
-                                        is_noise = numpy.all(numpy.std(slice_window, 0)/stds[indices] < rejection_threshold)
+                                        is_noise = numpy.all(numpy.mean(slice_window**2, 0)/stds[indices] < rejection_threshold)
                                     else:
                                         is_noise = False
 
