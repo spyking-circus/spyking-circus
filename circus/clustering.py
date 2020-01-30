@@ -87,6 +87,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     use_savgol = params.getboolean('clustering', 'savgol')
     rejection_threshold = params.getfloat('detection', 'rejection_threshold')
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
+    noise_window = params.getint('detection', 'noise_time')
     data_file.open()
     #################################################################
 
@@ -514,7 +515,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     # # test if the sample is pure Gaussian noise
                                     if reject_noise:
-                                        is_noise = numpy.all(numpy.std(sub_mat, 0)/stds[indices] < rejection_threshold)
+                                        slice_window = sub_mat[duration - noise_window: duration + noise_window]
+                                        is_noise = numpy.all(numpy.std(slice_window, 0)/stds[indices] < rejection_threshold)
                                     else:
                                         is_noise = False
 
