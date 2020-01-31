@@ -15,10 +15,12 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 
-from mpi import gather_array, all_gather_array, comm, SHARED_MEMORY
-import files as io
-from messages import print_and_log
+from .mpi import gather_array, all_gather_array, comm, SHARED_MEMORY
+from . import files as io
+from .messages import print_and_log
+
 logger = logging.getLogger(__name__)
+
 import circus
 from distutils.version import StrictVersion
 from scipy.optimize import brenth, minimize
