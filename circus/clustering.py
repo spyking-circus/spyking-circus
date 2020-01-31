@@ -641,6 +641,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 all_times[elec, min_times[midx]:max_times[midx]] = True
                                     else:
                                         nb_noise += 1
+                                        #import pylab
+                                        #pylab.plot(sub_mat)
+                                        #pylab.show()
 
         for elec in xrange(N_e):
             for p in search_peaks:
