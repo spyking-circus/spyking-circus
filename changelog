@@ -2,9 +2,9 @@
 Release 0.9.2
 =============
 
-* speeding up whitening,clustering and fitting steps
-* fixing a bug in the clustering
-* better detection of noise snippets during the clustering
+* speeding up the algorithm
+* fixing a bug in the clustering while assigining labels
+* better detection of noise snippets discarded during clustering
 * cosmetic changes in the sanity plots (clusters)
 
 =============
