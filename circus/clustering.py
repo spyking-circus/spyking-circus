@@ -963,7 +963,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         cluster_results[p][ielec]['groups'] = numpy.zeros(0, dtype=numpy.int32)
                         cluster_results[p][ielec]['n_clus'] = 0
                         result['clusters_%s_' % p + str(ielec)] = numpy.zeros(0, dtype=numpy.int32)
-                        result['delta_%s_' % p + str(ielec)] = numpy.zeros(0, dtype=numpy.zeros32)
+                        result['delta_%s_' % p + str(ielec)] = numpy.zeros(0, dtype=numpy.float32)
                         line = ["Node %d: not enough %s spikes on channel %d" % (comm.rank, flag, ielec)]
                         print_and_log(line, 'debug', logger)
 
