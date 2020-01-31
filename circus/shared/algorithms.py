@@ -117,7 +117,7 @@ class DistanceMatrix(object):
             numpy.max(delta[numpy.logical_not(numpy.isinf(delta))])  # assigns max delta to the max rho
         delta[numpy.isinf(delta)] = 0
 
-        return numpy.nan_to_num(delta, copy=False)
+        return delta
 
     def get_deltas_and_neighbors(self, rho):
         """Find the distance to and the index of the nearest point with a higher density.
@@ -192,7 +192,7 @@ def compute_rho(data, update=None, mratio=0.01):
             else:
                 dist_sorted[i] = data
             rho[i] = numpy.mean(dist_sorted[i])
-        answer = numpy.nan_to_num(rho, copy=False), dist, dist_sorted
+        answer = rho, dist, dist_sorted
     else:
         for i in range(nb_points):
             dist = scipy.spatial.distance.cdist(data[i].reshape(1, len(data[i])), update[0]).flatten()
@@ -202,7 +202,7 @@ def compute_rho(data, update=None, mratio=0.01):
             else:
                 dist_sorted[i] = dist
             rho[i] = numpy.mean(dist_sorted[i])
-        answer = numpy.nan_to_num(rho, copy=False), dist_sorted
+        answer = rho, dist_sorted
 
     return answer
 
@@ -342,13 +342,13 @@ def halo_assign(dist, labels, centers, n_min):
         median_i = numpy.median(dist2cluscent[i, idx])
         mad_i = numpy.median(numpy.abs(dist2cluscent[i, idx] - median_i))
         bound = mean_i + mad_i
-        # bound = median_i + 42.0 * mad_i  # TODO better solution?
+
         gt_mean_dist2cent[i] = dist2cluscent[i] > bound
         nb_outliers = numpy.sum(gt_mean_dist2cent[i])
         # if nb_outliers - nb_points < n_min:  # TODO remove (incorrect)?
         #     gt_mean_dist2cent[i] = False
         if nb_points - nb_outliers < n_min:  # TODO keep (correct)?
-            gt_mean_dist2cent[i, idx] = True  # unassign all the points associated to this cluster
+            gt_mean_dist2cent[i, idx] = False  # unassign all the points associated to this cluster
     selection = numpy.sum(gt_mean_dist2cent, axis=0) > 0
     halolabels[selection] = 0  # set to 0 <=> unassign
 

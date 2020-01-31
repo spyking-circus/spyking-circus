@@ -279,23 +279,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for i in range(N_e):
                 all_found_spikes[i] = []
 
-        local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
+        local_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
 
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                 for i in range(N_e):
                     peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i])[0]
-                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+                    local_peaktimes.append(peaktimes)
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 for i in range(N_e):
                     peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i])[0]
-                    local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
+                    local_peaktimes.append(peaktimes)
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
+            local_peaktimes = numpy.concatenate(local_peaktimes)
         else:
             for i in range(N_e):
                 if sign_peaks == 'negative':
@@ -304,9 +305,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'both':
                     peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
-                local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes)) 
+                local_peaktimes.append(peaktimes)
                 if collect_all:
                     all_found_spikes[i] += peaktimes.tolist()
+            local_peaktimes = numpy.concatenate(local_peaktimes)
 
         local_peaktimes = numpy.unique(local_peaktimes)
 

@@ -151,11 +151,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if do_filtering:
                 for i in nodes:    
-                    try:
-                        local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
-                    except Exception:
-                        pass
-                    local_chunk[:, i] -= numpy.median(local_chunk[:, i]) 
+                    local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
+
+                local_chunk -= numpy.median(local_chunk, 0)
 
             if do_remove_median:
                 if not process_all_channels:
@@ -163,12 +161,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     global_median = numpy.median(local_chunk, 1)
 
-                for i in nodes:
-                    local_chunk[:, i] -= global_median
+                local_chunk -= global_median[:, numpy.newaxis]
 
             if common_ground > -1:
-                for i in nodes:
-                    local_chunk[:, i] -= local_chunk[:, common_ground]
+                ground = local_chunk[:, common_ground]
+                local_chunk -= ground[:, numpy.newaxis]
 
             if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
                 if data_file_in.is_stream:

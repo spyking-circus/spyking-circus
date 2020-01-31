@@ -70,9 +70,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     def write_results(path, params, extension):
         result     = io.get_results(params, extension)
-        spikes     = numpy.zeros(0, dtype=numpy.uint64)
-        clusters   = numpy.zeros(0, dtype=numpy.uint32)
-        amplitudes = numpy.zeros(0, dtype=numpy.double)
+        spikes     = [numpy.zeros(0, dtype=numpy.uint64)]
+        clusters   = [numpy.zeros(0, dtype=numpy.uint32)]
+        amplitudes = [numpy.zeros(0, dtype=numpy.double)]
         N_tm       = len(result['spiketimes'])
 
         if prelabelling:
@@ -83,10 +83,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         for key in result['spiketimes'].keys():
             temp_id    = int(key.split('_')[-1])
             myspikes   = result['spiketimes'].pop(key).astype(numpy.uint64)
-            spikes     = numpy.concatenate((spikes, myspikes))
+            spikes.append(myspikes)
             myamplitudes = result['amplitudes'].pop(key).astype(numpy.double)
-            amplitudes = numpy.concatenate((amplitudes, myamplitudes[:, 0]))
-            clusters   = numpy.concatenate((clusters, temp_id*numpy.ones(len(myamplitudes), dtype=numpy.uint32)))
+            amplitudes.append(myamplitudes[:, 0])
+            clusters.append(temp_id*numpy.ones(len(myamplitudes), dtype=numpy.uint32))
             if prelabelling:
                 rpv = get_rpv(myspikes, params.data_file.sampling_rate)
                 median_amp = numpy.median(myamplitudes[:, 0])
@@ -108,9 +108,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             for key in garbage['gspikes'].keys():
                 elec_id    = int(key.split('_')[-1])
                 data       = garbage['gspikes'].pop(key).astype(numpy.uint64)
-                spikes     = numpy.concatenate((spikes, data))
-                amplitudes = numpy.concatenate((amplitudes, numpy.ones(len(data))))
-                clusters   = numpy.concatenate((clusters, (elec_id + N_tm)*numpy.ones(len(data), dtype=numpy.uint32)))                
+                spikes.append(data)
+                amplitudes.append(numpy.ones(len(data)))
+                clusters.append((elec_id + N_tm)*numpy.ones(len(data), dtype=numpy.uint32))
 
         if prelabelling:
             f = open(os.path.join(output_path, 'cluster_group.tsv'), 'w')
@@ -118,6 +118,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             for l in labels:
                 f.write('%s\t%s\n' %(l[0], l[1]))
             f.close()
+
+        spikes = numpy.concatenate(spikes).astype(numpy.uint64)
+        amplitudes = numpy.concatenate(amplitudes).astype(numpy.double)
+        clusters = numpy.concatenate(clusters).astype(numpy.uint32)
 
         idx = numpy.argsort(spikes)
         numpy.save(os.path.join(output_path, 'spike_templates'), clusters[idx])

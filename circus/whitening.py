@@ -46,6 +46,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift_2 = template_shift + jitter_range
     use_hanning      = params.getboolean('detection', 'hanning')
     rejection_threshold = params.getfloat('detection', 'rejection_threshold')
+    noise_window     = params.getint('detection', 'noise_time')
     data_file.open()
     #################################################################
 
@@ -468,7 +469,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
                             if reject_noise:
-                                is_noise = numpy.std(sub_mat) < rejection_threshold*stds[elec]
+                                slice_window = sub_mat[snippet_duration - noise_window: snippet_duration + noise_window]
+                                is_noise = numpy.mean(slice_window**2)/stds[elec] < rejection_threshold
                             else:
                                 is_noise = False
                             
