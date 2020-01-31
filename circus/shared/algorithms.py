@@ -1,3 +1,5 @@
+from builtins import range  # Python 2 and 3 (forward-compatible)
+
 import os
 import logging
 import sys
@@ -363,7 +365,7 @@ def merging(groups, merging_method, merging_param, data):
         dmin_ = numpy.inf
         to_merge = [None, None]
 
-        for ic1 in xrange(len(clusters_)):
+        for ic1 in range(len(clusters_)):
             idx1 = numpy.where(groups_ == clusters_[ic1])[0]
             sd1 = numpy.take(data_, idx1, axis=0)
 
@@ -372,7 +374,7 @@ def merging(groups, merging_method, merging_param, data):
             else:
                 m1 = None  # default assignment
 
-            for ic2 in xrange(ic1+1, len(clusters_)):
+            for ic2 in range(ic1+1, len(clusters_)):
                 idx2 = numpy.where(groups_ == clusters_[ic2])[0]
                 sd2 = numpy.take(data_, idx2, axis=0)
 
@@ -528,7 +530,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
         # Determine the template indices to delete.
         to_delete = list(to_remove)  # i.e. copy
         if len(to_merge) > 0:
-            for count in xrange(len(to_merge)):
+            for count in range(len(to_merge)):
                 remove = to_merge[count][1]
                 to_delete += [remove]
 
@@ -652,7 +654,7 @@ def slice_clusters(
         # Determine the template indices to delete.
         to_delete = list(to_remove)
         if len(to_merge) > 0:
-            for count in xrange(len(to_merge)):
+            for count in range(len(to_merge)):
                 remove = to_merge[count][1]
                 to_delete += [remove]
 
@@ -660,7 +662,7 @@ def slice_clusters(
         all_templates = set(numpy.arange(n_tm // 2))
         to_keep = numpy.array(list(all_templates.difference(to_delete)))
 
-        all_elements = [[] for _ in xrange(n_e)]
+        all_elements = [[] for _ in range(n_e)]
         for target in numpy.unique(to_delete):
             elec = result['electrodes'][target]
             nic = target - numpy.where(result['electrodes'] == elec)[0][0]
@@ -671,7 +673,7 @@ def slice_clusters(
         myfilename = file_out_suff + '.clusters{}.hdf5'.format(input_extension)
         myfile = h5py.File(myfilename, 'r', libver='earliest')
 
-        for elec in xrange(n_e):
+        for elec in range(n_e):
             if not light:
                 result['data_' + str(elec)] = numpy.delete(result['data_' + str(elec)], all_elements[elec], axis=0)
                 result['clusters_' + str(elec)] = numpy.delete(result['clusters_' + str(elec)], all_elements[elec])
@@ -707,7 +709,7 @@ def slice_clusters(
         to_write = ['data_', 'clusters_', 'times_', 'peaks_']
         if debug:
             to_write += ['rho_', 'delta_']
-        for ielec in xrange(n_e):
+        for ielec in range(n_e):
             write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
         write_datasets(cfile, ['electrodes'], result)
         cfile.close()
@@ -923,7 +925,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
 
-    for i in xrange(nb_temp - 1):
+    for i in range(nb_temp - 1):
         data = c_overs[i].toarray()
         distances[i, i + 1:] = numpy.argmax(data[i + 1:, :], 1)
         distances[i + 1:, i] = distances[i, i + 1:]
@@ -934,7 +936,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     M = numpy.zeros((2, 2), dtype=numpy.float32)
     V = numpy.zeros((2, 1), dtype=numpy.float32)
 
-    to_explore = xrange(comm.rank, nb_temp, comm.size)
+    to_explore = range(comm.rank, nb_temp, comm.size)
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
 

@@ -1,4 +1,6 @@
 from __future__ import division
+from builtins import range  # Python 2 and 3 (forward-compatible)
+
 import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
@@ -432,7 +434,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
                 if normalize:
                     norm_templates = load_data(params, 'norm-templates')
-                    for idx in xrange(sparse_mat.shape[1]):
+                    for idx in range(sparse_mat.shape[1]):
                         myslice = numpy.arange(sparse_mat.indptr[idx], sparse_mat.indptr[idx+1])
                         sparse_mat.data[myslice] /= norm_templates[idx]
                 if transpose:
@@ -528,7 +530,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                 local_nb_data       = 0
                 local_nb_ptr        = 0
 
-                for i in xrange(N_over):
+                for i in range(N_over):
 
                     if local_rank == 0:
                         idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
@@ -977,7 +979,7 @@ def load_data(params, data, extension=''):
             c_overs   = {}
             N_over    = int(numpy.sqrt(over_shape[0]))
 
-            for i in xrange(N_over):
+            for i in range(N_over):
                 idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
                 local_x = over_x[idx] - i*N_over
                 c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
@@ -1128,7 +1130,7 @@ def load_data(params, data, extension=''):
             N_tm   = len(spikes)
             count  = 0
             result = {}
-            for i in xrange(N_tm):
+            for i in range(N_tm):
                 key = 'temp_' + str(i)
                 if len(spikes[key]) > 0:
                     result['spikes_' + str(elecs[count])] = spikes[key]
@@ -1208,7 +1210,7 @@ def load_data(params, data, extension=''):
             N_e = params.getint('data', 'N_e')
             extra_spike_times = N_e * [None]
             try:
-                for e in xrange(0, N_e):
+                for e in range(0, N_e):
                     key = "extra_spiketimes/elec_{}".format(e)
                     extra_spike_times[e] = beer_file.get(key)[:]
             finally:
@@ -1223,7 +1225,7 @@ def load_data(params, data, extension=''):
             N_e = params.getint('data', 'N_e')
             extra_spike_values = N_e * [None]
             try:
-                for e in xrange(0, N_e):
+                for e in range(0, N_e):
                     key = "extra_spike_values/elec_{}".format(e)
                     extra_spike_values[e] = beer_file.get(key)[:]
             finally:
@@ -1410,7 +1412,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         result['gspikes'] = {}
         result['gtemps']  = {}
 
-    for i in xrange(N_tm//2):
+    for i in range(N_tm//2):
         result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
         result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2), dtype=numpy.float32)
         if with_real_amps:
@@ -1419,7 +1421,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             result['voltages']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
 
     if collect_all:
-        for i in xrange(N_e):
+        for i in range(N_e):
             result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0, dtype=numpy.uint32)
 
     if debug:
@@ -1437,7 +1439,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     else:
         result_debug = None
 
-    to_explore = xrange(nb_threads)
+    to_explore = range(nb_threads)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
@@ -1488,7 +1490,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                     result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx]))
 
             if collect_all:
-                for j in xrange(N_e):
+                for j in range(N_e):
                     idx = numpy.where(gtemps == j)[0]
                     result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx]))
 
@@ -1647,11 +1649,11 @@ def collect_mua(nb_threads, params, erase=False):
     # Initialize data collection.
     result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
 
-    for i in xrange(N_e):
+    for i in range(N_e):
         result['spiketimes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
         result['amplitudes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.float32)
 
-    to_explore = xrange(nb_threads)
+    to_explore = range(nb_threads)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
@@ -1840,7 +1842,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     if not SHARED_MEMORY and normalize:
         norm_templates = load_data(params, 'norm-templates')
-        for idx in xrange(N_tm):
+        for idx in range(N_tm):
             myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
             templates.data[myslice] /= norm_templates[idx]
 
@@ -1876,7 +1878,7 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
     else:
         upper_bounds = N_tm//2
 
-    to_explore = xrange(comm.rank, N_e, comm.size)
+    to_explore = range(comm.rank, N_e, comm.size)
 
     if comm.rank == 0:
         if verbose:

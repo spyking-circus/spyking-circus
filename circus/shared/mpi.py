@@ -5,7 +5,7 @@ from mpi4py import MPI
 from circus.shared.messages import print_and_log
 comm = MPI.COMM_WORLD
 import blosc
-from distutils.version import StrictVersion
+# from distutils.version import StrictVersion
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
+from builtins import range  # Python 2 and 3 (forward-compatible)
 import six, pkg_resources, logging
 
 import warnings
@@ -36,14 +37,16 @@ from matplotlib.colors import colorConverter
 from distutils.version import LooseVersion, StrictVersion
 MPL_VERSION = StrictVersion(mpl.__version__) > StrictVersion("2.2.1")
 
-from utils import *
-from algorithms import slice_templates, slice_clusters
-from mpi import comm
+from circus.shared.utils import *
+import circus.shared.files as io
+from circus.shared.algorithms import slice_templates, slice_clusters
+from circus.shared.mpi import comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
 from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag, bhatta_dist, test_if_support
 
 logger = logging.getLogger(__name__)
+
 
 class SymmetricVCursor(widgets.AxesWidget):
     '''Variant of matplotlib.widgets.Cursor, drawing two symmetric vertical
@@ -448,7 +451,7 @@ class MergeWindow(QMainWindow):
                 t1b     = numpy.unique(numpy.round(spike_1/self.bin_size))
                 t2b     = numpy.unique(numpy.round(spike_2/self.bin_size))
 
-                for d in xrange(size):
+                for d in range(size):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
 
                 x_cc /= self.nb_bins
@@ -507,7 +510,7 @@ class MergeWindow(QMainWindow):
         self.rpvs        = numpy.zeros(0, dtype=numpy.float32)
         self.overlapping = numpy.zeros(0, dtype=numpy.int32)
 
-        to_explore       = xrange(comm.rank, len(self.to_consider), comm.size)
+        to_explore       = range(comm.rank, len(self.to_consider), comm.size)
 
         if comm.rank == 0:
             print_and_log(['Updating the data...'], 'default', logger)
@@ -614,8 +617,8 @@ class MergeWindow(QMainWindow):
                     xmin, xmax = min(score_x), max(score_x)
                 else:
                     xmin, xmax = 0, 1
-                xrange = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
-                ax.set_xlim((xmax + xmin)*0.5 - xrange, (xmax + xmin)*0.5 + xrange)
+                range = (xmax - xmin)*0.5 * 1.05  # stretch everything a bit
+                ax.set_xlim((xmax + xmin)*0.5 - range, (xmax + xmin)*0.5 + range)
 
             for fig in [self.ui.score_1, self.ui.score_2, self.ui.score_3, self.ui.waveforms]:
                 fig.draw_idle()
@@ -1013,7 +1016,7 @@ class MergeWindow(QMainWindow):
 
         indices = self.to_consider[list(indices)]
 
-        for i in xrange(len(indices)):
+        for i in range(len(indices)):
             indices[i] -= numpy.sum(self.to_delete <= indices[i])
 
         if add_or_remove is 'add':

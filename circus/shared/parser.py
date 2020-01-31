@@ -6,8 +6,10 @@ mail: pierre.yger <at> inserm.fr
 
 Contains the class to read *param files
 """
+from builtins import range  # Python 2 and 3 (forward-compatible)
+
 import ConfigParser as configparser
-from messages import print_and_log
+from circus.shared.messages import print_and_log
 from circus.shared.probes import read_probe, parse_dead_channels
 from circus.shared.mpi import comm, check_if_cluster, check_valid_path
 from circus.files import __supported_data_files__
@@ -985,7 +987,7 @@ class CircusParser(object):
 
         has_been_changed = False
 
-        for count in xrange(section_area[0]+1, section_area[1]):
+        for count in range(section_area[0]+1, section_area[1]):
             if '=' in lines[count]:
                 key  = lines[count].split('=')[0].replace(' ', '')
                 if key == flag:

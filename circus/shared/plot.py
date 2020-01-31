@@ -1,3 +1,5 @@
+from builtins import range  # Python 2 and 3 (forward-compatible)
+
 import matplotlib.colors as mcolors
 import numpy, scipy, pylab, os
 import statsmodels.api as sm
@@ -6,7 +8,7 @@ import numpy, pylab
 from circus.shared import algorithms as algo
 from circus.shared.utils import *
 from parser import CircusParser
-from probes import get_nodes_and_edges
+from circus.shared.probes import get_nodes_and_edges
 
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
@@ -515,7 +517,7 @@ def view_local_merges_backup(
         for k, cluster_nb in enumerate(cluster_nbs)
     }
 
-    for merge_nb in xrange(0, nb_merges):
+    for merge_nb in range(0, nb_merges):
 
         cluster_nb_1, cluster_nb_2 = merge_history['merge'][merge_nb]
         cluster_distance = merge_history['distance'][merge_nb]
@@ -674,7 +676,7 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
     cNorm        = mcolors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
     scalarMap    = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
     
-    for count, i in enumerate(xrange(nb_templates)):
+    for count, i in enumerate(range(nb_templates)):
         if square:
             pylab.subplot(n_panels, n_panels, count + 1)
             if (numpy.mod(count, n_panels) != 0):
@@ -809,7 +811,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
     if do_temporal_whitening: 
-        for i in xrange(N_e):
+        for i in range(N_e):
             data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
             peaks[i]   = juxta_spike_times = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
             n_spikes  += len(peaks[i])
@@ -818,8 +820,8 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     print "We found", n_spikes, "spikes"
     
     count = 0
-    for electrode in xrange(N_e):
-        for i in xrange(len(peaks[electrode])):
+    for electrode in range(N_e):
+        for i in range(len(peaks[electrode])):
             peak_time = peaks[electrode][i]
             if (peak_time > N_t/2):
                 curve[count] = data[peak_time - N_t/2:peak_time + N_t/2, electrode]
@@ -984,7 +986,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     ymin = 0
     ymax = 0
     scaling = 10*numpy.max(numpy.abs(templates[:,temp_id].toarray().reshape(N_e, N_t)))
-    for i in xrange(N_e):
+    for i in range(N_e):
         if positions[i][0] < xmin:
             xmin = positions[i][0]
         if positions[i][0] > xmax:
@@ -998,7 +1000,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     elif best_elec == 'auto':
         best_elec = numpy.argmin(numpy.min(templates[:, :, temp_id], 1))
     pylab.figure()
-    for count, i in enumerate(xrange(N_e)):
+    for count, i in enumerate(range(N_e)):
         x, y     = positions[i]
         xpadding = ((x - xmin)/(float(xmax - xmin) + 1))*(2*N_t)
         ypadding = ((y - ymin)/(float(ymax - ymin) + 1))*scaling
@@ -1043,7 +1045,7 @@ def view_raw_templates(file_name, n_temp=2, square=True):
             pylab.subplot(len(idx), 1, count + 1)
             if count != (len(idx) - 1):
                 pylab.setp(pylab.gca(), xticks=[])
-        for j in xrange(N_e):
+        for j in range(N_e):
             colorVal = scalarMap.to_rgba(j)
             pylab.plot(templates[j, :, i], color=colorVal)
 
@@ -1104,7 +1106,7 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     if do_temporal_whitening: 
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
-    for i in xrange(N_e):
+    for i in range(N_e):
         peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
 
 
@@ -1162,7 +1164,7 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     if do_temporal_whitening: 
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
-    for i in xrange(N_e):
+    for i in range(N_e):
         peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
 
     if not numpy.iterable(n_elec):
@@ -1307,7 +1309,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
     K = mean_spike.shape[1]
     wf_ind = numpy.arange(0, K)
     wf_dif = numpy.zeros(K)
-    for k in xrange(0, K):
+    for k in range(0, K):
         wf = mean_spike[:, k]
         wf_min = numpy.amin(wf)
         wf_max = numpy.amax(wf)
@@ -1421,7 +1423,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
 def view_trigger_snippets_bis(trigger_snippets, elec_index, save=None):
     fig = pylab.figure()
     ax = fig.add_subplot(1, 1, 1)
-    for n in xrange(0, trigger_snippets.shape[2]):
+    for n in range(0, trigger_snippets.shape[2]):
         y = trigger_snippets[:, elec_index, n]
         x = numpy.arange(- (y.size - 1) / 2, (y.size - 1) / 2 + 1)
         b = 0.5 + 0.5 * numpy.random.rand()
@@ -1449,7 +1451,7 @@ def view_trigger_snippets(trigger_snippets, chans, save=None):
     fig = pylab.figure()
     for (c, chan) in enumerate(chans):
         ax = fig.add_subplot(1, 1, 1)
-        for n in xrange(0, trigger_snippets.shape[2]):
+        for n in range(0, trigger_snippets.shape[2]):
             y = trigger_snippets[:, c, n]
             x = numpy.arange(- (y.size - 1) / 2, (y.size - 1) / 2 + 1)
             b = 0.5 + 0.5 * numpy.random.rand()
@@ -1790,7 +1792,7 @@ def view_classifier(params, data_1, data_2, save=None, verbose=False):
             ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='k', s=5, lw=0.1)
         ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='r', s=5, lw=0.1)
         ## Plot ellipse transformation.
-        for i in xrange(0, O_.shape[0]):
+        for i in range(0, O_.shape[0]):
             ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
         ## Plot ellipse apparent contour.
         n = 300
@@ -1798,8 +1800,8 @@ def view_classifier(params, data_1, data_2, save=None, verbose=False):
         y_r = numpy.linspace(y_min, y_max, n)
         xx, yy = numpy.meshgrid(x_r, y_r)
         zz = numpy.zeros(xx.shape)
-        for i in xrange(0, xx.shape[0]):
-            for j in xrange(0, xx.shape[1]):
+        for i in range(0, xx.shape[0]):
+            for j in range(0, xx.shape[1]):
                 v = numpy.array([xx[i, j], yy[i, j]])
                 zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
         vv = numpy.array([0.0])
@@ -2041,13 +2043,13 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
             nb_fitted = 0
             
             # Count the number of spiketimes sorted by SpyKING CIRCUS.
-            for i in xrange(n_temp):
+            for i in range(n_temp):
                 nb_fitted += len(data['temp_' + str(i)])
             
             print("Number of spikes {}/{} with {} templates".format(nb_fitted, nb_total, n_temp))
             
             ## First pass to detect what are the scores
-            for i in xrange(n_temp):
+            for i in range(n_temp):
                 spikes = data['temp_' + str(i)]
                 # print "Template", i, "with", len(spikes), "spikes"
                 # Compute the false positive rate
@@ -2072,7 +2074,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
             source_temp = templates[:, idx].toarray().flatten()
             temp_match = []
             dmax = 0.1
-            for i in xrange(templates.shape[1]/2):
+            for i in range(templates.shape[1]/2):
                 d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
                 if d > dmax and i not in selection:
                     temp_match += [i]
@@ -2155,7 +2157,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # TODO: check which is the fpr and which is the tpr
         # scatter(res[:, 0], res[:, 1])
         ax.scatter(res[:, 1], res[:, 0])
-        for i in xrange(res.shape[0]):
+        for i in range(res.shape[0]):
             txt = str(i)
             # pos = (res[i, 0], res[i, 1])
             pos = (res[i, 1], res[i, 0])
@@ -2251,8 +2253,8 @@ def view_roc_curve_(params, save=None):
     ## Plot the performances of each templates.
     # ax.scatter(res[:, 1], res[:, 0])
     ax.scatter(sc_fpers, sc_fners)
-    # for i in xrange(res.shape[0]):
-    for i in xrange(len(sc_fpers)):
+    # for i in range(res.shape[0]):
+    for i in range(len(sc_fpers)):
         txt = str(i)
         # pos = (res[i, 1], res[i, 0])
         pos = (sc_fpers[i], sc_fners[i])
@@ -2272,14 +2274,14 @@ def view_roc_curve_(params, save=None):
     ax.set_xlabel("false positive error rate")
     ax.set_ylabel("false negative error rate")
     ax.set_title("best = {}".format(selection))
-    
+
     # Save ROC plot.
     if save is None:
         pylab.show()
     else:
         pylab.savefig(save)
         pylab.close(fig)
-    
+
     # return error
     return numpy.array([sc_fner, sc_fper])
 
