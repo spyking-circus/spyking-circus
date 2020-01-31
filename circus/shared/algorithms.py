@@ -52,6 +52,8 @@ class DistanceMatrix(object):
             value = self.distances[self.didx(j, i)]
         elif i == j:
             value = 0.0
+        else:
+            raise RuntimeError()
 
         return value
 

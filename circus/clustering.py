@@ -521,11 +521,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             raise ValueError("unexpected value %s" % sign_peaks)
 
-                        key = '%s_%s' %(loc_peak, str(elec))
+                        key = '%s_%s' % (loc_peak, str(elec))
 
                         if (gpass > 1) or (numpy.mod(elec, comm.size) == comm.rank):
 
-                            if result['count_%s' %key] < loop_max_elts_elec:
+                            if result['count_%s' % key] < loop_max_elts_elec:
 
                                 indices = nodes_indices[elec]
 
@@ -680,9 +680,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 all_times[elec, min_times[midx]:max_times[midx]] = True
                                     else:
                                         nb_noise += 1
-                                        #import pylab
-                                        #pylab.plot(sub_mat)
-                                        #pylab.show()
+                                        # import pylab
+                                        # pylab.plot(sub_mat)
+                                        # pylab.show()
 
         for elec in range(N_e):
             for p in search_peaks:
@@ -696,8 +696,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         sys.stderr.flush()
 
-        lines = ['Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected), 
-            'Node %d has ignored %d noisy spikes' % (comm.rank, nb_noise)]
+        lines = [
+            'Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected),
+            'Node %d has ignored %d noisy spikes' % (comm.rank, nb_noise)
+        ]
         print_and_log(lines, 'debug', logger)
         gdata = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2 = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)

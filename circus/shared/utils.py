@@ -26,12 +26,13 @@ import circus
 from distutils.version import StrictVersion
 from scipy.optimize import brenth, minimize
 
+
 def test_patch_for_similarities(params, extension):
 
     import circus.shared.files as io
 
-    file_out_suff  = params.get('data', 'file_out_suff')
-    template_file  = file_out_suff + '.templates%s.hdf5' %extension
+    file_out_suff = params.get('data', 'file_out_suff')
+    template_file = file_out_suff + '.templates%s.hdf5' % extension
     if os.path.exists(template_file):
         version = io.load_data(params, 'version', extension)
     else:
@@ -39,7 +40,7 @@ def test_patch_for_similarities(params, extension):
         sys.exit(0)
 
     if version is not None:
-        if (StrictVersion(version) >= StrictVersion('0.6.0')):
+        if StrictVersion(version) >= StrictVersion('0.6.0'):
             return True
     else:
         print_and_log(["Version is below 0.6.0"], 'debug', logger)
@@ -47,12 +48,13 @@ def test_patch_for_similarities(params, extension):
 
 
 def test_if_support(params, extension):
-    file_out_suff  = params.get('data', 'file_out_suff')
-    if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-        myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
-        return myfile.has_key('supports')
+    file_out_suff = params.get('data', 'file_out_suff')
+    if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+        myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+        return 'supports' in myfile
     else:
         return False
+
 
 def indices_for_dead_times(start, end):
     lens = end - start
@@ -64,18 +66,19 @@ def indices_for_dead_times(start, end):
     np.cumsum(i, out=i)
     return i
 
+
 def apply_patch_for_similarities(params, extension):
 
     if not test_patch_for_similarities(params, extension):
 
         import circus.shared.files as io
 
-        file_out_suff  = params.get('data', 'file_out_suff')
+        file_out_suff = params.get('data', 'file_out_suff')
         hdf5_compress = params.getboolean('data', 'hdf5_compress')
         blosc_compress = params.getboolean('data', 'blosc_compress')
-        N_tm    = io.load_data(params, 'nb_templates', extension)
-        N_half  = int(N_tm // 2)
-        N_t     = params.getint('detection', 'N_t')
+        N_tm = io.load_data(params, 'nb_templates', extension)
+        N_half = int(N_tm // 2)
+        N_t = params.getint('detection', 'N_t')
         duration = 2 * N_t - 1
 
         if comm.rank == 0:
@@ -100,12 +103,12 @@ def apply_patch_for_similarities(params, extension):
             local_x = over_x[idx] - (i*N_tm+i+1)
             data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
-            maxlag[i+1:, i]     = -maxlag[i, i+1:]
+            maxlag[i, i+1:] = N_t - numpy.argmax(data, 1)
+            maxlag[i+1:, i] = -maxlag[i, i+1:]
             maxoverlap[i, i+1:] = numpy.max(data, 1)
             maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
 
-        #Now we need to sync everything across nodes
+        # Now we need to sync everything across nodes.
         maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=blosc_compress)
 
         if comm.rank == 0:
@@ -118,7 +121,7 @@ def apply_patch_for_similarities(params, extension):
             maxoverlap = numpy.sum(maxoverlap, 0)
 
         if comm.rank == 0:
-            myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
+            myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r+', libver='earliest')
 
             for key in ['maxoverlap', 'maxlag', 'version']:
                 if key in myfile2.keys():
@@ -169,40 +172,41 @@ def query_yes_no(question, default="yes"):
 
 
 def get_shared_memory_flag(params):
-    ''' Get parallel HDF5 flag.
+    """Get parallel HDF5 flag.
 
     Argument
     --------
     params: dict
-        Dictionnary of parameters.
+        Dictionary of parameters.
 
     Return
     ------
     flag: bool
         True if parallel HDF5 is available and the user want to use it.
-    '''
+    """
     flag = SHARED_MEMORY and params.getboolean('data', 'shared_memory')
 
     return flag
 
 
 def get_parallel_hdf5_flag(params):
-    ''' Get parallel HDF5 flag.
+    """Get parallel HDF5 flag.
 
     Argument
     --------
     params: dict
-        Dictionnary of parameters.
+        Dictionary of parameters.
 
     Return
     ------
     flag: bool
         True if parallel HDF5 is available and the user want to use it.
-    '''
+    """
 
     flag = h5py.get_config().mpi and params.getboolean('data', 'parallel_hdf5')
 
     return flag
+
 
 def purge(file, pattern):
     dir = os.path.dirname(os.path.abspath(file))
@@ -210,17 +214,20 @@ def purge(file, pattern):
         if f.find(pattern) > -1:
             os.remove(os.path.join(dir, f))
     if comm.rank == 0:
-        print_and_log(['Removing %s for directory %s' %(pattern, dir)], 'debug', logger)
+        print_and_log(['Removing %s for directory %s' % (pattern, dir)], 'debug', logger)
+
 
 def get_tqdm_progressbar(iterator):
     sys.stderr.flush()
     return tqdm.tqdm(iterator, bar_format='{desc}{percentage:3.0f}%|{bar}|[{elapsed}<{remaining}, {rate_fmt}]', ncols=66)
+
 
 def get_whitening_matrix(X, fudge=1e-15):
     sigma = np.dot(X.T, X) / X.shape[0]
     u, s, _ = linalg.svd(sigma)
     W = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + fudge))), u.T)
     return W
+
 
 def check_is_fitted(estimator, attributes, msg=None, all_or_any=all):
     """Perform is_fitted validation for estimator.
@@ -247,7 +254,7 @@ def check_is_fitted(estimator, attributes, msg=None, all_or_any=all):
                "appropriate arguments before using this method.")
 
     if not hasattr(estimator, 'fit'):
-        raise TypeError("%s is not an estimator instance." % (estimator))
+        raise TypeError("%s is not an estimator instance." % estimator)
 
     if not isinstance(attributes, (list, tuple)):
         attributes = [attributes]
@@ -256,9 +263,8 @@ def check_is_fitted(estimator, attributes, msg=None, all_or_any=all):
         raise NotFittedError(msg % {'name': type(estimator).__name__})
 
 
-
 def _shape_repr(shape):
-    """Return a platform independent reprensentation of an array shape
+    """Return a platform independent representation of an array shape
     Under Python 2, the `long` type introduces an 'L' suffix when using the
     default %r format for tuples of integers (typically used to store the shape
     of an array).
@@ -287,8 +293,6 @@ def _shape_repr(shape):
     return "(%s)" % joined
 
 
-
-
 def _num_samples(x):
     """Return number of samples in array-like x."""
     if hasattr(x, 'fit'):
@@ -308,6 +312,7 @@ def _num_samples(x):
         return x.shape[0]
     else:
         return len(x)
+
 
 def check_consistent_length(*arrays):
     """Check that all arrays have consistent first dimensions.
@@ -334,6 +339,7 @@ def _assert_all_finite(X):
             and not np.isfinite(X).all()):
         raise ValueError("Input contains NaN, infinity"
                          " or a value too large for %r." % X.dtype)
+
 
 def as_float_array(X, copy=True, force_all_finite=True):
     """Converts an array-like to an array of floats
@@ -507,6 +513,7 @@ def check_array(array, accept_sparse=None, dtype="numeric", order=None,
                % (dtype_orig, array.dtype, context))
         warnings.warn(msg, DataConversionWarning)
     return array
+
 
 class PCA(object):
     """Principal component analysis (PCA)
@@ -701,7 +708,7 @@ class PCA(object):
         self.explained_variance_ratio_ = explained_variance_ratio_
         self.n_components_ = n_components
 
-        return (U, S, V)
+        return U, S, V
 
     def get_covariance(self):
         """Compute data covariance with the generative model.
@@ -838,7 +845,6 @@ class PCA(object):
         return np.mean(self.score_samples(X))
 
 
-
 def maxstuff(X):
     index = 0
     maxi = X[0]
@@ -885,7 +891,7 @@ def lcm(X, left, right):
 def dip_threshold(n, p_value):
     k = 21.642
     theta = 1.84157e-2/numpy.sqrt(n)
-    return gamma.ppf(1.-p_value, a = k, scale = theta)
+    return gamma.ppf(1.-p_value, a=k, scale=theta)
 
 
 def dip(X):
@@ -967,11 +973,13 @@ def p_value(phi, n, d):
         the dimension
     """
     try:
-        def obj_fun(p): return (numpy.abs(phi - 1.) - decision_bound(1 - p, n, d))
+        def obj_fun(p):
+            return numpy.abs(phi - 1.) - decision_bound(1 - p, n, d)
         p_val = brenth(obj_fun, 0., 1.)
     except BaseException:
         p_val = numpy.exp(-numpy.abs(phi - 1.) * numpy.sqrt(n) / (PVAL_C + numpy.log(d)))
     return p_val
+
 
 def diagonal(X):
     """
@@ -999,6 +1007,7 @@ def markov_coeff(X, X_reduced):
         the 1 by n matrix equals to ||X-s*(X)||
     """
     return (X_reduced/diagonal(X)).mean()
+
 
 def markov_bound(d):
     """
@@ -1042,7 +1051,6 @@ def batch_folding_test_with_MPA(X, with_markov=False):
     mat_cov = np.cov(X).reshape(dim, dim)  # cov(X)
     trace = np.trace(mat_cov)  # Tr(cov(X))
 
-
     try:
         cov_norm = np.cov(X, X_square_norm)[
             :-1, -1].reshape(-1, 1)  # cov(X,|X|²)
@@ -1070,15 +1078,15 @@ def nd_bhatta_dist(X1, X2):
 
     mu_1 = numpy.mean(X1, 1)
     mu_2 = numpy.mean(X2, 1)
-    ms   = mu_1 - mu_2
+    ms = mu_1 - mu_2
 
     cov_1 = numpy.cov(X1)
     cov_2 = numpy.cov(X2)
-    cov   = (cov_1 + cov_2)/2
+    cov = (cov_1 + cov_2)/2
 
     det_1 = numpy.linalg.det(cov_1)
     det_2 = numpy.linalg.det(cov_2)
-    det   = numpy.linalg.det(cov)
+    det = numpy.linalg.det(cov)
 
     dist = (1/8.)*numpy.dot(numpy.dot(ms.T, numpy.linalg.inv(cov)), ms) + 0.5*numpy.log(det/numpy.sqrt(det_1*det_2))
     return dist
@@ -1088,39 +1096,41 @@ import numpy as np
 from math import sqrt
 from scipy.stats import gaussian_kde
 
+
 def bhatta_dist(X1, X2, method='continuous', n_steps=50, bounds=None):
-    #Calculate the Bhattacharyya distance between X1 and X2. X1 and X2 should be 1D numpy arrays representing the same
+    # Calculate the Bhattacharyya distance between X1 and X2. X1 and X2 should be 1D numpy arrays representing the same
     # feature in two separate classes. 
 
     def get_density(x, cov_factor=0.1):
-        #Produces a continuous density function for the data in 'x'. Some benefit may be gained from adjusting the cov_factor.
+        # Produces a continuous density function for the data in 'x'.
+        # Some benefit may be gained from adjusting the cov_factor.
         density = gaussian_kde(x)
         density.covariance_factor = lambda:cov_factor
         density._compute_covariance()
         return density
 
-    #Combine X1 and X2, we'll use it later:
-    cX = np.concatenate((X1,X2))
+    # Combine X1 and X2, we'll use it later:
+    cX = np.concatenate((X1, X2))
 
     if method == 'noiseless':
-        ###This method works well when the feature is qualitative (rather than quantitative). Each unique value is
-        ### treated as an individual bin.
+        # # This method works well when the feature is qualitative (rather than quantitative). Each unique value is
+        # # treated as an individual bin.
         uX = np.unique(cX)
         A1 = len(X1) * (max(cX)-min(cX)) / len(uX)
         A2 = len(X2) * (max(cX)-min(cX)) / len(uX)
         bht = 0
         for x in uX:
-            p1 = (X1==x).sum() / A1
-            p2 = (X2==x).sum() / A2
+            p1 = (X1 == x).sum() / A1
+            p2 = (X2 == x).sum() / A2
             bht += sqrt(p1*p2) * (max(cX)-min(cX))/len(uX)
 
     elif method == 'hist':
-        ###Bin the values into a hardcoded number of bins (This is sensitive to N_BINS)
+        # # Bin the values into a hardcoded number of bins (this is sensitive to N_BINS).
         N_BINS = 10
-        #Bin the values:
-        h1 = np.histogram(X1,bins=N_BINS,range=(min(cX),max(cX)), density=True)[0]
-        h2 = np.histogram(X2,bins=N_BINS,range=(min(cX),max(cX)), density=True)[0]
-        #Calc coeff from bin densities:
+        # Bin the values:
+        h1 = np.histogram(X1, bins=N_BINS, range=(min(cX), max(cX)), density=True)[0]
+        h2 = np.histogram(X2, bins=N_BINS, range=(min(cX), max(cX)), density=True)[0]
+        # Calc coeff from bin densities:
         bht = 0
         for i in range(N_BINS):
             p1 = h1[i]
@@ -1128,16 +1138,16 @@ def bhatta_dist(X1, X2, method='continuous', n_steps=50, bounds=None):
             bht += sqrt(p1*p2) * (max(cX)-min(cX))/N_BINS
 
     elif method == 'autohist':
-        ###Bin the values into bins automatically set by np.histogram:
-        #Create bins from the combined sets:
+        # # Bin the values into bins automatically set by np.histogram:
+        # Create bins from the combined sets:
         # bins = np.histogram(cX, bins='fd')[1]
-        bins = np.histogram(cX, bins='doane')[1] #Seems to work best
+        bins = np.histogram(cX, bins='doane')[1]  # Seems to work better
         # bins = np.histogram(cX, bins='auto')[1]
 
         h1 = np.histogram(X1,bins=bins, density=True)[0]
         h2 = np.histogram(X2,bins=bins, density=True)[0]
 
-        #Calc coeff from bin densities:
+        # Calc coeff from bin densities:
         bht = 0
         for i in range(len(h1)):
             p1 = h1[i]
@@ -1145,26 +1155,26 @@ def bhatta_dist(X1, X2, method='continuous', n_steps=50, bounds=None):
             bht += sqrt(p1*p2) * (max(cX)-min(cX))/len(h1)
 
     elif method == 'continuous':
-        ###Use a continuous density function to calculate the coefficient (This is the most consistent, but also slightly slow):
-        #Get density functions:
+        # # Use a continuous density function to calculate the coefficient (This is the most consistent, but also slightly slow):
+        # Get density functions:
         d1 = get_density(X1)
         d2 = get_density(X2)
-        #Calc coeff:
+        # Calc coeff:
         if bounds is None:
             bounds = (min(cX), max(cX))
 
         xs = np.linspace(bounds[0], bounds[1], n_steps)
         bht = 0
         for x in xs:
-            bht += sqrt(d1(x)*d2(x))
+            bht += sqrt(d1(x) * d2(x))
 
         bht *= (bounds[1]-bounds[0])/n_steps
 
     else:
         raise ValueError("The value of the 'method' parameter does not match any known method")
 
-    ###Lastly, convert the coefficient into distance:
-    if bht==0:
+    # # Lastly, convert the coefficient into distance:
+    if bht == 0:
         return float('Inf')
     else:
         return -np.log(bht)

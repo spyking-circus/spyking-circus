@@ -33,6 +33,7 @@ else:
             raise ctypes.WinError()
     os.symlink = symlink_ms
 
+
 def main(argv=None):
     
     if argv is None:
@@ -61,24 +62,23 @@ on concatenate artefacts, please use the -d or -t options
 
     args = parser.parse_args(argv)
 
-
     folders_file = os.path.abspath(args.folders)
-    output      = os.path.abspath(args.output)
-    extension   = args.extension
+    output = os.path.abspath(args.output)
+    extension = args.extension
 
     filename, ext = os.path.splitext(os.path.basename(folders_file))
 
-    logger = init_logging(filename + '.log')
+    _ = init_logging(filename + '.log')
     logger = logging.getLogger(__name__)
 
     if not os.path.exists(folders_file):
-        print_and_log(['The folder file %s does not exists!' %folders_file], 'error', logger)
+        print_and_log(['The folder file %s does not exists!' % folders_file], 'error', logger)
         sys.exit(0)
 
     try:
         folders = []
         myfile = open(folders_file, 'r')
-        lines  = myfile.readlines()
+        lines = myfile.readlines()
         myfile.close()
         for l in lines:
             folders += [os.path.abspath(l.strip())]
@@ -89,7 +89,7 @@ on concatenate artefacts, please use the -d or -t options
     do_folders = True
 
     if os.path.exists(output):
-        do_folders = query_yes_no(Fore.WHITE + "Folder %s already exists! Do you want to erase everything?" %output, default=None)
+        do_folders = query_yes_no(Fore.WHITE + "Folder %s already exists! Do you want to erase everything?" % output, default=None)
         if not do_folders:
             sys.exit(0)
         else:
@@ -102,7 +102,7 @@ on concatenate artefacts, please use the -d or -t options
         for file in files:
             _, ext = os.path.splitext(file)
             ext = ext.strip('.')
-            if (ext.lower() == extension.lower()) or (args.dead and ext.lower() == 'dead') or (args.trig and ext.lower()== 'trig'):
+            if (ext.lower() == extension.lower()) or (args.dead and ext.lower() == 'dead') or (args.trig and ext.lower() == 'trig'):
                 original_file = os.path.join(folder, file)
                 linked_file = os.path.join(output, 'sc_{c}_{f}'.format(c=count, f=os.path.basename(original_file)))
                 if not os.path.exists(linked_file):

@@ -1,7 +1,10 @@
-import numpy, re, sys
+# import numpy
+# import re
+# import sys
 from .neurofile import NeuroShareFile
+
 
 class PlexonFile(NeuroShareFile):
 
-    description    = "plexon"    
-    extension      = [".plx"]
+    description = "plexon"
+    extension = [".plx"]

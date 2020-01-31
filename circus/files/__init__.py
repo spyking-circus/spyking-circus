@@ -1,17 +1,17 @@
-from raw_binary import RawBinaryFile
-from mcs_raw_binary import RawMCSFile
-from hdf5 import H5File
-from kwd import KwdFile
-from openephys import OpenEphysFile
-from nwb import NWBFile
-from arf import ARFFile
-from brw import BRWFile
-from npy import NumpyFile
-from nix import NixFile
-from rhd import RHDFile
-from neuralynx import NeuraLynxFile
-from blackrock import BlackRockFile
-from mda import MdaFile
+from .raw_binary import RawBinaryFile
+from .mcs_raw_binary import RawMCSFile
+from .hdf5 import H5File
+from .kwd import KwdFile
+from .openephys import OpenEphysFile
+from .nwb import NWBFile
+from .arf import ARFFile
+from .brw import BRWFile
+from .npy import NumpyFile
+from .nix import NixFile
+from .rhd import RHDFile
+from .neuralynx import NeuraLynxFile
+from .blackrock import BlackRockFile
+from .mda import MdaFile
 
 try:
     import neuroshare
@@ -26,20 +26,20 @@ except ImportError:
     HAVE_PYMCSTREAM = False
 
 __supported_data_files__ = {
-    RawBinaryFile.description : RawBinaryFile,
-    RawMCSFile.description : RawMCSFile,
-    H5File.description : H5File,
-    OpenEphysFile.description : OpenEphysFile,
-    KwdFile.description : KwdFile,
-    NWBFile.description : NWBFile,
-    NixFile.description : NixFile,
-    ARFFile.description : ARFFile,
-    BRWFile.description : BRWFile,
-    NumpyFile.description : NumpyFile,
-    RHDFile.description : RHDFile,
-    NeuraLynxFile.description : NeuraLynxFile,
-    BlackRockFile.description : BlackRockFile,
-    MdaFile.description : MdaFile,
+    RawBinaryFile.description: RawBinaryFile,
+    RawMCSFile.description: RawMCSFile,
+    H5File.description: H5File,
+    OpenEphysFile.description: OpenEphysFile,
+    KwdFile.description: KwdFile,
+    NWBFile.description: NWBFile,
+    NixFile.description: NixFile,
+    ARFFile.description: ARFFile,
+    BRWFile.description: BRWFile,
+    NumpyFile.description: NumpyFile,
+    RHDFile.description: RHDFile,
+    NeuraLynxFile.description: NeuraLynxFile,
+    BlackRockFile.description: BlackRockFile,
+    MdaFile.description: MdaFile,
 }
 
 
@@ -65,7 +65,7 @@ def list_all_file_format():
         else:
             rw = '(read only)'    
 
-        streams    = ", ".join(__supported_data_files__[file].is_streamable)
+        streams = ", ".join(__supported_data_files__[file].is_streamable)
         extensions = ", ".join(__supported_data_files__[file].extension)
         to_write += ['-- ' + file.upper() + ' ' + rw]
         to_write += ['      Extensions       : ' + extensions]

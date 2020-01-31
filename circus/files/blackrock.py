@@ -1,25 +1,28 @@
 from .datafile import DataFile, comm
-from utils import brpylib
-from utils.brpylib import NsxFile, brpylib_ver
+from .utils import brpylib
+from .utils.brpylib import NsxFile, brpylib_ver
+
 
 class BlackRockFile(DataFile):
 
-    description    = "blackrock"    
-    extension      = [".ns1", ".ns2", ".nss3", ".ns4", ".ns5", ".ns6"]
+    description = "blackrock"
+    extension = [".ns1", ".ns2", ".nss3", ".ns4", ".ns5", ".ns6"]
     parallel_write = False
-    is_writable    = False
+    is_writable = False
 
-    _params            = {'data_dtype'   : 'float32',
-                          'dtype_offset' : 0}
+    _params = {
+        'data_dtype': 'float32',
+        'dtype_offset': 0
+    }
 
     def _read_from_header(self):
         self._open()
-        header                  = {}
+        header = {}
         header['sampling_rate'] = float(self.data.basic_header['TimeStampResolution'])        
-        header['nb_channels']   = self.data.basic_header['ChannelCount']
-        header['gain']          = 1.
+        header['nb_channels'] = self.data.basic_header['ChannelCount']
+        header['gain'] = 1.0
 
-        self.size   = self.data.getdata('all', 0, 1/header['sampling_rate'])['data_headers'][0]['NumDataPoints']
+        self.size = self.data.getdata('all', 0, 1/header['sampling_rate'])['data_headers'][0]['NumDataPoints']
         self._shape = (self.size, int(header['nb_channels']))
 
         return header
@@ -27,7 +30,7 @@ class BlackRockFile(DataFile):
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
-        local_shape     = t_stop - t_start
+        local_shape = t_stop - t_start
 
         t_start /= self.sampling_rate
         local_shape /= self.sampling_rate
@@ -38,7 +41,7 @@ class BlackRockFile(DataFile):
             nodes = list(nodes)
 
         self._open()
-        local_chunk  = self.data.getdata(nodes, t_start, local_shape)['data'].T
+        local_chunk = self.data.getdata(nodes, t_start, local_shape)['data'].T
         self._close()
 
         return local_chunk

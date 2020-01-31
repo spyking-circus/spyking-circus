@@ -4,7 +4,7 @@ import sys
 
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 
 from circus.shared.utils import *
@@ -27,24 +27,23 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
 
-
 from matplotlib.cm import inferno
 from matplotlib.patches import Rectangle
 
-from circus.shared.utils import *
+from circus.validating.utils import *
 
 
 def main(params, nb_cpu, nb_gpu, us_gpu):    
     
     # RETRIEVE PARAMETERS FOR VALIDATING #######################################
     
-    logger         = init_logging(params.logfile)
-    logger         = logging.getLogger('circus.validating')
-    data_file      = params.data_file
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('detection', 'N_t')
-    N_total        = params.nb_channels
-    sampling_rate  = params.rate
+    _ = init_logging(params.logfile)
+    logger = logging.getLogger('circus.validating')
+    data_file = params.data_file
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    sampling_rate = params.rate
 
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -62,38 +61,36 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         print_and_log(['GREEDY MODE IS OFF'], 'info', logger)
     extension = params.get('validating', 'extension')
 
-    verbose   = False
+    verbose = False
     skip_demo = False
     make_plots_snippets = False
     # test_method = 'full' # full test set
-    test_method = 'downsampled' # downsampled test set
-    
+    test_method = 'downsampled'  # downsampled test set
+
     # N_max = 1000000
     N_max = 12000
     # N_max = 6000
     # N_max = 3000
     # N_max = 1500
-    
+
     # Compute 'time_min' and 'time_max'.
 
     time_min = template_shift
     time_max = (data_file.duration - 1) - template_shift
-    
+
     # Initialize the random seed.
     _ = numpy.random.seed(0)
-    
-    
-    
-    ###### JUXTACELLULAR SPIKE DETECTION #######################################
-    
+
+    # JUXTACELLULAR SPIKE DETECTION #######################################
+
     # Detect the spikes times of the juxtacellular trace.
     if comm.rank == 0:
         extract_juxta_spikes(params)
 
     comm.Barrier()
 
-    beer_path  = "{}.beer.hdf5".format(file_out_suff)
-    beer_file  = h5py.File(beer_path, 'r', libver='earliest')
+    beer_path = "{}.beer.hdf5".format(file_out_suff)
+    beer_file = h5py.File(beer_path, 'r', libver='earliest')
     group_name = "juxta_spiketimes"
     key = "{}/elec_0".format(group_name)
 
@@ -102,12 +99,12 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             print_and_log(['No juxta-cellular spikes have been found!'], 'error', logger)
         sys.exit(1)
     beer_file.close()  
-    
+
     # Retrieve the spike times of the juxtacellular trace.
     spike_times_juxta = io.load_data(params, 'juxta-triggers')
-    
-    ##### PLOT INFLUENCE OF JUXTACELLULAR THRESHOLD ############################
-    
+
+    # PLOT INFLUENCE OF JUXTACELLULAR THRESHOLD ############################
+
     custom_juxta_spikes = params.get('validating', 'juxta_spikes') != ''
 
     if not custom_juxta_spikes:
@@ -147,27 +144,25 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 fig.text(0.02, 0.02, "median absolute deviation: {:.2f}".format(juxta_mad))
                 pylab.savefig(path)
                 pylab.close()
-    
-    
-    
+
     ############################################################################
-    
+
     # Retrieve PCA basis.
     basis_proj, basis_rec = io.load_data(params, 'basis')
     N_p = basis_proj.shape[1]
-    
+
     # Select only the neighboring channels of the best channel.
     chan = params.get('validating', 'nearest_elec')
     if chan == 'auto':
-        ###### TODO: clean temporary zone
+        # TODO clean temporary zone.
         # Set best channel as the channel with the highest change in amplitude.
         nodes, chans = get_neighbors(params, chan=None)
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
-        #juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
+        # juxta_spikes = load_chunk(params, spike_times_juxta, chans=None)
         juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
         juxta_spikes_ = get_juxta_stas(params, spike_times_juxta, spike_labels_juxta).T
-        
+
         USE_OLD_VERSION = False
         if USE_OLD_VERSION:
             tmp_juxta_spikes = juxta_spikes
@@ -190,24 +185,24 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 #         ##### end debug zone
             tmp_juxta_spikes = juxta_spikes[:, :, juxta_spike_times_selection]
             tmp_juxta_spikes_ = juxta_spikes_[:, juxta_spike_times_selection]
-        mean_juxta_spikes = numpy.mean(tmp_juxta_spikes, axis=2) # average over spike times
-        max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0) # argmax over timestamps
-        min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0) # argmin over timestamps
+        mean_juxta_spikes = numpy.mean(tmp_juxta_spikes, axis=2)  # average over spike times
+        max_juxta_spikes = numpy.amax(mean_juxta_spikes, axis=0)  # argmax over timestamps
+        min_juxta_spikes = numpy.amin(mean_juxta_spikes, axis=0)  # argmin over timestamps
         dif_juxta_spikes = max_juxta_spikes - min_juxta_spikes
         chan = numpy.argmax(dif_juxta_spikes)
-        
+
         nodes, chans = get_neighbors(params, chan=chan)
         if comm.rank == 0:
             msg = ["Ground truth neuron is close to channel {} (set automatically)".format(chan)]
             print_and_log(msg, level='default', logger=logger)
-        ##### TODO: clean temporary zone
+        # TODO clean temporary zone.
     else:
         chanl = int(chan)
         nodes, chans = get_neighbors(params, chan=chan)
-        ##### TODO: clean temporary zone
+        # TODO clean temporary zone.
         elec = numpy.where(chans == chan)[0][0]
         chan = elec
-        ##### end temporary zone
+        # TODO end temporary zone.
         spike_labels_juxta = numpy.zeros(len(spike_times_juxta))
         juxta_spikes = get_stas(params, spike_times_juxta, spike_labels_juxta, 0, chans, nodes=nodes, auto_align=False).T
         spike_labels_juxta_ = numpy.zeros(len(spike_times_juxta))
@@ -225,26 +220,22 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             path = os.path.join(plot_path, plot_filename)
             plot.view_trigger_times(params, spike_times_juxta, tmp_juxta_spikes[:, chan, :], tmp_juxta_spikes_, save=path)
     
-    
-    
-    ###### EXTRACELLULAR SPIKE DETECTION #######################################
-    
+    # EXTRACELLULAR SPIKE DETECTION #######################################
+
     # Detect the spikes times of the "non ground truth cell".
     extract_extra_spikes(params)
     comm.Barrier()
     # Retrieve the spike times of the "non ground truth cell".
     spike_times_ngt_tmp = io.load_data(params, 'extra-triggers')
     
-    
-    
-    ##### PLOT INFLUENCE OF EXTRACELLULAR THRESHOLD ############################
-    
+    # PLOT INFLUENCE OF EXTRACELLULAR THRESHOLD ############################
+
     # Compute the cumulative distribution of extra spike times according to the threshold values.
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
     extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
-    
+
     N_e = params.getint('data', 'N_e')
     threshs = N_e * [None]
     counts = N_e * [None]
@@ -255,9 +246,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     for e in range(0, N_e):
         threshs[e] = numpy.concatenate((numpy.array([extra_thresh]), spike_values_extra[e], numpy.array([xmax])))
         counts[e] = numpy.concatenate((numpy.arange(spike_values_extra[e].size, -1, -1), numpy.array([0])))
-    
-    unknown_zone = Rectangle((0.0, 0), extra_thresh, ymax,
-                             hatch='/', facecolor='white', zorder=3)
+
+    unknown_zone = Rectangle((0.0, 0), extra_thresh, ymax, hatch='/', facecolor='white', zorder=3)
 
     if comm.rank == 0:
         
@@ -319,10 +309,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             pylab.savefig(path)
             pylab.close()
     
-    
-    
-    ##### PLOT PROPORTION OF JUXTA SPIKE TIMES NEAR EXTRA SPIKE TIMES ##########
-    
+    # PLOT PROPORTION OF JUXTA SPIKE TIMES NEAR EXTRA SPIKE TIMES ##########
+
     # Compute the proportion of juxtacellular spikes present in the extracelllar
     # spikes according to the threshold value.
     if not custom_juxta_spikes:
@@ -335,21 +323,19 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         juxta_thresh = max(5.0, juxta_thresh)
     else:
         spike_times_juxta = io.load_data(params, 'juxta-triggers')
-    
 
-    ## Add a patch to be sure that all spikes in spike_times_ngt lead to correct STAs (exclude borders) ##
+    # # Add a patch to be sure that all spikes in spike_times_ngt lead to correct STAs (exclude borders).
     min_time = int(sampling_rate * N_t * 1e-3)
     max_time = params.data_file.duration - min_time
     idx = numpy.where((spike_times_juxta > min_time) & (spike_times_juxta < max_time))
     spike_times_juxta = spike_times_juxta[idx]
-    
 
     spike_times_extra = spike_times_ngt_tmp
     spike_values_extra = io.load_data(params, 'extra-values')
     extra_thresh = params.getfloat('detection', 'spike_thresh')
     extra_mads = io.load_data(params, 'extra-mads')
     
-    thresh = int(float(params.rate) * matching_jitter * 1.0e-3) # "matching threshold"
+    thresh = int(float(params.rate) * matching_jitter * 1.0e-3)  # "matching threshold"
     
     for e in range(0, N_e):
         spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
@@ -413,17 +399,14 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             fig.text(0.72, 0.02, "[{} -> {:.2f}%]".format(extra_thresh, counts[tmp_index]))
             pylab.savefig(path)
             pylab.close()
-    
-    
-    
-    ##### GROUND TRUTH CELL'S SAMPLES ##########################################
-    
+
+    # GROUND TRUTH CELL'S SAMPLES ##########################################
+
     if comm.rank == 0:
         print_and_log(["Collecting ground truth cell's samples..."], level='debug', logger=logger)
-    
-    
+
     # Retrieve the spike times of the "ground truth cell".
-    tresh = int(float(params.rate) * matching_jitter * 1.0e-3) # "matching threshold"
+    tresh = int(float(params.rate) * matching_jitter * 1.0e-3)  # "matching threshold"
     matched_spike_times_juxta = numpy.zeros_like(spike_times_juxta, dtype='bool')
     matched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
     mismatched_spike_times_extra = numpy.zeros_like(spike_times_extra, dtype='bool')
@@ -438,13 +421,13 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             mismatched_spike_times_extra[idx[idx_]] = False
         else:
             pass
-    
-    ##### TODO: clean working zone
-    
+
+    # TODO clean working zone.
+
     threshold_false_negatives = matched_spike_times_juxta.size - numpy.count_nonzero(matched_spike_times_juxta)
-    
+
     if comm.rank == 0:
-        
+
         # Save number of false negatives due to threshold in BEER file.
         beer_path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(beer_path, 'a', libver='earliest')
@@ -453,21 +436,19 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=threshold_false_negatives)
         beer_file.close()
-        
-    
-    ##### TODO: clean temporary zone
+
+    # TODO clean temporary zone.
     # Ground truth spike times defined from the juxtacellular traces.
-    mask_gt = matched_spike_times_juxta # keep all the 'ground truth' spike times
+    mask_gt = matched_spike_times_juxta  # keep all the 'ground truth' spike times
     spike_times_gt = spike_times_juxta[mask_gt]
     # # or
     # # Ground truth spike times defined from the extracellular traces.
     # mask_gt = matched_spike_times_extra
     # spike_times_gt = spike_times_extra[mask_gt]
-    ##### end temporary zone
+    # TODO end temporary zone
     spike_times_gt = numpy.sort(spike_times_gt)
     
-    ##### end working zone
-    
+    # TODO end working zone
     
     if comm.rank == 0:
         if verbose:
@@ -475,13 +456,12 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "spike_times_gt.size: {}".format(spike_times_gt.size),
             ]
             print_and_log(msg, level='default', logger=logger)
-    
-    
-    ##### TODO: clean working zone
-    # TODO: share memory for these data structures.
-    
+
+    # TODO clean working zone.
+    # TODO share memory for these data structures.
+
     labels_gt = numpy.zeros(spike_times_gt.size)
-    ##### TODO: clean test zone
+    # TODO clean test zone.
 
     SHARED_MEMORY = get_shared_memory_flag(params)
 
@@ -489,17 +469,17 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         spikes_gt = get_stas_memshared(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
     else:
         spikes_gt = get_stas(params, spike_times_gt, labels_gt, chan, chans, nodes=nodes, auto_align=False).T
-    ##### end test zone
-    
+    # TODO end test zone.
+
     # Reshape data.
     N_t = spikes_gt.shape[0]
     N_e = spikes_gt.shape[1]
     N_gt = spikes_gt.shape[2]
-    ##### TODO: remove temporary zone
+    # TODO remove temporary zone.
     # if comm.rank == 0:
     #     print(spikes_gt.flags)
     # spikes_gt.shape = (N_t, N_e * N_gt)
-    ##### end temporary zone
+    # TODO end temporary zone.
     spikes_gt = spikes_gt.reshape(N_t, N_e * N_gt)
     spikes_gt = spikes_gt.T
     # Compute the PCA coordinates of each spike of the "ground truth cell".
@@ -508,11 +488,10 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     # Reshape data.
     X_gt = X_gt.reshape(N_p * N_e, N_gt)
     X_gt = X_gt.T
-    
+
     # Define the outputs (i.e. 0 for ground truth samples).
     y_gt = numpy.zeros((N_gt, 1), dtype=numpy.float32)
-    
-    
+
     if comm.rank == 0:
         if verbose:
             msg = [
@@ -520,21 +499,18 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "y_gt.shape: {}".format(y_gt.shape),
             ]
             print_and_log(msg, level='default', logger=logger)
-    
-    ##### end working zone
-    
-    
-    
-    ##### NON GROUND TRUTH CELL'S SAMPLES ######################################
-    
+
+    # TODO end working zone.
+
+    # NON GROUND TRUTH CELL'S SAMPLES ######################################
+
     if comm.rank == 0:
         print_and_log(["Collecting non ground truth cells' samples..."], level='debug', logger=logger)
-    
-    
+
     mask_ngt = numpy.logical_or(matched_spike_times_extra, mismatched_spike_times_extra)
     mask_ngt = numpy.logical_not(mask_ngt)
     spike_times_ngt = spike_times_extra[mask_ngt]
-    ##### TODO: clean temporary zone
+    # TODO clean temporary zone.
     # Select a subset of the spike times if they are too many.
     max_spike_times_ngt = 10000
     if max_spike_times_ngt <= spike_times_ngt.size:
@@ -544,7 +520,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             ]
             print_and_log(msg, level='default', logger=logger)
         spike_times_ngt = numpy.random.choice(spike_times_ngt, size=max_spike_times_ngt, replace=False)
-    ##### end temporary zone
+    # TODO end temporary zone.
     spike_times_ngt = numpy.sort(spike_times_ngt)
     
     if comm.rank == 0:
@@ -553,28 +529,27 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "spike_times_ngt.size: {}".format(spike_times_ngt.size),
             ]
             print_and_log(msg, level='default', logger=logger)
-    
-    
-    ##### TODO: clean working zone
-    
+
+    # TODO: clean working zone.
+
     labels_ngt = numpy.zeros(spike_times_ngt.size)
 
-    ##### TODO: clean temporary zone
+    # TODO clean temporary zone.
     if SHARED_MEMORY:
         spikes_ngt = get_stas_memshared(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
     else:
         spikes_ngt = get_stas(params, spike_times_ngt, labels_ngt, chan, chans, nodes=nodes, auto_align=False).T
-    ##### TODO: end temporary zone
-    
+    # TODO end temporary zone.
+
     # Reshape data.
     N_t = spikes_ngt.shape[0]
     N_e = spikes_ngt.shape[1]
     N_ngt = spikes_ngt.shape[2]
-    ##### TODO: remove temporary zone
+    # TODO remove temporary zone.
     # if comm.rank == 0:
     #     print(spikes_ngt.flags)
     # spikes_ngt.shape = (N_t, N_e * N_ngt)
-    ##### end temporary zone
+    # TODO end temporary zone.
     spikes_ngt = spikes_ngt.reshape(N_t, N_e * N_ngt)
     spikes_ngt = spikes_ngt.T
     # Compute the PCA coordinates of each spike of the "non ground truth cells".
@@ -586,8 +561,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     # Define the outputs (i.e. 1 for non ground truth samples).
     y_ngt = numpy.ones((N_ngt, 1))
-    
-    
+
     if comm.rank == 0:
         if verbose:
             msg = [
@@ -602,45 +576,39 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     #     print("Start to sleep...")
     # time.sleep(secs)
     # sys.exit(1)
-    
-    ##### end working zone
-    
-    
-    
+
+    # TODO end working zone.
+
     # NORMALIZE DATASETS #######################################################
-    
+
     if comm.rank == 0:
         print_and_log(["Normalizing datasets..."], level='debug', logger=logger)
-    
-    
+
     X_raw = numpy.vstack((X_gt, X_ngt))
     norm_scale = numpy.mean(numpy.linalg.norm(X_raw, axis=1))
-    X_gt  /= norm_scale
+    X_gt /= norm_scale
     X_ngt /= norm_scale
-    
-    
-    
-    ##### SAMPLES ##############################################################
-    
+
+    # SAMPLES ##############################################################
+
     if comm.rank == 0:
         print_and_log(["Samples..."], level='debug', logger=logger)
-    
-    
+
     # Option to include the pairwise product of feature vector elements.
     pairwise = True
     
     # Create the datasets to train the neural network.
-    ## Create the input dataset.
+    # # Create the input dataset.
     N = X_gt.shape[1]
-    
+
     X_raw = numpy.vstack((X_gt, X_ngt))
-    
+
     if pairwise:
         # With pairwise product of feature vector elements.
         M = N + N * (N + 1) // 2
         shape = (N_gt + N_ngt, M)
     else:
-        # Without pairwise product of feature vector elments.
+        # Without pairwise product of feature vector elements.
         M = N
         shape = (N_gt + N_ngt, M)
     X = numpy.zeros(shape, dtype=numpy.float32)
@@ -660,8 +628,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                     "X.shape (with pairwise product of feature vector element): {}".format(X.shape),
                 ]
                 print_and_log(msg, level='default', logger=logger)
-    
-    ## Create the output dataset.
+
+    # # Create the output dataset.
     y_raw = numpy.vstack((y_gt, y_ngt))
     y_raw = y_raw.ravel()
     y = y_raw
@@ -676,17 +644,14 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             ]
             print_and_log(msg, level='default', logger=logger)
     
-    
-    
-    ##### SANITY PLOT ##########################################################
-    
+    # SANITY PLOT ##########################################################
+
     if comm.rank == 0:
-        
-        #print_and_log(["Sanity plot..."], level='info', logger=params)
-        
-        
+
+        # print_and_log(["Sanity plot..."], level='info', logger=params)
+
         if make_plots not in ['None', '']:
-            plot_filename = "beer-datasets.%s" %make_plots
+            plot_filename = "beer-datasets.%s" % make_plots
             path = os.path.join(plot_path, plot_filename)
             xs = [X_gt, X_ngt]
             ys = [y_gt, y_ngt]
@@ -694,14 +659,11 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             labels = ["GT", "Non GT"]
             plot.view_datasets(params, xs, ys, [spike_times_gt, spike_times_ngt], colors=colors, labels=labels, save=path)
     
-    
-    
-    ##### INITIAL PARAMETER ####################################################
-    
+    # INITIAL PARAMETER ####################################################
+
     if comm.rank == 0:
         print_and_log(["Initializing parameters for the non-linear classifier..."], level='default', logger=logger)
-    
-    
+
     mu = numpy.mean(X_gt.T, axis=1)
     sigma = numpy.cov(X_gt.T)
     k = 1.0
@@ -720,8 +682,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "coefs_init: {}".format(coefs_init),
             ]
             print_and_log(msg, level='default', logger=logger)
-    
-    
+
     # Compute false positive rate and true positive rate for various cutoffs.
     num = 300
     
@@ -777,15 +738,15 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "acc_opt: {}".format(accs[i_opt]),
             ]
             print_and_log(msg, level='default', logger=logger)
-        
-        #if make_plots not in ['None', '']:
+
+        # if make_plots not in ['None', '']:
         #    # Plot accuracy curve.
         #    title = "Accuracy curve for the initial parameter"
         #    plot_filename = "beer-accuracy-plot.%s" %make_plots
         #    path = os.path.join(plot_path, plot_filename)
         #    plot.view_accuracy(Mhlnb[indices], accs, Mhlnb[indices[i_opt]],
         #                       accs[i_opt], title=title, save=path)
-    
+
     # Compute the normalized accuracy for various cutoffs.
     tprs = numpy.zeros(num)
     tnrs = numpy.zeros(num)
@@ -817,18 +778,18 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         if make_plots not in ['None', '']:
             # Plot normalized accuracy curve.
             title = "Normalized accuracy curve for the initial parameter"
-            plot_filename = "beer-accuray.%s" %make_plots
+            plot_filename = "beer-accuray.%s" % make_plots
             path = os.path.join(plot_path, plot_filename)
 
             data1 = Mhlnb[indices], accs, Mhlnb[indices[i_opt]], accs[i_opt]
             data2 = Mhlnb[indices], tprs, tnrs, norm_accs, Mhlnb[indices[i_opt]], norm_accs[i_opt]
 
             plot.view_accuracy(data1, data2, title=title, save=path)
-    
+
     # Set cutoff equal to the optimal cutoff.
     # cutoff = cutoff_opt_acc
     cutoff = cutoff_opt_norm_acc
-    
+
     # Compute false positive rate and true positive rate for the chosen cutoff.
     fp = float(numpy.count_nonzero(Mhlnb_ngt < cutoff))
     n = float(Mhlnb_ngt.size)
@@ -836,7 +797,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     tp = float(numpy.count_nonzero(Mhlnb_gt < cutoff))
     p = float(Mhlnb_gt.size)
     tpr = tp / p
-    
+
     if comm.rank == 0:
         if verbose:
             msg = [
@@ -845,62 +806,52 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "tpr: {}".format(tpr),
             ]
             print_and_log(msg, level='default', logger=logger)
-        
-        #if make_plots not in ['None', '']:
-            # Plot ROC curve.
+
+        # if make_plots not in ['None', '']:
+        #    # Plot ROC curve.
         #    title = "ROC curve for the inital parameter"
         #    plot_filename = "beer-roc-curve-initial.%s" %make_plots
         #    path = os.path.join(plot_path, plot_filename)
         #    plot.view_roc_curve(fprs, tprs, fpr, tpr, title=title, save=path)
-    
+
     # Scale the ellipse according to the chosen cutoff.
     A_init = (1.0 / cutoff) * A_init
     b_init = (1.0 / cutoff) * b_init
     c_init = (1.0 / cutoff) * (c_init + 1.0) - 1.0
     
-    
-    
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
     
     if comm.rank == 0:
-        print_and_log(["Sanity plot (classifier projection)..."],
-                         level='debug', logger=logger)
-        
-        
+        print_and_log(["Sanity plot (classifier projection)..."], level='debug', logger=logger)
+
         if make_plots not in ['None', '']:
-            # Plot initial classifier (ellipsoid).
-            #title = "Initial classifier (ellipsoid)"
-            #plot_filename = "beer-classifier-projection-init.%s" %make_plots
-            #path = os.path.join(plot_path, plot_filename)
-            
+            # # Plot initial classifier (ellipsoid).
+            # title = "Initial classifier (ellipsoid)"
+            # plot_filename = "beer-classifier-projection-init.%s" %make_plots
+            # path = os.path.join(plot_path, plot_filename)
+
             data_class_1 = [X_gt, X_ngt], [y_gt, y_ngt], A_init, b_init, c_init
-    
-    
-    
+
     # MAHALANOBIS DISTRIBUTIONS ################################################
-    
+
     if comm.rank == 0:
-        
-        print_and_log(["Intialising Mahalanobis distributions..."],
-                         level='debug', logger=logger)
-        
-        
+
+        print_and_log(["Intialising Mahalanobis distributions..."], level='debug', logger=logger)
+
         # Compute mahalanobis distributions.
         mu = numpy.mean(X_gt, axis=0)
         Mhlnb_gt = squared_Mahalanobis_distance(A_init, mu, X_gt)
         Mhlnb_ngt = squared_Mahalanobis_distance(A_init, mu, X_ngt)
-        
+
         data_mal1 = Mhlnb_gt, Mhlnb_ngt
-    
-    
-    
-    ##### LEARNING #############################################################
-    
+
+    # LEARNING #############################################################
+
     # mode = 'decision'
     mode = 'prediction'
-    
+
     model = 'sgd'
-    
+
     def split_train_test(X, y, test_size=0.5, seed=0):
         size = X.shape[0]
         indices = numpy.random.permutation(size)
@@ -908,17 +859,16 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         indices_train = indices[:thresh]
         indices_test = indices[thresh:]
         return indices_train, indices_test
-    
+
     indices_train, indices_test = split_train_test(X, y, test_size=0.3)
     X_train = X[indices_train, :]
     X_test = X[indices_test, :]
     y_train = y[indices_train]
     y_test = y[indices_test]
-    
+
     if comm.rank == 0:
         print_and_log(["Start learning..."], level='debug', logger=logger)
-    
-    
+
     if comm.rank == 0:
         if verbose:
             msg = [
@@ -926,7 +876,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "X_test.shape: {}".format(X_test.shape),
             ]
             print_and_log(msg, level='default', logger=logger)
-    
+
     # Declare model.
     if model == 'mlp':
         clf = MLPClassifier(hidden_layer_sizes=(),
@@ -944,10 +894,10 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                          fit_intercept=True,
                          random_state=0)
     elif model == 'sgd':
-        ##### TODO: clean temporary zone
+        # TODO clean temporary zone.
         _, _, class_weights = get_class_weights(y_gt, y_ngt, n=1)
         # _, _, class_weights = get_class_weights_bis(n_class_0, n_class_1, n=1)
-        ##### end temporary zone
+        # TODO end temporary zone.
         clf = SGDClassifier(loss='log',
                             fit_intercept=True,
                             random_state=2,
@@ -980,7 +930,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     #        path = os.path.join(plot_path, plot_filename)
     #        plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
     #                                 title=title, save=path)
-    
+
     if comm.rank == 0:
         if verbose:
             y_pred = clf.predict(X_test)
@@ -996,7 +946,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
             ]
             print_and_log(msg, level='default', logger=logger)
-    
+
     coefs_init = ellipsoid_matrix_to_coefs(A_init, b_init, c_init)
     if model == 'mlp':
         clf.coefs_ = [coefs_init[1:, :]]
@@ -1004,24 +954,24 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     elif model == 'perceptron' or model == 'sgd':
         clf.coef_ = coefs_init[1:, :].reshape(1, -1)
         clf.intercept_ = coefs_init[:1, :].ravel()
-    
+
     if comm.rank == 0:
         if make_plots not in ['None', '']:
-            # Plot prediction.
-            #title = "Initial prediction (ellipsoid)"
-            #plot_filename = "beer-prediction-init-ellipsoid.%s" %make_plots
-            #path = os.path.join(plot_path, plot_filename)
-            #plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-            #                         title=title, save=path)
+            # # Plot prediction.
+            # title = "Initial prediction (ellipsoid)"
+            # plot_filename = "beer-prediction-init-ellipsoid.%s" %make_plots
+            # path = os.path.join(plot_path, plot_filename)
+            # plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+            #                          title=title, save=path)
             
             pred_1 = clf.predict(X), clf.decision_function(X), X, X_raw, y_raw
-            # Plot decision function.
-            #title = "Initial decision function (ellipsoid)"
-            #plot_filename = "beer-decision-function-init-ellipsoid.%s" %make_plots
-            #path = os.path.join(plot_path, plot_filename)
-            #plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
-            #                         title=title, save=path)
-    
+            # # Plot decision function.
+            # title = "Initial decision function (ellipsoid)"
+            # plot_filename = "beer-decision-function-init-ellipsoid.%s" %make_plots
+            # path = os.path.join(plot_path, plot_filename)
+            # plot.view_classification(clf, X, X_raw, y_raw, mode='decision_function',
+            #                          title=title, save=path)
+
     if comm.rank == 0:
         if verbose:
             y_pred = clf.predict(X_test)
@@ -1037,7 +987,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
             ]
             print_and_log(msg, level='default', logger=logger)
-    
+
     # Train model.
     if model == 'mlp':
         clf.set_params(max_iter=max_iter)
@@ -1049,23 +999,23 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         clf.set_params(eta0=learning_rate_init)
         clf.set_params(warm_start=True)
     clf.fit(X_train, y_train)
-    
+
     if comm.rank == 0:
         if make_plots not in ['None', '']:
-            # Plot final prediction.
-            #title = "Final prediction "
-            #plot_filename = "beer-prediction-final.%s" %make_plots
-            #path = os.path.join(plot_path, plot_filename)
-            #plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
-            #                         title=title, save=path)
+            # # Plot final prediction.
+            # title = "Final prediction "
+            # plot_filename = "beer-prediction-final.%s" %make_plots
+            # path = os.path.join(plot_path, plot_filename)
+            # plot.view_classification(clf, X, X_raw, y_raw, mode='predict',
+            #                          title=title, save=path)
             # Plot final decision function.
-            #title = "Final decision function"
-            plot_filename = "beer-decision.%s" %make_plots
+            # title = "Final decision function"
+            plot_filename = "beer-decision.%s" % make_plots
             pred_2 = clf.predict(X), clf.decision_function(X), X, X_raw, y_raw
-            
+
             path = os.path.join(plot_path, plot_filename)
             plot.view_classification(pred_1, pred_2, save=path)
-    
+
     if comm.rank == 0:
         if verbose:
             y_pred = clf.predict(X_test)
@@ -1081,8 +1031,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "accuracy_score(X_test, y_test): {} ({})".format(score, 1.0 - score),
             ]
             print_and_log(msg, level='default', logger=logger)
-    
-    
+
     # # TODO: uncomment (i.e. compute loss curve for perceptron and sgd)
     # #       should find a replacement since perceptron and sgd do not give
     # #       access to the loss values.
@@ -1091,8 +1040,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     #     plot_filename = "loss-curve.png"
     #     path = os.path.join(plot_path, plot_filename)
     #     plot.view_loss_curve(clf.loss_curve_, save=path)
-    
-    
+
     # Retrieve the coefficients of the ellipsoid.
     if model == 'mlp':
         bias = clf.intercepts_[0].flatten()
@@ -1103,73 +1051,59 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     # Concatenate the coefficients.
     coefs = numpy.concatenate((bias, weights))
     coefs = coefs.reshape(-1, 1)
-    
-    
+
     A, b, c = ellipsoid_coefs_to_matrix(coefs)
-    
-    
-    
+
     # SANITY PLOT (CLASSIFIER PROJECTION) ######################################
-    
+
     if comm.rank == 0:
-        
-        print_and_log(["Sanity plot (classifier projection)..."],
-                         level='debug', logger=logger)
-        
-        
+
+        print_and_log(["Sanity plot (classifier projection)..."], level='debug', logger=logger)
+
         if make_plots not in ['None', '']:
             # Plot final classifier.
             title = "Final classifier"
-            plot_filename = "beer-classifier-projection.%s" %make_plots
-            
+            plot_filename = "beer-classifier-projection.%s" % make_plots
+
             data_class_2 = [X_gt, X_ngt], [y_gt, y_ngt], A, b, c
-            
+
             path = os.path.join(plot_path, plot_filename)
             plot.view_classifier(params, data_class_1, data_class_2, save=path, verbose=verbose)
-    
-    
-    
+
     # MAHALANOBIS DISTRIBUTIONS ################################################
-    
+
     if comm.rank == 0:
-        
-        print_and_log(["Computing final Mahalanobis distributions..."],
-                         level='debug', logger=logger)
-        
-        
+
+        print_and_log(["Computing final Mahalanobis distributions..."], level='debug', logger=logger)
+
         # Compute the Mahalanobis distributions.
         mu = numpy.mean(X_gt, axis=0)
         Mhlnb_gt = squared_Mahalanobis_distance(A, mu, X_gt)
         Mhlnb_ngt = squared_Mahalanobis_distance(A, mu, X_ngt)
-        
+
         data_mal2 = (Mhlnb_gt, Mhlnb_ngt)
-        
+
         if verbose:
             msg = [
                 "# Mhlnb_gt: {}".format(Mhlnb_gt),
             ]
             print_and_log(msg, level='default', logger=logger)
-        
+
         if make_plots not in ['None', '']:
             # Plot Mahalanobis distributions.
             title = "Final Mahalanobis distributions"
-            plot_filename = "beer-mahalanobis.%s" %make_plots
+            plot_filename = "beer-mahalanobis.%s" % make_plots
             path = os.path.join(plot_path, plot_filename)
             plot.view_mahalanobis_distribution(data_mal1, data_mal2, save=path)
-    
-    
-    
+
     # Synchronize CPUs before weighted learning.
     comm.Barrier()
-    
-    
-    
-    ##### WEIGHTED LEARNING ####################################################
-    
+
+    # WEIGHTED LEARNING ####################################################
+
     if comm.rank == 0:
         print_and_log(["Estimating the ROC curve..."], level='default', logger=logger)
-    
-    
+
     _, _, class_weights = get_class_weights(y_gt, y_ngt, n=roc_sampling)
     
     # Distribute weights over the CPUs.
@@ -1214,15 +1148,13 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             # wclf.set_params(eta0=learning_rate_init)
             wclf.set_params(warm_start=True)
             wclf.fit(X_train, y_train)
-            
-            
-            ##### TODO: fix depreciated zone
-            
+
+            # TODO fix depreciated zone.
+
             # Compute the prediction on the test set.
             y_pred = wclf.predict(X_test)
             y_decf = wclf.decision_function(X_test)
-            # Compute true positive, false negative, true negatives and
-            # false positives.
+            # Compute true positive, false negative, true negatives and false positives.
             p = (y_test == 0.0)
             tp = float(numpy.count_nonzero(y_pred[p] == y_test[p]))
             fn = float(numpy.count_nonzero(y_pred[p] != y_test[p]))
@@ -1235,14 +1167,13 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             y_preds[count] = y_pred
             y_decfs[count] = y_decf
             confusion_matrices[count] = confusion_matrix
-            
+
         sys.stderr.flush()
     else:
         raise Exception("Unsupported classifier: model={}".format(model))
-        
+
     comm.Barrier()
-    
-    
+
     # Gather results on the root CPU.
     indices = comm.gather(loc_indices, root=0)
     y_preds_tmp = comm.gather(y_preds, root=0)
@@ -1262,16 +1193,16 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             for indices_, loc_time_preds, loc_y_preds, loc_y_decfs in zip(indices, time_preds_tmp, y_preds_tmp, y_decfs_tmp):
                 for index, time_pred, y_pred, y_decf in zip(indices_, loc_time_preds, loc_y_preds, loc_y_decfs):
                     filename = "{}/time_pred_{}".format(group_name, index)
-                    #print(filename)
+                    # print(filename)
                     beer_file.create_dataset(filename, data=time_pred)
                     filename = "{}/y_pred_{}".format(group_name, index)
-                    #print(filename)
+                    # print(filename)
                     beer_file.create_dataset(filename, data=y_pred)
                     filename = "{}/y_decf_{}".format(group_name, index)
-                    #print(filename)
+                    # print(filename)
                     beer_file.create_dataset(filename, data=y_decf)
                     filename = "{}/temp_{}".format(group_name, index)
-                    #print(filename)
+                    # print(filename)
                     mask = (y_pred == 0.0)
                     temp = time_pred[mask]
                     beer_file.create_dataset(filename, data=temp)
@@ -1279,16 +1210,15 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             for indices_, loc_y_preds, loc_y_decfs in zip(indices, y_preds_tmp, y_decfs_tmp):
                 for index, y_pred, y_decf in zip(indices_, loc_y_preds, loc_y_decfs):
                     filename = "{}/y_pred_{}".format(group_name, index)
-                    #print(filename)
+                    # print(filename)
                     beer_file.create_dataset(filename, data=y_pred)
                     filename = "{}/y_decf_{}".format(group_name, index)
-                    #print(filename)
+                    # print(filename)
                     beer_file.create_dataset(filename, data=y_decf)
         beer_file.close()
-    
-    ##### end temporary zone
-    
-    
+
+    # TODO end temporary zone.
+
     # Gather results on the root CPU.
     indices = comm.gather(loc_indices, root=0)
     confusion_matrices_tmp = comm.gather(confusion_matrices, root=0)
@@ -1303,13 +1233,13 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         # Save confusion matrices to BEER file.
         filename = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(filename, 'a', libver='earliest')
-        ## Save class weights.
+        # # Save class weights.
         class_weights_ = numpy.array([[cw[0], cw[1]] for cw in class_weights])
         class_weights_key = "class_weights"
         if class_weights_key in beer_file.keys():
             beer_file.pop(class_weights_key)
         beer_file.create_dataset(class_weights_key, data=class_weights_)
-        ## Save confusion matrices.
+        # # Save confusion matrices.
         confusion_matrices_ = numpy.array(confusion_matrices)
         confusion_matrices_key = "confusion_matrices"
         if confusion_matrices_key in beer_file.keys():
@@ -1322,29 +1252,27 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         # Add false positive rates and true positive rates endpoints.
         fprs = [1.0] + fprs + [0.0]
         tprs = [1.0] + tprs + [0.0]
-    
-    
+
     if comm.rank == 0:
-        
-        ##### TODO: clean temporary zone
-        
+
+        # TODO clean temporary zone.
+
         MODE = 'custom'
         # MODE = 'harris'
 
-        
         if MODE == 'custom':
-            
+
             # Define the "matching threshold".
             thresh = int(float(params.rate) * matching_jitter * 1.0e-3)
-            
-            # Retrieve the SpyKING CIRCUS spiketimes.
+
+            # Retrieve the SpyKING CIRCUS spike times.
             result = io.load_data(params, "results", extension)
-            data   = result['spiketimes']
-            
+            data = result['spiketimes']
+
             # Retrieve the templates.
             if extension in ['', '-merged']:
                 templates = io.load_data(params, 'templates', extension)
-            
+
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
             sc_contingency_matrices = numpy.zeros((n_temp, 2, 2), dtype=numpy.int)
@@ -1408,10 +1336,10 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                     if i not in selection:
                         temp_match += [i]
             
-            ## Second pass to reach the best score with greedy aggregations
+            # # Second pass to reach the best score with greedy aggregations
             if 0 < len(temp_match) and greedy_mode:
-                
-                while (find_next == True):
+
+                while find_next:
                     
                     temp_match = [i for i in temp_match if i not in selection]
 
@@ -1439,7 +1367,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                         # Compute true positive rate (for actual positives).
                         if 0 < spike_times_gt.size:
                             local_errors[mcount, 0] = float(count) / float(spike_times_gt.size)
-                        
+
                         # Count true positives (among expected positives).
                         count = 0
                         for k, spike_time in enumerate(spike_times):
@@ -1461,8 +1389,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                         local_sc_contingency_matrices[mcount, 1, 1] = matched_spike_times.size - local_sc_contingency_matrices[mcount, 1, 0]
                         # Compute true positive rate (for expected positives).
                         if 0 < matched_spike_times.size:
-                            local_errors[mcount, 1]  = float(count) / float(matched_spike_times.size)
-                    
+                            local_errors[mcount, 1] = float(count) / float(matched_spike_times.size)
+
                     errors = numpy.mean(local_errors, 1)
                     if 0 < errors.size and numpy.max(errors) > numpy.mean(error):
                         idx = numpy.argmax(errors)
@@ -1471,34 +1399,34 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                         sc_contingency_matrix = local_sc_contingency_matrices[idx, :, :]
                     else:
                         find_next = False
-            
+
             error = 100.0 * (1.0 - error)
             res = 100.0 * (1.0 - res)
-            
+
             scerror = dict()
             scerror['res'] = res
             scerror['selection'] = selection
             scerror['error'] = error
             scerror['contingency_matrices'] = sc_contingency_matrices
             scerror['contingency_matrix'] = sc_contingency_matrix
-        
+
         elif MODE == 'harris':
-            
+
             spike_times_gt = spike_times_gt
-            
+
             # Define the "matching threshold".
             thresh = int(float(params.rate) * matching_jitter * 1.0e-3)
-            
+
             # Retrieve the SpyKING CIRCUS spiketimes.
             result = io.load_data(params, "results", extension)
-            data   = result['spiketimes']
+            data = result['spiketimes']
             
             # Retrieve the templates.
             templates = io.load_data(params, 'templates', extension)
-            
+
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
-            
+
             # First pass to detect what are the scores.
             for i in range(n_temp):
                 spikes = data['temp_' + str(i)]
@@ -1528,11 +1456,11 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
                 if d > dmax and i not in selection:
                     temp_match += [i]
-            
-            ## Second pass to reach the best score with greedy aggregations
+
+            # # Second pass to reach the best score with greedy aggregations
             if 0 < len(temp_match):
                 
-                while (find_next == True):
+                while find_next:
                     
                     temp_match = [i for i in temp_match if i not in selection]
                     
@@ -1562,31 +1490,30 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                             if 0 < len(idx):
                                 count += 1.0
                         if 0 < spikes.size:
-                            local_errors[mcount, 1]  = count / float(spikes.size)
+                            local_errors[mcount, 1] = count / float(spikes.size)
                     
                     errors = numpy.mean(local_errors, 1)
                     if 0 < errors.size and numpy.max(errors) > numpy.mean(error):
-                        idx        = numpy.argmax(errors)
+                        idx = numpy.argmax(errors)
                         selection += [temp_match[idx]]
-                        error      = local_errors[idx]
+                        error = local_errors[idx]
                     else:
                         find_next = False
-            
+
             error = 100 * (1 - error)
             res = 100 * (1 - res)
-            
+
             scerror = dict()
             scerror['res'] = res
             scerror['selection'] = selection
             scerror['error'] = error
-        
-        ##### end temporary zone
-    
-    
+
+        # TODO end temporary zone.
+
     if comm.Get_rank() == 0:
-        
-        ##### TODO: clean working zone
-        
+
+        # TODO clean working zone.
+
         # Prepare data to be saved.
         selection = numpy.array(scerror['selection'], dtype=numpy.int)
         sc_contingency_matrices = scerror['contingency_matrices']
@@ -1594,25 +1521,25 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         # Save data to BEER file.
         filename = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(filename, 'a', libver='earliest')
-        ## Save selection.
+        # # Save selection.
         beer_key = 'selection'
         if beer_key in beer_file.keys():
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=selection)
-        ## Save contingency matrices of templates.
+        # # Save contingency matrices of templates.
         beer_key = 'sc_contingency_matrices'
         if beer_key in beer_file.keys():
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=sc_contingency_matrices)
-        ## Save contingency matrix of best template.
+        # # Save contingency matrix of best template.
         beer_key = 'sc_contingency_matrix'
         if beer_key in beer_file.keys():
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=sc_contingency_matrix)
         beer_file.close()
-        
-        ##### end working zone
-        
+
+        # TODO end working zone.
+
         if verbose:
             msg = [
                 "# class_weights: {}".format(class_weights),
@@ -1620,31 +1547,30 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 "# true positive rates: {}".format(tprs),
             ]
             print_and_log(msg, level='default', logger=logger)
-        
+
         if make_plots not in ['None', '']:
             # Plot the ROC curve of the BEER estimate.
             title = "ROC curve of the BEER estimate"
-            plot_filename = "beer-roc-curve.%s" %make_plots
+            plot_filename = "beer-roc-curve.%s" % make_plots
             path = os.path.join(plot_path, plot_filename)
             # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
             #                     xlim=[0.0, 0.25], ylim=[0.75, 1.0])
             # plot.view_roc_curve(fprs, tprs, None, None, title=title, save=path,
             #                     xlim=[0.0, 0.5], ylim=[0.5, 1.0])
             # error = plot.view_roc_curve(params, fprs, tprs, None, None, save=path)
-            ##### TODO: clean swap zone
+            # TODO clean swap zone.
             # error = plot.view_roc_curve(params, fprs, tprs, None, None, scerror=scerror, save=path)
             error = plot.view_roc_curve_(params, save=path)
-            ##### end swap zone
+            # TODO end swap zone.
             filename = "{}.beer.hdf5".format(file_out_suff)
             beer_file = h5py.File(filename, 'r+', libver='earliest')
             if 'circus_error' in beer_file.keys():
                 beer_file.pop('circus_error')
             beer_file.create_dataset('circus_error', data=numpy.array(error, dtype=numpy.float32))
-            beer_file.close()  
-        
-    
+            beer_file.close()
+
     ############################################################################
-    
+
     if comm.rank == 0:
         print_and_log(["Validation done."], level='debug', logger=logger)
 

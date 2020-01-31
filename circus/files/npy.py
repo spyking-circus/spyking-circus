@@ -1,18 +1,25 @@
-import numpy, re, sys
+import numpy
+import re
+import sys
 from .raw_binary import RawBinaryFile
 from numpy.lib.format import open_memmap
 
+
 class NumpyFile(RawBinaryFile):
 
-    description    = "numpy"
-    extension      = [".npy"]
+    description = "numpy"
+    extension = [".npy"]
     parallel_write = True
-    is_writable    = True
+    is_writable = True
 
-    _required_fields = {'sampling_rate' : float}
+    _required_fields = {
+        'sampling_rate': float
+    }
 
-    _default_values  = {'dtype_offset'  : 'auto',
-                        'gain'          : 1.}
+    _default_values = {
+        'dtype_offset': 'auto',
+        'gain': 1.0
+    }
 
     def _read_from_header(self):
         
@@ -29,7 +36,7 @@ class NumpyFile(RawBinaryFile):
             else:
                 self.time_axis = 1
                 self._shape = (self.size[1], self.size[0])
-            header['nb_channels']  = self._shape[1]
+            header['nb_channels'] = self._shape[1]
         elif len(self.size) == 3:
             self.grid_ids = True
             if self.size[0] > self.size[-1]:
@@ -38,14 +45,13 @@ class NumpyFile(RawBinaryFile):
             else:
                 self.time_axis = 1
                 self._shape = (self.size[2], self.size[1], self.size[0])
-            header['nb_channels']  = self._shape[1] * self._shape[2]
+            header['nb_channels'] = self._shape[1] * self._shape[2]
 
-        header['data_dtype']  = self.data.dtype
-        self.size             = len(self.data)
+        header['data_dtype'] = self.data.dtype
+        self.size = len(self.data)
         self._close()
 
         return header
-
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
@@ -78,7 +84,6 @@ class NumpyFile(RawBinaryFile):
 
         return self._scale_data_to_float32(local_chunk)
 
-
     def write_chunk(self, time, data):
         self._open(mode='r+')
         data = self._unscale_data_from_float32(data)
@@ -94,10 +99,8 @@ class NumpyFile(RawBinaryFile):
                 self.data[:, :, time:time+len(data)] = data.reshape(len(data), self._shape[1], self._shape[2]).T
         self._close()
 
-
     def _open(self, mode='r'):
         self.data = open_memmap(self.file_name, mode=mode)
-
 
     def _close(self):
         self.data = None

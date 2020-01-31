@@ -1,25 +1,33 @@
-import numpy, re, sys, os
+import numpy
+# import re
+# import sys
+# import os
 from .datafile import DataFile, comm
+
 
 class RawBinaryFile(DataFile):
 
-    description    = "raw_binary"
-    extension      = []
+    description = "raw_binary"
+    extension = []
     parallel_write = True
-    is_writable    = True
+    is_writable = True
 
-    _required_fields = {'data_dtype'    : str,
-                        'sampling_rate' : float,
-                        'nb_channels'   : int}
+    _required_fields = {
+        'data_dtype': str,
+        'sampling_rate': float,
+        'nb_channels': int
+    }
 
-    _default_values  = {'dtype_offset'  : 'auto',
-                        'data_offset'   : 0,
-                        'gain'          : 1.}
+    _default_values = {
+        'dtype_offset': 'auto',
+        'data_offset': 0,
+        'gain': 1.0
+    }
 
     def _read_from_header(self):
         self._open()
-        self.size   = len(self.data)
-        self._shape = (self.size//self.nb_channels, int(self.nb_channels))
+        self.size = len(self.data)
+        self._shape = (self.size // self.nb_channels, int(self.nb_channels))
         self._close()
         return {}
 
@@ -37,7 +45,7 @@ class RawBinaryFile(DataFile):
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
 
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
-        local_shape     = t_stop - t_start
+        local_shape = t_stop - t_start
 
         self._open()
 
@@ -50,8 +58,8 @@ class RawBinaryFile(DataFile):
         #     local_chunk  = self.data[myslice]
         #     local_chunk  = local_chunk.reshape(local_shape, len(nodes))
         # else:
-        local_chunk  = self.data[t_start*self.nb_channels:t_stop*self.nb_channels]
-        local_chunk  = local_chunk.reshape(local_shape, self.nb_channels)
+        local_chunk = self.data[t_start*self.nb_channels:t_stop*self.nb_channels]
+        local_chunk = local_chunk.reshape(local_shape, self.nb_channels)
 
         if do_slice:
             local_chunk = numpy.take(local_chunk, nodes, axis=1)
@@ -60,7 +68,6 @@ class RawBinaryFile(DataFile):
 
         return self._scale_data_to_float32(local_chunk)
 
-
     def write_chunk(self, time, data):
         self._open(mode='r+')
 
@@ -68,7 +75,6 @@ class RawBinaryFile(DataFile):
         data = data.ravel()
         self.data[self.nb_channels*time:self.nb_channels*time+len(data)] = data
         self._close()
-
 
     def _open(self, mode='r'):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)
