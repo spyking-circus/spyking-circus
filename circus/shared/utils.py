@@ -1,4 +1,4 @@
-    # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import warnings, logging
 warnings.filterwarnings("ignore")
 import os, sys, time, types, tqdm
@@ -15,9 +15,9 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 
-from .mpi import gather_array, all_gather_array, comm, SHARED_MEMORY
-from . import files as io
-from .messages import print_and_log
+from circus.shared.mpi import gather_array, all_gather_array, comm, SHARED_MEMORY
+from circus.shared import files as io
+from circus.shared.messages import print_and_log
 
 logger = logging.getLogger(__name__)
 
