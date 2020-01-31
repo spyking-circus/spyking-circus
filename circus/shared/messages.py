@@ -1,5 +1,8 @@
 from colorama import Fore
-import sys, os, logging
+import logging
+# import os
+import sys
+
 
 def get_header():
 
@@ -7,9 +10,11 @@ def get_header():
     version = circus.__version__
 
     if len(version) == 3:
-        title = '#####            Welcome to the SpyKING CIRCUS (%s)         #####' %version
+        title = '#####            Welcome to the SpyKING CIRCUS (%s)         #####' % version
     elif len(version) == 5:
-        title = '#####           Welcome to the SpyKING CIRCUS (%s)        #####' %version
+        title = '#####           Welcome to the SpyKING CIRCUS (%s)        #####' % version
+    else:
+        title = '#####           Welcome to the SpyKING CIRCUS                #####'
 
     header = '''
 ##################################################################
@@ -18,9 +23,10 @@ def get_header():
 #####              Written by P.Yger and O.Marre             #####
 ##################################################################
 
-''' %title
+''' % title
 
     return header
+
 
 class InfoFilter(logging.Filter):
     def filter(self, rec):
@@ -41,11 +47,14 @@ def init_logging(logfile, debug=True, level=None):
     if level:
         log_level = level
 
-    logger = logging.basicConfig(level=log_level,
-                        format='%(asctime)s %(levelname)-8s [%(name)s] %(message)s',
-                        filename=logfile,
-                        filemode='a')
-    return logger
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s %(levelname)-8s [%(name)s] %(message)s',
+        filename=logfile,
+        filemode='a'
+    )
+
+    return
 
 
 def write_to_logger(logger, to_write, level='info'):
@@ -62,7 +71,7 @@ def print_and_log(to_print, level='info', logger=None, display=True):
     if display:
         if level == 'default':
             for line in to_print:
-                print Fore.WHITE + line + '\r'
+                print(Fore.WHITE + line + '\r')
         if level == 'info':
             print_info(to_print)
         elif level == 'error':
@@ -76,17 +85,19 @@ def print_and_log(to_print, level='info', logger=None, display=True):
 
 def print_info(lines):
     """Prints informations messages, enhanced graphical aspects."""
-    print Fore.YELLOW + "-------------------------  Informations  -------------------------\r"
+    print(Fore.YELLOW + "-------------------------  Informations  -------------------------\r")
     for line in lines:
-        print Fore.YELLOW + "| " + line + '\r'
-    print Fore.YELLOW + "------------------------------------------------------------------\r" + Fore.WHITE
+        print(Fore.YELLOW + "| " + line + '\r')
+    print(Fore.YELLOW + "------------------------------------------------------------------\r" + Fore.WHITE)
+
 
 def print_error(lines):
     """Prints errors messages, enhanced graphical aspects."""
-    print Fore.RED + "----------------------------  Error  -----------------------------\r"
+    print(Fore.RED + "----------------------------  Error  -----------------------------\r")
     for line in lines:
-        print Fore.RED + "| " + line + '\r'
-    print Fore.RED + "------------------------------------------------------------------\r" + Fore.WHITE
+        print(Fore.RED + "| " + line + '\r')
+    print(Fore.RED + "------------------------------------------------------------------\r" + Fore.WHITE)
+
 
 def get_colored_header():
     return Fore.GREEN + get_header() + Fore.RESET

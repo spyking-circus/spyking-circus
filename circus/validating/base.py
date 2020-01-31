@@ -1,3 +1,5 @@
+from builtins import range  # Python 2 and 3 (forward-compatible)
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import sys
@@ -7,10 +9,11 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 
-from ..shared.utils import *
-from ..shared.files import get_stas, get_stas_memshared, get_shared_memory_flag
-from ..shared import plot
-from circus.shared.parser import CircusParser
+from circus.shared.utils import *
+import circus.shared.files as io
+from circus.shared.files import get_stas, get_stas_memshared, get_shared_memory_flag
+from circus.shared import plot
+# from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import comm
 
@@ -18,12 +21,11 @@ try:
     import sklearn
 except Exception:
     if comm.rank == 0:
-        print "Sklearn is not installed! Install spyking-circus with the beer extension (see documentation)"
+        print("Sklearn is not installed! Install spyking-circus with the beer extension (see documentation)")
     sys.exit(1)
 
-from sklearn.decomposition import PCA
-# TODO: remove following line (i.e. remove warning).
-# from sklearn.neural_network import MLPClassifier
+# from sklearn.decomposition import PCA
+from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
 
@@ -31,8 +33,7 @@ from sklearn.linear_model import SGDClassifier
 from matplotlib.cm import inferno
 from matplotlib.patches import Rectangle
 
-from .utils import *
-
+from circus.shared.utils import *
 
 
 def main(params, nb_cpu, nb_gpu, us_gpu):    
@@ -176,11 +177,11 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         else:
             # Remove juxta spikes times for which we see some artifacts in the corresponding extra snipets.
             juxta_spike_times_selection = numpy.ones(juxta_spikes.shape[2], dtype=numpy.bool)
-            for elec in xrange(0, juxta_spikes.shape[1]):
+            for elec in range(0, juxta_spikes.shape[1]):
                 median = numpy.median(juxta_spikes[:, elec, :])
                 tmp_juxta_spikes = numpy.abs(juxta_spikes - median)
                 mad_juxta_spikes = numpy.median(tmp_juxta_spikes)
-                # for spike_time_index in xrange(0, juxta_spikes.shape[2]):
+                # for spike_time_index in range(0, juxta_spikes.shape[2]):
                 #     # Since extra_valley is always true.
                 #     min_juxta_spikes = numpy.amin(juxta_spikes[:, elec, spike_time_index])
                 #     if min_juxta_spikes <= - 20.0 * juxta_thresh * mad_juxta_spikes:
@@ -249,11 +250,11 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     N_e = params.getint('data', 'N_e')
     threshs = N_e * [None]
     counts = N_e * [None]
-    for e in xrange(0, N_e):
+    for e in range(0, N_e):
         spike_values_extra[e] = numpy.sort(spike_values_extra[e]) / extra_mads[e]
     xmax = max([0.0] + [numpy.amax(s) for s in spike_values_extra if 0 < s.size])
     ymax = max([s.size + 1 for s in spike_values_extra])
-    for e in xrange(0, N_e):
+    for e in range(0, N_e):
         threshs[e] = numpy.concatenate((numpy.array([extra_thresh]), spike_values_extra[e], numpy.array([xmax])))
         counts[e] = numpy.concatenate((numpy.arange(spike_values_extra[e].size, -1, -1), numpy.array([0])))
     
@@ -268,7 +269,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             import pylab
             fig = pylab.figure()
             ax = fig.add_subplot(1, 1, 1)
-            for e in xrange(0, N_e):
+            for e in range(0, N_e):
                 color = inferno(float(e) / float(N_e))
                 ax.step(threshs[e], counts[e], color=color, where='post')
             ax.add_patch(unknown_zone)
@@ -288,7 +289,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     extra_mads = io.load_data(params, 'extra-mads')
     
     N_e = params.getint('data', 'N_e')
-    for e in xrange(0, N_e):
+    for e in range(0, N_e):
         spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
     spike_values_extra = numpy.concatenate(spike_values_extra)
     spike_values_extra = numpy.sort(spike_values_extra)
@@ -352,7 +353,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     
     thresh = int(float(params.rate) * matching_jitter * 1.0e-3) # "matching threshold"
     
-    for e in xrange(0, N_e):
+    for e in range(0, N_e):
         spike_values_extra[e] = spike_values_extra[e] / extra_mads[e]
     spike_times_extra = numpy.concatenate(spike_times_extra)
     spike_values_extra = numpy.concatenate(spike_values_extra)
@@ -650,8 +651,8 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
     if pairwise:
         # Add the pairwise product of feature vector elements.
         k = 0
-        for i in xrange(0, N):
-            for j in xrange(i, N):
+        for i in range(0, N):
+            for j in range(i, N):
                 X[:, N + k] = numpy.multiply(X[:, i], X[:, j])
                 k = k + 1
         
@@ -1351,7 +1352,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             sc_contingency_matrices = numpy.zeros((n_temp, 2, 2), dtype=numpy.int)
             
             # First pass to detect what are the scores.
-            for i in xrange(n_temp):
+            for i in range(n_temp):
                 # Retrieve the spike times for the i-th detected template.
                 spike_times = data['temp_' + str(i)]
                 # Count the true positives (among actual posititves).
@@ -1397,7 +1398,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
                 source_temp = templates[:, idx].toarray().flatten()
                 temp_match = []
                 dmax = 0.1
-                for i in xrange(templates.shape[1]/2):
+                for i in range(templates.shape[1]/2):
                     d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
                     if d > dmax and i not in selection:
                         temp_match += [i]
@@ -1501,7 +1502,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             res = numpy.zeros((n_temp, 2))
             
             # First pass to detect what are the scores.
-            for i in xrange(n_temp):
+            for i in range(n_temp):
                 spikes = data['temp_' + str(i)]
                 # Compute the false positive rate.
                 for spike in spike_times_gt:
@@ -1525,7 +1526,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             source_temp = templates[:, idx].toarray().flatten()
             temp_match = []
             dmax = 0.1
-            for i in xrange(templates.shape[1]/2):
+            for i in range(templates.shape[1]/2):
                 d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
                 if d > dmax and i not in selection:
                     temp_match += [i]

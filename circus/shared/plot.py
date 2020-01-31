@@ -5,9 +5,9 @@ import numpy, scipy, pylab, os
 import statsmodels.api as sm
 from circus.shared.files import load_data, get_results, get_results
 import numpy, pylab
-from circus.shared import algorithms as algo
+# from circus.shared import algorithms as algo
 from circus.shared.utils import *
-from parser import CircusParser
+from circus.shared.parser import CircusParser
 from circus.shared.probes import get_nodes_and_edges
 
 
@@ -69,7 +69,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
                 tmp2   = templates[:, elec+templates.shape[1]//2].toarray().reshape(N_e, N_t)
                 
                 curve[:, spike-template_shift:spike+template_shift+1] += amp1*tmp1 + amp2*tmp2
-        print "Number of spikes", count
+        print("Number of spikes %d" % count)
 
     if not numpy.iterable(n_elec):
         if square:
@@ -813,12 +813,12 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     if do_temporal_whitening: 
         for i in range(N_e):
             data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i]   = juxta_spike_times = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
+            peaks[i]   = juxta_spike_times = scipy.signal.find_peaks(-data[:,i], height=thresholds[i])[0]
             n_spikes  += len(peaks[i])
 
     curve = numpy.zeros((n_spikes, N_t-1), dtype=numpy.float32)
-    print "We found", n_spikes, "spikes"
-    
+    print("We found %d spikes" % n_spikes)
+
     count = 0
     for electrode in range(N_e):
         for i in range(len(peaks[electrode])):
@@ -1018,7 +1018,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     pylab.show()    
     return best_elec
 
-def view_raw_templates(file_name, n_temp=2, square=True):
+def view_raw_templates(templates, n_temp=2, square=True):
 
     N_e, N_t, N_tm = templates.shape
     if not numpy.iterable(n_temp):
@@ -1107,8 +1107,7 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
     for i in range(N_e):
-        peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
-
+        peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=thresholds[i])[0]
 
     pylab.figure()
 
@@ -1165,7 +1164,7 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
     for i in range(N_e):
-        peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
+        peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=thresholds[i])[0]
 
     if not numpy.iterable(n_elec):
         if square:
