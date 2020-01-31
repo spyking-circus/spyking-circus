@@ -1,4 +1,7 @@
-from .shared.utils import *
+from builtins import range  # Python 2 and 3 (forward-compatible)
+
+from circus.shared.utils import *
+import circus.shared.files as io
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
@@ -7,6 +10,7 @@ from circus.shared.probes import get_nodes_and_edges
 from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import detect_memory
+
 
 def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     """
@@ -226,7 +230,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
                         gmin = new_temp.min()
                         data = numpy.where(new_temp == gmin)
                         scaling = -thresholds[data[0][0]]/gmin
-                        for i in xrange(templates.shape[1]//2):
+                        for i in range(templates.shape[1]//2):
                             match = templates[:, i].toarray().reshape(N_e, N_t)
                             d = numpy.corrcoef(match.flatten(),
                                                scaling * new_temp.flatten())[0, 1]
@@ -345,7 +349,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     loc_nb_chunks  = len(to_process)
     numpy.random.seed(comm.rank)
 
-    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+    to_explore = range(comm.rank, nb_chunks, comm.size)
 
     # Initialize the progress bar about the generation of the benchmark.
     if comm.rank == 0:
@@ -403,7 +407,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
 
         # For each synthesized cell generate its spike indices (i.e.times) and
         # add them to the dataset.
-        for idx in xrange(len(cells)):
+        for idx in range(len(cells)):
             if benchmark is 'synchrony':
                 # Choose a subset of the spike indices generated before. The
                 # size of this subset is parameterized by the target correlation

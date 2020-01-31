@@ -1,5 +1,7 @@
-from .shared.utils import *
+from circus.shared.utils import *
+import circus.shared.files as io
 from circus.shared.messages import init_logging
+
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 

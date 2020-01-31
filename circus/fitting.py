@@ -1,9 +1,12 @@
-import circus.shared.algorithms as algo
-from .shared.utils import *
-from .shared.files import get_dead_times
-from .shared.probes import get_nodes_and_edges
+from builtins import range  # Python 2 and 3 (forward-compatible)
+
+from circus.shared.utils import *
+import circus.shared.files as io
+from circus.shared.files import get_dead_times
+from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import detect_memory
+
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
@@ -82,7 +85,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     norm_templates = io.load_data(params, 'norm-templates')
 
     if not SHARED_MEMORY:
-        for idx in xrange(templates.shape[1]):
+        for idx in range(templates.shape[1]):
             myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
             templates.data[myslice] /= norm_templates[idx]
         templates = templates.T
@@ -104,7 +107,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if collect_all:
         neighbors = {}
-        for i in xrange(n_tm):
+        for i in range(n_tm):
             tmp  = templates[i, :].toarray().reshape(N_e, N_t) * norm_templates[i]
             neighbors[i] = numpy.where(numpy.sum(tmp, 1) != 0)[0]
 
@@ -160,12 +163,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
-            for i in xrange(N_over):
+            for i in range(N_over):
                 c_overs[i] = cmt.SparseCUDAMatrix(c_overs[i], copy_on_host=False)
         except Exception:
             if comm.rank == 0:
                 print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', logger)
-            for i in xrange(N_over):
+            for i in range(N_over):
                 if c_overs.has_key(i):
                     del c_overs[i]
             full_gpu = False
@@ -223,7 +226,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     last_chunk_size = 0
 
-    to_explore = xrange(comm.rank, processed_chunks, comm.size)
+    to_explore = range(comm.rank, processed_chunks, comm.size)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
@@ -275,7 +278,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if collect_all:
             all_found_spikes = {}
-            for i in xrange(N_e):
+            for i in range(N_e):
                 all_found_spikes[i] = []
 
         local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
@@ -283,20 +286,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
-                for i in xrange(N_e):
+                for i in range(N_e):
                     peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i])[0]
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
-                for i in xrange(N_e):
+                for i in range(N_e):
                     peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i])[0]
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
         else:
-            for i in xrange(N_e):
+            for i in range(N_e):
                 if sign_peaks == 'negative':
                     peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'positive':
@@ -324,7 +327,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.compress(idx, local_peaktimes)
 
         if collect_all:
-            for i in xrange(N_e):
+            for i in range(N_e):
                 all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.uint32)
 
                 if ignore_dead_times:
@@ -354,7 +357,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if len_chunk != last_chunk_size:
                 slice_indices = numpy.zeros(0, dtype=numpy.int32)
-                for idx in xrange(N_e):
+                for idx in range(N_e):
                     slice_indices = numpy.concatenate((slice_indices, len_chunk*idx + temp_window))
                 last_chunk_size = len_chunk
 
@@ -397,7 +400,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_all_times = numpy.zeros((len_chunk, N_e), dtype=numpy.bool)
                 c_min_times = numpy.maximum(numpy.arange(len_chunk) - template_shift, 0)
                 c_max_times = numpy.minimum(numpy.arange(len_chunk) + template_shift + 1, len_chunk)
-                for i in xrange(N_e):
+                for i in range(N_e):
                     c_all_times[all_found_spikes[i], i] = True
 
             iteration_nb = 0

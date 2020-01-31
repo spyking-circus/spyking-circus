@@ -1,14 +1,15 @@
 from builtins import range  # Python 2 and 3 (forward-compatible)
 
-from .shared.utils import *
+from circus.shared.utils import *
+import circus.shared.files as io
 import circus.shared.algorithms as algo
-from .shared import plot
+from circus.shared import plot
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 from circus.shared.probes import get_nodes_and_edges
-from .shared.files import get_dead_times
+from circus.shared.files import get_dead_times
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
 from circus.shared.mpi import detect_memory

@@ -1,9 +1,12 @@
-import circus.shared.algorithms as algo
-from .shared.utils import *
-from .shared.files import get_dead_times
-from .shared.probes import get_nodes_and_edges
+from builtins import range  # Python 2 and 3 (forward-compatible)
+
+from circus.shared.utils import *
+import circus.shared.files as io
+from circus.shared.files import get_dead_times
+from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import detect_memory
+
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
@@ -94,7 +97,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
-    to_explore = xrange(comm.rank, processed_chunks, comm.size)
+    to_explore = range(comm.rank, processed_chunks, comm.size)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
@@ -136,20 +139,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
-                for i in xrange(N_e):
+                for i in range(N_e):
                     peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i], width=spike_width, distance=dist_peaks, wlen=N_t)[0]
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     local_elecs = numpy.concatenate((local_elecs, i*numpy.ones(len(peaktimes), dtype='uint32')))
                     local_amps = numpy.concatenate((local_amps, filter_chunk[peaktimes, i]))
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
-                for i in xrange(N_e):
+                for i in range(N_e):
                     peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i], width=spike_width, distance=dist_peaks, wlen=N_t)[0]
                     local_peaktimes = numpy.concatenate((local_peaktimes, peaktimes))
                     local_elecs = numpy.concatenate((local_elecs, i*numpy.ones(len(peaktimes), dtype='uint32')))
                     local_amps = numpy.concatenate((local_amps, filter_chunk[peaktimes, i]))
         else:
-            for i in xrange(N_e):
+            for i in range(N_e):
                 if sign_peaks == 'negative':
                     peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=N_t)[0]
                 elif sign_peaks == 'positive':
