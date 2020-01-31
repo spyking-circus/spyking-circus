@@ -684,7 +684,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         #pylab.plot(sub_mat)
                                         #pylab.show()
 
-        for elec in xrange(N_e):
+        for elec in range(N_e):
             for p in search_peaks:
                 if gpass == 0:
                     result['tmp_%s_' % loc_peak + str(elec)] = numpy.concatenate(result['tmp_%s_' % loc_peak + str(elec)])
