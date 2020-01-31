@@ -1411,28 +1411,28 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
         result['gtemps']  = {}
 
     for i in xrange(N_tm//2):
-        result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
-        result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2), dtype=numpy.float32)
+        result['spiketimes']['temp_' + str(i)]  = [numpy.empty(shape=0, dtype=numpy.uint32)]
+        result['amplitudes']['temp_' + str(i)]  = [numpy.empty(shape=(0, 2), dtype=numpy.float32)]
         if with_real_amps:
-            result['real_amps']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
+            result['real_amps']['temp_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.float32)]
         if with_voltages:
-            result['voltages']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
+            result['voltages']['temp_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.float32)]
 
     if collect_all:
         for i in xrange(N_e):
-            result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0, dtype=numpy.uint32)
+            result['gspikes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.uint32)]
 
     if debug:
         result_debug = {
-            'chunk_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
-            'iteration_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
-            'peak_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
-            'peak_local_time_steps': numpy.empty(shape=0, dtype=numpy.uint32),
-            'peak_time_steps': numpy.empty(shape=0, dtype=numpy.uint32),
-            'peak_scalar_products': numpy.empty(shape=0, dtype=numpy.float32),
-            'peak_solved_flags': numpy.empty(shape=0, dtype=numpy.float32),
-            'template_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
-            'success_flags': numpy.empty(shape=0, dtype=numpy.bool),
+            'chunk_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'iteration_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'peak_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'peak_local_time_steps': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'peak_time_steps': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'peak_scalar_products': [numpy.empty(shape=0, dtype=numpy.float32)],
+            'peak_solved_flags': [numpy.empty(shape=0, dtype=numpy.float32)],
+            'template_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'success_flags': [numpy.empty(shape=0, dtype=numpy.bool)],
         }
     else:
         result_debug = None
@@ -1480,17 +1480,17 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
             for j in local_temp:
                 idx = numpy.where(templates == j)[0]
-                result['amplitudes']['temp_' + str(j)] = numpy.concatenate((result['amplitudes']['temp_' + str(j)], amplitudes[idx]))
-                result['spiketimes']['temp_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx]))
+                result['amplitudes']['temp_' + str(j)].append(amplitudes[idx])
+                result['spiketimes']['temp_' + str(j)].append(spiketimes[idx])
                 if with_real_amps:
-                    result['real_amps']['temp_' + str(j)] = numpy.concatenate((result['real_amps']['temp_' + str(j)], real_amps[idx]))
+                    result['real_amps']['temp_' + str(j)].append(real_amps[idx])
                 if with_voltages:
-                    result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx]))
+                    result['voltages']['temp_' + str(j)].append(voltages[idx])
 
             if collect_all:
                 for j in xrange(N_e):
                     idx = numpy.where(gtemps == j)[0]
-                    result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx]))
+                    result['gspikes']['elec_' + str(j)].append(gspikes[idx])
 
         if debug:
             for (key, filename_formatter, dtype) in [
@@ -1506,20 +1506,23 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             ]:
                 filename = file_out_suff + filename_formatter % node
                 data = numpy.fromfile(filename, dtype=dtype)
-                result_debug[key] = numpy.concatenate((result_debug[key], data))
+                result_debug[key].append(data)
                 # TODO avoid multiple concatenations (i.e. copies)?
 
     sys.stderr.flush()
 
     for key in result['spiketimes']:
-        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
+        result['spiketimes'][key] = numpy.concatenate(result['spiketimes'][key]).astype(numpy.uint32)
+        result['amplitudes'][key] = numpy.concatenate(result['amplitudes'][key]).astype(numpy.float32)
+
         idx                       = numpy.argsort(result['spiketimes'][key])
-        result['amplitudes'][key] = numpy.array(result['amplitudes'][key], dtype=numpy.float32)
         result['spiketimes'][key] = result['spiketimes'][key][idx]
         result['amplitudes'][key] = result['amplitudes'][key][idx]
         if with_real_amps:
+            result['real_amps'][key] = numpy.concatenate(result['real_amps'][key]).astype(numpy.float32)
             result['real_amps'][key] = result['real_amps'][key][idx]
         if with_voltages:
+            result['voltages'][key] = numpy.concatenate(result['voltages'][key]).astype(numpy.float32)
             result['voltages'][key] = result['voltages'][key][idx]
 
         if refractory > 0:
@@ -1533,7 +1536,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     if collect_all:
         for key in result['gspikes']:
-            result['gspikes'][key] = numpy.array(result['gspikes'][key], dtype=numpy.uint32)
+            result['gspikes'][key] = numpy.concatenate(result['gspikes'][key]).astype(numpy.uint32)
             idx                    = numpy.argsort(result['gspikes'][key])
             result['gspikes'][key] = result['gspikes'][key][idx]
 
@@ -1572,7 +1575,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             'success_flags',
         ]
         for name in names:
-            data = result_debug[name]
+            data = numpy.concatenate(result_debug[name])
             compression = 'gzip' if hdf5_compress else None
             file.create_dataset(name, data=data, compression=compression)
         file.close()
@@ -1648,8 +1651,8 @@ def collect_mua(nb_threads, params, erase=False):
     result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
 
     for i in xrange(N_e):
-        result['spiketimes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
-        result['amplitudes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.float32)
+        result['spiketimes']['elec_' + str(i)]  = [numpy.empty(shape=0, dtype=numpy.uint32)]
+        result['amplitudes']['elec_' + str(i)]  = [numpy.empty(shape=0, dtype=numpy.float32)]
 
     to_explore = xrange(nb_threads)
 
@@ -1675,13 +1678,14 @@ def collect_mua(nb_threads, params, erase=False):
 
             for j in local_temp:
                 idx = numpy.where(templates == j)[0]
-                result['spiketimes']['elec_' + str(j)] = numpy.concatenate((result['spiketimes']['elec_' + str(j)], spiketimes[idx]))
-                result['amplitudes']['elec_' + str(j)] = numpy.concatenate((result['amplitudes']['elec_' + str(j)], amplitudes[idx]))
+                result['spiketimes']['elec_' + str(j)].append(spiketimes[idx])
+                result['amplitudes']['elec_' + str(j)].append(amplitudes[idx])
 
     sys.stderr.flush()
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
-        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
+        result['spiketimes'][key] = numpy.concatenate(result['spiketimes'][key]).astype(numpy.uint32)
+        result['amplitudes'][key] = numpy.concatenate(result['amplitudes'][key]).astype(numpy.float32)
         idx                       = numpy.argsort(result['spiketimes'][key])
         result['spiketimes'][key] = result['spiketimes'][key][idx]
         result['amplitudes'][key] = result['amplitudes'][key][idx]
