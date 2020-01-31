@@ -12,7 +12,7 @@ with warnings.catch_warnings():
     import h5py
 
 from colorama import Fore
-from mpi import all_gather_array, gather_array, comm, get_local_ring, MPI
+from circus.shared.mpi import all_gather_array, gather_array, comm, get_local_ring, MPI
 from circus.shared.probes import get_nodes_and_edges, get_central_electrode
 from circus.shared.messages import print_and_log
 from circus.shared.utils import purge, get_parallel_hdf5_flag, indices_for_dead_times, get_shared_memory_flag
