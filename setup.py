@@ -1,16 +1,21 @@
 from __future__ import print_function
 import os
 from os.path import join as pjoin
-import sys, subprocess, re
-
-requires = ['mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
-            'psutil', 'tqdm', 'blosc', 'statsmodels', 'scikit-learn']
-
 from setuptools import setup
+import sys
+# import subprocess
+import re
+
+
+requires = [
+    'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
+    'psutil', 'tqdm', 'blosc', 'statsmodels', 'scikit-learn'
+]
 
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
 
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
@@ -30,10 +35,13 @@ with open(filename, 'r') as f:
 
 def _package_tree(pkgroot):
     path = os.path.dirname(__file__)
-    subdirs = [os.path.relpath(i[0], path).replace(os.path.sep, '.')
-               for i in os.walk(os.path.join(path, pkgroot))
-               if '__init__.py' in i[2]]
+    subdirs = [
+        os.path.relpath(i[0], path).replace(os.path.sep, '.')
+        for i in os.walk(os.path.join(path, pkgroot))
+        if '__init__.py' in i[2]
+    ]
     return subdirs
+
 
 setup(name='spyking-circus',
       version=version,
@@ -46,7 +54,7 @@ setup(name='spyking-circus',
       keywords="spike sorting template matching tetrodes extracellular",
       packages=_package_tree('circus'),
       setup_requires=['setuptools'],
-      #dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
+      # dependency_links=["https://github.com/yger/cudamat/archive/master.zip#egg=cudamat-0.3circus"],
       install_requires=requires,
       entry_points={
           'console_scripts': [
@@ -109,10 +117,12 @@ setup(name='spyking-circus',
       ],
       zip_safe=False)
 
-msg = ['################################################################################',
-'# Probes files and parameter template have been copied to $HOME/spyking-circus #',
-'# If you want to use the phy GUI, please see documentation to install it       #',
-'################################################################################']
+msg = [
+    '################################################################################',
+    '# Probes files and parameter template have been copied to $HOME/spyking-circus #',
+    '# If you want to use the phy GUI, please see documentation to install it       #',
+    '################################################################################'
+]
 
 for line in msg:
-  print(line)
+    print(line)
