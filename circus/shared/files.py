@@ -1,5 +1,4 @@
 from __future__ import division
-from builtins import range  # Python 2 and 3 (forward-compatible)
 
 import warnings
 warnings.simplefilter(action = "ignore", category = FutureWarning)

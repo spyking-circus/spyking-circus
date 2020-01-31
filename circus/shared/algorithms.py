@@ -1,5 +1,3 @@
-from builtins import range  # Python 2 and 3 (forward-compatible)
-
 import os
 import logging
 import sys

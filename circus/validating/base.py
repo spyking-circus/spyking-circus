@@ -1,5 +1,3 @@
-from builtins import range  # Python 2 and 3 (forward-compatible)
-
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import sys

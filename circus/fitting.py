@@ -1,5 +1,3 @@
-from builtins import range  # Python 2 and 3 (forward-compatible)
-
 from circus.shared.utils import *
 import circus.shared.files as io
 from circus.shared.files import get_dead_times

@@ -6,8 +6,6 @@ e-mail: pierre.yger <at> inserm.fr
 
 Executes filtering and trigger sections on the data. 
 """
-from builtins import range  # Python 2 and 3 (forward-compatible)
-
 from scipy import signal
 from circus.shared import plot
 from circus.shared.utils import *

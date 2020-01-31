@@ -1,10 +1,12 @@
-from builtins import range  # Python 2 and 3 (forward-compatible)
-
 import matplotlib.colors as mcolors
-import numpy, scipy, pylab, os
+import numpy
+import scipy
+import pylab
+import os
 import statsmodels.api as sm
 from circus.shared.files import load_data, get_results, get_results
-import numpy, pylab
+import numpy
+import pylab
 # from circus.shared import algorithms as algo
 from circus.shared.utils import *
 from circus.shared.parser import CircusParser

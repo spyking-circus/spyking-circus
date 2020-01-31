@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
-from builtins import range  # Python 2 and 3 (forward-compatible)
-import six, pkg_resources, logging
 
+import six
+import pkg_resources
+import logging
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 
 import numpy as np

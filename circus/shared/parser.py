@@ -6,17 +6,22 @@ mail: pierre.yger <at> inserm.fr
 
 Contains the class to read *param files
 """
-from builtins import range  # Python 2 and 3 (forward-compatible)
-
 import ConfigParser as configparser
+
 from circus.shared.messages import print_and_log
 from circus.shared.probes import read_probe, parse_dead_channels
 from circus.shared.mpi import comm, check_if_cluster, check_valid_path
 from circus.files import __supported_data_files__
 
-import os, sys, copy, numpy, logging
+import os
+import sys
+import copy
+import numpy
+import logging
+
 
 logger = logging.getLogger(__name__)
+
 
 class CircusParser(object):
     """
