@@ -1,4 +1,4 @@
-    # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import warnings, logging
 warnings.filterwarnings("ignore")
 import os, sys, time, types, tqdm
@@ -10,21 +10,26 @@ import scipy.interpolate
 from scipy.stats import gamma
 import numpy, os, tempfile
 import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
+import six
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 
-from mpi import gather_array, all_gather_array, comm, SHARED_MEMORY
-import files as io
-from messages import print_and_log
+# Warning: be careful while importing other circus modules (avoid circular imports)!
+from circus.shared.mpi import gather_array, all_gather_array, comm, SHARED_MEMORY
+from circus.shared.messages import print_and_log
+
 logger = logging.getLogger(__name__)
+
 import circus
 from distutils.version import StrictVersion
 from scipy.optimize import brenth, minimize
 
 def test_patch_for_similarities(params, extension):
-    
+
+    import circus.shared.files as io
+
     file_out_suff  = params.get('data', 'file_out_suff')
     template_file  = file_out_suff + '.templates%s.hdf5' %extension
     if os.path.exists(template_file):
@@ -62,6 +67,8 @@ def indices_for_dead_times(start, end):
 def apply_patch_for_similarities(params, extension):
 
     if not test_patch_for_similarities(params, extension):
+
+        import circus.shared.files as io
 
         file_out_suff  = params.get('data', 'file_out_suff')
         hdf5_compress = params.getboolean('data', 'hdf5_compress')

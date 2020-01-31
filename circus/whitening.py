@@ -1,14 +1,14 @@
-from .shared.utils import *
-import circus.shared.algorithms as algo
-from .shared import plot
+from circus.shared.utils import *
+import circus.shared.files as io
 from circus.shared.probes import get_nodes_and_edges
-from .shared.files import get_dead_times
+from circus.shared.files import get_dead_times
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
     import h5py
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import detect_memory
+
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 1: Whitening
@@ -95,7 +95,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         #print "Node", comm.rank, "computes the median absolute deviations in a random chunk"
         thresholds = numpy.zeros(N_e, dtype=numpy.float32)
-        for i in xrange(N_e):
+        for i in range(N_e):
             u             = numpy.median(local_chunk[:, i], 0)
             thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
         gdata      = gather_array(thresholds, comm)
@@ -110,7 +110,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         # Extracting the peaks.
         local_peaktimes = [np.empty(0, dtype=numpy.uint32)]
-        for i in xrange(N_e):
+        for i in range(N_e):
             peaktimes = scipy.signal.find_peaks(
                 numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t
             )[0]
@@ -262,7 +262,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
             thresholds = numpy.zeros(N_e, dtype=numpy.float32)
-            for i in xrange(N_e):
+            for i in range(N_e):
                 u             = numpy.median(local_chunk[:, i], 0)
                 thresholds[i] = numpy.median(numpy.abs(local_chunk[:, i] - u), 0)
             gdata      = gather_array(thresholds, comm)
@@ -329,7 +329,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     groups    = {}
-    for i in xrange(N_e):
+    for i in range(N_e):
         groups[i] = 0
 
     # I guess this is more relevant, to take signals from all over the recordings
@@ -367,7 +367,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         reject_noise = False
 
-    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+    to_explore = range(comm.rank, nb_chunks, comm.size)
 
     upper_bounds = max_elts_elec
 
@@ -394,7 +394,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             # Extracting the peaks.
             all_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
-            for i in xrange(N_e):
+            for i in range(N_e):
                 height = thresholds[i]
                 if sign_peaks == 'negative':
                     peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=height, distance=dist_peaks)[0]
@@ -643,7 +643,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if sign_peaks in ['negative', 'both']:
                 tmp_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 thresholds = numpy.zeros(N_e, dtype=numpy.float32)
-                for i in xrange(N_e):
+                for i in range(N_e):
                     u             = numpy.median(tmp_chunk[:, i], 0)
                     thresholds[i] = numpy.median(numpy.abs(tmp_chunk[:, i] - u), 0)
                 gdata      = gather_array(thresholds, comm)
@@ -658,7 +658,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if sign_peaks in ['positive', 'both']:
                 tmp_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                 thresholds = numpy.zeros(N_e, dtype=numpy.float32)
-                for i in xrange(N_e):
+                for i in range(N_e):
                     u             = numpy.median(tmp_chunk[:, i], 0)
                     thresholds[i] = numpy.median(numpy.abs(tmp_chunk[:, i] - u), 0)
                 gdata      = gather_array(thresholds, comm)

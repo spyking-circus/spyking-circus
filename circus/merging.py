@@ -1,6 +1,6 @@
-from .shared.utils import *
-from shared import gui
-from shared.messages import init_logging, print_and_log
+from circus.shared.utils import *
+from circus.shared import gui
+from circus.shared.messages import init_logging, print_and_log
 from circus.shared.utils import query_yes_no
 import pylab
 

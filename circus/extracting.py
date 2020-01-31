@@ -1,9 +1,11 @@
-from .shared.utils import *
+from circus.shared.utils import *
+import circus.shared.files as io
 import circus.shared.algorithms as algo
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
 from circus.shared.mpi import detect_memory
+
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(426236)
@@ -66,7 +68,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
     result         = {}
-    for i in xrange(N_clusters):
+    for i in range(N_clusters):
         result['data_tmp_' + str(i)]  = numpy.zeros((0, N_e * basis_proj.shape[1]), dtype=numpy.float32)
         result['times_' + str(i)]     = numpy.zeros(0, dtype=numpy.int32)
 
@@ -122,7 +124,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_peaktimes = local_peaktimes[argmax_peak]
 
                 #print "Selection of the peaks with spatio-temporal masks..."
-                for idx in xrange(len(local_peaktimes)):
+                for idx in range(len(local_peaktimes)):
 
                     if elt_count == nb_elts:
                         break
@@ -148,7 +150,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             all_times[indices, min_times[idx]:max_times[idx]] = True
 
     total_nb_elts = 0
-    for temp in xrange(N_clusters):
+    for temp in range(N_clusters):
         total_nb_elts += len(result['data_tmp_' + str(temp)])
 
     gdata = gather_array(numpy.array([total_nb_elts], dtype=numpy.float32), comm, 0)
@@ -160,7 +162,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
 
     local_nb_clusters = 0
-    for temp in xrange(comm.rank, N_clusters, comm.size):
+    for temp in range(comm.rank, N_clusters, comm.size):
         if len(result['data_tmp_' + str(temp)]) > 0:
             local_nb_clusters += 1
 
@@ -173,7 +175,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
     offsets    = numpy.zeros(comm.size, dtype=numpy.int32)
-    for i in xrange(comm.size-1):
+    for i in range(comm.size-1):
         offsets[i+1] = comm.bcast(numpy.array([local_nb_clusters], dtype=numpy.int32), root=i)
 
     if parallel_hdf5:
@@ -200,7 +202,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     temp_y     = numpy.zeros(0, dtype=numpy.int32)
     temp_data  = numpy.zeros(0, dtype=numpy.float32)
 
-    to_explore = xrange(comm.rank, N_clusters, comm.size)
+    to_explore = range(comm.rank, N_clusters, comm.size)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
@@ -235,7 +237,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             first_flat       = first_component.reshape(y*z, 1)
             amplitudes       = numpy.dot(data_flat, first_flat)
             amplitudes      /= numpy.sum(first_flat**2)
-            for i in xrange(x):
+            for i in range(x):
                 data_flat[i, :] -= amplitudes[i]*first_flat[:, 0]
 
             variations       = 10*numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
@@ -287,10 +289,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if parallel_hdf5:
         if comm.rank == 0:
-            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='earliest') for i in xrange(comm.size)]
+            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='earliest') for i in range(comm.size)]
             cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='earliest')
             io.write_datasets(cfile, ['electrodes'], {'electrodes' : electrodes[:]}, compress=hdf5_compress)
-            for i in xrange(comm.size):
+            for i in range(comm.size):
                 for j in range(i, N_e, comm.size):
                     io.write_datasets(cfile, to_write, rs[i], j, compress=hdf5_compress)
                 rs[i].close()
@@ -300,8 +302,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         hfile.close()
         if comm.rank == 0:
-            ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='earliest') for i in xrange(comm.size)]
-            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='earliest') for i in xrange(comm.size)]
+            ts         = [h5py.File(file_out_suff + '.templates-%d.hdf5' %i, 'r', libver='earliest') for i in range(comm.size)]
+            rs         = [h5py.File(file_out_suff + '.clusters-%d.hdf5' %i, 'r', libver='earliest') for i in range(comm.size)]
             result     = {}
             hfile      = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='earliest')
             cfile      = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='earliest')
@@ -309,7 +311,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             norms      = hfile.create_dataset('norms', shape=(2*total_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amplitudes = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             count      = 0
-            for i in xrange(comm.size):
+            for i in range(comm.size):
                 loc_temp    = ts[i].get('templates')
                 middle      = loc_temp.shape[2]//2
                 norms[count:count+middle]                               = loc_norms[:middle]

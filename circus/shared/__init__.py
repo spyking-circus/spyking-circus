@@ -9,9 +9,9 @@ if 'DISPLAY' in os.environ and os.environ['DISPLAY'] in [":0", ":1", ":2"]:
 else:
     matplotlib.use('Agg', warn=False)
 
-import files
-import parser
-import algorithms
-import plot
-import utils
-#import gui
+# import circus.shared.files as files
+# import circus.shared.parser as parser
+# import circus.shared.algorithms as algorithms
+# import circus.shared.plot as plot
+# import circus.shared.utils as utils
+# import circus.shared.gui as gui

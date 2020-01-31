@@ -7,12 +7,13 @@ e-mail: pierre.yger <at> inserm.fr
 Executes filtering and trigger sections on the data. 
 """
 from scipy import signal
-from .shared import plot
-from .shared.utils import *
+from circus.shared import plot
+from circus.shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.files import get_artefact
 from circus.shared.mpi import detect_memory
+
 
 def check_if_done(params, flag, logger):
     """
@@ -137,7 +138,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             print_and_log(to_write, 'default', logger)
 
-        to_explore = xrange(comm.rank, nb_chunks, comm.size)
+        to_explore = range(comm.rank, nb_chunks, comm.size)
 
         data_file_in.open(mode='r+')
 

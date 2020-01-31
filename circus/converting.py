@@ -1,4 +1,5 @@
-from .shared.utils import *
+from circus.shared.utils import *
+import circus.shared.files as io
 import os
 import os.path as op
 import shutil
@@ -137,7 +138,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         if sparse_export:
             n_channels_max = 0
-            for t in xrange(N_tm):
+            for t in range(N_tm):
                 data = numpy.sum(numpy.sum(templates[:, t].toarray().reshape(N_e, N_t), 1) != 0) 
                 if data > n_channels_max:
                     n_channels_max = data
@@ -151,7 +152,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             to_write_sparse = numpy.zeros((N_tm, N_t, n_channels_max), dtype=numpy.float32)
             mapping_sparse  = -1 * numpy.ones((N_tm, n_channels_max), dtype=numpy.int32)
             
-        for t in xrange(N_tm):
+        for t in range(N_tm):
             tmp                              = templates[:, t].toarray().reshape(N_e, N_t).T
             x, y                             = tmp.nonzero()
             nb_loc                           = len(numpy.unique(y))
@@ -168,7 +169,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
         if export_all:
             garbage = io.load_data(params, 'garbage', extension)
-            for t in xrange(N_tm, N_tm + N_e):
+            for t in range(N_tm, N_tm + N_e):
                 elec = t - N_tm
                 spikes = garbage['gspikes'].pop('elec_%d' %elec).astype(numpy.uint64)
                 spikes = numpy.random.permutation(spikes)[:100]
@@ -232,7 +233,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         to_process = numpy.arange(comm.rank, nb_templates, comm.size)
 
         all_offsets = numpy.zeros(nb_templates, dtype=numpy.int32)
-        for target in xrange(nb_templates):
+        for target in range(nb_templates):
             if mode == 0:
                 all_offsets[target] = len(numpy.where(labels == target)[0])
             elif mode == 1:
@@ -256,7 +257,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         if mode == 1:
             pc_ids = open_memmap(pc_file_ids, mode='r+')
 
-        to_explore = xrange(comm.rank, nb_templates, comm.size)
+        to_explore = range(comm.rank, nb_templates, comm.size)
 
         if comm.rank == 0:
           to_explore = get_tqdm_progressbar(to_explore)

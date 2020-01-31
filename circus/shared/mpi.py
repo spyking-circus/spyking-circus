@@ -2,10 +2,10 @@ import numpy, os, mpi4py, logging, sys
 import mpi4py
 mpi4py.rc.threads = False
 from mpi4py import MPI
-from messages import print_and_log
+from circus.shared.messages import print_and_log
 comm = MPI.COMM_WORLD
 import blosc
-from distutils.version import StrictVersion
+# from distutils.version import StrictVersion
 
 logger = logging.getLogger(__name__)
 
