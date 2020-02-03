@@ -1,5 +1,6 @@
 language: c  # We are not using the Python infrastructure
-sudo: false  # Make sure we are using the container-based infrastructure
+# sudo: false  # Make sure we are using the container-based infrastructure  # Deprecated key 'sudo' (no effect anymore)
+os: linux  # Make sure that linux is the os used by default
 
 # Install packages to have 32bit Python run on 64bit
 addons:
@@ -12,7 +13,7 @@ env:
     - secure: "BqD0lEIzYNVtenktJnag3Gi8ZvOkQo7fbsrXyt1sBwjVmYdqAm/PUwr74Ikg1gyHcZkyP1Kivnc/vejISt6YTKUYFpLE90W8YNpzzgG8Z5YyCo056rBty8xInvvACZuaJExai+sWmSGTkpud5z+8GCy/FcYs1FNbMqkV0qcAkgNCgMClDKpGeuVKIELe0xFkCck1PavhjCw0RYv9EksIu5dGUY7wmyAia+vW3h1zvgyQmiGLzSJED0tQHuViufEQALDwDRbldc/nPbe9m9h3sZpdUc6r8HztZGmSYfinhw1L4AmNRb7korFRa+lS55c2pEndHJByIkr5KlkdYeHVrVMa2mRqEzrCskpAfbAIAJpzA8SYZXrLW+CEQsLnURjbfDoJE8iQyIooWuE1pBv8cc6+TytrR/e8t8OFuKk8edVhnGX5tKYj/L99QDtW5ejcya8uP8uMNQ2I5GNGnR1ElGVMzb126JOWE/qNd35IDCmujo5F0+EOsD+xa1VbP6cwVRdcPgZmbEpfjg56iJPy9H7Xk1Ztc2lXBKlslggblHa6cEu2/iUjJWL3h+IqoifAlc/LLO8WToeWZaIvoSU4Bb+mGFE3ouiekvw8miPeCNkk65kAJcsglvYYE86Aypkvj+ylfom0aLz5KL2MR8zjt/6zLEdQJ4DsOLc3pAOSG5s="
     - secure: "fxbmOyotVG1VB4pCtDJE5XVjc4owEMqCI+VJI3Cg8jdnYRpiGiAugIq7Q6FAovllmt4HilCCLk3r27/maBiugcYPYghOc8W6cu+tMK1SeDhu4kra5+Ue4OgY7DZ9mYom7r0gzTzvFNu8QzydgqfiT1kBTXnB4qfJbMWS1+XRhTbZhNz+BOOnd5kL3KH2uo4I2Gk8WNu5bMsrXyqI2Zgmw9937mFOQvJZ3IEIKj8abYOm5xz9gf/JbbUgo3AhEXLHlkEQEnArzDnLA6GrfDY4eO5OgR6SL/XQ3O8WOqRzqJgH0P6GvfzLU8MS6p+w6bsjOAd6jrqW9I8tVQTIxQyUG4RMmEl4CBQ+Asa70VrOsAE1v3WgFjl9SAEQukn0phf0BFRkVRLYB/uXln3GSBLJtZu4ZMXJcnF+4r5cveVNGQg3704MYwqkN0AULH16TO5c+e1YnyUykWONhJKJ8F8tObZumAnGXZXXYT0LgbftnqPjpv8bQ7BocM97Mi3AWGA3uWROPInaVDbzZgsL/rJCaWowjqwEViYtub2lzZ2yz83CK8Jsyd1xCEaYpqYJRuRVO5ZxRsIoChhKDj72DNsezqIlaUP37HUNMlbvsvn/XxJlO6vHKW0AGz3vR20r9nWB4EoIndC0mOTZM8v1j24JbwBmx4mBnUp8g+1oJ9ZdILU="
 
-matrix:
+jobs:
   include:
     - python: "2.7"
       env: PYTHON="2.7" CONDA_PY="27" ARCHITECTURE="x86_64"
@@ -44,8 +45,6 @@ matrix:
     - python: "3.8"
       env: PYTHON="3.8" CONDA_PY="38" ARCHITECTURE="x86_64"
       os: osx
-
-jobs:
   allow_failures:
     - python: "2.7"
       os: osx
