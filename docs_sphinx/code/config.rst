@@ -132,8 +132,7 @@ Parameters that are most likely to be changed:
     * ``nb_repeats`` The number of passes performed by the algorithm to refine the density landscape
     * ``smart_search`` By default, the code will collect only a subset of spikes, randomly, on all electrodes. However, for long recordings, or if you have low thresholds, you may want to select them in a smarter manner, in order to avoid missing the large ones, under represented. If the smart search is activated, the code will first sample the distribution of amplitudes, on all channels, and then implement a rejection algorithm such that it will try to select spikes in order to make the distribution of amplitudes more uniform.
     * ``cc_merge`` After local merging per electrode, this step will make sure that you do not have duplicates in your templates, that may have been spread on several electrodes. All templates with a correlation coefficient higher than that parameter are merged. Remember that the more you merge, the faster is the fit
-    * ``merging_method`` Several methods can be used to perform greedy local merges on each electrodes. Each of the method has a parameter, defined
-    by ``merge_param``. This replaces former parameters ``sim_same_elec`` and ``dip_threshold``
+    * ``merging_method`` Several methods can be used to perform greedy local merges on each electrodes. Each of the method has a parameter, defined by ``merge_param``. This replaces former parameters ``sim_same_elec`` and ``dip_threshold``
     * ``dispersion`` The spread of the amplitudes allowed, for every templates, around the centroid.
     * ``make_plots`` By default, the code generates sanity plots of the clustering, one per electrode.
 
