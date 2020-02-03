@@ -23,7 +23,7 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 * A bug tracker can be found at https://github.com/spyking-circus/spyking-circus/issues
 * Open source ground-truth datasets used in the paper https://zenodo.org/record/1205233#.WrTFtXXwaV4
 
-:copyright: Copyright 2006-2018 by the SpyKING CIRCUS team, see AUTHORS.
+:copyright: Copyright 2006-2020 by the SpyKING CIRCUS team, see AUTHORS.
 :license: CeCILL, see LICENSE for details.
 
 .. image::  https://anaconda.org/spyking-circus/spyking-circus/badges/version.svg
