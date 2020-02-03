@@ -1,12 +1,17 @@
-import numpy, re, sys, logging
+import numpy
+# import re
+import logging
 from .datafile import DataFile
 from circus.shared.messages import print_and_log
-import sys, struct, os
+import sys
+import struct
+import os
 
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +22,8 @@ def read_header(fid):
     # Check 'magic number' at beginning of file to make sure this is an Intan
     # Technologies RHD2000 data file.
     magic_number, = struct.unpack('<I', fid.read(4)) 
-    if magic_number != int('c6912702', 16): raise Exception('Unrecognized file type.')
+    if magic_number != int('c6912702', 16):
+        raise Exception('Unrecognized file type.')
 
     header = {}
     # Read version number.
@@ -32,9 +38,7 @@ def read_header(fid):
     (freq['dsp_enabled'], freq['actual_dsp_cutoff_frequency'], freq['actual_lower_bandwidth'], freq['actual_upper_bandwidth'], 
     freq['desired_dsp_cutoff_frequency'], freq['desired_lower_bandwidth'], freq['desired_upper_bandwidth']) = struct.unpack('<hffffff', fid.read(26))
 
-
-    # This tells us if a software 50/60 Hz notch filter was enabled during
-    # the data acquisition.
+    # This tells us if a software 50/60 Hz notch filter was enabled during the data acquisition.
     notch_filter_mode, = struct.unpack('<h', fid.read(2))
     header['notch_filter_frequency'] = 0
     if notch_filter_mode == 1:
@@ -48,17 +52,20 @@ def read_header(fid):
     note1 = read_qstring(fid)
     note2 = read_qstring(fid)
     note3 = read_qstring(fid)
-    header['notes'] = { 'note1' : note1, 'note2' : note2, 'note3' : note3}
+    header['notes'] = {
+        'note1': note1,
+        'note2': note2,
+        'note3': note3
+    }
 
     # If data file is from GUI v1.1 or later, see if temperature sensor data was saved.
     header['num_temp_sensor_channels'] = 0
-    if (version['major'] == 1 and version['minor'] >= 1) or (version['major'] > 1) :
+    if (version['major'] == 1 and version['minor'] >= 1) or (version['major'] > 1):
         header['num_temp_sensor_channels'], = struct.unpack('<h', fid.read(2))
-
 
     # If data file is from GUI v1.3 or later, load eval board mode.
     header['eval_board_mode'] = 0
-    if ((version['major'] == 1) and (version['minor'] >= 3)) or (version['major'] > 1) :
+    if ((version['major'] == 1) and (version['minor'] >= 3)) or (version['major'] > 1):
         header['eval_board_mode'], = struct.unpack('<h', fid.read(2))
 
     # Place frequency-related information in data structure. (Note: much of this structure is set above)
@@ -81,7 +88,7 @@ def read_header(fid):
 
     # Read signal summary from data file header.
 
-    if (header['version']['major'] > 1):
+    if header['version']['major'] > 1:
         header['reference_channel'] = read_qstring(fid)
 
     number_of_signal_groups, = struct.unpack('<h', fid.read(2))
@@ -93,12 +100,16 @@ def read_header(fid):
 
         if (signal_group_num_channels > 0) and (signal_group_enabled > 0):
             for signal_channel in range(0, signal_group_num_channels):
-                new_channel = {'port_name' : signal_group_name, 'port_prefix' : signal_group_prefix, 'port_number' : signal_group}
+                new_channel = {
+                    'port_name': signal_group_name,
+                    'port_prefix': signal_group_prefix,
+                    'port_number': signal_group
+                }
                 new_channel['native_channel_name'] = read_qstring(fid)
                 new_channel['custom_channel_name'] = read_qstring(fid)
                 (new_channel['native_order'], new_channel['custom_order'], signal_type, channel_enabled, new_channel['chip_channel'], new_channel['board_stream']) = struct.unpack('<hhhhhh', fid.read(12))
                 new_trigger_channel = {}
-                (new_trigger_channel['voltage_trigger_mode'], new_trigger_channel['voltage_threshold'], new_trigger_channel['digital_trigger_channel'], new_trigger_channel['digital_edge_polarity'])  = struct.unpack('<hhhh', fid.read(8))
+                (new_trigger_channel['voltage_trigger_mode'], new_trigger_channel['voltage_threshold'], new_trigger_channel['digital_trigger_channel'], new_trigger_channel['digital_edge_polarity']) = struct.unpack('<hhhh', fid.read(8))
                 (new_channel['electrode_impedance_magnitude'], new_channel['electrode_impedance_phase']) = struct.unpack('<ff', fid.read(8))
 
                 if channel_enabled:
@@ -118,7 +129,6 @@ def read_header(fid):
                     else:
                         raise Exception('Unknown channel type.')
 
-
     # Summarize contents of data file.
     header['num_amplifier_channels'] = len(header['amplifier_channels'])
     header['num_aux_input_channels'] = len(header['aux_input_channels'])
@@ -133,7 +143,7 @@ def read_header(fid):
 def get_bytes_per_data_block(header):
     """Calculates the number of bytes in each 60-sample datablock."""
 
-    if (header['version']['major'] == 1):
+    if header['version']['major'] == 1:
         num_samples_per_data_block = 60
     else:
         num_samples_per_data_block = 128
@@ -166,7 +176,6 @@ def get_bytes_per_data_block(header):
     return bytes_per_block
 
 
-
 def read_qstring(fid):
     """Read Qt style QString.  
 
@@ -177,9 +186,10 @@ def read_qstring(fid):
     """
 
     length, = struct.unpack('<I', fid.read(4))
-    if length == int('ffffffff', 16): return ""
+    if length == int('ffffffff', 16):
+        return ""
 
-    if length > (os.fstat(fid.fileno()).st_size - fid.tell() + 1) :
+    if length > (os.fstat(fid.fileno()).st_size - fid.tell() + 1):
         print(length)
         raise Exception('Length too long.')
 
@@ -191,56 +201,56 @@ def read_qstring(fid):
         c, = struct.unpack('<H', fid.read(2))
         data.append(c)
 
-    if sys.version_info >= (3,0):
+    if sys.version_info >= (3, 0):
         a = ''.join([chr(c) for c in data])
     else:
         a = ''.join([unichr(c) for c in data])
     
     return a
-  
+
 
 class RHDFile(DataFile):
 
-    description    = "rhd"    
-    extension      = [".rhd"]
+    description = "rhd"
+    extension = [".rhd"]
     parallel_write = True
-    is_writable    = True
-    is_streamable  = ['multi-files']
+    is_writable = True
+    is_streamable = ['multi-files']
 
     _required_fields = {}
-    _default_values  = {}
+    _default_values = {}
 
-    _params          = {'dtype_offset' : 'auto',
-                        'data_dtype'   : 'uint16',
-                        'gain'         : 0.195}
-
-    
+    _params = {
+        'dtype_offset': 'auto',
+        'data_dtype': 'uint16',
+        'gain': 0.195
+    }
 
     def _read_from_header(self):
 
         header = {}
 
-        self.file  = open(self.file_name, 'rb')
+        self.file = open(self.file_name, 'rb')
         full_header = read_header(self.file)
-        header['nb_channels']   = full_header['num_amplifier_channels']  
+        header['nb_channels'] = full_header['num_amplifier_channels']
         header['sampling_rate'] = full_header['sample_rate']
-        
+
         if full_header['version']['major'] == 1:
             self.SAMPLES_PER_RECORD = 60
         else:
             self.SAMPLES_PER_RECORD = 128
 
-        header['data_offset']   = self.file.tell()
-        data_present         = False
-        filesize             = os.path.getsize(self.file_name)
+        header['data_offset'] = self.file.tell()
+        data_present = False
+        filesize = os.path.getsize(self.file_name)
         self.bytes_per_block = get_bytes_per_data_block(full_header)
-        self.block_offset    = self.SAMPLES_PER_RECORD * 4
-        self.block_size      = 2 * self.SAMPLES_PER_RECORD * header['nb_channels']
-        bytes_remaining      = filesize - self.file.tell()
+        self.block_offset = self.SAMPLES_PER_RECORD * 4
+        self.block_size = 2 * self.SAMPLES_PER_RECORD * header['nb_channels']
+        bytes_remaining = filesize - self.file.tell()
 
         self.bytes_per_block_div = self.bytes_per_block / 2
-        self.block_offset_div    = self.block_offset / 2
-        self.block_size_div      = self.block_size / 2
+        self.block_offset_div = self.block_offset / 2
+        self.block_size_div = self.block_size / 2
 
         if bytes_remaining > 0:
             data_present = True
@@ -250,12 +260,11 @@ class RHDFile(DataFile):
         num_data_blocks = int(bytes_remaining / self.bytes_per_block)
         self.num_amplifier_samples = self.SAMPLES_PER_RECORD * num_data_blocks
 
-        self.size        = self.num_amplifier_samples
-        self._shape      = (self.size, header['nb_channels'])
+        self.size = self.num_amplifier_samples
+        self._shape = (self.size, header['nb_channels'])
         self.file.close()
 
         return header
-
 
     def _get_slice_(self, t_start, t_stop):
 
@@ -273,22 +282,21 @@ class RHDFile(DataFile):
                 g_offset = nb_blocks * self.bytes_per_block_div + self.block_offset_div
                 if count == 0:
                     data_slice = numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + self.block_size_div, dtype=numpy.int64)
-                elif (count == (x_end - x_beg)):
+                elif count == (x_end - x_beg):
                     data_slice = numpy.arange(g_offset, g_offset + r_end * self.nb_channels, dtype=numpy.int64)
                 else:
                     data_slice = numpy.arange(g_offset, g_offset + self.block_size_div, dtype=numpy.int64)
 
                 yield data_slice
 
-
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
-        local_shape     = t_stop - t_start
+        local_shape = t_stop - t_start
 
         do_slice = nodes is not None and not numpy.all(nodes == numpy.arange(self.nb_channels))
         local_chunk = numpy.zeros((self.nb_channels, local_shape), dtype=self.data_dtype)
-        data_slice  = self._get_slice_(t_start, t_stop) 
+        data_slice = self._get_slice_(t_start, t_stop)
 
         self._open()
         count = 0
@@ -308,19 +316,19 @@ class RHDFile(DataFile):
 
     def write_chunk(self, time, data):
 
-        t_start     = time
-        t_stop      = time + data.shape[0]
+        t_start = time
+        t_stop = time + data.shape[0]
 
         if t_stop > self.duration:
-            t_stop  = self.duration
+            t_stop = self.duration
 
         data = self._unscale_data_from_float32(data)
-        data_slice  = self._get_slice_(t_start, t_stop) 
-        
+        data_slice = self._get_slice_(t_start, t_stop)
+
         self._open(mode='r+')
         count = 0
         for s in data_slice:
-            t_slice      = len(s)//self.nb_channels
+            t_slice = len(s)//self.nb_channels
             self.data[s] = data[count:count + t_slice, :].T.ravel()
             count += t_slice
 

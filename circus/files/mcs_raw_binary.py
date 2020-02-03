@@ -1,16 +1,21 @@
-import numpy, re, sys, re, logging
+import numpy
+import re
+import sys
+import logging
 from circus.shared.messages import print_and_log
 from .raw_binary import RawBinaryFile
 
+
 logger = logging.getLogger(__name__)
+
 
 class RawMCSFile(RawBinaryFile):
 
-    description    = "mcs_raw_binary"
-    extension      = [".raw", ".dat"]
+    description = "mcs_raw_binary"
+    extension = [".raw", ".dat"]
 
     _required_fields = {
-        'data_dtype'    : str,
+        'data_dtype': str,
     }
 
     def to_str(self, b, encoding='ascii'):
@@ -25,17 +30,17 @@ class RawMCSFile(RawBinaryFile):
 
     def _get_header(self):
         try:
-            header      = 0
-            stop        = False
-            fid         = open(self.file_name, 'rb')
+            header = 0
+            stop = False
+            fid = open(self.file_name, 'rb')
             header_text = ''
 
-            while ((stop is False) and (header <= 5000)):
-                header      += 1
-                char         = fid.read(1)
+            while (stop is False) and (header <= 5000):
+                header += 1
+                char = fid.read(1)
                 header_text += char.decode('Windows-1252')
-                if (header > 2):
-                    if (header_text[header-3:header] == 'EOH'):
+                if header > 2:
+                    if header_text[header-3:header] == 'EOH':
                         stop = True
             fid.close()
             if stop is False:
@@ -47,8 +52,8 @@ class RawMCSFile(RawBinaryFile):
             full_header = {}
             f = open(self.file_name, 'rb')
             g = self.to_str(f.read(header), encoding='Windows-1252')
-            h = g.replace('\r','')
-            for i,item in enumerate(h.split('\n')):
+            h = g.replace('\r', '')
+            for i, item in enumerate(h.split('\n')):
                 if '=' in item:
                     if item.split(' = ')[0] == 'Di' and len(item.split('=')) == 3:
                         # In case two gains are defined on the same line (digital gain & electrode gain)
@@ -58,9 +63,9 @@ class RawMCSFile(RawBinaryFile):
                         full_header[item.split(' = ')[0]] = item.split(' = ')[1]
             f.close()
 
-            if full_header.has_key('El'):
+            if 'El' in full_header:
                 regexp = re.compile('El_\d*')
-            elif full_header.has_key('Fi'):
+            elif 'Fi' in full_header:
                 regexp = re.compile('Fi_\d*')
 
             return full_header, header, len(regexp.findall(full_header['Streams']))
@@ -68,23 +73,22 @@ class RawMCSFile(RawBinaryFile):
             print_and_log(["Wrong MCS header: file is not exported with MCRack"], 'error', logger)
             sys.exit(1)
 
-
     def _read_from_header(self):
 
-        a, b, c                = self._get_header()
-        header                 = a
-        header['data_offset']  = b
-        header['nb_channels']  = c
-        #header['dtype_offset'] = int(header['ADC zero'])
-        if header.has_key('El'):
-            header['gain']     = float(re.findall("\d+\.\d+", header['El'])[0])
-        elif header.has_key('Fi'):
-            header['gain']     = float(re.findall("\d+\.\d+", header['Fi'])[0])
-        header['sampling_rate']=float(header['Sample rate'])
-        header['data_dtype']   = self.params['data_dtype']
+        a, b, c = self._get_header()
+        header = a
+        header['data_offset'] = b
+        header['nb_channels'] = c
+        # header['dtype_offset'] = int(header['ADC zero'])
+        if 'El' in header:
+            header['gain'] = float(re.findall("\d+\.\d+", header['El'])[0])
+        elif 'Fi' in header:
+            header['gain'] = float(re.findall("\d+\.\d+", header['Fi'])[0])
+        header['sampling_rate'] = float(header['Sample rate'])
+        header['data_dtype'] = self.params['data_dtype']
 
-        self.data   = numpy.memmap(self.file_name, offset=header['data_offset'], dtype=header['data_dtype'], mode='r')
-        self.size   = len(self.data)
+        self.data = numpy.memmap(self.file_name, offset=header['data_offset'], dtype=header['data_dtype'], mode='r')
+        self.size = len(self.data)
         self._shape = (self.size//header['nb_channels'], header['nb_channels'])
         del self.data
 

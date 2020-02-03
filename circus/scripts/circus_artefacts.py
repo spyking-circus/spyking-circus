@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 import numpy
 import logging
@@ -17,6 +17,7 @@ from colorama import Fore
 from circus.shared.messages import print_and_log, get_colored_header, init_logging
 from circus.shared.algorithms import slice_result
 from circus.shared.parser import CircusParser
+
 
 def get_dead_times(dead_file, sampling_rate, dead_in_ms=False):
     dead_times = numpy.loadtxt(dead_file)
@@ -28,6 +29,7 @@ def get_dead_times(dead_file, sampling_rate, dead_in_ms=False):
         dead_times *= numpy.int64(sampling_rate)/1000
 
     return dead_times.astype(numpy.int64)
+
 
 def get_trig_times(trig_file, sampling_rate, trig_in_ms=False):
     trig_times = numpy.loadtxt(trig_file)
@@ -67,16 +69,16 @@ concatenate them automatically taking care of file offsets
     # else:
     #     window_file = os.path.abspath(args.window)
     
-    filename       = os.path.abspath(args.datafile)
-    params         = CircusParser(filename)
-    dead_in_ms     = params.getboolean('triggers', 'dead_in_ms')
-    trig_in_ms     = params.getboolean('triggers', 'trig_in_ms')
+    filename = os.path.abspath(args.datafile)
+    params = CircusParser(filename)
+    dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
+    trig_in_ms = params.getboolean('triggers', 'trig_in_ms')
 
     if os.path.exists(params.logfile):
         os.remove(params.logfile)
 
-    logger         = init_logging(params.logfile)
-    logger         = logging.getLogger(__name__)
+    _ = init_logging(params.logfile)
+    logger = logging.getLogger(__name__)
 
     if params.get('data', 'stream_mode') == 'multi-files':
         data_file = params.get_data_file(source=True, has_been_created=False)
@@ -89,36 +91,38 @@ concatenate them automatically taking care of file offsets
             trig_file = f.file_name.replace(ext, '.trig')
 
             if os.path.exists(dead_file):
-                print_and_log(['Found file %s' %dead_file], 'default', logger)
+                print_and_log(['Found file %s' % dead_file], 'default', logger)
                 times = get_dead_times(dead_file, data_file.sampling_rate, dead_in_ms)
                 if times.max() > f.duration or times.min() < 0:
-                    print_and_log(['Dead zones larger than duration for file %s' %f.file_name, 
-                                    '-> Clipping automatically'], 'error', logger)
+                    print_and_log([
+                        'Dead zones larger than duration for file %s' % f.file_name,
+                        '-> Clipping automatically'
+                    ], 'error', logger)
                     times = numpy.minimum(times, f.duration)
                     times = numpy.maximum(times, 0)
                 times += f.t_start
                 all_times_dead = numpy.vstack((all_times_dead, times))
 
             if os.path.exists(trig_file):
-                print_and_log(['Found file %s' %trig_file], 'default', logger)
+                print_and_log(['Found file %s' % trig_file], 'default', logger)
 
                 times = get_trig_times(trig_file, data_file.sampling_rate, trig_in_ms)
-                if times[:,1].max() > f.duration or times[:,1].min() < 0:
-                    print_and_log(['Triggers larger than duration for file %s' %f.file_name], 'error', logger)
+                if times[:, 1].max() > f.duration or times[:, 1].min() < 0:
+                    print_and_log(['Triggers larger than duration for file %s' % f.file_name], 'error', logger)
                     sys.exit(0)
                 times[:, 1] += f.t_start
                 all_times_trig = numpy.vstack((all_times_trig, times))
 
         if len(all_times_dead) > 0:
             output_file = os.path.join(os.path.dirname(filename), 'dead_zones.txt')
-            print_and_log(['Saving global artefact file in %s' %output_file], 'default', logger)
+            print_and_log(['Saving global artefact file in %s' % output_file], 'default', logger)
             if dead_in_ms:
                 all_times_dead = all_times_dead.astype(numpy.float32)/data_file.sampling_rate
             numpy.savetxt(output_file, all_times_dead)
 
         if len(all_times_trig) > 0:
             output_file = os.path.join(os.path.dirname(filename), 'triggers.txt')
-            print_and_log(['Saving global artefact file in %s' %output_file], 'default', logger)
+            print_and_log(['Saving global artefact file in %s' % output_file], 'default', logger)
             if trig_in_ms:
                 all_times_trig = all_times_trig.astype(numpy.float32)/data_file.sampling_rate
             numpy.savetxt(output_file, all_times_trig)

@@ -72,7 +72,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     input_extension = extension
 
-    logger = init_logging(params.logfile)
+    _ = init_logging(params.logfile)
     logger = logging.getLogger('circus.deconverting')
     # Retrieve parameters.
     input_path = params.get('data', 'file_out_suff') + input_extension + '.GUI'
@@ -91,9 +91,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         sys.exit(0)
 
     # Check if results are already present.
-    if os.path.isfile(clusters_path) \
-    and os.path.isfile(templates_path) \
-    and os.path.isfile(result_path):
+    if os.path.isfile(clusters_path) and os.path.isfile(templates_path) and os.path.isfile(result_path):
         print_and_log([
             "Phy results already imported.",
             "Delete the following files to run the deconversion again:",
@@ -109,9 +107,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             sys.exit(0)
 
     # Check if results are partially present.
-    if os.path.isfile(clusters_path) \
-    or os.path.isfile(templates_path) \
-    or os.path.isfile(result_path):
+    if os.path.isfile(clusters_path) or os.path.isfile(templates_path) or os.path.isfile(result_path):
         print_and_log([
             "Phy results partially imported.",
             "Delete the following files to be able to run the deconversion:",
@@ -286,7 +282,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     # print_and_log(["unmentioned templates: {}".format(unmentioned_spike_templates)], 'info', logger)
     to_remove.extend(unmentioned_spike_templates)
 
-    if to_merge == []:
+    if len(to_merge) == 0:
         to_merge = np.zeros((0, 2), dtype=np.int)
     else:
         to_merge = np.array(to_merge)
@@ -306,8 +302,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     ], 'info', logger)
 
     # Slice templates.
-    to_keep = slice_templates(params, to_merge=to_merge, to_remove=to_remove,
-        extension=output_extension, input_extension=extension)
+    to_keep = slice_templates(
+        params, to_merge=to_merge, to_remove=to_remove, extension=output_extension, input_extension=extension
+    )
     # print_and_log([
     #     "to_merge (passed to slice_templates: {}".format(to_merge),
     #     "to_remove (passed to slice_templates: {}".format(to_remove),
@@ -318,9 +315,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     light = True
     dataname = 'clusters-light' if light else 'clusters'
     clusters = io.load_data(params, dataname, extension=extension)
-    slice_clusters(params, clusters, to_merge=to_merge, to_remove=to_remove,
-        extension=output_extension, input_extension=extension, light=light,
-        method='new')
+    slice_clusters(
+        params, clusters, to_merge=to_merge, to_remove=to_remove, extension=output_extension,
+        input_extension=extension, light=light, method='new'
+    )
 
     # Finalize result.
     # nb_templates = templates.shape[0]

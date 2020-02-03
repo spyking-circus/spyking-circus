@@ -1,6 +1,6 @@
-from .shared.utils import *
-from shared import gui
-from shared.messages import init_logging, print_and_log
+from circus.shared.utils import *
+from circus.shared import gui
+from circus.shared.messages import init_logging, print_and_log
 from circus.shared.utils import query_yes_no
 import pylab
 
@@ -18,10 +18,10 @@ except ImportError:
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
-    logger = init_logging(params.logfile)
+    _ = init_logging(params.logfile)
     logger = logging.getLogger('circus.merging')
     file_out_suff = params.get('data', 'file_out_suff')
-    erase_all     = params.getboolean('merging', 'erase_all')
+    erase_all = params.getboolean('merging', 'erase_all')
     extension_in = extension
     extension_out = '-merged'
 
@@ -44,7 +44,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         ]
         if len(existing_file_paths) > 0 or len(existing_directory_path) > 0:
             if not erase_all:
-                erase = query_yes_no("Merging already done! Do you want to erase previous merging results?", default=None)
+                erase = query_yes_no(
+                    "Merging already done! Do you want to erase previous merging results?", default=None
+                )
             else:
                 erase = True
             if erase:

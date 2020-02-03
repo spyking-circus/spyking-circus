@@ -1,36 +1,43 @@
-import numpy, scipy, pylab, os
+import matplotlib.colors as mcolors
+import numpy
+import scipy
+import pylab
+import os
+import statsmodels.api as sm
 from circus.shared.files import load_data, get_results, get_results
-import numpy, pylab
-from circus.shared import algorithms as algo
+import numpy
+import pylab
+# from circus.shared import algorithms as algo
 from circus.shared.utils import *
-from parser import CircusParser
-from probes import get_nodes_and_edges
+from circus.shared.parser import CircusParser
+from circus.shared.probes import get_nodes_and_edges
+
 
 def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True, templates=None, save=False):
     
-    params          = CircusParser(file_name)
-    data_file       = params.get_data_file()
+    params = CircusParser(file_name)
+    data_file = params.get_data_file()
     data_file.open()
-    N_e             = params.getint('data', 'N_e')
-    N_t             = params.getint('detection', 'N_t')
-    N_total         = params.nb_channels
-    sampling_rate   = params.rate
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    sampling_rate = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    file_out_suff    = params.get('data', 'file_out_suff')
-    template_shift   = params.getint('detection', 'template_shift')
-    nodes, edges     = get_nodes_and_edges(params)
-    chunk_size       = (t_stop - t_start)*sampling_rate
-    padding          = (t_start*sampling_rate, t_start*sampling_rate)
-    suff             = params.get('data', 'suffix')
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    file_out_suff = params.get('data', 'file_out_suff')
+    template_shift = params.getint('detection', 'template_shift')
+    nodes, edges = get_nodes_and_edges(params)
+    chunk_size = (t_stop - t_start) * sampling_rate
+    padding = (t_start * sampling_rate, t_start * sampling_rate)
+    suff = params.get('data', 'suffix')
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
-    thresholds       = load_data(params, 'thresholds')
+    thresholds = load_data(params, 'thresholds')
     data = data_file.get_data(0, chunk_size, padding=padding, chunk_size=chunk_size, nodes=nodes)
     data_shape = len(data)
 
@@ -41,30 +48,30 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
 
     try:
-        result    = load_data(params, 'results')
+        result = load_data(params, 'results')
     except Exception:
-        result    = {'spiketimes' : {}, 'amplitudes' : {}}
+        result = {'spiketimes': {}, 'amplitudes': {}}
     if fit_on:
-        curve     = numpy.zeros((N_e, (t_stop-t_start)*sampling_rate), dtype=numpy.float32)
-        count     = 0
-        limit     = (t_stop-t_start)*sampling_rate-template_shift+1
+        curve = numpy.zeros((N_e, (t_stop - t_start) * sampling_rate), dtype=numpy.float32)
+        count = 0
+        limit = (t_stop - t_start) * sampling_rate - template_shift + 1
         if templates is None:
             try:
                 templates = load_data(params, 'templates')
             except Exception:
                 templates = numpy.zeros((0, 0, 0))
         for key in result['spiketimes'].keys():
-            elec  = int(key.split('_')[1])
-            lims  = (t_start*sampling_rate + template_shift, t_stop*sampling_rate - template_shift-1)
-            idx   = numpy.where((result['spiketimes'][key] > lims[0]) & (result['spiketimes'][key] < lims[1]))
+            elec = int(key.split('_')[1])
+            lims = (t_start*sampling_rate + template_shift, t_stop*sampling_rate - template_shift-1)
+            idx = numpy.where((result['spiketimes'][key] > lims[0]) & (result['spiketimes'][key] < lims[1]))
             for spike, (amp1, amp2) in zip(result['spiketimes'][key][idx], result['amplitudes'][key][idx]):
                 count += 1
                 spike -= t_start*sampling_rate
-                tmp1   = templates[:, elec].toarray().reshape(N_e, N_t)
-                tmp2   = templates[:, elec+templates.shape[1]//2].toarray().reshape(N_e, N_t)
-                
-                curve[:, spike-template_shift:spike+template_shift+1] += amp1*tmp1 + amp2*tmp2
-        print "Number of spikes", count
+                tmp1 = templates[:, elec].toarray().reshape(N_e, N_t)
+                tmp2 = templates[:, elec+templates.shape[1] // 2].toarray().reshape(N_e, N_t)
+
+                curve[:, spike - template_shift:spike + template_shift + 1] += amp1 * tmp1 + amp2 * tmp2
+        print("Number of spikes %d" % count)
 
     if not numpy.iterable(n_elec):
         if square:
@@ -72,17 +79,17 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         else:
             idx = numpy.random.permutation(numpy.arange(N_e))[:n_elec]
     else:
-        idx    = n_elec
+        idx = n_elec
         n_elec = numpy.sqrt(len(idx))
     pylab.figure()
     for count, i in enumerate(idx):
         if square:
             pylab.subplot(n_elec, n_elec, count + 1)
-            if (numpy.mod(count, n_elec) != 0):
+            if numpy.mod(count, n_elec) != 0:
                 pylab.setp(pylab.gca(), yticks=[])
             else:
                 pylab.ylabel('Signal')
-            if (count < n_elec*(n_elec - 1)):
+            if count < n_elec*(n_elec - 1):
                 pylab.setp(pylab.gca(), xticks=[])
             else:
                 pylab.xlabel('Time [ms]')
@@ -92,19 +99,19 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
                 pylab.setp(pylab.gca(), xticks=[])
             else:
                 pylab.xlabel('Time [ms]')
-                
+
         pylab.plot(data[:, i], '0.25')
         if fit_on:
             pylab.plot(curve[i], 'r')
         xmin, xmax = pylab.xlim()
         pylab.plot([xmin, xmax], [-thresholds[i], -thresholds[i]], 'k--')
         pylab.plot([xmin, xmax], [thresholds[i], thresholds[i]], 'k--')
-        pylab.title('Electrode %d' %i)
+        pylab.title('Electrode %d' % i)
         if (square and not (count < n_elec*(n_elec - 1))) or (not square and not count != (n_elec - 1)):
             x, y = pylab.xticks()
-            pylab.xticks(x, numpy.round(x//sampling_rate, 2))
+            pylab.xticks(x, numpy.round(x // sampling_rate, 2))
 
-        pylab.ylim(-2*thresholds[i], 2*thresholds[i])
+        pylab.ylim(-2 * thresholds[i], 2 * thresholds[i])
     pylab.tight_layout()
     if save:
         pylab.savefig(os.path.join(save[0], save[1]))
@@ -114,122 +121,181 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
 
 
 def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, alpha=3):
+    """Sanity plot of the clusters (per electrode).
 
-    import matplotlib.colors as colors
+    Arguments:
+        data
+        rho
+        delta
+        centers
+            Indices of the points which correspond to the centroids.
+        halo
+        injected (optional)
+        save: (optional)
+        alpha: (optional)
+    """
+
+    marker_size = 3 ** 2
+    my_cmap = pylab.get_cmap('jet')
+    c_norm = mcolors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
+    scalar_map = pylab.cm.ScalarMappable(norm=c_norm, cmap=my_cmap)
+    assigned = numpy.where(halo > -1)[0]
+    not_assigned = numpy.where(halo == -1)[0]
+    colors = scalar_map.to_rgba(halo[assigned])
 
     fig = pylab.figure(figsize=(15, 10))
-    def_size  = 10
-    my_cmap   = pylab.get_cmap('jet')
-    cNorm     = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
-    scalarMap = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
-    assigned  = numpy.where(halo > -1)[0]
-    not_assigned = numpy.where(halo == -1)[0]
 
-    ax  = fig.add_subplot(241)
-    ax.set_xlabel(r'$\rho$')
-    ax.set_ylabel(r'$\delta$')
-    ax.scatter(rho, delta, color='k', s=def_size, linewidth=0)
+    # Centroids plot.
+    ax = fig.add_subplot(241)
+    # # Plot points.
+    ax.scatter(rho, delta, s=marker_size, c='k', linewidths=0)
+    # # Highlight the centroids.
+    for i in centers:
+        if halo[i] > -1:
+            color_val = scalar_map.to_rgba(halo[i])
+            ax.scatter([rho[i]], [delta[i]], s=marker_size, c=color_val, linewidths=0)
+    # # Adjust axis.
+    rho_min, rho_max = ax.get_xlim()
     try:
         ax.set_yscale('log')
     except Exception:
         pass
-    ax.set_title('Centroids')
-    rmin, rmax = ax.get_xlim()
-    for i in centers:
-        if halo[i] > -1:
-            colorVal = scalarMap.to_rgba(halo[i])
-            ax.plot(rho[i], delta[i], 'o', color=colorVal)
-    ax.set_xlim(0.98*rmin, 1.02*rmax)
+    # # Add labels.
+    ax.set_xlim(rho_min, rho_max)
+    ax.set_xlabel(r"$\rho$")
+    ax.set_ylabel(r"$\delta$")
+    ax.set_title("Centroids")
 
-    colors = scalarMap.to_rgba(halo[assigned])
-
+    # Plot PC 1 vs PC 0.
     ax = fig.add_subplot(242)
-    ax.scatter(data[not_assigned,0], data[not_assigned,1], c='k', linewidth=0, s=def_size, alpha=0.5)
-    ax.scatter(data[assigned,0], data[assigned,1], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
+    ax.scatter(data[not_assigned, 0], data[not_assigned, 1], s=marker_size, c='k', alpha=0.5, linewidths=0)
+    ax.scatter(data[assigned, 0], data[assigned, 1], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+    ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
 
     if data.shape[1] > 2:
+
+        # Plot PC 2 vs PC 0.
         ax = fig.add_subplot(243)
-        ax.scatter(data[not_assigned,0], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(data[assigned,0], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 0')
-        ax.set_ylabel('Dim 2')
-                    
+        ax.scatter(data[not_assigned, 0], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
+        ax.scatter(data[assigned, 0], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+        ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+        ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
+        ax.set_xlabel("dim. 0")
+        ax.set_ylabel("dim. 2")
+
+        # Plot PC 2 vs PC 1.
         ax = fig.add_subplot(244)
-        ax.scatter(data[not_assigned,1], data[not_assigned,2], c='k', linewidth=0, s=def_size, alpha=0.5)
-        ax.scatter(data[assigned,1], data[assigned,2], c=colors, cmap=my_cmap, linewidth=0, s=def_size)
-        ax.set_xlabel('Dim 1')
-        ax.set_ylabel('Dim 2')
+        ax.scatter(data[not_assigned, 1], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
+        ax.scatter(data[assigned, 1], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
+        ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+        ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
+        ax.set_xlabel("dim. 1")
+        ax.set_ylabel("dim. 2")
 
-    my_cmap   = pylab.get_cmap('winter')
-        
-    ax  = fig.add_subplot(247)
+    my_cmap = pylab.get_cmap('winter')
+
+    # Rho plot.
+    ax = fig.add_subplot(247)
     idx = numpy.argsort(rho[assigned])
-    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=rho[assigned[idx]], cmap=my_cmap)
-    ax.scatter(data[centers, 0], data[centers, 1], c='r')
+    ax.scatter(
+        data[assigned[idx], 0], data[assigned[idx], 1], s=marker_size, c=rho[assigned[idx]], cmap=my_cmap, linewidths=0
+    )
+    ax.scatter(data[centers, 0], data[centers, 1], s=marker_size, c='r', linewidths=0)
     if injected is not None:
-        ax.scatter(data[injected, 0], data[injected, 1], c='b')
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
-    ax.set_title(r'$\rho$')
+        ax.scatter(data[injected, 0], data[injected, 1], s=marker_size, c='b', linewidths=0)
+    ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
+    ax.set_title(r"$\rho$")
 
-    ax  = fig.add_subplot(248)
+    # Delta plot.
+    ax = fig.add_subplot(248)
     idx = numpy.argsort(delta[assigned])
-    ax.scatter(data[assigned[idx],0], data[assigned[idx],1], c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap)
-    #ax.scatter(visu_data[centers, 0], visu_data[centers, 1], c='r')
+    ax.scatter(
+        data[assigned[idx], 0], data[assigned[idx], 1], s=marker_size,
+        c=numpy.log(1 + delta[assigned[idx]]), cmap=my_cmap, linewidths=0
+    )
+    ax.scatter(data[centers, 0], data[centers, 1], s=marker_size, c='r', linewidths=0)
     if injected is not None:
-        ax.scatter(data[injected, 0], data[injected, 1], c='b')
-    ax.set_xlabel('Dim 0')
-    ax.set_ylabel('Dim 1')
-    ax.set_title(r'$\delta$')
+        ax.scatter(data[injected, 0], data[injected, 1], c='b', linewidths=0)
+    ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.axvline(x=0.0, color='k', alpha=0.5, linewidth=0.3)
+    ax.set_xlabel("dim. 0")
+    ax.set_ylabel("dim. 1")
+    ax.set_title(r"$\delta$")
 
-    ax = fig.add_subplot(245)
-    ax.set_xlabel(r'$\rho$')
-    ax.set_ylabel(r'$\delta$')
-    ax.set_title('Putative Centroids')
-
-    ax.scatter(rho, delta, c='k', s=def_size, linewidth=0)
-
-    idx = numpy.argsort(rho)
-            
-    import statsmodels.api as sm
+    # Preliminary computations.
     x = sm.add_constant(rho)
     model = sm.RLM(delta, x)
     results = model.fit()
     difference = delta - results.fittedvalues
     factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
-    upper = results.fittedvalues + alpha*factor*(1 + results.fittedvalues)
-    z_score = difference - alpha*factor*(1 + results.fittedvalues)
-    mcenters = numpy.where(z_score >= 0)[0]
-    ax.fill_between(rho[idx], results.fittedvalues[idx], upper[idx], alpha=0.5, color='r')
-    ax.plot(rho[mcenters], delta[mcenters], 'r.')
-    
-    ax2 = fig.add_subplot(246)
-    ax2.set_xlabel(r'$\rho$')
-    ax2.set_ylabel(r'$\epsilon$')
-    ax2.scatter(rho, z_score, c='k', s=def_size, linewidth=0)
-    ax2.scatter(rho[centers], z_score[centers], c='r', s=def_size, linewidth=0)
-    ax2.set_xlim(0.98*rmin, 1.02*rmax)
-    
+    upper = results.fittedvalues + alpha * factor * (1 + results.fittedvalues)
+    z_score = difference - alpha * factor * (1 + results.fittedvalues)
+
+    # Putative centroids plot.
+    ax = fig.add_subplot(245)
+    # # Plot points.
+    ax.scatter(rho, delta, s=marker_size, c='k', linewidths=0)
+    # # Plot excluded region.
+    idx = numpy.argsort(rho)
+    ax.fill_between(rho[idx], results.fittedvalues[idx], y2=upper[idx], alpha=0.5, color='r')
+    # TODO remove the following commented block (deprecated)?
+    # # # Highlight the centroids.
+    # m_centers = numpy.where(z_score >= 0)[0]
+    # ax.plot(rho[m_centers], delta[m_centers], 'r.')
+    # # Highlight the centroids.
+    for i in centers:
+        if halo[i] > -1:
+            color_val = scalar_map.to_rgba(halo[i])
+            ax.scatter([rho[i]], [delta[i]], s=marker_size, c=color_val, linewidths=0)
+    # # Adjust axis.
     try:
         ax.set_yscale('log')
     except Exception:
         pass
-    ax.set_xlim(0.98*rmin, 1.02*rmax)
+    ax.set_xlim(rho_min, rho_max)
+    # # Add labels.
+    ax.set_xlabel(r"$\rho$")
+    ax.set_ylabel(r"$\delta$")
+    ax.set_title("Putative centroids")
+
+    # Putative centroids plot.
+    ax = fig.add_subplot(246)
+    ax.scatter(rho, z_score, s=marker_size, c='k', linewidths=0)
+    # # Highlight the centroids.
+    for i in centers:
+        if halo[i] > -1:
+            color_val = scalar_map.to_rgba(halo[i])
+            ax.scatter([rho[i]], [z_score[i]], s=marker_size, c=color_val, linewidths=0)
+    # # Adjust axis.
+    ax.set_xlim(rho_min, rho_max)
+    # # Add labels.
+    ax.set_xlabel(r"$\rho$")
+    ax.set_ylabel(r"$\epsilon$")
+    ax.set_title("Putative centroids")
+
     try:
         pylab.tight_layout()
     except Exception:
         pass
+
     if save:
         try:
-            pylab.savefig(os.path.join(save[0], 'cluster_%s' %save[1]))
+            pylab.savefig(os.path.join(save[0], 'cluster_%s' % save[1]))
             pylab.close()
         except Exception:
             pass
     else:
         pylab.show()
+
     del fig
+
+    return
 
 
 def view_local_merges(
@@ -237,7 +303,6 @@ def view_local_merges(
         save=False, max_nb_traces=200,
 ):
 
-    import matplotlib.colors as clr
     import matplotlib.pyplot as plt
 
     marker_size = 10
@@ -300,7 +365,7 @@ def view_local_merges(
 
         cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
         colors = {
-            cluster_nb: clr.to_rgb('C{}'.format(k % 10))
+            cluster_nb: mcolors.to_rgb('C{}'.format(k % 10))
             for k, cluster_nb in enumerate(cluster_nbs)
         }
 
@@ -364,12 +429,14 @@ def view_local_merges(
                 ax.set_ylabel("amp.")
             if col_nb == 1:
                 group = local_merge_groups[final_cluster_nb]
+
                 def group_to_title(g):
                     if isinstance(g, tuple):
                         t = "(" + group_to_title(g[0]) + "+" + group_to_title(g[1]) + ")"
                     else:
                         t = "{:d}".format(g)
                     return t
+
                 title = group_to_title(group)
                 if title[0] == '(':
                     title = title[1:-1]
@@ -440,7 +507,6 @@ def view_local_merges_backup(
         save=False, max_nb_traces=200,
 ):
 
-    import matplotlib.colors as clr
     import matplotlib.pyplot as plt
 
     marker_size = 10
@@ -451,11 +517,11 @@ def view_local_merges_backup(
 
     cluster_nbs = np.unique(old_allocation[old_allocation > - 1])
     colors = {
-        cluster_nb: clr.to_rgb('C{}'.format(k % 10))
+        cluster_nb: mcolors.to_rgb('C{}'.format(k % 10))
         for k, cluster_nb in enumerate(cluster_nbs)
     }
 
-    for merge_nb in xrange(0, nb_merges):
+    for merge_nb in range(0, nb_merges):
 
         cluster_nb_1, cluster_nb_2 = merge_history['merge'][merge_nb]
         cluster_distance = merge_history['distance'][merge_nb]
@@ -571,16 +637,14 @@ def view_local_merges_backup(
 
 def view_rejection(a, b, hist, save=False):
 
-    import matplotlib.colors as colors
-
     fig = pylab.figure(figsize=(15, 10))
-    ax  = fig.add_subplot(211)
+    ax = fig.add_subplot(211)
     ax.plot(b, a)
     ax.set_xlabel(r'$Amplitude$')
     ax.set_ylabel(r'$Probability$')
     ax.set_title('distribution of amplitudes')
 
-    ax  = fig.add_subplot(212)
+    ax = fig.add_subplot(212)
     ax.plot(b, hist)
     ax.set_xlabel(r'$Amplitude$')
     ax.set_ylabel(r'$Probability$')
@@ -592,7 +656,7 @@ def view_rejection(a, b, hist, save=False):
         pass
     if save:
         try:
-            pylab.savefig(os.path.join(save[0], 'rejection_%s' %save[1]))
+            pylab.savefig(os.path.join(save[0], 'rejection_%s' % save[1]))
             pylab.close()
         except Exception:
             pass
@@ -601,35 +665,33 @@ def view_rejection(a, b, hist, save=False):
     del fig
 
 
-
 def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves=200, save=False):
-    
-    import matplotlib.colors as colors
-    nb_templates = templates.shape[1]
-    n_panels     = numpy.ceil(numpy.sqrt(nb_templates))
-    mask         = numpy.where(halo > -1)[0]  # i.e. assigned only
-    clust_idx    = numpy.unique(halo[mask])
-    fig          = pylab.figure()    
-    square       = True
-    center       = len(data[0] - 1)//2
 
-    my_cmap      = pylab.get_cmap('jet')
-    cNorm        = colors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
-    scalarMap    = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
-    
-    for count, i in enumerate(xrange(nb_templates)):
+    nb_templates = templates.shape[1]
+    n_panels = numpy.ceil(numpy.sqrt(nb_templates))
+    mask = numpy.where(halo > -1)[0]  # i.e. assigned only
+    clust_idx = numpy.unique(halo[mask])
+    fig = pylab.figure()
+    square = True
+    center = len(data[0] - 1) // 2
+
+    my_cmap = pylab.get_cmap('jet')
+    cNorm = mcolors.Normalize(vmin=numpy.min(halo), vmax=numpy.max(halo))
+    scalarMap = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
+
+    for count, i in enumerate(range(nb_templates)):
         if square:
             pylab.subplot(n_panels, n_panels, count + 1)
-            if (numpy.mod(count, n_panels) != 0):
+            if numpy.mod(count, n_panels) != 0:
                 pylab.setp(pylab.gca(), yticks=[])
-            if (count < n_panels*(n_panels - 1)):
+            if count < n_panels*(n_panels - 1):
                 pylab.setp(pylab.gca(), xticks=[])
-        
+
         subcurves = numpy.where(halo == clust_idx[count])[0]
         for k in numpy.random.permutation(subcurves)[:n_curves]:
             colorVal = scalarMap.to_rgba(clust_idx[count])
             pylab.plot(data[k], color=colorVal)
-        
+
         pylab.plot(templates[:, count], 'r')
         pylab.plot(amps_lim[count][0]*templates[:, count], 'b', alpha=0.5)
         pylab.plot(amps_lim[count][1]*templates[:, count], 'b', alpha=0.5)
@@ -638,28 +700,27 @@ def view_waveforms_clusters(data, halo, threshold, templates, amps_lim, n_curves
         pylab.plot([xmin, xmax], [-threshold, -threshold], 'k--')
         pylab.plot([xmin, xmax], [threshold, threshold], 'k--')
         pylab.plot([xmin, xmax], [0, 0], 'k--')
-        #pylab.ylim(-1.5*threshold, 1.5*threshold)
+        # pylab.ylim(-1.5*threshold, 1.5*threshold)
         ymin, ymax = pylab.ylim()
         pylab.plot([center, center], [ymin, ymax], 'k--')
-        pylab.title('Cluster %d' %i)
+        pylab.title('Cluster %d' % i)
 
     if nb_templates > 0:
         pylab.tight_layout()
     if save:
-        pylab.savefig(os.path.join(save[0], 'waveforms_%s' %save[1]))
+        pylab.savefig(os.path.join(save[0], 'waveforms_%s' % save[1]))
         pylab.close()
     else:
         pylab.show()
     del fig
 
 
-
 def view_artefact(data, save=False):
-    
-    fig          = pylab.figure()    
+
+    fig = pylab.figure()
     pylab.plot(data.T)
     if save:
-        pylab.savefig(os.path.join(save[0], 'artefact_%s' %save[1]))
+        pylab.savefig(os.path.join(save[0], 'artefact_%s' % save[1]))
         pylab.close()
     else:
         pylab.show()
@@ -668,42 +729,42 @@ def view_artefact(data, save=False):
 
 def view_waveforms(file_name, temp_id, n_spikes=2000):
     
-    params          = CircusParser(file_name)
-    data_file       = params.get_data_file()
+    params = CircusParser(file_name)
+    data_file = params.get_data_file()
     data_file.open()
-    N_e             = params.getint('data', 'N_e')
-    N_t             = params.getint('detection', 'N_t')
-    N_total         = params.nb_channels
-    sampling_rate   = params.rate
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    sampling_rate = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    file_out_suff    = params.get('data', 'file_out_suff')
-    nodes, edges     = get_nodes_and_edges(params)
-    chunk_size       = N_t
-    
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    file_out_suff = params.get('data', 'file_out_suff')
+    nodes, edges = get_nodes_and_edges(params)
+    chunk_size = N_t
+
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     try:
-        result    = load_data(params, 'results')
+        result = load_data(params, 'results')
     except Exception:
-        result    = {'spiketimes' : {}, 'amplitudes' : {}}
-    spikes        = result['spiketimes']['temp_'+str(temp_id)]
-    thresholds    = load_data(params, 'thresholds')    
-    
-    curve     = numpy.zeros((n_spikes, N_e, N_t), dtype=numpy.float32)
-    count     = 0
+        result = {'spiketimes': {}, 'amplitudes': {}}
+    spikes = result['spiketimes']['temp_'+str(temp_id)]
+    thresholds = load_data(params, 'thresholds')
+
+    curve = numpy.zeros((n_spikes, N_e, N_t), dtype=numpy.float32)
+    count = 0
     try:
         templates = load_data(params, 'templates')
     except Exception:
         templates = numpy.zeros((0, 0, 0))
     
     for count, t_spike in enumerate(numpy.random.permutation(spikes)[:n_spikes]):
-        padding  = ((t_spike - int(N_t-1)//2), (t_spike - int(N_t-1)//2))
-        data     = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+        padding = ((t_spike - int(N_t - 1) // 2), (t_spike - int(N_t - 1) // 2))
+        data = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
         data_shape = len(data)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
@@ -715,57 +776,58 @@ def view_waveforms(file_name, temp_id, n_spikes=2000):
     pylab.subplot(121)
     pylab.imshow(numpy.mean(curve, 0), aspect='auto')
     pylab.subplot(122)
-    pylab.imshow(templates[:,temp_id].toarray().reshape(N_e, N_t), aspect='auto')
+    pylab.imshow(templates[:, temp_id].toarray().reshape(N_e, N_t), aspect='auto')
     pylab.show()    
     return curve
 
+
 def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     
-    params          = CircusParser(file_name)
-    data_file       = params.get_data_file()
+    params = CircusParser(file_name)
+    data_file = params.get_data_file()
     data_file.open()
-    N_e             = params.getint('data', 'N_e')
-    N_t             = params.getint('detection', 'N_t')
-    N_total         = params.nb_channels
-    sampling_rate   = params.rate
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    sampling_rate = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = params.getint('detection', 'N_t')
-    nodes, edges     = get_nodes_and_edges(params)
-    chunk_size       = (t_stop - t_start)*sampling_rate
-    padding          = (t_start*sampling_rate, t_start*sampling_rate)
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    file_out_suff = params.get('data', 'file_out_suff')
+    N_t = params.getint('detection', 'N_t')
+    nodes, edges = get_nodes_and_edges(params)
+    chunk_size = (t_stop - t_start) * sampling_rate
+    padding = (t_start * sampling_rate, t_start * sampling_rate)
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds = load_data(params, 'thresholds')
-    data       = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
+    data = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
     data_shape = len(data)
 
-    peaks      = {}
-    n_spikes   = 0
+    peaks = {}
+    n_spikes = 0
 
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
     if do_temporal_whitening: 
-        for i in xrange(N_e):
+        for i in range(N_e):
             data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i]   = juxta_spike_times = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
-            n_spikes  += len(peaks[i])
+            peaks[i] = juxta_spike_times = scipy.signal.find_peaks(-data[:, i], height=thresholds[i])[0]
+            n_spikes += len(peaks[i])
 
-    curve = numpy.zeros((n_spikes, N_t-1), dtype=numpy.float32)
-    print "We found", n_spikes, "spikes"
-    
+    curve = numpy.zeros((n_spikes, N_t - 1), dtype=numpy.float32)
+    print("We found %d spikes" % n_spikes)
+
     count = 0
-    for electrode in xrange(N_e):
-        for i in xrange(len(peaks[electrode])):
+    for electrode in range(N_e):
+        for i in range(len(peaks[electrode])):
             peak_time = peaks[electrode][i]
-            if (peak_time > N_t/2):
-                curve[count] = data[peak_time - N_t/2:peak_time + N_t/2, electrode]
+            if peak_time > N_t / 2:
+                curve[count] = data[peak_time - N_t / 2:peak_time + N_t / 2, electrode]
             count += 1
 
     pylab.subplot(111)
@@ -775,40 +837,39 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     return curve
 
 
-
 def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=None, n_curves=100, temp_id=None):
     
-    params          = CircusParser(file_name)
-    data_file       = params.get_data_file()
+    params = CircusParser(file_name)
+    data_file = params.get_data_file()
     data_file.open()
-    N_e             = params.getint('data', 'N_e')
-    N_t             = params.getint('detection', 'N_t')
-    N_total         = params.nb_channels
-    sampling_rate   = params.rate
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    sampling_rate = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    file_out_suff    = params.get('data', 'file_out_suff')
-    nodes, edges     = get_nodes_and_edges(params)
-    chunk_size       = N_t
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    file_out_suff = params.get('data', 'file_out_suff')
+    nodes, edges = get_nodes_and_edges(params)
+    chunk_size = N_t
 
     if temp_id is not None:
-        templates    = load_data(params, 'templates')
-        mytemplate   = templates[:, temp_id].toarray().reshape(N_e, N_t)
+        templates = load_data(params, 'templates')
+        mytemplate = templates[:, temp_id].toarray().reshape(N_e, N_t)
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
-   
+
     thresholds = load_data(params, 'thresholds')    
-    
-    curve      = numpy.zeros((len(triggers), N_e, N_t), dtype=numpy.float32)
-    count      = 0
-    
+
+    curve = numpy.zeros((len(triggers), N_e, N_t), dtype=numpy.float32)
+    count = 0
+
     for count, t_spike in enumerate(triggers):
-        padding  = ((t_spike - N_t/2), (t_spike - N_t/2))
-        data     = data_file.get_data(0, N_t, padding=padding, nodes=nodes)
+        padding = (t_spike - N_t / 2, t_spike - N_t / 2)
+        data = data_file.get_data(0, N_t, padding=padding, nodes=nodes)
         data_shape = len(data)
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
@@ -819,11 +880,11 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
 
     if not numpy.iterable(n_elec):
         if square:
-            idx = numpy.random.permutation(numpy.arange(N_e))[:n_elec**2]
+            idx = numpy.random.permutation(numpy.arange(N_e))[:n_elec ** 2]
         else:
             idx = numpy.random.permutation(numpy.arange(N_e))[:n_elec]
     else:
-        idx    = n_elec
+        idx = n_elec
         n_elec = numpy.sqrt(len(idx))
     pylab.figure()
     data_file.close()
@@ -831,9 +892,9 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
     for count, i in enumerate(idx):
         if square:
             pylab.subplot(n_elec, n_elec, count + 1)
-            if (numpy.mod(count, n_elec) != 0):
+            if numpy.mod(count, n_elec) != 0:
                 pylab.setp(pylab.gca(), yticks=[])
-            if (count < n_elec*(n_elec - 1)):
+            if count < n_elec*(n_elec - 1):
                 pylab.setp(pylab.gca(), xticks=[])
         else:
             pylab.subplot(n_elec, 1, count + 1)
@@ -847,10 +908,10 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
         pylab.plot([xmin, xmax], [thresholds[i], thresholds[i]], 'k--')
         if temp_id is not None:
             pylab.plot(mytemplate[i, :], 'b')
-        pylab.title('Elec %d' %i)
+        pylab.title('Elec %d' % i)
         if xzoom:
             pylab.xlim(xzoom[0], xzoom[1])
-        #pylab.ylim(-5*thresholds[i], 5*thresholds[i])
+        # pylab.ylim(-5*thresholds[i], 5*thresholds[i])
         if yzoom:
             pylab.ylim(yzoom[0], yzoom[1])
     pylab.tight_layout()
@@ -859,38 +920,38 @@ def view_triggers(file_name, triggers, n_elec=2, square=True, xzoom=None, yzoom=
 
 
 def view_performance(file_name, triggers, lims=(150,150)):
-    
-    params          = CircusParser(file_name)
-    N_e             = params.getint('data', 'N_e')
-    N_total         = params.getint('data', 'N_total')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+
+    params = CircusParser(file_name)
+    N_e = params.getint('data', 'N_e')
+    N_total = params.getint('data', 'N_total')
+    sampling_rate = params.getint('data', 'sampling_rate')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = params.getint('detection', 'N_t')
-    nodes, edges     = get_nodes_and_edges(params)
-    chunk_size       = N_t
-    
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    file_out_suff = params.get('data', 'file_out_suff')
+    N_t = params.getint('detection', 'N_t')
+    nodes, edges = get_nodes_and_edges(params)
+    chunk_size = N_t
+
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
-    thresholds       = load_data(params, 'thresholds')    
-    
-    try:
-        result    = load_data(params, 'results')
-    except Exception:
-        result    = {'spiketimes' : {}, 'amplitudes' : {}}
+    thresholds = load_data(params, 'thresholds')
 
-    curve     = numpy.zeros((len(triggers), len(result['spiketimes'].keys()), lims[1]+lims[0]), dtype=numpy.int32)
-    count     = 0
-    
+    try:
+        result = load_data(params, 'results')
+    except Exception:
+        result = {'spiketimes': {}, 'amplitudes': {}}
+
+    curve = numpy.zeros((len(triggers), len(result['spiketimes'].keys()), lims[1] + lims[0]), dtype=numpy.int32)
+    count = 0
+
     for count, t_spike in enumerate(triggers):
         for key in result['spiketimes'].keys():
-            elec  = int(key.split('_')[1])
-            idx   = numpy.where((result['spiketimes'][key] > t_spike - lims[0]) & (result['spiketimes'][key] <  t_spike + lims[0]))
+            elec = int(key.split('_')[1])
+            idx = numpy.where((result['spiketimes'][key] > t_spike - lims[0]) & (result['spiketimes'][key] < t_spike + lims[0]))
             curve[count, elec, t_spike - result['spiketimes'][key][idx]] += 1
     pylab.subplot(111)
     pylab.imshow(numpy.mean(curve, 0), aspect='auto') 
@@ -899,25 +960,25 @@ def view_performance(file_name, triggers, lims=(150,150)):
 
 def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
 
-    params          = CircusParser(file_name)
-    N_e             = params.getint('data', 'N_e')
-    N_total         = params.getint('data', 'N_total')
-    sampling_rate   = params.getint('data', 'sampling_rate')
+    params = CircusParser(file_name)
+    N_e = params.getint('data', 'N_e')
+    N_total = params.getint('data', 'N_total')
+    sampling_rate = params.getint('data', 'sampling_rate')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    file_out_suff    = params.get('data', 'file_out_suff')
-    N_t              = params.getint('detection', 'N_t')
-    nodes, edges     = get_nodes_and_edges(params)
-    chunk_size       = N_t
-    N_total          = params.getint('data', 'N_total')
-    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    file_out_suff = params.get('data', 'file_out_suff')
+    N_t = params.getint('detection', 'N_t')
+    nodes, edges = get_nodes_and_edges(params)
+    chunk_size = N_t
+    N_total = params.getint('data', 'N_total')
+    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
     if templates is None:
-        templates    = load_data(params, 'templates')
-    clusters         = load_data(params, 'clusters')
-    probe            = params.probe
+        templates = load_data(params, 'templates')
+    clusters = load_data(params, 'clusters')
+    probe = params.probe
 
     positions = {}
     for i in probe['channel_groups'].keys():
@@ -926,8 +987,8 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     xmax = 0
     ymin = 0
     ymax = 0
-    scaling = 10*numpy.max(numpy.abs(templates[:,temp_id].toarray().reshape(N_e, N_t)))
-    for i in xrange(N_e):
+    scaling = 10*numpy.max(numpy.abs(templates[:, temp_id].toarray().reshape(N_e, N_t)))
+    for i in range(N_e):
         if positions[i][0] < xmin:
             xmin = positions[i][0]
         if positions[i][0] > xmax:
@@ -941,59 +1002,60 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     elif best_elec == 'auto':
         best_elec = numpy.argmin(numpy.min(templates[:, :, temp_id], 1))
     pylab.figure()
-    for count, i in enumerate(xrange(N_e)):
-        x, y     = positions[i]
-        xpadding = ((x - xmin)/(float(xmax - xmin) + 1))*(2*N_t)
-        ypadding = ((y - ymin)/(float(ymax - ymin) + 1))*scaling
+    for count, i in enumerate(range(N_e)):
+        x, y = positions[i]
+        xpadding = ((x - xmin) / (float(xmax - xmin) + 1)) * (2 * N_t)
+        ypadding = ((y - ymin) / (float(ymax - ymin) + 1)) * scaling
 
         if i == best_elec:
-            c='r'
+            c = 'r'
         elif i in inv_nodes[edges[nodes[best_elec]]]:
-            c='k'
-        else: 
-            c='0.5'
+            c = 'k'
+        else:
+            c = '0.5'
         pylab.plot(xpadding + numpy.arange(0, N_t), ypadding + templates[i, :, temp_id], color=c)
     pylab.tight_layout()
     pylab.setp(pylab.gca(), xticks=[], yticks=[])
-    pylab.xlim(xmin, 3*N_t)
+    pylab.xlim(xmin, 3 * N_t)
     pylab.show()    
     return best_elec
 
-def view_raw_templates(file_name, n_temp=2, square=True):
+
+def view_raw_templates(templates, n_temp=2, square=True):
 
     N_e, N_t, N_tm = templates.shape
     if not numpy.iterable(n_temp):
         if square:
-            idx = numpy.random.permutation(numpy.arange(N_tm//2))[:n_temp**2]
+            idx = numpy.random.permutation(numpy.arange(N_tm // 2))[:n_temp ** 2]
         else:
-            idx = numpy.random.permutation(numpy.arange(N_tm//2))[:n_temp]
+            idx = numpy.random.permutation(numpy.arange(N_tm // 2))[:n_temp]
     else:
         idx = n_temp
 
-    import matplotlib.colors as colors
-    my_cmap   = pylab.get_cmap('winter')
-    cNorm     = colors.Normalize(vmin=0, vmax=N_e)
+    my_cmap = pylab.get_cmap('winter')
+    cNorm = mcolors.Normalize(vmin=0, vmax=N_e)
     scalarMap = pylab.cm.ScalarMappable(norm=cNorm, cmap=my_cmap)
 
     pylab.figure()
     for count, i in enumerate(idx):
         if square:
             pylab.subplot(n_temp, n_temp, count + 1)
-            if (numpy.mod(count, n_temp) != 0):
+            if numpy.mod(count, n_temp) != 0:
                 pylab.setp(pylab.gca(), yticks=[])
-            if (count < n_temp*(n_temp - 1)):
+            if count < n_temp*(n_temp - 1):
                 pylab.setp(pylab.gca(), xticks=[])
         else:
             pylab.subplot(len(idx), 1, count + 1)
             if count != (len(idx) - 1):
                 pylab.setp(pylab.gca(), xticks=[])
-        for j in xrange(N_e):
+        for j in range(N_e):
             colorVal = scalarMap.to_rgba(j)
             pylab.plot(templates[j, :, i], color=colorVal)
 
-        pylab.title('Template %d' %i)
+        pylab.title('Template %d' % i)
     pylab.tight_layout()
     pylab.show()    
+
 
 def view_whitening(data):
     pylab.subplot(121)
@@ -1007,63 +1069,62 @@ def view_whitening(data):
     pylab.plot(data['temporal'])
     pylab.xlabel('Time [ms]')
     x, y = pylab.xticks()
-    pylab.xticks(x, (x-x[-1]//2)//10)
+    pylab.xticks(x, (x - x[-1] // 2) // 10)
     pylab.tight_layout()
 
 
 def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
 
-    params          = CircusParser(file_name)
-    data_file       = params.get_data_file()
+    params = CircusParser(file_name)
+    data_file = params.get_data_file()
     data_file.open()
-    N_e             = params.getint('data', 'N_e')
-    N_t             = params.getint('detection', 'N_t')
-    N_total         = params.nb_channels
-    sampling_rate   = params.rate
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    sampling_rate = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    file_out_suff    = params.get('data', 'file_out_suff')
-    nodes, edges     = get_nodes_and_edges(params)
-    chunk_size       = (t_stop - t_start)*sampling_rate
-    padding          = (t_start*sampling_rate, t_start*sampling_rate)
-    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    file_out_suff = params.get('data', 'file_out_suff')
+    nodes, edges = get_nodes_and_edges(params)
+    chunk_size = (t_stop - t_start) * sampling_rate
+    padding = (t_start * sampling_rate, t_start * sampling_rate)
+    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.argsort(nodes)
-    safety_time      = params.getint('clustering', 'safety_time')
+    safety_time = params.getint('clustering', 'safety_time')
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
-    thresholds       = load_data(params, 'thresholds')
+    thresholds = load_data(params, 'thresholds')
     data = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
     data_shape = len(data)
     data_file.close()
-    peaks            = {}
-    indices          = inv_nodes[edges[nodes[n_elec]]]
-    
+    peaks = {}
+    indices = inv_nodes[edges[nodes[n_elec]]]
+
     if do_spatial_whitening:
         data = numpy.dot(data, spatial_whitening)
     if do_temporal_whitening: 
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
-    for i in xrange(N_e):
-        peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
-
+    for i in range(N_e):
+        peaks[i] = scipy.signal.find_peaks(-data[:, i], height=thresholds[i])[0]
 
     pylab.figure()
 
     for count, i in enumerate(indices):
-        
-        pylab.plot(count*5 + data[:, i], '0.25')
-        #xmin, xmax = pylab.xlim()
-        pylab.scatter(peaks[i], count*5 + data[peaks[i], i], s=10, c='r')
+
+        pylab.plot(count * 5 + data[:, i], '0.25')
+        # xmin, xmax = pylab.xlim()
+        pylab.scatter(peaks[i], count * 5 + data[peaks[i], i], s=10, c='r')
 
     for count, i in enumerate(peaks[n_elec]):
         pylab.axvspan(i - safety_time, i + safety_time, facecolor='r', alpha=0.5)
 
-    pylab.ylim(-5, len(indices)*5 )
+    pylab.ylim(-5, len(indices) * 5)
     pylab.xlabel('Time [ms]')
     pylab.ylabel('Electrode')
     pylab.tight_layout()
@@ -1071,30 +1132,31 @@ def view_masks(file_name, t_start=0, t_stop=1, n_elec=0):
     pylab.show()
     return peaks
 
+
 def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None, yzoom=None):
     
-    params          = CircusParser(file_name)
-    data_file       = params.get_data_file()
+    params = CircusParser(file_name)
+    data_file = params.get_data_file()
     data_file.open()
-    N_e             = params.getint('data', 'N_e')
-    N_t             = params.getint('detection', 'N_t')
-    N_total         = params.nb_channels
-    sampling_rate   = params.rate
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    sampling_rate = params.rate
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    spike_thresh     = params.getfloat('detection', 'spike_thresh')
-    file_out_suff    = params.get('data', 'file_out_suff')
-    nodes, edges     = get_nodes_and_edges(params)
-    chunk_size       = (t_stop - t_start)*sampling_rate
-    padding          = (t_start*sampling_rate, t_start*sampling_rate)
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    file_out_suff = params.get('data', 'file_out_suff')
+    nodes, edges = get_nodes_and_edges(params)
+    chunk_size = (t_stop - t_start) * sampling_rate
+    padding = (t_start * sampling_rate, t_start * sampling_rate)
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
-    thresholds       = load_data(params, 'thresholds')
+    thresholds = load_data(params, 'thresholds')
     data = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
     data_shape = len(data)
     data_file.close()
@@ -1106,26 +1168,26 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
     if do_temporal_whitening: 
         data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
     
-    for i in xrange(N_e):
-        peaks[i]   = scipy.signal.find_peaks(-data[:,i], height=threshold[i])[0]
+    for i in range(N_e):
+        peaks[i] = scipy.signal.find_peaks(-data[:, i], height=thresholds[i])[0]
 
     if not numpy.iterable(n_elec):
         if square:
-            idx = numpy.random.permutation(numpy.arange(N_e))[:n_elec**2]
+            idx = numpy.random.permutation(numpy.arange(N_e))[:n_elec ** 2]
         else:
             idx = numpy.random.permutation(numpy.arange(N_e))[:n_elec]
     else:
-        idx    = n_elec
+        idx = n_elec
         n_elec = numpy.sqrt(len(idx))
     pylab.figure()
     for count, i in enumerate(idx):
         if square:
             pylab.subplot(n_elec, n_elec, count + 1)
-            if (numpy.mod(count, n_elec) != 0):
+            if numpy.mod(count, n_elec) != 0:
                 pylab.setp(pylab.gca(), yticks=[])
             else:
                 pylab.ylabel('Signal')
-            if (count < n_elec*(n_elec - 1)):
+            if count < n_elec*(n_elec - 1):
                 pylab.setp(pylab.gca(), xticks=[])
             else:
                 pylab.xlabel('Time [ms]')
@@ -1141,10 +1203,10 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
         pylab.xlim(xmin, xmax)
         pylab.plot([xmin, xmax], [-thresholds[i], -thresholds[i]], 'k--')
         pylab.plot([xmin, xmax], [thresholds[i], thresholds[i]], 'k--')
-        pylab.title('Electrode %d' %i)
+        pylab.title('Electrode %d' % i)
         if xzoom:
             pylab.xlim(xzoom[0], xzoom[1])
-        pylab.ylim(-2*thresholds[i], 2*thresholds[i])
+        pylab.ylim(-2 * thresholds[i], +2 * thresholds[i])
         if yzoom:
             pylab.ylim(yzoom[0], yzoom[1])
     pylab.tight_layout()
@@ -1154,12 +1216,12 @@ def view_peaks(file_name, t_start=0, t_stop=1, n_elec=2, square=True, xzoom=None
 
 def raster_plot(file_name):
 
-    result               = get_results(file_name)
-    times                = []
-    templates            = []
+    result = get_results(file_name)
+    times = []
+    templates = []
     for key in result['spiketimes'].keys():
-        template    = int(key.split('_')[1])
-        times     += result['spiketimes'][key].tolist()
+        template = int(key.split('_')[1])
+        times += result['spiketimes'][key].tolist()
         templates += [template]*len(result['spiketimes'][key])
     return numpy.array(times), numpy.array(templates)
 
@@ -1168,10 +1230,9 @@ def view_norms(file_name, save=True):
     """
     Sanity plot of the norms of the templates.
     
-    Parameters
-    ----------
-    file_name : string
-    
+    Arguments:
+        file_name : string
+        save : boolean
     """
 
     # Retrieve the key parameters.
@@ -1197,7 +1258,7 @@ def view_norms(file_name, save=True):
     ax[0].set_xlim([x_min, x_max])
     ax[0].set_ylim([y_cen_min, y_cen_max])
     ax[0].grid()
-    ax[0].set_title("Norms of the %d templates in %s" %(N_tm, file_name))
+    ax[0].set_title("Norms of the %d templates in %s" % (N_tm, file_name))
     ax[0].set_xlabel("template (central component)")
     ax[0].set_ylabel("norm")
     ax[1].plot(x, y_ort, 'o')
@@ -1215,15 +1276,15 @@ def view_norms(file_name, save=True):
 
     return
 
+
 def view_triggers_bis(file_name, mode='random', save=True):
     """
     Sanity plot of the triggers of a given dataset.
     
-    Parameters
-    ----------
-    file_name : string
-    save : boolean
-    
+    Arguments:
+        file_name : string
+        mode: string
+        save : boolean
     """
     
     import matplotlib.pyplot as plt
@@ -1245,19 +1306,19 @@ def view_triggers_bis(file_name, mode='random', save=True):
     
     mean_spike = numpy.mean(spikes, axis=2)
     
-##### TODO: remove print zone
+    # TODO: remove print zone
     print("# best_elec")
     
     K = mean_spike.shape[1]
     wf_ind = numpy.arange(0, K)
     wf_dif = numpy.zeros(K)
-    for k in xrange(0, K):
+    for k in range(0, K):
         wf = mean_spike[:, k]
         wf_min = numpy.amin(wf)
         wf_max = numpy.amax(wf)
         wf_dif[k] = wf_max - wf_min
     wf_agm = numpy.argsort(wf_dif)
-    #####
+    #
     import matplotlib.pyplot as plt
     fig = plt.figure()
     fig.suptitle("Best elec (%d, %d, %d, ...)" %(wf_agm[-1], wf_agm[-2], wf_agm[-3]))
@@ -1265,9 +1326,9 @@ def view_triggers_bis(file_name, mode='random', save=True):
     ax.plot(wf_ind, wf_dif, 'o')
     ax.grid()
     plt.savefig("/tmp/best-elec.png")
-    #####
+    #
     print(mean_spike.shape)
-##### end print zone
+    # end print zone
 
     mean_norm = numpy.linalg.norm(mean_spike)
     spikes_bis = spikes.reshape(spikes.shape[0] * spikes.shape[1], spikes.shape[2])
@@ -1292,11 +1353,11 @@ def view_triggers_bis(file_name, mode='random', save=True):
     
     v_min = min(numpy.amin(spikes[:, :, idxs]), numpy.amax(spikes[:, :, idxs]))
     v_max = - v_min
-    
+
     # Plot the figure.
     fig = plt.figure()
     gs = gridspec.GridSpec(4, 4)
-    fig.suptitle("Ground truth triggers from `%s`" %file_name)
+    fig.suptitle("Ground truth triggers from `%s`" % file_name)
     for (k, ss) in enumerate(gs):
         ax = fig.add_subplot(ss)
         if 0 == k:
@@ -1307,7 +1368,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
             idx = idxs[k-1]
             ax.imshow(spikes[:, :, idx].T, cmap='seismic', interpolation='nearest',
                       vmin=v_min, vmax=v_max)
-            ax.set_title("spike %d (%f)" %(idx, spike_amplitudes[idx]))
+            ax.set_title("spike %d (%f)" % (idx, spike_amplitudes[idx]))
     gs.tight_layout(fig, pad=0.5, h_pad=0.5, w_pad=0.5, rect=[0.0, 0.0, 1.0, 0.95])
     
     xmin = -1
@@ -1319,7 +1380,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
     # Plot the second figure.
     fig2 = plt.figure()
     gs = gridspec.GridSpec(1, 1)
-    fig2.suptitle("Ground truth triggers from `%s`" %file_name)
+    fig2.suptitle("Ground truth triggers from `%s`" % file_name)
     ax = fig2.add_subplot(gs[0])
     ax.plot(triggers, spike_amplitudes, 'o')
     ax.set_xlim([xmin, xmax])
@@ -1329,7 +1390,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
     plt.rcParams['xtick.labelsize'] = plt.rcParams['font.size']
     plt.rcParams['ytick.labelsize'] = plt.rcParams['font.size']
     weights = (1.0 / spike_amplitudes.shape[0]) * numpy.ones(spike_amplitudes.shape[0])
-    q75, q25 = numpy.percentile(spike_amplitudes, [75 ,25])
+    q75, q25 = numpy.percentile(spike_amplitudes, [75, 25])
     iqr = q75 - q25
     h = 2.0 * iqr * float(spike_amplitudes.shape[0]) ** (- 1.0 / 3.0)
     bins = int(numpy.amax(spike_amplitudes) - numpy.amin(spike_amplitudes) / h)
@@ -1337,7 +1398,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
     # Plot the third figure.
     fig3 = plt.figure()
     gs = gridspec.GridSpec(1, 1)
-    fig3.suptitle("Ground truth triggers from `%s`" %file_name)
+    fig3.suptitle("Ground truth triggers from `%s`" % file_name)
     ax = fig3.add_subplot(gs[0])
     ax.hist(spike_amplitudes, bins=bins, weights=weights)
     ax.grid()
@@ -1359,13 +1420,12 @@ def view_triggers_bis(file_name, mode='random', save=True):
     return
 
 
-
-# Validating plots #############################################################
+# Validation plots.
 
 def view_trigger_snippets_bis(trigger_snippets, elec_index, save=None):
     fig = pylab.figure()
     ax = fig.add_subplot(1, 1, 1)
-    for n in xrange(0, trigger_snippets.shape[2]):
+    for n in range(0, trigger_snippets.shape[2]):
         y = trigger_snippets[:, elec_index, n]
         x = numpy.arange(- (y.size - 1) / 2, (y.size - 1) / 2 + 1)
         b = 0.5 + 0.5 * numpy.random.rand()
@@ -1381,6 +1441,7 @@ def view_trigger_snippets_bis(trigger_snippets, elec_index, save=None):
         pylab.close(fig)
     return
 
+
 def view_trigger_snippets(trigger_snippets, chans, save=None):
     # Create output directory if necessary.
     if os.path.exists(save):
@@ -1393,7 +1454,7 @@ def view_trigger_snippets(trigger_snippets, chans, save=None):
     fig = pylab.figure()
     for (c, chan) in enumerate(chans):
         ax = fig.add_subplot(1, 1, 1)
-        for n in xrange(0, trigger_snippets.shape[2]):
+        for n in range(0, trigger_snippets.shape[2]):
             y = trigger_snippets[:, c, n]
             x = numpy.arange(- (y.size - 1) / 2, (y.size - 1) / 2 + 1)
             b = 0.5 + 0.5 * numpy.random.rand()
@@ -1403,12 +1464,12 @@ def view_trigger_snippets(trigger_snippets, chans, save=None):
         ax.plot(x, y, color=(1.0, 0.0, 0.0), linestyle='solid')
         ax.grid(True)
         ax.set_xlim([numpy.amin(x), numpy.amax(x)])
-        ax.set_title("Channel %d" %chan)
+        ax.set_title("Channel %d" % chan)
         ax.set_xlabel("time")
         ax.set_ylabel("amplitude")
         if save is not None:
             # Save plot.
-            filename = "channel-%d.png" %chan
+            filename = "channel-%d.png" % chan
             path = os.path.join(save, filename)
             pylab.savefig(path)
         fig.clf()
@@ -1420,10 +1481,10 @@ def view_trigger_snippets(trigger_snippets, chans, save=None):
 
 
 def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=None, save=None):
-    
+
     fig = pylab.figure()
     pylab.subplots_adjust(wspace=0.3)
-    
+
     ax = pylab.subplot2grid((2, 2), (0, 0), rowspan=2)
     sampling_rate = params.getint('data', 'sampling_rate')
     isis = numpy.diff(spike_times_juxta)*1000/sampling_rate
@@ -1432,12 +1493,12 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=No
     ax.set_xlabel('Time [ms]')
     ax.set_ylabel('Probability')
     ax.set_title('ISI')
-    
-    ##### TODO: clean temporary zone
+
+    # TODO: clean temporary zone
     selected_juxta_indices = numpy.random.permutation(juxta_spikes.shape[1])[:1000]
     # selected_juxta_indices = numpy.arange(0, juxta_spikes.shape[1])
-    ##### end temporary zone
-    
+    # end temporary zone
+
     if juxta_spikes_ is not None:
         pad = 0.1
         xmin = 0
@@ -1478,9 +1539,6 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=No
         ax = pylab.subplot2grid((2, 2), (1, 1))
     for i in selected_juxta_indices:
         ax.plot(juxta_spikes[:, i], '0.5')
-        ##### TODO: remove temporary zone
-        # print(juxta_spikes[:, i])
-        ##### end temporary zone
     ax.plot(numpy.mean(juxta_spikes, axis=1), '0.25')
     ax.plot(2 * [juxta_spikes.shape[0] / 2], [ymin, ymax], '0.25')
     ax.set_xlim(xmin, xmax)
@@ -1497,6 +1555,7 @@ def view_trigger_times(params, spike_times_juxta, juxta_spikes, juxta_spikes_=No
         pylab.savefig(save)
         pylab.close(fig)
     return
+
 
 def view_dataset(X, color='blue', title=None, save=None):
     n_components = 2
@@ -1519,6 +1578,7 @@ def view_dataset(X, color='blue', title=None, save=None):
         pylab.savefig(save)
         pylab.close(fig)
     return
+
 
 def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, save=None):
     if colors is None:
@@ -1547,31 +1607,32 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
             handles.append(sc)
         k = k + l
     ax.grid(True)
-    #ax.set_aspect('equal')
+    # ax.set_aspect('equal')
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
     ax.set_title("Datasets")
     ax.set_xlabel("1st component")
     ax.set_ylabel("2nd component")
-    #box = ax.get_position()
-    #ax.set_position([box.x0, box.y0 + box.height * 0.15,
-    #                 box.width, box.height * 0.85])
-    #handles = [handles[2], handles[0], handles[1]]
-    #labels = [labels[2], labels[0], labels[1]]
-    #ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
+    # box = ax.get_position()
+    # ax.set_position([box.x0, box.y0 + box.height * 0.15,
+    #                  box.width, box.height * 0.85])
+    # handles = [handles[2], handles[0], handles[1]]
+    # labels = [labels[2], labels[0], labels[1]]
+    # ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15), fancybox=False, shadow=False, ncol=3)
 
-
-    N_total   = params.nb_channels
-    ttmax     = params.data_file.duration
+    N_total = params.nb_channels
+    ttmax = params.data_file.duration
 
     pylab.subplots_adjust(wspace=0.3)
     ax = fig.add_subplot(1, 2, 2)
     sizes = []
 
     for count, trigger_times in enumerate(all_trigger_times):
-        x  = numpy.concatenate((numpy.array([0]),
-                               trigger_times,
-                               numpy.array([ttmax - 1]),))
+        x = numpy.concatenate((
+            numpy.array([0]),
+            trigger_times,
+            numpy.array([ttmax - 1]),
+        ))
         x = x.astype('float') * 100.0 / float(ttmax - 1)
         sizes += [x.size]
         y = numpy.linspace(0.0, 100.0, x.size)
@@ -1581,7 +1642,7 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
     ax.set_ylim(0.0, 100.0)
     ax.legend(('GT', 'Non GT', 'Noise'), loc='best')
     ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='dashed')
-    #ax.set_aspect('equal')
+    # ax.set_aspect('equal')
     ax.set_title("Empirical distribution of triggers")
     ax.set_xlabel("cumulative share of samples (in %)")
     ax.set_ylabel("cumulative share of triggers (in %)")
@@ -1592,9 +1653,10 @@ def view_datasets(params, xs, ys, all_trigger_times, colors=None, labels=None, s
         pylab.close(fig)
     return
 
+
 def view_accuracy(data1, data2, title=None, save=None):
-    '''Plot accuracy curve'''
-    
+    """Plot accuracy curve"""
+
     cutoffs, accs, cutoff, acc = data1
 
     fig = pylab.figure()
@@ -1629,20 +1691,18 @@ def view_accuracy(data1, data2, title=None, save=None):
     ax.set_ylabel("")
     ax.legend([h1, h2, h3], labels)
 
-
     if save is None:
         pylab.show()
     else:
         pylab.savefig(save)
         pylab.close(fig)
+
     return
 
 
 def view_classifier(params, data_1, data_2, save=None, verbose=False):
-    '''Plot classifier'''
+    """Plot classifier"""
     # Retrieve parameters.
-
-    
 
     from circus.validating.utils import Projection, find_rotation, find_apparent_contour
 
@@ -1728,22 +1788,22 @@ def view_classifier(params, data_1, data_2, save=None, verbose=False):
         A__, b__, c__ = find_apparent_contour(A_, b_, c_)
         # Plot classifier.
         
-        ## Plot datasets.
+        # # Plot datasets.
         ax.scatter(X_ngt_[:, 0], X_ngt_[:, 1], c='b', s=5, lw=0.1)
         if len(X) == 3:
             ax.scatter(X_noi_[:, 0], X_noi_[:, 1], c='k', s=5, lw=0.1)
         ax.scatter(X_gt_[:, 0], X_gt_[:, 1], c='r', s=5, lw=0.1)
-        ## Plot ellipse transformation.
-        for i in xrange(0, O_.shape[0]):
+        # # Plot ellipse transformation.
+        for i in range(0, O_.shape[0]):
             ax.plot([t_[0, 0], O_[i, 0]], [t_[0, 1], O_[i, 1]], 'y', zorder=3)
-        ## Plot ellipse apparent contour.
+        # # Plot ellipse apparent contour.
         n = 300
         x_r = numpy.linspace(x_min, x_max, n)
         y_r = numpy.linspace(y_min, y_max, n)
         xx, yy = numpy.meshgrid(x_r, y_r)
         zz = numpy.zeros(xx.shape)
-        for i in xrange(0, xx.shape[0]):
-            for j in xrange(0, xx.shape[1]):
+        for i in range(0, xx.shape[0]):
+            for j in range(0, xx.shape[1]):
                 v = numpy.array([xx[i, j], yy[i, j]])
                 zz[i, j] = numpy.dot(numpy.dot(v, A__), v) + numpy.dot(b__, v) + c__
         vv = numpy.array([0.0])
@@ -1752,12 +1812,12 @@ def view_classifier(params, data_1, data_2, save=None, verbose=False):
         ax.contour(xx, yy, zz, vv, colors='y', linewidths=1.0)
         # cs = ax.contour(xx, yy, zz, vv, colors='k', linewidths=1.0)
         # ax.clabel(cs, inline=1, fontsize=10)
-        ## Plot means of datasets.
+        # # Plot means of datasets.
         ax.scatter(mu_gt_[:, 0], mu_gt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
         ax.scatter(mu_ngt_[:, 0], mu_ngt_[:, 1], c='y', s=30, lw=0.1, zorder=4)
         if len(X) == 3:
             ax.scatter(mu_noi_[:, 0], mu_noi_[:, 1], c='y', s=30, lw=0.1, zorder=4)
-        ## Plot aspect.
+        # # Plot aspect.
         # ax.set_aspect('equal')
         ax.grid()
         ax.set_xlim([x_min, x_max])
@@ -1770,19 +1830,21 @@ def view_classifier(params, data_1, data_2, save=None, verbose=False):
         else:
             ax.set_title("After")
             ax.set_xlabel("1st component")
-        
 
     if save is None:
         pylab.show()
     else:
         pylab.savefig(save)
         pylab.close(fig)
+
     return
 
+
 def view_mahalanobis_distribution(data_1, data_2, save=None):
-    '''Plot Mahalanobis distribution Before and After'''
+    """Plot Mahalanobis distribution Before and After"""
+
     fig = pylab.figure()
-    ax = fig.add_subplot(1,2,1)
+    ax = fig.add_subplot(1, 2, 1)
     if len(data_1) == 3:
         d_gt, d_ngt, d_noi = data_1
     elif len(data_1) == 2:
@@ -1801,7 +1863,7 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
         d_gt, d_ngt, d_noi = data_2
     elif len(data_2) == 2:
         d_gt, d_ngt = data_2
-    ax = fig.add_subplot(1,2,2)
+    ax = fig.add_subplot(1, 2, 2)
     if len(data_2) == 3:
         ax.hist(d_noi, bins=50, color='k', alpha=0.5, label="Noise")
     ax.hist(d_ngt, bins=50, color='b', alpha=0.5, label="Non GT")
@@ -1811,19 +1873,20 @@ def view_mahalanobis_distribution(data_1, data_2, save=None):
     ax.set_ylabel("")
     ax.set_xlabel('Distances')
     
-    
     ax.legend()
     if save is None:
         pylab.show()
     else:
         pylab.savefig(save)
         pylab.close(fig)
+
     return
 
+
 def view_classification(data_1, data_2, title=None, save=None):
-    
-    fig    = pylab.figure()
-    count  = 0
+
+    fig = pylab.figure()
+    count = 0
     panels = [0, 2, 1, 3]
     for item in [data_1, data_2]:
         clf, cld, X, X_raw, y = item
@@ -1831,11 +1894,11 @@ def view_classification(data_1, data_2, title=None, save=None):
             ax = fig.add_subplot(2, 2, panels[count]+1)
 
             if mode == 'predict':
-                c    = clf
+                c = clf
                 vmax = 1.0
                 vmin = 0.0
             elif mode == 'decision_function':
-                c    = cld
+                c = cld
                 vmax = max(abs(numpy.amin(c)), abs(numpy.amax(c)))
                 vmin = - vmax
 
@@ -1868,15 +1931,17 @@ def view_classification(data_1, data_2, title=None, save=None):
     else:
         pylab.savefig(save)
         pylab.close(fig)
+
     return
 
-def view_loss_curve(losss, title=None, save=None):
-    '''Plot loss curve'''
+
+def view_loss_curve(losses, title=None, save=None):
+    """Plot loss curve"""
     x_min = 1
-    x_max = len(losss) - 1
+    x_max = len(losses) - 1
     fig = pylab.figure()
     ax = fig.gca()
-    ax.semilogy(range(x_min, x_max + 1), losss[1:], color='blue', linestyle='solid')
+    ax.semilogy(range(x_min, x_max + 1), losses[1:], color='blue', linestyle='solid')
     ax.grid(True, which='both')
     if title is None:
         ax.set_title("Loss curve")
@@ -1894,8 +1959,8 @@ def view_loss_curve(losss, title=None, save=None):
 
 
 def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
-    '''Plot ROC curve'''
-    
+    """Plot ROC curve"""
+
     fig = pylab.figure()
     pylab.subplots_adjust(wspace=0.3)
 
@@ -1905,7 +1970,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         ax = fig.add_subplot(121)
     else:
         ax = fig.add_subplot(111)
-    
+
     ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
     ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
     if fpr is not None and tpr is not None:
@@ -1917,7 +1982,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
     ax.set_title("ROC curve")
     ax.set_xlabel("false positive rate")
     ax.set_ylabel("true positive rate")
-    
+
     def get_fprs(confusion_matrices):
         """Get false positive rates"""
         # Compute false positive rates.
@@ -1925,7 +1990,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # Add false positive rate endpoints.
         fprs = [1.0] + fprs + [0.0]
         return fprs
-    
+
     def get_tprs(confusion_matrices):
         """Get true positive rates"""
         # Compute true positive rates.
@@ -1933,7 +1998,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # Add true positive rate endpoints.
         tprs = [1.0] + tprs + [0.0]
         return tprs
-    
+
     def get_fpers(confusion_matrices):
         """Get false positive error rates"""
         # Compute false positive error rates.
@@ -1941,7 +2006,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # Add false positive error rate endpoints.
         fpers = [1.0] + fpers + [0.0]
         return fpers
-    
+
     def get_fners(confusion_matrices):
         """ Get false negative error rates"""
         # Compute false negative error rates.
@@ -1949,66 +2014,65 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # Add false negative error rate endpoints.
         fners = [0.0] + fners + [1.0]
         return fners
-    
-    
+
     if HAVE_RESULT:
-        
+
         ax = fig.add_subplot(122)
-        
+
         # Retrieve the confusion matrices.
         confusion_matrices = load_data(params, "confusion-matrices")
-        
+
         if scerror is None:
-            
+
             # Parameters needed to compute scerror:
             # params
             # File variables needed to compute scerror:
             # juxta-triggers, sampling-rate, matching-jitter, results, templates
-            
-            # Retrieve the juxtacellular spiketimes.
+
+            # Retrieve the juxtacellular spike times.
             all_times = load_data(params, "juxta-triggers")
-            
+
             thresh = int(params.getint('data', 'sampling_rate')*2*1e-3)
-            #print("Time difference threshold: {}".format(thresh))
-            
-            # Retrieve the SpyKING CIRCUS spiketimes.
+            # print("Time difference threshold: {}".format(thresh))
+
+            # Retrieve the SpyKING CIRCUS spike times.
             result = load_data(params, "results")
-            data   = result['spiketimes']
-            
+            data = result['spiketimes']
+
             # Retrieve the templates.
             templates = load_data(params, 'templates')
-            
+
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
             rates = []
             nb_total = len(all_times)
             nb_fitted = 0
-            
-            # Count the number of spiketimes sorted by SpyKING CIRCUS.
-            for i in xrange(n_temp):
+
+            # Count the number of spike times sorted by SpyKING CIRCUS.
+            for i in range(n_temp):
                 nb_fitted += len(data['temp_' + str(i)])
-            
+
             print("Number of spikes {}/{} with {} templates".format(nb_fitted, nb_total, n_temp))
-            
-            ## First pass to detect what are the scores
-            for i in xrange(n_temp):
+
+            # # First pass to detect what are the scores.
+            for i in range(n_temp):
                 spikes = data['temp_' + str(i)]
                 # print "Template", i, "with", len(spikes), "spikes"
-                # Compute the false positive rate
+                # Compute the false positive rate.
                 for spike in all_times:
                     idx = numpy.where(abs(spikes - spike) <= thresh)[0]
                     if len(idx) > 0:
                         res[i, 0] += 1
                 if len(all_times) > 0:
                     res[i, 0] /= float(len(all_times))
-                # Compute the positive predictive value
+                # Compute the positive predictive value.
                 for spike in spikes:
                     idx = numpy.where(abs(all_times - spike) <= thresh)[0]
                     if len(idx) > 0:
                         res[i, 1] += 1
                 if len(spikes) > 0:
                     res[i, 1] /= float(len(spikes))
-            
+
             idx = numpy.argmax(numpy.mean(res, 1))
             selection = [idx]
             error = res[idx]
@@ -2016,28 +2080,28 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
             source_temp = templates[:, idx].toarray().flatten()
             temp_match = []
             dmax = 0.1
-            for i in xrange(templates.shape[1]/2):
+            for i in range(templates.shape[1]/2):
                 d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
                 if d > dmax and i not in selection:
                     temp_match += [i]
-            
-            ## Second pass to reach the best score with greedy aggregations
+
+            # # Second pass to reach the best score with greedy aggregations.
             if 0 < len(temp_match):
-            
-                while (find_next == True):
-                    
+
+                while find_next:
+
                     temp_match = [i for i in temp_match if i not in selection]
-                    
+
                     local_errors = numpy.zeros((len(temp_match), 2))
-                    
+
                     for mcount, tmp in enumerate(temp_match):
-                        
+
                         # Gather selected spikes.
                         spikes = []
                         for xtmp in selection + [tmp]:
                             spikes += data['temp_' + str(xtmp)].tolist()
                         spikes = numpy.array(spikes, dtype=numpy.int32)
-                        
+
                         # Compute true positive rate.
                         count = 0
                         for spike in all_times:
@@ -2045,39 +2109,38 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
                             if len(idx) > 0:
                                 count += 1
                         if len(all_times) > 0:
-                            local_errors[mcount, 0] = count/float(len(all_times))
-                        
+                            local_errors[mcount, 0] = count / float(len(all_times))
+
                         # Compute positive predictive value
                         count = 0
                         for spike in spikes:
-                            idx = numpy.where(numpy.abs(all_times- spike) < thresh)[0]
+                            idx = numpy.where(numpy.abs(all_times - spike) < thresh)[0]
                             if len(idx) > 0:
                                 count += 1
                         if len(spikes) > 0:
-                            local_errors[mcount, 1]  = count/(float(len(spikes)))
+                            local_errors[mcount, 1] = count / (float(len(spikes)))
                     
                     errors = numpy.mean(local_errors, 1)
                     if numpy.max(errors) > numpy.mean(error):
-                        idx        = numpy.argmax(errors)
+                        idx = numpy.argmax(errors)
                         selection += [temp_match[idx]]
-                        error      = local_errors[idx]
+                        error = local_errors[idx]
                     else:
                         find_next = False
-            
+
             error = 100 * (1 - error)
             res = 100 * (1 - res)
-            
+
         else:
-            
+
             # Retrieve saved errors for SpyKING CIRCUS.
             res = scerror['res']
             selection = scerror['selection']
             error = scerror['error']
-        
-        
+
         print("Best error is obtained with templates {} : {}".format(selection, error))
-        
-        ##### TODO: clean quarantine zone
+
+        # TODO clean quarantine zone
         # ## Finally, we compute the ROC curve.
         # fprs = get_fprs(confusion_matrices)
         # tprs = get_tprs(confusion_matrices)
@@ -2085,33 +2148,33 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         # fprs = [100.0 * fpr for fpr in fprs]
         # tprs = [100.0 * tpr for tpr in tprs]
         
-        ## Finally, we compute the performance curve.
+        # # Finally, we compute the performance curve.
         fpers = get_fpers(confusion_matrices)
         fners = get_fners(confusion_matrices)
-        ## And scale convert it in percent.
+        # # And scale convert it in percent.
         fpers = [100.0 * fper for fper in fpers]
         fners = [100.0 * fner for fner in fners]
-        ##### end quarantine zone
+        # TODO end quarantine zone
         
-        ##### TODO: clean quarantine zone
+        # TODO clean quarantine zone
         anot_size = 8
-        ## Plot the performances of each templates.
+        # # Plot the performances of each templates.
         # TODO: check which is the fpr and which is the tpr
         # scatter(res[:, 0], res[:, 1])
         ax.scatter(res[:, 1], res[:, 0])
-        for i in xrange(res.shape[0]):
+        for i in range(res.shape[0]):
             txt = str(i)
             # pos = (res[i, 0], res[i, 1])
             pos = (res[i, 1], res[i, 0])
             ax.annotate(txt, pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
-        ## Plot the performances of the best aggregations of templates.
+        # # Plot the performances of the best aggregations of templates.
         ax.scatter(error[1], error[0])
         pos = (error[1], error[0])
         ax.annotate("best", pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
-        ## Plot the performances of the BEER.
+        # # Plot the performances of the BEER.
         ax.plot(fpers, fners)
         # ax.scatter(fpers, fners, color='r')
-        ## Enhance figure.
+        # # Enhance figure.
         ax.set_xlim(-5, 105)
         ax.set_ylim(-5, 105)
         ax.grid(True)
@@ -2120,39 +2183,32 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
         ax.set_xlabel("false positive error rate")
         ax.set_ylabel("false negative error rate")
         ax.set_title("best = {}".format(selection))
-        ##### end quarantine zone
-    
+        # TODO end quarantine zone
+
     # Save ROC plot.
     if save is None:
         pylab.show()
     else:
         pylab.savefig(save)
         pylab.close(fig)
+
     return error
 
 
-##### TODO: clean temporary zone
+# TODO clean temporary zone.
 
 def view_roc_curve_(params, save=None):
-    '''Plot ROC curve.'''
-    
+    """Plot ROC curve."""
+
     fprs = load_data(params, 'false-positive-rates')
     tprs = load_data(params, 'true-positive-rates')
-    ##### TODO: remove temporary zone
-    # print("fprs: {}".format(fprs))
-    # print("tprs: {}".format(tprs))
-    ##### end temporary zone
-    
+
     fpers = load_data(params, 'false-positive-error-rates')
     fners = load_data(params, 'false-negative-error-rates')
-    ##### TODO: remove temporary zone
-    # print("fpers: {}".format(fpers))
-    # print("fners: {}".format(fners))
-    ##### end temporary zone
     fpers = 100.0 * fpers
     fners = 100.0 * fners
-    
-    ##### TODO: clean temporary zone
+
+    # TODO clean temporary zone.
     # res = None
     # error = None
     sc_fpers = load_data(params, 'sc-false-positive-error-rates')
@@ -2160,24 +2216,17 @@ def view_roc_curve_(params, save=None):
     sc_fper = load_data(params, 'sc-best-false-positive-error-rate')
     sc_fner = load_data(params, 'sc-best-false-negative-error-rate')
     selection = load_data(params, 'selection')
-    ##### TODO: remove temporary zone
-    # print("sc_fpers: {}".format(sc_fpers))
-    # print("sc_fners: {}".format(sc_fners))
-    # print("sc_fper: {}".format(sc_fper))
-    # print("sc_fner: {}".format(sc_fner))
-    # print("selection: {}".format(selection))
-    ##### end temporary zone
     sc_fpers = 100.0 * sc_fpers
     sc_fners = 100.0 * sc_fners
     sc_fper = 100.0 * sc_fper
     sc_fner = 100.0 * sc_fner
-    ##### end temporary zone
-    
+    # TODO end temporary zone.
+
     anot_size = 8
-    
+
     fig = pylab.figure()
     pylab.subplots_adjust(wspace=0.3)
-    
+
     ax = fig.add_subplot(121)
     ax.plot([0.0, 1.0], [0.0, 1.0], color='black', linestyle='dashed')
     ax.plot(fprs, tprs, color='blue', linestyle='solid', zorder=3)
@@ -2188,26 +2237,26 @@ def view_roc_curve_(params, save=None):
     ax.set_title("ROC curve")
     ax.set_xlabel("false positive rate")
     ax.set_ylabel("true positive rate")
-    
+
     ax = fig.add_subplot(122)
-    ## Plot the performances of the BEER.
+    # # Plot the performances of the BEER.
     ax.plot(fpers, fners)
-    ## Plot the performances of each templates.
+    # # Plot the performances of each templates.
     # ax.scatter(res[:, 1], res[:, 0])
     ax.scatter(sc_fpers, sc_fners)
-    # for i in xrange(res.shape[0]):
-    for i in xrange(len(sc_fpers)):
+    # for i in range(res.shape[0]):
+    for i in range(len(sc_fpers)):
         txt = str(i)
         # pos = (res[i, 1], res[i, 0])
         pos = (sc_fpers[i], sc_fners[i])
         ax.annotate(txt, pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
-    ## Plot the performances of the best aggregations of templates.
+    # # Plot the performances of the best aggregations of templates.
     # ax.scatter(error[1], error[0])
     ax.scatter(sc_fper, sc_fner)
     # pos = (error[1], error[0])
     pos = (sc_fper, sc_fner)
     ax.annotate("best", pos, horizontalalignment=True, verticalalignment=True, size=anot_size)
-    ## Enhance figure.
+    # # Enhance figure.
     ax.set_xlim(-5, 105)
     ax.set_ylim(-5, 105)
     ax.grid(True)
@@ -2216,15 +2265,15 @@ def view_roc_curve_(params, save=None):
     ax.set_xlabel("false positive error rate")
     ax.set_ylabel("false negative error rate")
     ax.set_title("best = {}".format(selection))
-    
+
     # Save ROC plot.
     if save is None:
         pylab.show()
     else:
         pylab.savefig(save)
         pylab.close(fig)
-    
+
     # return error
     return numpy.array([sc_fner, sc_fper])
 
-##### end temporary zone
+# TODO end temporary zone.

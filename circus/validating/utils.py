@@ -4,11 +4,12 @@ from scipy import signal
 
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 
 import circus.shared.algorithms as algo
 from ..shared.utils import *
+import circus.shared.files as io
 from ..shared import plot
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from circus.shared.probes import get_nodes_and_edges
@@ -17,6 +18,7 @@ from circus.shared.messages import print_and_log
 
 
 logger = logging.getLogger(__name__)
+
 
 def get_neighbors(params, chan=None):
     N_total = params.getint('data', 'N_total')
@@ -33,25 +35,25 @@ def get_neighbors(params, chan=None):
 
 
 def get_juxta_stas(params, times_i, labels_i):
-    '''Extract STAs from the juxtacellular trace.'''
+    """Extract STAs from the juxtacellular trace."""
 
     file_out_suff = params.get('data', 'file_out_suff')
     sampling_rate = params.getint('data', 'sampling_rate')
-    N_t           = params.getint('detection', 'N_t')
-    juxta_dtype   = params.get('validating', 'juxta_dtype')
-    
+    N_t = params.getint('detection', 'N_t')
+    juxta_dtype = params.get('validating', 'juxta_dtype')
+
     juxta_filename = "{}.juxta.dat".format(file_out_suff)
     beer_path = "{}.beer.hdf5".format(file_out_suff)
-    
+
     # Read juxtacellular trace.
     juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
-    #juxta_data = juxta_data.astype(numpy.float32)
+    # juxta_data = juxta_data.astype(numpy.float32)
     # juxta_data = juxta_data - dtype_offset
     juxta_data = numpy.ascontiguousarray(juxta_data)
-    
+
     # Filter juxtacellular trace.
     if params.getboolean('validating', 'filter'):
-        juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
+        juxta_data = highpass(juxta_data, sampling_rate=sampling_rate)
 
     juxta_data -= numpy.median(juxta_data)
 
@@ -63,7 +65,7 @@ def get_juxta_stas(params, times_i, labels_i):
         imax = time + (N_t - 1) // 2 + 1
         # TODO: check if imin < 0  or juxta_data.size < imax.
         stas[i] = juxta_data[imin:imax]
-    
+
     return stas
 
 
@@ -75,61 +77,60 @@ def with_quadratic_feature(X_raw, pairwise=False):
         M = K + K * (K + 1) // 2
         shape = (N, M)
     else:
-        # Without pairwise product of feature vector elments.
+        # Without pairwise product of feature vector elements.
         M = K
         shape = (N, M)
-    
+
     # if comm.rank == 0:
     #     print("N, M: {}, {}".format(N, M))
-    
+
     # X = numpy.zero(shape)
-    X        = numpy.empty(shape, dtype=numpy.float32)
+    X = numpy.empty(shape, dtype=numpy.float32)
     X[:, :K] = X_raw
-    
-    ##### Initial try (~ 0.5s)
+
+    # Initial try (~ 0.5s)
     if pairwise:
         # Add the pairwise product of feature vector elements.
         k = 0
-        for i in xrange(K):
-            for j in xrange(i, K):
+        for i in range(K):
+            for j in range(i, K):
                 X[:, K + k] = X[:, i] * X[:, j]
                 k = k + 1
-    
-    return X
 
+    return X
 
 
 # Extracellular ################################################################
 
 def extract_extra_thresholds(params):
     """Compute the mean and the standard deviation for each extracellular channel"""
-    
-    data_file      = params.data_file
+
+    data_file = params.data_file
     data_file.open()
 
     chunk_size = params.getint('data', 'chunk_size')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
     N_total = params.nb_channels
-    
+
     if do_spatial_whitening:
-        spatial_whitening  = io.load_data(params, 'spatial_whitening')
+        spatial_whitening = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
-    
-    #mpi_file = MPI.File()
-    #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
+
+    # mpi_file = MPI.File()
+    # mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     nodes, _ = get_nodes_and_edges(params)
     N_elec = nodes.size
-    
+
     def weighted_mean(weights, values):
         """Compute a weighted mean for the given values"""
         norm_weights = [float(weight) / float(sum(weights)) for weight in weights]
         weighted_values = [norm_weight * value for (norm_weight, value) in zip(norm_weights, values)]
         weighted_mean = sum(weighted_values)
         return weighted_mean
-    
+
     def extract_median(chunk_size, gidx):
         """Extract the medians from a chunk of extracellular traces"""
         loc_chunk, _ = data_file.get_data(gidx, chunk_size, nodes=nodes)
@@ -140,7 +141,7 @@ def extract_extra_thresholds(params):
             loc_chunk = scipy.ndimage.filters.convolve1d(loc_chunk, temporal_whitening, axis=0, mode='constant')
         median = numpy.median(loc_chunk, axis=0)
         return median
-    
+
     def extract_median_absolute_deviation(chunk_size, gidx, median):
         """Extract the median absolute deviations from a chunk of extracellular traces"""
         loc_chunk, _ = data_file.get_data(gidx, chunk_size, nodes=nodes)
@@ -151,25 +152,24 @@ def extract_extra_thresholds(params):
             loc_chunk = scipy.ndimage.filters.convolve1d(loc_chunk, temporal_whitening, axis=0, mode='constant')
         mad = numpy.median(numpy.abs(loc_chunk - median), axis=0)
         return mad
-    
+
     # Distribute chunks over the CPUs.
     all_chunks = numpy.arange(nb_chunks)
     loc_all_chunks = all_chunks[comm.rank::comm.size]
     loc_nb_chunks = len(loc_all_chunks)
-    
+
     loc_nbs_chunks = comm.gather(loc_nb_chunks, root=0)
-    
+
     if comm.rank == 0:
-        print_and_log(["Computing extracellular medians..."],
-                         level='default', logger=logger)
-    
-    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+        print_and_log(["Computing extracellular medians..."], level='default', logger=logger)
+
+    to_explore = range(comm.rank, nb_chunks, comm.size)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
-    
+
     medians = numpy.zeros((N_elec, loc_nb_chunks), dtype=numpy.float32)
-    
+
     # For each chunk attributed to the current CPU.
     for count, gidx in enumerate(to_explore):
         gidx = all_chunks[gidx]
@@ -177,50 +177,49 @@ def extract_extra_thresholds(params):
 
     sys.stderr.flush()
     median = numpy.mean(medians, axis=1)
-    
+
     comm.Barrier()
-    
+
     medians = comm.gather(median, root=0)
-    
+
     if comm.rank == 0:
         median = weighted_mean(loc_nbs_chunks, medians)
-        
+
     # Broadcast medians to each CPU.
     median = comm.bcast(median, root=0)
-    
+
     comm.Barrier()
-    
+
     if comm.rank == 0:
-        print_and_log(["Computing extracellular thresholds..."],
-                         level='default', logger=logger)
-    
-    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+        print_and_log(["Computing extracellular thresholds..."], level='default', logger=logger)
+
+    to_explore = range(comm.rank, nb_chunks, comm.size)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
-    
+
     mads = numpy.zeros((N_elec, loc_nb_chunks), dtype=numpy.float32)
-    
+
     # For each chunk attributed to the current CPU.
     for count, gidx in enumerate(to_explore):
         gidx = all_chunks[gidx]
         mads[:, count] = extract_median_absolute_deviation(chunk_size, gidx, median)
     sys.stderr.flush()
     mad = numpy.mean(mads, axis=1)
-    
+
     comm.Barrier()
-    
+
     mads = comm.gather(mad, root=0)
-    
+
     if comm.rank == 0:
         mad = weighted_mean(loc_nbs_chunks, mads)
-        
+
     # Broadcast median absolute deviation to each CPU.
     mad = comm.bcast(mad, root=0)
-    
+
     comm.Barrier()
     data_file.close()
-    
+
     return median, mad
 
 
@@ -229,56 +228,56 @@ def extract_extra_spikes_(params):
     
     data_file = params.data_file
     data_file.open()
-    dist_peaks     = params.getint('detection', 'dist_peaks')
-    spike_thresh   = params.getfloat('detection', 'spike_thresh')
+    dist_peaks = params.getint('detection', 'dist_peaks')
+    spike_thresh = params.getfloat('detection', 'spike_thresh')
     template_shift = params.getint('detection', 'template_shift')
-    alignment      = params.getboolean('detection', 'alignment')
+    alignment = params.getboolean('detection', 'alignment')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    safety_time  = params.getint('whitening', 'safety_time')
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    safety_time = params.getint('whitening', 'safety_time')
     safety_space = params.getboolean('clustering', 'safety_space')
-    chunk_size   = params.getint('data', 'chunk_size')
-    jitter_range     = params.getint('detection', 'jitter_range')
+    chunk_size = params.getint('data', 'chunk_size')
+    jitter_range = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
     # chunk_size = params.getint('whitening', 'chunk_size')
-    N_total        = params.nb_channels
-    file_out_suff  = params.get('data', 'file_out_suff')
-    
+    N_total = params.nb_channels
+    file_out_suff = params.get('data', 'file_out_suff')
+
     if do_spatial_whitening:
-        spatial_whitening  = io.load_data(params, 'spatial_whitening')
+        spatial_whitening = io.load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
-    
-    #mpi_file = MPI.File()
-    #mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
+
+    # mpi_file = MPI.File()
+    # mpi_input = mpi_file.Open(comm, data_filename, MPI.MODE_RDONLY)
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     nodes, _ = get_nodes_and_edges(params)
-    N_elec   = params.getint('data', 'N_e')
-        
+    N_elec = params.getint('data', 'N_e')
+
     extra_medians, extra_mads = extract_extra_thresholds(params)
-    
+
     if comm.rank == 0:
         # Save medians and median absolute deviations to BEER file.
         path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(path, 'a', libver='earliest')
-        ## Save medians.
+        # # Save medians.
         extra_medians_key = "extra_medians"
         if extra_medians_key in beer_file.keys():
             beer_file.pop(extra_medians_key)
         beer_file.create_dataset(extra_medians_key, data=extra_medians)
-        ## Save median absolute deviations.
+        # # Save median absolute deviations.
         extra_mads_key = "extra_mads"
         if extra_mads_key in beer_file.keys():
             beer_file.pop(extra_mads_key)
         beer_file.create_dataset(extra_mads_key, data=extra_mads)
         beer_file.close()
-    
+
     def extract_chunk_spikes(gidx, extra_thresh, valley=True):
         """Detect spikes from a chunk of the extracellular traces"""
-        
+
         loc_chunk, t_offset = data_file.get_data(gidx, chunk_size, nodes=nodes)
         loc_shape = len(loc_chunk)
-        
+
         # Whiten signal.
         if do_spatial_whitening:
             loc_chunk = numpy.dot(loc_chunk, spatial_whitening)
@@ -286,17 +285,17 @@ def extract_extra_spikes_(params):
             loc_chunk = scipy.ndimage.filters.convolve1d(loc_chunk, temporal_whitening,
                                                          axis=0, mode='constant')
         
-        ##### TODO: uncomment or remove temporary zone
+        # TODO uncomment or remove temporary zone.
         # # For each electrode, center traces by removing the medians.
         # extra_medians = numpy.median(loc_chunk, axis=0)
         # loc_chunk = loc_chunk - extra_medians
-        ##### end temporary zone
-        
-        # Preallocation for results.
+        # TODO end temporary zone
+
+        # Pre-allocation for results.
         peak_times = N_elec * [None]
         peak_channels = N_elec * [None]
         # For each electrode.
-        for e in xrange(N_elec):
+        for e in range(N_elec):
             # Extract the peaks of the current chunk.
             threshold = extra_thresh * extra_mads[e]
             if valley is True:
@@ -313,7 +312,7 @@ def extract_extra_spikes_(params):
                 peak_indices = numpy.where(peak_values <= +10.0 * threshold)[0]
             peak_times[e] = peak_times[e][peak_indices]
             peak_channels[e] = peak_channels[e][peak_indices]
-        
+
         peak_times = numpy.concatenate(peak_times)
         peak_channels = numpy.concatenate(peak_channels)
         # Remove the useless borders.
@@ -326,10 +325,10 @@ def extract_extra_spikes_(params):
         peak_channels = numpy.compress(peak_flags, peak_channels)
         # Filter unique peak times.
         loc_peak_times = numpy.unique(peak_times)
-        ##### TODO: remove debug zone
+        # TODO remove debug zone.
         # if gidx < 1:
         #     numpy.save("tmp/loc_peak_times_{}_{}_.npy".format(gidx, int(extra_thresh)), loc_peak_times)
-        ##### end debug zone
+        # TODO end debug zone.
         n_times = len(loc_peak_times)
         loc_peak_flags = numpy.zeros(n_times, dtype='bool')
         loc_peak_elecs = numpy.zeros(n_times, dtype='int64')
@@ -341,7 +340,7 @@ def extract_extra_spikes_(params):
             min_times = numpy.maximum(loc_peak_times - loc_peak_times[0] - safety_time, 0)
             max_times = numpy.minimum(loc_peak_times - loc_peak_times[0] + safety_time + 1, diff_times)
             # Shuffle peaks.
-            ##### TODO: clean temporary zone
+            # TODO clean temporary zone.
             # argmax_peak = numpy.random.permutation(numpy.arange(n_times))
             if valley:
                 for i, loc_peak_time in enumerate(loc_peak_times):
@@ -352,7 +351,7 @@ def extract_extra_spikes_(params):
                     loc_peak_values[i] = numpy.amax(loc_chunk[loc_peak_time, :])
                 argmax_peak = numpy.argsort(loc_peak_values)
                 argmes_peak = argmax_peak[::-1]
-            ##### end temporary zone
+            # TODO end temporary zone.
             all_indices = loc_peak_times[argmax_peak]
             # Select peaks with spatio-temporal masks.
             for peak_index, peak_time in zip(argmax_peak, all_indices):
@@ -383,46 +382,46 @@ def extract_extra_spikes_(params):
         loc_peak_elecs = numpy.compress(loc_peak_flags, loc_peak_elecs)
         loc_peak_values = numpy.compress(loc_peak_flags, loc_peak_values)
 
-        ##### TODO: remove debug zone
+        # TODO remove debug zone.
         # if gidx < 1:
         #     numpy.save("tmp/loc_peak_times_{}_{}.npy".format(gidx, int(extra_thresh)), loc_peak_times)
         #     numpy.save("tmp/loc_peak_elecs_{}_{}.npy".format(gidx, int(extra_thresh)), loc_peak_elecs)
         #     numpy.save("tmp/loc_peak_values_{}_{}.npy".format(gidx, int(extra_thresh)), loc_peak_values)
         #     numpy.save("tmp/loc_chunk_{}_{}.npy".format(gidx, int(extra_thresh)), loc_chunk)
-        ##### end debug zone
-        
+        # TODO end debug zone.
+
         return loc_peak_times + t_offset, loc_peak_elecs, loc_peak_values
-    
+
     comm.Barrier()
 
     # Distribute chunks over CPUs.
     all_chunks = numpy.arange(nb_chunks)
     loc_all_chunks = all_chunks[comm.rank::comm.size]
     loc_nb_chunks = len(loc_all_chunks)
-    
+
     if comm.rank == 0:
         print_and_log(["Collecting extracellular spikes..."], level='default', logger=logger)
     
-    to_explore = xrange(comm.rank, nb_chunks, comm.size)
+    to_explore = range(comm.rank, nb_chunks, comm.size)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
-    
+
     extra_valley = True
-    
-    ##### TODO: remove test zone (i.e. plots of extracellular spike times).
+
+    # TODO remove test zone (i.e. plots of extracellular spike times).
     # plot_extracted_extra_spikes(loc_all_chunks, data_len, mpi_input, data_dtype,
     #                             chunk_len, chunk_size, N_total, nodes,
     #                             extra_medians, extra_mads, k, params, safety_space,
     #                             safety_time)
     # sys.exit(1)
-    ##### end test zone
-    
-    # Preallocation for results.
+    # TODO end test zone.
+
+    # Pre-allocation for results.
     times = len(loc_all_chunks) * [None]
     channels = len(loc_all_chunks) * [None]
     values = len(loc_all_chunks) * [None]
-    
+
     data_file.open()
     # For each chunk attributed to the current CPU.
     for (count, gidx) in enumerate(to_explore):
@@ -431,20 +430,20 @@ def extract_extra_spikes_(params):
         times[count] = time
         channels[count] = channel
         values[count] = value
-    
+
     sys.stderr.flush()
     # Concatenate times, channels and values.
     times = numpy.hstack(times)
     channels = numpy.hstack(channels)
     values = numpy.hstack(values)
-        
+
     data_file.close()
     comm.Barrier()
-    
+
     # Gather times, channels and values.
-    times    = gather_array(times.astype(numpy.int64), comm, 0, dtype='int64')
+    times = gather_array(times.astype(numpy.int64), comm, 0, dtype='int64')
     channels = gather_array(channels.astype(numpy.int64), comm, 0, dtype='int64')
-    values   = gather_array(values.astype(numpy.float32), comm, 0, dtype='float32')
+    values = gather_array(values.astype(numpy.float32), comm, 0, dtype='float32')
 
     if comm.rank == 0:
         # Sort times, channels and values according to time.
@@ -452,16 +451,17 @@ def extract_extra_spikes_(params):
         times = times[idx]
         channels = channels[idx]
         values = values[idx]
-    
+
         msg = [
             "Total number of extracellular spikes extracted: {}".format(channels.size),
         ] 
         msg2 = [
-            "Number of extracellular spikes extracted on channel {}: {}".format(i, channels[channels == i].size) for i in numpy.arange(N_elec)
+            "Number of extracellular spikes extracted on channel {}: {}".format(i, channels[channels == i].size)
+            for i in numpy.arange(N_elec)
         ]
         print_and_log(msg, level='info', logger=logger)
         print_and_log(msg2, level='debug', logger=logger)
-    
+
         path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(path, 'a', libver='earliest')
         group_name = "extra_spiketimes"
@@ -483,10 +483,9 @@ def extract_extra_spikes_(params):
         beer_file.close()
 
     comm.Barrier()
-    
+
     return
-    
-    
+
 
 def extract_extra_spikes(params):
     
@@ -509,7 +508,6 @@ def extract_extra_spikes(params):
     return
 
 
-
 # Juxtacellular ################################################################
 
 def highpass(data, BUTTER_ORDER=3, sampling_rate=10000, cut_off=500.0):
@@ -518,40 +516,38 @@ def highpass(data, BUTTER_ORDER=3, sampling_rate=10000, cut_off=500.0):
     return signal.filtfilt(b, a, data)
 
 
-
 def extract_juxta_spikes_(params):
-    '''Detect spikes from the extracellular traces'''
-    
-    file_out_suff  = params.get('data', 'file_out_suff')
-    sampling_rate  = params.getint('data', 'sampling_rate')
-    dist_peaks     = params.getint('detection', 'dist_peaks')
+    """Detect spikes from the extracellular traces"""
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    sampling_rate = params.getint('data', 'sampling_rate')
+    dist_peaks = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
-    juxta_dtype    = params.get('validating', 'juxta_dtype')
-    juxta_thresh   = params.getfloat('validating', 'juxta_thresh')
-    juxta_valley   = params.getboolean('validating', 'juxta_valley')
-    juxta_spikes   = params.get('validating', 'juxta_spikes')
+    juxta_dtype = params.get('validating', 'juxta_dtype')
+    juxta_thresh = params.getfloat('validating', 'juxta_thresh')
+    juxta_valley = params.getboolean('validating', 'juxta_valley')
+    juxta_spikes = params.get('validating', 'juxta_spikes')
 
     juxta_filename = "{}.juxta.dat".format(file_out_suff)
     beer_path = "{}.beer.hdf5".format(file_out_suff)
 
-
     if juxta_spikes == '':
-            
+
         # Read juxtacellular trace.
         juxta_data = numpy.fromfile(juxta_filename, dtype=juxta_dtype)
-        #juxta_data = juxta_data.astype(numpy.float32)
+        # juxta_data = juxta_data.astype(numpy.float32)
         # juxta_data = juxta_data - dtype_offset
         juxta_data = numpy.ascontiguousarray(juxta_data)
-        
+
         # Filter juxtacellular trace.
-        juxta_data  = highpass(juxta_data, sampling_rate=sampling_rate)
+        juxta_data = highpass(juxta_data, sampling_rate=sampling_rate)
         juxta_data -= numpy.median(juxta_data)
 
         # Compute median and median absolute deviation.
         juxta_median = numpy.median(juxta_data)
-        juxta_ad     = numpy.abs(juxta_data - juxta_median)
-        juxta_mad    = numpy.median(juxta_ad, axis=0)
-        
+        juxta_ad = numpy.abs(juxta_data - juxta_median)
+        juxta_mad = numpy.median(juxta_ad, axis=0)
+
         # Save medians and median absolute deviations to BEER file.
         beer_file = h5py.File(beer_path, 'a', libver='earliest')
         if "juxta_median" in beer_file.keys():
@@ -588,8 +584,6 @@ def extract_juxta_spikes_(params):
     key = "{}/elec_0".format(group_name)
     beer_file.create_dataset(key, data=juxta_spike_times)
     beer_file.close()
-    
-    
 
     # juxta_spike_values = numpy.zeros_like(juxta_spike_times, dtype='float')
     # for i, t in enumerate(juxta_spike_times):
@@ -618,7 +612,6 @@ def extract_juxta_spikes_(params):
     return
 
 
-
 def extract_juxta_spikes(params):
     do_juxta = True
     try:
@@ -638,18 +631,17 @@ def extract_juxta_spikes(params):
     return
 
 
-
 # Validating utils #############################################################
 
 class Projection(object):
-    
+
     # TODO: test class.
-    
+
     def __init__(self, tol=0):
         self.tol = tol
         self.fitted = False
-    
-    ##### TODO: clean temporary zone
+
+    # TODO clean temporary zone.
     def fit(self, X, y):
         USE_OLD_VERSION = False
         if USE_OLD_VERSION:
@@ -695,8 +687,8 @@ class Projection(object):
                 raise NotImplementedError
             # TODO: complete.
             return self
-    ##### end temporary zone
-    
+    # TODO end temporary zone.
+
     def transform(self, X):
         if not self.fitted:
             raise Exception("Must be fitted first")
@@ -706,12 +698,13 @@ class Projection(object):
         x2 = numpy.dot(X - self.mean, self.v2).reshape(-1, 1)
         x = numpy.hstack((x1, x2))
         return x
-    
+
     def get_vectors(self):
         return self.v1, self.v2
-    
+
     def get_mean(self):
         return self.mean
+
 
 def accuracy_score(y_true, y_pred, class_weights=None):
     """Accuracy classification score."""
@@ -729,37 +722,37 @@ def accuracy_score(y_true, y_pred, class_weights=None):
                 / (class_weights[0] * float(n0) + class_weights[1] * float(n1))
     return score
 
-# Useful function to convert an ellispoid in standard form to an ellispoid
-# in general form.
+
+# Useful function to convert an ellipsoid in standard form to an ellipsoid in general form.
 def ellipsoid_standard_to_general(t, s, O, verbose=False, logger=None):
     # Translation from standard matrix to general matrix.
     d = numpy.divide(1.0, numpy.power(s, 2.0))
     D = numpy.diag(d)
     A = O * D * O.T
-    ##### TODO: remove test zone
+    # TODO remove test zone.
     w, v = numpy.linalg.eigh(A)
     if verbose:
         msg = [
             # "# det(A)",
             # "%s" %(numpy.linalg.det(A),),
             "# Eigenvalues",
-            "%s" %(w,),
+            "%s" % (w,),
         ]
         print_and_log(msg, level='default', logger=logger)
-    ##### end test zone
+    # TODO end test zone.
     b = - 2.0 * numpy.dot(t, A)
     c = numpy.dot(t, numpy.dot(A, t)) - 1
     # Translation from general matrix to coefficients.
     N = t.size
     coefs = numpy.zeros(1 + N + (N + 1) * N / 2)
     coefs[0] = c
-    for i in xrange(0, N):
+    for i in range(0, N):
         coefs[1 + i] = b[i]
     k = 0
-    for i in xrange(0, N):
+    for i in range(0, N):
         coefs[1 + N + k] = A[i, i]
         k = k + 1
-        for j in xrange(i + 1, N):
+        for j in range(i + 1, N):
             # TODO: remove test zone
             # coefs[1 + N + k] = A[i, j]
             # coefs[1 + N + k] = A[j, i]
@@ -768,8 +761,8 @@ def ellipsoid_standard_to_general(t, s, O, verbose=False, logger=None):
             k = k + 1
     return coefs
 
-# Useful function to convert an ellispoid in general form to an ellispoid in
-# standard form.
+
+# Useful function to convert an ellipsoid in general form to an ellipsoid in standard form.
 def ellipsoid_general_to_standard(coefs, verbose=False, logger=None):
     """
     Convert an ellipsoid in general form:
@@ -795,18 +788,18 @@ def ellipsoid_general_to_standard(coefs, verbose=False, logger=None):
     if verbose:
         msg = [
             "# K",
-            "%s" %(K,),
+            "%s" % (K,),
             "# N",
-            "%s" %(N,),
+            "%s" % (N,),
         ]
         print_and_log(msg, level='default', logger=logger)
     # Retrieve the matrix representation.
     A = numpy.zeros((N, N))
     k = 0
-    for i in xrange(0, N):
+    for i in range(0, N):
         A[i, i] = coefs[1 + N + k]
         k = k + 1
-        for j in xrange(i + 1, N):
+        for j in range(i + 1, N):
             A[i, j] = coefs[1 + N + k] / 2.0
             A[j, i] = coefs[1 + N + k] / 2.0
             k = k + 1
@@ -814,37 +807,38 @@ def ellipsoid_general_to_standard(coefs, verbose=False, logger=None):
     c = coefs[0]
     # Compute the center of the ellipsoid.
     center = - 0.5 * numpy.dot(numpy.linalg.inv(A), b)
-    
-    ##### TODO: remove test zone
+
+    # TODO remove test zone.
     if verbose:
         msg = [
             "# Test of symmetry",
-            "%s" %(numpy.all(A == A.T),),
+            "%s" % (numpy.all(A == A.T),),
         ]
         print_and_log(msg, level='default', logger=logger)
-    ##### end test zone
-    
+    # TODO end test zone.
+
     # Each eigenvector of A lies along one of the axes.
     evals, evecs = numpy.linalg.eigh(A)
     
-    ##### TODO: remove print zone.
+    # TODO remove print zone.
     if verbose:
         msg = [
             "# Semi-axes computation",
             "## det(A)",
-            "%s" %(numpy.linalg.det(A),),
+            "%s" % (numpy.linalg.det(A),),
             "## evals",
-            "%s" %(evals,),
+            "%s" % (evals,),
         ]
         print_and_log(msg, level='default', logger=logger)
-    ##### end print zone.
-    
+    # TODO end print zone.
+
     # Semi-axes from reduced canonical equation.
-    ##### TODO: remove test zone.
+    # TODO remove test zone.
     # eaxis = numpy.sqrt(- c / evals)
     eaxis = numpy.sqrt(numpy.abs(-c / evals))
-    ##### end test zone
+    # TODO end test zone.
     return center, eaxis, evecs
+
 
 def ellipsoid_matrix_to_coefs(A, b, c):
     N = b.size
@@ -853,14 +847,15 @@ def ellipsoid_matrix_to_coefs(A, b, c):
     coefs[0] = c
     coefs[1:1+N] = b
     k = 0
-    for i in xrange(0, N):
+    for i in range(0, N):
         coefs[1 + N + k] = A[i, i]
         k = k + 1
-        for j in xrange(i + 1, N):
+        for j in range(i + 1, N):
             coefs[1 + N + k] = A[i, j] + A[j, i]
             k = k + 1
     coefs = coefs.reshape(-1, 1)
     return coefs
+
 
 def ellipsoid_coefs_to_matrix(coefs):
     K = coefs.size
@@ -870,10 +865,10 @@ def ellipsoid_coefs_to_matrix(coefs):
     # Retrieve A.
     A = numpy.zeros((N, N))
     k = 0
-    for i in xrange(0, N):
+    for i in range(0, N):
         A[i, i] = coefs[1 + N + k, 0]
         k = k + 1
-        for j in xrange(i + 1, N):
+        for j in range(i + 1, N):
             A[i, j] = coefs[1 + N + k, 0] / 2.0
             A[j, i] = coefs[1 + N + k, 0] / 2.0
             k = k + 1
@@ -883,13 +878,13 @@ def ellipsoid_coefs_to_matrix(coefs):
     c = coefs[0, 0]
     return A, b, c
 
+
 def find_rotation(v1, v2, verbose=False, logger=None):
-    '''Find a rotation which maps these two vectors of the two first vectors of
-    the canonical basis.'''
+    """Find a rotation which maps these two vectors of the two first vectors of the canonical basis."""
     N = v1.size
     x = numpy.copy(v1)
     R = numpy.eye(N)
-    for i in xrange(1, N):
+    for i in range(1, N):
         x1 = x[0]
         x2 = x[i]
         n = numpy.sqrt(x1 * x1 + x2 * x2)
@@ -907,7 +902,7 @@ def find_rotation(v1, v2, verbose=False, logger=None):
         x = numpy.dot(R_, x)
         R = numpy.dot(R_, R)
     x = numpy.dot(R, v2)
-    for i in xrange(2, N):
+    for i in range(2, N):
         x1 = x[1]
         x2 = x[i]
         n = numpy.sqrt(x1 * x1 + x2 * x2)
@@ -939,8 +934,9 @@ def find_rotation(v1, v2, verbose=False, logger=None):
         pass
     return R
 
+
 def find_apparent_contour(A, b, c):
-    '''Find the apparent contour of a classifier'''
+    """Find the apparent contour of a classifier."""
     xs = [numpy.array([0.0, 0.0]),
           numpy.array([1.0, 0.0]),
           numpy.array([0.0, 1.0])]
@@ -972,26 +968,29 @@ def find_apparent_contour(A, b, c):
     A_ = numpy.dot(alpha.T, numpy.dot(A, alpha))
     b_ = numpy.dot(alpha.T, 2.0 * numpy.dot(A, beta) + b)
     c_ = numpy.dot(numpy.dot(A, beta) + b, beta) + c
-    return(A_, b_, c_)
+    return A_, b_, c_
+
 
 def evaluate_ellipse(A, b, c, X):
-    '''Compute ellipse values for various points'''
+    """Compute ellipse values for various points."""
     x2 = numpy.sum(numpy.multiply(X.T, numpy.dot(A, X.T)), axis=0)
     x1 = numpy.dot(b, X.T)
     x0 = c
     d2 = x2 + x1 + x0
     return d2
 
+
 def squared_Mahalanobis_distance(A, mu, X):
-    '''Compute squared Mahalanobis distance for various points'''
+    """Compute squared Mahalanobis distance for various points."""
     N = X.shape[0]
     d2 = numpy.zeros(N)
-    for i in xrange(0, N):
+    for i in range(0, N):
         d2[i] = numpy.dot(X[i, :] - mu, numpy.dot(A, X[i, :] - mu))
     return d2
 
+
 def get_class_weights(y_gt, y_ngt, y_noi=None, n=7):
-    '''Compute different class weights for the stochastic gradient descent'''
+    """Compute different class weights for the stochastic gradient descent."""
     n_class_0 = float(y_gt.size)
     if y_noi is None:
         n_class_1 = float(y_ngt.size)
@@ -1002,7 +1001,7 @@ def get_class_weights(y_gt, y_ngt, y_noi=None, n=7):
     alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
     betas = numpy.linspace(0.0, 2.0, n + 2)[1:-1]
     class_weights = []
-    for i in xrange(0, n):
+    for i in range(0, n):
         alpha = alphas[i]
         beta = betas[i]
         weight_0 = alpha * n_samples / (n_classes * n_class_0)
@@ -1014,9 +1013,10 @@ def get_class_weights(y_gt, y_ngt, y_noi=None, n=7):
         class_weights.append(class_weight)
     return alphas, betas, class_weights
 
-##### TODO: clean temporary zone
+
+# TODO clean temporary zone.
 def get_class_weights_bis(n_class_0, n_class_1, n=7):
-    '''Compute different class weights for the stochastic gradient descent'''
+    """Compute different class weights for the stochastic gradient descent."""
     n_class_0 = float(n_class_0)
     n_class_1 = float(n_class_1)
     n_samples = n_class_0 + n_class_1
@@ -1024,7 +1024,7 @@ def get_class_weights_bis(n_class_0, n_class_1, n=7):
     alphas = numpy.linspace(2.0, 0.0, n + 2)[1:-1]
     betas = numpy.linspace(0.0, 2.0, n + 2)[1:-1]
     class_weights = []
-    for i in xrange(0, n):
+    for i in range(0, n):
         alpha = alphas[i]
         beta = betas[i]
         weight_0 = alpha * n_samples / (n_classes * n_class_0)
@@ -1035,4 +1035,4 @@ def get_class_weights_bis(n_class_0, n_class_1, n=7):
         }
         class_weights.append(class_weight)
     return alphas, betas, class_weights
-##### end temporary zone
+# TODO end temporary zone.

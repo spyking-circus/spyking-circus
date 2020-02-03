@@ -1,27 +1,34 @@
-import numpy, re, sys, logging
+import numpy
+import re
+import sys
+import logging
 from circus.shared.messages import print_and_log
 from .datafile import DataFile, comm
 
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 
 logger = logging.getLogger(__name__)
 
+
 class H5File(DataFile):
 
-    description    = "hdf5"    
-    extension      = [".h5", ".hdf5"]
+    description = "hdf5"
+    extension = [".h5", ".hdf5"]
     parallel_write = h5py.get_config().mpi
-    is_writable    = True
+    is_writable = True
 
-    _required_fields = {'h5_key'        : str,
-                        'sampling_rate' : float}
-    
-    _default_values  = {'dtype_offset'  : 'auto', 
-                        'gain'          : 1.}
+    _required_fields = {
+        'h5_key': str,
+        'sampling_rate': float
+    }
 
+    _default_values = {
+        'dtype_offset': 'auto',
+        'gain': 1.0
+    }
 
     def _check_compression(self):
         # HDF5 does not support parallel writes with compression
@@ -31,12 +38,14 @@ class H5File(DataFile):
                 print_and_log(['Data are compressed thus parallel writing is disabled'], 'debug', logger)
 
     def __check_valid_key__(self, key):
-        file       = h5py.File(self.file_name, mode='r')
+        file = h5py.File(self.file_name, mode='r')
         all_fields = []
         file.visit(all_fields.append)    
-        if not key in all_fields:
-            print_and_log(['The key %s can not be found in the dataset! Keys found are:' %key, 
-                         ", ".join(all_fields)], 'error', logger)
+        if key not in all_fields:
+            print_and_log([
+                "The key %s can not be found in the dataset! Keys found are:" % key,
+                ", ".join(all_fields)
+            ], 'error', logger)
             sys.exit(1)
         file.close()
 
@@ -46,13 +55,13 @@ class H5File(DataFile):
         self._open()
 
         header = {}
-        header['data_dtype']   = self.my_file.get(self.h5_key).dtype
-        self.compression       = self.my_file.get(self.h5_key).compression
-        self.grid_ids          = False
+        header['data_dtype'] = self.my_file.get(self.h5_key).dtype
+        self.compression = self.my_file.get(self.h5_key).compression
+        self.grid_ids = False
         self._check_compression()
-        
-        self.size        = self.my_file.get(self.h5_key).shape
-        
+
+        self.size = self.my_file.get(self.h5_key).shape
+
         if len(self.size) == 2:
             if self.size[0] > self.size[1]:
                 self.time_axis = 0
@@ -60,7 +69,7 @@ class H5File(DataFile):
             else:
                 self.time_axis = 1
                 self._shape = (self.size[1], self.size[0])
-            header['nb_channels']  = self._shape[1]
+            header['nb_channels'] = self._shape[1]
         elif len(self.size) == 3:
             self.grid_ids = True
             if self.size[0] > self.size[-1]:
@@ -69,7 +78,7 @@ class H5File(DataFile):
             else:
                 self.time_axis = 1
                 self._shape = (self.size[2], self.size[1], self.size[0])
-            header['nb_channels']  = self._shape[1] * self._shape[2]
+            header['nb_channels'] = self._shape[1] * self._shape[2]
         self._close()
         return header
 

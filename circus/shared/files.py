@@ -1,77 +1,88 @@
 from __future__ import division
-import warnings
-warnings.simplefilter(action = "ignore", category = FutureWarning)
 
 from circus.shared.utils import get_tqdm_progressbar
-import numpy, os, platform, re, sys, scipy, logging
+import numpy
+import os
+import platform
+import re
+import scipy
+import logging
 import sys
 
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 
 from colorama import Fore
-from mpi import all_gather_array, gather_array, comm, get_local_ring, MPI
+from circus.shared.mpi import all_gather_array, gather_array, comm, get_local_ring, MPI
 from circus.shared.probes import get_nodes_and_edges, get_central_electrode
 from circus.shared.messages import print_and_log
 from circus.shared.utils import purge, get_parallel_hdf5_flag, indices_for_dead_times, get_shared_memory_flag
 import circus
+
+
 logger = logging.getLogger(__name__)
 
 
 def data_stats(params, show=True, export_times=False):
 
-    data_file   = params.get_data_file(source=True, has_been_created=False)
+    data_file = params.get_data_file(source=True, has_been_created=False)
     stream_mode = data_file.is_stream
-    chunk_size  = 60 * data_file.sampling_rate
-    nb_chunks   = data_file.duration // chunk_size
+    chunk_size = 60 * data_file.sampling_rate
+    nb_chunks = data_file.duration // chunk_size
     last_chunk_len = data_file.duration - nb_chunks * chunk_size
 
-    nb_seconds      = last_chunk_len//params.rate
-    last_chunk_len -= (nb_seconds*params.rate)
+    nb_seconds = last_chunk_len // params.rate
+    last_chunk_len -= (nb_seconds * params.rate)
     if nb_seconds > 60:
-      nb_extra_seconds = nb_seconds // 60
-      nb_chunks  += nb_extra_seconds
-      nb_seconds -= 60*nb_extra_seconds
-    last_chunk_len  = int(1000*last_chunk_len/params.rate)
+        nb_extra_seconds = nb_seconds // 60
+        nb_chunks += nb_extra_seconds
+        nb_seconds -= 60 * nb_extra_seconds
+    last_chunk_len = int(1000 * last_chunk_len / params.rate)
 
     N_t = params.getint('detection', 'N_t')
-    N_t = numpy.round(1000.*N_t/params.rate, 1)
+    N_t = numpy.round(1000.0 * N_t / params.rate, 1)
 
     if params.get('detection', 'peaks') == 'both':
         threshold = 'positive and negative'
     else:
         threshold = params.get('detection', 'peaks')
 
-    lines = ["Number of recorded channels : %d" %params.nb_channels,
-             "Number of analyzed channels : %d" %params.getint('data', 'N_e'),
-             "File format                 : %s" %params.get('data', 'file_format').upper(),
-             "Data type                   : %s" %str(data_file.data_dtype),
-             "Sampling rate               : %d kHz" %(params.rate//1000.),
-             "Duration of the recording   : %d min %s s %s ms" %(nb_chunks, int(nb_seconds), last_chunk_len),
-             "Width of the templates      : %d ms" %N_t,
-             "Spatial radius considered   : %d um" %params.getint('detection', 'radius'),
-             "Threshold crossing          : %s" %threshold]
+    lines = [
+        "Number of recorded channels : %d" % params.nb_channels,
+        "Number of analyzed channels : %d" % params.getint('data', 'N_e'),
+        "File format                 : %s" % params.get('data', 'file_format').upper(),
+        "Data type                   : %s" % str(data_file.data_dtype),
+        "Sampling rate               : %d kHz" % (params.rate//1000.0),
+        "Duration of the recording   : %d min %s s %s ms" % (nb_chunks, int(nb_seconds), last_chunk_len),
+        "Width of the templates      : %d ms" % N_t,
+        "Spatial radius considered   : %d um" % params.getint('detection', 'radius'),
+        "Threshold crossing          : %s" % threshold
+    ]
 
     if stream_mode:
-        lines += ["Streams                     : %s (%d found)" %(params.get('data', 'stream_mode'), data_file.nb_streams)]
+        lines += [
+            "Streams                     : %s (%d found)" % (params.get('data', 'stream_mode'), data_file.nb_streams)
+        ]
 
     if show:
         print_and_log(lines, 'info', logger)
 
     if not export_times:
-        return nb_chunks*60 + nb_seconds + last_chunk_len/1000.
+        return nb_chunks * 60 + nb_seconds + last_chunk_len/1000.
     else:
         return times
 
 
+def get_stas(
+        params, times_i, labels_i, src, neighs, nodes=None,
+        mean_mode=False, all_labels=False, pos='neg', auto_align=True
+):
 
-def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, pos='neg', auto_align=True):
-
-    data_file    = params.data_file
+    data_file = params.data_file
     data_file.open()
-    N_t          = params.getint('detection', 'N_t')
+    N_t = params.getint('detection', 'N_t')
     if not all_labels:
         if not mean_mode:
             stas = numpy.zeros((len(times_i), len(neighs), N_t), dtype=numpy.float32)
@@ -79,40 +90,40 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
             stas = numpy.zeros((len(neighs), N_t), dtype=numpy.float32)
     else:
         nb_labels = numpy.unique(labels_i)
-        stas      = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
+        stas = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
-    alignment     = params.getboolean('detection', 'alignment') and auto_align
-    over_factor   = float(params.getint('detection', 'oversampling_factor'))
+    alignment = params.getboolean('detection', 'alignment') and auto_align
+    over_factor = float(params.getint('detection', 'oversampling_factor'))
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening  = params.getboolean('whitening', 'spatial')
-    template_shift        = params.getint('detection', 'template_shift')
-    jitter_range          = params.getint('detection', 'jitter_range')
-    smoothing_factor      = params.getfloat('detection', 'smoothing_factor')
-    template_shift_2      = template_shift + jitter_range
-    mads                  = load_data(params, 'mads')
+    do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    template_shift = params.getint('detection', 'template_shift')
+    jitter_range = params.getint('detection', 'jitter_range')
+    smoothing_factor = params.getfloat('detection', 'smoothing_factor')
+    template_shift_2 = template_shift + jitter_range
+    mads = load_data(params, 'mads')
 
     if do_spatial_whitening:
-        spatial_whitening  = load_data(params, 'spatial_whitening')
+        spatial_whitening = load_data(params, 'spatial_whitening')
     if do_temporal_whitening:
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
-        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor*2*jitter_range))
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor * 2 * jitter_range))
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
         duration = 2 * template_shift_2 + 1
-        #if pos  == 'neg':
-        #    weights = smoothing_factor/load_data(params, 'weights')
-        #elif pos == 'pos':
-        #    weights = smoothing_factor/load_data(params, 'weights-pos')
+        # if pos  == 'neg':
+        #     weights = smoothing_factor / load_data(params, 'weights')
+        # elif pos == 'pos':
+        #     weights = smoothing_factor / load_data(params, 'weights-pos')
         align_factor = duration
     else:
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
     
     offset = duration // 2
-    idx   = numpy.where(neighs == src)[0]
+    idx = numpy.where(neighs == src)[0]
     ydata = numpy.arange(len(neighs))
 
     count = 0
@@ -137,12 +148,12 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                     smoothed = False
                     f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, k=3, s=0)
                 if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
-                elif pos =='pos':
-                    rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                    rmin = (numpy.argmin(f(cdata)) - xoff) / over_factor
+                elif pos == 'pos':
+                    rmin = (numpy.argmax(f(cdata)) - xoff) / over_factor
                 if smoothed:
                     f = scipy.interpolate.UnivariateSpline(xdata, local_chunk, s=0, k=3)
-                ddata       = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
+                ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 local_chunk = f(ddata).astype(numpy.float32).reshape(N_t, 1)
             else:
                 try:
@@ -150,20 +161,20 @@ def get_stas(params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False
                 except Exception:
                     f = scipy.interpolate.UnivariateSpline(xdata, local_chunk[:, idx], k=3, s=0)
                 if pos == 'neg':
-                    rmin    = (numpy.argmin(f(cdata)) - xoff)/over_factor
+                    rmin = (numpy.argmin(f(cdata)) - xoff)/over_factor
                 elif pos == 'pos':
-                    rmin    = (numpy.argmax(f(cdata)) - xoff)/over_factor
+                    rmin = (numpy.argmax(f(cdata)) - xoff)/over_factor
                 ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
                 f = scipy.interpolate.RectBivariateSpline(xdata, ydata, local_chunk, s=0, kx=3, ky=1)
                 local_chunk = f(ddata, ydata).astype(numpy.float32)
 
         if all_labels:
-            lc        = numpy.where(nb_labels == lb)[0]
+            lc = numpy.where(nb_labels == lb)[0]
             stas[lc] += local_chunk.T
         else:
             if not mean_mode:
                 stas[count, :, :] = local_chunk.T
-                count            += 1
+                count += 1
             else:
                 stas += local_chunk.T
 
@@ -189,8 +200,8 @@ def get_dead_times(params):
     """
 
     def _get_dead_times(params):
-        dead_times = numpy.loadtxt(fname = params.get('triggers', 'dead_file'), comments =['#','//'])
-        data_file  = params.data_file
+        dead_times = numpy.loadtxt(fname=params.get('triggers', 'dead_file'), comments=['#', '//'])
+        data_file = params.data_file
         if len(dead_times.shape) == 1:
             dead_times = dead_times.reshape(1, 2)
         dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
@@ -206,28 +217,28 @@ def get_dead_times(params):
         # First we need to identify machines in the MPI ring.
         from uuid import getnode as get_mac
         myip = numpy.int64(get_mac()) % 100000
-        intsize  = MPI.LONG_LONG.Get_size()
+        intsize = MPI.LONG_LONG.Get_size()
         sub_comm = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
         nb_dead_times = 0
 
         if sub_comm.rank == 0:
-            dead_times     = _get_dead_times(params)
+            dead_times = _get_dead_times(params)
             nb_dead_times = len(dead_times)
 
         sub_comm.Barrier()
-        long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_dead_times], dtype=numpy.uint32), root=0)[0])
+        long_size = numpy.int64(sub_comm.bcast(numpy.array([nb_dead_times], dtype=numpy.uint32), root=0)[0])
 
         if sub_comm.rank == 0:
-            data_bytes    = long_size * intsize
+            data_bytes = long_size * intsize
         else:
-            indptr_bytes  = 0
+            indptr_bytes = 0
             indices_bytes = 0
-            data_bytes    = 0
+            data_bytes = 0
 
-        win_data    = MPI.Win.Allocate_shared(data_bytes, intsize, comm=sub_comm)
+        win_data = MPI.Win.Allocate_shared(data_bytes, intsize, comm=sub_comm)
         buf_data, _ = win_data.Shared_query(0)
-        buf_data    = numpy.array(buf_data, dtype='B', copy=False)
-        data        = numpy.ndarray(buffer=buf_data, dtype=numpy.int64, shape=(long_size,))
+        buf_data = numpy.array(buf_data, dtype='B', copy=False)
+        data = numpy.ndarray(buffer=buf_data, dtype=numpy.int64, shape=(long_size,))
         sub_comm.Barrier()
 
         if sub_comm.rank == 0:
@@ -237,32 +248,28 @@ def get_dead_times(params):
         return data
 
 
-
-
-def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
-                       mean_mode=False, all_labels=False, auto_align=True):
+def get_stas_memshared(
+        params, times_i, labels_i, src, neighs, nodes=None, mean_mode=False, all_labels=False, auto_align=True
+):
 
     # First we need to identify machines in the MPI ring.
     from uuid import getnode as get_mac
     myip = numpy.int64(get_mac()) % 100000
-    ##### TODO: remove quarantine zone
-    # intsize = MPI.INT.Get_size()
-    ##### end quarantine zone
     float_size = MPI.FLOAT.Get_size()
     sub_comm = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
 
     # Load parameters.
-    data_file    = params.data_file
+    data_file = params.data_file
     data_file.open()
-    N_t          = params.getint('detection', 'N_t')
-    N_total      = params.nb_channels
-    alignment    = params.getboolean('detection', 'alignment') and auto_align
-    over_factor  = float(params.getint('detection', 'oversampling_factor'))
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    alignment = params.getboolean('detection', 'alignment') and auto_align
+    over_factor = float(params.getint('detection', 'oversampling_factor'))
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
-    template_shift   = params.getint('detection', 'template_shift')
-    template_shift_2 = round(1.25*template_shift)
-    duration         = 2 * N_t - 1
+    template_shift = params.getint('detection', 'template_shift')
+    template_shift_2 = round(1.25 * template_shift)
+    duration = 2 * N_t - 1
 
     # Calculate the sizes of the data structures to share.
     nb_triggers = 0
@@ -271,16 +278,10 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     if sub_comm.Get_rank() == 0:
         if not all_labels:
             if not mean_mode:
-                ##### TODO: clean quarantine zone
-                # nb_times = len(times_i)
-                ##### end quarantine zone
                 nb_triggers = len(times_i)
             else:
                 nb_triggers = 1
         else:
-            ##### TODO: remove quarantine zone
-            # nb_labels = len(numpy.unique(labels_i))
-            ##### end quarantine zone
             nb_triggers = len(numpy.unique(labels_i))
         nb_neighs = len(neighs)
         nb_ts = N_t
@@ -302,10 +303,10 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
     else:
         stas_shape = (triggers_size, neighs_size, ts_size)
 
-    win_stas    = MPI.Win.Allocate_shared(stas_bytes, float_size, comm=sub_comm)
+    win_stas = MPI.Win.Allocate_shared(stas_bytes, float_size, comm=sub_comm)
     buf_stas, _ = win_stas.Shared_query(0)
-    buf_stas    = numpy.array(buf_stas, dtype='B', copy=False)
-    stas        = numpy.ndarray(buffer=buf_stas, dtype=numpy.float32, shape=stas_shape)
+    buf_stas = numpy.array(buf_stas, dtype='B', copy=False)
+    stas = numpy.ndarray(buffer=buf_stas, dtype=numpy.float32, shape=stas_shape)
 
     sub_comm.Barrier()
 
@@ -316,9 +317,9 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
         if do_temporal_whitening:
             temporal_whitening = load_data(params, 'temporal_whitening')
         if alignment:
-            cdata = numpy.linspace(-template_shift/4, template_shift/4, int(over_factor*template_shift/2))
+            cdata = numpy.linspace(-template_shift / 4, template_shift / 4, int(over_factor * template_shift / 2))
             xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
-            xoff  = len(cdata) / 2.
+            xoff = len(cdata) / 2.0
 
         count = 0
         for lb, time in zip(labels_i, times_i):
@@ -350,10 +351,6 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
                     local_chunk = f(ddata, ydata).astype(numpy.float32)
             if not all_labels:
                 if not mean_mode:
-                    # #####
-                    # print(stas.shape)
-                    # print(count)
-                    # #####
                     stas[count, :, :] = local_chunk.T
                     count += 1
                 else:
@@ -376,16 +373,14 @@ def get_stas_memshared(params, times_i, labels_i, src, neighs, nodes=None,
 
     return stas
 
-##### end working zone
-
 
 def get_artefact(params, times_i, tau, nodes):
 
-    data_file    = params.data_file
+    data_file = params.data_file
     data_file.open()
 
-    dx, dy       = len(nodes), int(tau)
-    artefact     = numpy.zeros((0, dx, dy), dtype=numpy.float32)
+    dx, dy = len(nodes), int(tau)
+    artefact = numpy.zeros((0, dx, dy), dtype=numpy.float32)
     for time in times_i:
         snippet = data_file.get_snippet(int(time), int(tau), nodes).T.reshape(1, dx, dy)
         artefact = numpy.vstack((artefact, snippet))
@@ -397,83 +392,85 @@ def get_artefact(params, times_i, tau, nodes):
     return artefact
 
 
+def load_data_memshared(
+        params, data, extension='', normalize=False, transpose=False,
+        nb_cpu=1, nb_gpu=0, use_gpu=False, local_only=False, raw_data=None
+):
 
-def load_data_memshared(params, data, extension='', normalize=False, transpose=False, nb_cpu=1, nb_gpu=0, use_gpu=False, local_only=False, raw_data=None):
-
-    file_out        = params.get('data', 'file_out')
-    file_out_suff   = params.get('data', 'file_out_suff')
+    file_out = params.get('data', 'file_out')
+    file_out_suff = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
 
-    intsize   = MPI.INT.Get_size()
+    intsize = MPI.INT.Get_size()
     floatsize = MPI.FLOAT.Get_size()
 
     data_file = params.data_file
-    N_e       = params.getint('data', 'N_e')
-    N_t       = params.getint('detection', 'N_t')
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
 
     if data == 'templates':
 
-        file_name = file_out_suff + '.templates%s.hdf5' %extension
+        file_name = file_out_suff + '.templates%s.hdf5' % extension
         if os.path.exists(file_name):
 
             sub_comm, is_local = get_local_ring(local_only)
             local_rank = sub_comm.rank
             nb_data = 0
-            nb_ptr  = 0
-            indptr_bytes  = 0
+            nb_ptr = 0
+            indptr_bytes = 0
             indices_bytes = 0
-            data_bytes    = 0
+            data_bytes = 0
             nb_templates = h5py.File(file_name, 'r', libver='earliest').get('norms').shape[0]
 
             if local_rank == 0:
-                temp_x       = h5py.File(file_name, 'r', libver='earliest').get('temp_x')[:].ravel()
-                temp_y       = h5py.File(file_name, 'r', libver='earliest').get('temp_y')[:].ravel()
-                temp_data    = h5py.File(file_name, 'r', libver='earliest').get('temp_data')[:].ravel()
+                temp_x = h5py.File(file_name, 'r', libver='earliest').get('temp_x')[:].ravel()
+                temp_y = h5py.File(file_name, 'r', libver='earliest').get('temp_y')[:].ravel()
+                temp_data = h5py.File(file_name, 'r', libver='earliest').get('temp_data')[:].ravel()
                 sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
                 if normalize:
                     norm_templates = load_data(params, 'norm-templates')
-                    for idx in xrange(sparse_mat.shape[1]):
+                    for idx in range(sparse_mat.shape[1]):
                         myslice = numpy.arange(sparse_mat.indptr[idx], sparse_mat.indptr[idx+1])
                         sparse_mat.data[myslice] /= norm_templates[idx]
                 if transpose:
                     sparse_mat = sparse_mat.T
 
                 nb_data = len(sparse_mat.data)
-                nb_ptr  = len(sparse_mat.indptr)
+                nb_ptr = len(sparse_mat.indptr)
 
-            long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            long_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
             short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.int32), root=0)[0])
 
             if local_rank == 0:
                 indices_bytes = short_size * intsize
-                data_bytes    = long_size * floatsize
+                data_bytes = long_size * floatsize
 
-            win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
+            win_data = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
             win_indices = MPI.Win.Allocate_shared(indices_bytes + indptr_bytes, intsize, comm=sub_comm)
 
-            buf_data, _    = win_data.Shared_query(0)
+            buf_data, _ = win_data.Shared_query(0)
             buf_indices, _ = win_indices.Shared_query(0)
 
-            buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+            buf_data = numpy.array(buf_data, dtype='B', copy=False)
             buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
 
-            data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
+            data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
             indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(short_size,))
 
             if local_rank == 0:
-                data[:]    = sparse_mat.data
+                data[:] = sparse_mat.data
                 indices[:long_size] = sparse_mat.indices
                 indices[long_size:] = sparse_mat.indptr
                 del sparse_mat
 
             if not transpose:
-                templates = scipy.sparse.csc_matrix((N_e*N_t, nb_templates), dtype=numpy.float32)
+                templates = scipy.sparse.csc_matrix((N_e * N_t, nb_templates), dtype=numpy.float32)
             else:
-                templates = scipy.sparse.csr_matrix((nb_templates, N_e*N_t), dtype=numpy.float32)
+                templates = scipy.sparse.csr_matrix((nb_templates, N_e * N_t), dtype=numpy.float32)
 
-            templates.data    = data
+            templates.data = data
             templates.indices = indices[:long_size]
-            templates.indptr  = indices[long_size:]
+            templates.indptr = indices[long_size:]
 
             sub_comm.Free()
             return templates
@@ -483,7 +480,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             sys.exit(0)
     elif data == "overlaps":
 
-        file_name = file_out_suff + '.overlap%s.hdf5' %extension
+        file_name = file_out_suff + '.overlap%s.hdf5' % extension
         if os.path.exists(file_name):
 
             c_overlap = h5py.File(file_name, 'r')
@@ -493,56 +490,56 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             if not local_only or (local_only and is_local):
 
                 over_shape = c_overlap.get('over_shape')[:]
-                N_over     = numpy.int64(numpy.sqrt(over_shape[0]))
-                S_over     = over_shape[1]
-                c_overs    = {}
-                nb_data    = 0
+                N_over = numpy.int64(numpy.sqrt(over_shape[0]))
+                S_over = over_shape[1]
+                c_overs = {}
+                nb_data = 0
 
-                if local_rank== 0:
-                    over_x     = c_overlap.get('over_x')[:]
-                    over_y     = c_overlap.get('over_y')[:]
-                    over_data  = c_overlap.get('over_data')[:]
-                    nb_data    = len(over_x)
+                if local_rank == 0:
+                    over_x = c_overlap.get('over_x')[:]
+                    over_y = c_overlap.get('over_y')[:]
+                    over_data = c_overlap.get('over_data')[:]
+                    nb_data = len(over_x)
 
                 c_overlap.close()
 
-                nb_ptr        = 0
-                indptr_bytes  = 0
+                nb_ptr = 0
+                indptr_bytes = 0
                 indices_bytes = 0
-                data_bytes    = 0
+                data_bytes = 0
 
-                nb_data     = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-                win_data    = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
+                nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                win_data = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
                 buf_data, _ = win_data.Shared_query(0)
-                buf_data    = numpy.array(buf_data, dtype='B', copy=False)
-                data        = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
+                buf_data = numpy.array(buf_data, dtype='B', copy=False)
+                data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
 
-                factor = 2*int(max(nb_data, (N_over+1)**2))
-                win_indices    = MPI.Win.Allocate_shared(factor * intsize, intsize, comm=sub_comm)
+                factor = 2 * int(max(nb_data, (N_over + 1) ** 2))
+                win_indices = MPI.Win.Allocate_shared(factor * intsize, intsize, comm=sub_comm)
                 buf_indices, _ = win_indices.Shared_query(0)
-                buf_indices    = numpy.array(buf_indices, dtype='B', copy=False)
-                indices        = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(factor,))
+                buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
+                indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(factor,))
 
-                global_offset_data  = 0
-                global_offset_ptr   = 0
-                local_nb_data       = 0
-                local_nb_ptr        = 0
+                global_offset_data = 0
+                global_offset_ptr = 0
+                local_nb_data = 0
+                local_nb_ptr = 0
 
-                for i in xrange(N_over):
+                for i in range(N_over):
 
                     if local_rank == 0:
-                        idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
-                        local_x = over_x[idx] - i*N_over
+                        idx = numpy.where((over_x >= i * N_over) & (over_x < ((i + 1) * N_over)))[0]
+                        local_x = over_x[idx] - i * N_over
 
                         sparse_mat = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
-                        local_nb_data    = len(sparse_mat.data)
-                        local_nb_ptr     = len(sparse_mat.indptr)
+                        local_nb_data = len(sparse_mat.data)
+                        local_nb_ptr = len(sparse_mat.indptr)
 
                     local_nb_data = numpy.int64(sub_comm.bcast(numpy.array([local_nb_data], dtype=numpy.int32), root=0)[0])
-                    local_nb_ptr  = numpy.int64(sub_comm.bcast(numpy.array([local_nb_ptr], dtype=numpy.int32), root=0)[0])
+                    local_nb_ptr = numpy.int64(sub_comm.bcast(numpy.array([local_nb_ptr], dtype=numpy.int32), root=0)[0])
 
                     boundary_data = global_offset_data + local_nb_data
-                    boundary_ptr  = global_offset_ptr + factor//2
+                    boundary_ptr = global_offset_ptr + factor // 2
 
                     if local_rank == 0:
                         data[global_offset_data:boundary_data] = sparse_mat.data
@@ -550,12 +547,12 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         indices[boundary_ptr:boundary_ptr + local_nb_ptr] = sparse_mat.indptr
                         del sparse_mat
 
-                    c_overs[i]         = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
-                    c_overs[i].data    = data[global_offset_data:boundary_data]
+                    c_overs[i] = scipy.sparse.csr_matrix((N_over, S_over), dtype=numpy.float32)
+                    c_overs[i].data = data[global_offset_data:boundary_data]
                     c_overs[i].indices = indices[global_offset_data:boundary_data]
-                    c_overs[i].indptr  = indices[boundary_ptr:boundary_ptr + local_nb_ptr]
+                    c_overs[i].indptr = indices[boundary_ptr:boundary_ptr + local_nb_ptr]
                     global_offset_data += local_nb_data
-                    global_offset_ptr  += local_nb_ptr
+                    global_offset_ptr += local_nb_ptr
 
                 if local_rank == 0:
                     del over_x, over_y, over_data
@@ -572,7 +569,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
     elif data == "overlaps-raw":
 
-        file_name = file_out_suff + '.overlap%s.hdf5' %extension
+        file_name = file_out_suff + '.overlap%s.hdf5' % extension
         if os.path.exists(file_name):
 
             sub_comm, is_local = get_local_ring(local_only)
@@ -582,11 +579,11 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
                 c_overlap = h5py.File(file_name, 'r')
                 over_shape = c_overlap.get('over_shape')[:]
-                N_over     = over_shape[0]
-                S_over     = over_shape[1]
-                c_overs    = {}
+                N_over = over_shape[0]
+                S_over = over_shape[1]
+                c_overs = {}
                 indices_bytes = 0
-                data_bytes    = 0
+                data_bytes = 0
                 nb_data = 0
 
                 if raw_data is not None:
@@ -595,41 +592,41 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                     over_data = raw_data[2]
                 else:
                     if local_rank == 0:
-                        over_x     = c_overlap.get('over_x')[:]
-                        over_y     = c_overlap.get('over_y')[:]
-                        over_data  = c_overlap.get('over_data')[:]
+                        over_x = c_overlap.get('over_x')[:]
+                        over_y = c_overlap.get('over_y')[:]
+                        over_data = c_overlap.get('over_data')[:]
 
                 c_overlap.close()
 
                 if local_rank == 0:
-                    nb_data    = len(over_x)
+                    nb_data = len(over_x)
 
-                long_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                long_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
 
                 if local_rank == 0:
                     indices_bytes = long_size * intsize
-                    data_bytes    = long_size * floatsize
+                    data_bytes = long_size * floatsize
 
-                win_data    = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
+                win_data = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
                 win_indices_x = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
                 win_indices_y = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
 
-                buf_data, _      = win_data.Shared_query(0)
+                buf_data, _ = win_data.Shared_query(0)
                 buf_indices_x, _ = win_indices_x.Shared_query(0)
                 buf_indices_y, _ = win_indices_y.Shared_query(0)
 
-                buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+                buf_data = numpy.array(buf_data, dtype='B', copy=False)
                 buf_indices_x = numpy.array(buf_indices_x, dtype='B', copy=False)
                 buf_indices_y = numpy.array(buf_indices_y, dtype='B', copy=False)
 
-                data    = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
+                data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
                 indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(long_size,))
                 indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(long_size,))
 
                 sub_comm.Barrier()
 
                 if local_rank == 0:
-                    data[:]    = over_data
+                    data[:] = over_data
                     indices_x[:] = over_x
                     indices_y[:] = over_y
                     del over_x, over_y, over_data
@@ -650,7 +647,7 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
 
     elif data == 'clusters-light':
 
-        file_name = file_out_suff + '.clusters%s.hdf5' %extension
+        file_name = file_out_suff + '.clusters%s.hdf5' % extension
         if os.path.exists(file_name):
 
             sub_comm, is_local = get_local_ring(local_only)
@@ -668,8 +665,8 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
 
-                    data_size  = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-                    type_size  = 0
+                    data_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                    type_size = 0
                     data_bytes = 0
 
                     if local_rank == 0:
@@ -679,20 +676,20 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
                             type_size = 1
                         data_bytes = data_size * 4
                         
-                    type_size  = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
-                    empty      = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.int32), root=0)[0])
+                    type_size = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
+                    empty = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.int32), root=0)[0])
                     if empty > 0:
-                        win_data    = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
+                        win_data = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
                         buf_data, _ = win_data.Shared_query(0)
 
-                        buf_data    = numpy.array(buf_data, dtype='B', copy=False)
+                        buf_data = numpy.array(buf_data, dtype='B', copy=False)
                         if type_size == 0:
                             data = numpy.ndarray(buffer=buf_data, dtype=numpy.int32, shape=(data_size,))
                         elif type_size == 1:
                             data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(data_size,))
 
                         if local_rank == 0:
-                            data[:]    = locdata
+                            data[:] = locdata
                     else:
                         if type_size == 0:
                             data = numpy.zeros(0, dtype=numpy.int32)
@@ -711,8 +708,6 @@ def load_data_memshared(params, data, extension='', normalize=False, transpose=F
             sys.exit(0)
 
 
-
-
 def load_data(params, data, extension=''):
     """
     Load data from a dataset.
@@ -726,14 +721,14 @@ def load_data(params, data, extension=''):
 
     """
 
-    file_out_suff   = params.get('data', 'file_out_suff')
+    file_out_suff = params.get('data', 'file_out_suff')
     data_file_noext = params.get('data', 'data_file_noext')
 
     if data == 'thresholds':
         filename = file_out_suff + '.basis.hdf5'
         spike_thresh = params.getfloat('detection', 'spike_thresh')
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return spike_thresh * thresholds
@@ -744,7 +739,7 @@ def load_data(params, data, extension=''):
     elif data == 'mads':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]
             myfile.close()
             return thresholds
@@ -755,7 +750,7 @@ def load_data(params, data, extension=''):
     elif data == 'stds':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('thresholds')[:]/0.674
             myfile.close()
             return thresholds
@@ -767,7 +762,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.basis.hdf5'
         matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('matched_thresholds')[:]
             myfile.close()
             return matched_thresh * thresholds
@@ -779,7 +774,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.basis.hdf5'
         matched_thresh = params.getfloat('detection', 'matched_thresh')
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             thresholds = myfile.get('matched_thresholds_pos')[:]
             myfile.close()
             return matched_thresh * thresholds
@@ -791,7 +786,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
             try:
-                myfile  = h5py.File(filename, 'r', libver='earliest')
+                myfile = h5py.File(filename, 'r', libver='earliest')
                 spatial = numpy.ascontiguousarray(myfile.get('spatial')[:])
                 myfile.close()
                 return spatial
@@ -807,7 +802,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
             try:
-                myfile   = h5py.File(filename, 'r', libver='earliest')
+                myfile = h5py.File(filename, 'r', libver='earliest')
                 temporal = myfile.get('temporal')[:]
                 myfile.close()
                 return temporal
@@ -823,9 +818,9 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
             try:
-                myfile     = h5py.File(filename, 'r', libver='earliest')
+                myfile = h5py.File(filename, 'r', libver='earliest')
                 basis_proj = numpy.ascontiguousarray(myfile.get('proj')[:])
-                basis_rec  = numpy.ascontiguousarray(myfile.get('rec')[:])
+                basis_rec = numpy.ascontiguousarray(myfile.get('rec')[:])
                 myfile.close()
                 return basis_proj, basis_rec
             except Exception:
@@ -840,9 +835,9 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
             try:
-                myfile     = h5py.File(filename, 'r', libver='earliest')
+                myfile = h5py.File(filename, 'r', libver='earliest')
                 basis_proj = numpy.ascontiguousarray(myfile.get('proj_pos')[:])
-                basis_rec  = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
+                basis_rec = numpy.ascontiguousarray(myfile.get('rec_pos')[:])
                 myfile.close()
                 return basis_proj, basis_rec
             except Exception:
@@ -856,8 +851,8 @@ def load_data(params, data, extension=''):
     elif data == 'waveform':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            waveforms  = myfile.get('waveform')[:]
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            waveforms = myfile.get('waveform')[:]
             myfile.close()
             return waveforms
         else:
@@ -867,8 +862,8 @@ def load_data(params, data, extension=''):
     elif data == 'waveforms':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            waveforms  = myfile.get('waveforms')[:]
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            waveforms = myfile.get('waveforms')[:]
             myfile.close()
             return waveforms
         else:
@@ -878,8 +873,8 @@ def load_data(params, data, extension=''):
     elif data == 'waveform-pos':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            waveforms  = myfile.get('waveform_pos')[:]
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            waveforms = myfile.get('waveform_pos')[:]
             myfile.close()
             return waveforms
         else:
@@ -889,8 +884,8 @@ def load_data(params, data, extension=''):
     elif data == 'waveforms-pos':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            waveforms  = myfile.get('waveforms_pos')[:]
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            waveforms = myfile.get('waveforms_pos')[:]
             myfile.close()
             return waveforms
         else:
@@ -900,14 +895,14 @@ def load_data(params, data, extension=''):
     elif data == 'weights':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            waveforms  = myfile.get('waveforms')[:]
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            waveforms = myfile.get('waveforms')[:]
             myfile.close()
             u = numpy.median(waveforms, 0)
             tmp = numpy.median(numpy.abs(waveforms - u), 0)
             if params.getboolean('detection', 'alignment'):
                 jitter_range = params.getint('detection', 'jitter_range')
-                res = numpy.zeros(len(tmp)+2*jitter_range, dtype=numpy.float32)
+                res = numpy.zeros(len(tmp) + 2 * jitter_range, dtype=numpy.float32)
                 res[jitter_range:-jitter_range] = tmp
                 res[:jitter_range] = tmp[0]
                 res[-jitter_range:] = tmp[-1]
@@ -921,8 +916,8 @@ def load_data(params, data, extension=''):
     elif data == 'weights-pos':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            waveforms  = myfile.get('waveforms_pos')[:]
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            waveforms = myfile.get('waveforms_pos')[:]
             myfile.close()
             u = numpy.median(waveforms, 0)
             tmp = numpy.median(numpy.abs(waveforms - u), 0)
@@ -940,7 +935,7 @@ def load_data(params, data, extension=''):
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)
             sys.exit(0)
     elif data == 'templates':
-        filename = file_out_suff + '.templates%s.hdf5' %extension
+        filename = file_out_suff + '.templates%s.hdf5' % extension
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             temp_x = myfile.get('temp_x')[:].ravel()
@@ -948,13 +943,13 @@ def load_data(params, data, extension=''):
             temp_data = myfile.get('temp_data')[:].ravel()
             N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel().astype(numpy.int32)
             myfile.close()
-            return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
+            return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e * N_t, nb_templates))
         else:
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
             sys.exit(0)
     elif data == 'nb_templates':
-        filename = file_out_suff + '.templates%s.hdf5' %extension
+        filename = file_out_suff + '.templates%s.hdf5' % extension
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
@@ -965,7 +960,7 @@ def load_data(params, data, extension=''):
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
             sys.exit(0)
     elif data == 'overlaps':
-        filename = file_out_suff + '.overlap%s.hdf5' %extension
+        filename = file_out_suff + '.overlap%s.hdf5' % extension
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             over_x = myfile.get('over_x')[:].ravel()
@@ -974,10 +969,10 @@ def load_data(params, data, extension=''):
             over_shape = myfile.get('over_shape')[:].ravel()
             myfile.close()
 
-            c_overs   = {}
-            N_over    = int(numpy.sqrt(over_shape[0]))
+            c_overs = {}
+            N_over = int(numpy.sqrt(over_shape[0]))
 
-            for i in xrange(N_over):
+            for i in range(N_over):
                 idx = numpy.where((over_x >= i*N_over) & (over_x < ((i+1)*N_over)))[0]
                 local_x = over_x[idx] - i*N_over
                 c_overs[i] = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
@@ -990,7 +985,7 @@ def load_data(params, data, extension=''):
                 print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
             sys.exit(0)
     elif data == 'overlaps-raw':
-        filename = file_out_suff + '.overlap%s.hdf5' %extension
+        filename = file_out_suff + '.overlap%s.hdf5' % extension
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             over_x = myfile.get('over_x')[:].ravel()
@@ -1004,7 +999,7 @@ def load_data(params, data, extension=''):
                 print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
             sys.exit(0)
     elif data == 'version':
-        filename = file_out_suff + '.templates%s.hdf5' %extension
+        filename = file_out_suff + '.templates%s.hdf5' % extension
         if os.path.exists(filename):
             try:
                 myfile = h5py.File(filename, 'r', libver='earliest')
@@ -1025,9 +1020,9 @@ def load_data(params, data, extension=''):
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
             sys.exit(0)
     elif data == 'norm-templates':
-        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
-            norms  = myfile.get('norms')[:]
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+            norms = myfile.get('norms')[:]
             myfile.close()
             return norms
         else:
@@ -1035,9 +1030,9 @@ def load_data(params, data, extension=''):
                 print_and_log(["No norms found! Check suffix?"], 'error', logger)
             sys.exit(0)
     elif data == 'supports':
-        if os.path.exists(file_out_suff + '.templates%s.hdf5' %extension):
-            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r', libver='earliest')
-            norms  = myfile.get('supports')[:]
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+            norms = myfile.get('supports')[:]
             myfile.close()
             return norms
         else:
@@ -1047,8 +1042,8 @@ def load_data(params, data, extension=''):
     elif data == 'spike-cluster':
         filename = params.get('data', 'data_file_noext') + '.spike-cluster.hdf5'
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
-            clusters   = myfile.get('clusters')[:].ravel()
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            clusters = myfile.get('clusters')[:].ravel()
             N_clusters = len(numpy.unique(clusters))
             spiketimes = myfile.get('spikes')[:].ravel()
             myfile.close()
@@ -1056,7 +1051,7 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('Need to provide a spike-cluster file!')
     elif data == 'clusters':
-        filename = file_out_suff + '.clusters%s.hdf5' %extension
+        filename = file_out_suff + '.clusters%s.hdf5' % extension
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
@@ -1067,7 +1062,7 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'clusters-light':
-        filename = file_out_suff + '.clusters%s.hdf5' %extension
+        filename = file_out_suff + '.clusters%s.hdf5' % extension
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
@@ -1079,9 +1074,9 @@ def load_data(params, data, extension=''):
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'electrodes':
-        filename = file_out_suff + '.clusters%s.hdf5' %extension
+        filename = file_out_suff + '.clusters%s.hdf5' % extension
         if os.path.exists(filename):
-            myfile     = h5py.File(filename, 'r', libver='earliest')
+            myfile = h5py.File(filename, 'r', libver='earliest')
             electrodes = myfile.get('electrodes')[:].ravel().astype(numpy.int32)
             myfile.close()
             return electrodes
@@ -1113,7 +1108,7 @@ def load_data(params, data, extension=''):
         except Exception:
             raise Exception('No overlaps found! Check suffix or run the fitting?')
     elif data == 'limits':
-        myfile = file_out_suff + '.templates%s.hdf5' %extension
+        myfile = file_out_suff + '.templates%s.hdf5' % extension
         if os.path.exists(myfile):
             myfile = h5py.File(myfile, 'r', libver='earliest')
             limits = myfile.get('limits')[:]
@@ -1124,11 +1119,11 @@ def load_data(params, data, extension=''):
     elif data == 'injected_spikes':
         try:
             spikes = h5py.File(data_file_noext + '/injected/result.hdf5').get('spiketimes')
-            elecs  = numpy.load(data_file_noext + '/injected/elecs.npy')
-            N_tm   = len(spikes)
-            count  = 0
+            elecs = numpy.load(data_file_noext + '/injected/elecs.npy')
+            N_tm = len(spikes)
+            count = 0
             result = {}
-            for i in xrange(N_tm):
+            for i in range(N_tm):
                 key = 'temp_' + str(i)
                 if len(spikes[key]) > 0:
                     result['spikes_' + str(elecs[count])] = spikes[key]
@@ -1137,16 +1132,16 @@ def load_data(params, data, extension=''):
         except Exception:
             return None
     elif data == 'triggers':
-        filename = file_out_suff + '.triggers%s.npy' %extension
+        filename = file_out_suff + '.triggers%s.npy' % extension
         if os.path.exists(filename):
             triggers = numpy.load(filename)
-            N_tr     = triggers.shape[0]
+            N_tr = triggers.shape[0]
 
             data_file = params.data_file
             data_file.open()
 
             N_total = params.nb_channels
-            N_t     = params.getint('detection', 'N_t')
+            N_t = params.getint('detection', 'N_t')
 
             template_shift = params.getint('detection', 'template_shift')
 
@@ -1156,7 +1151,7 @@ def load_data(params, data, extension=''):
             data_file.close()
             return triggers, spikes
         else:
-            raise Exception('No triggers found! Check suffix or check if file `%s` exists?' %filename)
+            raise Exception('No triggers found! Check suffix or check if file `%s` exists?' % filename)
     elif data == 'juxta-mad':
         filename = "{}.beer{}.hdf5".format(file_out_suff, extension)
         if os.path.exists(filename):
@@ -1208,7 +1203,7 @@ def load_data(params, data, extension=''):
             N_e = params.getint('data', 'N_e')
             extra_spike_times = N_e * [None]
             try:
-                for e in xrange(0, N_e):
+                for e in range(0, N_e):
                     key = "extra_spiketimes/elec_{}".format(e)
                     extra_spike_times[e] = beer_file.get(key)[:]
             finally:
@@ -1223,7 +1218,7 @@ def load_data(params, data, extension=''):
             N_e = params.getint('data', 'N_e')
             extra_spike_values = N_e * [None]
             try:
-                for e in xrange(0, N_e):
+                for e in range(0, N_e):
                     key = "extra_spike_values/elec_{}".format(e)
                     extra_spike_values[e] = beer_file.get(key)[:]
             finally:
@@ -1381,96 +1376,103 @@ def write_datasets(h5file, to_write, result, electrode=None, compression=False):
         else:
             h5file.create_dataset(mykey, data=result[mykey], chunks=True)
 
+
 def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_voltages=False, benchmark=False):
 
     # Retrieve the key parameters.
-    data_file      = params.data_file
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('detection', 'N_t')
-    file_out_suff  = params.get('data', 'file_out_suff')
-    max_chunk      = params.getfloat('fitting', 'max_chunk')
-    hdf5_compress  = params.getboolean('data', 'hdf5_compress')
-    data_length    = data_stats(params, show=False)
-    duration       = data_length
-    templates      = load_data(params, 'norm-templates')
-    refractory     = params.getint('fitting', 'refractory')
-    N_tm           = len(templates)
-    collect_all    = params.getboolean('fitting', 'collect_all')
-    debug          = params.getboolean('fitting', 'debug')
+    data_file = params.data_file
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    file_out_suff = params.get('data', 'file_out_suff')
+    max_chunk = params.getfloat('fitting', 'max_chunk')
+    hdf5_compress = params.getboolean('data', 'hdf5_compress')
+    data_length = data_stats(params, show=False)
+    duration = data_length
+    templates = load_data(params, 'norm-templates')
+    refractory = params.getint('fitting', 'refractory')
+    N_tm = len(templates)
+    collect_all = params.getboolean('fitting', 'collect_all')
+    debug = params.getboolean('fitting', 'debug')
 
-    print_and_log(["Gathering spikes from %d nodes..." %nb_threads], 'default', logger)
+    print_and_log(["Gathering spikes from %d nodes..." % nb_threads], 'default', logger)
 
     # Initialize data collection.
-    result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
+    result = {
+        'spiketimes': {},
+        'amplitudes': {},
+        'info': {
+            'duration': numpy.array([duration], dtype=numpy.uint64)
+        }
+    }
     if with_real_amps:
         result['real_amps'] = {}
     if with_voltages:
         result['voltages'] = {}
     if collect_all:
         result['gspikes'] = {}
-        result['gtemps']  = {}
+        result['gtemps'] = {}
 
-    for i in xrange(N_tm//2):
-        result['spiketimes']['temp_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
-        result['amplitudes']['temp_' + str(i)]  = numpy.empty(shape=(0, 2), dtype=numpy.float32)
+    for i in range(N_tm // 2):
+        result['spiketimes']['temp_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.uint32)]
+        result['amplitudes']['temp_' + str(i)] = [numpy.empty(shape=(0, 2), dtype=numpy.float32)]
         if with_real_amps:
-            result['real_amps']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
+            result['real_amps']['temp_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.float32)]
         if with_voltages:
-            result['voltages']['temp_' + str(i)] = numpy.empty(shape=0, dtype=numpy.float32)
+            result['voltages']['temp_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.float32)]
 
     if collect_all:
-        for i in xrange(N_e):
-            result['gspikes']['elec_' + str(i)] = numpy.empty(shape=0, dtype=numpy.uint32)
+        for i in range(N_e):
+            result['gspikes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.uint32)]
 
     if debug:
         result_debug = {
-            'chunk_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
-            'iteration_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
-            'peak_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
-            'peak_local_time_steps': numpy.empty(shape=0, dtype=numpy.uint32),
-            'peak_time_steps': numpy.empty(shape=0, dtype=numpy.uint32),
-            'peak_scalar_products': numpy.empty(shape=0, dtype=numpy.float32),
-            'peak_solved_flags': numpy.empty(shape=0, dtype=numpy.float32),
-            'template_nbs': numpy.empty(shape=0, dtype=numpy.uint32),
-            'success_flags': numpy.empty(shape=0, dtype=numpy.bool),
+            'chunk_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'iteration_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'peak_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'peak_local_time_steps': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'peak_time_steps': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'peak_scalar_products': [numpy.empty(shape=0, dtype=numpy.float32)],
+            'peak_solved_flags': [numpy.empty(shape=0, dtype=numpy.float32)],
+            'template_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
+            'success_flags': [numpy.empty(shape=0, dtype=numpy.bool)],
         }
     else:
         result_debug = None
 
-    to_explore = xrange(nb_threads)
+    to_explore = range(nb_threads)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
 
     # For each thread/process collect data.
     for count, node in enumerate(to_explore):
-        spiketimes_file = file_out_suff + '.spiketimes-%d.data' %node
-        amplitudes_file = file_out_suff + '.amplitudes-%d.data' %node
-        templates_file  = file_out_suff + '.templates-%d.data' %node
+        spiketimes_file = file_out_suff + '.spiketimes-%d.data' % node
+        amplitudes_file = file_out_suff + '.amplitudes-%d.data' % node
+        templates_file = file_out_suff + '.templates-%d.data' % node
         if with_real_amps:
-            real_amps_file = file_out_suff + '.real_amps-%d.data' %node
-            real_amps      = numpy.fromfile(real_amps_file, dtype=numpy.float32)
+            real_amps_file = file_out_suff + '.real_amps-%d.data' % node
+            real_amps = numpy.fromfile(real_amps_file, dtype=numpy.float32)
         if with_voltages:
-            voltages_file  = file_out_suff + '.voltages-%d.data' %node
-            voltages       = numpy.fromfile(voltages_file, dtype=numpy.float32)
+            voltages_file = file_out_suff + '.voltages-%d.data' % node
+            voltages = numpy.fromfile(voltages_file, dtype=numpy.float32)
 
         if collect_all:
-            gspikes_file = file_out_suff + '.gspiketimes-%d.data' %node
-            gspikes      = numpy.fromfile(gspikes_file, dtype=numpy.uint32)
-            gtemps_file  = file_out_suff + '.gtemplates-%d.data' %node
-            gtemps       = numpy.fromfile(gtemps_file, dtype=numpy.uint32)
+            gspikes_file = file_out_suff + '.gspiketimes-%d.data' % node
+            gspikes = numpy.fromfile(gspikes_file, dtype=numpy.uint32)
+            gtemps_file = file_out_suff + '.gtemplates-%d.data' % node
+            gtemps = numpy.fromfile(gtemps_file, dtype=numpy.uint32)
 
         if os.path.exists(amplitudes_file):
 
             amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
             spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.uint32)
-            templates  = numpy.fromfile(templates_file, dtype=numpy.uint32)
-            N          = len(amplitudes)
-            amplitudes = amplitudes.reshape(N//2, 2)
-            min_size   = min([amplitudes.shape[0], spiketimes.shape[0], templates.shape[0]])
+            templates = numpy.fromfile(templates_file, dtype=numpy.uint32)
+            N = len(amplitudes)
+            amplitudes = amplitudes.reshape(N // 2, 2)
+            min_size = min([amplitudes.shape[0], spiketimes.shape[0], templates.shape[0]])
             amplitudes = amplitudes[:min_size]
             spiketimes = spiketimes[:min_size]
-            templates  = templates[:min_size]
+            templates = templates[:min_size]
             if with_real_amps:
                 real_amps = real_amps[:min_size]
             if with_voltages:
@@ -1480,17 +1482,17 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
             for j in local_temp:
                 idx = numpy.where(templates == j)[0]
-                result['amplitudes']['temp_' + str(j)] = numpy.concatenate((result['amplitudes']['temp_' + str(j)], amplitudes[idx]))
-                result['spiketimes']['temp_' + str(j)] = numpy.concatenate((result['spiketimes']['temp_' + str(j)], spiketimes[idx]))
+                result['amplitudes']['temp_' + str(j)].append(amplitudes[idx])
+                result['spiketimes']['temp_' + str(j)].append(spiketimes[idx])
                 if with_real_amps:
-                    result['real_amps']['temp_' + str(j)] = numpy.concatenate((result['real_amps']['temp_' + str(j)], real_amps[idx]))
+                    result['real_amps']['temp_' + str(j)].append(real_amps[idx])
                 if with_voltages:
-                    result['voltages']['temp_' + str(j)] = numpy.concatenate((result['voltages']['temp_' + str(j)], voltages[idx]))
+                    result['voltages']['temp_' + str(j)].append(voltages[idx])
 
             if collect_all:
-                for j in xrange(N_e):
+                for j in range(N_e):
                     idx = numpy.where(gtemps == j)[0]
-                    result['gspikes']['elec_' + str(j)] = numpy.concatenate((result['gspikes']['elec_' + str(j)], gspikes[idx]))
+                    result['gspikes']['elec_' + str(j)].append(gspikes[idx])
 
         if debug:
             for (key, filename_formatter, dtype) in [
@@ -1506,20 +1508,23 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             ]:
                 filename = file_out_suff + filename_formatter % node
                 data = numpy.fromfile(filename, dtype=dtype)
-                result_debug[key] = numpy.concatenate((result_debug[key], data))
+                result_debug[key].append(data)
                 # TODO avoid multiple concatenations (i.e. copies)?
 
     sys.stderr.flush()
 
     for key in result['spiketimes']:
-        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
-        idx                       = numpy.argsort(result['spiketimes'][key])
-        result['amplitudes'][key] = numpy.array(result['amplitudes'][key], dtype=numpy.float32)
+        result['spiketimes'][key] = numpy.concatenate(result['spiketimes'][key]).astype(numpy.uint32)
+        result['amplitudes'][key] = numpy.concatenate(result['amplitudes'][key]).astype(numpy.float32)
+
+        idx = numpy.argsort(result['spiketimes'][key])
         result['spiketimes'][key] = result['spiketimes'][key][idx]
         result['amplitudes'][key] = result['amplitudes'][key][idx]
         if with_real_amps:
+            result['real_amps'][key] = numpy.concatenate(result['real_amps'][key]).astype(numpy.float32)
             result['real_amps'][key] = result['real_amps'][key][idx]
         if with_voltages:
+            result['voltages'][key] = numpy.concatenate(result['voltages'][key]).astype(numpy.float32)
             result['voltages'][key] = result['voltages'][key][idx]
 
         if refractory > 0:
@@ -1533,8 +1538,8 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     if collect_all:
         for key in result['gspikes']:
-            result['gspikes'][key] = numpy.array(result['gspikes'][key], dtype=numpy.uint32)
-            idx                    = numpy.argsort(result['gspikes'][key])
+            result['gspikes'][key] = numpy.concatenate(result['gspikes'][key]).astype(numpy.uint32)
+            idx = numpy.argsort(result['gspikes'][key])
             result['gspikes'][key] = result['gspikes'][key][idx]
 
     keys = ['spiketimes', 'amplitudes', 'info']
@@ -1550,7 +1555,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     for key in keys:
         mydata.create_group(key)
         for temp in result[key].keys():
-            tmp_path = '%s/%s' %(key, temp)
+            tmp_path = '%s/%s' % (key, temp)
             if hdf5_compress:
                 mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
             else:
@@ -1572,7 +1577,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             'success_flags',
         ]
         for name in names:
-            data = result_debug[name]
+            data = numpy.concatenate(result_debug[name])
             compression = 'gzip' if hdf5_compress else None
             file.create_dataset(name, data=data, compression=compression)
         file.close()
@@ -1605,13 +1610,13 @@ def get_accurate_thresholds(params, spike_thresh_min=1):
     thresholds = load_data(params, 'thresholds')
 
     if spike_thresh_min < 1:
-        mads       = load_data(params, 'mads')
-        templates  = load_data(params, 'templates')
-        sign       = params.get('detection', 'peaks')
-        N_e        = params.getint('data', 'N_e')
-        N_t        = params.getint('detection', 'N_t')
+        mads = load_data(params, 'mads')
+        templates = load_data(params, 'templates')
+        sign = params.get('detection', 'peaks')
+        N_e = params.getint('data', 'N_e')
+        N_t = params.getint('detection', 'N_t')
         amplitudes = load_data(params, 'limits')
-        nb_temp    = templates.shape[1]//2
+        nb_temp = templates.shape[1] // 2
         spike_thresh = params.getfloat('detection', 'spike_thresh') * spike_thresh_min
 
         for idx in range(nb_temp):
@@ -1631,58 +1636,66 @@ def get_accurate_thresholds(params, spike_thresh_min=1):
 
     return thresholds
 
+
 def collect_mua(nb_threads, params, erase=False):
 
     # Retrieve the key parameters.
-    data_file      = params.data_file
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('detection', 'N_t')
-    file_out_suff  = params.get('data', 'file_out_suff')
-    max_chunk      = params.getfloat('fitting', 'max_chunk')
-    hdf5_compress  = params.getboolean('data', 'hdf5_compress')
-    data_length    = data_stats(params, show=False)
-    duration       = int(data_length)
-    print_and_log(["Gathering MUA from %d nodes..." %nb_threads], 'default', logger)
+    data_file = params.data_file
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    file_out_suff = params.get('data', 'file_out_suff')
+    max_chunk = params.getfloat('fitting', 'max_chunk')
+    hdf5_compress = params.getboolean('data', 'hdf5_compress')
+    data_length = data_stats(params, show=False)
+    duration = int(data_length)
+    print_and_log(["Gathering MUA from %d nodes..." % nb_threads], 'default', logger)
 
     # Initialize data collection.
-    result = {'spiketimes' : {}, 'amplitudes' : {}, 'info' : {'duration' : numpy.array([duration], dtype=numpy.uint64)}}
+    result = {
+        'spiketimes': {},
+        'amplitudes': {},
+        'info': {
+            'duration': numpy.array([duration], dtype=numpy.uint64)
+        }
+    }
 
-    for i in xrange(N_e):
-        result['spiketimes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.uint32)
-        result['amplitudes']['elec_' + str(i)]  = numpy.empty(shape=0, dtype=numpy.float32)
+    for i in range(N_e):
+        result['spiketimes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.uint32)]
+        result['amplitudes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.float32)]
 
-    to_explore = xrange(nb_threads)
+    to_explore = range(nb_threads)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(to_explore)
 
     # For each thread/process collect data.
     for count, node in enumerate(to_explore):
-        spiketimes_file = file_out_suff + '.mua-%d.data' %node
-        templates_file  = file_out_suff + '.elec-%d.data' %node
-        amplitudes_file = file_out_suff + '.amp-%d.data' %node
+        spiketimes_file = file_out_suff + '.mua-%d.data' % node
+        templates_file = file_out_suff + '.elec-%d.data' % node
+        amplitudes_file = file_out_suff + '.amp-%d.data' % node
 
         if os.path.exists(templates_file):
 
             spiketimes = numpy.fromfile(spiketimes_file, dtype=numpy.uint32)
-            templates  = numpy.fromfile(templates_file, dtype=numpy.uint32)
+            templates = numpy.fromfile(templates_file, dtype=numpy.uint32)
             amplitudes = numpy.fromfile(amplitudes_file, dtype=numpy.float32)
-            min_size   = min([spiketimes.shape[0], templates.shape[0], amplitudes.shape[0]])
+            min_size = min([spiketimes.shape[0], templates.shape[0], amplitudes.shape[0]])
             spiketimes = spiketimes[:min_size]
-            templates  = templates[:min_size]
+            templates = templates[:min_size]
             amplitudes = amplitudes[:min_size]
             local_temp = numpy.unique(templates)
 
             for j in local_temp:
                 idx = numpy.where(templates == j)[0]
-                result['spiketimes']['elec_' + str(j)] = numpy.concatenate((result['spiketimes']['elec_' + str(j)], spiketimes[idx]))
-                result['amplitudes']['elec_' + str(j)] = numpy.concatenate((result['amplitudes']['elec_' + str(j)], amplitudes[idx]))
+                result['spiketimes']['elec_' + str(j)].append(spiketimes[idx])
+                result['amplitudes']['elec_' + str(j)].append(amplitudes[idx])
 
     sys.stderr.flush()
     # TODO: find a programmer comment.
     for key in result['spiketimes']:
-        result['spiketimes'][key] = numpy.array(result['spiketimes'][key], dtype=numpy.uint32)
-        idx                       = numpy.argsort(result['spiketimes'][key])
+        result['spiketimes'][key] = numpy.concatenate(result['spiketimes'][key]).astype(numpy.uint32)
+        result['amplitudes'][key] = numpy.concatenate(result['amplitudes'][key]).astype(numpy.float32)
+        idx = numpy.argsort(result['spiketimes'][key])
         result['spiketimes'][key] = result['spiketimes'][key][idx]
         result['amplitudes'][key] = result['amplitudes'][key][idx]
 
@@ -1692,7 +1705,7 @@ def collect_mua(nb_threads, params, erase=False):
     for key in keys:
         mydata.create_group(key)
         for temp in result[key].keys():
-            tmp_path = '%s/%s' %(key, temp)
+            tmp_path = '%s/%s' % (key, temp)
             if hdf5_compress:
                 mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
             else:
@@ -1704,19 +1717,18 @@ def collect_mua(nb_threads, params, erase=False):
     for item in result['spiketimes'].keys():
         count += len(result['spiketimes'][item])
 
-    to_write = ["Number of threshold crossings : %d" %count]
+    to_write = ["Number of threshold crossings : %d" % count]
 
     print_and_log(to_write, 'info', logger)
 
-    # TODO: find a programmer comment
     if erase:
         purge(file_out_suff, '.data')
 
 
 def get_results(params, extension=''):
-    file_out_suff        = params.get('data', 'file_out_suff')
-    result               = {}
-    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='earliest')
+    file_out_suff = params.get('data', 'file_out_suff')
+    result = {}
+    myfile = h5py.File(file_out_suff + '.result%s.hdf5' % extension, 'r', libver='earliest')
     for key in ['spiketimes', 'amplitudes']:
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
@@ -1727,10 +1739,11 @@ def get_results(params, extension=''):
     myfile.close()
     return result
 
+
 def get_mua(params, extension=''):
-    file_out_suff        = params.get('data', 'file_out_suff')
-    result               = {}
-    myfile               = h5py.File(file_out_suff + '.mua%s.hdf5' %extension, 'r', libver='earliest')
+    file_out_suff = params.get('data', 'file_out_suff')
+    result = {}
+    myfile = h5py.File(file_out_suff + '.mua%s.hdf5' % extension, 'r', libver='earliest')
     for key in ['spiketimes', 'amplitudes']:
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
@@ -1738,18 +1751,20 @@ def get_mua(params, extension=''):
     myfile.close()
     return result
 
+
 def get_duration(params, extension=''):
-    file_out_suff        = params.get('data', 'file_out_suff')
-    result               = {}
-    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='earliest')
+    file_out_suff = params.get('data', 'file_out_suff')
+    result = {}
+    myfile = h5py.File(file_out_suff + '.result%s.hdf5' % extension, 'r', libver='earliest')
     duration = myfile['info']['duration'][0]
     myfile.close()
     return duration
 
+
 def get_garbage(params, extension=''):
-    file_out_suff        = params.get('data', 'file_out_suff')
-    result               = {}
-    myfile               = h5py.File(file_out_suff + '.result%s.hdf5' %extension, 'r', libver='earliest')
+    file_out_suff = params.get('data', 'file_out_suff')
+    result = {}
+    myfile = h5py.File(file_out_suff + '.result%s.hdf5' % extension, 'r', libver='earliest')
     for key in ['gspikes']:
         result[str(key)] = {}
         for temp in myfile.get(key).keys():
@@ -1757,29 +1772,30 @@ def get_garbage(params, extension=''):
     myfile.close()
     return result
 
+
 def get_intersection_norm(params, to_explore):
 
     SHARED_MEMORY = get_shared_memory_flag(params)
 
     if SHARED_MEMORY:
-        templates  = load_data_memshared(params, 'templates', normalize=False)
+        templates = load_data_memshared(params, 'templates', normalize=False)
     else:
-        templates  = load_data(params, 'templates')
+        templates = load_data(params, 'templates')
 
-    best_elec        = load_data(params, 'electrodes')
-    N_e              = params.getint('data', 'N_e')
-    N_t              = params.getint('detection', 'N_t')
-    N_total          = params.nb_channels
-    nodes, edges     = get_nodes_and_edges(params)
-    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    best_elec = load_data(params, 'electrodes')
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    N_total = params.nb_channels
+    nodes, edges = get_nodes_and_edges(params)
+    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     res = {}
-    nb_temp = templates.shape[1]//2
+    nb_temp = templates.shape[1] // 2
 
     for i in to_explore:
-        res[i]    = numpy.inf * numpy.ones(nb_temp - (i+1), dtype=numpy.float32)
-        t_i       = templates[:, i].toarray().reshape(N_e, N_t)
-        #full_norm_i = numpy.sqrt(numpy.sum(t_i**2))
+        res[i] = numpy.inf * numpy.ones(nb_temp - (i+1), dtype=numpy.float32)
+        t_i = templates[:, i].toarray().reshape(N_e, N_t)
+        # full_norm_i = numpy.sqrt(numpy.sum(t_i**2))
         indices_i = numpy.array(edges[nodes[best_elec[i]]], dtype=numpy.int32)
         for count, j in enumerate(range(i+1, nb_temp)):
             indices_j = numpy.array(edges[nodes[best_elec[j]]], dtype=numpy.int32)
@@ -1791,26 +1807,30 @@ def get_intersection_norm(params, to_explore):
             product = norm_i * norm_j
             N_common = len(mask)
             ratio = N_common / len(numpy.unique(numpy.concatenate((indices_i, indices_j))))
-            #full_norm_j = numpy.sqrt(numpy.sum(t_j**2))
-            #ratio = min((norm_i/full_norm_i), (norm_j/full_norm_j))
+            # full_norm_j = numpy.sqrt(numpy.sum(t_j**2))
+            # ratio = min((norm_i/full_norm_i), (norm_j/full_norm_j))
 
             if product != 0 and ratio > 0.25:
                 res[i][count] = product
     return res
 
-def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=True, verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0, decimation=False):
 
-    parallel_hdf5  = get_parallel_hdf5_flag(params)
-    data_file      = params.data_file
-    N_e            = params.getint('data', 'N_e')
-    N_t            = params.getint('detection', 'N_t')
-    hdf5_compress  = params.getboolean('data', 'hdf5_compress')
+def get_overlaps(
+        params, extension='', erase=False, normalize=True, maxoverlap=True,
+        verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0, decimation=False
+):
+
+    parallel_hdf5 = get_parallel_hdf5_flag(params)
+    data_file = params.data_file
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    hdf5_compress = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
-    N_total        = params.nb_channels
-    file_out_suff  = params.get('data', 'file_out_suff')
-    tmp_path       = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
-    filename       = file_out_suff + '.overlap%s.hdf5' %extension
-    duration       = 2 * N_t - 1
+    N_total = params.nb_channels
+    file_out_suff = params.get('data', 'file_out_suff')
+    tmp_path = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
+    filename = file_out_suff + '.overlap%s.hdf5' % extension
+    duration = 2 * N_t - 1
 
     if os.path.exists(filename) and not erase:
         return h5py.File(filename, 'r')
@@ -1822,25 +1842,25 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     if maxoverlap:
         if SHARED_MEMORY:
-            templates  = load_data_memshared(params, 'templates', extension=extension, normalize=normalize)
+            templates = load_data_memshared(params, 'templates', extension=extension, normalize=normalize)
         else:
-            templates  = load_data(params, 'templates', extension=extension)
+            templates = load_data(params, 'templates', extension=extension)
     else:
         if SHARED_MEMORY:
-            templates  = load_data_memshared(params, 'templates', normalize=normalize)
+            templates = load_data_memshared(params, 'templates', normalize=normalize)
         else:
-            templates  = load_data(params, 'templates')
+            templates = load_data(params, 'templates')
 
     if extension == '-merged':
-        best_elec  = load_data(params, 'electrodes', extension)
+        best_elec = load_data(params, 'electrodes', extension)
     else:
-        best_elec  = load_data(params, 'electrodes')
-    nodes, edges   = get_nodes_and_edges(params)
-    N,        N_tm = templates.shape
+        best_elec = load_data(params, 'electrodes')
+    nodes, edges = get_nodes_and_edges(params)
+    N, N_tm = templates.shape
 
     if not SHARED_MEMORY and normalize:
         norm_templates = load_data(params, 'norm-templates')
-        for idx in xrange(N_tm):
+        for idx in range(N_tm):
             myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
             templates.data[myslice] /= norm_templates[idx]
 
@@ -1848,16 +1868,16 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         N_tm //= 2
 
     comm.Barrier()
-    inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
-    cuda_string = 'using %d CPU...' %comm.size
+    cuda_string = 'using %d CPU...' % comm.size
 
     if use_gpu:
         import cudamat as cmt
         if parallel_hdf5:
             if nb_gpu > nb_cpu:
-                gpu_id = int(comm.rank//nb_cpu)
+                gpu_id = int(comm.rank // nb_cpu)
             else:
                 gpu_id = 0
         else:
@@ -1867,28 +1887,27 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         cmt.cuda_sync_threads()
 
     if use_gpu:
-        cuda_string = 'using %d GPU...' %comm.size
+        cuda_string = 'using %d GPU...' % comm.size
 
-    all_delays      = numpy.arange(1, N_t+1)
+    all_delays = numpy.arange(1, N_t + 1)
 
     if half:
         upper_bounds = N_tm
     else:
-        upper_bounds = N_tm//2
+        upper_bounds = N_tm // 2
 
-    to_explore = xrange(comm.rank, N_e, comm.size)
+    to_explore = range(comm.rank, N_e, comm.size)
 
     if comm.rank == 0:
         if verbose:
-            print_and_log(["Pre-computing the overlaps of templates %s" %cuda_string], 'default', logger)
+            print_and_log(["Pre-computing the overlaps of templates %s" % cuda_string], 'default', logger)
         to_explore = get_tqdm_progressbar(to_explore)
 
-
-    over_x    = numpy.zeros(0, dtype=numpy.uint32)
-    over_y    = numpy.zeros(0, dtype=numpy.uint32)
-    over_data = numpy.zeros(0, dtype=numpy.float32)
-    rows      = numpy.arange(N_e*N_t)
-    _srows    = {'left' : {}, 'right' : {}}
+    over_x = [numpy.zeros(0, dtype=numpy.uint32)]
+    over_y = [numpy.zeros(0, dtype=numpy.uint32)]
+    over_data = [numpy.zeros(0, dtype=numpy.float32)]
+    rows = numpy.arange(N_e*N_t)
+    _srows = {'left': {}, 'right': {}}
 
     if decimation:
         nb_delays = len(all_delays) // 10
@@ -1896,9 +1915,8 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
         all_delays = all_delays[indices]
 
     for idelay in all_delays:
-        _srows['left'][idelay]  = numpy.where(rows % N_t < idelay)[0]
+        _srows['left'][idelay] = numpy.where(rows % N_t < idelay)[0]
         _srows['right'][idelay] = numpy.where(rows % N_t >= (N_t - idelay))[0]
-
 
     for ielec in to_explore:
 
@@ -1910,11 +1928,11 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
         if len_local > 0:
 
-            to_consider   = numpy.arange(upper_bounds)
+            to_consider = numpy.arange(upper_bounds)
             if not half:
                 to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
 
-            loc_templates  = templates[:, local_idx].tocsr()
+            loc_templates = templates[:, local_idx].tocsr()
             loc_templates2 = templates[:, to_consider].tocsr()
 
             for idelay in all_delays:
@@ -1925,21 +1943,25 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
                 if use_gpu:
                     tmp_1 = cmt.SparseCUDAMatrix(tmp_1, copy_on_host=False)
                     tmp_2 = cmt.CUDAMatrix(tmp_2.toarray(), copy_on_host=False)
-                    data  = cmt.sparse_dot(tmp_1, tmp_2).asarray()
+                    data = cmt.sparse_dot(tmp_1, tmp_2).asarray()
                 else:
-                    data  = tmp_1.dot(tmp_2)
+                    data = tmp_1.dot(tmp_2)
 
-                dx, dy     = data.nonzero()
-                ddx        = numpy.take(local_idx, dx).astype(numpy.uint32)
-                ddy        = numpy.take(to_consider, dy).astype(numpy.uint32)
-                ones       = numpy.ones(len(dx), dtype=numpy.uint32)
-                over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
-                over_y     = numpy.concatenate((over_y, (idelay - 1)*ones))
-                over_data  = numpy.concatenate((over_data, data.data))
+                dx, dy = data.nonzero()
+                ddx = numpy.take(local_idx, dx).astype(numpy.uint32)
+                ddy = numpy.take(to_consider, dy).astype(numpy.uint32)
+                ones = numpy.ones(len(dx), dtype=numpy.uint32)
+                over_x.append(ddx*N_tm + ddy)
+                over_y.append((idelay - 1)*ones)
+                over_data.append(data.data)
                 if idelay < N_t:
-                    over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
-                    over_y     = numpy.concatenate((over_y, (duration - idelay)*ones))
-                    over_data  = numpy.concatenate((over_data, data.data))
+                    over_x.append(ddy*N_tm + ddx)
+                    over_y.append((duration - idelay)*ones)
+                    over_data.append(data.data)
+
+    over_x = numpy.concatenate(over_x)
+    over_y = numpy.concatenate(over_y)
+    over_data = numpy.concatenate(over_data)
 
     sys.stderr.flush()
     if comm.rank == 0:
@@ -1947,14 +1969,14 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     comm.Barrier()
 
-    #We need to gather the sparse arrays
-    over_x    = gather_array(over_x, comm, dtype='uint32', compress=blosc_compress)
-    over_y    = gather_array(over_y, comm, dtype='uint32', compress=blosc_compress)
+    # We need to gather the sparse arrays.
+    over_x = gather_array(over_x, comm, dtype='uint32', compress=blosc_compress)
+    over_y = gather_array(over_y, comm, dtype='uint32', compress=blosc_compress)
     over_data = gather_array(over_data, comm, compress=blosc_compress)
     over_shape = numpy.array([N_tm**2, duration], dtype=numpy.int32)
 
     if comm.rank == 0:
-        hfile      = h5py.File(filename, 'w', libver='earliest')
+        hfile = h5py.File(filename, 'w', libver='earliest')
         if hdf5_compress:
             hfile.create_dataset('over_x', data=over_x, compression='gzip')
             hfile.create_dataset('over_y', data=over_y, compression='gzip')
@@ -1970,18 +1992,20 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
 
     if maxoverlap:
 
-        assert (half == False), "Error"
+        assert not half, "Error"
         N_half = N_tm // 2
 
         if not SHARED_MEMORY:
             if comm.rank > 0:
                 over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension=extension)
         else:
-            over_x, over_y, over_data, over_shape = load_data_memshared(params, 'overlaps-raw', extension=extension, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu)
+            over_x, over_y, over_data, over_shape = load_data_memshared(
+                params, 'overlaps-raw', extension=extension, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu
+            )
 
-        #sub_comm, is_local = get_local_ring(True)
+        # sub_comm, is_local = get_local_ring(True)
 
-        #if is_local:
+        # if is_local:
         maxlag = numpy.zeros((N_half, N_half), dtype=numpy.int32)
         maxoverlap = numpy.zeros((N_half, N_half), dtype=numpy.float32)
 
@@ -1993,12 +2017,12 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             local_x = over_x[idx] - (i*N_tm+i+1)
             data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            maxlag[i, i+1:]     = N_t - numpy.argmax(data, 1)
-            maxlag[i+1:, i]     = -maxlag[i, i+1:]
+            maxlag[i, i+1:] = N_t - numpy.argmax(data, 1)
+            maxlag[i+1:, i] = -maxlag[i, i+1:]
             maxoverlap[i, i+1:] = numpy.max(data, 1)
             maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
 
-        #Now we need to sync everything across nodes
+        # Now we need to sync everything across nodes.
         maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=blosc_compress)
 
         if comm.rank == 0:
@@ -2010,11 +2034,11 @@ def get_overlaps(params, extension='', erase=False, normalize=True, maxoverlap=T
             maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
             maxoverlap = numpy.sum(maxoverlap, 0)
 
-        #sub_comm.Barrier()
-        #sub_comm.Free()
+        # sub_comm.Barrier()
+        # sub_comm.Free()
 
         if comm.rank == 0:
-            myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' %extension, 'r+', libver='earliest')
+            myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r+', libver='earliest')
 
             for key in ['maxoverlap', 'maxlag', 'version']:
                 if key in myfile2.keys():

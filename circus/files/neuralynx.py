@@ -1,20 +1,29 @@
-import numpy, re, sys, os, datetime, warnings
+import numpy
+import re
+import sys
+import os
+import datetime
+import warnings
 import logging
 from .datafile import DataFile
 from circus.shared.messages import print_and_log
 
+
 logger = logging.getLogger(__name__)
+
 
 def atoi(text):
     return int(text) if text.isdigit() else text
 
+
 def natural_keys(text):
-    '''
+    """
     alist.sort(key=natural_keys) sorts in human order
     http://nedbatchelder.com/blog/200712/human_sorting.html
     (See Toothy's implementation in the comments)
-    '''
-    return [atoi(c) for c in re.split('(\d+)', text) ]
+    """
+    return [atoi(c) for c in re.split('(\d+)', text)]
+
 
 def filter_per_extension(files, extension):
     results = []
@@ -55,58 +64,65 @@ def filter_name_duplicates(tmp_all_files, ncs_pattern=''):
 
 class NeuraLynxFile(DataFile):
 
-    description    = "neuralynx"    
-    extension      = [".ncs"]
+    description = "neuralynx"
+    extension = [".ncs"]
     parallel_write = True
-    is_writable    = True
-    is_streamable  = ['multi-files', 'multi-folders']
+    is_writable = True
+    is_streamable = ['multi-files', 'multi-folders']
 
     # constants
-    NUM_HEADER_BYTES   = 16 * 1024  # 16 kilobytes of header
+    NUM_HEADER_BYTES = 16 * 1024  # 16 kilobytes of header
     SAMPLES_PER_RECORD = 512
-    RECORD_SIZE        = 8 + 4 + 4 + 4 + SAMPLES_PER_RECORD*2 # size of each continuous record in bytes
-    OFFSET_PER_BLOCK   = ((8 + 4 + 4 + 4)/2, 0)
+    RECORD_SIZE = 8 + 4 + 4 + 4 + SAMPLES_PER_RECORD * 2  # size of each continuous record in bytes
+    OFFSET_PER_BLOCK = ((8 + 4 + 4 + 4) / 2, 0)
 
-    _params            = {'data_dtype'   : 'int16',
-                          'dtype_offset' : 0,
-                          'data_offset'  : NUM_HEADER_BYTES}
+    _params = {
+        'data_dtype': 'int16',
+        'dtype_offset': 0,
+        'data_offset': NUM_HEADER_BYTES
+    }
 
-    _default_values    = {'ncs_pattern' : ''}
+    _default_values = {
+        'ncs_pattern': ''
+    }
 
     def set_streams(self, stream_mode):
 
         # We assume that all names are in the forms XXXX_channel.ncs
 
         if stream_mode == 'multi-files':
-            dirname         = os.path.abspath(os.path.dirname(self.file_name))
-            fname           = os.path.basename(self.file_name)
-            fn, ext         = os.path.splitext(fname)
-            tmp_all_files   = os.listdir(dirname)
-            tmp_all_files   = filter_per_extension(tmp_all_files, ext)
+            dirname = os.path.abspath(os.path.dirname(self.file_name))
+            fname = os.path.basename(self.file_name)
+            fn, ext = os.path.splitext(fname)
+            tmp_all_files = os.listdir(dirname)
+            tmp_all_files = filter_per_extension(tmp_all_files, ext)
             tmp_all_files.sort(key=natural_keys)
 
             all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
 
-            sources         = []
-            to_write        = []
-            global_time     = 0
-            params          = self.get_description()
+            sources = []
+            to_write = []
+            global_time = 0
+            params = self.get_description()
 
             for fname in all_files:
                 params['ncs_pattern'] = '_'.join(fname.split('_')[:-1])
-                new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
+                new_data = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
-                sources     += [new_data]
-                to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
+                sources += [new_data]
+                to_write += [
+                    "We found the datafile %s with t_start %s and duration %s"
+                    % (new_data.file_name, new_data.t_start, new_data.duration)
+                ]
 
             print_and_log(to_write, 'debug', logger)
             return sources
 
         elif stream_mode == 'multi-folders':
-            dirname         = os.path.abspath(os.path.dirname(self.file_name))
-            upper_dir       = os.path.dirname(dirname)
-            fname           = os.path.basename(self.file_name)
+            dirname = os.path.abspath(os.path.dirname(self.file_name))
+            upper_dir = os.path.dirname(dirname)
+            fname = os.path.basename(self.file_name)
 
             all_directories = os.listdir(upper_dir)
             all_files = []
@@ -117,24 +133,24 @@ class NeuraLynxFile(DataFile):
                     all_local_files = os.listdir(local_dir)
                     for local_file in all_local_files:
                         ncs_file = os.path.join(upper_dir, local_dir, local_file)
-                        is_valid = len(re.findall(".*_%s_1.ncs" %self.params['ncs_pattern'], ncs_file)) > 0
+                        is_valid = len(re.findall(".*_%s_1.ncs" % self.params['ncs_pattern'], ncs_file)) > 0
                         if is_valid and ncs_file not in all_files:
                             all_files += [ncs_file]
-         
+
             all_files.sort(key=natural_keys)
 
-            sources         = []
-            to_write        = []
-            global_time     = 0
-            params          = self.get_description()
+            sources = []
+            to_write = []
+            global_time = 0
+            params = self.get_description()
 
             for fname in all_files:
                 params['ncs_pattern'] = self.params['ncs_pattern']
-                new_data   = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
+                new_data = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
-                sources     += [new_data]
-                to_write    += ['We found the datafile %s with t_start %s and duration %s' %(new_data.file_name, new_data.t_start, new_data.duration)]
+                sources += [new_data]
+                to_write += ['We found the datafile %s with t_start %s and duration %s' % (new_data.file_name, new_data.t_start, new_data.duration)]
 
             print_and_log(to_write, 'debug', logger)
             return sources
@@ -153,12 +169,11 @@ class NeuraLynxFile(DataFile):
                                      tmp_time[0], tmp_time[1], tmp_time[2],  # Hour, minute, second
                                      tmp_microsecond)
 
-
     def _get_sorted_channels_(self):
         
         directory = os.path.dirname(self.file_name)
         all_files = os.listdir(directory)
-        alist     = []
+        alist = []
 
         for f in all_files:
             if self.params['ncs_pattern'] != '':
@@ -188,7 +203,7 @@ class NeuraLynxFile(DataFile):
         # Try to read the original file path
         try:
             assert hdr_lines[1].split()[1:3] == ['File', 'Name']
-            header[u'FileName']  = ' '.join(hdr_lines[1].split()[3:])
+            header[u'FileName'] = ' '.join(hdr_lines[1].split()[3:])
             # hdr['save_path'] = hdr['FileName']
         except:
             print_and_log(['Unable to parse original file path from Neuralynx header: ' + hdr_lines[1]], 'debug', logger)
@@ -209,13 +224,12 @@ class NeuraLynxFile(DataFile):
 
         return header
 
-
     def _read_from_header(self):
 
-        folder_path   = os.path.dirname(os.path.abspath(self.file_name))
+        folder_path = os.path.dirname(os.path.abspath(self.file_name))
         tmp_all_files = self._get_sorted_channels_()
-        regexpr       = re.compile('\d+')
-        all_files     = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
+        regexpr = re.compile('\d+')
+        all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
 
         name = '_'.join(all_files[0].split('_')[:-1])
         self.all_channels = []
@@ -226,24 +240,23 @@ class NeuraLynxFile(DataFile):
                 self.all_channels += [int(regexpr.findall(f)[0])]
                 self.all_files += [f]
 
-        self.header             = self._read_header_(self.all_files[0])
+        self.header = self._read_header_(self.all_files[0])
         
-        header                  = {}
+        header = {}
         header['sampling_rate'] = float(self.header['SamplingFrequency'])        
-        header['nb_channels']   = len(self.all_channels)
-        header['gain']          = float(self.header['ADBitVolts'])*1000000
+        header['nb_channels'] = len(self.all_channels)
+        header['gain'] = float(self.header['ADBitVolts']) * 1000000
 
-        self.inverse     = self.header.has_key('InputInverted') and (self.header['InputInverted'] == 'True')
+        self.inverse = self.header.has_key('InputInverted') and (self.header['InputInverted'] == 'True')
         if self.inverse:
             header['gain'] *= -1
 
-        g                = open(self.all_files[0], 'rb')
-        self.size        = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE - 1) * self.SAMPLES_PER_RECORD
-        self._shape      = (self.size, header['nb_channels'])
+        g = open(self.all_files[0], 'rb')
+        self.size = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE - 1) * self.SAMPLES_PER_RECORD
+        self._shape = (self.size, header['nb_channels'])
         g.close()
-        
-        return header
 
+        return header
 
     def _get_slice_(self, t_start, t_stop):
 
@@ -252,7 +265,7 @@ class NeuraLynxFile(DataFile):
         x_end = numpy.int64(t_stop // self.SAMPLES_PER_RECORD)
         r_end = numpy.mod(t_stop, self.SAMPLES_PER_RECORD)
 
-        data_slice  = []
+        data_slice = []
 
         if x_beg == x_end:
             g_offset = x_beg * self.SAMPLES_PER_RECORD + self.OFFSET_PER_BLOCK[0]*(x_beg + 1) + self.OFFSET_PER_BLOCK[1]*x_beg
@@ -262,23 +275,22 @@ class NeuraLynxFile(DataFile):
                 g_offset = nb_blocks * self.SAMPLES_PER_RECORD + self.OFFSET_PER_BLOCK[0]*(nb_blocks + 1) + self.OFFSET_PER_BLOCK[1]*nb_blocks
                 if count == 0:
                     data_slice += numpy.arange(g_offset + r_beg, g_offset + self.SAMPLES_PER_RECORD, dtype=numpy.int64).tolist()
-                elif (count == (x_end - x_beg)):
+                elif count == (x_end - x_beg):
                     data_slice += numpy.arange(g_offset, g_offset + r_end, dtype=numpy.int64).tolist()
                 else:
                     data_slice += numpy.arange(g_offset, g_offset + self.SAMPLES_PER_RECORD, dtype=numpy.int64).tolist()
         return data_slice
 
-
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
-        local_shape     = t_stop - t_start
+        local_shape = t_stop - t_start
 
         if nodes is None:
             nodes = numpy.arange(self.nb_channels)
 
         local_chunk = numpy.zeros((local_shape, len(nodes)), dtype=self.data_dtype)
-        data_slice  = self._get_slice_(t_start, t_stop) 
+        data_slice = self._get_slice_(t_start, t_stop)
 
         self._open()
         for count, i in enumerate(nodes):
@@ -289,22 +301,25 @@ class NeuraLynxFile(DataFile):
 
     def write_chunk(self, time, data):
 
-        t_start     = time
-        t_stop      = time + data.shape[0]
+        t_start = time
+        t_stop = time + data.shape[0]
 
         if t_stop > self.duration:
-            t_stop  = self.duration
+            t_stop = self.duration
 
-        data_slice  = self._get_slice_(t_start, t_stop) 
-        data        = self._unscale_data_from_float32(data)
-        
+        data_slice = self._get_slice_(t_start, t_stop)
+        data = self._unscale_data_from_float32(data)
+
         self._open(mode='r+')
-        for i in xrange(self.nb_channels):
+        for i in range(self.nb_channels):
             self.data[i][data_slice] = data[:, i]
         self._close()
 
     def _open(self, mode='r'):
-        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode) for i in xrange(self.nb_channels)]
+        self.data = [
+            numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode)
+            for i in range(self.nb_channels)
+        ]
         
     def _close(self):
         self.data = None

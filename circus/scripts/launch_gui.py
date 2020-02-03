@@ -50,6 +50,7 @@ if sys.platform == 'win32':
             ]
     LPWinProcInfo = ctypes.POINTER(WinProcInfo)
 
+
 def strip_ansi_codes(s):
     return re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?', '', s)
 
@@ -193,7 +194,6 @@ class LaunchGUI(QDialog):
             self.ui.lbl_file.setText('Data file')
         self.update_command()
 
-
     def changing_tab(self):
         if self.ui.tabWidget.currentIndex() == 0:
             self.update_command()
@@ -228,7 +228,7 @@ class LaunchGUI(QDialog):
     def update_result_tab(self):
         if str(self.ui.edit_file.text()) != '':
             f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
-            ft        = os.path.basename(os.path.normpath(f_next))
+            ft = os.path.basename(os.path.normpath(f_next))
             f_results = os.path.join(f_next, ft + '.result.hdf5')
             if os.path.exists(f_results):
                 self.ui.selection_gui.setEnabled(True)
@@ -239,9 +239,7 @@ class LaunchGUI(QDialog):
 
     def update_extension(self):
         batch_mode = self.ui.cb_batch.isChecked()
-        if (not batch_mode and (self.ui.cb_merging.isChecked() or
-                                    self.ui.cb_converting.isChecked() or 
-                                    self.ui.cb_deconverting.isChecked())):
+        if (not batch_mode and (self.ui.cb_merging.isChecked() or self.ui.cb_converting.isChecked() or self.ui.cb_deconverting.isChecked())):
             self.ui.edit_extension.setEnabled(True)
         else:
             self.ui.edit_extension.setEnabled(False)
@@ -313,7 +311,7 @@ class LaunchGUI(QDialog):
         f = open(self.params, 'r')
         lines = f.readlines()
         f.close()
-        text  = ''.join(lines)
+        text = ''.join(lines)
         self.ui.param_editor.setPlainText(text)
 
     def save_params(self):
@@ -345,7 +343,6 @@ class LaunchGUI(QDialog):
         assert self.last_log_file is not None
         QDesktopServices.openUrl(QUrl(self.last_log_file))
 
-
     def gui_command_line_args(self):
 
         if self.ui.rb_gui_matlab.isChecked():
@@ -363,7 +360,6 @@ class LaunchGUI(QDialog):
             args.extend(['--extension', extension])
 
         return args
-
 
     def command_line_args(self):
         batch_mode = self.ui.cb_batch.isChecked()
@@ -414,6 +410,7 @@ class LaunchGUI(QDialog):
         self.ui.edit_command.setPlainText(args)
 
     def update_command(self, text=None):
+        _ = text  # (PyCharm code inspection)
         args = ' '.join(self.command_line_args())
         self.ui.edit_command.setPlainText(args)
 
@@ -437,10 +434,10 @@ class LaunchGUI(QDialog):
 
         # # Start process
         self.ui.edit_stdout.clear()
-        format = self.ui.edit_stdout.currentCharFormat()
-        format.setFontWeight(QFont.Normal)
-        format.setForeground(Qt.blue)
-        self.ui.edit_stdout.setCurrentCharFormat(format)
+        format_ = self.ui.edit_stdout.currentCharFormat()
+        format_.setFontWeight(QFont.Normal)
+        format_.setForeground(Qt.blue)
+        self.ui.edit_stdout.setCurrentCharFormat(format_)
         time_str = datetime.datetime.now().ctime()
         start_msg = '''\
                        Starting spyking circus at {time_str}.
@@ -449,8 +446,8 @@ class LaunchGUI(QDialog):
                        {call}
                     '''.format(time_str=time_str, call=' '.join(args))
         self.ui.edit_stdout.appendPlainText(textwrap.dedent(start_msg))
-        format.setForeground(Qt.black)
-        self.ui.edit_stdout.setCurrentCharFormat(format)
+        format_.setForeground(Qt.black)
+        self.ui.edit_stdout.setCurrentCharFormat(format_)
         self.ui.edit_stdout.appendPlainText('\n')
 
         self.process = QProcess(self)
@@ -481,49 +478,45 @@ class LaunchGUI(QDialog):
         self.app.setOverrideCursor(Qt.WaitCursor)
 
     def process_finished(self, exit_code):
-        format = self.ui.edit_stdout.currentCharFormat()
-        format.setFontWeight(QFont.Bold)
+        format_ = self.ui.edit_stdout.currentCharFormat()
+        format_.setFontWeight(QFont.Bold)
         if exit_code == 0:
             if self._interrupted:
                 color = Qt.red
-                msg = ('Process interrupted by user')
+                msg = 'Process interrupted by user'
             else:
                 color = Qt.green
-                msg = ('Process exited normally')
+                msg = 'Process exited normally'
         else:
             color = Qt.red
             msg = ('Process exited with exit code %d' % exit_code)
-        format.setForeground(color)
-        self.ui.edit_stdout.setCurrentCharFormat(format)
+        format_.setForeground(color)
+        self.ui.edit_stdout.setCurrentCharFormat(format_)
         self.ui.edit_stdout.appendPlainText(msg)
         self.restore_gui()
-        self.ui.edit_stdout.setTextInteractionFlags(Qt.TextSelectableByMouse |
-                                                    Qt.TextSelectableByKeyboard)
+        self.ui.edit_stdout.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
         self.process = None
-        self.ui.btn_log.setEnabled(self.last_log_file is not None and
-                                   os.path.isfile(self.last_log_file))
+        self.ui.btn_log.setEnabled(self.last_log_file is not None and os.path.isfile(self.last_log_file))
 
     def process_errored(self):
         try:
             exit_code = self.process.exitCode()
         except Exception:
             exit_code = 0
-        format = self.ui.edit_stdout.currentCharFormat()
-        format.setFontWeight(QFont.Bold)
-        format.setForeground(Qt.red)
-        self.ui.edit_stdout.setCurrentCharFormat(format)
+        format_ = self.ui.edit_stdout.currentCharFormat()
+        format_.setFontWeight(QFont.Bold)
+        format_.setForeground(Qt.red)
+        self.ui.edit_stdout.setCurrentCharFormat(format_)
         self.ui.edit_stdout.appendPlainText('Process exited with exit code %s' % exit_code)
         self.restore_gui()
-        self.ui.edit_stdout.setTextInteractionFlags(Qt.TextSelectableByMouse |
-                                                    Qt.TextSelectableByKeyboard)
+        self.ui.edit_stdout.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
         self.process = None
 
     def add_output_lines(self, lines):
-        '''
-        Add the output line by line to the text area, jumping back to the
+        """Add the output line by line to the text area, jumping back to the
         beginning of the line when we encounter a carriage return (to
         correctly display progress bars)
-        '''
+        """
         cursor = self.ui.edit_stdout.textCursor()
         cursor.clearSelection()
         splitted_lines = lines.split('\n')
@@ -538,8 +531,7 @@ class LaunchGUI(QDialog):
                 overwrite_text(cursor, line)
 
             # Take care to not introduce new newlines
-            if '\n' in lines and (idx == 0 or
-                                          idx != len(splitted_lines) - 1):
+            if '\n' in lines and (idx == 0 or idx != len(splitted_lines) - 1):
                 cursor.movePosition(QTextCursor.EndOfLine)
                 cursor.insertText('\n')
         self.ui.edit_stdout.setTextCursor(cursor)
@@ -657,7 +649,6 @@ class LaunchGUI(QDialog):
                 self.process.terminate()
                 self.process = None
 
-
     def create_params_file(self, fname):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)
@@ -688,11 +679,12 @@ class LaunchGUI(QDialog):
         msg.setIcon(QMessageBox.Question)
         msg.setText("SpyKING CIRCUS v%s" %circus.__version__)
         msg.setWindowTitle("About")
-        msg.setInformativeText("Documentation can be found at\n"
-                                "http://spyking-circus.rtfd.org\n"
-                                "\n"
-                                "Open a browser to see the online help?"
-            )
+        msg.setInformativeText(
+            "Documentation can be found at\n"
+            "http://spyking-circus.rtfd.org\n"
+            "\n"
+            "Open a browser to see the online help?"
+        )
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.No)
         answer = msg.exec_()
@@ -704,13 +696,14 @@ class LaunchGUI(QDialog):
         msg.setIcon(QMessageBox.Question)
         msg.setText("Setting the number of CPUs")
         msg.setWindowTitle("Number of CPUs")
-        msg.setInformativeText("SpyKING CIRCUS can use several CPUs "
-                               "either locally or on multiple machines "
-                               "using MPI (see documentation) "
-                               "\n"
-                               "\n"
-                               "You have %d local CPUs available" %psutil.cpu_count()
-            )
+        msg.setInformativeText(
+            "SpyKING CIRCUS can use several CPUs "
+            "either locally or on multiple machines "
+            "using MPI (see documentation) "
+            "\n"
+            "\n"
+            "You have %d local CPUs available" % psutil.cpu_count()
+        )
         msg.setStandardButtons(QMessageBox.Close)
         msg.setDefaultButton(QMessageBox.Close)
         answer = msg.exec_()
@@ -731,15 +724,16 @@ class LaunchGUI(QDialog):
                     is_available = True
                 except Exception:
                     is_available = False
-            info = "%d GPU is detected on your system" %(gpu_id + 1)
+            info = "%d GPU is detected on your system" % (gpu_id + 1)
 
-        msg.setInformativeText("SpyKING CIRCUS can use several GPUs\n"
-                               "either locally or on multiple machine\n"
-                               "using MPI (see documentation)"
-                               "\n"
-                               "\n"
-                               "%s" %info
-            )
+        msg.setInformativeText(
+            "SpyKING CIRCUS can use several GPUs\n"
+            "either locally or on multiple machine\n"
+            "using MPI (see documentation)"
+            "\n"
+            "\n"
+            "%s" % info
+        )
         msg.setStandardButtons(QMessageBox.Close)
         msg.setDefaultButton(QMessageBox.Close)
         answer = msg.exec_()
@@ -750,12 +744,10 @@ class LaunchGUI(QDialog):
         msg.setText("Supported file formats")
         msg.setWindowTitle("File formats")
 
-
         msg.setInformativeText("\n".join(list_all_file_format()))
         msg.setStandardButtons(QMessageBox.Close)
         msg.setDefaultButton(QMessageBox.Close)
         answer = msg.exec_()
-
 
     def open_plot_folder(self):
         f_next, _ = os.path.splitext(str(self.ui.edit_file.text()))
@@ -772,12 +764,16 @@ class LaunchGUI(QDialog):
         if self.process is not None:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
-            msg.setWindowTitle('Confirm process interruption')
-            msg.setText('Closing the window will terminate the running process. '
-                        'Do you really want to exit?')
-            msg.setInformativeText('Interrupting the process may leave partly '
-                                   'created files that cannot be used for '
-                                   'further analysis.')
+            msg.setWindowTitle("Confirm process interruption")
+            msg.setText(
+                "Closing the window will terminate the running process. "
+                "Do you really want to exit?"
+            )
+            msg.setInformativeText(
+                "Interrupting the process may leave partly "
+                "created files that cannot be used for "
+                "further analysis."
+            )
             close_button = msg.addButton("Stop and close", QMessageBox.YesRole)
             cancel_button = msg.addButton("Cancel", QMessageBox.NoRole)
             msg.setDefaultButton(cancel_button)

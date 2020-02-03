@@ -8,7 +8,7 @@ import psutil
 
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 
 import pkg_resources
@@ -37,8 +37,8 @@ def main(argv=None):
     os.environ['HDF5_USE_FILE_LOCKING'] = "FALSE"
 
     parallel_hdf5 = h5py.get_config().mpi
-    user_path     = pjoin(os.path.expanduser('~'), 'spyking-circus')
-    tasks_list    = None
+    user_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
+    tasks_list = None
 
     if not os.path.exists(user_path):
         os.makedirs(user_path)
@@ -50,7 +50,6 @@ def main(argv=None):
     except Exception:
         HAVE_CUDA = False
 
-
     all_steps = [
         'whitening', 'clustering', 'fitting', 'gathering', 'extracting',
         'filtering', 'converting', 'deconverting', 'benchmarking',
@@ -59,9 +58,9 @@ def main(argv=None):
 
     config_file = os.path.abspath(pkg_resources.resource_filename('circus', 'config.params'))
 
-    header  = get_colored_header()
+    header = get_colored_header()
     header += Fore.GREEN + 'Local CPUs    : ' + Fore.CYAN + str(psutil.cpu_count()) + '\n'
-    #header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
+    # header += Fore.GREEN + 'GPU detected  : ' + Fore.CYAN + str(HAVE_CUDA) + '\n'
     header += Fore.GREEN + 'Parallel HDF5 : ' + Fore.CYAN + str(parallel_hdf5) + '\n'
 
     do_upgrade = ''
@@ -96,7 +95,7 @@ but a subset x,y can be done. Steps are:
                         default='filtering,whitening,clustering,fitting,merging',
                         help=method_help)
     parser.add_argument('-c', '--cpu', type=int, default=int(psutil.cpu_count()/2), help='number of CPU')
-    #parser.add_argument('-g', '--gpu', type=int, default=0, help='number of GPU')
+    # parser.add_argument('-g', '--gpu', type=int, default=0, help='number of GPU')
     parser.add_argument('-H', '--hostfile', help='hostfile for MPI',
                         default=pjoin(user_path, 'circus.hosts'))
     parser.add_argument('-b', '--batch', help='datafile is a list of commands to launch, in a batch mode',
@@ -126,9 +125,8 @@ but a subset x,y can be done. Steps are:
 
     # To save some typing later
     nb_gpu = 0
-    (nb_cpu, hostfile, batch,
-     preview, result, extension, output, benchmark, info, second) = (args.cpu, args.hostfile, args.batch,
-                                                       args.preview, args.result, args.extension, args.output, args.type, args.info, args.second)
+    (nb_cpu, hostfile, batch, preview, result, extension, output, benchmark, info, second) = \
+        (args.cpu, args.hostfile, args.batch, args.preview, args.result, args.extension, args.output, args.type, args.info, args.second)
     filename = os.path.abspath(args.datafile)
     real_file = filename
 
@@ -142,7 +140,12 @@ but a subset x,y can be done. Steps are:
 
             __supported_data_files__[args.datafile.lower()](filename, {}, is_empty=True)._display_requirements_()
         else:
-            print_and_log(['', 'To get info on any particular file format, do:', '>> spyking-circus file_format -i', ''], 'default')
+            print_and_log([
+                '',
+                'To get info on any particular file format, do:',
+                '>> spyking-circus file_format -i',
+                ''
+            ], 'default')
             print_and_log(list_all_file_format())
         sys.exit(0)
 
@@ -152,12 +155,12 @@ but a subset x,y can be done. Steps are:
 
     file_params = f_next + '.params'
     if not os.path.exists(file_params) and not batch:
-        print Fore.RED + 'The parameter file %s is not present!' %file_params
+        print(Fore.RED + 'The parameter file %s is not present!' % file_params)
         create_params = query_yes_no(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file?")
 
         if create_params:
-            print Fore.WHITE + "Creating", file_params
-            print Fore.WHITE + "Fill it properly before launching the code! (see documentation)"
+            print(Fore.WHITE + "Creating %s" % file_params)
+            print(Fore.WHITE + "Fill it properly before launching the code! (see documentation)")
             print_info(['Keep in mind that filtering is performed on site, so please',
                         'be sure to keep a copy of your data elsewhere'])
             shutil.copyfile(config_file, file_params)
@@ -166,16 +169,16 @@ but a subset x,y can be done. Steps are:
         tasks_list = filename
 
     if not batch:
-        file_params  = f_next + '.params'
+        file_params = f_next + '.params'
 
         if not os.path.exists(file_params):
-            print_and_log(["%s does not exist" %self.file_params], 'error')
+            print_and_log(["%s does not exist" % file_params], 'error')
             sys.exit(0)
 
         import ConfigParser as configparser
         parser = configparser.ConfigParser()
         myfile = open(file_params, 'r')
-        lines  = myfile.readlines()
+        lines = myfile.readlines()
         myfile.close()
         myfile = open(file_params, 'w')
         for l in lines:
@@ -205,45 +208,45 @@ but a subset x,y can be done. Steps are:
             file_out = f_next
 
 
-        logfile      = file_out + '.log'
+        logfile = file_out + '.log'
         if os.path.exists(logfile):
             os.remove(logfile)
 
-        logger       = init_logging(logfile)
-        params       = CircusParser(filename)
-        data_file    = params.get_data_file(source=True, has_been_created=False)
-        overwrite    = params.getboolean('data', 'overwrite')
-        file_format  = params.get('data', 'file_format')
+        logger = init_logging(logfile)
+        params = CircusParser(filename)
+        data_file = params.get_data_file(source=True, has_been_created=False)
+        overwrite = params.getboolean('data', 'overwrite')
+        file_format = params.get('data', 'file_format')
         if overwrite:
             support_parallel_write = data_file.parallel_write
-            is_writable            = data_file.is_writable
+            is_writable = data_file.is_writable
         else:
             support_parallel_write = __supported_data_files__['raw_binary'].parallel_write
-            is_writable            = __supported_data_files__['raw_binary'].is_writable
+            is_writable = __supported_data_files__['raw_binary'].is_writable
 
     if preview:
-        print_and_log(['Preview mode, showing only seconds [%d-%d] of the recording' %(second, second+1)], 'info', logger)
+        print_and_log(['Preview mode, showing only seconds [%d-%d] of the recording' % (second, second+1)], 'info', logger)
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out')), 'tmp')
 
         if not os.path.exists(tmp_path_loc):
             os.makedirs(tmp_path_loc)
 
-        filename     = os.path.join(tmp_path_loc, 'preview.dat')
+        filename = os.path.join(tmp_path_loc, 'preview.dat')
         f_next, extens = os.path.splitext(filename)
         preview_params = f_next + '.params'
         shutil.copyfile(file_params, preview_params)
-        steps        = ['filtering', 'whitening']
+        steps = ['filtering', 'whitening']
 
-        chunk_size   = int(params.rate)
+        chunk_size = int(params.rate)
 
         data_file.open()
-        nb_chunks, _           = data_file.analyze(chunk_size)
+        nb_chunks, _ = data_file.analyze(chunk_size)
 
         if nb_chunks <= (second + 1):
-            print_and_log(['Recording is too short to display seconds [%d-%d]' %(second, second+1)])
+            print_and_log(['Recording is too short to display seconds [%d-%d]' % (second, second+1)])
             sys.exit(0)
         local_chunk = data_file.get_snippet(int(second*params.rate), chunk_size)
-        description            = data_file.get_description()
+        description = data_file.get_description()
         data_file.close()
 
         new_params = CircusParser(filename, create_folders=False)
@@ -262,15 +265,15 @@ but a subset x,y can be done. Steps are:
         new_params.write('data', 'preview_path', params.file_params)
         new_params.write('data', 'output_dir', '')
 
-        description['data_dtype']   = 'float32'
+        description['data_dtype'] = 'float32'
         description['dtype_offset'] = 0
-        description['data_offset']  = 0
-        description['gain']         = 1.
-        new_params    = CircusParser(filename)
+        description['data_offset'] = 0
+        description['gain'] = 1.
+        new_params = CircusParser(filename)
         data_file_out = new_params.get_data_file(is_empty=True, params=description)
 
         support_parallel_write = data_file_out.parallel_write
-        is_writable            = data_file_out.is_writable
+        is_writable = data_file_out.is_writable
 
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
@@ -284,34 +287,34 @@ but a subset x,y can be done. Steps are:
                     subprocess.check_call(['spyking-circus'] + line.replace('\n', '').split(" "))
     else:
 
-        print_and_log(['Config file: %s' %(f_next + '.params')], 'debug', logger)
-        print_and_log(['Data file  : %s' %filename], 'debug', logger)
+        print_and_log(['Config file: %s' % (f_next + '.params')], 'debug', logger)
+        print_and_log(['Data file  : %s' % filename], 'debug', logger)
 
-        print get_colored_header()
-        print Fore.GREEN + "File          :", Fore.CYAN + real_file
+        print(get_colored_header())
+        print(Fore.GREEN + "File          : " + Fore.CYAN + real_file)
         if preview:
-            print Fore.GREEN + "Steps         :", Fore.CYAN + "preview mode"
+            print(Fore.GREEN + "Steps         : " + Fore.CYAN + "preview mode")
         elif result:
-            print Fore.GREEN + "Steps         :", Fore.CYAN + "result mode"
+            print(Fore.GREEN + "Steps         : " + Fore.CYAN + "result mode")
         else:
-            print Fore.GREEN + "Steps         :", Fore.CYAN + ", ".join(steps)
-        #print Fore.GREEN + "GPU detected  :", Fore.CYAN + str(HAVE_CUDA)
-        print Fore.GREEN + "Number of CPU :", Fore.CYAN + str(nb_cpu) + "/" + str(psutil.cpu_count())
-        #if HAVE_CUDA:
-        #    print Fore.GREEN + "Number of GPU :", Fore.CYAN + str(nb_gpu)
-        print Fore.GREEN + "Parallel HDF5 :", Fore.CYAN + str(parallel_hdf5)
+            print(Fore.GREEN + "Steps         : " + Fore.CYAN + ", ".join(steps))
+        # print Fore.GREEN + "GPU detected  : ", Fore.CYAN + str(HAVE_CUDA)
+        print(Fore.GREEN + "Number of CPU : " + Fore.CYAN + str(nb_cpu) + "/" + str(psutil.cpu_count()))
+        # if HAVE_CUDA:
+        #     print Fore.GREEN + "Number of GPU : ", Fore.CYAN + str(nb_gpu)
+        print(Fore.GREEN + "Parallel HDF5 : " + Fore.CYAN + str(parallel_hdf5))
 
         do_upgrade = ''
         use_shared_memory = get_shared_memory_flag(params)
         if not SHARED_MEMORY:
             do_upgrade = Fore.WHITE + '   [please consider upgrading MPI]'
 
-        print Fore.GREEN + "Shared memory :", Fore.CYAN + str(use_shared_memory) + do_upgrade
-        print Fore.GREEN + "Hostfile      :", Fore.CYAN + hostfile
-        print ""
-        print Fore.GREEN + "##################################################################"
-        print ""
-        print Fore.RESET
+        print(Fore.GREEN + "Shared memory : " + Fore.CYAN + str(use_shared_memory) + do_upgrade)
+        print(Fore.GREEN + "Hostfile      : " + Fore.CYAN + hostfile)
+        print("")
+        print(Fore.GREEN + "##################################################################")
+        print("")
+        print(Fore.RESET)
 
         # Launch the subtasks
         subtasks = [('filtering', 'mpirun'),
@@ -327,25 +330,25 @@ but a subset x,y can be done. Steps are:
                     ('validating', 'mpirun'),
                     ('thresholding', 'mpirun')]
 
-        #if HAVE_CUDA and nb_gpu > 0:
-        #    use_gpu = 'True'
-        #else:
+        # if HAVE_CUDA and nb_gpu > 0:
+        #     use_gpu = 'True'
+        # else:
         use_gpu = 'False'
 
-        time = data_stats(params)/60.
+        time = data_stats(params) / 60.0
 
         if preview:
             params = new_params
 
         if nb_cpu < psutil.cpu_count():
             if use_gpu != 'True' and not result:
-                print_and_log(['Using only %d out of %d local CPUs available (-c to change)' %(nb_cpu, psutil.cpu_count())], 'info', logger)
+                print_and_log(['Using only %d out of %d local CPUs available (-c to change)' % (nb_cpu, psutil.cpu_count())], 'info', logger)
 
         if params.getboolean('detection', 'matched-filter') and not params.getboolean('clustering', 'smart_search'):
-            print_and_log(['Smart Search should be activated for matched filtering' ], 'info', logger)
+            print_and_log(['Smart Search should be activated for matched filtering'], 'info', logger)
 
         if time > 30 and not params.getboolean('clustering', 'smart_search'):
-            print_and_log(['Smart Search should be activated for long recordings' ], 'info', logger)
+            print_and_log(['Smart Search should be activated for long recordings'], 'info', logger)
 
         n_edges = get_averaged_n_edges(params)
         if n_edges > 100 and not params.getboolean('clustering', 'compress'):
@@ -368,7 +371,7 @@ but a subset x,y can be done. Steps are:
 
                         if subtask in ['filtering', 'benchmarking'] and not is_writable:
                             if not preview and overwrite:
-                                print_and_log(['The file format %s is read only!' %file_format,
+                                print_and_log(['The file format %s is read only!' % file_format,
                                                'You should set overwite to False, to create a copy of the data.',
                                                'However, note that if you have streams, informations on times',
                                                'will be discarded'], 'info', logger)
@@ -383,9 +386,9 @@ but a subset x,y can be done. Steps are:
                             if subtask != 'fitting':
                                 nb_tasks = str(args.cpu)
                             else:
-                                #if use_gpu == 'True':
-                                #    nb_tasks = str(args.gpu)
-                                #else:
+                                # if use_gpu == 'True':
+                                #     nb_tasks = str(args.gpu)
+                                # else:
                                 nb_tasks = str(args.cpu)
 
                         if subtask == 'benchmarking':
@@ -418,8 +421,8 @@ but a subset x,y can be done. Steps are:
                                 use_gpu, str(one_cpu)
                             ]
 
-                        print_and_log(['Launching task %s' %subtask], 'debug', logger)
-                        print_and_log(['Command: %s' %str(mpi_args)], 'debug', logger)
+                        print_and_log(['Launching task %s' % subtask], 'debug', logger)
+                        print_and_log(['Command: %s' % str(mpi_args)], 'debug', logger)
 
                         try:
                             subprocess.check_call(mpi_args)

@@ -2,12 +2,14 @@ import numpy, os, mpi4py, logging, sys
 import mpi4py
 mpi4py.rc.threads = False
 from mpi4py import MPI
-from messages import print_and_log
+from circus.shared.messages import print_and_log
 comm = MPI.COMM_WORLD
 import blosc
-from distutils.version import StrictVersion
+# from distutils.version import StrictVersion
+
 
 logger = logging.getLogger(__name__)
+
 
 MPI_VENDOR = MPI.get_vendor()
 SHARED_MEMORY = (hasattr(MPI.Win, 'Allocate_shared') and callable(getattr(MPI.Win, 'Allocate_shared')))
@@ -16,9 +18,13 @@ SHARED_MEMORY = (hasattr(MPI.Win, 'Allocate_shared') and callable(getattr(MPI.Wi
 def test_mpi_ring(nb_nodes):
     if comm.size != nb_nodes:
         if comm.rank == 0:
-            print_and_log(['The MPI install does not seems to be correct!',
-                           'Be sure mpi4py has been compiled for your default version!'], 'warning', logger)
+            lines = [
+                "The MPI install does not seems to be correct!",
+                "Be sure mpi4py has been compiled for your default version!",
+            ]
+            print_and_log(lines, 'warning', logger)
         sys.exit()
+
 
 def check_if_cluster():
     from uuid import getnode as get_mac
@@ -26,14 +32,16 @@ def check_if_cluster():
     ips = all_gather_array(myip, comm, 1, 'int64')
     return not len(numpy.unique(ips)) == 1
 
+
 def check_valid_path(path):
 
     data = numpy.array([os.path.exists(path)], dtype='int32')
     res = all_gather_array(data, comm, dtype='int32').astype(numpy.bool)
     return numpy.all(res)
 
+
 def get_local_ring(local_only=False):
-    ## First we need to identify machines in the MPI ring
+    # # First we need to identify machines in the MPI ring.
     from uuid import getnode as get_mac
     myip = numpy.int64(get_mac()) % 100000
     is_local = False
@@ -47,12 +55,13 @@ def get_local_ring(local_only=False):
 
     return sub_comm, is_local
 
+
 def detect_memory(params, whitening=False, filtering=False, fitting=False):
     from psutil import virtual_memory
 
     N_e  = params.getint('data', 'N_e')
     safety_threshold = params.getfloat('data', 'memory_usage')
-    data_file        = params.data_file
+    data_file = params.data_file
     data_file.open()
     sampling_rate  = data_file.sampling_rate
     duation = data_file.duration
@@ -86,9 +95,10 @@ def detect_memory(params, whitening=False, filtering=False, fitting=False):
     chunk_size = min(max_memory, max_size)
     
     if comm.rank == 0:
-        print_and_log(['Setting data chunk size to %g second' %(chunk_size/float(sampling_rate))], 'debug', logger)
+        print_and_log(['Setting data chunk size to %g second' % (chunk_size/float(sampling_rate))], 'debug', logger)
 
     return chunk_size
+
 
 def gather_mpi_arguments(hostfile, params):
     print_and_log(['MPI detected: %s' % str(MPI_VENDOR)], 'debug', logger)
@@ -127,19 +137,20 @@ def gather_mpi_arguments(hostfile, params):
             mpi_args += ['-hostfile', hostfile]
     return mpi_args
 
+
 def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=False):
     # gather 1D or 2D numpy arrays
     assert isinstance(data, numpy.ndarray)
     assert len(data.shape) < 3
     # first we pass the data size
-    size  = data.size
+    size = data.size
     sizes = mpi_comm.gather(size, root=root) or []
     # now we pass the data
     displacements = [numpy.int64(sum(sizes[:i])) for i in range(len(sizes))]
 
-    np_type       = get_np_dtype(dtype)
-    mpi_type      = get_mpi_type(dtype)    
-    data_shape    = data.shape
+    np_type = get_np_dtype(dtype)
+    mpi_type = get_mpi_type(dtype)
+    data_shape = data.shape
 
     if not compress:
         gdata = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
@@ -168,6 +179,7 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=Fals
             else:
                 return gdata.reshape((gdata.shape[0], 0))
 
+
 def all_gather_array(data, mpi_comm, shape=0, dtype='float32', compress=False):
     # gather 1D or 2D numpy arrays
     assert isinstance(data, numpy.ndarray)
@@ -178,9 +190,9 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32', compress=False):
     # now we pass the data
     displacements = [numpy.int64(sum(sizes[:i])) for i in range(len(sizes))]
 
-    np_type       = get_np_dtype(dtype)
-    mpi_type      = get_mpi_type(dtype)
-    data_shape    = data.shape
+    np_type = get_np_dtype(dtype)
+    mpi_type = get_mpi_type(dtype)
+    data_shape = data.shape
 
     if not compress:
         gdata = numpy.empty(numpy.int64(sum(sizes)), dtype=np_type)
@@ -211,6 +223,7 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32', compress=False):
 
 def get_np_dtype(data_type):
     return numpy.dtype(data_type)
+
 
 def get_mpi_type(data_type):
     if hasattr(MPI, '_typedict'):
