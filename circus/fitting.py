@@ -74,7 +74,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     size_window = N_e * (2 * template_shift + 1)
 
     if not amp_auto:
-        amp_limits       = numpy.zeros((n_tm, 2))
+        amp_limits = numpy.zeros((n_tm, 2))
         amp_limits[:, 0] = tmp_limits[0]
         amp_limits[:, 1] = tmp_limits[1]
     else:
@@ -195,11 +195,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         peak_nbs_debug_file = open(file_out_suff + '.peak_nbs_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
-        peak_local_time_steps_debug_file = open(file_out_suff + '.peak_local_time_steps_debug_%d.data' % comm.rank, mode='wb')
+        peak_local_time_steps_debug_file = open(
+            file_out_suff + '.peak_local_time_steps_debug_%d.data' % comm.rank, mode='wb'
+        )
         comm.Barrier()
         peak_time_steps_debug_file = open(file_out_suff + '.peak_time_steps_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
-        peak_scalar_products_debug_file = open(file_out_suff + '.peak_scalar_products_debug_%d.data' % comm.rank, mode='wb')
+        peak_scalar_products_debug_file = open(
+            file_out_suff + '.peak_scalar_products_debug_%d.data' % comm.rank, mode='wb'
+        )
         comm.Barrier()
         peak_solved_flags_debug_file = open(file_out_suff + '.peak_solved_flags_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
@@ -331,7 +335,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 if ignore_dead_times:
                     if dead_indices[0] != dead_indices[1]:
-                        is_included = numpy.in1d(all_found_spikes[i] + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
+                        is_included = numpy.in1d(
+                            all_found_spikes[i] + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]]
+                        )
                         all_found_spikes[i] = all_found_spikes[i][~is_included]
                         all_found_spikes[i] = numpy.sort(all_found_spikes[i])
 

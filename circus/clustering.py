@@ -295,7 +295,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if gpass == 1:
                 n_neighb = len(edges[nodes[i]])
                 for p in search_peaks:
-                    result['data_%s_' % p + str(i)] = [numpy.zeros((0, basis['proj_%s' % p].shape[1] * n_neighb), dtype=numpy.float32)]
+                    result['data_%s_' % p + str(i)] = [
+                        numpy.zeros((0, basis['proj_%s' % p].shape[1] * n_neighb), dtype=numpy.float32)
+                    ]
                     result['count_%s_' % p + str(i)] = 0
 
             if gpass == 2:
@@ -305,7 +307,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if gpass > 1:
                 for p in search_peaks:
-                    result['tmp_%s_' % p + str(i)] = [numpy.zeros((0, result['pca_%s_' % p + str(i)].shape[1]), dtype=numpy.float32)]
+                    result['tmp_%s_' % p + str(i)] = [
+                        numpy.zeros((0, result['pca_%s_' % p + str(i)].shape[1]), dtype=numpy.float32)
+                    ]
                     result['count_%s_' % p + str(i)] = 0
 
         # I guess this is more relevant, to take signals from all over the recordings
@@ -543,7 +547,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     # # test if the sample is pure Gaussian noise
                                     if reject_noise:
                                         slice_window = sub_mat[duration - noise_window: duration + noise_window]
-                                        is_noise = numpy.all(numpy.mean(slice_window**2, 0)/stds[indices] < rejection_threshold)
+                                        is_noise = numpy.all(
+                                            numpy.mean(slice_window ** 2, 0) / stds[indices] < rejection_threshold
+                                        )
                                     else:
                                         is_noise = False
 
@@ -580,7 +586,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 if len(indices) == 1:
                                                     smoothed = True
                                                     try:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=local_factor, k=3)
+                                                        f = scipy.interpolate.UnivariateSpline(
+                                                            xdata, sub_mat, s=local_factor, k=3
+                                                        )
                                                     except Exception:
                                                         smoothed = False
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, k=3, s=0)
@@ -590,27 +598,39 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                         rmin = (numpy.argmax(f(cdata)) - xoff) / over_factor
                                                     if smoothed:
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=0, k=3)
-                                                    ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                                                    ddata = numpy.linspace(
+                                                        rmin - template_shift, rmin + template_shift, N_t
+                                                    )
                                                     sub_mat = f(ddata).astype(numpy.float32).reshape(N_t, 1)
                                                 else:
                                                     idx = elec_positions[elec]
                                                     ydata = numpy.arange(len(indices))
                                                     try:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], s=local_factor, k=3)
+                                                        f = scipy.interpolate.UnivariateSpline(
+                                                            xdata, sub_mat[:, idx], s=local_factor, k=3
+                                                        )
                                                     except Exception:
-                                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat[:, idx], k=3, s=0)
+                                                        f = scipy.interpolate.UnivariateSpline(
+                                                            xdata, sub_mat[:, idx], k=3, s=0
+                                                        )
                                                     if negative_peak:
                                                         rmin = (numpy.argmin(f(cdata)) - xoff) / over_factor
                                                     else:
                                                         rmin = (numpy.argmax(f(cdata)) - xoff) / over_factor
-                                                    f = scipy.interpolate.RectBivariateSpline(xdata, ydata, sub_mat, s=0, kx=3, ky=1)
-                                                    ddata = numpy.linspace(rmin - template_shift, rmin + template_shift, N_t)
+                                                    f = scipy.interpolate.RectBivariateSpline(
+                                                        xdata, ydata, sub_mat, s=0, kx=3, ky=1
+                                                    )
+                                                    ddata = numpy.linspace(
+                                                        rmin - template_shift, rmin + template_shift, N_t
+                                                    )
                                                     sub_mat = f(ddata, ydata).astype(numpy.float32)
 
                                             if negative_peak:
-                                                max_test = numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
+                                                max_test = \
+                                                    numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
                                             else:
-                                                max_test = numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
+                                                max_test = \
+                                                    numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
 
                                             if max_test:
                                                 if gpass == 0:
@@ -655,7 +675,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat = numpy.dot(basis['rec_%s' % loc_peak], sub_mat)
                                                     nx, ny = sub_mat.shape
                                                     sub_mat = sub_mat.reshape((1, nx * ny))
-                                                    sub_mat = numpy.dot(sub_mat, result['pca_%s_' % loc_peak + str(elec)])
+                                                    sub_mat = numpy.dot(
+                                                        sub_mat, result['pca_%s_' % loc_peak + str(elec)]
+                                                    )
                                                     to_accept = True
                                                     # result['tmp_%s_' % loc_peak + str(elec)] = numpy.vstack((
                                                     #     result['tmp_%s_' % loc_peak + str(elec)],
@@ -749,7 +771,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if gpass > 1:
             for ielec in range(N_e):
                 for p in search_peaks:
-                    result['tmp_%s_' % p + str(ielec)] = gather_array(result['tmp_%s_' % p + str(ielec)], comm, numpy.mod(ielec, comm.size), 1, compress=blosc_compress)
+                    result['tmp_%s_' % p + str(ielec)] = gather_array(
+                        result['tmp_%s_' % p + str(ielec)], comm,
+                        numpy.mod(ielec, comm.size), 1, compress=blosc_compress
+                    )
         elif gpass == 1:
             for ielec in range(comm.rank, N_e, comm.size):
                 result['times_' + str(ielec)] = numpy.copy(result['loc_times_' + str(ielec)])
@@ -856,20 +881,28 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 pca = PCA(sub_output_dim)
                                 pca.fit(result['data_%s_' % p + str(ielec)])
                                 result['pca_%s_' % p + str(ielec)] = pca.components_.T.astype(numpy.float32)
-                                print_and_log(["The variance explained by local PCA on electrode %s from %d %s spikes is %g with %d dimensions"
-                                % (ielec, len(result['data_%s_' % p + str(ielec)]), p, numpy.sum(pca.explained_variance_ratio_), result['pca_%s_' % p + str(ielec)].shape[1])], 'debug', logger)
+                                print_and_log([
+                                    "The variance explained by local PCA on electrode %s from %d %s spikes is %g with %d dimensions"
+                                    % (ielec, len(result['data_%s_' % p + str(ielec)]), p, numpy.sum(pca.explained_variance_ratio_), result['pca_%s_' % p + str(ielec)].shape[1])
+                                ], 'debug', logger)
                             else:
                                 dimension = result['data_%s_' % p + str(ielec)].shape[1]
-                                result['pca_%s_' % p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
+                                result['pca_%s_' % p + str(ielec)] = numpy.zeros(
+                                    (dimension, sub_output_dim), dtype=numpy.float32
+                                )
                                 result['pca_%s_' % p + str(ielec)][numpy.arange(dimension), numpy.arange(dimension)] = 1
 
-                        result['sub_%s_' % p + str(ielec)] = numpy.dot(result['data_%s_' % p + str(ielec)], result['pca_%s_' % p + str(ielec)])
+                        result['sub_%s_' % p + str(ielec)] = numpy.dot(
+                            result['data_%s_' % p + str(ielec)], result['pca_%s_' % p + str(ielec)]
+                        )
 
                         rho, dist, sdist = algo.compute_rho(result['sub_%s_' % p + str(ielec)], mratio=m_ratio)
                         result['rho_%s_' % p + str(ielec)] = rho
                         result['sdist_%s_' % p + str(ielec)] = sdist
                         if hdf5_compress:
-                            tmp_h5py.create_dataset('dist_%s_' % p + str(ielec), data=dist.distances, chunks=True, compression='gzip')
+                            tmp_h5py.create_dataset(
+                                'dist_%s_' % p + str(ielec), data=dist.distances, chunks=True, compression='gzip'
+                            )
                         else:
                             tmp_h5py.create_dataset('dist_%s_' % p + str(ielec), data=dist.distances, chunks=True)
                         del dist, rho
@@ -878,7 +911,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             n_neighb = len(edges[nodes[ielec]])
                             dimension = basis['proj_%s' % p].shape[1] * n_neighb
                             nb_max = min(dimension, sub_output_dim)
-                            result['pca_%s_' % p + str(ielec)] = numpy.zeros((dimension, sub_output_dim), dtype=numpy.float32)
+                            result['pca_%s_' % p + str(ielec)] = numpy.zeros(
+                                (dimension, sub_output_dim), dtype=numpy.float32
+                            )
                             result['pca_%s_' % p + str(ielec)][numpy.arange(nb_max), numpy.arange(nb_max)] = 1
                         result['rho_%s_' % p + str(ielec)] = numpy.zeros(0, dtype=numpy.float32)
                         result['sub_%s_' % p + str(ielec)] = numpy.zeros((0, sub_output_dim), dtype=numpy.float32)
@@ -886,7 +921,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     if len(result['tmp_%s_' % p + str(ielec)]) > 1:
 
-                        rho, sdist = algo.compute_rho(result['sub_%s_' % p + str(ielec)], update=(result['tmp_%s_' % p + str(ielec)], result['sdist_%s_' % p + str(ielec)]), mratio=m_ratio)
+                        rho, sdist = algo.compute_rho(
+                            result['sub_%s_' % p + str(ielec)], update=(result['tmp_%s_' % p + str(ielec)], result['sdist_%s_' % p + str(ielec)]), mratio=m_ratio
+                        )
                         result['rho_%s_' % p + str(ielec)] = rho
                         result['sdist_%s_' % p + str(ielec)] = sdist
                         del rho
@@ -905,7 +942,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if n_data > 1:
                         dist = tmp_h5py.get('dist_%s_' % p + str(ielec))[:]
-                        result['rho_%s_' % p + str(ielec)] = -result['rho_%s_' % p + str(ielec)] + result['rho_%s_' % p + str(ielec)].max()
+                        result['rho_%s_' % p + str(ielec)] = \
+                            -result['rho_%s_' % p + str(ielec)] + result['rho_%s_' % p + str(ielec)].max()
 
                         # Now we perform the clustering.
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(
@@ -996,7 +1034,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if key in result:
                                 result.pop(key)
                         mask = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
-                        cluster_results[p][ielec]['n_clus'] = len(numpy.unique(cluster_results[p][ielec]['groups'][mask]))
+                        cluster_results[p][ielec]['n_clus'] = \
+                            len(numpy.unique(cluster_results[p][ielec]['groups'][mask]))
                         n_clusters = []
                         result['clusters_%s_' % p + str(ielec)] = cluster_results[p][ielec]['groups']
 
@@ -1214,7 +1253,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         supports[g_count] = ~numpy.in1d(indices, to_delete)
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
-                        distance = min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
+                        distance = \
+                            min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
                         noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
 
                         amp_min = 1 - min([dispersion[0] * variation, noise_limit])
@@ -1270,7 +1310,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 #         nb_temp = cluster_results[p][ielec]['n_clus']
                 #         vidx = numpy.where((temp_y[-1] >= loc_pad) & (temp_y[-1] < loc_pad + nb_temp))[0]
                 #         sub_tmp = scipy.sparse.csr_matrix(
-                #             (temp_data[-1][vidx], (temp_x[-1][vidx], temp_y[-1][vidx] - loc_pad)), shape=(n_scalar, nb_temp)
+                #             (temp_data[-1][vidx], (temp_x[-1][vidx], temp_y[-1][vidx] - loc_pad)),
+                #             shape=(n_scalar, nb_temp)
                 #         )
                 #         sub_tmp = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
                 #         sub_tmp = sub_tmp[ielec, :, :]
