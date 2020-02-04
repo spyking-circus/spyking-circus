@@ -710,11 +710,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         for elec in range(N_e):
             for p in search_peaks:
                 if gpass == 0:
-                    result['tmp_%s_' % loc_peak + str(elec)] = numpy.concatenate(result['tmp_%s_' % loc_peak + str(elec)])
+                    result['tmp_%s_' % p + str(elec)] = numpy.concatenate(result['tmp_%s_' % p + str(elec)])
                 elif gpass == 1:
-                    result['data_%s_' % loc_peak + str(elec)] = numpy.vstack(result['data_%s_' % loc_peak + str(elec)])
+                    result['data_%s_' % p + str(elec)] = numpy.vstack(result['data_%s_' % p + str(elec)])
                 elif gpass > 1:
-                    result['tmp_%s_' % loc_peak + str(elec)] = numpy.vstack(result['tmp_%s_' % loc_peak + str(elec)])
+                    result['tmp_%s_' % p + str(elec)] = numpy.vstack(result['tmp_%s_' % p + str(elec)])
 
         comm.Barrier()
         sys.stderr.flush()
