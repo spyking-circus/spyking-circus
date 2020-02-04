@@ -157,15 +157,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_last = data_file_in.is_last_chunk(gidx, nb_chunks)
 
             if is_first:
-                padding = (0, 0)
-            else:
+                padding = (0, duration)
+            elif is_last:
                 padding = (-duration, 0)
+            else:
+                padding = (-duration, duration)
 
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size, padding)
 
             if do_filtering:
                 local_chunk = signal.filtfilt(b, a, local_chunk, axis=0)
-                local_chunk = local_chunk[abs(padding[0]):]
+                local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
                 local_chunk -= numpy.median(local_chunk, 0)
 
             if do_remove_median:
