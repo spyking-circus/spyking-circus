@@ -158,10 +158,11 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=Fals
     else:
         data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
         data = mpi_comm.gather(data, root=0)
-        gdata = numpy.empty(0, dtype=np_type)
+        gdata = [numpy.empty(0, dtype=np_type)]
         if comm.rank == 0:
             for blosc_data in data:
-                gdata = numpy.concatenate((gdata, numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type)))
+                gdata.append(numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type))
+        gdata = numpy.concatenate(gdata)
 
     if len(data_shape) == 1:
         return gdata
@@ -200,9 +201,10 @@ def all_gather_array(data, mpi_comm, shape=0, dtype='float32', compress=False):
     else:
         data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
         data = mpi_comm.allgather(data)
-        gdata = numpy.empty(0, dtype=np_type)
+        gdata = [numpy.empty(0, dtype=np_type)]
         for blosc_data in data:
-            gdata = numpy.concatenate((gdata, numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type)))
+            gdata.append(numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type))
+        gdata = numpy.concatenate(gdata)
 
     if len(data_shape) == 1:
         return gdata

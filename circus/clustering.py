@@ -1152,7 +1152,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if debug:
                 result['rho_' + str(ielec)] = [numpy.empty(0, dtype=numpy.float32)]
                 result['delta_' + str(ielec)] = [numpy.empty(0, dtype=numpy.float32)]
-            indices = inv_nodes[nodes]
+            
+            shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[ielec])
+            indices = inv_nodes[shank_nodes]
             sindices = nodes_indices[ielec]
             n_neighb = len(sindices)
 
@@ -1234,11 +1236,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                         if shift > 0:
-                            templates[:, shift:] = first_component[:, :-shift]
+                            templates[indices, shift:] = first_component[:, :-shift]
                         elif shift < 0:
-                            templates[:, :shift] = first_component[:, -shift:]
+                            templates[indices, :shift] = first_component[:, -shift:]
                         else:
-                            templates[:, :] = first_component
+                            templates[indices, :] = first_component
 
                         first_flat = first_component.reshape(y * z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
@@ -1251,7 +1253,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_y.append(count_templates * numpy.ones(len(dx), dtype=numpy.uint32))
                         temp_data.append(templates[dx])
 
-                        supports[g_count] = ~numpy.in1d(indices, to_delete)
+                        to_keep = indices[~numpy.in1d(indices, to_delete)]
+                        supports[g_count][to_keep] = True
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
                         distance = \
@@ -1268,27 +1271,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
 
                         if two_components:
-                            # for i in range(x):
-                            #     sub_data_flat_raw[i, :] -= amplitudes[i]*first_flat[:, 0]
-
-                            # if len(sub_data_flat_raw) > 1:
-                            #     pca              = PCA(1)
-                            #     pca.fit(sub_data_flat_raw)
-                            #     second_component = pca.components_.T.astype(numpy.float32).reshape(y, z)
-                            # else:
-                            #     second_component = sub_data_flat_raw.reshape(y, z)/numpy.sum(sub_data_flat_raw**2)
-
-                            # if use_savgol and savgol_window > 3:
-                            #     tmp_fast = scipy.signal.savgol_filter(second_component, savgol_window, 3, axis=1)
-                            #     tmp_slow = scipy.signal.savgol_filter(second_component, 3*savgol_window, 3, axis=1)
-                            #     second_component = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
-
-                            # if shift > 0:
-                            #     sub_templates[indices, shift:] = second_component[:, :-shift]
-                            # elif shift < 0:
-                            #     sub_templates[indices, :shift] = second_component[:, -shift:]
-                            # else:
-                            #     sub_templates[indices, :] = second_component
                             sub_templates[:, :-1] = numpy.diff(templates.reshape(N_e, N_t))
 
                         sub_templates = sub_templates.ravel()
