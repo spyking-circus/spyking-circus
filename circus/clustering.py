@@ -1155,7 +1155,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             
             shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[ielec])
             indices = inv_nodes[shank_nodes]
-            n_neighb = len(indices)
+            sindices = nodes_indices[ielec]
+            n_neighb = len(sindices)
 
             for p in search_peaks:
 
