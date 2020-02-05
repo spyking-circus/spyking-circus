@@ -131,6 +131,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         loc_nb_chunks = len(to_process)
         N_total = params.nb_channels
         process_all_channels = numpy.all(nodes == numpy.arange(N_total))
+        duration = int(0.1*params.rate)
 
         if comm.rank == 0:
             to_write = []
@@ -152,12 +153,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         for count, gidx in enumerate(to_explore):
 
-            local_chunk, t_offset = data_file_in.get_data(gidx, chunk_size)
+            is_first = data_file_in.is_first_chunk(gidx, nb_chunks)
+            is_last = data_file_in.is_last_chunk(gidx, nb_chunks)
+
+            if is_first:
+                padding = (0, duration)
+            elif is_last:
+                padding = (-duration, 0)
+            else:
+                padding = (-duration, duration)
+
+            local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size, padding)
 
             if do_filtering:
-                for i in nodes:    
-                    local_chunk[:, i] = signal.filtfilt(b, a, local_chunk[:, i])
-
+                local_chunk = signal.filtfilt(b, a, local_chunk, axis=0)
+                local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
                 local_chunk -= numpy.median(local_chunk, 0)
 
             if do_remove_median:
