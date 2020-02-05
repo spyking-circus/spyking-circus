@@ -58,7 +58,7 @@ def read_probe(parser, radius_in_probe=True):
     return probe
 
 
-def get_nodes_and_edges(parser, validating=False):
+def get_nodes_and_edges(parser, validating=False, shank_with=None):
     """
     Retrieve the topology of the probe.
     
@@ -108,10 +108,17 @@ def get_nodes_and_edges(parser, validating=False):
                 edges += [c2]
         return edges
 
-    for key in parser.probe['channel_groups'].keys():
-        for i in parser.probe['channel_groups'][key]['channels']:
-            edges[i] = get_edges(i, parser.probe['channel_groups'][key])
-            nodes += [i]
+    if shank_with is None:
+        for key in parser.probe['channel_groups'].keys():
+            for i in parser.probe['channel_groups'][key]['channels']:
+                edges[i] = get_edges(i, parser.probe['channel_groups'][key])
+                nodes += [i]
+    else:
+        for key in parser.probe['channel_groups'].keys():
+            if shank_with in parser.probe['channel_groups'][key]['channels']:
+                for i in parser.probe['channel_groups'][key]['channels']:
+                    edges[i] = get_edges(i, parser.probe['channel_groups'][key])
+                    nodes += [i]
 
     return numpy.array(nodes, dtype=numpy.int32), edges
 

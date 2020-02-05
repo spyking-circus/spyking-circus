@@ -6,6 +6,8 @@ Release 0.9.2
 * fixing a bug in the clustering while assigining labels
 * better detection of noise snippets discarded during clustering
 * cosmetic changes in the sanity plots (clusters)
+* better handling of overlapping chunks while filtering, removing filtering artefacts
+* templates are restricted within shanks
 
 =============
 Release 0.9.1
