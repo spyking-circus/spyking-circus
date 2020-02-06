@@ -868,8 +868,10 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
 
 def find_bounds(x, good_values, bad_values):
-    nb_good = numpy.sum((good_values >= x[0]) & (good_values <= x[1]))
-    nb_bad = numpy.sum((bad_values >= x[0]) & (bad_values <= x[1]))
+    a_min = 1 - numpy.abs(x[0])
+    a_max = 1 + numpy.abs(x[1])
+    nb_good = numpy.sum((good_values >= a_min) & (good_values <= a_max))
+    nb_bad = numpy.sum((bad_values >= a_min) & (bad_values <= a_max))
     return nb_bad - nb_good
 
 
@@ -966,8 +968,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu):
             all_bad_values = numpy.concatenate([values for values in bad_values.values()])
 
             # Then we need to fix a_min and a_max to minimize the error
-            x_0 = hfile['limits'][i]
-            a_min, a_max = scipy.optimize.minimize(find_bounds, x_0, args=(good_values, all_bad_values), method='Nelder-Mead').x
+            x_0 = (0.25, 0.25)
+            x = scipy.optimize.minimize(find_bounds, x_0, args=(good_values, all_bad_values), method='Nelder-Mead').x
+            a_min, a_max = 1 - numpy.abs(x[0]), 1 + numpy.abs(x[1])
             hfile['limits'][i] = [a_min, a_max]
 
             purity_level[i] = 1 - numpy.sum((all_bad_values > a_min) & (all_bad_values < a_max))/len(all_bad_values)
