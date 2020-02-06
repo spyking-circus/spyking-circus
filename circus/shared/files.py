@@ -1061,6 +1061,18 @@ def load_data(params, data, extension=''):
             return result
         else:
             raise Exception('No clusters found! Check suffix or run clustering?')
+    elif data == 'clusters-nodata':
+        filename = file_out_suff + '.clusters%s.hdf5' % extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            result = {}
+            for key in myfile.keys():
+                if (key.find('data') == -1):
+                    result[str(key)] = myfile.get(key)[:]
+            myfile.close()
+            return result
+        else:
+            raise Exception('No clusters found! Check suffix or run clustering?')
     elif data == 'clusters-light':
         filename = file_out_suff + '.clusters%s.hdf5' % extension
         if os.path.exists(filename):

@@ -1285,60 +1285,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         norms[g_count + g_offset] = numpy.sqrt(numpy.sum(sub_templates.ravel() ** 2) / n_scalar)
 
-                        all_templates += [first_flat]
-                        all_snippets += [sub_data_flat_raw]
-                        all_indices += [g_count]
-
                     count_templates += 1
                     g_count += 1
-
-
-                    # Now that all templates have been found, we can try to refine the estimation of the amplitudes, and provide
-                    # a contamination score for all templates on this electrode
-
-                def solve(m1,m2,std1,std2):
-                    a = 1/(2*std1**2) - 1/(2*std2**2)
-                    b = m2/(std2**2) - m1/(std1**2)
-                    c = m1**2 /(2*std1**2) - m2**2 / (2*std2**2) - np.log(std2/std1)
-                    return numpy.roots([a,b,c])
-
-                import pylab
-                pylab.figure()
-                print len(all_templates)
-                for i in range(len(all_templates)):
-                    pylab.subplot(1, len(all_templates), i)
-                    norm_t1 = numpy.sum(all_templates[i] ** 2)  
-                    t1 = all_templates[i]/norm_t1
-                    amp_t1 = amps_lims[all_indices[i]]
-                    amplitudes_t1 = numpy.dot(all_snippets[i], t1)
-                    m1 = amplitudes_t1.mean()
-                    std1 = amplitudes_t1.std()
-                    pylab.hist(amplitudes_t1, numpy.linspace(0, 3, 30))
-                    pylab.plot([amp_t1[0], amp_t1[0]], [ymin, ymax], 'k--')
-                    pylab.plot([amp_t1[1], amp_t1[1]], [ymin, ymax], 'k--')
-                    for j in range(len(all_templates)):
-                        if i != j:
-                            norm_t2 = numpy.sum(all_templates[j] ** 2)
-                            t2 = all_templates[j]/norm_t2
-                            amp_t2 = amps_lims[all_indices[j]]
-                            amplitudes_t2 = numpy.dot(all_snippets[i], t2)
-                            valid_amplitudes = numpy.where((amplitudes_t2 > amplitudes_t1) & (amplitudes_t2 >= amp_t2[0]) & (amplitudes_t2 <= amp_t2[1]))[0]
-
-                            if len(valid_amplitudes) > 1:
-                                pylab.hist(amplitudes_t2[valid_amplitudes], numpy.linspace(0, 3, 30), alpha=0.25)
-                                m2 = amplitudes_t2[valid_amplitudes].mean()
-                                std2 = amplitudes_t2[valid_amplitudes].std()
-                                #tmp = solve(m1, m2, std1, std2)
-                                #bound = tmp[(tmp > m1 ) & (tmp < m2)]
-                                #if len(bound) > 0:
-                                #    bound = bound[0]
-                                #    amps_lims[all_indices[j]] = [max(bound, amp_t2[0]), amp_t2[1]]
-                                #    amp_t2 = amps_lims[all_indices[j]]
-                                #    # pylab.plot([amp_t2[0], amp_t2[0]], [ymin, ymax], 'k--')
-                                #    # pylab.plot([amp_t2[1], amp_t2[1]], [ymin, ymax], 'k--')
-                                
-
-                pylab.show()
 
                 # Sanity plots of the waveforms.
                 # if make_plots not in ['None', '']:

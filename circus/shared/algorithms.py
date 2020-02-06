@@ -867,6 +867,112 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     return [nb_temp, len(to_merge)]
 
 
+
+def refine_amplitudes(params, nb_snippets=250, normalize=True, nb_cpu, nb_gpu, use_gpu):
+
+    data_file = params.data_file
+    template_shift = params.getint('detection', 'template_shift')
+    norm_templates = load_data(params, 'norm-templates')
+    best_elec = load_data(params, 'electrodes')
+    limits = load_data(params, 'limits')
+    N_e = params.getint('data', 'N_e')
+    n_total = params.nb_channels
+    clusters = load_data(params, 'clusters-nodata')
+    file_out_suff = params.get('data', 'file_out_suff')
+    
+    nodes, edges = get_nodes_and_edges(params)
+    inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
+
+    SHARED_MEMORY = get_shared_memory_flag(params)
+    
+    if SHARED_MEMORY:
+        templates = load_data_memshared(params, 'templates', normalize=False)
+    else:
+        templates = load_data(params, 'templates')
+
+    x, n_tm = templates.shape
+    nb_temp = int(n_tm // 2)
+
+    indices = {}
+    for i in range(N_e):
+        data = numpy.unique(clusters['clusters_%d' %i])
+        data = data[data > -1]
+        indices[i] = {'count' : 0, 'indices' : data}
+
+    all_snippets = []
+
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(range(nb_temp))
+
+    ## First we gather all the snippets for the final templates
+    for i in to_explore:
+        
+        ref_elec = best_elec[i]
+        shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[ref_elec])
+        sindices = inv_nodes[shank_nodes]
+
+        times = clusters['times_%d' %ref_elec]
+        labels = clusters['clusters_%d' %ref_elec]
+        peaks = clusters['peaks_%d' %ref_elec]
+        tgt_index = indices[ref_elec]['count']
+        idx = numpy.where(labels == indices[ref_elec]['indices'][tgt_index])
+        indices[ref_elec]['count'] += 1
+        if peaks[idx][0] == 0:
+            p = 'pos'
+        elif peaks[idx][0] == 1:
+            p = 'neg'
+        times_i = numpy.random.permutation(times[idx])[:nb_snippets]
+        labels_i = [0] * nb_snippets
+        snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
+
+        x, y, z = snippets.shape
+        all_snippets.append(snippets.reshape(x, y*z))
+
+
+    ## Then we compute the amplitudes of all the templates with all the snippets
+    amplitudes = {}
+    sps = {}
+
+    for i in range(nb_temp):
+        template = templates[:, i].toarray().ravel()
+        for j in range(nb_temp):
+            sps[i, j] = numpy.dot(all_snippets[j], template)
+            amplitudes[i, j] = sps[i, j]/numpy.sum(template**2)
+
+    ## And finally, we set a_min/a_max optimally for all the template
+    
+    file_name = file_out_suff + '.templates.hdf5'
+
+    hfile = h5py.File(file_name, 'r+', libver='earliest')
+
+    purity_level = numpy.zeros(nb_temp, dtype=numpy.float32)
+
+    for i in range(nb_temp):
+        ## First, we search only snippets that have a higher amplitudes with
+        good_values = amplitudes[i, i]
+        bad_values = {}
+        for j in range(nb_temp):
+            if i != j:
+                ref_values = sps[j, j]
+                idx = sps[i, j] >= ref_values
+                bad_values[j] = amplitudes[i, j][~idx]
+
+        all_bad_values = numpy.concatenate([values for values in bad_values.values()])
+
+        # Then we need to fix a_min and a_max to minimize the error
+        m = good_values.mean()
+        std = good_values.std()
+        x_0 = [max(0.1, m-3*std), m+3*std]
+        a_min, a_max = scipy.optimize.least_squares(find_bounds, x_0, bounds=[0, 10], args=(good_values, all_bad_values)).x
+        #hfile['limits'][i] = [a_min, a_max]
+
+        purity_level[i] = 1 - numpy.sum((all_bad_values > a_min) & (all_bad_values < a_max))/len(all_bad_values)
+
+    hfile['purity'] = purity_level
+    hfile.close()
+
+
 def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     data_file = params.data_file
