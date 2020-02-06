@@ -1532,7 +1532,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             print_and_log(["Refining the amplitudes..."], 'default', logger)
 
-        algo.refine_amplitudes(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+        algo.refine_amplitudes(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu, debug_plots=debug_plots)
 
     comm.Barrier()
     sys.stderr.flush()
