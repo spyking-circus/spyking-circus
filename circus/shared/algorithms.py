@@ -870,7 +870,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 def find_bounds(x, good_values, bad_values):
     nb_good = numpy.sum((good_values >= x[0]) & (good_values <= x[1]))
     nb_bad = numpy.sum((bad_values >= x[0]) & (bad_values <= x[1]))
-    return (nb_bad/nb_good)**2
+    return nb_bad - nb_good
 
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu):
@@ -966,10 +966,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu):
             all_bad_values = numpy.concatenate([values for values in bad_values.values()])
 
             # Then we need to fix a_min and a_max to minimize the error
-            m = good_values.mean()
-            std = good_values.std()
-            x_0 = [max(0.1, m-3*std), m+3*std]
-            a_min, a_max = scipy.optimize.least_squares(find_bounds, x_0, bounds=[0, 10], args=(good_values, all_bad_values)).x
+            x_0 = hfile['limits'][i]
+            a_min, a_max = scipy.optimize.minimize(find_bounds, x_0, args=(good_values, all_bad_values), method='Nelder-Mead').x
             hfile['limits'][i] = [a_min, a_max]
 
             purity_level[i] = 1 - numpy.sum((all_bad_values > a_min) & (all_bad_values < a_max))/len(all_bad_values)
