@@ -209,29 +209,14 @@ def compute_rho(data, update=None, mratio=0.01):
     return answer
 
 
-# # TODO remove (deprecated)?
-# def clustering_by_density(rho, dist, n_min, alpha=3):
-#
-#     distances = DistanceMatrix(len(rho))
-#     distances.distances = dist
-#     delta = compute_delta(distances, rho)
-#     nclus, labels, centers = find_centroids_and_cluster(distances, rho, delta, alpha)
-#     halolabels = halo_assign(distances, labels, centers, n_min)
-#     halolabels -= 1
-#     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
-#     del distances
-#
-#     return halolabels, rho, delta, centers
-
-
 def clustering_by_density(rho, dist, n_min, alpha=3):
 
     nb_points = len(rho)
     distances = DistanceMatrix(nb_points, distances=dist)
     deltas, neighbors = distances.get_deltas_and_neighbors(rho)
     nb_clusters, labels, centers = find_centroids_and_clusters(distances, rho, deltas, neighbors, alpha)
-    # halolabels = halo_assign(distances, labels, centers, n_min)  # TODO check this line.
-    # halolabels -= 1
+    #halolabels = halo_assign(distances, labels, centers, n_min)  # TODO check this line.
+    #halolabels -= 1
     # centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]  # indices of centroids
     # TODO check if the 2 following lines are correct.
     halolabels = labels - 1
@@ -239,34 +224,6 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     del distances
 
     return halolabels, rho, deltas, centers
-
-
-# # TODO remove (deprecated)?
-# def compute_delta(dist, rho):
-#     return dist.get_deltas(rho)
-
-
-# # TODO remove (deprecated)?
-# def find_centroids_and_cluster(dist, rho, delta, alpha=3):
-#
-#     npnts = len(rho)
-#     centers = numpy.zeros(npnts)
-#
-#     auxid = fit_rho_delta(rho, delta, alpha)
-#     nclus = len(auxid)
-#
-#     centers[auxid] = numpy.arange(nclus) + 1  # assigning labels to centroids
-#
-#     # Assigning points to clusters based on their distance to the centroids.
-#     if nclus <= 1:
-#         labels = numpy.ones(npnts)
-#     else:
-#         centersx = numpy.where(centers)[0]  # index of centroids
-#         dist2cent = dist.get_rows(centersx)
-#         labels = numpy.argmin(dist2cent, axis=0) + 1
-#         _, cluscounts = numpy.unique(labels, return_counts=True)  # number of elements of each cluster
-#
-#     return nclus, labels, centers
 
 
 def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='nearest_denser_point'):
@@ -336,21 +293,16 @@ def halo_assign(dist, labels, centers, n_min):
     dist2cluscent = dist2cent * sameclus_cent  # preserves only distances to the corresponding cluster centroid
     gt_mean_dist2cent = numpy.zeros(dist2cluscent.shape, dtype=numpy.bool)
     nb_centers = len(center_indices)
-    for i in range(0, nb_centers):
-        # idx = numpy.where(dist2cluscent[i] > 0)[0]  # TODO remove (deprecated)?
+    for count, i in enumerate(center_indices):
         idx = numpy.where(labels == centers[i])[0]
         nb_points = len(idx)
-        mean_i = numpy.mean(dist2cluscent[i, idx])
-        median_i = numpy.median(dist2cluscent[i, idx])
-        mad_i = numpy.median(numpy.abs(dist2cluscent[i, idx] - median_i))
-        bound = mean_i + mad_i
+        bound = numpy.percentile(dist2cluscent[count, idx], 90)
 
-        gt_mean_dist2cent[i] = dist2cluscent[i] > bound
-        nb_outliers = numpy.sum(gt_mean_dist2cent[i])
-        # if nb_outliers - nb_points < n_min:  # TODO remove (incorrect)?
-        #     gt_mean_dist2cent[i] = False
+        gt_mean_dist2cent[count] = dist2cluscent[count] > bound
+        nb_outliers = numpy.sum(gt_mean_dist2cent[count])
+
         if nb_points - nb_outliers < n_min:  # TODO keep (correct)?
-            gt_mean_dist2cent[i, idx] = False  # unassign all the points associated to this cluster
+            gt_mean_dist2cent[count, idx] = False  # unassign all the points associated to this cluster
     selection = numpy.sum(gt_mean_dist2cent, axis=0) > 0
     halolabels[selection] = 0  # set to 0 <=> unassign
 
