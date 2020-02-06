@@ -68,6 +68,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     hdf5_compress = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
     test_clusters = params.getboolean('clustering', 'test_clusters')
+    fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
     sparsify = params.getfloat('clustering', 'sparsify')
     debug = params.getboolean('clustering', 'debug')
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
@@ -1523,6 +1524,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             "Number of mixtures removed : %d" % merged2[1],
         ]
         print_and_log(lines, 'info', logger)
+
+    comm.Barrier()
+
+    if fine_amplitude:
+
+        if comm.rank == 0:
+            print_and_log(["Refining the amplitudes..."], 'default', logger)
+
+        algo.refine_amplitudes(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
 
     comm.Barrier()
 
