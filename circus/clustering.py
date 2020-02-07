@@ -1527,6 +1527,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
+    io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+
     if fine_amplitude:
 
         if comm.rank == 0:
@@ -1536,5 +1538,3 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     sys.stderr.flush()
-
-    io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)

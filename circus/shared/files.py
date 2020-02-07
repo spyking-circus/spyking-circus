@@ -1043,6 +1043,16 @@ def load_data(params, data, extension=''):
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
             sys.exit(0)
+    elif data == 'maxoverlap':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+            maxoverlap = myfile.get('maxoverlap')[:]
+            myfile.close()
+            return maxoverlap
+        else:
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'supports':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')

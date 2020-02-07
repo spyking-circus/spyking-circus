@@ -997,6 +997,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     best_elec = load_data(params, 'electrodes')
     limits = load_data(params, 'limits')
     N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
     n_total = params.nb_channels
     clusters = load_data(params, 'clusters-nodata')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -1053,19 +1054,13 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 p = 'neg'
             else:
                 raise ValueError("unexpected value {}".format(peaks[idx][0]))
-            # numpy.random.seed(42)
-            # times_i = numpy.random.permutation(times[idx])[:250]
-            # labels_i = labels[idx][:250]
+
             numpy.random.seed(42)
             idx = numpy.random.permutation(idx)[:250]
             times_i = times[idx]
             labels_i = labels[idx]
             snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
-            # print("snippets.shape: {}".format(snippets.shape))  # TODO remove!
-
-            # x, y, z = snippets.shape
-            # all_snippets.append(snippets.reshape(x, y * z)
             nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
             all_snippets.append(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps))
 
@@ -1076,12 +1071,21 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         nsps = {}  # i.e. all the normalized scalar products
         amplitudes = {}  # i.e. all the amplitudes
 
+        similarity = load_data(params, 'maxoverlap')
+        similarity = similarity[:nb_temp, :nb_temp]/(N_e * N_t)
+        similarity[range(nb_temp), range(nb_temp)] = 1
+
         for i in range(nb_temp):
             template = templates[:, i].toarray().ravel()
             for j in range(nb_temp):
-                sps[i, j] = numpy.dot(all_snippets[j], template)
-                nsps[i, j] = sps[i, j] / numpy.linalg.norm(template)
-                amplitudes[i, j] = sps[i, j] / numpy.sum(numpy.square(template))
+                if similarity[i, j] >= 0.25:
+                    sps[i, j] = numpy.dot(all_snippets[j], template)
+                    nsps[i, j] = sps[i, j] / numpy.linalg.norm(template)
+                    amplitudes[i, j] = sps[i, j] / numpy.sum(numpy.square(template))
+                else:
+                    sps[i, j] = numpy.zeros(len(all_snippets[j]), dtype=numpy.float32)
+                    nsps[i, j] = sps[i, j] / numpy.linalg.norm(template)
+                    amplitudes[i, j] = sps[i, j] / numpy.sum(numpy.square(template))
 
         # And finally, we set a_min/a_max optimally for all the template.
 
