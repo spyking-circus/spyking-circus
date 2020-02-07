@@ -1101,8 +1101,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 if i == j:
                     continue
                 # TODO use scalar products or normalized scalar products?
-                ref_values = sps[j, j]  # i.e. snippets of j projected on template j
-                values = sps[i, j]  # i.e. snippets of j projected on template j
+                # ref_values = sps[j, j]  # i.e. snippets of j projected on template j
+                # values = sps[i, j]  # i.e. snippets of j projected on template j
+                ref_values = nsps[j, j]  # i.e. snippets of j projected on template j
+                values = nsps[i, j]  # i.e. snippets of j projected on template j
                 selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
                 bad_values[j] = amplitudes[i, j][selection]  # TODO error here, `selection` instead of `~selection`.
             all_bad_values = numpy.concatenate([
