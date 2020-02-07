@@ -890,17 +890,30 @@ def find_bounds(x, good_values, bad_values):
     a_min = 1.0 - numpy.abs(x[0])
     # a_max = 1.0 + x[1]
     a_max = 1.0 + numpy.abs(x[1])
+
     error = 0.0
-    selection = (good_values < a_min) | (a_max < good_values)
-    error += numpy.sum(numpy.minimum(
-        numpy.abs(good_values[selection] - a_min),
-        numpy.abs(good_values[selection] - a_max),
-    ))
-    selection = (a_min <= bad_values) & (bad_values <= a_max)
-    error += numpy.sum(numpy.minimum(
-        numpy.abs(bad_values[selection] - a_min),
-        numpy.abs(bad_values[selection] - a_max),
-    ))
+    # TODO remove the following commented lines?
+    # selection = (good_values < a_min) | (a_max < good_values)
+    # error += numpy.sum(numpy.minimum(
+    #     numpy.abs(good_values[selection] - a_min),
+    #     numpy.abs(good_values[selection] - a_max),
+    # ))
+    selection = (good_values < a_min)
+    error += numpy.sum(numpy.abs(good_values[selection] - a_min))
+    selection = (a_max < good_values)
+    error += numpy.sum(numpy.abs(good_values[selection] - a_max))
+    # TODO remove the following commented lines?
+    # selection = (a_min <= bad_values) & (bad_values <= a_max)
+    # error += numpy.sum(numpy.minimum(
+    #     numpy.abs(bad_values[selection] - a_min),
+    #     numpy.abs(bad_values[selection] - a_max),
+    # ))
+    selection = (a_min <= bad_values) & (bad_values < 1.0)
+    error += numpy.sum(numpy.abs(bad_values[selection] - a_min))
+    selection = (1.0 < bad_values) & (bad_values <= a_max)
+    error += numpy.sum(numpy.abs(bad_values[selection] - a_max))
+    error += 0.1 * numpy.abs(x[0])
+    error += 0.1 * numpy.abs(x[1])
 
     return error
 
@@ -908,13 +921,82 @@ def find_bounds(x, good_values, bad_values):
 def optimize_amplitude_interval_extremities(good_values, all_bad_values):
 
     x_0 = numpy.array([0.25, 0.25])
-    x_opt = scipy.optimize.minimize(find_bounds, x_0, args=(good_values, all_bad_values), method='Nelder-Mead').x  # TODO change `find_bounds` (not appropriate, discrete).
+    # optimize_result = scipy.optimize.minimize(find_bounds, x_0, args=(good_values, all_bad_values), method='Nelder-Mead')
+    optimize_result = scipy.optimize.minimize(find_bounds, x_0, args=(good_values, all_bad_values))
+    print(optimize_result.message)
+    x_opt = optimize_result.x
     # a_min = 1.0 - x_opt[0]
     a_min = 1.0 - numpy.abs(x_opt[0])
     # a_max = 1.0 + x_opt[1]
     a_max = 1.0 + numpy.abs(x_opt[1])
 
     return a_min, a_max
+
+
+def optimize_amplitude_minimum(good_values, bad_values):
+
+    def a_min_error(a_min, good_values_, bad_values_):
+
+        a_min_ = a_min[0]
+
+        error = 0.0
+
+        selection = good_values_ < a_min_
+        # error += numpy.sum(numpy.abs(good_values_[selection] - a_min_))
+        error += numpy.sum(numpy.square(numpy.abs(good_values_[selection] - a_min_)))
+
+        assert numpy.all(bad_values_ <= 1.0)
+        selection = a_min_ <= bad_values_
+        # error += numpy.sum(numpy.abs(bad_values_[selection] - a_min_))
+        error += numpy.sum(numpy.square(numpy.abs(bad_values_[selection] - a_min_)))
+
+        # error += numpy.abs(a_min_ - 1.0)
+        # error += 0.1 * numpy.abs(a_min_ - 1.0)
+        error += 0.01 * numpy.abs(a_min_ - 1.0)
+
+        return error
+
+    a_min_0 = 1.0 - 0.1
+    # args = (good_values, bad_values[bad_values < 1.0])
+    args = (good_values.astype(numpy.float), bad_values[bad_values < 1.0].astype(numpy.float))
+    optimize_result = scipy.optimize.minimize(a_min_error, numpy.array([a_min_0]), args=args)
+    print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
+    a_min_opt = optimize_result.x[0]
+
+    return a_min_opt
+
+
+def optimize_amplitude_maximum(good_values, bad_values):
+
+    def a_max_error(a_max, good_values_, bad_values_):
+
+        a_max_ = a_max[0]
+
+        error = 0.0
+
+        selection = a_max_ < good_values_
+        # error += numpy.sum(numpy.abs(good_values_[selection] - a_max_))
+        error += numpy.sum(numpy.square(numpy.abs(good_values_[selection] - a_max_)))
+
+        assert numpy.all(bad_values_ >= 1.0)
+        selection = bad_values_ <= a_max_
+        # error += numpy.sum(numpy.abs(bad_values_[selection] - a_max_))
+        error += numpy.sum(numpy.square(numpy.abs(bad_values_[selection] - a_max_)))
+
+        # error += numpy.abs(a_max_ - 1.0)
+        # error += 0.1 * numpy.abs(a_max_ - 1.0)
+        error += 0.01 * numpy.abs(a_max_ - 1.0)
+
+        return error
+
+    a_max_0 = 1.0 + 0.1
+    # args = (good_values, bad_values[bad_values > 1.0])
+    args = (good_values.astype(numpy.float), bad_values[bad_values > 1.0].astype(numpy.float))
+    optimize_result = scipy.optimize.minimize(a_max_error, numpy.array([a_max_0]), args=args)
+    print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
+    a_max_opt = optimize_result.x[0]
+
+    return a_max_opt
 
 
 # def optimize_amplitude_interval_extremities(good_values, all_bad_values):
@@ -1113,7 +1195,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             ])
 
             # Then we need to fix a_min and a_max to minimize the error
-            a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)
+            # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
+            a_min = optimize_amplitude_minimum(good_values, all_bad_values)
+            a_max = optimize_amplitude_maximum(good_values, all_bad_values)
 
             # Then we save the optimal amplitude interval.
             hfile['limits'][i] = [a_min, a_max]
@@ -1123,23 +1207,44 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 fig, ax = plt.subplots()
                 s = 2 ** 2
                 # ...
-                x = numpy.random.uniform(size=good_values.size)
-                y = good_values
-                color = 'tab:green'
-                ax.scatter(x, y, s=s, color=color)
-                # ...
-                x = numpy.random.uniform(size=all_bad_values.size)
-                y = all_bad_values
-                color = 'tab:red'
-                ax.scatter(x, y, s=s, color=color)
-                # ...
                 color = 'gray'
                 linewidth = 0.3
                 ax.axhline(y=a_min, color=color, linewidth=linewidth)
                 ax.axhline(y=1.0, color=color, linewidth=linewidth)
                 ax.axhline(y=a_max, color=color, linewidth=linewidth)
                 # ...
+                x = numpy.random.uniform(size=good_values.size)
+                y = good_values
+                color = 'tab:green'
+                ax.scatter(x, y, s=s, color=color)
+                # ...
+                color = 'tab:green'
+                for x_, y_ in zip(x, y):
+                    if y_ > a_max:
+                        ax.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+                    if y_ < a_min:
+                        ax.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+                # ...
+                x = numpy.random.uniform(size=all_bad_values.size)
+                y = all_bad_values
+                color = 'tab:red'
+                ax.scatter(x, y, s=s, color=color)
+                # ...
+                color = 'tab:red'
+                for x_, y_ in zip(x, y):
+                    if 1.0 < y_ and  y_ < a_max:
+                        ax.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+                    if a_min < y_ and y_ < 1.0:
+                        ax.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+                # Hide the right and top spines
+                ax.spines['right'].set_visible(False)
+                ax.spines['top'].set_visible(False)
+                # ...
+                ax.set_ylabel("amplitude")
+                # ax.set_xticklabels([])
+                ax.set_xticks([])
                 plt.tight_layout()
+                # Save and close figure.
                 output_path = os.path.join(plot_path, "amplitude_interval_t{}.{}".format(i, debug_plots))
                 fig.savefig(output_path)
                 plt.close(fig)
