@@ -1029,6 +1029,20 @@ def load_data(params, data, extension=''):
             if comm.rank == 0:
                 print_and_log(["No norms found! Check suffix?"], 'error', logger)
             sys.exit(0)
+    elif data == 'purity':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+            if myfile.has_key('purity'):
+                purity = myfile.get('purity')[:]
+            else:
+                N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
+                purity = numpy.zeros(nb_templates/2, dtype=numpy.float32)
+            myfile.close()
+            return purity
+        else:
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'supports':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')

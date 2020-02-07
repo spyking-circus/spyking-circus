@@ -1145,7 +1145,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 plt.close(fig)
 
             # Then we quickly compute a purity level (for the sake of logging).
-            purity_level[i] = 1 - numpy.sum((a_min <= all_bad_values) & (all_bad_values <= a_max)) / len(all_bad_values)
+            if len(all_bad_values) > 0:
+                purity_level[i] = 1 - numpy.sum((a_min <= all_bad_values) & (all_bad_values <= a_max)) / float(len(all_bad_values))
+            else:
+                purity_level[i] = 1
 
         hfile['purity'] = purity_level
         hfile.close()
