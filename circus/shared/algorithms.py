@@ -1120,6 +1120,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
         # First we gather all the snippets for the final templates.
 
+        clusters_info = {}
+
         for i in to_explore:  # for each cluster...
 
             ref_elec = best_elec[i]  # i.e. electrode of the cluster
@@ -1131,6 +1133,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             peaks = clusters['peaks_%d' % ref_elec]
             tgt_label = indices[ref_elec].pop(0)  # i.e. local cluster label (per electrode)
             idx = numpy.where(labels == tgt_label)[0]
+
+            clusters_info[i] = {
+                'electrode_nb': ref_elec,
+                'local_cluster_nb': tgt_label,
+            }
 
             if peaks[idx][0] == 0:
                 p = 'pos'
@@ -1163,10 +1170,13 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             norm = numpy.linalg.norm(template)
             norm_2 = norm ** 2
             for j in range(nb_temp):
-                if similarity[i, j] >= thr_similarity:
-                    sps[i, j] = numpy.dot(all_snippets[j], template)
-                    nsps[i, j] = sps[i, j] / norm
-                    amplitudes[i, j] = sps[i, j] / norm_2
+                # if similarity[i, j] >= thr_similarity:
+                #     sps[i, j] = numpy.dot(all_snippets[j], template)
+                #     nsps[i, j] = sps[i, j] / norm
+                #     amplitudes[i, j] = sps[i, j] / norm_2
+                sps[i, j] = numpy.dot(all_snippets[j], template)
+                nsps[i, j] = sps[i, j] / norm
+                amplitudes[i, j] = sps[i, j] / norm_2
 
         # And finally, we set a_min/a_max optimally for all the template.
 
@@ -1182,19 +1192,27 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             # First, we search only snippets that have a higher amplitudes with
             good_values = amplitudes[i, i]
             bad_values = {}
+            neutral_values = {}
             for j in range(nb_temp):
-                if (similarity[i, j] >= thr_similarity) and (i != j):
+                # if (similarity[i, j] >= thr_similarity) and (i != j):
+                if i != j:
                     # TODO use scalar products or normalized scalar products?
-                    #ref_values = sps[j, j]  # i.e. snippets of j projected on template j
-                    #values = sps[i, j]  # i.e. snippets of j projected on template j
+                    # ref_values = sps[j, j]  # i.e. snippets of j projected on template j
+                    # values = sps[i, j]  # i.e. snippets of j projected on template j
                     ref_values = nsps[j, j]  # i.e. snippets of j projected on template j
                     values = nsps[i, j]  # i.e. snippets of j projected on template j
                     selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
-                    bad_values[j] = amplitudes[i, j][selection]  # TODO error here, `selection` instead of `~selection`.
+                    bad_values[j] = amplitudes[i, j][selection]
+                    selection = ref_values > values
+                    neutral_values[j] = amplitudes[i, j][selection]
 
             all_bad_values = numpy.concatenate([
                 values
                 for values in bad_values.values()
+            ])
+            all_neutral_values = numpy.concatenate([
+                values
+                for values in neutral_values.values()
             ])
 
             # Then we need to fix a_min and a_max to minimize the error
@@ -1212,10 +1230,16 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 # ...
                 color = 'gray'
                 linewidth = 0.3
+                ax.axhline(y=0.0, color=color, linewidth=linewidth)
                 ax.axhline(y=a_min, color=color, linewidth=linewidth)
                 ax.axhline(y=1.0, color=color, linewidth=linewidth)
                 ax.axhline(y=a_max, color=color, linewidth=linewidth)
-                # ...
+                # Plot neutral amplitudes.
+                x = numpy.random.uniform(size=all_neutral_values.size)
+                y = all_neutral_values
+                color = 'gray'
+                ax.scatter(x, y, s=s, color=color, alpha=0.1)
+                # Plot good amplitudes.
                 x = numpy.random.uniform(size=good_values.size)
                 y = good_values
                 color = 'tab:green'
@@ -1248,7 +1272,15 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 ax.set_xticks([])
                 plt.tight_layout()
                 # Save and close figure.
-                output_path = os.path.join(plot_path, "amplitude_interval_t{}.{}".format(i, debug_plots))
+                output_path = os.path.join(
+                    plot_path,
+                    "amplitude_interval_t{}_e{}_c{}.{}".format(
+                        i,
+                        clusters_info[i]['electrode_nb'],
+                        clusters_info[i]['local_cluster_nb'],
+                        debug_plots
+                    )
+                )
                 fig.savefig(output_path)
                 plt.close(fig)
 

@@ -1232,12 +1232,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat = first_component.reshape(y*z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes /= numpy.sum(first_flat**2)
-                        center = numpy.median(amplitudes)
+                        # center = numpy.median(amplitudes)  # TODO remove this line?
 
-                        # We are rescaling the template such that median amplitude is exactly 1
-                        # This is changed because of the smoothing
-                        first_component *= center
-                        ratio /= center
+                        # TODO remove the following lines?
+                        # # We are rescaling the template such that median amplitude is exactly 1
+                        # # This is changed because of the smoothing
+                        # first_component *= center
+                        # ratio /= center
 
                         templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
                         if shift > 0:
